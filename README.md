@@ -12,7 +12,9 @@ read-only snapshot through the public MOI model API and reports:
 - inconsistent, repeated, and fixing variable bounds;
 - satisfied and infeasible constant constraints;
 - exact canonical duplicate affine, quadratic, and nonlinear constraints; and
-- variables disconnected from the objective and non-domain constraints.
+- variables disconnected from the objective and non-domain constraints;
+- set-aware variable–constraint incidence graphs; and
+- disconnected structural equation components.
 
 ```julia
 import MathOptInterface as MOI
@@ -56,3 +58,6 @@ See [`docs/architecture.md`](docs/architecture.md) for the initial design
 decisions and roadmap, and
 [`docs/moi_nonlinear_api.md`](docs/moi_nonlinear_api.md) for the public MOI
 capability survey.
+
+The ordered implementation plan is maintained in
+[`docs/roadmap.md`](docs/roadmap.md).

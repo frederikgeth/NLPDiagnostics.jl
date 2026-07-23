@@ -41,14 +41,24 @@ end
 struct EntityRef
     kind::Symbol
     index::Int
+    subindex::Union{Nothing,Int}
     name::Union{Nothing,String}
     function_type::Union{Nothing,String}
     set_type::Union{Nothing,String}
 end
 
+EntityRef(
+    kind::Symbol,
+    index::Int,
+    name::Union{Nothing,String},
+    function_type::Union{Nothing,String},
+    set_type::Union{Nothing,String},
+) = EntityRef(kind, index, nothing, name, function_type, set_type)
+
 function EntityRef(
     kind::Symbol,
     index::Integer;
+    subindex::Union{Nothing,Integer} = nothing,
     name::Union{Nothing,AbstractString} = nothing,
     function_type::Union{Nothing,AbstractString} = nothing,
     set_type::Union{Nothing,AbstractString} = nothing,
@@ -56,6 +66,7 @@ function EntityRef(
     return EntityRef(
         kind,
         Int(index),
+        isnothing(subindex) ? nothing : Int(subindex),
         isnothing(name) ? nothing : String(name),
         isnothing(function_type) ? nothing : String(function_type),
         isnothing(set_type) ? nothing : String(set_type),

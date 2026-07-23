@@ -84,10 +84,14 @@ end
 _variable_ref(record::VariableRecord) =
     EntityRef(:variable, record.index.value; name = record.name)
 
-function _constraint_ref(record::ConstraintRecord)
+function _constraint_ref(
+    record::ConstraintRecord;
+    row::Union{Nothing,Integer} = nothing,
+)
     return EntityRef(
         :constraint,
         record.index.value;
+        subindex = row,
         name = record.name,
         function_type = string(typeof(record.function_value)),
         set_type = string(typeof(record.set_value)),

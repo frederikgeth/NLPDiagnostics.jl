@@ -74,7 +74,9 @@ non-domain constraint; bounds and integrality alone do not count as incidence.
 1. Add expression-domain propagation with evidence pointing to expression
    nodes and bound assumptions.
 2. Build the variable–constraint bipartite graph and connected components.
-3. Implement maximum matching and Dulmage–Mendelsohn decomposition without
+   **Implemented.**
+3. Classify scalar constraint rows, then implement maximum matching and
+   Dulmage–Mendelsohn decomposition without
    assigning numerical-rank meaning to structural rank.
 4. Add an evaluator capability adapter and point-tagged numerical cache.
 5. Report Jacobian row/column norms and rank estimates with method, threshold,

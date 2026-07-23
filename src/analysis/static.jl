@@ -6,73 +6,6 @@ end
 
 _BoundState() = _BoundState(Tuple{Float64,EntityRef}[], Tuple{Float64,EntityRef}[])
 
-function _variables_in!(variables::Set{MOI.VariableIndex}, value)
-    return variables
-end
-
-function _variables_in!(variables::Set{MOI.VariableIndex}, value::MOI.VariableIndex)
-    push!(variables, value)
-    return variables
-end
-
-function _variables_in!(variables::Set{MOI.VariableIndex}, value::MOI.ScalarAffineFunction)
-    for term in value.terms
-        push!(variables, term.variable)
-    end
-    return variables
-end
-
-function _variables_in!(
-    variables::Set{MOI.VariableIndex},
-    value::MOI.ScalarQuadraticFunction,
-)
-    for term in value.affine_terms
-        push!(variables, term.variable)
-    end
-    for term in value.quadratic_terms
-        push!(variables, term.variable_1)
-        push!(variables, term.variable_2)
-    end
-    return variables
-end
-
-function _variables_in!(
-    variables::Set{MOI.VariableIndex},
-    value::MOI.ScalarNonlinearFunction,
-)
-    for argument in value.args
-        _variables_in!(variables, argument)
-    end
-    return variables
-end
-
-function _variables_in!(
-    variables::Set{MOI.VariableIndex},
-    value::MOI.AbstractVectorFunction,
-)
-    for scalar_function in MOI.Utilities.scalarize(value)
-        _variables_in!(variables, scalar_function)
-    end
-    return variables
-end
-
-_variables_in(value) = _variables_in!(Set{MOI.VariableIndex}(), value)
-
-_supports_variable_extraction(value::Real) = true
-_supports_variable_extraction(value::MOI.VariableIndex) = true
-_supports_variable_extraction(value::MOI.ScalarAffineFunction) = true
-_supports_variable_extraction(value::MOI.ScalarQuadraticFunction) = true
-
-function _supports_variable_extraction(value::MOI.ScalarNonlinearFunction)
-    return all(_supports_variable_extraction, value.args)
-end
-
-function _supports_variable_extraction(value::MOI.AbstractVectorFunction)
-    return all(_supports_variable_extraction, MOI.Utilities.scalarize(value))
-end
-
-_supports_variable_extraction(value) = false
-
 function _record_bounds!(
     state::_BoundState,
     set_value,
@@ -198,33 +131,31 @@ end
 _display_name(record::VariableRecord) =
     isnothing(record.name) ? "v$(record.index.value)" : "'$(record.name)'"
 
-_is_domain_constraint(constraint::ConstraintRecord) =
-    constraint.function_value isa MOI.VariableIndex
-
 function _analyze_disconnected_variables!(
     report::DiagnosticReport,
     model::ModelSnapshot,
+    graph::IncidenceGraph,
 )
-    unsupported = ConstraintRecord[]
-    objective_supported =
-        isnothing(model.objective) ||
-        _supports_variable_extraction(model.objective.function_value)
-    for constraint in model.constraints
-        _is_domain_constraint(constraint) && continue
-        _supports_variable_extraction(constraint.function_value) ||
-            push!(unsupported, constraint)
-    end
-    if !objective_supported || !isempty(unsupported)
-        affected = _constraint_ref.(unsupported)
-        unsupported_types = unique(
-            string(typeof(constraint.function_value)) for
-            constraint in unsupported
+    objective_support = isnothing(model.objective) ?
+                        VariableSupport() :
+                        variable_support(model.objective.function_value)
+    if !objective_support.complete || !graph.complete
+        unsupported_types = sort!(
+            unique!(
+                vcat(
+                    graph.unsupported_types,
+                    objective_support.unsupported_types,
+                ),
+            ),
         )
-        !objective_supported &&
+        affected = EntityRef[]
+        for row in graph.constraint_nodes
+            variable_support(row.function_value).complete && continue
             push!(
-                unsupported_types,
-                string(typeof(model.objective.function_value)),
+                affected,
+                _constraint_ref(row.constraint; row = row.row),
             )
+        end
         push!(
             report,
             Finding(
@@ -250,13 +181,10 @@ function _analyze_disconnected_variables!(
         return
     end
 
-    used = Set{MOI.VariableIndex}()
-    if !isnothing(model.objective)
-        _variables_in!(used, model.objective.function_value)
-    end
-    for constraint in model.constraints
-        _is_domain_constraint(constraint) && continue
-        _variables_in!(used, constraint.function_value)
+    used = Set(objective_support.variables)
+    for (position, constraints) in enumerate(graph.variable_to_constraints)
+        isempty(constraints) && continue
+        push!(used, graph.variables[position].index)
     end
     for record in model.variables
         record.index in used && continue
@@ -288,13 +216,16 @@ _constant_value(value::Real) = (true, value, nothing)
 _constant_value(value::MOI.VariableIndex) = (false, nothing, nothing)
 
 function _constant_value(value::MOI.ScalarAffineFunction)
-    isempty(value.terms) || return (false, nothing, nothing)
+    all(term -> iszero(term.coefficient), value.terms) ||
+        return (false, nothing, nothing)
     return (true, value.constant, nothing)
 end
 
 function _constant_value(value::MOI.ScalarQuadraticFunction)
-    isempty(value.affine_terms) || return (false, nothing, nothing)
-    isempty(value.quadratic_terms) || return (false, nothing, nothing)
+    all(term -> iszero(term.coefficient), value.affine_terms) ||
+        return (false, nothing, nothing)
+    all(term -> iszero(term.coefficient), value.quadratic_terms) ||
+        return (false, nothing, nothing)
     return (true, value.constant, nothing)
 end
 
@@ -345,7 +276,9 @@ function _analyze_constant_constraints!(
     model::ModelSnapshot,
 )
     for constraint in model.constraints
-        isempty(_variables_in(constraint.function_value)) || continue
+        support = variable_support(constraint.function_value)
+        support.complete || continue
+        isempty(support.variables) || continue
         is_constant, value, exception = _constant_value(constraint.function_value)
         is_constant || continue
         reference = _constraint_ref(constraint)
@@ -450,7 +383,10 @@ function _fingerprint(value::MOI.ScalarAffineFunction)
             get(coefficients, term.variable.value, zero(term.coefficient)) +
             term.coefficient
     end
-    terms = sort!(collect(coefficients); by = first)
+    terms = sort!(
+        filter(term -> !iszero(last(term)), collect(coefficients));
+        by = first,
+    )
     return "affine($(repr(value.constant));$(repr(terms)))"
 end
 
@@ -464,7 +400,10 @@ function _fingerprint(value::MOI.ScalarQuadraticFunction)
         coefficients[key] =
             get(coefficients, key, zero(term.coefficient)) + term.coefficient
     end
-    terms = sort!(collect(coefficients); by = first)
+    terms = sort!(
+        filter(term -> !iszero(last(term)), collect(coefficients));
+        by = first,
+    )
     return "quadratic($affine;$(repr(terms)))"
 end
 
@@ -483,7 +422,7 @@ function _analyze_duplicate_constraints!(
 )
     groups = Dict{String,Vector{ConstraintRecord}}()
     for constraint in model.constraints
-        _is_domain_constraint(constraint) && continue
+        _is_variable_domain_constraint(constraint) && continue
         push!(
             get!(groups, _constraint_fingerprint(constraint), ConstraintRecord[]),
             constraint,
@@ -520,7 +459,10 @@ function _analyze_duplicate_constraints!(
     return
 end
 
-function analyze_static(model::ModelSnapshot)
+function analyze_static(
+    model::ModelSnapshot;
+    graph::IncidenceGraph = incidence_graph(model),
+)
     report = DiagnosticReport()
     report.metadata[:stage] = "static"
     report.metadata[:model_name] =
@@ -531,10 +473,12 @@ function analyze_static(model::ModelSnapshot)
     _analyze_bounds!(report, model)
     _analyze_constant_constraints!(report, model)
     _analyze_duplicate_constraints!(report, model)
-    _analyze_disconnected_variables!(report, model)
+    _analyze_disconnected_variables!(report, model, graph)
     sort!(
         report.findings;
         by = finding -> (-Int(finding.severity), string(finding.code)),
     )
     return report
 end
+
+analyze_static(model::MOI.ModelLike) = analyze_static(snapshot(model))
