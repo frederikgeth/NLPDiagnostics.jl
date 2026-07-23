@@ -438,18 +438,18 @@ function analyze_structure(
                 domain = RepresentationalIssue,
                 basis = StructuralProof,
                 confidence = ConfidenceCertain,
-                observation = "Connected-component analysis was skipped because the incidence graph is incomplete.",
+                observation = "Connected-component analysis was skipped because complete symbolic incidence is unavailable.",
                 why_it_matters = "Missing incidence edges could split one real component into several apparent components.",
                 evidence = [
                     Evidence(
-                        "No variable extractor is registered for every function type";
+                        "Opaque sources or unsupported function types were encountered";
                         details = [
                             "types" => join(graph.unsupported_types, ", "),
                         ],
                     ),
                 ],
                 suggested_actions = [
-                    "Extend variable_support for the listed MOI function types.",
+                    "Provide an expression graph or extend variable_support for the listed source.",
                 ],
             ),
         )

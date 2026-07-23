@@ -24,6 +24,37 @@ evaluation layers can expose its supporting evidence.
 - Irreducible square blocks for the well-determined partition.
 - Renderer-neutral structural graph data with deterministic text and Graphviz
   DOT renderers.
+- Normalized expression-node paths with objective, constraint, and vector-row
+  provenance.
+- Conservative interval propagation from declared variable domains.
+- Proven and possible domain findings for logarithms, square roots, division,
+  inverse, and integer/fractional powers.
+- Extension hooks for custom operator ranges and domain requirements.
+- Explicit numerical evaluation points with stable MOI variable ordering.
+- Capability discovery for symbolic functions, `AbstractNLPEvaluator`, and
+  `VectorNonlinearOracle` sources.
+- Point-tagged value, objective-gradient, and sparse-Jacobian cache.
+- Exception-safe callback probing and non-finite numerical findings.
+- Operating-point domain findings distinct from static interval conclusions.
+- Jacobian row/column infinity norms, zero sensitivities, and scale-spread
+  findings with duplicate sparse entries combined additively.
+- Guarded dense-SVD Jacobian rank, conditioning, and left/right nullspace
+  estimates with explicit scaling and threshold evidence.
+- Exact callback and labeled finite-difference Hessian-of-the-Lagrangian
+  evaluation, plus explicit-active-row reduced-Hessian inertia checks.
+- Conservative non-unit circular-equality normalization hints for exact
+  unshifted isotropic quadratic forms.
+- Separate first- and second-derivative domain requirements with custom
+  operator extension hooks.
+- Inverse trigonometric, hyperbolic, and periodic primitive-domain coverage.
+- Floating-point overflow/underflow checks parameterized by numeric type.
+- Stable-expression fingerprints for `log1p`, `expm1`, softplus, and logistic
+  formulations.
+- Complete MOI initialization-point ingestion without implicit default values.
+- Initialization bound, value-domain, derivative-domain, non-finite, and
+  scaling checks.
+- Research profiling matrix derived from unbalanced OPF benchmarking and
+  three-phase formulation studies.
 
 ## Next: structural refinement
 
@@ -35,27 +66,17 @@ evaluation layers can expose its supporting evidence.
   algorithms on large sparse models before treating them as production-scale
   implementations.
 
-The next implementation batch should begin expression-domain analysis while
-leaving active-set matching until numerical evaluation exists.
+## Next: numerical rank and derivative refinement
 
-## Then: expression domains
-
-- Normalized expression-node paths and source provenance.
-- Operator-domain rules such as `log(x)`, `sqrt(x)`, division, and fractional
-  powers.
-- Interval propagation from proven variable bounds.
-- Distinct findings for proven violations, possible violations, and
-  evaluation-point violations.
-- Extension hooks for user-defined operators and domain plugins.
-
-## Then: numerical evaluator adapter
-
-- Capability discovery for `AbstractNLPEvaluator` and nonlinear oracle sets.
-- Point-tagged cache for values, gradients, Jacobians, and Hessians.
-- Non-finite value and derivative evidence.
-- Jacobian row/column norms and scale summaries.
-- Rank and nullspace estimates that always report method, threshold, scaling,
-  and evaluation point.
+- Exact first derivatives for ordinary scalar nonlinear functions through a
+  constructed MOI nonlinear evaluator, retaining finite differences as an
+  independently labeled check.
+- Sparse large-model rank-estimation strategy and dense fallback thresholds.
+- Active-set selection with explicit feasibility tolerances.
+- Constraint feasibility and interior-margin analysis at initialization.
+- Evaluation timing and callback counters for formulation profiling.
+- A reusable `ProfileCase` schema for formulation, initialization, scale, and
+  solver sweeps.
 
 ## Degeneracy framework
 

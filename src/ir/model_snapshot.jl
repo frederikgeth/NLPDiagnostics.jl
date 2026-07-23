@@ -27,6 +27,7 @@ struct ModelSnapshot
     constraints::Vector{ConstraintRecord}
     objective::Union{Nothing,ObjectiveRecord}
     model_name::Union{Nothing,String}
+    opaque_sources::Vector{String}
 end
 
 function _optional_get(model, attribute)
@@ -39,6 +40,14 @@ function _optional_get(model, attribute)
 end
 
 function snapshot(model::MOI.ModelLike)
+    nlp_block = try
+        MOI.get(model, MOI.NLPBlock())
+    catch
+        nothing
+    end
+    opaque_sources = isnothing(nlp_block) ?
+                     String[] :
+                     ["MOI.NLPBlockData{$(typeof(nlp_block.evaluator))}"]
     variables = VariableRecord[]
     for variable in MOI.get(model, MOI.ListOfVariableIndices())
         name = _optional_get(model, MOI.VariableName(), variable)
@@ -60,16 +69,36 @@ function snapshot(model::MOI.ModelLike)
     end
 
     sense = MOI.get(model, MOI.ObjectiveSense())
-    objective = if sense == MOI.FEASIBILITY_SENSE
+    objective = if sense == MOI.FEASIBILITY_SENSE ||
+                   (!isnothing(nlp_block) && nlp_block.has_objective)
         nothing
     else
-        F = MOI.get(model, MOI.ObjectiveFunctionType())
-        function_value = deepcopy(MOI.get(model, MOI.ObjectiveFunction{F}()))
-        ObjectiveRecord(sense, function_value)
+        # An NLPBlock objective overrides the ordinary objective and some
+        # imported callback models do not store an ordinary objective at all.
+        # Keep the symbolic snapshot optional; the numerical adapter reads the
+        # NLPBlock separately from the source model.
+        try
+            F = MOI.get(model, MOI.ObjectiveFunctionType())
+            function_value =
+                deepcopy(MOI.get(model, MOI.ObjectiveFunction{F}()))
+            ObjectiveRecord(sense, function_value)
+        catch exception
+            push!(
+                opaque_sources,
+                "MOI.ObjectiveFunction(unavailable: $(typeof(exception)))",
+            )
+            nothing
+        end
     end
 
     model_name = _optional_get(model, MOI.Name())
-    return ModelSnapshot(variables, constraints, objective, model_name)
+    return ModelSnapshot(
+        variables,
+        constraints,
+        objective,
+        model_name,
+        opaque_sources,
+    )
 end
 
 function _optional_get(model, attribute, index)

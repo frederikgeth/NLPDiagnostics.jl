@@ -85,8 +85,8 @@ function incidence_graph(model::ModelSnapshot)
     )
     constraint_nodes = ConstraintNodeRecord[]
     row_supports = VariableSupport[]
-    unsupported_types = String[]
-    complete = true
+    unsupported_types = copy(model.opaque_sources)
+    complete = isempty(model.opaque_sources)
 
     for constraint in model.constraints
         _is_variable_domain_constraint(constraint) && continue

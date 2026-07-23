@@ -161,16 +161,18 @@ function _analyze_disconnected_variables!(
                 domain = RepresentationalIssue,
                 basis = StructuralProof,
                 confidence = ConfidenceCertain,
-                observation = "Disconnected-variable analysis was skipped because a function type has no registered variable extractor.",
+                observation = "Disconnected-variable analysis was skipped because complete symbolic incidence is unavailable for a model source or function type.",
                 why_it_matters = "Reporting disconnected variables without complete incidence information could create false positives.",
                 evidence = [
                     Evidence(
-                        "Unsupported function types were encountered";
-                        details = ["types" => join(sort!(unsupported_types), ", ")],
+                        "Opaque sources or unsupported function types were encountered";
+                        details = [
+                            "types" => join(sort!(unsupported_types), ", "),
+                        ],
                     ),
                 ],
                 suggested_actions = [
-                    "Register variable extraction support for the listed function type.",
+                    "Provide an expression graph or register variable extraction support for the listed source.",
                 ],
                 affected = affected,
             ),
@@ -456,6 +458,84 @@ function _analyze_duplicate_constraints!(
     return
 end
 
+function _unit_circle_radius_squared(function_value, set_value)
+    function_value isa MOI.ScalarQuadraticFunction || return nothing
+    set_value isa MOI.EqualTo || return nothing
+    isempty(function_value.affine_terms) || return nothing
+    coefficients = Float64[]
+    variables = MOI.VariableIndex[]
+    for term in function_value.quadratic_terms
+        term.variable_1 == term.variable_2 || return nothing
+        coefficient = Float64(term.coefficient)
+        coefficient > 0 || return nothing
+        push!(coefficients, coefficient)
+        push!(variables, term.variable_1)
+    end
+    length(coefficients) >= 2 || return nothing
+    length(unique(variables)) == length(variables) || return nothing
+    all(coefficient -> coefficient == first(coefficients), coefficients) ||
+        return nothing
+    # MOI's diagonal quadratic coefficient represents coefficient / 2 * x^2.
+    radius_squared =
+        2 * (Float64(set_value.value) - Float64(function_value.constant)) /
+        first(coefficients)
+    radius_squared > 0 || return nothing
+    return radius_squared, variables
+end
+
+function _analyze_circular_normalization!(
+    report::DiagnosticReport,
+    model::ModelSnapshot;
+    unit_radius_tolerance::Real = 1.0e-6,
+)
+    records = Dict(record.index => record for record in model.variables)
+    for constraint in model.constraints
+        result = _unit_circle_radius_squared(
+            constraint.function_value,
+            constraint.set_value,
+        )
+        isnothing(result) && continue
+        radius_squared, variables = result
+        isapprox(radius_squared, 1.0; rtol = unit_radius_tolerance, atol = unit_radius_tolerance) &&
+            continue
+        radius = sqrt(radius_squared)
+        affected = [_constraint_ref(constraint)]
+        append!(
+            affected,
+            [_variable_ref(records[variable]) for variable in variables],
+        )
+        push!(
+            report,
+            Finding(
+                :nonunit_circular_constraint_radius;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = HeuristicInterpretation,
+                confidence = ConfidenceMedium,
+                observation = "An unshifted circular equality has inferred radius $radius (radius squared $radius_squared), rather than approximately one.",
+                why_it_matters = "This is mathematically valid, but non-unit radii can obscure per-unit assumptions and alter derivative and tolerance scales.",
+                evidence = [
+                    Evidence(
+                        "Recognized isotropic quadratic equality";
+                        details = [
+                            "variable_count" => length(variables),
+                            "radius" => radius,
+                            "radius_squared" => radius_squared,
+                            "unit_radius_tolerance" => unit_radius_tolerance,
+                        ],
+                    ),
+                ],
+                suggested_actions = [
+                    "Confirm that the radius carries intended physical units rather than an omitted normalization.",
+                    "If a unit-circle formulation was intended, rescale the coordinates and document the resulting tolerance semantics.",
+                ],
+                affected = affected,
+            ),
+        )
+    end
+    return
+end
+
 function analyze_static(
     model::ModelSnapshot;
     graph::IncidenceGraph = incidence_graph(model),
@@ -470,6 +550,7 @@ function analyze_static(
     _analyze_bounds!(report, model)
     _analyze_constant_constraints!(report, model)
     _analyze_duplicate_constraints!(report, model)
+    _analyze_circular_normalization!(report, model)
     _analyze_disconnected_variables!(report, model, graph)
     sort!(
         report.findings;
