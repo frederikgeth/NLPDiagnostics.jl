@@ -17,7 +17,9 @@ read-only snapshot through the public MOI model API and reports:
 - disconnected structural equation components;
 - free/fixed/parameter variable and equality/inequality constraint roles;
 - deterministic equality matching and unmatched-node findings; and
-- initial Dulmage–Mendelsohn structural partitions.
+- Dulmage–Mendelsohn partitions and irreducible well-determined blocks;
+- renderer-neutral graph data; and
+- deterministic terminal and Graphviz DOT graph output.
 
 ```julia
 import MathOptInterface as MOI

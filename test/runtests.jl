@@ -309,6 +309,125 @@ end
         @test matching.constraint_match == [2, 1]
     end
 
+    @testset "well-determined irreducible blocks" begin
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+
+        diagonal = new_model()
+        x, y = MOI.add_variables(diagonal, 2)
+        MOI.set(diagonal, MOI.VariableName(), x, "x")
+        MOI.set(diagonal, MOI.VariableName(), y, "y")
+        MOI.add_constraint(
+            diagonal,
+            F([T(1.0, x)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            diagonal,
+            F([T(1.0, y)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        diagonal_graph = NLPDiagnostics.incidence_graph(diagonal)
+        diagonal_blocks = NLPDiagnostics.well_determined_blocks(
+            diagonal_graph,
+        )
+        @test length(diagonal_blocks) == 2
+        @test [block.variable_positions for block in diagonal_blocks] ==
+              [[1], [2]]
+        @test [block.constraint_positions for block in diagonal_blocks] ==
+              [[1], [2]]
+        diagonal_report = NLPDiagnostics.analyze(diagonal)
+        @test length(
+            findings(
+                diagonal_report,
+                :multiple_well_determined_blocks,
+            ),
+        ) == 1
+
+        triangular = new_model()
+        x, y = MOI.add_variables(triangular, 2)
+        MOI.add_constraint(
+            triangular,
+            F([T(1.0, x)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            triangular,
+            F([T(1.0, x), T(1.0, y)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        triangular_blocks = NLPDiagnostics.well_determined_blocks(
+            triangular,
+        )
+        @test [block.constraint_positions for block in triangular_blocks] ==
+              [[1], [2]]
+
+        irreducible = new_model()
+        x, y = MOI.add_variables(irreducible, 2)
+        MOI.add_constraint(
+            irreducible,
+            F([T(1.0, x), T(1.0, y)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            irreducible,
+            F([T(2.0, x), T(3.0, y)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        irreducible_blocks = NLPDiagnostics.well_determined_blocks(
+            irreducible,
+        )
+        @test length(irreducible_blocks) == 1
+        @test only(irreducible_blocks).variable_positions == [1, 2]
+        @test only(irreducible_blocks).constraint_positions == [1, 2]
+    end
+
+    @testset "stable structural graph export" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        MOI.set(model, MOI.VariableName(), x, "source")
+        MOI.set(model, MOI.VariableName(), y, "state")
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        first_constraint = MOI.add_constraint(
+            model,
+            F([T(1.0, x)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        MOI.set(
+            model,
+            MOI.ConstraintName(),
+            first_constraint,
+            "reference",
+        )
+        MOI.add_constraint(
+            model,
+            F([T(1.0, x), T(1.0, y)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+
+        data = NLPDiagnostics.structural_graph_data(model)
+        @test data.complete
+        @test length(data.variables) == 2
+        @test length(data.constraints) == 2
+        @test length(data.edges) == 3
+        @test [node.dm_region for node in data.variables] == [:well, :well]
+        @test [node.block for node in data.variables] == [1, 2]
+        @test count(edge -> edge.matched, data.edges) == 2
+
+        text = NLPDiagnostics.structural_graph_text(data)
+        @test occursin("Structural graph with 2 variables", text)
+        @test occursin("source", text)
+        @test occursin("reference", text)
+        @test occursin("[matched]", text)
+
+        dot = NLPDiagnostics.structural_graph_dot(data)
+        @test startswith(dot, "graph NLPDiagnostics {")
+        @test occursin("v1 -- c1", dot)
+        @test occursin("penwidth=2.5", dot)
+        @test occursin("DM=well", dot)
+    end
+
     @testset "overdetermined equality matching and DM partition" begin
         model = new_model()
         x = MOI.add_variable(model)
@@ -398,6 +517,18 @@ end
               NLPDiagnostics.StructuralMatching
         @test NLPDiagnostics.dulmage_mendelsohn(model) isa
               NLPDiagnostics.DulmageMendelsohnPartition
+        @test NLPDiagnostics.well_determined_blocks(model) isa
+              Vector{NLPDiagnostics.DulmageMendelsohnBlock}
+        @test NLPDiagnostics.structural_graph_data(model) isa
+              NLPDiagnostics.StructuralGraphData
+        @test occursin(
+            "Structural graph",
+            NLPDiagnostics.structural_graph_text(model),
+        )
+        @test startswith(
+            NLPDiagnostics.structural_graph_dot(model),
+            "graph NLPDiagnostics {",
+        )
     end
 
     @testset "text report" begin

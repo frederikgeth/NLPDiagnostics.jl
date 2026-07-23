@@ -78,7 +78,7 @@ non-domain constraint; bounds and integrality alone do not count as incidence.
 3. Classify scalar constraint rows, then implement maximum matching and
    Dulmage–Mendelsohn decomposition without
    assigning numerical-rank meaning to structural rank. **Initial three-way
-   partition implemented; irreducible square blocks remain.**
+   partition and irreducible well-determined blocks implemented.**
 4. Add an evaluator capability adapter and point-tagged numerical cache.
 5. Report Jacobian row/column norms and rank estimates with method, threshold,
    scale, and evaluation point.

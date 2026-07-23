@@ -21,15 +21,22 @@ evaluation layers can expose its supporting evidence.
 - Deterministic maximum-cardinality equality matching.
 - Unmatched free-variable and equality-node findings.
 - Initial under-, well-, and over-determined Dulmage–Mendelsohn partition.
+- Irreducible square blocks for the well-determined partition.
+- Renderer-neutral structural graph data with deterministic text and Graphviz
+  DOT renderers.
 
 ## Next: structural refinement
 
-- Decompose the well-determined DM partition into irreducible square blocks.
-- Add graph export suitable for terminal and future visual renderers.
 - Add a separately labeled active-set matching after numerical evaluation is
   available.
 - Replace simple fixed-variable classification with a richer variable-domain
   intersection abstraction for non-`Float64` coefficient types.
+- Benchmark the prototype matching and strongly connected-component
+  algorithms on large sparse models before treating them as production-scale
+  implementations.
+
+The next implementation batch should begin expression-domain analysis while
+leaving active-set matching until numerical evaluation exists.
 
 ## Then: expression domains
 

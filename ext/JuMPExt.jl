@@ -24,6 +24,18 @@ NLPDiagnostics.maximum_matching(model::JuMP.Model) =
 NLPDiagnostics.dulmage_mendelsohn(model::JuMP.Model) =
     NLPDiagnostics.dulmage_mendelsohn(JuMP.backend(model))
 
+NLPDiagnostics.well_determined_blocks(model::JuMP.Model) =
+    NLPDiagnostics.well_determined_blocks(JuMP.backend(model))
+
+NLPDiagnostics.structural_graph_data(model::JuMP.Model) =
+    NLPDiagnostics.structural_graph_data(JuMP.backend(model))
+
+NLPDiagnostics.structural_graph_text(model::JuMP.Model) =
+    NLPDiagnostics.structural_graph_text(JuMP.backend(model))
+
+NLPDiagnostics.structural_graph_dot(model::JuMP.Model) =
+    NLPDiagnostics.structural_graph_dot(JuMP.backend(model))
+
 NLPDiagnostics.variable_roles(model::JuMP.Model) =
     NLPDiagnostics.variable_roles(JuMP.backend(model))
 

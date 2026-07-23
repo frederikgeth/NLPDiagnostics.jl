@@ -11,6 +11,7 @@ include("ir/expression_support.jl")
 include("ir/structural_roles.jl")
 include("ir/incidence_graph.jl")
 include("analysis/matching.jl")
+include("reports/structural_graph.jl")
 include("analysis/static.jl")
 include("analysis/structure.jl")
 
@@ -20,6 +21,7 @@ export ConstraintRole
 export CoupledConstraint, EqualityConstraint, FreeConstraint
 export InequalityConstraint, OpaqueConstraint
 export DiagnosticReport
+export DulmageMendelsohnBlock
 export DulmageMendelsohnPartition
 export EntityRef
 export Evidence
@@ -33,7 +35,11 @@ export LocalInference, HeuristicInterpretation, StructuralProof
 export Severity
 export SeverityError, SeverityInfo, SeverityWarning
 export StructuralComponent
+export StructuralConstraintNode
+export StructuralGraphData
+export StructuralGraphEdge
 export StructuralMatching
+export StructuralVariableNode
 export VariableSupport
 export VariableRole
 export FixedVariable, FreeVariable, InfeasibleVariableDomain, ParameterVariable
@@ -48,8 +54,12 @@ export is_coordinatewise_set
 export matching_cardinality
 export maximum_matching
 export snapshot
+export structural_graph_data
+export structural_graph_dot
+export structural_graph_text
 export variable_support
 export variable_roles
+export well_determined_blocks
 
 """
     analyze(model::MOI.ModelLike)

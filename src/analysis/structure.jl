@@ -209,6 +209,80 @@ function _analyze_matching!(
         string(length(partition.overdetermined_variables))
     report.metadata[:dm_overdetermined_equation_count] =
         string(length(partition.overdetermined_constraints))
+    blocks = well_determined_blocks(graph; partition = partition)
+    report.metadata[:dm_well_determined_block_count] =
+        string(length(blocks))
+
+    if length(blocks) > 1
+        block_descriptions = String[]
+        for (block_number, block) in enumerate(blocks)
+            variables = join(
+                _variable_position_labels(
+                    graph,
+                    block.variable_positions,
+                ),
+                ", ",
+            )
+            equations = join(
+                _constraint_position_labels(
+                    graph,
+                    block.constraint_positions,
+                ),
+                ", ",
+            )
+            push!(
+                block_descriptions,
+                "block $block_number: variables={$variables}; equations={$equations}",
+            )
+        end
+        push!(
+            report,
+            Finding(
+                :multiple_well_determined_blocks;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = "The well-determined equality partition decomposes into $(length(blocks)) irreducible square blocks.",
+                why_it_matters = "The block order exposes a structural dependency sequence that can support staged diagnosis and localized numerical analysis.",
+                evidence = [
+                    Evidence(
+                        "Strongly connected components of the directed matched-pair graph";
+                        details = [
+                            "block_sizes" => join(
+                                (
+                                    string(length(block.variable_positions)) for
+                                    block in blocks
+                                ),
+                                ", ",
+                            ),
+                            "ordered_blocks" =>
+                                join(block_descriptions, " | "),
+                            "scope" =>
+                                "well-determined free-variable equality partition",
+                        ],
+                    ),
+                ],
+                suggested_actions = [
+                    "Use the block order to localize derivative, scaling, and initialization diagnostics.",
+                    "Do not interpret structural blocks as proof of numerical nonsingularity.",
+                ],
+                affected = _structural_affected(
+                    graph,
+                    reduce(
+                        vcat,
+                        (block.variable_positions for block in blocks);
+                        init = Int[],
+                    ),
+                    reduce(
+                        vcat,
+                        (block.constraint_positions for block in blocks);
+                        init = Int[],
+                    ),
+                ),
+            ),
+        )
+    end
 
     if !isempty(partition.underdetermined_variables)
         push!(

@@ -247,3 +247,175 @@ end
 
 dulmage_mendelsohn(model::MOI.ModelLike) =
     dulmage_mendelsohn(incidence_graph(model))
+
+"""
+An irreducible square block in the well-determined DM partition.
+
+Blocks are returned in a topological order consistent with the directed
+matched-pair condensation graph.
+"""
+struct DulmageMendelsohnBlock
+    variable_positions::Vector{Int}
+    constraint_positions::Vector{Int}
+end
+
+function _well_pair_adjacency(
+    graph::IncidenceGraph,
+    partition::DulmageMendelsohnPartition,
+)
+    well_constraints = Set(partition.well_determined_constraints)
+    well_variables = Set(partition.well_determined_variables)
+    adjacency = Dict(
+        position => Int[] for position in partition.well_determined_constraints
+    )
+    for constraint_position in partition.well_determined_constraints
+        for variable_position in
+            graph.constraint_to_variables[constraint_position]
+            variable_position in well_variables || continue
+            matched_constraint =
+                partition.matching.variable_match[variable_position]
+            matched_constraint in well_constraints || continue
+            # Direct the matched variable's block toward every equation that
+            # uses it. A topological order is therefore a dependency order.
+            push!(adjacency[matched_constraint], constraint_position)
+        end
+    end
+    for neighbors in values(adjacency)
+        sort!(unique!(neighbors))
+    end
+    return adjacency
+end
+
+function _strongly_connected_components(
+    vertices::Vector{Int},
+    adjacency::Dict{Int,Vector{Int}},
+)
+    next_index = Ref(1)
+    indices = Dict{Int,Int}()
+    lowlink = Dict{Int,Int}()
+    stack = Int[]
+    on_stack = Set{Int}()
+    components = Vector{Int}[]
+
+    function visit(vertex::Int)
+        indices[vertex] = next_index[]
+        lowlink[vertex] = next_index[]
+        next_index[] += 1
+        push!(stack, vertex)
+        push!(on_stack, vertex)
+        for neighbor in adjacency[vertex]
+            if !haskey(indices, neighbor)
+                visit(neighbor)
+                lowlink[vertex] = min(lowlink[vertex], lowlink[neighbor])
+            elseif neighbor in on_stack
+                lowlink[vertex] = min(lowlink[vertex], indices[neighbor])
+            end
+        end
+        if lowlink[vertex] == indices[vertex]
+            component = Int[]
+            while true
+                member = pop!(stack)
+                delete!(on_stack, member)
+                push!(component, member)
+                member == vertex && break
+            end
+            sort!(component)
+            push!(components, component)
+        end
+        return
+    end
+
+    for vertex in sort(vertices)
+        haskey(indices, vertex) || visit(vertex)
+    end
+    return components
+end
+
+function _topological_component_order(
+    components::Vector{Vector{Int}},
+    adjacency::Dict{Int,Vector{Int}},
+)
+    component_of = Dict{Int,Int}()
+    for (component_index, component) in enumerate(components)
+        for vertex in component
+            component_of[vertex] = component_index
+        end
+    end
+    successors = [Set{Int}() for _ in components]
+    indegree = zeros(Int, length(components))
+    for (source, neighbors) in adjacency
+        source_component = component_of[source]
+        for target in neighbors
+            target_component = component_of[target]
+            source_component == target_component && continue
+            if target_component ∉ successors[source_component]
+                push!(successors[source_component], target_component)
+                indegree[target_component] += 1
+            end
+        end
+    end
+    component_key(index) = minimum(components[index])
+    ready = sort!(
+        findall(iszero, indegree);
+        by = component_key,
+    )
+    order = Int[]
+    while !isempty(ready)
+        component_index = popfirst!(ready)
+        push!(order, component_index)
+        for successor in sort!(
+            collect(successors[component_index]);
+            by = component_key,
+        )
+            indegree[successor] -= 1
+            if iszero(indegree[successor])
+                push!(ready, successor)
+                sort!(ready; by = component_key)
+            end
+        end
+    end
+    length(order) == length(components) ||
+        error("internal error: DM condensation graph is cyclic")
+    return order
+end
+
+"""
+    well_determined_blocks(
+        graph;
+        partition = dulmage_mendelsohn(graph),
+    ) -> Vector{DulmageMendelsohnBlock}
+
+Decompose the well-determined partition into irreducible square blocks.
+"""
+function well_determined_blocks(
+    graph::IncidenceGraph;
+    partition::DulmageMendelsohnPartition = dulmage_mendelsohn(graph),
+)
+    partition.complete || return DulmageMendelsohnBlock[]
+    isempty(partition.well_determined_constraints) &&
+        return DulmageMendelsohnBlock[]
+    adjacency = _well_pair_adjacency(graph, partition)
+    components = _strongly_connected_components(
+        partition.well_determined_constraints,
+        adjacency,
+    )
+    order = _topological_component_order(components, adjacency)
+    blocks = DulmageMendelsohnBlock[]
+    for component_index in order
+        constraints = components[component_index]
+        variables = sort!(
+            Int[
+                partition.matching.constraint_match[position] for
+                position in constraints
+            ],
+        )
+        push!(
+            blocks,
+            DulmageMendelsohnBlock(variables, copy(constraints)),
+        )
+    end
+    return blocks
+end
+
+well_determined_blocks(model::MOI.ModelLike) =
+    well_determined_blocks(incidence_graph(model))

@@ -66,4 +66,22 @@ unmatched equations to construct:
 - an overdetermined partition.
 
 This is the initial three-way DM partition. Decomposition of the
-well-determined partition into irreducible square blocks is still pending.
+well-determined partition into irreducible square blocks contracts each matched
+variable–equation pair, computes strongly connected components, and returns
+the blocks in dependency order. These blocks describe structural sparsity, not
+numerical nonsingularity.
+
+## Graph export
+
+`structural_graph_data` returns renderer-neutral variables, constraint nodes,
+and edges annotated with:
+
+- structural role;
+- DM region;
+- well-determined block number; and
+- matching membership.
+
+`structural_graph_text` provides a deterministic terminal representation.
+`structural_graph_dot` returns Graphviz DOT without invoking Graphviz or
+writing files. MOI constraint indices are metadata rather than node IDs because
+constraint indices are not globally unique across function/set types.
