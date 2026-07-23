@@ -188,6 +188,77 @@ struct ReducedHessianAnalysis{T<:AbstractFloat}
 end
 
 """
+Point-local feasibility and activity information for one scalar constraint row.
+
+Margins are signed distances to finite lower and upper bounds. `classification`
+is descriptive only; an active inequality is selected only by the explicit
+`active_tolerance` used to create the parent summary.
+"""
+struct ConstraintActivity{T<:AbstractFloat}
+    row::Int
+    source::EntityRef
+    value::Union{Missing,T}
+    lower::Union{Nothing,T}
+    upper::Union{Nothing,T}
+    lower_margin::Union{Nothing,T}
+    upper_margin::Union{Nothing,T}
+    feasibility_violation::Union{Nothing,T}
+    lower_active::Bool
+    upper_active::Bool
+    classification::Symbol
+end
+
+"""
+Feasibility and active-set evidence tied to one `EvaluationPoint`.
+"""
+struct ConstraintFeasibilitySummary{T<:AbstractFloat}
+    point::EvaluationPoint{T}
+    activities::Vector{ConstraintActivity{T}}
+    feasibility_tolerance::T
+    active_tolerance::T
+    complete::Bool
+    reason::Union{Nothing,String}
+end
+
+"""
+Result of a deliberately conservative Mangasarian--Fromovitz screen.
+
+`direction_found` is a sufficient numerical certificate only. A false value is
+inconclusive and is never reported as MFCQ failure.
+"""
+struct MFCQScreen{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    equality_rows::Vector{Int}
+    inequality_rows::Vector{Int}
+    direction_found::Bool
+    direction::Vector{T}
+    largest_active_inequality_directional_derivative::Union{Nothing,T}
+end
+
+"""
+Comparison of structural equality matching with a local numerical Jacobian.
+
+The comparison is restricted to free variables and ordinary equality rows that
+can be aligned exactly between the incidence graph and numerical evaluation.
+It does not assign a physical interpretation to a nullspace.
+"""
+struct StructuralNumericalComparison{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    structural_matching_rank::Int
+    structural_right_nullity::Int
+    structural_left_nullity::Int
+    numerical_rank::Int
+    numerical_right_nullity::Int
+    numerical_left_nullity::Int
+    equality_rows::Vector{Int}
+    free_variable_columns::Vector{Int}
+    estimate::Union{Nothing,JacobianRankEstimate{T}}
+end
+
+"""
 Numerical values and derivatives observed at one exact point.
 
 Missing values indicate that an evaluation failed or was unavailable. The

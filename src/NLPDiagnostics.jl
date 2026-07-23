@@ -15,6 +15,7 @@ include("numerics/types.jl")
 include("numerics/evaluator.jl")
 include("numerics/degeneracy.jl")
 include("numerics/hessian.jl")
+include("numerics/activity.jl")
 include("analysis/matching.jl")
 include("reports/structural_graph.jl")
 include("analysis/domains.jl")
@@ -23,11 +24,15 @@ include("analysis/expressions.jl")
 include("analysis/static.jl")
 include("analysis/structure.jl")
 include("analysis/numerical.jl")
+include("analysis/activity.jl")
+include("analysis/degeneracy.jl")
 include("analysis/initialization.jl")
 
 export Confidence
 export ConfidenceCertain, ConfidenceHigh, ConfidenceLow, ConfidenceMedium
 export ConstraintRole
+export ConstraintActivity
+export ConstraintFeasibilitySummary
 export CoupledConstraint, EqualityConstraint, FreeConstraint
 export InequalityConstraint, OpaqueConstraint
 export DiagnosticReport
@@ -56,6 +61,7 @@ export JacobianScaleSummary
 export HessianEntry
 export HessianEvaluation
 export NumericalEvaluation
+export MFCQScreen
 export ReducedHessianAnalysis
 export OperatorDomainRequirement
 export OperatorDerivativeRequirement
@@ -69,6 +75,7 @@ export StructuralConstraintNode
 export StructuralGraphData
 export StructuralGraphEdge
 export StructuralMatching
+export StructuralNumericalComparison
 export StructuralVariableNode
 export VariableSupport
 export VariableRole
@@ -76,10 +83,12 @@ export FixedVariable, FreeVariable, InfeasibleVariableDomain, ParameterVariable
 export analyze
 export analyze_domains
 export analyze_derivatives
+export analyze_degeneracy
 export analyze_expressions
 export analyze_initialization
 export analyze_numerical
 export analyze_reduced_hessian
+export analyze_active_set
 export analyze_static
 export analyze_structure
 export connected_components
@@ -99,6 +108,10 @@ export matching_cardinality
 export maximum_matching
 export jacobian_scale_summary
 export jacobian_rank_estimate
+export constraint_feasibility_summary
+export active_constraint_rows
+export mfcq_screen
+export structural_numerical_comparison
 export reduced_hessian_analysis
 export operator_domain_requirements
 export operator_derivative_requirements
@@ -124,6 +137,8 @@ function analyze(
     scale_ratio_threshold::Real = 1.0e6,
     numeric_type::Union{Nothing,Type{<:AbstractFloat}} = nothing,
     check_initialization::Bool = false,
+    check_active_set::Bool = false,
+    check_degeneracy::Bool = false,
 )
     selected_numeric_type = if !isnothing(numeric_type)
         numeric_type
@@ -165,6 +180,18 @@ function analyze(
         append!(report.findings, numerical_report.findings)
         merge!(report.metadata, numerical_report.metadata)
         stages *= ",numerical"
+        if check_active_set
+            active_report = analyze_active_set(model, point; cache = cache)
+            append!(report.findings, active_report.findings)
+            merge!(report.metadata, active_report.metadata)
+            stages *= ",active_set"
+        end
+        if check_degeneracy
+            degeneracy_report = analyze_degeneracy(model, point; cache = cache)
+            append!(report.findings, degeneracy_report.findings)
+            merge!(report.metadata, degeneracy_report.metadata)
+            stages *= ",degeneracy"
+        end
     end
     if check_initialization
         initialization_report = analyze_initialization(

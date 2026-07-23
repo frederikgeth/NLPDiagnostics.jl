@@ -42,6 +42,10 @@ evaluation layers can expose its supporting evidence.
   estimates with explicit scaling and threshold evidence.
 - Exact callback and labeled finite-difference Hessian-of-the-Lagrangian
   evaluation, plus explicit-active-row reduced-Hessian inertia checks.
+- Scalar-bound feasibility margins, explicit active-row selection, local LICQ
+  rank checks, and conservative MFCQ common-descent witnesses.
+- Structural-to-numerical equality-rank comparison that distinguishes expected
+  structural rectangular freedom from additional local rank loss.
 - Conservative non-unit circular-equality normalization hints for exact
   unshifted isotropic quadratic forms.
 - Separate first- and second-derivative domain requirements with custom
@@ -72,20 +76,20 @@ evaluation layers can expose its supporting evidence.
   constructed MOI nonlinear evaluator, retaining finite differences as an
   independently labeled check.
 - Sparse large-model rank-estimation strategy and dense fallback thresholds.
-- Active-set selection with explicit feasibility tolerances.
-- Constraint feasibility and interior-margin analysis at initialization.
+- General coupled-set and plugin-supplied active-set semantics.
+- Full MFCQ failure certificates and multiplier recovery.
 - Evaluation timing and callback counters for formulation profiling.
 - A reusable `ProfileCase` schema for formulation, initialization, scale, and
   solver sweeps.
 
 ## Degeneracy framework
 
-Numerical nullspaces should be compared with structural results and
-plugin-supplied expected gauges. Initial generic classifications:
+Numerical nullspaces are compared with structural results before any
+plugin-supplied expected-gauge interpretation. Implemented generic
+classifications include structurally expected local nullspaces and unexpected
+local rank loss. Next classifications:
 
-- structurally underdetermined;
 - expected coordinate gauge;
-- unexpected local right-null mode;
 - dependent active constraints;
 - non-unique multiplier/left-null mode;
 - flat reduced-Hessian direction; and

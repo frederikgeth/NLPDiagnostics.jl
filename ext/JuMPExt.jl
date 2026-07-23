@@ -27,6 +27,15 @@ NLPDiagnostics.analyze_initialization(model::JuMP.Model; kwargs...) =
 NLPDiagnostics.analyze_numerical(model::JuMP.Model, point; kwargs...) =
     NLPDiagnostics.analyze_numerical(JuMP.backend(model), point; kwargs...)
 
+NLPDiagnostics.analyze_active_set(model::JuMP.Model, point; kwargs...) =
+    NLPDiagnostics.analyze_active_set(JuMP.backend(model), point; kwargs...)
+
+NLPDiagnostics.analyze_degeneracy(model::JuMP.Model, point; kwargs...) =
+    NLPDiagnostics.analyze_degeneracy(JuMP.backend(model), point; kwargs...)
+
+NLPDiagnostics.structural_numerical_comparison(model::JuMP.Model, point; kwargs...) =
+    NLPDiagnostics.structural_numerical_comparison(JuMP.backend(model), point; kwargs...)
+
 NLPDiagnostics.evaluate_lagrangian_hessian(model::JuMP.Model, point; kwargs...) =
     NLPDiagnostics.evaluate_lagrangian_hessian(JuMP.backend(model), point; kwargs...)
 
@@ -38,6 +47,9 @@ NLPDiagnostics.evaluation_point(model::JuMP.Model, values; kwargs...) =
 
 NLPDiagnostics.evaluate_numerical(model::JuMP.Model, point; kwargs...) =
     NLPDiagnostics.evaluate_numerical(JuMP.backend(model), point; kwargs...)
+
+NLPDiagnostics.constraint_feasibility_summary(model::JuMP.Model, point; kwargs...) =
+    NLPDiagnostics.constraint_feasibility_summary(JuMP.backend(model), point; kwargs...)
 
 NLPDiagnostics.evaluator_capabilities(model::JuMP.Model) =
     NLPDiagnostics.evaluator_capabilities(JuMP.backend(model))

@@ -1070,6 +1070,112 @@ end
         @test length(findings(scaled_report, :jacobian_rank_scaling_sensitive)) == 1
     end
 
+    @testset "structural and numerical rank comparison stays nonphysical" begin
+        underdetermined = new_model()
+        x, y = MOI.add_variables(underdetermined, 2)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(
+            underdetermined,
+            F([T(1.0, x), T(1.0, y)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        expected = NLPDiagnostics.structural_numerical_comparison(
+            underdetermined,
+            [0.0, 0.0],
+        )
+        @test expected.available
+        @test expected.structural_matching_rank == 1
+        @test expected.structural_right_nullity == 1
+        @test expected.numerical_rank == 1
+        report = NLPDiagnostics.analyze_degeneracy(underdetermined, [0.0, 0.0])
+        @test length(findings(report, :structurally_expected_local_nullspace)) == 1
+
+        stationary = new_model()
+        z = MOI.add_variable(stationary)
+        MOI.add_constraint(
+            stationary,
+            MOI.ScalarNonlinearFunction(:^, Any[z, 2]),
+            MOI.EqualTo(0.0),
+        )
+        local_loss = NLPDiagnostics.analyze_degeneracy(stationary, [0.0])
+        finding = only(findings(local_loss, :unexpected_local_rank_loss))
+        @test finding.domain == NLPDiagnostics.NumericalIssue
+        @test finding.basis == NLPDiagnostics.LocalInference
+        combined = NLPDiagnostics.analyze(
+            stationary;
+            point = NLPDiagnostics.evaluation_point(stationary, [0.0]),
+            check_degeneracy = true,
+        )
+        @test occursin("degeneracy", combined.metadata[:stages])
+    end
+
+    @testset "explicit activity, LICQ, and MFCQ screens" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        MOI.add_constraint(model, x, MOI.EqualTo(0.0))
+        MOI.add_constraint(model, y, MOI.GreaterThan(0.0))
+        evaluation = NLPDiagnostics.evaluate_numerical(
+            model,
+            [0.0, 1.0e-8];
+            relative_step = 1.0e-6,
+        )
+        summary = NLPDiagnostics.constraint_feasibility_summary(
+            model,
+            evaluation;
+            feasibility_tolerance = 1.0e-7,
+            active_tolerance = 1.0e-7,
+        )
+        @test summary.complete
+        @test [activity.classification for activity in summary.activities] ==
+              [:equality, :active_lower]
+        @test NLPDiagnostics.active_constraint_rows(summary) == [1, 2]
+        screen = NLPDiagnostics.mfcq_screen(
+            evaluation,
+            summary;
+            strict_tolerance = 1.0e-10,
+        )
+        @test screen.available
+        @test screen.direction_found
+        report = NLPDiagnostics.analyze_active_set(
+            model,
+            evaluation;
+            feasibility_tolerance = 1.0e-7,
+            active_tolerance = 1.0e-7,
+            mfcq_strict_tolerance = 1.0e-10,
+        )
+        @test isempty(findings(report, :active_constraint_licq_failure))
+        @test length(findings(report, :mfcq_common_descent_direction_found)) == 1
+        combined = NLPDiagnostics.analyze(
+            model;
+            point = evaluation.point,
+            check_active_set = true,
+        )
+        @test occursin("active_set", combined.metadata[:stages])
+
+        infeasible = NLPDiagnostics.analyze_active_set(
+            model,
+            [0.0, -0.1];
+            feasibility_tolerance = 1.0e-7,
+            active_tolerance = 1.0e-7,
+        )
+        @test length(findings(infeasible, :constraint_feasibility_violation)) == 1
+
+        dependent = new_model()
+        z = MOI.add_variable(dependent)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        z_expression = F([T(1.0, z)], 0.0)
+        MOI.add_constraint(dependent, z_expression, MOI.EqualTo(0.0))
+        MOI.add_constraint(dependent, z_expression, MOI.GreaterThan(0.0))
+        dependent_report = NLPDiagnostics.analyze_active_set(
+            dependent,
+            [0.0];
+            active_tolerance = 1.0e-7,
+        )
+        @test length(findings(dependent_report, :active_constraint_licq_failure)) == 1
+    end
+
     @testset "finite-difference and reduced Hessian evidence" begin
         model = new_model()
         x, y = MOI.add_variables(model, 2)
@@ -1540,6 +1646,13 @@ end
                 :operating_point_derivative_violation,
             ),
         ) == 2
+        @test length(
+            findings(
+                boundary_report,
+                :initialization_near_constraint_boundary,
+            ),
+        ) == 1
+        @test boundary_report.metadata[:initialization_active_row_count] == "1"
 
         invalid = new_model()
         w = MOI.add_variable(invalid)
@@ -1551,6 +1664,9 @@ end
                 invalid_report,
                 :initialization_violates_variable_bounds,
             ),
+        ) == 1
+        @test length(
+            findings(invalid_report, :constraint_feasibility_violation),
         ) == 1
         combined =
             NLPDiagnostics.analyze(boundary; check_initialization = true)

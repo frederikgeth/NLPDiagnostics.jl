@@ -99,11 +99,14 @@ A complete initialization is checked for:
 - value-domain violations;
 - derivative-domain violations;
 - overflow, underflow, and non-finite values or derivatives; and
-- Jacobian zero sensitivities and scaling spread.
+- Jacobian zero sensitivities and scaling spread;
+- scalar-bound constraint feasibility violations and interior margins; and
+- active-row LICQ evidence plus a conservative MFCQ common-descent screen.
 
 This is an exact-point analysis. It does not imply that a solver will evaluate
 the unchanged start: solvers may project bound starts into the interior,
 modify slacks, or apply their own initialization procedures.
 
-Constraint strict-feasibility margins and solver-specific initialization
-transformations remain future work.
+The generic core understands scalar lower/upper/equality bounds. Coupled cones,
+device semantics, strict interior rules, and solver-specific initialization
+transformations remain plugin or solver-extension work.

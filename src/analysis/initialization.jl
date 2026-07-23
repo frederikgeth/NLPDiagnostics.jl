@@ -131,6 +131,54 @@ function _initialization_bound_findings(
     return findings
 end
 
+function _initialization_constraint_margin_findings(
+    summary::ConstraintFeasibilitySummary,
+)
+    near_boundary = filter(
+        activity -> activity.classification in
+                    (:active_lower, :active_upper, :active_lower_upper),
+        summary.activities,
+    )
+    isempty(near_boundary) && return Finding[]
+    margins = String[]
+    for activity in near_boundary
+        if activity.classification == :active_lower
+            push!(margins, "row $(activity.row): lower margin=$(activity.lower_margin)")
+        elseif activity.classification == :active_upper
+            push!(margins, "row $(activity.row): upper margin=$(activity.upper_margin)")
+        else
+            push!(margins, "row $(activity.row): both finite margins are near zero")
+        end
+    end
+    return Finding[
+        Finding(
+            :initialization_near_constraint_boundary;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = "$(length(near_boundary)) inequality constraint row(s) start within the active-set tolerance of a finite boundary.",
+            why_it_matters = "Boundary starts can immediately create an active set, leave little feasibility-restoration room, and make solver behavior sensitive to initialization perturbations.",
+            evidence = [
+                _point_evidence(summary.point),
+                Evidence(
+                    "Initialization constraint margins";
+                    details = [
+                        "rows" => join((activity.row for activity in near_boundary), ","),
+                        "margins" => join(margins, "; "),
+                        "active_tolerance" => summary.active_tolerance,
+                    ],
+                ),
+            ],
+            suggested_actions = [
+                "Use an interior start where the model and solver semantics permit it.",
+                "If the boundary is intentional, inspect the active-set LICQ finding at the same point.",
+            ],
+            affected = EntityRef[activity.source for activity in near_boundary],
+        ),
+    ]
+end
+
 """
     analyze_initialization(model; cache = EvaluationCache())
 
@@ -143,6 +191,8 @@ function analyze_initialization(
     cache::EvaluationCache = EvaluationCache(),
     numeric_type::Union{Nothing,Type{<:AbstractFloat}} = nothing,
     scale_ratio_threshold::Real = 1.0e6,
+    feasibility_tolerance::Real = sqrt(eps(Float64)),
+    active_tolerance::Real = sqrt(eps(Float64)),
 )
     variables = MOI.get(model, MOI.ListOfVariableIndices())
     starts = [_variable_start(model, variable) for variable in variables]
@@ -210,6 +260,27 @@ function analyze_initialization(
     )
     append!(report.findings, numerical.findings)
     merge!(report.metadata, numerical.metadata)
+    report.metadata[:stage] = "initialization"
+    evaluation = evaluate_numerical(model, point; cache = cache)
+    summary = constraint_feasibility_summary(
+        model,
+        evaluation;
+        feasibility_tolerance = feasibility_tolerance,
+        active_tolerance = active_tolerance,
+    )
+    active_report = analyze_active_set(
+        model,
+        evaluation;
+        feasibility_tolerance = feasibility_tolerance,
+        active_tolerance = active_tolerance,
+    )
+    append!(report.findings, active_report.findings)
+    append!(report.findings, _initialization_constraint_margin_findings(summary))
+    merge!(report.metadata, active_report.metadata)
+    report.metadata[:initialization_constraint_activity_complete] =
+        string(summary.complete)
+    report.metadata[:initialization_active_row_count] =
+        string(length(active_constraint_rows(summary)))
     report.metadata[:stage] = "initialization"
     append!(
         report.findings,

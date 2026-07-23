@@ -113,6 +113,37 @@ supplied `active_rows`. It deliberately does not infer activity or multipliers
 from residuals. `analyze_reduced_hessian` reports negative curvature, flat
 directions, and poor positive-curvature conditioning as local evidence.
 
+## Feasibility and active-set evidence
+
+`constraint_feasibility_summary(model, evaluation)` aligns evaluated scalar
+rows with public MOI scalar bounds and records residual margins, violation, and
+near-bound activity. `active_constraint_rows` includes all equalities and only
+feasible near-active inequality sides; both feasibility and activity tolerances
+are explicit parameters.
+
+`analyze_active_set` uses those selected rows for a local LICQ rank check. Its
+MFCQ screen is deliberately conservative: it may report a found common
+equality-tangent descent direction, but a failed screen is *inconclusive*, not
+an MFCQ-failure claim. Coupled and plugin-defined sets remain visible as
+activity-semantics-unavailable evidence until a plugin provides the correct
+interpretation.
+
+## Structural versus numerical degeneracy
+
+`structural_numerical_comparison` aligns ordinary equality rows and free
+variables with the equality-incidence matching view, then compares its
+structural matching rank with a local Jacobian rank estimate. It classifies:
+
+- rank agreement with a structurally expected rectangular nullspace;
+- rank agreement without a structural nullspace; and
+- additional local rank loss relative to the structural pattern.
+
+The final category is a local numerical inference, not a declaration of a
+physical gauge. Opaque callback rows, incomplete structural support, and
+unmatched coordinate systems make the comparison unavailable rather than
+forcing an interpretation. `analyze_degeneracy` exposes this generic first
+classification and is available from `analyze(...; check_degeneracy = true)`.
+
 ## Cache lifetime
 
 `EvaluationCache` stores a complete evaluation under the model object, cache
@@ -132,6 +163,7 @@ before reusing it. This clears entries and advances the cache generation.
 - Rank and Hessian diagnostics use dense guarded algorithms; sparse and
   iterative large-model methods remain future work.
 - Active-set selection and multiplier recovery remain explicit user or
-  solver-extension responsibilities.
+  solver-extension responsibilities. The generic active-set selector handles
+  scalar-bound semantics only.
 - Physical scaling and expected nullspaces belong in plugins rather than this
   generic layer.
