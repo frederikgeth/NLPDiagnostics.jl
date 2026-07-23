@@ -1,0 +1,4 @@
+/work/
+*.cov
+/Manifest.toml
+.DS_Store

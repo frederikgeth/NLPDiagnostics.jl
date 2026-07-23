@@ -1,0 +1,26 @@
+# NLPDiagnostics.jl package metadata
+name = "NLPDiagnostics"
+uuid = "232008d5-4a7d-4a0d-b656-549d5f457f0e"
+authors = ["NLPDiagnostics contributors"]
+version = "0.1.0-DEV"
+
+[deps]
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+
+[weakdeps]
+JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
+
+[extensions]
+JuMPExt = "JuMP"
+
+[compat]
+JuMP = "1.20"
+MathOptInterface = "1.40"
+julia = "1.10"
+
+[extras]
+JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test", "JuMP"]
