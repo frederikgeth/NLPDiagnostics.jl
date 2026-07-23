@@ -8,13 +8,19 @@ include("reports/types.jl")
 include("reports/text.jl")
 include("ir/model_snapshot.jl")
 include("ir/expression_support.jl")
+include("ir/structural_roles.jl")
 include("ir/incidence_graph.jl")
+include("analysis/matching.jl")
 include("analysis/static.jl")
 include("analysis/structure.jl")
 
 export Confidence
 export ConfidenceCertain, ConfidenceHigh, ConfidenceLow, ConfidenceMedium
+export ConstraintRole
+export CoupledConstraint, EqualityConstraint, FreeConstraint
+export InequalityConstraint, OpaqueConstraint
 export DiagnosticReport
+export DulmageMendelsohnPartition
 export EntityRef
 export Evidence
 export EvidenceBasis
@@ -27,14 +33,23 @@ export LocalInference, HeuristicInterpretation, StructuralProof
 export Severity
 export SeverityError, SeverityInfo, SeverityWarning
 export StructuralComponent
+export StructuralMatching
 export VariableSupport
+export VariableRole
+export FixedVariable, FreeVariable, InfeasibleVariableDomain, ParameterVariable
 export analyze
 export analyze_static
 export analyze_structure
 export connected_components
+export constraint_role
+export dulmage_mendelsohn
 export incidence_graph
+export is_coordinatewise_set
+export matching_cardinality
+export maximum_matching
 export snapshot
 export variable_support
+export variable_roles
 
 """
     analyze(model::MOI.ModelLike)

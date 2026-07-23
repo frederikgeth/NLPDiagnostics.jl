@@ -16,32 +16,20 @@ evaluation layers can expose its supporting evidence.
   product sets and block vertices for coupled vector sets.
 - Exact connected components, including vector-row identity, coupled-set
   semantics, and explicit handling of incomplete function support.
+- Explicit free/fixed/parameter/infeasible variable roles and
+  equality/inequality/free/coupled/opaque constraint roles.
+- Deterministic maximum-cardinality equality matching.
+- Unmatched free-variable and equality-node findings.
+- Initial under-, well-, and over-determined Dulmage–Mendelsohn partition.
 
-## Next: structural equation classification and matching
+## Next: structural refinement
 
-Before computing a matching, variables and constraint rows need explicit
-roles. Variables must distinguish free decisions, fixed variables, and MOI
-parameters. Constraint rows must distinguish:
-
-- equality equation;
-- inequality that is potentially active;
-- variable-domain constraint;
-- complementarity or conic relation; or
-- unsupported/opaque relation.
-
-The first Dulmage–Mendelsohn implementation should operate on equality rows by
-default. A second active-set view can include inequalities selected at an
-evaluation point. Reports must not silently interpret all inequalities as
-simultaneously active equations.
-
-Deliverables:
-
-1. row-role classification with evidence from the MOI set;
-2. deterministic maximum bipartite matching;
-3. unmatched-variable and unmatched-equation findings;
-4. under-, well-, and over-determined DM blocks;
-5. intentionally broken structural test models; and
-6. graph export suitable for terminal and future visual renderers.
+- Decompose the well-determined DM partition into irreducible square blocks.
+- Add graph export suitable for terminal and future visual renderers.
+- Add a separately labeled active-set matching after numerical evaluation is
+  available.
+- Replace simple fixed-variable classification with a richer variable-domain
+  intersection abstraction for non-`Float64` coefficient types.
 
 ## Then: expression domains
 

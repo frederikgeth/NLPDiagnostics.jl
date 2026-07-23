@@ -200,6 +200,191 @@ end
         @test isempty(findings(report, :multiple_constraint_components))
     end
 
+    @testset "explicit structural roles" begin
+        model = new_model()
+        free = MOI.add_variable(model)
+        fixed = MOI.add_variable(model)
+        MOI.add_constraint(model, fixed, MOI.EqualTo(2.0))
+        parameter, _ = MOI.add_constrained_variable(
+            model,
+            MOI.Parameter(3.0),
+        )
+        infeasible = MOI.add_variable(model)
+        MOI.add_constraint(model, infeasible, MOI.GreaterThan(2.0))
+        MOI.add_constraint(model, infeasible, MOI.LessThan(1.0))
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(
+            model,
+            F([T(1.0, free), T(1.0, fixed)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            model,
+            F([T(1.0, free)], 0.0),
+            MOI.LessThan(1.0),
+        )
+        MOI.add_constraint(
+            model,
+            MOI.VectorOfVariables([free, parameter]),
+            MOI.SecondOrderCone(2),
+        )
+
+        graph = NLPDiagnostics.incidence_graph(model)
+        @test graph.variable_roles == [
+            NLPDiagnostics.FreeVariable,
+            NLPDiagnostics.FixedVariable,
+            NLPDiagnostics.ParameterVariable,
+            NLPDiagnostics.InfeasibleVariableDomain,
+        ]
+        roles = [node.role for node in graph.constraint_nodes]
+        @test count(==(NLPDiagnostics.EqualityConstraint), roles) == 1
+        @test count(==(NLPDiagnostics.InequalityConstraint), roles) == 1
+        @test count(==(NLPDiagnostics.CoupledConstraint), roles) == 1
+    end
+
+    @testset "semicontinuous equal endpoints are not fixed" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        MOI.add_constraint(model, x, MOI.Semicontinuous(2.0, 2.0))
+        graph = NLPDiagnostics.incidence_graph(model)
+        @test only(graph.variable_roles) == NLPDiagnostics.FreeVariable
+        report = NLPDiagnostics.analyze(model)
+        @test isempty(findings(report, :fixed_variable))
+    end
+
+    @testset "underdetermined equality matching and DM partition" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        MOI.set(model, MOI.VariableName(), x, "x")
+        MOI.set(model, MOI.VariableName(), y, "y")
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(
+            model,
+            F([T(1.0, x), T(1.0, y)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+
+        graph = NLPDiagnostics.incidence_graph(model)
+        matching = NLPDiagnostics.maximum_matching(graph)
+        @test matching.complete
+        @test NLPDiagnostics.matching_cardinality(matching) == 1
+        @test matching.variable_match == [1, 0]
+        @test matching.constraint_match == [1]
+        partition = NLPDiagnostics.dulmage_mendelsohn(
+            graph;
+            matching = matching,
+        )
+        @test partition.complete
+        @test partition.underdetermined_variables == [1, 2]
+        @test partition.underdetermined_constraints == [1]
+        @test isempty(partition.well_determined_variables)
+        @test isempty(partition.overdetermined_constraints)
+
+        report = NLPDiagnostics.analyze(model)
+        @test length(findings(report, :unmatched_structural_variables)) == 1
+        @test length(findings(report, :underdetermined_equality_partition)) == 1
+        @test report.metadata[:structural_matching_cardinality] == "1"
+    end
+
+    @testset "matching uses augmenting paths" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(
+            model,
+            F([T(1.0, x), T(1.0, y)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            model,
+            F([T(1.0, x)], 0.0),
+            MOI.EqualTo(1.0),
+        )
+        matching = NLPDiagnostics.maximum_matching(model)
+        @test NLPDiagnostics.matching_cardinality(matching) == 2
+        @test matching.variable_match == [2, 1]
+        @test matching.constraint_match == [2, 1]
+    end
+
+    @testset "overdetermined equality matching and DM partition" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        MOI.set(model, MOI.VariableName(), x, "x")
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        f = F([T(1.0, x)], 0.0)
+        MOI.add_constraint(model, f, MOI.EqualTo(0.0))
+        MOI.add_constraint(model, f, MOI.EqualTo(1.0))
+
+        graph = NLPDiagnostics.incidence_graph(model)
+        matching = NLPDiagnostics.maximum_matching(graph)
+        @test NLPDiagnostics.matching_cardinality(matching) == 1
+        @test matching.variable_match == [1]
+        @test matching.constraint_match == [1, 0]
+        partition = NLPDiagnostics.dulmage_mendelsohn(
+            graph;
+            matching = matching,
+        )
+        @test partition.overdetermined_variables == [1]
+        @test partition.overdetermined_constraints == [1, 2]
+        @test isempty(partition.well_determined_constraints)
+        @test isempty(partition.underdetermined_variables)
+
+        report = NLPDiagnostics.analyze(model)
+        @test length(findings(report, :unmatched_structural_equations)) == 1
+        @test length(findings(report, :overdetermined_equality_partition)) == 1
+    end
+
+    @testset "fixed variables are excluded from matching" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        MOI.add_constraint(model, x, MOI.EqualTo(2.0))
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(
+            model,
+            F([T(1.0, x), T(1.0, y)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+
+        graph = NLPDiagnostics.incidence_graph(model)
+        matching = NLPDiagnostics.maximum_matching(graph)
+        @test matching.eligible_variable_positions == [2]
+        @test NLPDiagnostics.matching_cardinality(matching) == 1
+        @test matching.variable_match == [0, 1]
+        partition = NLPDiagnostics.dulmage_mendelsohn(graph)
+        @test partition.well_determined_variables == [2]
+        @test partition.well_determined_constraints == [1]
+        report = NLPDiagnostics.analyze(model)
+        @test isempty(findings(report, :unmatched_structural_variables))
+        @test isempty(findings(report, :unmatched_structural_equations))
+    end
+
+    @testset "inequalities are excluded from default matching" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(
+            model,
+            F([T(1.0, x)], 0.0),
+            MOI.LessThan(1.0),
+        )
+        graph = NLPDiagnostics.incidence_graph(model)
+        @test only(graph.constraint_nodes).role ==
+              NLPDiagnostics.InequalityConstraint
+        matching = NLPDiagnostics.maximum_matching(graph)
+        @test isempty(matching.eligible_constraint_positions)
+        @test matching.eligible_variable_positions == [1]
+        report = NLPDiagnostics.analyze(model)
+        finding = only(findings(report, :unmatched_structural_variables))
+        @test evidence_details(finding)["scope"] ==
+              "free variables and equality nodes only"
+    end
+
     @testset "JuMP extension" begin
         model = JuMP.Model()
         JuMP.@variable(model, x >= 0)
@@ -209,6 +394,10 @@ end
         @test isempty(findings(report, :disconnected_variable))
         @test NLPDiagnostics.incidence_graph(model) isa
               NLPDiagnostics.IncidenceGraph
+        @test NLPDiagnostics.maximum_matching(model) isa
+              NLPDiagnostics.StructuralMatching
+        @test NLPDiagnostics.dulmage_mendelsohn(model) isa
+              NLPDiagnostics.DulmageMendelsohnPartition
     end
 
     @testset "text report" begin

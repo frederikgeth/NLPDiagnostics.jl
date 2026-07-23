@@ -2,6 +2,7 @@ struct ConstraintNodeRecord
     constraint::ConstraintRecord
     row::Union{Nothing,Int}
     function_value::Any
+    role::ConstraintRole
 end
 
 """
@@ -14,6 +15,7 @@ vertex so set semantics cannot create false separability.
 """
 struct IncidenceGraph
     variables::Vector{VariableRecord}
+    variable_roles::Vector{VariableRole}
     constraint_nodes::Vector{ConstraintNodeRecord}
     variable_to_constraints::Vector{Vector{Int}}
     constraint_to_variables::Vector{Vector{Int}}
@@ -34,19 +36,26 @@ end
 _is_variable_domain_constraint(constraint::ConstraintRecord) =
     constraint.function_value isa MOI.VariableIndex
 
-_is_coordinatewise_set(set_value) = false
-_is_coordinatewise_set(set_value::MOI.Zeros) = true
-_is_coordinatewise_set(set_value::MOI.Nonnegatives) = true
-_is_coordinatewise_set(set_value::MOI.Nonpositives) = true
-_is_coordinatewise_set(set_value::MOI.Reals) = true
-_is_coordinatewise_set(set_value::MOI.HyperRectangle) = true
+"""
+    is_coordinatewise_set(set_value) -> Bool
+
+Return whether a vector set is a Cartesian product that can be represented by
+independent scalar constraint nodes. Custom MOI sets may extend this function.
+The conservative fallback is `false`.
+"""
+is_coordinatewise_set(set_value) = false
+is_coordinatewise_set(set_value::MOI.Zeros) = true
+is_coordinatewise_set(set_value::MOI.Nonnegatives) = true
+is_coordinatewise_set(set_value::MOI.Nonpositives) = true
+is_coordinatewise_set(set_value::MOI.Reals) = true
+is_coordinatewise_set(set_value::MOI.HyperRectangle) = true
 
 function _constraint_scalar_rows(constraint::ConstraintRecord)
     function_value = constraint.function_value
     if !(function_value isa MOI.AbstractVectorFunction)
         return Tuple{Union{Nothing,Int},Any}[(nothing, function_value)], String[]
     end
-    if !_is_coordinatewise_set(constraint.set_value)
+    if !is_coordinatewise_set(constraint.set_value)
         return Tuple{Union{Nothing,Int},Any}[(nothing, function_value)], String[]
     end
     try
@@ -88,7 +97,12 @@ function incidence_graph(model::ModelSnapshot)
             support = variable_support(function_value)
             push!(
                 constraint_nodes,
-                ConstraintNodeRecord(constraint, row, function_value),
+                ConstraintNodeRecord(
+                    constraint,
+                    row,
+                    function_value,
+                    constraint_role(constraint.set_value; row = row),
+                ),
             )
             push!(row_supports, support)
             complete &= support.complete
@@ -122,6 +136,7 @@ function incidence_graph(model::ModelSnapshot)
 
     return IncidenceGraph(
         copy(model.variables),
+        variable_roles(model),
         constraint_nodes,
         variable_to_constraints,
         constraint_to_variables,

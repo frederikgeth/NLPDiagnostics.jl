@@ -14,7 +14,10 @@ read-only snapshot through the public MOI model API and reports:
 - exact canonical duplicate affine, quadratic, and nonlinear constraints; and
 - variables disconnected from the objective and non-domain constraints;
 - set-aware variable–constraint incidence graphs; and
-- disconnected structural equation components.
+- disconnected structural equation components;
+- free/fixed/parameter variable and equality/inequality constraint roles;
+- deterministic equality matching and unmatched-node findings; and
+- initial Dulmage–Mendelsohn structural partitions.
 
 ```julia
 import MathOptInterface as MOI
@@ -61,3 +64,5 @@ capability survey.
 
 The ordered implementation plan is maintained in
 [`docs/roadmap.md`](docs/roadmap.md).
+Structural matching semantics are documented in
+[`docs/structural_analysis.md`](docs/structural_analysis.md).

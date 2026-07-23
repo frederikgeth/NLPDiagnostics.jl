@@ -52,6 +52,254 @@ function _component_affected(
     return affected
 end
 
+function _structural_affected(
+    graph::IncidenceGraph,
+    variable_positions::Vector{Int},
+    constraint_positions::Vector{Int},
+)
+    affected = EntityRef[
+        _variable_ref(graph.variables[position]) for
+        position in variable_positions
+    ]
+    for position in constraint_positions
+        node = graph.constraint_nodes[position]
+        push!(
+            affected,
+            _constraint_ref(node.constraint; row = node.row),
+        )
+    end
+    return affected
+end
+
+function _variable_position_labels(
+    graph::IncidenceGraph,
+    positions::Vector{Int},
+)
+    return String[
+        _variable_member_label(graph.variables[position]) for
+        position in positions
+    ]
+end
+
+function _constraint_position_labels(
+    graph::IncidenceGraph,
+    positions::Vector{Int},
+)
+    return String[
+        _constraint_member_label(graph.constraint_nodes[position]) for
+        position in positions
+    ]
+end
+
+function _analyze_matching!(
+    report::DiagnosticReport,
+    graph::IncidenceGraph,
+)
+    matching = maximum_matching(graph)
+    matching.complete || return
+    unmatched_variables = Int[
+        position for position in matching.eligible_variable_positions if
+        iszero(matching.variable_match[position])
+    ]
+    unmatched_constraints = Int[
+        position for position in matching.eligible_constraint_positions if
+        iszero(matching.constraint_match[position])
+    ]
+    cardinality = matching_cardinality(matching)
+    report.metadata[:free_structural_variable_count] =
+        string(length(matching.eligible_variable_positions))
+    report.metadata[:equality_constraint_node_count] =
+        string(length(matching.eligible_constraint_positions))
+    report.metadata[:structural_matching_cardinality] = string(cardinality)
+    report.metadata[:unmatched_structural_variable_count] =
+        string(length(unmatched_variables))
+    report.metadata[:unmatched_structural_equation_count] =
+        string(length(unmatched_constraints))
+
+    if !isempty(unmatched_variables)
+        labels = _variable_position_labels(graph, unmatched_variables)
+        push!(
+            report,
+            Finding(
+                :unmatched_structural_variables;
+                severity = SeverityWarning,
+                domain = MathematicalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = "$(length(unmatched_variables)) free variable$(length(unmatched_variables) == 1 ? " is" : "s are") unmatched by the equality-constraint pattern.",
+                why_it_matters = "This proves structural underdetermination of the equality graph, although an active inequality or objective term may still select a local solution.",
+                evidence = [
+                    Evidence(
+                        "A deterministic maximum-cardinality matching left free variables unmatched";
+                        details = [
+                            "matching_cardinality" => cardinality,
+                            "eligible_free_variables" =>
+                                length(matching.eligible_variable_positions),
+                            "eligible_equality_nodes" =>
+                                length(matching.eligible_constraint_positions),
+                            "unmatched_variables" => join(labels, ", "),
+                            "scope" =>
+                                "free variables and equality nodes only",
+                        ],
+                    ),
+                ],
+                suggested_actions = [
+                    "Inspect the unmatched variables for missing equality equations or an intended gauge freedom.",
+                    "If inequalities are expected to determine these variables, repeat the analysis with an evaluated active-set view once available.",
+                ],
+                affected = _structural_affected(
+                    graph,
+                    unmatched_variables,
+                    Int[],
+                ),
+            ),
+        )
+    end
+
+    if !isempty(unmatched_constraints)
+        labels = _constraint_position_labels(graph, unmatched_constraints)
+        push!(
+            report,
+            Finding(
+                :unmatched_structural_equations;
+                severity = SeverityWarning,
+                domain = MathematicalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = "$(length(unmatched_constraints)) equality constraint node$(length(unmatched_constraints) == 1 ? " is" : "s are") unmatched to free variables.",
+                why_it_matters = "This proves structural overdetermination of the equality graph and may indicate redundant equations or consistency conditions on fixed data.",
+                evidence = [
+                    Evidence(
+                        "A deterministic maximum-cardinality matching left equality nodes unmatched";
+                        details = [
+                            "matching_cardinality" => cardinality,
+                            "eligible_free_variables" =>
+                                length(matching.eligible_variable_positions),
+                            "eligible_equality_nodes" =>
+                                length(matching.eligible_constraint_positions),
+                            "unmatched_equations" => join(labels, ", "),
+                            "scope" =>
+                                "free variables and equality nodes only",
+                        ],
+                    ),
+                ],
+                suggested_actions = [
+                    "Inspect the unmatched equations for duplicates, redundant physics, or inconsistent fixed data.",
+                ],
+                affected = _structural_affected(
+                    graph,
+                    Int[],
+                    unmatched_constraints,
+                ),
+            ),
+        )
+    end
+
+    partition = dulmage_mendelsohn(graph; matching = matching)
+    partition.complete || return
+    report.metadata[:dm_underdetermined_variable_count] =
+        string(length(partition.underdetermined_variables))
+    report.metadata[:dm_underdetermined_equation_count] =
+        string(length(partition.underdetermined_constraints))
+    report.metadata[:dm_well_determined_variable_count] =
+        string(length(partition.well_determined_variables))
+    report.metadata[:dm_well_determined_equation_count] =
+        string(length(partition.well_determined_constraints))
+    report.metadata[:dm_overdetermined_variable_count] =
+        string(length(partition.overdetermined_variables))
+    report.metadata[:dm_overdetermined_equation_count] =
+        string(length(partition.overdetermined_constraints))
+
+    if !isempty(partition.underdetermined_variables)
+        push!(
+            report,
+            Finding(
+                :underdetermined_equality_partition;
+                severity = SeverityWarning,
+                domain = MathematicalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = "The equality graph has an underdetermined Dulmage–Mendelsohn partition with $(length(partition.underdetermined_variables)) variables and $(length(partition.underdetermined_constraints)) equations.",
+                why_it_matters = "Every maximum matching leaves a degree-of-freedom pattern in this partition; the result is structural and does not yet classify its physical meaning.",
+                evidence = [
+                    Evidence(
+                        "Alternating reachability from unmatched free variables";
+                        details = [
+                            "variables" => join(
+                                _variable_position_labels(
+                                    graph,
+                                    partition.underdetermined_variables,
+                                ),
+                                ", ",
+                            ),
+                            "equations" => join(
+                                _constraint_position_labels(
+                                    graph,
+                                    partition.underdetermined_constraints,
+                                ),
+                                ", ",
+                            ),
+                        ],
+                    ),
+                ],
+                suggested_actions = [
+                    "Classify this partition as an expected gauge, missing equation, or intended degree of freedom.",
+                ],
+                affected = _structural_affected(
+                    graph,
+                    partition.underdetermined_variables,
+                    partition.underdetermined_constraints,
+                ),
+            ),
+        )
+    end
+
+    if !isempty(partition.overdetermined_constraints)
+        push!(
+            report,
+            Finding(
+                :overdetermined_equality_partition;
+                severity = SeverityWarning,
+                domain = MathematicalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = "The equality graph has an overdetermined Dulmage–Mendelsohn partition with $(length(partition.overdetermined_variables)) variables and $(length(partition.overdetermined_constraints)) equations.",
+                why_it_matters = "Every maximum matching leaves an excess-equation pattern in this partition; numerical dependence or infeasibility must be checked separately.",
+                evidence = [
+                    Evidence(
+                        "Alternating reachability from unmatched equality nodes";
+                        details = [
+                            "variables" => join(
+                                _variable_position_labels(
+                                    graph,
+                                    partition.overdetermined_variables,
+                                ),
+                                ", ",
+                            ),
+                            "equations" => join(
+                                _constraint_position_labels(
+                                    graph,
+                                    partition.overdetermined_constraints,
+                                ),
+                                ", ",
+                            ),
+                        ],
+                    ),
+                ],
+                suggested_actions = [
+                    "Inspect this partition for redundant equations or fixed-data consistency conditions.",
+                ],
+                affected = _structural_affected(
+                    graph,
+                    partition.overdetermined_variables,
+                    partition.overdetermined_constraints,
+                ),
+            ),
+        )
+    end
+    return
+end
+
 function _objective_component_coupling(
     model::ModelSnapshot,
     graph::IncidenceGraph,
@@ -97,6 +345,15 @@ function analyze_structure(
     )
     report.metadata[:constraint_node_count] =
         string(length(graph.constraint_nodes))
+    for role in instances(VariableRole)
+        report.metadata[Symbol("variable_role_", lowercase(string(role)))] =
+            string(count(==(role), graph.variable_roles))
+    end
+    constraint_roles = [node.role for node in graph.constraint_nodes]
+    for role in instances(ConstraintRole)
+        report.metadata[Symbol("constraint_role_", lowercase(string(role)))] =
+            string(count(==(role), constraint_roles))
+    end
 
     if !graph.complete
         push!(
@@ -149,6 +406,8 @@ function analyze_structure(
     report.metadata[:isolated_variable_count] = string(isolated_variables)
     report.metadata[:isolated_constraint_node_count] =
         string(isolated_constraints)
+
+    _analyze_matching!(report, graph)
 
     length(nontrivial_components) > 1 || return report
     sizes = join(

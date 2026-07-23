@@ -22,9 +22,6 @@ function _record_bounds!(
     elseif set_value isa MOI.Interval
         push!(state.lower, (Float64(set_value.lower), reference))
         push!(state.upper, (Float64(set_value.upper), reference))
-    elseif set_value isa MOI.Semicontinuous || set_value isa MOI.Semiinteger
-        push!(state.lower, (Float64(set_value.lower), reference))
-        push!(state.upper, (Float64(set_value.upper), reference))
     end
     return
 end
