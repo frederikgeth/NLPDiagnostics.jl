@@ -220,6 +220,7 @@ struct ConstraintFeasibilitySummary{T<:AbstractFloat}
     reason::Union{Nothing,String}
 end
 
+
 """
 Result of a deliberately conservative Mangasarian--Fromovitz screen.
 
@@ -234,6 +235,26 @@ struct MFCQScreen{T<:AbstractFloat}
     direction_found::Bool
     direction::Vector{T}
     largest_active_inequality_directional_derivative::Union{Nothing,T}
+end
+
+"""
+Local least-squares recovery of multipliers for explicitly selected active sides.
+
+The result is diagnostic evidence, not a solver dual solution. `unique` refers
+only to the selected active-gradient system at the recorded point.
+"""
+struct MultiplierRecovery{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    rows::Vector{Int}
+    sides::Vector{Symbol}
+    multipliers::Vector{T}
+    active_gradient_rank::Int
+    unique::Bool
+    stationarity_residual_norm::Union{Nothing,T}
+    objective_weight::T
+    feasible_point::Bool
 end
 
 """
@@ -377,6 +398,30 @@ struct ProfileResult{T<:AbstractFloat}
     capability_source_counts::Dict{Symbol,Int}
     cache_hits::Int
     cache_misses::Int
+end
+
+"""
+Summary statistics for repeated local profiling observations.
+
+`standard_deviation` is the population standard deviation of the retained
+samples; it describes observed run-to-run spread, not a confidence interval.
+"""
+struct ProfileTimingSummary
+    sample_count::Int
+    minimum::Float64
+    mean::Float64
+    maximum::Float64
+    standard_deviation::Float64
+end
+
+"""
+Repeated independent `ProfileCase` measurements and per-stage timing summaries.
+"""
+struct ProfileAggregate{T<:AbstractFloat}
+    case::ProfileCase{T}
+    runs::Vector{ProfileResult{T}}
+    warmup_performed::Bool
+    stage_timing::Dict{Symbol,ProfileTimingSummary}
 end
 
 """

@@ -12,6 +12,23 @@ struct StructuralMatching
     complete::Bool
 end
 
+"""
+Structural matching after an explicitly evaluated active-set selection.
+
+Constraint positions refer to an `IncidenceGraph`; only ordinary scalar rows
+that align with selected activity rows can participate. `complete = false`
+means the result must not be used as a structural proof for the whole selected
+active set.
+"""
+struct ActiveSetStructuralMatching
+    matching::StructuralMatching
+    selected_rows::Vector{Int}
+    selected_constraint_positions::Vector{Int}
+    unmapped_rows::Vector{Int}
+    complete::Bool
+    reason::Union{Nothing,String}
+end
+
 function _augment_constraint!(
     graph::IncidenceGraph,
     constraint_position::Int,
@@ -49,12 +66,11 @@ end
 Match free variables to equality constraint nodes. Other roles are excluded
 from the default structural-equation view.
 """
-function maximum_matching(graph::IncidenceGraph)
-    eligible_variable_positions = findall(==(FreeVariable), graph.variable_roles)
-    eligible_constraint_positions = findall(
-        ==(EqualityConstraint),
-        [node.role for node in graph.constraint_nodes],
-    )
+function _maximum_matching(
+    graph::IncidenceGraph,
+    eligible_variable_positions::Vector{Int},
+    eligible_constraint_positions::Vector{Int},
+)
     variable_match = zeros(Int, length(graph.variables))
     constraint_match = zeros(Int, length(graph.constraint_nodes))
     graph.complete ||
@@ -88,8 +104,81 @@ function maximum_matching(graph::IncidenceGraph)
     )
 end
 
+function maximum_matching(graph::IncidenceGraph)
+    return _maximum_matching(
+        graph,
+        findall(==(FreeVariable), graph.variable_roles),
+        findall(==(EqualityConstraint), [node.role for node in graph.constraint_nodes]),
+    )
+end
+
 maximum_matching(model::MOI.ModelLike) =
     maximum_matching(incidence_graph(model))
+
+function _constraint_node_key(node::ConstraintNodeRecord)
+    return (:constraint, node.constraint.index.value, node.row)
+end
+
+function _entity_ref_key(ref::EntityRef)
+    return (ref.kind, ref.index, ref.subindex)
+end
+
+"""
+    active_set_matching(model, evaluation, summary) -> ActiveSetStructuralMatching
+
+Construct a maximum matching using free variables and the equality or
+near-active inequality rows selected by `summary`. This is a point-local
+structural view: activity is numerical evidence, while matching is exact for
+the aligned incidence pattern. Coupled, callback, and otherwise unmapped rows
+remain explicit in `unmapped_rows` and make the result incomplete.
+"""
+function active_set_matching(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation,
+    summary::ConstraintFeasibilitySummary,
+)
+    evaluation.point == summary.point ||
+        throw(ArgumentError("evaluation and activity summary points differ"))
+    graph = incidence_graph(model)
+    selected_rows = active_constraint_rows(summary)
+    node_positions = Dict(
+        _constraint_node_key(node) => position for
+        (position, node) in enumerate(graph.constraint_nodes)
+    )
+    selected_constraint_positions = Int[]
+    unmapped_rows = Int[]
+    for row in selected_rows
+        source = evaluation.constraint_sources[row]
+        position = get(node_positions, _entity_ref_key(source), 0)
+        if iszero(position)
+            push!(unmapped_rows, row)
+        else
+            push!(selected_constraint_positions, position)
+        end
+    end
+    unique!(selected_constraint_positions)
+    matching = _maximum_matching(
+        graph,
+        findall(==(FreeVariable), graph.variable_roles),
+        selected_constraint_positions,
+    )
+    complete = graph.complete && isempty(unmapped_rows)
+    reason = if !graph.complete
+        "incidence graph is incomplete"
+    elseif !isempty(unmapped_rows)
+        "selected rows do not align with ordinary scalar incidence nodes"
+    else
+        nothing
+    end
+    return ActiveSetStructuralMatching(
+        matching,
+        selected_rows,
+        selected_constraint_positions,
+        unmapped_rows,
+        complete,
+        reason,
+    )
+end
 
 matching_cardinality(matching::StructuralMatching) =
     count(!iszero, matching.constraint_match)

@@ -116,10 +116,13 @@ directions, and poor positive-curvature conditioning as local evidence.
 ## Feasibility and active-set evidence
 
 `constraint_feasibility_summary(model, evaluation)` aligns evaluated scalar
-rows with public MOI scalar bounds and records residual margins, violation, and
-near-bound activity. `active_constraint_rows` includes all equalities and only
-feasible near-active inequality sides; both feasibility and activity tolerances
-are explicit parameters.
+rows with public MOI bounds and records residual margins, violation, and
+near-bound activity. It supports scalar bounds and coordinate-wise product
+sets, including `MOI.Zeros`, orthant sets, `MOI.Reals`, and
+`MOI.HyperRectangle`; a different lower/upper pair is retained for every
+rectangle coordinate. `active_constraint_rows` includes all equalities and
+only feasible near-active inequality sides; both feasibility and activity
+tolerances are explicit parameters.
 
 `analyze_active_set` uses those selected rows for a local LICQ rank check. Its
 MFCQ screen is deliberately conservative: it may report a found common
@@ -127,6 +130,13 @@ equality-tangent descent direction, but a failed screen is *inconclusive*, not
 an MFCQ-failure claim. Coupled and plugin-defined sets remain visible as
 activity-semantics-unavailable evidence until a plugin provides the correct
 interpretation.
+
+`recover_stationarity_multipliers` additionally computes a minimum-norm
+least-squares multiplier representative for those explicit active sides,
+respecting the MOI objective sense and lower/upper sign convention. It reports
+the local stationarity residual and whether the active-gradient system makes
+the representative non-unique. This is diagnostic evidence, not a solver dual
+solution or an economic interpretation.
 
 ## Structural versus numerical degeneracy
 
@@ -171,6 +181,12 @@ Stage timings include Julia compilation and allocation effects unless callers
 warm up a comparable case first. They are useful profiling evidence, not a
 portable solver-performance benchmark.
 
+`profile_case_repeated(model, case; repetitions = 3, warmup = true)` performs
+independent runs with fresh caches, discards the optional warm-up measurement,
+and returns minimum, mean, maximum, and population standard deviation for each
+stage. These summaries describe local observed variation; they are not
+statistical confidence intervals.
+
 ## Cache lifetime
 
 `EvaluationCache` stores a complete evaluation under the model object, cache
@@ -191,6 +207,7 @@ before reusing it. This clears entries and advances the cache generation.
   iterative large-model methods remain future work.
 - Active-set selection and multiplier recovery remain explicit user or
   solver-extension responsibilities. The generic active-set selector handles
-  scalar-bound semantics only.
+  scalar and coordinate-wise product-bound semantics, but not coupled-set
+  semantics.
 - Physical scaling and expected nullspaces belong in plugins rather than this
   generic layer.

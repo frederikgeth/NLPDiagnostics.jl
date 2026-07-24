@@ -89,3 +89,46 @@ function profile_case(
         cache.misses - misses_before,
     )
 end
+
+function _profile_timing_summary(samples::Vector{Float64})
+    isempty(samples) && throw(ArgumentError("timing samples must not be empty"))
+    average = sum(samples) / length(samples)
+    variance = sum((sample - average)^2 for sample in samples) / length(samples)
+    return ProfileTimingSummary(
+        length(samples),
+        minimum(samples),
+        average,
+        maximum(samples),
+        sqrt(variance),
+    )
+end
+
+"""
+    profile_case_repeated(model, case; repetitions = 3, warmup = true, ...)
+
+Run independent profiling measurements with fresh evaluation caches and return
+per-stage observed timing summaries. A discarded warm-up run is enabled by
+default to reduce compilation effects in the retained measurements.
+"""
+function profile_case_repeated(
+    model::MOI.ModelLike,
+    case::ProfileCase{T};
+    repetitions::Integer = 3,
+    warmup::Bool = true,
+    kwargs...,
+) where {T<:AbstractFloat}
+    repetitions > 0 || throw(ArgumentError("repetitions must be positive"))
+    warmup && profile_case(model, case; cache = EvaluationCache(), kwargs...)
+    runs = ProfileResult{T}[
+        profile_case(model, case; cache = EvaluationCache(), kwargs...) for
+        _ in 1:repetitions
+    ]
+    stages = sort!(unique!(reduce(vcat, [collect(keys(run.stage_seconds)) for run in runs])))
+    timing = Dict{Symbol,ProfileTimingSummary}()
+    for stage in stages
+        timing[stage] = _profile_timing_summary(
+            Float64[run.stage_seconds[stage] for run in runs],
+        )
+    end
+    return ProfileAggregate{T}(case, runs, warmup, timing)
+end

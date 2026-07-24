@@ -36,6 +36,9 @@ NLPDiagnostics.analyze_degeneracy(model::JuMP.Model, point; kwargs...) =
 NLPDiagnostics.profile_case(model::JuMP.Model, case; kwargs...) =
     NLPDiagnostics.profile_case(JuMP.backend(model), case; kwargs...)
 
+NLPDiagnostics.profile_case_repeated(model::JuMP.Model, case; kwargs...) =
+    NLPDiagnostics.profile_case_repeated(JuMP.backend(model), case; kwargs...)
+
 NLPDiagnostics.structural_numerical_comparison(model::JuMP.Model, point; kwargs...) =
     NLPDiagnostics.structural_numerical_comparison(JuMP.backend(model), point; kwargs...)
 

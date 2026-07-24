@@ -1160,6 +1160,24 @@ end
         @test length(
             findings(result.degeneracy_report, :structural_numerical_rank_agreement),
         ) == 1
+        aggregate = NLPDiagnostics.profile_case_repeated(
+            model,
+            case;
+            repetitions = 2,
+            warmup = true,
+        )
+        @test aggregate.warmup_performed
+        @test length(aggregate.runs) == 2
+        evaluation_timing = aggregate.stage_timing[:evaluation]
+        @test evaluation_timing.sample_count == 2
+        @test evaluation_timing.minimum <= evaluation_timing.mean <=
+              evaluation_timing.maximum
+        @test evaluation_timing.standard_deviation >= 0.0
+        @test_throws ArgumentError NLPDiagnostics.profile_case_repeated(
+            model,
+            case;
+            repetitions = 0,
+        )
     end
 
     @testset "explicit activity, LICQ, and MFCQ screens" begin
@@ -1226,6 +1244,49 @@ end
             active_tolerance = 1.0e-7,
         )
         @test length(findings(dependent_report, :active_constraint_licq_failure)) == 1
+
+        dual_model = new_model()
+        d = MOI.add_variable(dual_model)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        expression = F([T(1.0, d)], 0.0)
+        MOI.set(dual_model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(dual_model, MOI.ObjectiveFunction{F}(), expression)
+        MOI.add_constraint(dual_model, expression, MOI.EqualTo(1.0))
+        MOI.add_constraint(dual_model, expression, MOI.GreaterThan(1.0))
+        dual_evaluation = NLPDiagnostics.evaluate_numerical(dual_model, [1.0])
+        dual_summary = NLPDiagnostics.constraint_feasibility_summary(dual_model, dual_evaluation)
+        recovery = NLPDiagnostics.recover_stationarity_multipliers(
+            dual_model,
+            dual_evaluation,
+            dual_summary,
+        )
+        @test recovery.available
+        @test !recovery.unique
+        @test recovery.stationarity_residual_norm ≈ 0.0 atol = 1.0e-12
+        dual_report = NLPDiagnostics.analyze_active_set(dual_model, dual_evaluation)
+        @test length(findings(dual_report, :nonunique_active_multipliers)) == 1
+
+        rectangle_model = new_model()
+        r1, r2 = MOI.add_variables(rectangle_model, 2)
+        MOI.add_constraint(
+            rectangle_model,
+            MOI.VectorOfVariables([r1, r2]),
+            MOI.HyperRectangle([0.0, 1.0], [1.0, 2.0]),
+        )
+        rectangle_evaluation = NLPDiagnostics.evaluate_numerical(
+            rectangle_model,
+            [0.0, 1.5],
+        )
+        rectangle_summary = NLPDiagnostics.constraint_feasibility_summary(
+            rectangle_model,
+            rectangle_evaluation;
+            active_tolerance = 1.0e-7,
+        )
+        @test rectangle_summary.complete
+        @test [activity.classification for activity in rectangle_summary.activities] ==
+              [:active_lower, :interior]
+        @test NLPDiagnostics.active_constraint_rows(rectangle_summary) == [1]
     end
 
     @testset "finite-difference and reduced Hessian evidence" begin

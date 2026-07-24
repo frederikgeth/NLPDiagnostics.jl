@@ -13,6 +13,12 @@ function _scalar_set_bounds(set_value, row_count::Integer)
         return fill((0.0, nothing), row_count)
     elseif set_value isa MOI.Nonpositives
         return fill((nothing, 0.0), row_count)
+    elseif set_value isa MOI.Reals
+        return fill((nothing, nothing), row_count)
+    elseif set_value isa MOI.HyperRectangle
+        length(set_value.lower) == row_count || return fill(nothing, row_count)
+        length(set_value.upper) == row_count || return fill(nothing, row_count)
+        return [(set_value.lower[row], set_value.upper[row]) for row in 1:row_count]
     end
     return fill(nothing, row_count)
 end
@@ -207,6 +213,89 @@ function active_constraint_rows(
         end
     end
     return rows
+end
+
+function _objective_stationarity_weight(model::MOI.ModelLike, ::Type{T}) where {T}
+    sense = MOI.get(model, MOI.ObjectiveSense())
+    return sense == MOI.MAX_SENSE ? -one(T) :
+           sense == MOI.FEASIBILITY_SENSE ? zero(T) : one(T)
+end
+
+function _unavailable_multiplier_recovery(
+    evaluation::NumericalEvaluation{T},
+    reason::AbstractString,
+    objective_weight::T,
+) where {T}
+    return MultiplierRecovery{T}(
+        false, String(reason), evaluation.point, Int[], Symbol[], T[], 0,
+        false, nothing, objective_weight, false,
+    )
+end
+
+"""
+    recover_stationarity_multipliers(model, evaluation, summary; ...)
+
+Recover minimum-norm least-squares multipliers for the active equality and
+near-active inequality sides. Lower sides use the canonical derivative `-∇g`;
+upper sides use `∇g`. Objective sense is respected automatically.
+"""
+function recover_stationarity_multipliers(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T},
+    summary::ConstraintFeasibilitySummary{T};
+    rank_relative_tolerance::Real =
+        max(length(evaluation.point.variables), 1) * eps(T),
+    max_dense_entries::Integer = 4_000_000,
+) where {T<:AbstractFloat}
+    evaluation.point == summary.point ||
+        throw(ArgumentError("evaluation and activity summary points differ"))
+    weight = _objective_stationarity_weight(model, T)
+    gradient = evaluation.objective_gradient
+    isempty(gradient) && !iszero(weight) && return _unavailable_multiplier_recovery(
+        evaluation, "objective gradient is unavailable", weight,
+    )
+    any(value -> ismissing(value) || !isfinite(value), gradient) &&
+        return _unavailable_multiplier_recovery(
+            evaluation, "objective gradient contains unavailable or non-finite entries", weight,
+        )
+    objective_gradient = iszero(weight) ?
+                         zeros(T, length(evaluation.point.variables)) :
+                         T.(gradient)
+    rows = Int[]
+    sides = Symbol[]
+    signs = T[]
+    for activity in summary.activities
+        if activity.classification == :equality
+            push!(rows, activity.row); push!(sides, :equality); push!(signs, one(T))
+        elseif activity.classification == :active_lower
+            push!(rows, activity.row); push!(sides, :lower); push!(signs, -one(T))
+        elseif activity.classification == :active_upper
+            push!(rows, activity.row); push!(sides, :upper); push!(signs, one(T))
+        elseif activity.classification == :active_lower_upper
+            push!(rows, activity.row); push!(sides, :lower); push!(signs, -one(T))
+            push!(rows, activity.row); push!(sides, :upper); push!(signs, one(T))
+        end
+    end
+    length(rows) * length(evaluation.point.variables) <= max_dense_entries ||
+        return _unavailable_multiplier_recovery(evaluation, "active-gradient dense-work guard exceeded", weight)
+    jacobian = _combined_jacobian_matrix(evaluation)
+    gradient_matrix = jacobian[rows, :] .* signs
+    all(isfinite, gradient_matrix) ||
+        return _unavailable_multiplier_recovery(evaluation, "active Jacobian contains non-finite entries", weight)
+    factorization = svd(gradient_matrix; full = false)
+    threshold = convert(T, rank_relative_tolerance) * maximum(factorization.S; init = zero(T))
+    rank = count(value -> value > threshold, factorization.S)
+    multipliers = isempty(rows) ? T[] : transpose(gradient_matrix) \ (-weight .* objective_gradient)
+    residual = norm(weight .* objective_gradient + transpose(gradient_matrix) * multipliers)
+    feasible = all(
+        activity -> isnothing(activity.feasibility_violation) ||
+                    activity.feasibility_violation <= summary.feasibility_tolerance,
+        summary.activities,
+    )
+    return MultiplierRecovery{T}(
+        true, nothing, evaluation.point, rows, sides, T.(multipliers), rank,
+        rank == length(rows), convert(T, residual), weight, feasible,
+    )
 end
 
 function _selected_jacobian_evaluation(

@@ -34,6 +34,7 @@ export ConfidenceCertain, ConfidenceHigh, ConfidenceLow, ConfidenceMedium
 export ConstraintRole
 export ConstraintActivity
 export ConstraintFeasibilitySummary
+export ActiveSetStructuralMatching
 export CoupledConstraint, EqualityConstraint, FreeConstraint
 export InequalityConstraint, OpaqueConstraint
 export DiagnosticReport
@@ -64,12 +65,15 @@ export HessianEvaluation
 export NumericalEvaluation
 export evaluation_call_statistics
 export MFCQScreen
+export MultiplierRecovery
 export NullspaceFingerprint
 export ReducedHessianAnalysis
 export OperatorDomainRequirement
 export OperatorDerivativeRequirement
 export ProfileCase
+export ProfileAggregate
 export ProfileResult
+export ProfileTimingSummary
 export MathematicalIssue, NumericalIssue, PhysicalIssue, RepresentationalIssue
 export MathematicalProof, NumericalObservation, PhysicalExpectation
 export LocalInference, HeuristicInterpretation, StructuralProof
@@ -97,6 +101,7 @@ export analyze_active_set
 export analyze_static
 export analyze_structure
 export profile_case
+export profile_case_repeated
 export connected_components
 export constraint_role
 export dulmage_mendelsohn
@@ -116,7 +121,9 @@ export jacobian_scale_summary
 export jacobian_rank_estimate
 export constraint_feasibility_summary
 export active_constraint_rows
+export active_set_matching
 export mfcq_screen
+export recover_stationarity_multipliers
 export nullspace_fingerprints
 export structural_numerical_comparison
 export reduced_hessian_analysis

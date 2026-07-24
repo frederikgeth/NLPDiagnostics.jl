@@ -22,6 +22,7 @@ function _active_set_findings(
     selected_rows::Vector{Int},
     estimate::JacobianRankEstimate,
     mfcq::MFCQScreen,
+    recovery::MultiplierRecovery,
 )
     findings = Finding[]
     for activity in summary.activities
@@ -159,6 +160,52 @@ function _active_set_findings(
             ),
         )
     end
+    if recovery.available && !recovery.unique
+        push!(
+            findings,
+            Finding(
+                :nonunique_active_multipliers;
+                severity = SeverityWarning,
+                domain = NumericalIssue,
+                basis = LocalInference,
+                confidence = ConfidenceHigh,
+                observation = "The selected active-gradient system has rank $(recovery.active_gradient_rank) for $(length(recovery.rows)) multiplier sides.",
+                why_it_matters = "The recovered stationarity multipliers are not unique at this point; dual values should not be interpreted as a unique economic or physical signal.",
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence("Local multiplier recovery"; details = [
+                        "rows" => join(recovery.rows, ","),
+                        "sides" => join(recovery.sides, ","),
+                        "stationarity_residual_norm" => recovery.stationarity_residual_norm,
+                        "feasible_point" => recovery.feasible_point,
+                    ]),
+                ],
+                suggested_actions = [
+                    "Inspect dependent active gradients and compare with the LICQ result.",
+                    "Treat returned multiplier values as one minimum-norm representative only.",
+                ],
+                affected = EntityRef[evaluation.constraint_sources[row] for row in unique(recovery.rows)],
+            ),
+        )
+    elseif recovery.available && !isnothing(recovery.stationarity_residual_norm) &&
+           recovery.stationarity_residual_norm > sqrt(eps(eltype(evaluation.point.values)))
+        push!(
+            findings,
+            Finding(
+                :large_local_stationarity_residual;
+                severity = SeverityInfo,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "Least-squares active-set multiplier recovery leaves stationarity residual norm $(recovery.stationarity_residual_norm).",
+                why_it_matters = "The selected sides and objective gradient do not satisfy local first-order stationarity to the default numerical scale.",
+                evidence = [_point_evidence(evaluation.point)],
+                suggested_actions = [
+                    "Check whether this is an infeasible or nonstationary probe point before interpreting multipliers.",
+                ],
+            ),
+        )
+    end
     return findings
 end
 
@@ -197,8 +244,15 @@ function analyze_active_set(
         rank_relative_tolerance = rank_relative_tolerance,
         max_dense_entries = rank_max_dense_entries,
     )
+    recovery = recover_stationarity_multipliers(
+        model,
+        evaluation,
+        summary;
+        rank_relative_tolerance = rank_relative_tolerance,
+        max_dense_entries = rank_max_dense_entries,
+    )
     report = DiagnosticReport()
-    append!(report.findings, _active_set_findings(evaluation, summary, selected_rows, estimate, mfcq))
+    append!(report.findings, _active_set_findings(evaluation, summary, selected_rows, estimate, mfcq, recovery))
     report.metadata[:stage] = "active_set"
     report.metadata[:evaluation_point_label] = evaluation.point.label
     report.metadata[:active_rows] = join(selected_rows, ",")
@@ -207,6 +261,8 @@ function analyze_active_set(
     report.metadata[:active_jacobian_rank_available] = string(estimate.available)
     report.metadata[:mfcq_screen_available] = string(mfcq.available)
     report.metadata[:mfcq_common_descent_direction_found] = string(mfcq.direction_found)
+    report.metadata[:multiplier_recovery_available] = string(recovery.available)
+    report.metadata[:active_multiplier_unique] = string(recovery.unique)
     sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
 end

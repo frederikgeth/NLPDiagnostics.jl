@@ -42,8 +42,9 @@ evaluation layers can expose its supporting evidence.
   estimates with explicit scaling and threshold evidence.
 - Exact callback and labeled finite-difference Hessian-of-the-Lagrangian
   evaluation, plus explicit-active-row reduced-Hessian inertia checks.
-- Scalar-bound feasibility margins, explicit active-row selection, local LICQ
-  rank checks, and conservative MFCQ common-descent witnesses.
+- Scalar and coordinate-wise product-bound feasibility margins, explicit
+  active-row selection, local LICQ rank checks, and conservative MFCQ
+  common-descent witnesses.
 - Structural-to-numerical equality-rank comparison that distinguishes expected
   structural rectangular freedom from additional local rank loss.
 - Conservative non-unit circular-equality normalization hints for exact
@@ -77,8 +78,8 @@ evaluation layers can expose its supporting evidence.
   independently labeled check.
 - Sparse large-model rank-estimation strategy and dense fallback thresholds.
 - General coupled-set and plugin-supplied active-set semantics.
-- Full MFCQ failure certificates and multiplier recovery.
-- Sparse large-model profiling aggregates and repeated-run statistics.
+- Full MFCQ failure certificates and multiplier complementarity diagnostics.
+- Sparse large-model profiling aggregates.
 
 ## Degeneracy framework
 
@@ -90,7 +91,6 @@ equation dependencies. Next classifications:
 
 - expected coordinate gauge;
 - dependent active constraints;
-- non-unique multiplier/left-null mode;
 - flat reduced-Hessian direction; and
 - unknown.
 
