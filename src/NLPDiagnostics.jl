@@ -27,6 +27,7 @@ include("analysis/numerical.jl")
 include("analysis/activity.jl")
 include("analysis/degeneracy.jl")
 include("analysis/profiling.jl")
+include("analysis/postmortem.jl")
 include("analysis/initialization.jl")
 
 export Confidence
@@ -34,6 +35,8 @@ export ConfidenceCertain, ConfidenceHigh, ConfidenceLow, ConfidenceMedium
 export ConstraintRole
 export ConstraintActivity
 export ConstraintFeasibilitySummary
+export CoupledSetActivity
+export CoupledSetFeasibilitySummary
 export ActiveSetStructuralMatching
 export CoupledConstraint, EqualityConstraint, FreeConstraint
 export InequalityConstraint, OpaqueConstraint
@@ -59,6 +62,7 @@ export IssueDomain
 export IntervalEnclosure
 export JacobianEntry
 export JacobianRankEstimate
+export SparseJacobianPatternEstimate
 export JacobianScaleSummary
 export HessianEntry
 export HessianEvaluation
@@ -67,6 +71,7 @@ export evaluation_call_statistics
 export MFCQScreen
 export MultiplierRecovery
 export NullspaceFingerprint
+export ExpectedNullspaceMode
 export ReducedHessianAnalysis
 export OperatorDomainRequirement
 export OperatorDerivativeRequirement
@@ -74,6 +79,8 @@ export ProfileCase
 export ProfileAggregate
 export ProfileResult
 export ProfileTimingSummary
+export ProfileFindingStability
+export SolverPostmortem
 export MathematicalIssue, NumericalIssue, PhysicalIssue, RepresentationalIssue
 export MathematicalProof, NumericalObservation, PhysicalExpectation
 export LocalInference, HeuristicInterpretation, StructuralProof
@@ -98,8 +105,10 @@ export analyze_initialization
 export analyze_numerical
 export analyze_reduced_hessian
 export analyze_active_set
+export analyze_active_set_second_order
 export analyze_static
 export analyze_structure
+export analyze_postmortem
 export profile_case
 export profile_case_repeated
 export connected_components
@@ -119,12 +128,16 @@ export matching_cardinality
 export maximum_matching
 export jacobian_scale_summary
 export jacobian_rank_estimate
+export sparse_jacobian_pattern_estimate
 export constraint_feasibility_summary
+export coupled_set_feasibility_summary
+export coupled_set_activity
 export active_constraint_rows
 export active_set_matching
 export mfcq_screen
 export recover_stationarity_multipliers
 export nullspace_fingerprints
+export expected_nullspace_modes
 export structural_numerical_comparison
 export reduced_hessian_analysis
 export operator_domain_requirements

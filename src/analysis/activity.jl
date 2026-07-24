@@ -206,6 +206,58 @@ function _active_set_findings(
             ),
         )
     end
+    dual_tolerance = sqrt(eps(eltype(evaluation.point.values)))
+    if recovery.available &&
+       !isnothing(recovery.inequality_dual_violation) &&
+       recovery.inequality_dual_violation > dual_tolerance
+        push!(
+            findings,
+            Finding(
+                :recovered_active_multiplier_sign_violation;
+                severity = SeverityInfo,
+                domain = NumericalIssue,
+                basis = LocalInference,
+                confidence = ConfidenceHigh,
+                observation = "The recovered active inequality multipliers have nonnegativity violation $(recovery.inequality_dual_violation).",
+                why_it_matters = "This minimum-norm stationarity representative is not dual feasible for the selected inequality sides, so the probe is not locally KKT-consistent.",
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence("Local multiplier sign screen"; details = [
+                        "dual_violation" => recovery.inequality_dual_violation,
+                        "tolerance" => dual_tolerance,
+                        "stationarity_residual_norm" => recovery.stationarity_residual_norm,
+                    ]),
+                ],
+                suggested_actions = [
+                    "Check whether the point is stationary and whether the selected active sides use the intended sign convention.",
+                    "Treat the least-squares multipliers as diagnostics, not solver dual values.",
+                ],
+                affected = EntityRef[evaluation.constraint_sources[row] for row in unique(recovery.rows)],
+            ),
+        )
+    end
+    if recovery.available &&
+       !isnothing(recovery.complementarity_residual) &&
+       recovery.complementarity_residual >
+       dual_tolerance * summary.active_tolerance
+        push!(
+            findings,
+            Finding(
+                :recovered_active_multiplier_complementarity_residual;
+                severity = SeverityInfo,
+                domain = NumericalIssue,
+                basis = LocalInference,
+                confidence = ConfidenceHigh,
+                observation = "The recovered active multipliers have complementarity residual $(recovery.complementarity_residual).",
+                why_it_matters = "The activity tolerance and multiplier scale leave a non-negligible local complementarity mismatch.",
+                evidence = [_point_evidence(evaluation.point)],
+                suggested_actions = [
+                    "Tighten or vary the active-set tolerance and inspect the corresponding bound margins.",
+                ],
+                affected = EntityRef[evaluation.constraint_sources[row] for row in unique(recovery.rows)],
+            ),
+        )
+    end
     return findings
 end
 
@@ -245,6 +297,42 @@ function _active_matching_findings(
         ],
         affected = affected,
     )]
+end
+
+function _coupled_set_findings(summary::CoupledSetFeasibilitySummary)
+    findings = Finding[]
+    for activity in summary.activities
+        activity.classification in (:violated, :boundary) || continue
+        violated = activity.classification == :violated
+        push!(
+            findings,
+            Finding(
+                violated ? :coupled_set_feasibility_violation : :coupled_set_boundary_active;
+                severity = violated ? SeverityError : SeverityInfo,
+                domain = MathematicalIssue,
+                basis = MathematicalProof,
+                confidence = ConfidenceCertain,
+                observation = violated ?
+                              "The $(activity.set_kind) constraint has feasibility residual $(activity.feasibility_violation)." :
+                              "The $(activity.set_kind) constraint is on its cone boundary (margin $(activity.margin)).",
+                why_it_matters = violated ?
+                                  "The evaluated point is outside this coupled set." :
+                                  "Cone-boundary activity is vector-set geometry and is intentionally not converted into scalar active rows by the generic core.",
+                evidence = [Evidence("Coupled-set feasibility"; details = [
+                    "set_kind" => activity.set_kind,
+                    "margin" => activity.margin,
+                    "feasibility_violation" => activity.feasibility_violation,
+                    "feasibility_tolerance" => summary.feasibility_tolerance,
+                    "active_tolerance" => summary.active_tolerance,
+                ])],
+                suggested_actions = violated ?
+                                    ["Inspect the vector components and use a cone-aware feasibility restoration diagnostic."] :
+                                    ["Use a cone-aware solver or plugin before interpreting this boundary as scalar active constraints."],
+                affected = [activity.source],
+            ),
+        )
+    end
+    return findings
 end
 
 """
@@ -290,9 +378,16 @@ function analyze_active_set(
         max_dense_entries = rank_max_dense_entries,
     )
     active_matching = active_set_matching(model, evaluation, summary)
+    coupled_summary = coupled_set_feasibility_summary(
+        model,
+        evaluation;
+        feasibility_tolerance = feasibility_tolerance,
+        active_tolerance = active_tolerance,
+    )
     report = DiagnosticReport()
     append!(report.findings, _active_set_findings(evaluation, summary, selected_rows, estimate, mfcq, recovery))
     append!(report.findings, _active_matching_findings(evaluation, active_matching))
+    append!(report.findings, _coupled_set_findings(coupled_summary))
     report.metadata[:stage] = "active_set"
     report.metadata[:evaluation_point_label] = evaluation.point.label
     report.metadata[:active_rows] = join(selected_rows, ",")
@@ -304,12 +399,167 @@ function analyze_active_set(
         string(matching_cardinality(active_matching.matching))
     report.metadata[:active_structural_unmapped_row_count] =
         string(length(active_matching.unmapped_rows))
+    report.metadata[:supported_coupled_set_count] = string(length(coupled_summary.activities))
     report.metadata[:mfcq_screen_available] = string(mfcq.available)
     report.metadata[:mfcq_common_descent_direction_found] = string(mfcq.direction_found)
     report.metadata[:multiplier_recovery_available] = string(recovery.available)
     report.metadata[:active_multiplier_unique] = string(recovery.unique)
+    report.metadata[:active_multiplier_inequality_dual_violation] =
+        string(recovery.inequality_dual_violation)
+    report.metadata[:active_multiplier_complementarity_residual] =
+        string(recovery.complementarity_residual)
     sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
+end
+
+function _recovered_constraint_multipliers(
+    recovery::MultiplierRecovery{T},
+    constraint_count::Integer,
+) where {T}
+    multipliers = zeros(T, constraint_count)
+    for (row, side, multiplier) in zip(
+        recovery.rows,
+        recovery.sides,
+        recovery.multipliers,
+    )
+        side == :equality && (multipliers[row] += multiplier)
+        side == :lower && (multipliers[row] -= multiplier)
+        side == :upper && (multipliers[row] += multiplier)
+    end
+    return multipliers
+end
+
+"""
+    analyze_active_set_second_order(model, evaluation; ...)
+
+Run a point-local second-order probe using explicit scalar activity selection
+and the recovered least-squares multiplier representative. The result is not a
+solver KKT certificate: coupled-set geometry, non-unique multipliers, and
+finite-difference Hessians remain visible in the returned report.
+"""
+function analyze_active_set_second_order(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T};
+    feasibility_tolerance::Real = sqrt(eps(T)),
+    active_tolerance::Real = sqrt(eps(T)),
+    rank_relative_tolerance::Real =
+        max(length(evaluation.point.variables), 1) * eps(T),
+    rank_max_dense_entries::Integer = 4_000_000,
+    hessian_relative_step::Real = eps(T)^(one(T) / 4),
+    hessian_max_finite_difference_variables::Integer = 100,
+    kwargs...,
+) where {T<:AbstractFloat}
+    summary = constraint_feasibility_summary(
+        model,
+        evaluation;
+        feasibility_tolerance = feasibility_tolerance,
+        active_tolerance = active_tolerance,
+    )
+    recovery = recover_stationarity_multipliers(
+        model,
+        evaluation,
+        summary;
+        rank_relative_tolerance = rank_relative_tolerance,
+        max_dense_entries = rank_max_dense_entries,
+    )
+    report = DiagnosticReport()
+    report.metadata[:stage] = "active_set_second_order"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:second_order_multiplier_recovery_available] =
+        string(recovery.available)
+    if !recovery.available
+        push!(
+            report,
+            Finding(
+                :active_set_second_order_analysis_unavailable;
+                severity = SeverityInfo,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceCertain,
+                observation = "Active-set second-order analysis is unavailable because multiplier recovery failed.",
+                why_it_matters = "A Lagrangian reduced Hessian requires a documented objective weight and constraint-multiplier representative.",
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence("Multiplier recovery availability"; details = ["reason" => recovery.reason]),
+                ],
+                suggested_actions = [
+                    "Resolve objective-gradient and active-Jacobian failures, then repeat the point-local probe.",
+                ],
+            ),
+        )
+        return report
+    end
+    active_rows = active_constraint_rows(summary)
+    hessian = evaluate_lagrangian_hessian(
+        model,
+        evaluation.point;
+        objective_weight = recovery.objective_weight,
+        constraint_multipliers = _recovered_constraint_multipliers(
+            recovery,
+            length(evaluation.constraint_sources),
+        ),
+        relative_step = hessian_relative_step,
+        max_finite_difference_variables = hessian_max_finite_difference_variables,
+    )
+    reduced_report = analyze_reduced_hessian(
+        evaluation,
+        hessian;
+        active_rows = active_rows,
+        kwargs...,
+    )
+    append!(report.findings, reduced_report.findings)
+    report.metadata[:second_order_active_rows] = join(active_rows, ",")
+    report.metadata[:second_order_multiplier_unique] = string(recovery.unique)
+    report.metadata[:second_order_hessian_methods] = join(hessian.methods, ",")
+    report.metadata[:second_order_reduced_hessian_available] =
+        get(reduced_report.metadata, :reduced_hessian_available, "false")
+    if !recovery.unique
+        push!(
+            report,
+            Finding(
+                :second_order_multiplier_representative_nonunique;
+                severity = SeverityInfo,
+                domain = NumericalIssue,
+                basis = LocalInference,
+                confidence = ConfidenceHigh,
+                observation = "The reduced-Hessian probe uses one minimum-norm multiplier representative from a non-unique active-gradient system.",
+                why_it_matters = "Second-order curvature may depend on multiplier selection when active constraints are dependent.",
+                evidence = [_point_evidence(evaluation.point)],
+                suggested_actions = [
+                    "Resolve active-gradient dependence before treating the reduced spectrum as unique KKT curvature.",
+                ],
+            ),
+        )
+    end
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return report
+end
+
+function analyze_active_set_second_order(
+    model::MOI.ModelLike,
+    point::EvaluationPoint;
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Real = cbrt(eps(eltype(point.values))),
+    kwargs...,
+)
+    return analyze_active_set_second_order(
+        model,
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step);
+        kwargs...,
+    )
+end
+
+function analyze_active_set_second_order(
+    model::MOI.ModelLike,
+    values::Union{AbstractVector{<:Real},AbstractDict{MOI.VariableIndex,<:Real}};
+    label::AbstractString = "user",
+    kwargs...,
+)
+    return analyze_active_set_second_order(
+        model,
+        evaluation_point(model, values; label = label);
+        kwargs...,
+    )
 end
 
 function analyze_active_set(

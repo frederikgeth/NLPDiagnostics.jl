@@ -103,6 +103,35 @@ function _profile_timing_summary(samples::Vector{Float64})
     )
 end
 
+function _profile_finding_stability(runs::Vector{<:ProfileResult})
+    counts = Dict{Tuple{Symbol,Symbol},Int}()
+    for run in runs
+        for (stage, report) in (
+            :numerical => run.numerical_report,
+            :active_set => run.active_set_report,
+            :degeneracy => run.degeneracy_report,
+        )
+            for code in unique(finding.code for finding in report.findings)
+                key = (stage, code)
+                counts[key] = get(counts, key, 0) + 1
+            end
+        end
+    end
+    run_count = length(runs)
+    return sort!(
+        ProfileFindingStability[
+            ProfileFindingStability(
+                stage,
+                code,
+                count,
+                run_count,
+                count / run_count,
+            ) for ((stage, code), count) in counts
+        ];
+        by = item -> (string(item.stage), string(item.code)),
+    )
+end
+
 """
     profile_case_repeated(model, case; repetitions = 3, warmup = true, ...)
 
@@ -130,5 +159,11 @@ function profile_case_repeated(
             Float64[run.stage_seconds[stage] for run in runs],
         )
     end
-    return ProfileAggregate{T}(case, runs, warmup, timing)
+    return ProfileAggregate{T}(
+        case,
+        runs,
+        warmup,
+        timing,
+        _profile_finding_stability(runs),
+    )
 end

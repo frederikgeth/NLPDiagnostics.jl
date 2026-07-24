@@ -184,6 +184,120 @@ function constraint_feasibility_summary(
     )
 end
 
+_activity_source_key(source::EntityRef) = (
+    source.kind,
+    source.index,
+    source.subindex,
+    source.function_type,
+    source.set_type,
+)
+
+"""
+    coupled_set_activity(set, source, values, feasibility_tolerance, active_tolerance)
+
+Return `CoupledSetActivity` for a coupled vector set, or `nothing` when the
+generic core has no semantics for it. Domain packages may extend this function
+for their own MOI set types. Implementations must preserve vector-set
+semantics; they should not manufacture scalar active rows.
+"""
+coupled_set_activity(args...) = nothing
+
+function coupled_set_activity(
+    set_value::MOI.SecondOrderCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(source, :second_order_cone, values, nothing, nothing, false, :unavailable)
+    end
+    numeric = T[value::T for value in values]
+    margin = numeric[1] - norm(numeric[2:end])
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    return CoupledSetActivity{T}(
+        source, :second_order_cone, values, margin, violation,
+        classification == :boundary, classification,
+    )
+end
+
+function coupled_set_activity(
+    set_value::MOI.RotatedSecondOrderCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(source, :rotated_second_order_cone, values, nothing, nothing, false, :unavailable)
+    end
+    numeric = T[value::T for value in values]
+    margin = 2 * numeric[1] * numeric[2] - sum(abs2, numeric[3:end])
+    violation = max(-numeric[1], -numeric[2], -margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    return CoupledSetActivity{T}(
+        source, :rotated_second_order_cone, values, margin, violation,
+        classification == :boundary, classification,
+    )
+end
+
+"""
+    coupled_set_feasibility_summary(model, evaluation; ...)
+
+Evaluate generic vector-set feasibility without scalarizing its activity
+semantics. The current core supports second-order and rotated second-order
+cones. Domain packages may extend `coupled_set_activity` for other coupled
+MOI set types.
+"""
+function coupled_set_feasibility_summary(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T};
+    feasibility_tolerance::Real = sqrt(eps(T)),
+    active_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    feasibility = convert(T, feasibility_tolerance)
+    active = convert(T, active_tolerance)
+    feasibility >= zero(T) || throw(ArgumentError("feasibility_tolerance must be nonnegative"))
+    active >= zero(T) || throw(ArgumentError("active_tolerance must be nonnegative"))
+    values_by_source = Dict{Tuple,Union{Missing,T}}(
+        _activity_source_key(source) => evaluation.constraint_values[row] for
+        (row, source) in enumerate(evaluation.constraint_sources)
+    )
+    activities = CoupledSetActivity{T}[]
+    for constraint in snapshot(model).constraints
+        set_value = constraint.set_value
+        constraint.function_value isa MOI.AbstractVectorFunction || continue
+        is_coordinatewise_set(set_value) && continue
+        functions = try
+            _scalar_rows(constraint.function_value)
+        catch
+            continue
+        end
+        source_values = Union{Missing,T}[
+            get(
+                values_by_source,
+                _activity_source_key(_constraint_ref(constraint; row = row)),
+                missing,
+            ) for row in 1:length(functions)
+        ]
+        source = _constraint_ref(constraint)
+        activity = coupled_set_activity(
+            set_value,
+            source,
+            source_values,
+            feasibility,
+            active,
+        )
+        isnothing(activity) || push!(activities, activity)
+    end
+    return CoupledSetFeasibilitySummary{T}(
+        evaluation.point, activities, feasibility, active,
+    )
+end
+
 function constraint_feasibility_summary(
     model::MOI.ModelLike,
     point::EvaluationPoint;
@@ -228,7 +342,7 @@ function _unavailable_multiplier_recovery(
 ) where {T}
     return MultiplierRecovery{T}(
         false, String(reason), evaluation.point, Int[], Symbol[], T[], 0,
-        false, nothing, objective_weight, false,
+        false, nothing, objective_weight, false, nothing, nothing,
     )
 end
 
@@ -292,9 +406,21 @@ function recover_stationarity_multipliers(
                     activity.feasibility_violation <= summary.feasibility_tolerance,
         summary.activities,
     )
+    activities = Dict(activity.row => activity for activity in summary.activities)
+    dual_violation = zero(T)
+    complementarity = zero(T)
+    for (row, side, multiplier) in zip(rows, sides, multipliers)
+        side == :equality && continue
+        dual_violation = max(dual_violation, max(-multiplier, zero(T)))
+        activity = activities[row]
+        margin = side == :lower ? activity.lower_margin : activity.upper_margin
+        isnothing(margin) ||
+            (complementarity = max(complementarity, abs(multiplier * margin)))
+    end
     return MultiplierRecovery{T}(
         true, nothing, evaluation.point, rows, sides, T.(multipliers), rank,
         rank == length(rows), convert(T, residual), weight, feasible,
+        dual_violation, complementarity,
     )
 end
 

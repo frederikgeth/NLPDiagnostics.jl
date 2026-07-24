@@ -140,6 +140,26 @@ struct JacobianRankEstimate{T<:AbstractFloat}
 end
 
 """
+Sparse nonzero-pattern upper bound on local Jacobian rank.
+
+The matching rank is the term rank of the observed, combined sparse Jacobian.
+It can prove rank deficiency when below `min(rows, columns)`, but it cannot
+certify full numerical rank or provide a nullspace.
+"""
+struct SparseJacobianPatternEstimate{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    rows::Int
+    columns::Int
+    nonzero_count::Int
+    zero_tolerance::T
+    rank_upper_bound::Int
+    unmatched_rows::Vector{Int}
+    unmatched_columns::Vector{Int}
+end
+
+"""
 One raw Hessian-of-the-Lagrangian entry.
 
 Duplicate and transposed positions are retained. MOI defines these entries
@@ -220,6 +240,25 @@ struct ConstraintFeasibilitySummary{T<:AbstractFloat}
     reason::Union{Nothing,String}
 end
 
+"""Point-local feasibility and boundary evidence for one supported coupled set."""
+struct CoupledSetActivity{T<:AbstractFloat}
+    source::EntityRef
+    set_kind::Symbol
+    values::Vector{Union{Missing,T}}
+    margin::Union{Nothing,T}
+    feasibility_violation::Union{Nothing,T}
+    boundary_active::Bool
+    classification::Symbol
+end
+
+"""Coupled-set activity evidence tied to one numerical evaluation point."""
+struct CoupledSetFeasibilitySummary{T<:AbstractFloat}
+    point::EvaluationPoint{T}
+    activities::Vector{CoupledSetActivity{T}}
+    feasibility_tolerance::T
+    active_tolerance::T
+end
+
 
 """
 Result of a deliberately conservative Mangasarian--Fromovitz screen.
@@ -255,6 +294,8 @@ struct MultiplierRecovery{T<:AbstractFloat}
     stationarity_residual_norm::Union{Nothing,T}
     objective_weight::T
     feasible_point::Bool
+    inequality_dual_violation::Union{Nothing,T}
+    complementarity_residual::Union{Nothing,T}
 end
 
 """
@@ -292,6 +333,44 @@ struct NullspaceFingerprint{T<:AbstractFloat}
     kind::Symbol
     support::Vector{Int}
     score::T
+end
+
+"""
+A named expected right-nullspace direction supplied by a caller or domain plugin.
+
+The direction is expressed in the listed `MOI.VariableIndex` coordinates. It
+is an expectation to compare with local numerical evidence, not an assertion
+that the model is correctly referenced or physically valid.
+"""
+struct ExpectedNullspaceMode{T<:AbstractFloat}
+    name::Symbol
+    variables::Vector{MOI.VariableIndex}
+    direction::Vector{T}
+    description::String
+end
+
+function ExpectedNullspaceMode(
+    name::Symbol,
+    variables::AbstractVector{MOI.VariableIndex},
+    direction::AbstractVector{<:Real};
+    description::AbstractString = "",
+)
+    length(variables) == length(direction) ||
+        throw(DimensionMismatch("expected-nullspace variables and direction lengths differ"))
+    isempty(variables) &&
+        throw(ArgumentError("expected-nullspace direction must not be empty"))
+    length(unique(variables)) == length(variables) ||
+        throw(ArgumentError("expected-nullspace variables must be unique"))
+    T = float(promote_type(map(typeof, direction)...))
+    converted = T.(direction)
+    iszero(norm(converted)) &&
+        throw(ArgumentError("expected-nullspace direction must be nonzero"))
+    return ExpectedNullspaceMode{T}(
+        name,
+        collect(variables),
+        converted,
+        String(description),
+    )
 end
 
 """
@@ -414,6 +493,63 @@ struct ProfileTimingSummary
     standard_deviation::Float64
 end
 
+"""Occurrence stability of one diagnostic code across repeated profile runs."""
+struct ProfileFindingStability
+    stage::Symbol
+    code::Symbol
+    occurrence_count::Int
+    run_count::Int
+    fraction::Float64
+end
+
+"""
+Normalized evidence captured from a completed solver run.
+
+Solver extensions translate their native status and residual information into
+this immutable record. All fields are observations reported by that solver;
+they are not independently verified feasibility or optimality certificates.
+"""
+struct SolverPostmortem
+    solver::String
+    termination::Symbol
+    raw_status::Union{Nothing,String}
+    iterations::Union{Nothing,Int}
+    objective_value::Union{Nothing,Float64}
+    primal_residual::Union{Nothing,Float64}
+    dual_residual::Union{Nothing,Float64}
+    complementarity::Union{Nothing,Float64}
+    restoration_attempted::Bool
+    restoration_succeeded::Union{Nothing,Bool}
+    metadata::Dict{String,String}
+end
+
+function SolverPostmortem(
+    solver::AbstractString,
+    termination::Symbol;
+    raw_status::Union{Nothing,AbstractString} = nothing,
+    iterations::Union{Nothing,Integer} = nothing,
+    objective_value::Union{Nothing,Real} = nothing,
+    primal_residual::Union{Nothing,Real} = nothing,
+    dual_residual::Union{Nothing,Real} = nothing,
+    complementarity::Union{Nothing,Real} = nothing,
+    restoration_attempted::Bool = false,
+    restoration_succeeded::Union{Nothing,Bool} = nothing,
+    metadata::AbstractDict = Dict{String,String}(),
+)
+    return SolverPostmortem(
+        String(solver), termination,
+        isnothing(raw_status) ? nothing : String(raw_status),
+        isnothing(iterations) ? nothing : Int(iterations),
+        isnothing(objective_value) ? nothing : Float64(objective_value),
+        isnothing(primal_residual) ? nothing : Float64(primal_residual),
+        isnothing(dual_residual) ? nothing : Float64(dual_residual),
+        isnothing(complementarity) ? nothing : Float64(complementarity),
+        restoration_attempted,
+        restoration_succeeded,
+        Dict(string(key) => string(value) for (key, value) in metadata),
+    )
+end
+
 """
 Repeated independent `ProfileCase` measurements and per-stage timing summaries.
 """
@@ -422,6 +558,7 @@ struct ProfileAggregate{T<:AbstractFloat}
     runs::Vector{ProfileResult{T}}
     warmup_performed::Bool
     stage_timing::Dict{Symbol,ProfileTimingSummary}
+    finding_stability::Vector{ProfileFindingStability}
 end
 
 """

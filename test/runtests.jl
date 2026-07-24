@@ -118,6 +118,24 @@ function NLPDiagnostics.operator_derivative_requirements(
     ]
 end
 
+function NLPDiagnostics.coupled_set_activity(
+    ::MOI.ExponentialCone,
+    source::NLPDiagnostics.EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    return NLPDiagnostics.CoupledSetActivity{T}(
+        source,
+        :test_exponential_cone,
+        values,
+        one(T),
+        zero(T),
+        false,
+        :interior,
+    )
+end
+
 @testset "NLPDiagnostics" begin
     @testset "inconsistent bounds and disconnected variable" begin
         model = new_model()
@@ -986,6 +1004,31 @@ end
               "static,domains,derivatives,expressions,structural,numerical"
     end
 
+    @testset "constructed MOI nonlinear evaluator supplies exact first derivatives" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        objective = MOI.ScalarNonlinearFunction(:sin, Any[x])
+        constraint = MOI.ScalarNonlinearFunction(:exp, Any[x])
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(
+            model,
+            MOI.ObjectiveFunction{MOI.ScalarNonlinearFunction}(),
+            objective,
+        )
+        MOI.add_constraint(model, constraint, MOI.EqualTo(0.0))
+        evaluation = NLPDiagnostics.evaluate_numerical(
+            model,
+            [0.3];
+            # Deliberately too coarse for the former finite-difference path.
+            relative_step = 0.1,
+        )
+        @test evaluation.objective_gradient ≈ [cos(0.3)] atol = 1.0e-12
+        @test evaluation.jacobian_row_methods == [:exact_constructed_nonlinear_ad]
+        @test only(evaluation.jacobian_entries).value ≈ exp(0.3) atol = 1.0e-12
+        @test evaluation.call_statistics[:constructed_nlp_initialize][1] == 2
+        @test evaluation.call_statistics[:constructed_nlp_objective_gradient][1] == 2
+    end
+
     @testset "zero Jacobian rows and columns are local inferences" begin
         model = new_model()
         x, y = MOI.add_variables(model, 2)
@@ -1041,6 +1084,42 @@ end
         @test maximum(abs, [1.0 1.0; 2.0 2.0] * estimate.right_nullspace) < 1.0e-10
         report = NLPDiagnostics.analyze_numerical(model, [0.0, 0.0])
         @test length(findings(report, :numerical_jacobian_rank_deficiency)) == 1
+        sparse = NLPDiagnostics.sparse_jacobian_pattern_estimate(evaluation)
+        @test sparse.available
+        # Pattern matching cannot see the numerical dependence of two
+        # proportional rows, but it can prove a zero-column deficiency.
+        @test sparse.rank_upper_bound == 2
+
+        zero_column_model = new_model()
+        r, s = MOI.add_variables(zero_column_model, 2)
+        zero_column_function = F([T(1.0, r)], 0.0)
+        MOI.add_constraint(
+            zero_column_model,
+            zero_column_function,
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            zero_column_model,
+            zero_column_function,
+            MOI.EqualTo(0.0),
+        )
+        zero_column_evaluation = NLPDiagnostics.evaluate_numerical(
+            zero_column_model,
+            [0.0, 0.0],
+        )
+        zero_column_bound = NLPDiagnostics.sparse_jacobian_pattern_estimate(
+            zero_column_evaluation,
+        )
+        @test zero_column_bound.rank_upper_bound == 1
+        guarded_report = NLPDiagnostics.analyze_numerical(
+            zero_column_model,
+            [0.0, 0.0];
+            rank_max_dense_entries = 1,
+        )
+        @test !parse(Bool, guarded_report.metadata[:jacobian_rank_available])
+        @test length(
+            findings(guarded_report, :sparse_jacobian_pattern_rank_deficiency),
+        ) == 1
 
         scaled_model = new_model()
         a, b = MOI.add_variables(scaled_model, 2)
@@ -1093,6 +1172,33 @@ end
         @test length(
             findings(report, :candidate_uniform_coordinate_shift_null_mode),
         ) == 1
+        common_shift = NLPDiagnostics.ExpectedNullspaceMode(
+            :common_shift,
+            [x, y],
+            [1.0, 1.0];
+            description = "common reference-coordinate shift",
+        )
+        expected_mode_report = NLPDiagnostics.analyze_degeneracy(
+            underdetermined,
+            [0.0, 0.0];
+            expected_modes = [common_shift],
+        )
+        @test length(
+            findings(expected_mode_report, :expected_nullspace_mode_observed),
+        ) == 1
+        fixed_difference = NLPDiagnostics.ExpectedNullspaceMode(
+            :fixed_difference,
+            [x, y],
+            [1.0, -1.0],
+        )
+        mismatch_report = NLPDiagnostics.analyze_degeneracy(
+            underdetermined,
+            [0.0, 0.0];
+            expected_modes = [fixed_difference],
+        )
+        @test length(
+            findings(mismatch_report, :expected_nullspace_mode_not_observed),
+        ) == 1
 
         stationary = new_model()
         z = MOI.add_variable(stationary)
@@ -1105,6 +1211,8 @@ end
         finding = only(findings(local_loss, :unexpected_local_rank_loss))
         @test finding.domain == NLPDiagnostics.NumericalIssue
         @test finding.basis == NLPDiagnostics.LocalInference
+        @test length(findings(local_loss, :unknown_local_degeneracy_mode)) == 1
+        @test local_loss.metadata[:generic_nullspace_fingerprint_count] == "0"
         combined = NLPDiagnostics.analyze(
             stationary;
             point = NLPDiagnostics.evaluation_point(stationary, [0.0]),
@@ -1122,6 +1230,7 @@ end
         @test length(
             findings(dependency, :candidate_two_row_equation_dependence),
         ) == 1
+        @test isempty(findings(dependency, :unknown_local_degeneracy_mode))
     end
 
     @testset "profile cases retain formulation evidence and provenance" begin
@@ -1173,6 +1282,13 @@ end
         @test evaluation_timing.minimum <= evaluation_timing.mean <=
               evaluation_timing.maximum
         @test evaluation_timing.standard_deviation >= 0.0
+        stable_rank = only(filter(
+            item -> item.stage == :degeneracy &&
+                    item.code == :structural_numerical_rank_agreement,
+            aggregate.finding_stability,
+        ))
+        @test stable_rank.occurrence_count == 2
+        @test stable_rank.fraction == 1.0
         @test_throws ArgumentError NLPDiagnostics.profile_case_repeated(
             model,
             case;
@@ -1279,6 +1395,29 @@ end
         ) == 1
         @test dual_report.metadata[:active_structural_matching_cardinality] == "1"
 
+        sign_model = new_model()
+        sign_variable = MOI.add_variable(sign_model)
+        sign_expression = F([T(-1.0, sign_variable)], 0.0)
+        MOI.set(sign_model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(sign_model, MOI.ObjectiveFunction{F}(), sign_expression)
+        MOI.add_constraint(sign_model, sign_variable, MOI.GreaterThan(0.0))
+        sign_evaluation = NLPDiagnostics.evaluate_numerical(sign_model, [0.0])
+        sign_summary = NLPDiagnostics.constraint_feasibility_summary(
+            sign_model,
+            sign_evaluation,
+        )
+        sign_recovery = NLPDiagnostics.recover_stationarity_multipliers(
+            sign_model,
+            sign_evaluation,
+            sign_summary,
+        )
+        @test sign_recovery.inequality_dual_violation ≈ 1.0
+        @test sign_recovery.complementarity_residual ≈ 0.0
+        sign_report = NLPDiagnostics.analyze_active_set(sign_model, sign_evaluation)
+        @test length(
+            findings(sign_report, :recovered_active_multiplier_sign_violation),
+        ) == 1
+
         rectangle_model = new_model()
         r1, r2 = MOI.add_variables(rectangle_model, 2)
         MOI.add_constraint(
@@ -1299,6 +1438,42 @@ end
         @test [activity.classification for activity in rectangle_summary.activities] ==
               [:active_lower, :interior]
         @test NLPDiagnostics.active_constraint_rows(rectangle_summary) == [1]
+
+        cone_model = new_model()
+        cone_t, cone_x = MOI.add_variables(cone_model, 2)
+        MOI.add_constraint(
+            cone_model,
+            MOI.VectorOfVariables([cone_t, cone_x]),
+            MOI.SecondOrderCone(2),
+        )
+        cone_evaluation = NLPDiagnostics.evaluate_numerical(cone_model, [1.0, 1.0])
+        cone_summary = NLPDiagnostics.coupled_set_feasibility_summary(
+            cone_model,
+            cone_evaluation,
+        )
+        @test length(cone_summary.activities) == 1
+        @test only(cone_summary.activities).classification == :boundary
+        cone_report = NLPDiagnostics.analyze_active_set(cone_model, cone_evaluation)
+        @test length(findings(cone_report, :coupled_set_boundary_active)) == 1
+        outside_cone = NLPDiagnostics.analyze_active_set(cone_model, [0.0, 1.0])
+        @test length(findings(outside_cone, :coupled_set_feasibility_violation)) == 1
+
+        plugin_cone_model = new_model()
+        e1, e2, e3 = MOI.add_variables(plugin_cone_model, 3)
+        MOI.add_constraint(
+            plugin_cone_model,
+            MOI.VectorOfVariables([e1, e2, e3]),
+            MOI.ExponentialCone(),
+        )
+        plugin_cone_evaluation = NLPDiagnostics.evaluate_numerical(
+            plugin_cone_model,
+            [0.0, 1.0, 1.0],
+        )
+        plugin_cone_summary = NLPDiagnostics.coupled_set_feasibility_summary(
+            plugin_cone_model,
+            plugin_cone_evaluation,
+        )
+        @test only(plugin_cone_summary.activities).set_kind == :test_exponential_cone
     end
 
     @testset "finite-difference and reduced Hessian evidence" begin
@@ -1352,6 +1527,26 @@ end
             active_rows = [1],
         )
         @test length(findings(report, :ill_conditioned_reduced_hessian)) == 1
+
+        flat_model = new_model()
+        flat_variable = MOI.add_variable(flat_model)
+        flat_objective = MOI.ScalarAffineFunction(
+            [MOI.ScalarAffineTerm(1.0, flat_variable)],
+            0.0,
+        )
+        MOI.set(flat_model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(
+            flat_model,
+            MOI.ObjectiveFunction{typeof(flat_objective)}(),
+            flat_objective,
+        )
+        flat_evaluation = NLPDiagnostics.evaluate_numerical(flat_model, [0.0])
+        flat_report = NLPDiagnostics.analyze_active_set_second_order(
+            flat_model,
+            flat_evaluation,
+        )
+        @test flat_report.metadata[:second_order_reduced_hessian_available] == "true"
+        @test length(findings(flat_report, :reduced_hessian_flat_directions)) == 1
     end
 
     @testset "non-unit circular equalities are explicit scaling hints" begin
@@ -1413,7 +1608,7 @@ end
             label = "overflow probe",
         )
         @test length(findings(report, :nonfinite_objective_value)) == 1
-        @test length(findings(report, :numerical_evaluation_failed)) == 1
+        @test length(findings(report, :nonfinite_objective_gradient)) == 1
     end
 
     @testset "NLPBlock exact evaluator capabilities and duplicates" begin
@@ -1811,5 +2006,37 @@ end
         report = NLPDiagnostics.DiagnosticReport()
         text = sprint(show, MIME"text/plain"(), report)
         @test occursin("0 findings", text)
+    end
+
+    @testset "solver-independent postmortem evidence" begin
+        postmortem = NLPDiagnostics.SolverPostmortem(
+            "TestSolver",
+            :locally_infeasible;
+            raw_status = "restoration failed",
+            iterations = 20,
+            primal_residual = 1e-2,
+            dual_residual = 2e-2,
+            complementarity = 3e-2,
+            restoration_attempted = true,
+            restoration_succeeded = false,
+        )
+        report = NLPDiagnostics.analyze_postmortem(
+            postmortem;
+            residual_tolerance = 1e-4,
+        )
+        @test length(
+            findings(report, :solver_reported_infeasibility),
+        ) == 1
+        @test length(
+            findings(report, :solver_restoration_unsuccessful),
+        ) == 1
+        @test length(findings(report, :large_solver_residual)) == 3
+        @test report.metadata[:solver] == "TestSolver"
+        @test report.metadata[:termination] == "locally_infeasible"
+
+        limit_report = NLPDiagnostics.analyze_postmortem(
+            NLPDiagnostics.SolverPostmortem("TestSolver", :iteration_limit),
+        )
+        @test length(findings(limit_report, :solver_termination_limit)) == 1
     end
 end

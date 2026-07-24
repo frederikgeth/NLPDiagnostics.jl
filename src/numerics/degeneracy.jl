@@ -51,6 +51,116 @@ function _unavailable_rank_estimate(
     )
 end
 
+function _unavailable_sparse_pattern_estimate(
+    evaluation::NumericalEvaluation{T},
+    tolerance::T,
+    reason::AbstractString,
+) where {T}
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    return SparseJacobianPatternEstimate{T}(
+        false, String(reason), evaluation.point, rows, columns, 0, tolerance,
+        0, Int[], Int[],
+    )
+end
+
+function _augment_sparse_row!(
+    row::Int,
+    adjacency::Vector{Vector{Int}},
+    column_match::Vector{Int},
+    seen_columns::BitVector,
+)
+    for column in adjacency[row]
+        seen_columns[column] && continue
+        seen_columns[column] = true
+        previous_row = column_match[column]
+        if iszero(previous_row) ||
+           _augment_sparse_row!(
+            previous_row,
+            adjacency,
+            column_match,
+            seen_columns,
+        )
+            column_match[column] = row
+            return true
+        end
+    end
+    return false
+end
+
+"""
+    sparse_jacobian_pattern_estimate(evaluation; zero_tolerance = 0)
+
+Compute a maximum matching in the combined sparse Jacobian nonzero pattern
+without forming a dense matrix. The result is an upper bound on numerical rank
+(the term rank). A bound below `min(rows, columns)` proves local rank
+deficiency for the observed entries, but equality does not prove full rank.
+"""
+function sparse_jacobian_pattern_estimate(
+    evaluation::NumericalEvaluation{T};
+    zero_tolerance::Real = zero(T),
+) where {T<:AbstractFloat}
+    tolerance = convert(T, zero_tolerance)
+    tolerance >= zero(T) ||
+        throw(ArgumentError("zero_tolerance must be nonnegative"))
+    incomplete_rows = findall(
+        method -> method in _JACOBIAN_INCOMPLETE_METHODS,
+        evaluation.jacobian_row_methods,
+    )
+    isempty(incomplete_rows) || return _unavailable_sparse_pattern_estimate(
+        evaluation,
+        tolerance,
+        "Jacobian rows $(join(incomplete_rows, ',')) are incomplete",
+    )
+    combined = Dict{Tuple{Int,Int},T}()
+    for entry in evaluation.jacobian_entries
+        isfinite(entry.value) || return _unavailable_sparse_pattern_estimate(
+            evaluation,
+            tolerance,
+            "Jacobian contains non-finite raw entries",
+        )
+        key = (entry.row, entry.column)
+        combined[key] = get(combined, key, zero(T)) + entry.value
+    end
+    all(isfinite, values(combined)) || return _unavailable_sparse_pattern_estimate(
+        evaluation,
+        tolerance,
+        "Jacobian contains non-finite combined entries",
+    )
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    adjacency = [Int[] for _ in 1:rows]
+    nonzero_count = 0
+    for ((row, column), value) in combined
+        abs(value) > tolerance || continue
+        push!(adjacency[row], column)
+        nonzero_count += 1
+    end
+    for neighbors in adjacency
+        sort!(neighbors)
+    end
+    column_match = zeros(Int, columns)
+    for row in 1:rows
+        _augment_sparse_row!(row, adjacency, column_match, falses(columns))
+    end
+    row_match = zeros(Int, rows)
+    for (column, row) in enumerate(column_match)
+        iszero(row) || (row_match[row] = column)
+    end
+    return SparseJacobianPatternEstimate{T}(
+        true,
+        nothing,
+        evaluation.point,
+        rows,
+        columns,
+        nonzero_count,
+        tolerance,
+        count(!iszero, column_match),
+        findall(iszero, row_match),
+        findall(iszero, column_match),
+    )
+end
+
 """
     jacobian_rank_estimate(evaluation; scaling = :none, ...)
 

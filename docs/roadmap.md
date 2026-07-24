@@ -40,6 +40,10 @@ evaluation layers can expose its supporting evidence.
   findings with duplicate sparse entries combined additively.
 - Guarded dense-SVD Jacobian rank, conditioning, and left/right nullspace
   estimates with explicit scaling and threshold evidence.
+- Sparse nonzero-pattern matching rank upper bounds that can prove some
+  large-model local deficiencies without dense factorization.
+- Constructed MOI reverse-mode AD for ordinary scalar nonlinear first
+  derivatives, with labeled finite-difference fallback.
 - Exact callback and labeled finite-difference Hessian-of-the-Lagrangian
   evaluation, plus explicit-active-row reduced-Hessian inertia checks.
 - Scalar and coordinate-wise product-bound feasibility margins, explicit
@@ -60,6 +64,8 @@ evaluation layers can expose its supporting evidence.
   scaling checks.
 - Research profiling matrix derived from unbalanced OPF benchmarking and
   three-phase formulation studies.
+- Solver-independent postmortem records that preserve native termination,
+  residual, restoration, and iteration evidence for future solver extensions.
 
 ## Next: structural refinement
 
@@ -73,13 +79,13 @@ evaluation layers can expose its supporting evidence.
 
 ## Next: numerical rank and derivative refinement
 
-- Exact first derivatives for ordinary scalar nonlinear functions through a
-  constructed MOI nonlinear evaluator, retaining finite differences as an
-  independently labeled check.
-- Sparse large-model rank-estimation strategy and dense fallback thresholds.
-- General coupled-set and plugin-supplied active-set semantics.
-- Full MFCQ failure certificates and multiplier complementarity diagnostics.
-- Sparse large-model profiling aggregates.
+- Sparse nonzero-pattern rank upper bounds alongside guarded dense SVD;
+  iterative sparse numerical-rank, conditioning, and nullspace estimates.
+- Generic SOC and rotated-SOC feasibility/boundary evidence; general coupled-
+  set and plugin-supplied active-set semantics.
+- Full MFCQ failure certificates; the generic core now has local recovered-
+  multiplier sign and complementarity screens.
+- Large-model profiling aggregates beyond timing and diagnostic-code stability.
 
 ## Degeneracy framework
 
@@ -89,10 +95,22 @@ classifications include structurally expected local nullspaces and unexpected
 local rank loss, candidate common-coordinate shifts, and candidate two-row
 equation dependencies. Next classifications:
 
-- expected coordinate gauge;
+- expected coordinate gauge declarations and observed-nullspace comparison;
 - dependent active constraints;
-- flat reduced-Hessian direction; and
-- unknown.
+- flat reduced-Hessian direction (available through active-set second-order
+  probing); and
+- unknown local equality-Jacobian mode (implemented).
 
 PowerModels and multiconductor semantics follow only after these generic
 interfaces are stable.
+
+## Solver postmortem foundation
+
+`SolverPostmortem` is a solver-neutral record for a solver name, normalized
+termination symbol, optional raw status, iteration count, residuals,
+complementarity, restoration outcome, and textual metadata.
+`analyze_postmortem` turns this into evidence-first findings without claiming
+that a solver's termination proves feasibility, infeasibility, optimality, or
+a physical cause. Future Ipopt and MadNLP extensions should translate their
+native results into this record while retaining the raw status and relevant
+metadata.

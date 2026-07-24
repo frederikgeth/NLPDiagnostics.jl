@@ -70,6 +70,8 @@ function _ordinary_function_capability(model_snapshot::ModelSnapshot)
             :Value,
             :ExactAffineQuadraticGrad,
             :ExactAffineQuadraticJac,
+            :ExactConstructedNonlinearADGrad,
+            :ExactConstructedNonlinearADJac,
             :FiniteDifferenceGrad,
             :FiniteDifferenceJac,
         ],
@@ -77,6 +79,8 @@ function _ordinary_function_capability(model_snapshot::ModelSnapshot)
             :Value,
             :ExactAffineQuadraticGrad,
             :ExactAffineQuadraticJac,
+            :ExactConstructedNonlinearADGrad,
+            :ExactConstructedNonlinearADJac,
             :FiniteDifferenceGrad,
             :FiniteDifferenceJac,
         ],
@@ -261,6 +265,54 @@ end
 
 _exact_symbolic_gradient(function_value, lookup, ::Type{T}) where {T} = nothing
 
+"""
+    _constructed_nonlinear_gradient(function_value, point, statistics)
+
+Evaluate a first derivative with an ephemeral public
+`MOI.Nonlinear.Evaluator`. This remains separate from affine/quadratic
+derivatives so downstream evidence can distinguish reverse-mode AD from a
+closed-form symbolic derivative. `nothing` means construction or evaluation
+was unavailable and the caller should retain its labeled finite-difference
+fallback.
+"""
+function _constructed_nonlinear_gradient(
+    function_value::MOI.ScalarNonlinearFunction,
+    point::EvaluationPoint{T},
+    statistics::Dict{Symbol,Tuple{Int,Float64}},
+) where {T<:AbstractFloat}
+    try
+        nonlinear_model = MOI.Nonlinear.Model()
+        MOI.Nonlinear.set_objective(nonlinear_model, function_value)
+        evaluator = MOI.Nonlinear.Evaluator(
+            nonlinear_model,
+            MOI.Nonlinear.SparseReverseMode(),
+            point.variables,
+        )
+        _record_numerical_call!(statistics, :constructed_nlp_initialize) do
+            MOI.initialize(evaluator, [:Grad])
+        end
+        gradient = zeros(Float64, length(point.variables))
+        _record_numerical_call!(
+            statistics,
+            :constructed_nlp_objective_gradient,
+        ) do
+            MOI.eval_objective_gradient(
+                evaluator,
+                gradient,
+                Float64.(point.values),
+            )
+        end
+        return Dict(
+            variable => convert(T, gradient[column]) for
+            (column, variable) in enumerate(point.variables)
+        )
+    catch
+        return nothing
+    end
+end
+
+_constructed_nonlinear_gradient(function_value, point, statistics) = nothing
+
 function _finite_difference_derivative(
     value_function,
     baseline,
@@ -309,6 +361,7 @@ function _evaluate_symbolic!(
     jacobian_entries,
     jacobian_row_methods,
     failures;
+    statistics::Dict{Symbol,Tuple{Int,Float64}},
     relative_step::T,
     skip_objective::Bool,
 ) where {T<:AbstractFloat}
@@ -326,8 +379,14 @@ function _evaluate_symbolic!(
         )
         objective_value = _convert_value(T, raw_value)
         objective_source = source
-        exact_gradient =
-            _exact_symbolic_gradient(function_value, lookup, T)
+        exact_gradient = _exact_symbolic_gradient(function_value, lookup, T)
+        if isnothing(exact_gradient)
+            exact_gradient = _constructed_nonlinear_gradient(
+                function_value,
+                point,
+                statistics,
+            )
+        end
         if isnothing(exact_gradient)
             value_function = values -> begin
                 local_lookup = Dict(
@@ -387,8 +446,16 @@ function _evaluate_symbolic!(
             failures,
         )
         push!(raw_values, raw_value)
-        exact_gradient =
-            _exact_symbolic_gradient(function_value, lookup, T)
+        exact_gradient = _exact_symbolic_gradient(function_value, lookup, T)
+        exact_method = :exact_symbolic
+        if isnothing(exact_gradient)
+            exact_gradient = _constructed_nonlinear_gradient(
+                function_value,
+                point,
+                statistics,
+            )
+            exact_method = :exact_constructed_nonlinear_ad
+        end
         push!(exact_gradients, exact_gradient)
         push!(constraint_values, _convert_value(T, raw_value))
         push!(constraint_sources, source)
@@ -396,7 +463,7 @@ function _evaluate_symbolic!(
             jacobian_row_methods,
             isnothing(exact_gradient) ?
             :central_finite_difference :
-            :exact_symbolic,
+            exact_method,
         )
     end
     for (local_row, (function_value, source)) in enumerate(zip(functions, sources))
@@ -815,6 +882,7 @@ function evaluate_numerical(
             model, model_snapshot, point, objective_value, objective_source,
             objective_gradient, constraint_values, constraint_sources,
             jacobian_entries, jacobian_row_methods, failures;
+            statistics = call_statistics,
             relative_step = converted_step,
             skip_objective = !isnothing(block) && block.has_objective,
         )

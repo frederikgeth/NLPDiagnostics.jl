@@ -1,6 +1,16 @@
 _entity_row_key(reference::EntityRef) =
     (reference.kind, reference.index, reference.subindex)
 
+"""
+    expected_nullspace_modes(model, evaluation)
+
+Extension hook for domain packages. Return named expected right-nullspace
+directions in model variable coordinates. The generic default declares no
+physical or representational gauges.
+"""
+expected_nullspace_modes(model::MOI.ModelLike, evaluation::NumericalEvaluation) =
+    ExpectedNullspaceMode[]
+
 function _selected_jacobian_submatrix_evaluation(
     evaluation::NumericalEvaluation{T},
     rows::Vector{Int},
@@ -170,7 +180,7 @@ function nullspace_fingerprints(
         local_support = findall(value -> abs(value) >= relative * maximum_magnitude, vector)
         support = comparison.free_variable_columns[local_support]
         correlation = abs(sum(vector)) / (sqrt(T(length(vector))) * norm(vector))
-        if length(local_support) == length(vector) &&
+        if length(vector) >= 2 && length(local_support) == length(vector) &&
            correlation >= correlation_threshold
             push!(
                 fingerprints,
@@ -354,10 +364,11 @@ end
 function _nullspace_fingerprint_findings(
     comparison::StructuralNumericalComparison,
     evaluation::NumericalEvaluation,
+    fingerprints::Vector{<:NullspaceFingerprint} = nullspace_fingerprints(comparison),
 )
     comparison.available || return Finding[]
     findings = Finding[]
-    for fingerprint in nullspace_fingerprints(comparison)
+    for fingerprint in fingerprints
         if fingerprint.kind == :candidate_uniform_coordinate_shift
             affected = EntityRef[
                 EntityRef(:variable, comparison.point.variables[column].value) for
@@ -429,6 +440,153 @@ function _nullspace_fingerprint_findings(
     return findings
 end
 
+function _unknown_local_degeneracy_findings(
+    comparison::StructuralNumericalComparison,
+    fingerprints::Vector{<:NullspaceFingerprint},
+)
+    comparison.available || return Finding[]
+    comparison.numerical_rank < comparison.structural_matching_rank || return Finding[]
+    isempty(fingerprints) || return Finding[]
+    return Finding[Finding(
+        :unknown_local_degeneracy_mode;
+        severity = SeverityWarning,
+        domain = NumericalIssue,
+        basis = LocalInference,
+        confidence = ConfidenceHigh,
+        observation = "Additional local rank loss is observed, but no generic nullspace fingerprint matches the aligned equality-Jacobian mode.",
+        why_it_matters = "The rank loss needs model or domain semantics before it can be classified as a gauge, dependent equation, coordinate artifact, or physical mode.",
+        evidence = [
+            _point_evidence(comparison.point),
+            Evidence("Unclassified local nullspace"; details = [
+                "structural_matching_rank" => comparison.structural_matching_rank,
+                "numerical_rank" => comparison.numerical_rank,
+                "right_nullity" => comparison.numerical_right_nullity,
+                "left_nullity" => comparison.numerical_left_nullity,
+                "matched_generic_fingerprints" => 0,
+            ]),
+        ],
+        suggested_actions = [
+            "Inspect the recorded nullspace vectors and repeat at nearby valid points.",
+            "Add domain metadata or a plugin classifier before assigning a physical interpretation.",
+        ],
+    )]
+end
+
+function _expected_nullspace_mode_findings(
+    comparison::StructuralNumericalComparison{T},
+    modes::AbstractVector{<:ExpectedNullspaceMode};
+    residual_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    comparison.available || return Finding[]
+    tolerance = convert(T, residual_tolerance)
+    tolerance >= zero(T) ||
+        throw(ArgumentError("residual_tolerance must be nonnegative"))
+    point_columns = Dict(
+        variable => column for
+        (column, variable) in enumerate(comparison.point.variables)
+    )
+    local_columns = Dict(
+        column => local_position for
+        (local_position, column) in enumerate(comparison.free_variable_columns)
+    )
+    estimate = something(comparison.estimate)
+    findings = Finding[]
+    for mode in modes
+        direction = zeros(T, length(comparison.free_variable_columns))
+        unavailable_variables = Int[]
+        for (variable, coefficient) in zip(mode.variables, mode.direction)
+            column = get(point_columns, variable, 0)
+            local_column = get(local_columns, column, 0)
+            if iszero(local_column)
+                push!(unavailable_variables, variable.value)
+            else
+                direction[local_column] += convert(T, coefficient)
+            end
+        end
+        if !isempty(unavailable_variables) || iszero(norm(direction))
+            push!(
+                findings,
+                Finding(
+                    :expected_nullspace_mode_unaligned;
+                    severity = SeverityInfo,
+                    domain = RepresentationalIssue,
+                    basis = StructuralProof,
+                    confidence = ConfidenceCertain,
+                    observation = "Expected nullspace mode :$(mode.name) cannot be aligned with the free coordinates used by the local comparison.",
+                    why_it_matters = "The debugger cannot compare a declared gauge with the observed nullspace unless their variable coordinates agree.",
+                    evidence = [Evidence("Expected nullspace alignment"; details = [
+                        "mode" => mode.name,
+                        "unaligned_variable_indices" => join(unavailable_variables, ","),
+                    ])],
+                    suggested_actions = [
+                        "Declare the mode in free evaluation-point coordinates or provide plugin-specific alignment logic.",
+                    ],
+                ),
+            )
+            continue
+        end
+        normalized = direction / norm(direction)
+        residual = if size(estimate.right_nullspace, 2) == 0
+            one(T)
+        else
+            norm(normalized - estimate.right_nullspace * (
+                transpose(estimate.right_nullspace) * normalized
+            ))
+        end
+        affected = EntityRef[
+            EntityRef(:variable, variable.value) for variable in mode.variables
+        ]
+        if residual <= tolerance
+            push!(
+                findings,
+                Finding(
+                    :expected_nullspace_mode_observed;
+                    severity = SeverityInfo,
+                    domain = RepresentationalIssue,
+                    basis = PhysicalExpectation,
+                    confidence = ConfidenceHigh,
+                    observation = "Declared expected nullspace mode :$(mode.name) aligns with the observed local right nullspace.",
+                    why_it_matters = "This supports, but does not prove, the plugin or caller's interpretation of the local freedom as an expected gauge or invariance.",
+                    evidence = [Evidence("Expected-nullspace comparison"; details = [
+                        "mode" => mode.name,
+                        "projection_residual" => residual,
+                        "tolerance" => tolerance,
+                        "description" => mode.description,
+                    ])],
+                    suggested_actions = [
+                        "Retain the declaration and verify it across relevant operating points and formulations.",
+                    ],
+                    affected = affected,
+                ),
+            )
+        else
+            push!(
+                findings,
+                Finding(
+                    :expected_nullspace_mode_not_observed;
+                    severity = SeverityInfo,
+                    domain = RepresentationalIssue,
+                    basis = LocalInference,
+                    confidence = ConfidenceHigh,
+                    observation = "Declared expected nullspace mode :$(mode.name) does not align with the observed local right nullspace.",
+                    why_it_matters = "The mode may be fixed by this formulation or operating point, or the declaration may not match the model coordinates.",
+                    evidence = [Evidence("Expected-nullspace comparison"; details = [
+                        "mode" => mode.name,
+                        "projection_residual" => residual,
+                        "tolerance" => tolerance,
+                        "description" => mode.description,
+                    ])],
+                    suggested_actions = [
+                        "Check references, active constraints, and plugin assumptions before treating the missing mode as an error.",
+                    ],
+                    affected = affected,
+                ),
+            )
+        end
+    end
+    return findings
+end
+
 """
     analyze_degeneracy(model, evaluation; ...)
 
@@ -438,12 +596,26 @@ freedom versus additional local numerical rank loss.
 function analyze_degeneracy(
     model::MOI.ModelLike,
     evaluation::NumericalEvaluation;
+    expected_modes::AbstractVector{<:ExpectedNullspaceMode} =
+        expected_nullspace_modes(model, evaluation),
+    expected_mode_residual_tolerance::Real =
+        sqrt(eps(eltype(evaluation.point.values))),
     kwargs...,
 )
     comparison = structural_numerical_comparison(model, evaluation; kwargs...)
+    fingerprints = nullspace_fingerprints(comparison)
     report = DiagnosticReport()
     append!(report.findings, _structural_numerical_findings(comparison))
-    append!(report.findings, _nullspace_fingerprint_findings(comparison, evaluation))
+    append!(report.findings, _nullspace_fingerprint_findings(comparison, evaluation, fingerprints))
+    append!(report.findings, _unknown_local_degeneracy_findings(comparison, fingerprints))
+    append!(
+        report.findings,
+        _expected_nullspace_mode_findings(
+            comparison,
+            expected_modes;
+            residual_tolerance = expected_mode_residual_tolerance,
+        ),
+    )
     report.metadata[:stage] = "degeneracy"
     report.metadata[:evaluation_point_label] = evaluation.point.label
     report.metadata[:structural_numerical_comparison_available] =
@@ -451,6 +623,8 @@ function analyze_degeneracy(
     report.metadata[:structural_matching_rank] =
         string(comparison.structural_matching_rank)
     report.metadata[:aligned_numerical_rank] = string(comparison.numerical_rank)
+    report.metadata[:generic_nullspace_fingerprint_count] = string(length(fingerprints))
+    report.metadata[:declared_expected_nullspace_mode_count] = string(length(expected_modes))
     sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
 end

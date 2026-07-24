@@ -555,6 +555,7 @@ function _rank_findings(
     unscaled::JacobianRankEstimate,
     scaled::JacobianRankEstimate;
     condition_threshold::Real,
+    sparse_pattern::Union{Nothing,SparseJacobianPatternEstimate} = nothing,
 )
     findings = Finding[]
     affected = vcat(
@@ -565,6 +566,38 @@ function _rank_findings(
         ],
     )
     if !unscaled.available
+        if !isnothing(sparse_pattern) && sparse_pattern.available &&
+           sparse_pattern.rank_upper_bound < min(sparse_pattern.rows, sparse_pattern.columns)
+            push!(
+                findings,
+                Finding(
+                    :sparse_jacobian_pattern_rank_deficiency;
+                    severity = SeverityWarning,
+                    domain = NumericalIssue,
+                    basis = NumericalObservation,
+                    confidence = ConfidenceHigh,
+                    observation = "The combined sparse Jacobian pattern has matching rank upper bound $(sparse_pattern.rank_upper_bound), below its maximum possible rank $(min(sparse_pattern.rows, sparse_pattern.columns)).",
+                    why_it_matters = "No numerical Jacobian with this observed nonzero pattern can have full rank, even though the guarded dense SVD was not run.",
+                    evidence = [
+                        _point_evidence(evaluation.point),
+                        Evidence("Sparse Jacobian pattern matching"; details = [
+                            "rows" => sparse_pattern.rows,
+                            "columns" => sparse_pattern.columns,
+                            "combined_nonzero_count" => sparse_pattern.nonzero_count,
+                            "zero_tolerance" => sparse_pattern.zero_tolerance,
+                            "rank_upper_bound" => sparse_pattern.rank_upper_bound,
+                            "unmatched_rows" => join(sparse_pattern.unmatched_rows, ","),
+                            "unmatched_columns" => join(sparse_pattern.unmatched_columns, ","),
+                        ]),
+                    ],
+                    suggested_actions = [
+                        "Inspect the unmatched rows and columns for inactive or zero sensitivities.",
+                        "Raise the dense-work guard or use a future sparse numerical-rank method for singular values and null vectors.",
+                    ],
+                    affected = affected,
+                ),
+            )
+        end
         push!(
             findings,
             Finding(
@@ -711,6 +744,7 @@ function analyze_numerical(
         relative_tolerance = rank_relative_tolerance,
         max_dense_entries = rank_max_dense_entries,
     )
+    sparse_pattern = sparse_jacobian_pattern_estimate(evaluation)
     model_snapshot = snapshot(model)
     report = DiagnosticReport()
     append!(
@@ -724,6 +758,7 @@ function analyze_numerical(
             unscaled_rank,
             scaled_rank;
             condition_threshold = jacobian_condition_threshold,
+            sparse_pattern = sparse_pattern,
         ),
     )
     append!(report.findings, _nonfinite_value_findings(evaluation))
@@ -758,6 +793,10 @@ function analyze_numerical(
     report.metadata[:jacobian_rank] = string(unscaled_rank.rank)
     report.metadata[:jacobian_rank_scaling] = string(unscaled_rank.scaling)
     report.metadata[:jacobian_rank_available] = string(unscaled_rank.available)
+    report.metadata[:sparse_jacobian_pattern_available] =
+        string(sparse_pattern.available)
+    report.metadata[:sparse_jacobian_pattern_rank_upper_bound] =
+        string(sparse_pattern.rank_upper_bound)
     report.metadata[:evaluation_sources] = join(
         unique(string(capability.source) for capability in evaluation.capabilities),
         ",",

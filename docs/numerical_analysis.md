@@ -100,6 +100,23 @@ It reports a numerical rank deficiency only when rank is below
 deficiency. When rank changes after normalization, the report calls this
 scale-sensitive evidence rather than a mathematical degeneracy.
 
+`sparse_jacobian_pattern_estimate(evaluation)` applies maximum matching to the
+combined observed nonzero pattern without forming a dense matrix. Its term rank
+is only an upper bound on numerical rank: a deficient bound proves local
+deficiency of that observed pattern, but a full bound does not establish
+numerical full rank, conditioning, or nullspaces.
+
+## Ordinary nonlinear first derivatives
+
+For public `MOI.ScalarNonlinearFunction` expressions, the generic evaluator
+constructs an ephemeral `MOI.Nonlinear.Evaluator` with
+`SparseReverseMode` and requests `:Grad`. Objective gradients and scalar
+constraint rows obtained this way are labeled
+`:exact_constructed_nonlinear_ad`; affine and quadratic derivatives retain the
+separate `:exact_symbolic` label. If construction or AD evaluation is
+unavailable (for example, an unsupported custom operator), the evaluator uses
+the existing explicitly labeled finite-difference fallback instead.
+
 ## Hessian and reduced-Hessian evidence
 
 `evaluate_lagrangian_hessian` evaluates the Hessian of an explicit weighted
@@ -112,6 +129,12 @@ additive duplicate semantics.
 supplied `active_rows`. It deliberately does not infer activity or multipliers
 from residuals. `analyze_reduced_hessian` reports negative curvature, flat
 directions, and poor positive-curvature conditioning as local evidence.
+
+`analyze_active_set_second_order` is the convenience path for a point-local
+probe: it selects scalar active rows, recovers a least-squares multiplier
+representative, evaluates the corresponding Lagrangian Hessian, and reports
+the reduced spectrum. Its report preserves unavailable or non-unique
+multiplier evidence rather than claiming a KKT certificate.
 
 ## Feasibility and active-set evidence
 
@@ -136,7 +159,9 @@ least-squares multiplier representative for those explicit active sides,
 respecting the MOI objective sense and lower/upper sign convention. It reports
 the local stationarity residual and whether the active-gradient system makes
 the representative non-unique. This is diagnostic evidence, not a solver dual
-solution or an economic interpretation.
+solution or an economic interpretation. It also reports the recovered
+inequality-sign violation and bound-margin complementarity residual; these are
+local consistency screens for this representative, not KKT certificates.
 
 `active_set_matching` is a separate, explicitly point-local structural view.
 It matches free variables to only the aligned equality and selected near-active
@@ -144,6 +169,14 @@ scalar inequality rows. Its activity selection is numerical evidence, whereas
 the matching conclusion is structural for that selected pattern. Callback and
 coupled-set rows that cannot be aligned remain visible as unmapped rows rather
 than being silently omitted.
+
+Second-order and rotated-second-order cones additionally receive generic
+vector-set feasibility and boundary reports through
+`coupled_set_feasibility_summary`. A cone boundary remains coupled geometry:
+the generic core does not turn it into scalar active rows for LICQ, MFCQ, or
+multiplier recovery. Other coupled sets remain plugin extension points through
+`coupled_set_activity(set, source, values, feasibility_tolerance,
+active_tolerance)`, which may return a `CoupledSetActivity` or `nothing`.
 
 ## Structural versus numerical degeneracy
 
@@ -170,7 +203,16 @@ The same stage adds two deliberately weak but inspectable fingerprints:
 
 Neither fingerprint is a physical diagnosis or a reason to suppress a finding.
 Their purpose is to make the nullspace evidence easier to inspect and to give
-future domain plugins a stable generic input.
+future domain plugins a stable generic input. When additional local rank loss
+has no matching generic fingerprint, the debugger reports an explicit
+`unknown_local_degeneracy_mode` rather than implying a physical cause.
+
+`ExpectedNullspaceMode` lets a caller or domain plugin declare a named
+right-nullspace direction in `MOI.VariableIndex` coordinates. Pass declarations
+through `analyze_degeneracy(...; expected_modes = [...])`, or extend
+`expected_nullspace_modes(model, evaluation)`. The generic core reports whether
+the declared direction aligns with the observed local right nullspace; it does
+not suppress the underlying rank or nullspace evidence.
 
 ## Reproducible formulation profiles
 
@@ -191,8 +233,10 @@ portable solver-performance benchmark.
 `profile_case_repeated(model, case; repetitions = 3, warmup = true)` performs
 independent runs with fresh caches, discards the optional warm-up measurement,
 and returns minimum, mean, maximum, and population standard deviation for each
-stage. These summaries describe local observed variation; they are not
-statistical confidence intervals.
+stage. It also returns per-stage diagnostic-code occurrence fractions, making
+stable versus intermittent findings explicit across retained runs. These
+summaries describe local observed variation; they are not statistical
+confidence intervals.
 
 ## Cache lifetime
 
@@ -203,6 +247,16 @@ Repeated requests at the same point do not reinitialize or call an evaluator.
 MOI does not provide a generic model mutation counter. After changing model
 functions, sets, callbacks, or operator registrations, call `empty!(cache)`
 before reusing it. This clears entries and advances the cache generation.
+
+## Solver postmortem records
+
+`SolverPostmortem` preserves a solver's normalized termination, native status
+text, iterations, residuals, complementarity, restoration outcome, and
+metadata. `analyze_postmortem` reports those observations as evidence. In
+particular, a reported infeasibility or numerical failure is a solver-reported
+outcome, rather than a mathematical proof about the model. Solver extensions
+should map native result information into this schema without discarding the
+raw status.
 
 ## Current limits
 
