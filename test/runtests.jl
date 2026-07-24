@@ -1264,8 +1264,20 @@ end
         @test recovery.available
         @test !recovery.unique
         @test recovery.stationarity_residual_norm ≈ 0.0 atol = 1.0e-12
+        active_matching = NLPDiagnostics.active_set_matching(
+            dual_model,
+            dual_evaluation,
+            dual_summary,
+        )
+        @test active_matching.complete
+        @test active_matching.selected_rows == [1, 2]
+        @test NLPDiagnostics.matching_cardinality(active_matching.matching) == 1
         dual_report = NLPDiagnostics.analyze_active_set(dual_model, dual_evaluation)
         @test length(findings(dual_report, :nonunique_active_multipliers)) == 1
+        @test length(
+            findings(dual_report, :active_set_structural_overdetermination),
+        ) == 1
+        @test dual_report.metadata[:active_structural_matching_cardinality] == "1"
 
         rectangle_model = new_model()
         r1, r2 = MOI.add_variables(rectangle_model, 2)

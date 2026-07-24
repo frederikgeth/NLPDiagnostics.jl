@@ -209,6 +209,44 @@ function _active_set_findings(
     return findings
 end
 
+function _active_matching_findings(
+    evaluation::NumericalEvaluation,
+    active_matching::ActiveSetStructuralMatching,
+)
+    active_matching.complete || return Finding[]
+    matching = active_matching.matching
+    cardinality = matching_cardinality(matching)
+    selected_count = length(active_matching.selected_constraint_positions)
+    cardinality == selected_count && return Finding[]
+    affected = EntityRef[
+        evaluation.constraint_sources[row] for row in active_matching.selected_rows
+    ]
+    return Finding[Finding(
+        :active_set_structural_overdetermination;
+        severity = SeverityWarning,
+        domain = MathematicalIssue,
+        basis = LocalInference,
+        confidence = ConfidenceHigh,
+        observation = "The selected active-set incidence pattern matches only $cardinality of $selected_count aligned scalar equation row(s) to free variables.",
+        why_it_matters = "After the point-local activity selection, this structural deficiency is consistent with redundant active equations and the LICQ or multiplier non-uniqueness diagnostics.",
+        evidence = [
+            _point_evidence(evaluation.point),
+            Evidence("Active-set structural matching"; details = [
+                "selected_activity_rows" => join(active_matching.selected_rows, ","),
+                "aligned_constraint_nodes" => selected_count,
+                "eligible_free_variables" => length(matching.eligible_variable_positions),
+                "matching_cardinality" => cardinality,
+                "scope" => "only selected ordinary scalar rows; activity is point-local",
+            ]),
+        ],
+        suggested_actions = [
+            "Inspect the selected rows for duplicate or dependent active equations.",
+            "Compare this structural screen with the local Jacobian-rank and multiplier-recovery evidence.",
+        ],
+        affected = affected,
+    )]
+end
+
 """
     analyze_active_set(model, evaluation; ...)
 
@@ -251,14 +289,21 @@ function analyze_active_set(
         rank_relative_tolerance = rank_relative_tolerance,
         max_dense_entries = rank_max_dense_entries,
     )
+    active_matching = active_set_matching(model, evaluation, summary)
     report = DiagnosticReport()
     append!(report.findings, _active_set_findings(evaluation, summary, selected_rows, estimate, mfcq, recovery))
+    append!(report.findings, _active_matching_findings(evaluation, active_matching))
     report.metadata[:stage] = "active_set"
     report.metadata[:evaluation_point_label] = evaluation.point.label
     report.metadata[:active_rows] = join(selected_rows, ",")
     report.metadata[:active_row_count] = string(length(selected_rows))
     report.metadata[:active_jacobian_rank] = string(estimate.rank)
     report.metadata[:active_jacobian_rank_available] = string(estimate.available)
+    report.metadata[:active_structural_matching_available] = string(active_matching.complete)
+    report.metadata[:active_structural_matching_cardinality] =
+        string(matching_cardinality(active_matching.matching))
+    report.metadata[:active_structural_unmapped_row_count] =
+        string(length(active_matching.unmapped_rows))
     report.metadata[:mfcq_screen_available] = string(mfcq.available)
     report.metadata[:mfcq_common_descent_direction_found] = string(mfcq.direction_found)
     report.metadata[:multiplier_recovery_available] = string(recovery.available)

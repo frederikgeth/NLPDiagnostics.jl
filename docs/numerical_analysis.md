@@ -138,6 +138,13 @@ the local stationarity residual and whether the active-gradient system makes
 the representative non-unique. This is diagnostic evidence, not a solver dual
 solution or an economic interpretation.
 
+`active_set_matching` is a separate, explicitly point-local structural view.
+It matches free variables to only the aligned equality and selected near-active
+scalar inequality rows. Its activity selection is numerical evidence, whereas
+the matching conclusion is structural for that selected pattern. Callback and
+coupled-set rows that cannot be aligned remain visible as unmapped rows rather
+than being silently omitted.
+
 ## Structural versus numerical degeneracy
 
 `structural_numerical_comparison` aligns ordinary equality rows and free

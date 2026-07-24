@@ -116,11 +116,23 @@ maximum_matching(model::MOI.ModelLike) =
     maximum_matching(incidence_graph(model))
 
 function _constraint_node_key(node::ConstraintNodeRecord)
-    return (:constraint, node.constraint.index.value, node.row)
+    return (
+        :constraint,
+        node.constraint.index.value,
+        node.row,
+        string(typeof(node.constraint.function_value)),
+        string(typeof(node.constraint.set_value)),
+    )
 end
 
 function _entity_ref_key(ref::EntityRef)
-    return (ref.kind, ref.index, ref.subindex)
+    return (
+        ref.kind,
+        ref.index,
+        ref.subindex,
+        ref.function_type,
+        ref.set_type,
+    )
 end
 
 """

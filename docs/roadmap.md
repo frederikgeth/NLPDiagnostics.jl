@@ -63,8 +63,8 @@ evaluation layers can expose its supporting evidence.
 
 ## Next: structural refinement
 
-- Add a separately labeled active-set matching after numerical evaluation is
-  available.
+- Separately labeled active-set matching after numerical evaluation, restricted
+  to aligned ordinary scalar rows and with unmapped rows kept explicit.
 - Replace simple fixed-variable classification with a richer variable-domain
   intersection abstraction for non-`Float64` coefficient types.
 - Benchmark the prototype matching and strongly connected-component
