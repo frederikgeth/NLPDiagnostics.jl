@@ -9,6 +9,27 @@ NLPDiagnostics.snapshot(model::JuMP.Model) =
 NLPDiagnostics.analyze(model::JuMP.Model; kwargs...) =
     NLPDiagnostics.analyze(JuMP.backend(model); kwargs...)
 
+"""
+    NLPDiagnostics.solver_postmortem(model::JuMP.Model)
+
+Read a postmortem from the optimizer currently attached to `model`. This only
+uses `JuMP.unsafe_backend` to select a solver-specific, read-only adapter; it
+does not expose optimizer indices or modify the model. Call it after solving,
+or after explicitly attaching an optimizer for a solver-specific inspection.
+"""
+function NLPDiagnostics.solver_postmortem(model::JuMP.Model)
+    optimizer = try
+        JuMP.unsafe_backend(model)
+    catch error
+        throw(ArgumentError(
+            "No optimizer is attached to this JuMP model. Set and attach a " *
+            "supported optimizer before requesting its postmortem. " *
+            "Original error: $(sprint(showerror, error))",
+        ))
+    end
+    return NLPDiagnostics.solver_postmortem(optimizer)
+end
+
 NLPDiagnostics.analyze_static(model::JuMP.Model) =
     NLPDiagnostics.analyze_static(JuMP.backend(model))
 

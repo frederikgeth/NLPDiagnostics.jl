@@ -258,6 +258,51 @@ outcome, rather than a mathematical proof about the model. Solver extensions
 should map native result information into this schema without discarding the
 raw status.
 
+### Ipopt extension
+
+When both `NLPDiagnostics` and `Ipopt` are loaded,
+`solver_postmortem(model)` maps an Ipopt optimizer's raw application status
+and public MOI result attributes into a `SolverPostmortem`. It records
+barrier iterations, objective value, solve time, and MOI termination/primal/
+dual statuses. Ipopt does not expose final residuals through stable public MOI
+attributes, so the adapter leaves residual and complementarity fields unset.
+Only the `Restoration_Failed` raw status is interpreted as an unsuccessful
+restoration attempt.
+
+With the optional JuMP extension, `solver_postmortem(jump_model)` delegates to
+the currently attached optimizer. It is read-only, but the solver adapter still
+operates on the actual optimizer: call it after `optimize!`, or after JuMP has
+attached the optimizer. An unattached or unsupported optimizer produces an
+explicit error rather than a guessed postmortem.
+
+### MadNLP extension
+
+When `MadNLP` is loaded, the same `solver_postmortem` entry point recognizes
+its MOI optimizer. The extension records public MOI statuses, barrier
+iterations, objective value, solve time, and MadNLP's raw status string. It
+does not inspect MadNLP internals to infer residuals or restoration history;
+only the raw `Restoration Failed` status records unsuccessful restoration.
+
+## Raw solver-log evidence
+
+`solver_log_observations(log)` retains the original line number and text for a
+small set of explicit generic markers: restoration failure, invalid-number
+text, infeasibility text, termination limits, and selected numerical-failure
+phrases. `analyze_solver_log(solver, log)` groups these lines into findings.
+It does not parse iteration tables, reconstruct residuals, or treat log text as
+a proof of infeasibility or optimality. Future solver extensions can add
+structured log parsers while preserving these raw, inspectable evidence lines.
+
+## Structured iteration-log evidence
+
+`solver_iteration_records(log)` recognizes complete numeric rows below the
+documented Ipopt and MadNLP iteration headers. It retains the raw row and line
+number along with objective, primal/dual infeasibility, and the columns common
+to each format. Ambiguous or incomplete rows are not partially parsed.
+`analyze_solver_iterations(solver, log)` reports a final recorded residual and
+an optional residual-regression heuristic. These are log-column observations,
+not independently recomputed KKT residuals or convergence certificates.
+
 ## Current limits
 
 - Finite differences are probing evidence, not exact derivatives.

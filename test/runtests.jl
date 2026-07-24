@@ -2038,5 +2038,67 @@ end
             NLPDiagnostics.SolverPostmortem("TestSolver", :iteration_limit),
         )
         @test length(findings(limit_report, :solver_termination_limit)) == 1
+
+        unconfigured_jump_model = JuMP.Model()
+        @test_throws ArgumentError NLPDiagnostics.solver_postmortem(
+            unconfigured_jump_model,
+        )
+    end
+
+    @testset "raw solver log evidence" begin
+        log = """
+        iter 0
+        Restoration Failed
+        Invalid number in NLP Jacobian detected.
+        Converged to a point of local infeasibility.
+        Maximum Number of Iterations Exceeded.
+        """
+        observations = NLPDiagnostics.solver_log_observations(log)
+        @test [observation.category for observation in observations] == [
+            :restoration_failed,
+            :invalid_number,
+            :reported_infeasibility,
+            :termination_limit,
+        ]
+        report = NLPDiagnostics.analyze_solver_log(
+            "TestSolver",
+            log;
+            max_evidence_lines = 1,
+        )
+        @test length(findings(report, :solver_log_restoration_failure)) == 1
+        @test length(findings(report, :solver_log_invalid_number)) == 1
+        @test length(findings(report, :solver_log_reported_infeasibility)) == 1
+        @test length(findings(report, :solver_log_termination_limit)) == 1
+        @test report.metadata[:recognized_log_observation_count] == "4"
+        @test evidence_details(
+            only(findings(report, :solver_log_restoration_failure)),
+        )["line"] == "2"
+        @test_throws ArgumentError NLPDiagnostics.analyze_solver_log(
+            "TestSolver",
+            log;
+            max_evidence_lines = 0,
+        )
+    end
+
+    @testset "structured solver iteration evidence" begin
+        ipopt_log = """
+        iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+           0  1.0e+00 1.0e+00 2.0e+00  -1.0 0.0e+00    -  0.0e+00 0.0e+00   0
+           1r 2.0e+00 1.0e-02 3.0e-02  -2.0 1.0e+00    -  1.0e+00 1.0e+00   1
+        """
+        records = NLPDiagnostics.solver_iteration_records(ipopt_log)
+        @test length(records) == 2
+        @test records[2].format == :ipopt
+        @test records[2].phase == :annotated
+        @test records[2].primal_step == 1.0
+
+        madnlp_log = """
+        iter    objective    inf_pr   inf_du inf_compl lg(mu) lg(rg) alpha_pr ir ls
+           0  1.0e+00 1.0e+00 2.0e+00 3.0e+00 -1.0 0.0 0.0 0 0
+           1  2.0e+00 2.0e+01 3.0e+01 4.0e+00 -2.0 0.0 1.0 0 1
+        """
+        @test only(NLPDiagnostics.solver_iteration_records(madnlp_log)[2:2]).complementarity == 4.0
+        report = NLPDiagnostics.analyze_solver_iterations("Ipopt", ipopt_log; residual_tolerance = 1e-3)
+        @test length(findings(report, :solver_iteration_large_final_residual)) == 1
     end
 end

@@ -81,6 +81,8 @@ export ProfileResult
 export ProfileTimingSummary
 export ProfileFindingStability
 export SolverPostmortem
+export SolverLogObservation
+export SolverIterationRecord
 export MathematicalIssue, NumericalIssue, PhysicalIssue, RepresentationalIssue
 export MathematicalProof, NumericalObservation, PhysicalExpectation
 export LocalInference, HeuristicInterpretation, StructuralProof
@@ -109,8 +111,13 @@ export analyze_active_set_second_order
 export analyze_static
 export analyze_structure
 export analyze_postmortem
+export analyze_solver_log
+export analyze_solver_iterations
 export profile_case
 export profile_case_repeated
+export solver_postmortem
+export solver_log_observations
+export solver_iteration_records
 export connected_components
 export constraint_role
 export dulmage_mendelsohn

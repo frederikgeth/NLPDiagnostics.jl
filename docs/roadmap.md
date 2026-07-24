@@ -114,3 +114,17 @@ that a solver's termination proves feasibility, infeasibility, optimality, or
 a physical cause. Future Ipopt and MadNLP extensions should translate their
 native results into this record while retaining the raw status and relevant
 metadata.
+
+The Ipopt extension is implemented for a direct `Ipopt.Optimizer` and through
+the optional JuMP adapter: it maps Ipopt raw statuses and public MOI result
+attributes without parsing logs or depending on optimizer internals. A MadNLP
+extension is also implemented with the same evidence-preserving boundary.
+
+Generic raw solver-log evidence is implemented for explicit restoration,
+infeasibility, limit, invalid-number, and selected numerical-failure markers.
+It retains matching line text and numbers but does not parse solver iteration
+tables or make status text into a mathematical certificate. Structured Ipopt
+and MadNLP iteration-row parsing is now implemented for complete rows under
+recognized headers; final residual and residual-regression findings remain
+trace observations rather than KKT certificates. The next refinement is to
+correlate parsed rows with explicitly supplied evaluation points.

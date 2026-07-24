@@ -523,6 +523,33 @@ struct SolverPostmortem
     metadata::Dict{String,String}
 end
 
+"""
+One line-level observation extracted from a solver log.
+
+`category` labels text that was explicitly present in the log. It is not an
+independent reconstruction of solver state and does not establish a
+mathematical property of the model.
+"""
+struct SolverLogObservation
+    line::Int
+    category::Symbol
+    text::String
+end
+
+"""One complete, numerically parsed solver iteration-log row."""
+struct SolverIterationRecord
+    format::Symbol
+    line::Int
+    iteration::Int
+    phase::Symbol
+    objective::Float64
+    primal_infeasibility::Float64
+    dual_infeasibility::Float64
+    complementarity::Union{Nothing,Float64}
+    primal_step::Union{Nothing,Float64}
+    text::String
+end
+
 function SolverPostmortem(
     solver::AbstractString,
     termination::Symbol;
