@@ -1077,7 +1077,7 @@ end
         T = MOI.ScalarAffineTerm{Float64}
         MOI.add_constraint(
             underdetermined,
-            F([T(1.0, x), T(1.0, y)], 0.0),
+            F([T(1.0, x), T(-1.0, y)], 0.0),
             MOI.EqualTo(0.0),
         )
         expected = NLPDiagnostics.structural_numerical_comparison(
@@ -1090,6 +1090,9 @@ end
         @test expected.numerical_rank == 1
         report = NLPDiagnostics.analyze_degeneracy(underdetermined, [0.0, 0.0])
         @test length(findings(report, :structurally_expected_local_nullspace)) == 1
+        @test length(
+            findings(report, :candidate_uniform_coordinate_shift_null_mode),
+        ) == 1
 
         stationary = new_model()
         z = MOI.add_variable(stationary)
@@ -1108,6 +1111,17 @@ end
             check_degeneracy = true,
         )
         @test occursin("degeneracy", combined.metadata[:stages])
+
+        duplicate_rows = new_model()
+        q = MOI.add_variable(duplicate_rows)
+        q_expression = F([T(1.0, q)], 0.0)
+        twice_q_expression = F([T(2.0, q)], 0.0)
+        MOI.add_constraint(duplicate_rows, q_expression, MOI.EqualTo(0.0))
+        MOI.add_constraint(duplicate_rows, twice_q_expression, MOI.EqualTo(0.0))
+        dependency = NLPDiagnostics.analyze_degeneracy(duplicate_rows, [0.0])
+        @test length(
+            findings(dependency, :candidate_two_row_equation_dependence),
+        ) == 1
     end
 
     @testset "explicit activity, LICQ, and MFCQ screens" begin

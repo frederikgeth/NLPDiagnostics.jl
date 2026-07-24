@@ -141,6 +141,69 @@ function structural_numerical_comparison(
     )
 end
 
+"""
+    nullspace_fingerprints(comparison; ...)
+
+Extract a small set of conservative, inspectable local nullspace patterns.
+Currently recognized patterns are a near-uniform right-null vector (candidate
+common-coordinate shift) and a two-row left-null vector (candidate pairwise
+equation dependence).
+"""
+function nullspace_fingerprints(
+    comparison::StructuralNumericalComparison{T};
+    support_relative::Real = 0.1,
+    uniform_shift_correlation::Real = 0.98,
+) where {T<:AbstractFloat}
+    comparison.available || return NullspaceFingerprint{T}[]
+    relative = convert(T, support_relative)
+    correlation_threshold = convert(T, uniform_shift_correlation)
+    zero(T) < relative <= one(T) ||
+        throw(ArgumentError("support_relative must lie in (0, 1]"))
+    zero(T) <= correlation_threshold <= one(T) ||
+        throw(ArgumentError("uniform_shift_correlation must lie in [0, 1]"))
+    estimate = something(comparison.estimate)
+    fingerprints = NullspaceFingerprint{T}[]
+    for vector_index in axes(estimate.right_nullspace, 2)
+        vector = view(estimate.right_nullspace, :, vector_index)
+        maximum_magnitude = maximum(abs, vector; init = zero(T))
+        iszero(maximum_magnitude) && continue
+        local_support = findall(value -> abs(value) >= relative * maximum_magnitude, vector)
+        support = comparison.free_variable_columns[local_support]
+        correlation = abs(sum(vector)) / (sqrt(T(length(vector))) * norm(vector))
+        if length(local_support) == length(vector) &&
+           correlation >= correlation_threshold
+            push!(
+                fingerprints,
+                NullspaceFingerprint{T}(
+                    :right,
+                    vector_index,
+                    :candidate_uniform_coordinate_shift,
+                    support,
+                    correlation,
+                ),
+            )
+        end
+    end
+    for vector_index in axes(estimate.left_nullspace, 2)
+        vector = view(estimate.left_nullspace, :, vector_index)
+        maximum_magnitude = maximum(abs, vector; init = zero(T))
+        iszero(maximum_magnitude) && continue
+        local_support = findall(value -> abs(value) >= relative * maximum_magnitude, vector)
+        length(local_support) == 2 || continue
+        push!(
+            fingerprints,
+            NullspaceFingerprint{T}(
+                :left,
+                vector_index,
+                :candidate_two_row_equation_dependence,
+                comparison.equality_rows[local_support],
+                one(T),
+            ),
+        )
+    end
+    return fingerprints
+end
+
 function structural_numerical_comparison(
     model::MOI.ModelLike,
     point::EvaluationPoint;
@@ -288,6 +351,84 @@ function _structural_numerical_findings(
     return findings
 end
 
+function _nullspace_fingerprint_findings(
+    comparison::StructuralNumericalComparison,
+    evaluation::NumericalEvaluation,
+)
+    comparison.available || return Finding[]
+    findings = Finding[]
+    for fingerprint in nullspace_fingerprints(comparison)
+        if fingerprint.kind == :candidate_uniform_coordinate_shift
+            affected = EntityRef[
+                EntityRef(:variable, comparison.point.variables[column].value) for
+                column in fingerprint.support
+            ]
+            push!(
+                findings,
+                Finding(
+                    :candidate_uniform_coordinate_shift_null_mode;
+                    severity = SeverityInfo,
+                    domain = RepresentationalIssue,
+                    basis = HeuristicInterpretation,
+                    confidence = ConfidenceMedium,
+                    observation = "A local right-null vector is nearly uniform across $(length(fingerprint.support)) aligned free coordinates.",
+                    why_it_matters = "This resembles a common-coordinate shift, but variable units and model semantics are required before it can be called an expected physical or reference gauge.",
+                    evidence = [
+                        _point_evidence(comparison.point),
+                        Evidence(
+                            "Nullspace fingerprint";
+                            details = [
+                                "side" => fingerprint.side,
+                                "vector_index" => fingerprint.vector_index,
+                                "support_columns" => join(fingerprint.support, ","),
+                                "uniform_shift_correlation" => fingerprint.score,
+                            ],
+                        ),
+                    ],
+                    suggested_actions = [
+                        "Confirm that the affected coordinates share units and represent a meaningful common reference direction.",
+                        "Use a domain plugin to declare an expected gauge before suppressing the mode.",
+                    ],
+                    affected = affected,
+                ),
+            )
+        elseif fingerprint.kind == :candidate_two_row_equation_dependence
+            affected = EntityRef[
+                evaluation.constraint_sources[row] for row in fingerprint.support
+            ]
+            push!(
+                findings,
+                Finding(
+                    :candidate_two_row_equation_dependence;
+                    severity = SeverityWarning,
+                    domain = NumericalIssue,
+                    basis = HeuristicInterpretation,
+                    confidence = ConfidenceMedium,
+                    observation = "A local left-null vector is concentrated on two equality rows with nearly balanced magnitudes.",
+                    why_it_matters = "This resembles a pair of locally dependent equations, but it may be caused by a point-specific derivative cancellation rather than a duplicate model row.",
+                    evidence = [
+                        _point_evidence(comparison.point),
+                        Evidence(
+                            "Nullspace fingerprint";
+                            details = [
+                                "side" => fingerprint.side,
+                                "vector_index" => fingerprint.vector_index,
+                                "support_rows" => join(fingerprint.support, ","),
+                            "support_concentration" => fingerprint.score,
+                            ],
+                        ),
+                    ],
+                    suggested_actions = [
+                        "Compare the two rows with exact duplicate-expression findings and repeat at nearby points.",
+                    ],
+                    affected = affected,
+                ),
+            )
+        end
+    end
+    return findings
+end
+
 """
     analyze_degeneracy(model, evaluation; ...)
 
@@ -302,6 +443,7 @@ function analyze_degeneracy(
     comparison = structural_numerical_comparison(model, evaluation; kwargs...)
     report = DiagnosticReport()
     append!(report.findings, _structural_numerical_findings(comparison))
+    append!(report.findings, _nullspace_fingerprint_findings(comparison, evaluation))
     report.metadata[:stage] = "degeneracy"
     report.metadata[:evaluation_point_label] = evaluation.point.label
     report.metadata[:structural_numerical_comparison_available] =

@@ -144,6 +144,17 @@ unmatched coordinate systems make the comparison unavailable rather than
 forcing an interpretation. `analyze_degeneracy` exposes this generic first
 classification and is available from `analyze(...; check_degeneracy = true)`.
 
+The same stage adds two deliberately weak but inspectable fingerprints:
+
+- a near-uniform right-null vector across aligned free coordinates, reported
+  as a candidate common-coordinate shift; and
+- a left-null vector concentrated on two equality rows, reported as a
+  candidate two-row equation dependence.
+
+Neither fingerprint is a physical diagnosis or a reason to suppress a finding.
+Their purpose is to make the nullspace evidence easier to inspect and to give
+future domain plugins a stable generic input.
+
 ## Cache lifetime
 
 `EvaluationCache` stores a complete evaluation under the model object, cache

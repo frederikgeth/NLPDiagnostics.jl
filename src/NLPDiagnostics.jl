@@ -62,6 +62,7 @@ export HessianEntry
 export HessianEvaluation
 export NumericalEvaluation
 export MFCQScreen
+export NullspaceFingerprint
 export ReducedHessianAnalysis
 export OperatorDomainRequirement
 export OperatorDerivativeRequirement
@@ -111,6 +112,7 @@ export jacobian_rank_estimate
 export constraint_feasibility_summary
 export active_constraint_rows
 export mfcq_screen
+export nullspace_fingerprints
 export structural_numerical_comparison
 export reduced_hessian_analysis
 export operator_domain_requirements

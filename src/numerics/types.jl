@@ -259,6 +259,21 @@ struct StructuralNumericalComparison{T<:AbstractFloat}
 end
 
 """
+An inspectable pattern observed in one local Jacobian null vector.
+
+`kind` is deliberately a candidate label, not a semantic diagnosis. The
+support indices refer to the full evaluation's variable columns or constraint
+rows according to `side`.
+"""
+struct NullspaceFingerprint{T<:AbstractFloat}
+    side::Symbol
+    vector_index::Int
+    kind::Symbol
+    support::Vector{Int}
+    score::T
+end
+
+"""
 Numerical values and derivatives observed at one exact point.
 
 Missing values indicate that an evaluation failed or was unavailable. The

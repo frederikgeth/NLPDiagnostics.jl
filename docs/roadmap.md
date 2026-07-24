@@ -87,7 +87,8 @@ evaluation layers can expose its supporting evidence.
 Numerical nullspaces are compared with structural results before any
 plugin-supplied expected-gauge interpretation. Implemented generic
 classifications include structurally expected local nullspaces and unexpected
-local rank loss. Next classifications:
+local rank loss, candidate common-coordinate shifts, and candidate two-row
+equation dependencies. Next classifications:
 
 - expected coordinate gauge;
 - dependent active constraints;
