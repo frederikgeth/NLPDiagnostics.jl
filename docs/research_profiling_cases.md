@@ -101,8 +101,7 @@ formulation, and solver layers.
    timing, and derivative-provenance data for each case. Timings are local
    runtime observations and should be collected after warm-up before comparing
    formulations.
-4. Add true per-callback invocation counters by source and derivative feature.
-5. Connect PMDlab and the open unbalanced benchmark data through an optional
+4. Connect PMDlab and the open unbalanced benchmark data through an optional
    PowerModelsDistribution extension.
-6. Add component metadata and expected-nullspace assembly before attempting
+5. Add component metadata and expected-nullspace assembly before attempting
    automatic physical classification.

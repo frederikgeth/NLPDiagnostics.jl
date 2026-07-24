@@ -1,5 +1,25 @@
 const _NUMERICAL_FEATURE_ORDER = [:Grad, :Jac, :Hess, :JacVec, :HessVec, :ExprGraph]
 
+function _record_numerical_call!(
+    statistics::Dict{Symbol,Tuple{Int,Float64}},
+    key::Symbol,
+    callback,
+)
+    started = time_ns()
+    try
+        return callback()
+    finally
+        count, elapsed = get(statistics, key, (0, 0.0))
+        statistics[key] = (count + 1, elapsed + Float64(time_ns() - started) / 1.0e9)
+    end
+end
+
+_record_numerical_call!(callback, statistics, key) =
+    _record_numerical_call!(statistics, key, callback)
+
+evaluation_call_statistics(evaluation::NumericalEvaluation) =
+    copy(evaluation.call_statistics)
+
 function evaluator_capabilities(evaluator::MOI.AbstractNLPEvaluator)
     available = try
         collect(MOI.features_available(evaluator))
@@ -457,11 +477,14 @@ function _evaluate_nlp_block!(
     jacobian_entries,
     jacobian_row_methods,
     failures,
+    statistics,
 ) where {T<:AbstractFloat}
     evaluator = block.evaluator
     capability = evaluator_capabilities(evaluator)
     try
-        MOI.initialize(evaluator, copy(capability.requested_features))
+        _record_numerical_call!(statistics, :nlp_initialize) do
+            MOI.initialize(evaluator, copy(capability.requested_features))
+        end
     catch exception
         source = EntityRef(:nlp_block, 1; function_type = string(typeof(evaluator)))
         push!(
@@ -481,7 +504,9 @@ function _evaluate_nlp_block!(
         source = _objective_ref(evaluator; source = :nlp_objective)
         try
             objective_value =
-                convert(T, MOI.eval_objective(evaluator, copy(point.values)))
+                _record_numerical_call!(statistics, :nlp_objective_value) do
+                    convert(T, MOI.eval_objective(evaluator, copy(point.values)))
+                end
             objective_source = source
         catch exception
             objective_value = missing
@@ -500,11 +525,13 @@ function _evaluate_nlp_block!(
         if :Grad in capability.requested_features
             gradient = zeros(T, length(point.variables))
             try
-                MOI.eval_objective_gradient(
-                    evaluator,
-                    gradient,
-                    copy(point.values),
-                )
+                _record_numerical_call!(statistics, :nlp_objective_gradient) do
+                    MOI.eval_objective_gradient(
+                        evaluator,
+                        gradient,
+                        copy(point.values),
+                    )
+                end
                 append!(objective_gradient, gradient)
             catch exception
                 append!(objective_gradient, fill(missing, length(point.variables)))
@@ -528,7 +555,9 @@ function _evaluate_nlp_block!(
     first_row = length(constraint_values) + 1
     values = zeros(T, row_count)
     try
-        MOI.eval_constraint(evaluator, values, copy(point.values))
+        _record_numerical_call!(statistics, :nlp_constraint_value) do
+            MOI.eval_constraint(evaluator, values, copy(point.values))
+        end
         append!(constraint_values, values)
     catch exception
         append!(constraint_values, fill(missing, row_count))
@@ -554,7 +583,9 @@ function _evaluate_nlp_block!(
 
     if :Jac in capability.requested_features
         structure = try
-            MOI.jacobian_structure(evaluator)
+            _record_numerical_call!(statistics, :nlp_jacobian_structure) do
+                MOI.jacobian_structure(evaluator)
+            end
         catch exception
             push!(
                 failures,
@@ -570,11 +601,13 @@ function _evaluate_nlp_block!(
         end
         raw_values = zeros(T, length(structure))
         try
-            MOI.eval_constraint_jacobian(
-                evaluator,
-                raw_values,
-                copy(point.values),
-            )
+            _record_numerical_call!(statistics, :nlp_constraint_jacobian) do
+                MOI.eval_constraint_jacobian(
+                    evaluator,
+                    raw_values,
+                    copy(point.values),
+                )
+            end
             for ((row, column), value) in zip(structure, raw_values)
                 push!(
                     jacobian_entries,
@@ -606,6 +639,7 @@ function _evaluate_oracles!(
     jacobian_entries,
     jacobian_row_methods,
     failures,
+    statistics,
 ) where {T<:AbstractFloat}
     lookup = _point_lookup(point)
     point_columns = Dict(variable => i for (i, variable) in enumerate(point.variables))
@@ -636,7 +670,9 @@ function _evaluate_oracles!(
         first_row = length(constraint_values) + 1
         values = zeros(T, set.output_dimension)
         try
-            set.eval_f(values, copy(inputs))
+            _record_numerical_call!(statistics, :oracle_constraint_value) do
+                set.eval_f(values, copy(inputs))
+            end
             append!(constraint_values, values)
         catch exception
             append!(constraint_values, fill(missing, set.output_dimension))
@@ -678,7 +714,9 @@ function _evaluate_oracles!(
         end
         raw_values = zeros(T, length(set.jacobian_structure))
         try
-            set.eval_jacobian(raw_values, copy(inputs))
+            _record_numerical_call!(statistics, :oracle_constraint_jacobian) do
+                set.eval_jacobian(raw_values, copy(inputs))
+            end
             for ((row, input_column), value) in
                 zip(set.jacobian_structure, raw_values)
                 variable = input_function.variables[input_column]
@@ -766,23 +804,21 @@ function evaluate_numerical(
     constraint_sources = EntityRef[]
     jacobian_entries = JacobianEntry{T}[]
     jacobian_row_methods = Symbol[]
+    call_statistics = Dict{Symbol,Tuple{Int,Float64}}()
 
     block = _optional_nlp_block(model)
-    objective_value, objective_source = _evaluate_symbolic!(
-        model,
-        model_snapshot,
-        point,
-        objective_value,
-        objective_source,
-        objective_gradient,
-        constraint_values,
-        constraint_sources,
-        jacobian_entries,
-        jacobian_row_methods,
-        failures;
-        relative_step = converted_step,
-        skip_objective = !isnothing(block) && block.has_objective,
-    )
+    objective_value, objective_source = _record_numerical_call!(
+        call_statistics,
+        :symbolic_stage,
+    ) do
+        _evaluate_symbolic!(
+            model, model_snapshot, point, objective_value, objective_source,
+            objective_gradient, constraint_values, constraint_sources,
+            jacobian_entries, jacobian_row_methods, failures;
+            relative_step = converted_step,
+            skip_objective = !isnothing(block) && block.has_objective,
+        )
+    end
     if !isnothing(block)
         objective_value, objective_source = _evaluate_nlp_block!(
             block,
@@ -795,6 +831,7 @@ function evaluate_numerical(
             jacobian_entries,
             jacobian_row_methods,
             failures,
+            call_statistics,
         )
     end
     _evaluate_oracles!(
@@ -806,6 +843,7 @@ function evaluate_numerical(
         jacobian_entries,
         jacobian_row_methods,
         failures,
+        call_statistics,
     )
     result = NumericalEvaluation{T}(
         point,
@@ -818,6 +856,7 @@ function evaluate_numerical(
         jacobian_row_methods,
         capabilities,
         failures,
+        call_statistics,
     )
     cache.entries[key] = result
     return result

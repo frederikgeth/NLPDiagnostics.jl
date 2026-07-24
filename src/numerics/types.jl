@@ -336,6 +336,27 @@ struct NumericalEvaluation{T<:AbstractFloat}
     jacobian_row_methods::Vector{Symbol}
     capabilities::Vector{EvaluatorCapabilities}
     failures::Vector{EvaluationFailure}
+    call_statistics::Dict{Symbol,Tuple{Int,Float64}}
+end
+
+function NumericalEvaluation{T}(
+    point,
+    objective_value,
+    objective_source,
+    objective_gradient,
+    constraint_values,
+    constraint_sources,
+    jacobian_entries,
+    jacobian_row_methods,
+    capabilities,
+    failures,
+) where {T<:AbstractFloat}
+    return NumericalEvaluation{T}(
+        point, objective_value, objective_source, objective_gradient,
+        constraint_values, constraint_sources, jacobian_entries,
+        jacobian_row_methods, capabilities, failures,
+        Dict{Symbol,Tuple{Int,Float64}}(),
+    )
 end
 
 """
@@ -351,6 +372,7 @@ struct ProfileResult{T<:AbstractFloat}
     active_set_report::DiagnosticReport
     degeneracy_report::DiagnosticReport
     stage_seconds::Dict{Symbol,Float64}
+    callback_statistics::Dict{Symbol,Tuple{Int,Float64}}
     derivative_row_method_counts::Dict{Symbol,Int}
     capability_source_counts::Dict{Symbol,Int}
     cache_hits::Int

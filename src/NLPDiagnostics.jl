@@ -62,6 +62,7 @@ export JacobianScaleSummary
 export HessianEntry
 export HessianEvaluation
 export NumericalEvaluation
+export evaluation_call_statistics
 export MFCQScreen
 export NullspaceFingerprint
 export ReducedHessianAnalysis

@@ -162,12 +162,14 @@ scale, solver-label, tags, metadata, and expected-evidence hypotheses.
 `profile_case(model, case)` runs the generic numerical, active-set, and
 degeneracy stages without invoking a solver. Its `ProfileResult` retains the
 reports, cache hits/misses, derivative-row-method and capability-source counts,
-and wall-clock time by stage.
+wall-clock time by stage, and per-evaluation callback statistics. Exact NLP
+evaluator initialization/value/gradient/Jacobian calls and oracle
+value/Jacobian calls are counted separately; ordinary MOI work is recorded as
+one symbolic-stage measurement.
 
 Stage timings include Julia compilation and allocation effects unless callers
 warm up a comparable case first. They are useful profiling evidence, not a
-portable solver-performance benchmark. True callback invocation counters remain
-future work.
+portable solver-performance benchmark.
 
 ## Cache lifetime
 

@@ -82,6 +82,7 @@ function profile_case(
         active_set_report,
         degeneracy_report,
         timings,
+        evaluation_call_statistics(evaluation),
         _count_symbols(evaluation.jacobian_row_methods),
         _count_symbols(capability.source for capability in evaluation.capabilities),
         cache.hits - hits_before,

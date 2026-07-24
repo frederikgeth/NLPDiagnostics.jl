@@ -1151,6 +1151,7 @@ end
         @test result.case.solver == "Ipopt"
         @test result.case.metadata["network"] == "none"
         @test result.evaluation.point == point
+        @test result.callback_statistics[:symbolic_stage][1] == 1
         @test result.derivative_row_method_counts[:exact_symbolic] == 1
         @test result.capability_source_counts[:symbolic] == 1
         @test result.cache_misses == 1
@@ -1377,6 +1378,12 @@ end
         @test summary.row_norms == [1.0, 6.0]
         @test summary.column_norms == [1.0, 6.0]
         @test evaluator.initialize_count == 1
+        callback_statistics = NLPDiagnostics.evaluation_call_statistics(evaluation)
+        @test callback_statistics[:nlp_initialize][1] == 1
+        @test callback_statistics[:nlp_objective_value][1] == 1
+        @test callback_statistics[:nlp_objective_gradient][1] == 1
+        @test callback_statistics[:nlp_constraint_value][1] == 1
+        @test callback_statistics[:nlp_constraint_jacobian][1] == 1
         NLPDiagnostics.evaluate_numerical(model, point; cache = cache)
         @test evaluator.initialize_count == 1
         static_report = NLPDiagnostics.analyze(model)
@@ -1442,6 +1449,9 @@ end
               [3.0, 2.0]
         @test NLPDiagnostics.jacobian_scale_summary(evaluation).row_norms ==
               [3.0]
+        callback_statistics = NLPDiagnostics.evaluation_call_statistics(evaluation)
+        @test callback_statistics[:oracle_constraint_value][1] == 1
+        @test callback_statistics[:oracle_constraint_jacobian][1] == 1
     end
 
     @testset "function-value and derivative domains remain distinct" begin
