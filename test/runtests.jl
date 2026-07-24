@@ -1124,6 +1124,43 @@ end
         ) == 1
     end
 
+    @testset "profile cases retain formulation evidence and provenance" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        MOI.add_constraint(model, x, MOI.EqualTo(0.0))
+        point = NLPDiagnostics.evaluation_point(
+            model,
+            [0.0];
+            label = "flat start",
+        )
+        case = NLPDiagnostics.ProfileCase(
+            "unit equality",
+            point;
+            formulation = "toy-affine",
+            initialization = "flat start",
+            scale = "unit",
+            solver = "Ipopt",
+            expected_evidence = [:structural_numerical_rank_agreement],
+            tags = [:regression, :profile],
+            metadata = Dict("network" => "none"),
+        )
+        cache = NLPDiagnostics.EvaluationCache()
+        result = NLPDiagnostics.profile_case(model, case; cache = cache)
+        @test result.case.name == "unit equality"
+        @test result.case.formulation == "toy-affine"
+        @test result.case.solver == "Ipopt"
+        @test result.case.metadata["network"] == "none"
+        @test result.evaluation.point == point
+        @test result.derivative_row_method_counts[:exact_symbolic] == 1
+        @test result.capability_source_counts[:symbolic] == 1
+        @test result.cache_misses == 1
+        @test result.cache_hits >= 1
+        @test all(value -> value >= 0.0, values(result.stage_seconds))
+        @test length(
+            findings(result.degeneracy_report, :structural_numerical_rank_agreement),
+        ) == 1
+    end
+
     @testset "explicit activity, LICQ, and MFCQ screens" begin
         model = new_model()
         x, y = MOI.add_variables(model, 2)

@@ -28,6 +28,7 @@ read-only snapshot through the public MOI model API and reports:
 - Jacobian row/column scale summaries;
 - guarded local Jacobian rank, conditioning, and nullspace evidence; and
 - explicit Hessian-of-the-Lagrangian and reduced-Hessian curvature tools;
+- reproducible solver-independent formulation profile cases; and
 - finite first- and second-derivative domain checks;
 - overflow, underflow, and stable-expression fingerprints; and
 - explicit MOI initialization analysis without invented default starts.

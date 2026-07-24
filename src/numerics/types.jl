@@ -274,6 +274,52 @@ struct NullspaceFingerprint{T<:AbstractFloat}
 end
 
 """
+A labeled, solver-independent numerical profiling scenario.
+
+The descriptive fields make formulation, initialization, scale, and solver
+intent explicit without requiring the generic core to understand their domain
+semantics. `expected_evidence` records hypotheses to inspect, not assertions.
+"""
+struct ProfileCase{T<:AbstractFloat}
+    name::String
+    description::String
+    formulation::String
+    initialization::String
+    scale::String
+    solver::Union{Nothing,String}
+    expected_evidence::Vector{Symbol}
+    tags::Vector{Symbol}
+    metadata::Dict{String,String}
+    point::EvaluationPoint{T}
+end
+
+function ProfileCase(
+    name::AbstractString,
+    point::EvaluationPoint{T};
+    description::AbstractString = "",
+    formulation::AbstractString = "unspecified",
+    initialization::AbstractString = point.label,
+    scale::AbstractString = "unspecified",
+    solver::Union{Nothing,AbstractString} = nothing,
+    expected_evidence::AbstractVector{Symbol} = Symbol[],
+    tags::AbstractVector{Symbol} = Symbol[],
+    metadata::AbstractDict = Dict{String,String}(),
+) where {T<:AbstractFloat}
+    return ProfileCase{T}(
+        String(name),
+        String(description),
+        String(formulation),
+        String(initialization),
+        String(scale),
+        isnothing(solver) ? nothing : String(solver),
+        unique!(collect(expected_evidence)),
+        unique!(collect(tags)),
+        Dict(string(key) => string(value) for (key, value) in metadata),
+        point,
+    )
+end
+
+"""
 Numerical values and derivatives observed at one exact point.
 
 Missing values indicate that an evaluation failed or was unavailable. The
@@ -290,6 +336,25 @@ struct NumericalEvaluation{T<:AbstractFloat}
     jacobian_row_methods::Vector{Symbol}
     capabilities::Vector{EvaluatorCapabilities}
     failures::Vector{EvaluationFailure}
+end
+
+"""
+Evidence and wall-clock timings from one `ProfileCase` run.
+
+Timings are diagnostic observations and include Julia compilation/allocation
+effects unless the caller has performed a warm-up run.
+"""
+struct ProfileResult{T<:AbstractFloat}
+    case::ProfileCase{T}
+    evaluation::NumericalEvaluation{T}
+    numerical_report::DiagnosticReport
+    active_set_report::DiagnosticReport
+    degeneracy_report::DiagnosticReport
+    stage_seconds::Dict{Symbol,Float64}
+    derivative_row_method_counts::Dict{Symbol,Int}
+    capability_source_counts::Dict{Symbol,Int}
+    cache_hits::Int
+    cache_misses::Int
 end
 
 """

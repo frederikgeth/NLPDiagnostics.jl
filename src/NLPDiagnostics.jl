@@ -26,6 +26,7 @@ include("analysis/structure.jl")
 include("analysis/numerical.jl")
 include("analysis/activity.jl")
 include("analysis/degeneracy.jl")
+include("analysis/profiling.jl")
 include("analysis/initialization.jl")
 
 export Confidence
@@ -66,6 +67,8 @@ export NullspaceFingerprint
 export ReducedHessianAnalysis
 export OperatorDomainRequirement
 export OperatorDerivativeRequirement
+export ProfileCase
+export ProfileResult
 export MathematicalIssue, NumericalIssue, PhysicalIssue, RepresentationalIssue
 export MathematicalProof, NumericalObservation, PhysicalExpectation
 export LocalInference, HeuristicInterpretation, StructuralProof
@@ -92,6 +95,7 @@ export analyze_reduced_hessian
 export analyze_active_set
 export analyze_static
 export analyze_structure
+export profile_case
 export connected_components
 export constraint_role
 export dulmage_mendelsohn

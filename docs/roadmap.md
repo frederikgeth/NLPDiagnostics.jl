@@ -78,9 +78,8 @@ evaluation layers can expose its supporting evidence.
 - Sparse large-model rank-estimation strategy and dense fallback thresholds.
 - General coupled-set and plugin-supplied active-set semantics.
 - Full MFCQ failure certificates and multiplier recovery.
-- Evaluation timing and callback counters for formulation profiling.
-- A reusable `ProfileCase` schema for formulation, initialization, scale, and
-  solver sweeps.
+- True per-callback invocation counters by source and derivative feature for
+  formulation profiling.
 
 ## Degeneracy framework
 

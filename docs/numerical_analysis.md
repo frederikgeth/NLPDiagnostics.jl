@@ -155,6 +155,20 @@ Neither fingerprint is a physical diagnosis or a reason to suppress a finding.
 Their purpose is to make the nullspace evidence easier to inspect and to give
 future domain plugins a stable generic input.
 
+## Reproducible formulation profiles
+
+`ProfileCase` records a named point together with formulation, initialization,
+scale, solver-label, tags, metadata, and expected-evidence hypotheses.
+`profile_case(model, case)` runs the generic numerical, active-set, and
+degeneracy stages without invoking a solver. Its `ProfileResult` retains the
+reports, cache hits/misses, derivative-row-method and capability-source counts,
+and wall-clock time by stage.
+
+Stage timings include Julia compilation and allocation effects unless callers
+warm up a comparable case first. They are useful profiling evidence, not a
+portable solver-performance benchmark. True callback invocation counters remain
+future work.
+
 ## Cache lifetime
 
 `EvaluationCache` stores a complete evaluation under the model object, cache
