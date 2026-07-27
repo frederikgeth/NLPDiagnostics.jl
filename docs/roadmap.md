@@ -16,7 +16,9 @@ evaluation layers can expose its supporting evidence.
   affine/quadratic/nonlinear expressions and objectives with stable and
   extensible primitive evaluation, exact affine/quadratic term-cancellation
   normalization, conditional unconstrained affine/quadratic-objective rays, one-variable implied bounds, bounded multi-variable affine
-  interval propagation, and disconnected variables.
+  interval propagation, sign-resolved absolute values, bound-resolved min/max
+  branches, direct absolute/square/square-root zero implications, square-range infeasibility
+  proofs, sign-resolved square levels, and disconnected variables.
 - Reusable variable-support extraction for scalar and vector MOI functions.
 - Variable–constraint bipartite graph with scalar rows for coordinate-wise
   product sets and block vertices for coupled vector sets.

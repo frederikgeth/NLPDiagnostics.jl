@@ -1167,6 +1167,297 @@ function _analyze_unconstrained_quadratic_objective_rays!(
     return
 end
 
+"""Report direct absolute-value nodes whose declared domain fixes their sign."""
+function _analyze_sign_resolved_absolute_values!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    records = Dict(record.index => record for record in model.variables)
+    function scan(value, source, path)
+        value isa MOI.ScalarNonlinearFunction || return
+        if value.head == :abs && length(value.args) == 1 &&
+           only(value.args) isa MOI.VariableIndex
+            variable = only(value.args)
+            domain = get(domains, variable, nothing)
+            if !isnothing(domain) &&
+               ((!isnothing(domain.lower) && domain.lower >= 0) ||
+                (!isnothing(domain.upper) && domain.upper <= 0))
+                sign = !isnothing(domain.lower) && domain.lower >= 0 ?
+                       "nonnegative" : "nonpositive"
+                replacement = sign == "nonnegative" ? "x" : "-x"
+                path_label = isempty(path) ? "root" : join(path, "/")
+                push!(report, Finding(
+                    :sign_resolved_absolute_value;
+                    severity = SeverityInfo,
+                    domain = RepresentationalIssue,
+                    basis = MathematicalProof,
+                    confidence = ConfidenceCertain,
+                    observation = "Absolute-value expression $path_label has a declared $sign argument domain, so abs(x) equals $replacement there.",
+                    why_it_matters = "The expression is mathematically affine on the declared domain; if zero is allowed, the original absolute-value form can still retain a nonsmooth derivative convention at the boundary.",
+                    evidence = [Evidence("Declared sign-resolving scalar bounds";
+                        details = ["lower" => domain.lower,
+                                   "upper" => domain.upper,
+                                   "replacement" => replacement,
+                                   "expression_path" => path_label],
+                    )],
+                    suggested_actions = ["Consider an affine reformulation when preserving the absolute-value provenance is unnecessary.",
+                                         "If zero is feasible, check the solver's nonsmooth derivative behavior at that boundary."],
+                    affected = [source, _variable_ref(records[variable])],
+                ))
+            end
+        end
+        for (argument_index, argument) in enumerate(value.args)
+            scan(argument, source, vcat(path, argument_index))
+        end
+        return
+    end
+    if !isnothing(model.objective)
+        objective = model.objective
+        scan(
+            objective.function_value,
+            EntityRef(:objective, 1; function_type = string(typeof(objective.function_value))),
+            Int[],
+        )
+    end
+    for constraint in model.constraints
+        scan(constraint.function_value, _constraint_ref(constraint), Int[])
+        value = constraint.function_value
+        value isa MOI.ScalarNonlinearFunction || continue
+        value.head in (:min, :max) && length(value.args) == 2 || continue
+        left, right = value.args
+        variable, constant = left isa MOI.VariableIndex && right isa Real ?
+                             (left, right) :
+                             right isa MOI.VariableIndex && left isa Real ?
+                             (right, left) : (nothing, nothing)
+        isnothing(variable) && continue
+        domain = domains[variable]
+        constant_selected = (value.head == :min && !isnothing(domain.lower) && domain.lower >= constant) ||
+                            (value.head == :max && !isnothing(domain.upper) && domain.upper <= constant)
+        constant_selected || continue
+        satisfied = _satisfies(constant, constraint.set_value)
+        isnothing(satisfied) && continue
+        reference = _constraint_ref(constraint)
+        push!(report, Finding(
+            satisfied ? :redundant_bound_resolved_minmax_constraint : :infeasible_bound_resolved_minmax_constraint;
+            severity = satisfied ? SeverityInfo : SeverityError,
+            domain = satisfied ? RepresentationalIssue : MathematicalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = satisfied ? "Constraint $(reference.index) is satisfied because its bound-resolved $(value.head) expression is the constant $constant." : "Constraint $(reference.index) is infeasible because its bound-resolved $(value.head) expression is the constant $constant.",
+            why_it_matters = satisfied ? "The row adds no restriction beyond its declared bounds." : "The selected constant branch violates the set, proving infeasibility.",
+            evidence = [Evidence("Bound-resolved min/max constraint root"; details = ["value" => constant, "set" => constraint.set_value])],
+            suggested_actions = ["Check the branch bound and constraint set."],
+            affected = [reference, _variable_ref(records[variable])],
+        ))
+    end
+    return
+end
+
+"""Report direct min/max nodes whose declared variable bounds select one branch."""
+function _analyze_bound_resolved_minmax!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    records = Dict(record.index => record for record in model.variables)
+    function scan(value, source, path)
+        value isa MOI.ScalarNonlinearFunction || return
+        if value.head in (:min, :max) && length(value.args) == 2
+            left, right = value.args
+            variable, constant = if left isa MOI.VariableIndex && right isa Real
+                left, right
+            elseif right isa MOI.VariableIndex && left isa Real
+                right, left
+            else
+                nothing, nothing
+            end
+            if !isnothing(variable)
+                domain = domains[variable]
+                replacement = if value.head == :min &&
+                                 !isnothing(domain.upper) && domain.upper <= constant
+                    "x"
+                elseif value.head == :min &&
+                       !isnothing(domain.lower) && domain.lower >= constant
+                    string(constant)
+                elseif value.head == :max &&
+                       !isnothing(domain.lower) && domain.lower >= constant
+                    "x"
+                elseif value.head == :max &&
+                       !isnothing(domain.upper) && domain.upper <= constant
+                    string(constant)
+                else
+                    nothing
+                end
+                if !isnothing(replacement)
+                    path_label = isempty(path) ? "root" : join(path, "/")
+                    push!(report, Finding(
+                        :bound_resolved_minmax_expression;
+                        severity = SeverityInfo,
+                        domain = RepresentationalIssue,
+                        basis = MathematicalProof,
+                        confidence = ConfidenceCertain,
+                        observation = "Expression $path_label has bounds that select one $(value.head) branch everywhere, so it equals $replacement.",
+                        why_it_matters = "The piecewise expression has no branch ambiguity on its declared domain and may be simplified for clearer derivatives and scaling.",
+                        evidence = [Evidence("Declared branch-selecting scalar bounds";
+                            details = ["operator" => value.head,
+                                       "constant_branch" => constant,
+                                       "lower" => domain.lower,
+                                       "upper" => domain.upper,
+                                       "replacement" => replacement],
+                        )],
+                        suggested_actions = ["Consider replacing the resolved branch when preserving piecewise provenance is unnecessary."],
+                        affected = [source, _variable_ref(records[variable])],
+                    ))
+                end
+            end
+        end
+        for (argument_index, argument) in enumerate(value.args)
+            scan(argument, source, vcat(path, argument_index))
+        end
+        return
+    end
+    if !isnothing(model.objective)
+        objective = model.objective
+        scan(objective.function_value, EntityRef(:objective, 1; function_type = string(typeof(objective.function_value))), Int[])
+        value = objective.function_value
+        if value isa MOI.ScalarNonlinearFunction && value.head in (:min, :max) && length(value.args) == 2
+            left, right = value.args
+            variable, constant = left isa MOI.VariableIndex && right isa Real ? (left, right) : right isa MOI.VariableIndex && left isa Real ? (right, left) : (nothing, nothing)
+            if !isnothing(variable)
+                domain = domains[variable]
+                selected = (value.head == :min && !isnothing(domain.lower) && domain.lower >= constant) || (value.head == :max && !isnothing(domain.upper) && domain.upper <= constant)
+                if selected
+                    push!(report, Finding(:constant_bound_resolved_minmax_objective;
+                        severity = SeverityInfo, domain = RepresentationalIssue,
+                        basis = MathematicalProof, confidence = ConfidenceCertain,
+                        observation = "The objective's bound-resolved $(value.head) expression is the constant $constant.",
+                        why_it_matters = "The objective has no remaining preference on its declared domain; the model is a feasibility problem from this objective's perspective.",
+                        evidence = [Evidence("Bound-resolved min/max objective root"; details = ["value" => constant, "sense" => objective.sense])],
+                        suggested_actions = ["Confirm that a constant feasibility objective is intended."],
+                        affected = [EntityRef(:objective, 1; function_type = string(typeof(value))), _variable_ref(records[variable])],
+                    ))
+                end
+            end
+        end
+    end
+    for constraint in model.constraints
+        scan(constraint.function_value, _constraint_ref(constraint), Int[])
+    end
+    return
+end
+
+function _analyze_absolute_zero_constraints!(report::DiagnosticReport, model::ModelSnapshot)
+    records = Dict(record.index => record for record in model.variables)
+    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    for constraint in model.constraints
+        value = constraint.function_value
+        value isa MOI.ScalarNonlinearFunction || continue
+        is_absolute = value.head == :abs && length(value.args) == 1
+        is_sqrt = value.head == :sqrt && length(value.args) == 1
+        is_square = value.head == :^ && length(value.args) == 2 && value.args[2] isa Real && value.args[2] == 2
+        (is_absolute || is_sqrt || is_square) || continue
+        variable = value.args[1]
+        variable isa MOI.VariableIndex || continue
+        set_value = constraint.set_value
+        is_zero = set_value isa MOI.EqualTo && set_value.value == 0 ||
+                  set_value isa MOI.Interval && set_value.lower == 0 == set_value.upper
+        reference = _constraint_ref(constraint)
+        if is_square && ((set_value isa MOI.LessThan && set_value.upper < 0) ||
+                         (set_value isa MOI.EqualTo && set_value.value < 0) ||
+                         (set_value isa MOI.Interval && set_value.upper < 0))
+            push!(report, Finding(:infeasible_negative_square_constraint;
+                severity = SeverityError, domain = MathematicalIssue,
+                basis = MathematicalProof, confidence = ConfidenceCertain,
+                observation = "Constraint $(reference.index) requires a real square to be negative.",
+                why_it_matters = "A real square is nonnegative, so this single constraint proves infeasibility.",
+                evidence = [Evidence("Real-square range"; details = ["set" => set_value])],
+                suggested_actions = ["Correct the set bound or the squared expression."],
+                affected = [reference, _variable_ref(records[variable])],
+            ))
+        end
+        if is_sqrt && ((set_value isa MOI.LessThan && set_value.upper < 0) ||
+                       (set_value isa MOI.EqualTo && set_value.value < 0) ||
+                       (set_value isa MOI.Interval && set_value.upper < 0))
+            push!(report, Finding(:infeasible_negative_square_root_constraint;
+                severity = SeverityError, domain = MathematicalIssue,
+                basis = MathematicalProof, confidence = ConfidenceCertain,
+                observation = "Constraint $(reference.index) requires a real square root to be negative.",
+                why_it_matters = "A real square root is nonnegative, so this single constraint proves infeasibility.",
+                evidence = [Evidence("Real-square-root range"; details = ["set" => set_value])],
+                suggested_actions = ["Correct the set bound or the square-root expression."],
+                affected = [reference, _variable_ref(records[variable])],
+            ))
+        end
+        level = set_value isa MOI.EqualTo ? set_value.value :
+                set_value isa MOI.Interval && set_value.lower == set_value.upper ? set_value.lower : nothing
+        if is_square && !isnothing(level) && level > 0
+            magnitude = sqrt(level)
+            domain = domains[variable]
+            implied = !isnothing(domain.lower) && domain.lower >= 0 ? magnitude :
+                      !isnothing(domain.upper) && domain.upper <= 0 ? -magnitude : nothing
+            if !isnothing(implied)
+                push!(report, Finding(:sign_resolved_square_level_set;
+                    severity = SeverityInfo, domain = RepresentationalIssue,
+                    basis = MathematicalProof, confidence = ConfidenceCertain,
+                    observation = "Constraint $(reference.index) and declared sign bounds fix $(_display_name(records[variable])) at $implied.",
+                    why_it_matters = "The square-level set's sign ambiguity is removed by declared bounds, yielding an exact fixed-variable implication.",
+                    evidence = [Evidence("Sign-resolved positive square level"; details = ["level" => level, "implied_value" => implied])],
+                    suggested_actions = ["Confirm the implied sign branch is intended; NLPDiagnostics does not substitute it."],
+                    affected = [reference, _variable_ref(records[variable])],
+                ))
+            end
+            push!(report, Finding(:positive_square_level_set;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = MathematicalProof, confidence = ConfidenceCertain,
+                observation = "Constraint $(reference.index) requires a real square to equal positive level $level, giving two branches x = ±$magnitude.",
+                why_it_matters = "The feasible set for this variable is disconnected; initialization and local solvers may remain on one sign branch and miss another formulation-relevant mode.",
+                evidence = [Evidence("Positive real-square level set"; details = ["level" => level, "root_magnitude" => magnitude])],
+                suggested_actions = ["Confirm both sign branches are physically meaningful and choose initialization accordingly."],
+                affected = [reference, _variable_ref(records[variable])],
+            ))
+        end
+        is_zero || continue
+        code = is_absolute ? :absolute_zero_implies_fixed_variable : is_sqrt ? :square_root_zero_implies_fixed_variable : :square_zero_implies_fixed_variable
+        expression = is_absolute ? "abs($(_display_name(records[variable])))" : is_sqrt ? "sqrt($(_display_name(records[variable])))" : "$(_display_name(records[variable]))^2"
+        push!(report, Finding(code;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(reference.index) requires $expression = 0, so the variable is fixed at zero.",
+            why_it_matters = "This nonlinear-looking row removes a degree of freedom exactly and can expose unexpected over-fixing or a safe presolve substitution opportunity.",
+            evidence = [Evidence(is_absolute ? "Absolute value is nonnegative and vanishes only at zero" : is_sqrt ? "A real square root vanishes only at zero" : "A real square is nonnegative and vanishes only at zero"; details = ["implied_value" => 0])],
+            suggested_actions = ["Confirm the zero fixing is intended; NLPDiagnostics does not modify the model."],
+            affected = [reference, _variable_ref(records[variable])],
+        ))
+    end
+    return
+end
+
+function _analyze_exponential_range_constraints!(report::DiagnosticReport, model::ModelSnapshot)
+    records = Dict(record.index => record for record in model.variables)
+    for constraint in model.constraints
+        value = constraint.function_value
+        value isa MOI.ScalarNonlinearFunction && value.head == :exp && length(value.args) == 1 || continue
+        set_value = constraint.set_value
+        impossible = (set_value isa MOI.LessThan && set_value.upper <= 0) ||
+                     (set_value isa MOI.EqualTo && set_value.value <= 0) ||
+                     (set_value isa MOI.Interval && set_value.upper <= 0)
+        impossible || continue
+        affected = [_constraint_ref(constraint)]
+        argument = only(value.args)
+        argument isa MOI.VariableIndex && push!(affected, _variable_ref(records[argument]))
+        push!(report, Finding(:infeasible_nonpositive_exponential_constraint;
+            severity = SeverityError, domain = MathematicalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(constraint.index.value) requires exp(x) to be nonpositive.",
+            why_it_matters = "The real exponential is strictly positive, so this constraint alone proves infeasibility.",
+            evidence = [Evidence("Real exponential range"; details = ["set" => set_value])],
+            suggested_actions = ["Correct the set bound or the exponential expression."],
+            affected = affected,
+        ))
+    end
+    return
+end
+
 _fingerprint(value::Real) = "number($(repr(value)))"
 _fingerprint(value::MOI.VariableIndex) = "variable($(value.value))"
 
@@ -2189,6 +2480,10 @@ function analyze_static(
     _analyze_nonzero_self_divisions!(report, model)
     _analyze_unconstrained_affine_objective_rays!(report, model)
     _analyze_unconstrained_quadratic_objective_rays!(report, model)
+    _analyze_sign_resolved_absolute_values!(report, model)
+    _analyze_bound_resolved_minmax!(report, model)
+    _analyze_absolute_zero_constraints!(report, model)
+    _analyze_exponential_range_constraints!(report, model)
     _analyze_duplicate_constraints!(report, model)
     _analyze_proportional_affine_equalities!(report, model)
     _analyze_proportional_affine_inequalities!(report, model)

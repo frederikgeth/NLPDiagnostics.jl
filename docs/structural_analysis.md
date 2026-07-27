@@ -26,6 +26,31 @@ At an objective root, it is reported as
 `constant_nonzero_self_division_objective`, proving that the objective is one
 on its declared domain without rewriting the original formulation.
 
+When declared scalar bounds resolve the sign of a direct `abs(x)` argument,
+the pass reports `sign_resolved_absolute_value` and its affine replacement
+(`x` or `-x`). This is a mathematical identity, but a zero-inclusive bound is
+still called out as a potentially nonsmooth boundary in the original form.
+At a direct root constraint, `abs(x) = 0` (including a zero-width interval)
+is reported as `absolute_zero_implies_fixed_variable`, proving `x = 0` without
+silently substituting it.
+Likewise, `x^2 = 0` yields `square_zero_implies_fixed_variable`, while a
+direct square constrained strictly below zero yields the infeasibility proof
+`infeasible_negative_square_constraint`.
+The same exact-zero reasoning covers `sqrt(x) = 0`, reported as
+`square_root_zero_implies_fixed_variable`.
+For a positive level, sign-resolving bounds additionally yield
+`sign_resolved_square_level_set`, proving the corresponding positive or
+negative root without altering the model.
+
+Direct two-argument `min(x, c)` and `max(x, c)` nodes are similarly reported
+as `bound_resolved_minmax_expression` when declared scalar bounds select the
+variable or constant branch everywhere. If the constant branch is the complete
+scalar constraint function, its set membership is additionally proven as
+`redundant_bound_resolved_minmax_constraint` or
+`infeasible_bound_resolved_minmax_constraint`.
+At an objective root with a constant selected branch, the same proof yields
+`constant_bound_resolved_minmax_objective`.
+
 ## Incidence graph
 
 Every non-domain constraint is represented by a constraint node:

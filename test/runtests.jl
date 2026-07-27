@@ -287,6 +287,174 @@ end
         @test evidence_details(constant)["value"] == "1"
     end
 
+    @testset "absolute values are resolved only by declared sign bounds" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        MOI.add_constraint(model, x, MOI.GreaterThan(0.0))
+        MOI.add_constraint(
+            model,
+            MOI.ScalarNonlinearFunction(:abs, Any[x]),
+            MOI.LessThan(2.0),
+        )
+        report = NLPDiagnostics.analyze_static(model)
+        resolved = only(findings(report, :sign_resolved_absolute_value))
+        @test resolved.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(resolved)["replacement"] == "x"
+
+        uncertain = new_model()
+        y = MOI.add_variable(uncertain)
+        MOI.add_constraint(
+            uncertain,
+            MOI.ScalarNonlinearFunction(:abs, Any[y]),
+            MOI.LessThan(2.0),
+        )
+        @test isempty(findings(
+            NLPDiagnostics.analyze_static(uncertain),
+            :sign_resolved_absolute_value,
+        ))
+    end
+
+    @testset "absolute zero constraints imply a fixed variable" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        absolute = MOI.ScalarNonlinearFunction(:abs, Any[x])
+        MOI.add_constraint(model, absolute, MOI.EqualTo(0.0))
+        report = NLPDiagnostics.analyze_static(model)
+        fixed = only(findings(report, :absolute_zero_implies_fixed_variable))
+        @test fixed.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(fixed)["implied_value"] == "0"
+
+        interval_model = new_model()
+        y = MOI.add_variable(interval_model)
+        MOI.add_constraint(
+            interval_model,
+            MOI.ScalarNonlinearFunction(:abs, Any[y]),
+            MOI.Interval(0.0, 0.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_static(interval_model),
+            :absolute_zero_implies_fixed_variable,
+        )) == 1
+
+        square_model = new_model()
+        z = MOI.add_variable(square_model)
+        MOI.add_constraint(
+            square_model,
+            MOI.ScalarNonlinearFunction(:^, Any[z, 2.0]),
+            MOI.EqualTo(0.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_static(square_model),
+            :square_zero_implies_fixed_variable,
+        )) == 1
+
+        negative_square = new_model()
+        w = MOI.add_variable(negative_square)
+        MOI.add_constraint(
+            negative_square,
+            MOI.ScalarNonlinearFunction(:^, Any[w, 2.0]),
+            MOI.LessThan(-1.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_static(negative_square),
+            :infeasible_negative_square_constraint,
+        )) == 1
+
+        two_branch = new_model()
+        q = MOI.add_variable(two_branch)
+        MOI.add_constraint(
+            two_branch,
+            MOI.ScalarNonlinearFunction(:^, Any[q, 2.0]),
+            MOI.EqualTo(4.0),
+        )
+        branch = only(findings(
+            NLPDiagnostics.analyze_static(two_branch),
+            :positive_square_level_set,
+        ))
+        @test evidence_details(branch)["root_magnitude"] == "2.0"
+
+        signed_branch = new_model()
+        r = MOI.add_variable(signed_branch)
+        MOI.add_constraint(signed_branch, r, MOI.GreaterThan(0.0))
+        MOI.add_constraint(signed_branch, MOI.ScalarNonlinearFunction(:^, Any[r, 2.0]), MOI.EqualTo(4.0))
+        resolved = only(findings(NLPDiagnostics.analyze_static(signed_branch), :sign_resolved_square_level_set))
+        @test evidence_details(resolved)["implied_value"] == "2.0"
+
+        sqrt_model = new_model()
+        s = MOI.add_variable(sqrt_model)
+        MOI.add_constraint(sqrt_model, MOI.ScalarNonlinearFunction(:sqrt, Any[s]), MOI.EqualTo(0.0))
+        @test length(findings(NLPDiagnostics.analyze_static(sqrt_model), :square_root_zero_implies_fixed_variable)) == 1
+
+        negative_sqrt = new_model()
+        u = MOI.add_variable(negative_sqrt)
+        MOI.add_constraint(negative_sqrt, MOI.ScalarNonlinearFunction(:sqrt, Any[u]), MOI.LessThan(-1.0))
+        @test length(findings(NLPDiagnostics.analyze_static(negative_sqrt), :infeasible_negative_square_root_constraint)) == 1
+
+        nonpositive_exp = new_model()
+        v = MOI.add_variable(nonpositive_exp)
+        MOI.add_constraint(nonpositive_exp, MOI.ScalarNonlinearFunction(:exp, Any[v]), MOI.LessThan(0.0))
+        @test length(findings(NLPDiagnostics.analyze_static(nonpositive_exp), :infeasible_nonpositive_exponential_constraint)) == 1
+    end
+
+    @testset "min/max branches are resolved by declared bounds" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        MOI.add_constraint(model, x, MOI.LessThan(1.0))
+        MOI.add_constraint(
+            model,
+            MOI.ScalarNonlinearFunction(:min, Any[x, 2.0]),
+            MOI.LessThan(3.0),
+        )
+        report = NLPDiagnostics.analyze_static(model)
+        resolved = only(findings(report, :bound_resolved_minmax_expression))
+        @test resolved.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(resolved)["replacement"] == "x"
+
+        constant = new_model()
+        y = MOI.add_variable(constant)
+        MOI.add_constraint(constant, y, MOI.GreaterThan(3.0))
+        MOI.add_constraint(
+            constant,
+            MOI.ScalarNonlinearFunction(:min, Any[y, 2.0]),
+            MOI.LessThan(3.0),
+        )
+        constant_report = NLPDiagnostics.analyze_static(constant)
+        constant_finding = only(
+            findings(constant_report, :bound_resolved_minmax_expression),
+        )
+        @test evidence_details(constant_finding)["replacement"] == "2.0"
+        @test length(
+            findings(constant_report, :redundant_bound_resolved_minmax_constraint),
+        ) == 1
+
+        infeasible = new_model()
+        z = MOI.add_variable(infeasible)
+        MOI.add_constraint(infeasible, z, MOI.GreaterThan(3.0))
+        MOI.add_constraint(
+            infeasible,
+            MOI.ScalarNonlinearFunction(:min, Any[z, 2.0]),
+            MOI.LessThan(1.0),
+        )
+        infeasible_report = NLPDiagnostics.analyze_static(infeasible)
+        @test length(
+            findings(infeasible_report, :infeasible_bound_resolved_minmax_constraint),
+        ) == 1
+
+        objective_model = new_model()
+        w = MOI.add_variable(objective_model)
+        MOI.add_constraint(objective_model, w, MOI.GreaterThan(3.0))
+        MOI.set(objective_model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(
+            objective_model,
+            MOI.ObjectiveFunction{MOI.ScalarNonlinearFunction}(),
+            MOI.ScalarNonlinearFunction(:min, Any[w, 2.0]),
+        )
+        objective_report = NLPDiagnostics.analyze_static(objective_model)
+        @test length(
+            findings(objective_report, :constant_bound_resolved_minmax_objective),
+        ) == 1
+    end
+
     @testset "fully fixed affine rows are evaluated without model mutation" begin
         model = new_model()
         x, y = MOI.add_variables(model, 2)
