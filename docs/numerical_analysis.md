@@ -309,6 +309,13 @@ structured log parsers while preserving these raw, inspectable evidence lines.
 documented Ipopt and MadNLP iteration headers. It retains the raw row and line
 number along with objective, primal/dual infeasibility, and the columns common
 to each format. Ambiguous or incomplete rows are not partially parsed.
+`solver_iteration_summary(records)` separately records log-order first/final
+rows, minima of the printed primal and dual columns, formats, and annotated-row
+count; it returns no summary for an empty trace.
+`solver_iteration_segments(records)` splits an appended or restarted trace when
+the printed iteration number decreases. The final-residual regression heuristic
+uses only the final segment, avoiding comparisons against an earlier logged
+solve; a segment boundary is not attributed to a specific solver event.
 `analyze_solver_iterations(solver, log)` reports a final recorded residual and
 an optional residual-regression heuristic. These are log-column observations,
 not independently recomputed KKT residuals or convergence certificates.
@@ -376,6 +383,31 @@ must not be confused with an inferred nullity.
 with the block probe's small-direction residuals. Its reported spectral spreads
 are screening proxies only—not condition estimates or singular-value bounds—so
 they remain opt-in and are never emitted as automatic conditioning findings.
+
+## Active-set dependence fingerprints
+
+When the selected active Jacobian fails its LICQ-style rank screen,
+`analyze_active_set` also inspects left-nullspace vectors. A vector whose
+material support is concentrated on two selected rows produces
+`active_candidate_two_row_dependence`, naming those rows directly. This is a
+point-local heuristic fingerprint, not proof of duplicate constraints: activity
+selection and derivative cancellation can produce the same pattern.
+Compact support on three through eight selected rows produces
+`active_candidate_multirow_dependence`, making a small locally dependent
+cluster inspectable without asserting a global redundancy proof.
+A right-null vector that is nearly uniform across all evaluated coordinates
+produces `active_candidate_uniform_tangent_shift`. This is a candidate
+common-coordinate tangent freedom, not a physical gauge classification; units
+and domain semantics remain necessary.
+`analyze_active_set(...; expected_modes = ...)` also checks each declared
+`ExpectedNullspaceMode` directly against the selected active Jacobian. An
+observed result is consistency with a plugin declaration at one point, while a
+non-observed result can mean that active constraints removed the mode; neither
+result validates or disproves the underlying physical interpretation.
+When declared modes are individually tangent, their independent span is also
+compared with the active right nullity. A larger observed nullity produces
+`active_undeclared_tangent_directions`; dependent declarations are separately
+reported as `active_expected_nullspace_mode_declarations_dependent`.
 
 ## Current limits
 

@@ -11,6 +11,10 @@ physical or representational gauges.
 expected_nullspace_modes(model::MOI.ModelLike, evaluation::NumericalEvaluation) =
     ExpectedNullspaceMode[]
 
+"""Optional domain-plugin component declarations; the generic default is empty."""
+component_metadata(model::MOI.ModelLike) = ComponentMetadata[]
+component_metadata(model::ModelSnapshot) = ComponentMetadata[]
+
 function _selected_jacobian_submatrix_evaluation(
     evaluation::NumericalEvaluation{T},
     rows::Vector{Int},

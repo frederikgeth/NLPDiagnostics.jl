@@ -393,6 +393,170 @@ struct NullspaceFingerprint{T<:AbstractFloat}
 end
 
 """
+Typed, dependency-free metadata supplied by an optional domain plugin.
+"""
+struct ComponentMetadata
+    component_type::Symbol
+    component_id::String
+    variables::Vector{MOI.VariableIndex}
+    constraints::Vector{EntityRef}
+    units::Dict{Symbol,String}
+    expected_rank::Union{Nothing,Int}
+    metadata::Dict{String,String}
+end
+
+"""Inspectable, non-mutating scope for a future elastic-feasibility auxiliary model."""
+struct ElasticFeasibilityPlan
+    relaxable_constraints::Vector{EntityRef}
+    unsupported_constraints::Vector{EntityRef}
+    excluded_constraints::Vector{EntityRef}
+    relaxation_count::Int
+    slack_count::Int
+end
+
+"""One source constraint and its nonnegative elastic auxiliary variables."""
+struct ElasticRelaxation
+    source::EntityRef
+    slacks::Vector{MOI.VariableIndex}
+    weight::Float64
+    kind::Symbol
+end
+
+"""A nonlinear operator-domain condition relevant to an elastic auxiliary scope."""
+struct ElasticDomainGuard
+    source::EntityRef
+    path::Vector{Int}
+    operator::Symbol
+    argument::Int
+    requirement::String
+    assessment::Symbol
+    variables::Vector{MOI.VariableIndex}
+    lower::Float64
+    upper::Float64
+    interval_informative::Bool
+    materializable::Bool
+    reason::String
+end
+
+"""Inspectable scope for optional, explicit nonlinear domain guards."""
+struct ElasticDomainGuardPlan
+    guards::Vector{ElasticDomainGuard}
+    nonmaterializable::Vector{ElasticDomainGuard}
+    selected_constraint_count::Int
+end
+
+"""A separately built affine elastic-feasibility auxiliary model."""
+struct ElasticFeasibilityModel
+    model::Any
+    plan::ElasticFeasibilityPlan
+    relaxations::Vector{ElasticRelaxation}
+    source_variable_map::Dict{MOI.VariableIndex,MOI.VariableIndex}
+    objective_norm::Symbol
+    epigraph_variable::Union{Nothing,MOI.VariableIndex}
+    relaxed_constraint_map::Dict{EntityRef,Any}
+    domain_guards::Vector{ElasticDomainGuard}
+    domain_guard_margin::Union{Nothing,Float64}
+end
+
+"""Observed slack values mapped back to one original constraint."""
+struct ElasticRelaxationValue
+    source::EntityRef
+    values::Vector{Float64}
+    total::Float64
+    weighted_total::Float64
+    kind::Symbol
+end
+
+"""An explicitly solved elastic auxiliary model and its auxiliary-to-solver slack map."""
+struct ElasticFeasibilitySolve
+    auxiliary::ElasticFeasibilityModel
+    optimizer::Any
+    slack_map::Dict{MOI.VariableIndex,MOI.VariableIndex}
+end
+
+"""One solved scope considered by a greedy local elastic-subset experiment."""
+struct ElasticSubsetProbe
+    selected_constraints::Vector{EntityRef}
+    objective_value::Union{Nothing,Float64}
+    has_primal_result::Bool
+    termination_status::String
+    primal_status::String
+end
+
+"""Inspectable result of a greedy, scope-dependent elastic subset reduction."""
+struct ElasticSubsetSearch
+    baseline::ElasticSubsetProbe
+    probes::Vector{ElasticSubsetProbe}
+    retained_constraints::Vector{EntityRef}
+    removed_constraints::Vector{EntityRef}
+    tolerance::Float64
+end
+
+"""Order-sensitivity summary for multiple local elastic subset reductions."""
+struct ElasticSubsetEnsemble
+    searches::Vector{ElasticSubsetSearch}
+    consensus_constraints::Vector{EntityRef}
+    possible_constraints::Vector{EntityRef}
+end
+
+"""Bounded exact search result for minimum-cardinality elastic relaxation supports."""
+struct ElasticMinimumRelaxationSearch
+    candidate_constraints::Vector{EntityRef}
+    minimum_relaxation_count::Union{Nothing,Int}
+    solutions::Vector{ElasticSubsetProbe}
+    evaluated_count::Int
+    truncated::Bool
+    tolerance::Float64
+end
+
+"""Solver-provided conflict memberships mapped back to source constraints."""
+struct SolverConflictResult
+    optimizer_type::String
+    optimize_before_conflict::Bool
+    termination_status::String
+    conflict_status::String
+    conflicts::Vector{Vector{EntityRef}}
+    maybe_conflicts::Vector{Vector{EntityRef}}
+    error::Union{Nothing,String}
+end
+
+function ComponentMetadata(
+    component_type::Symbol,
+    component_id;
+    variables::AbstractVector{MOI.VariableIndex} = MOI.VariableIndex[],
+    constraints::AbstractVector{EntityRef} = EntityRef[],
+    units::AbstractDict = Dict{Symbol,String}(),
+    expected_rank::Union{Nothing,Integer} = nothing,
+    metadata::AbstractDict = Dict{String,String}(),
+)
+    isempty(String(component_type)) &&
+        throw(ArgumentError("component_type must be nonempty"))
+    isempty(strip(string(component_id))) &&
+        throw(ArgumentError("component_id must be nonempty"))
+    !isnothing(expected_rank) && expected_rank < 0 &&
+        throw(ArgumentError("expected_rank must be nonnegative"))
+    length(unique(variables)) == length(variables) ||
+        throw(ArgumentError("component metadata variables must be unique"))
+    all(constraint -> constraint.kind == :constraint, constraints) ||
+        throw(ArgumentError("component metadata constraints must be constraint references"))
+    constraint_keys = [(item.index, item.subindex) for item in constraints]
+    length(unique(constraint_keys)) == length(constraint_keys) ||
+        throw(ArgumentError("component metadata constraints must be unique"))
+    scope_rank_bound = minimum(
+        filter(value -> !iszero(value), [length(variables), length(constraints)]);
+        init = typemax(Int),
+    )
+    scope_rank_bound != typemax(Int) && !isnothing(expected_rank) && expected_rank > scope_rank_bound &&
+        throw(ArgumentError("expected_rank cannot exceed the declared component scope"))
+    any(isempty(String(key)) || isempty(strip(string(value))) for (key, value) in units) &&
+        throw(ArgumentError("unit field names and labels must be nonempty"))
+    return ComponentMetadata(component_type, string(component_id), collect(variables), collect(constraints),
+        Dict(Symbol(key) => string(value) for (key, value) in units),
+        isnothing(expected_rank) ? nothing : Int(expected_rank),
+        Dict(string(key) => string(value) for (key, value) in metadata))
+end
+
+"""
 A named expected right-nullspace direction supplied by a caller or domain plugin.
 
 The direction is expressed in the listed `MOI.VariableIndex` coordinates. It
@@ -433,13 +597,15 @@ end
 """
 A labeled, solver-independent numerical profiling scenario.
 
-The descriptive fields make formulation, initialization, scale, and solver
-intent explicit without requiring the generic core to understand their domain
-semantics. `expected_evidence` records hypotheses to inspect, not assertions.
+The descriptive fields make task, formulation, initialization, scale, and
+solver intent explicit without requiring the generic core to understand their
+domain semantics. `expected_evidence` records hypotheses to inspect, not
+assertions.
 """
 struct ProfileCase{T<:AbstractFloat}
     name::String
     description::String
+    task::Union{Nothing,String}
     formulation::String
     initialization::String
     scale::String
@@ -454,6 +620,7 @@ function ProfileCase(
     name::AbstractString,
     point::EvaluationPoint{T};
     description::AbstractString = "",
+    task::Union{Nothing,AbstractString} = nothing,
     formulation::AbstractString = "unspecified",
     initialization::AbstractString = point.label,
     scale::AbstractString = "unspecified",
@@ -465,6 +632,7 @@ function ProfileCase(
     return ProfileCase{T}(
         String(name),
         String(description),
+        isnothing(task) || isempty(strip(task)) ? nothing : String(task),
         String(formulation),
         String(initialization),
         String(scale),
@@ -529,6 +697,7 @@ struct ProfileResult{T<:AbstractFloat}
     active_set_report::DiagnosticReport
     degeneracy_report::DiagnosticReport
     stage_seconds::Dict{Symbol,Float64}
+    stage_allocations::Dict{Symbol,Int}
     callback_statistics::Dict{Symbol,Tuple{Int,Float64}}
     derivative_row_method_counts::Dict{Symbol,Int}
     capability_source_counts::Dict{Symbol,Int}
@@ -550,6 +719,21 @@ struct ProfileTimingSummary
     standard_deviation::Float64
 end
 
+"""
+Summary of bytes allocated by one profiling stage across retained runs.
+
+Allocation counts are local Julia-runtime observations. They include any
+remaining compilation and garbage-collector effects, and therefore complement
+rather than replace timing or algorithmic-complexity evidence.
+"""
+struct ProfileAllocationSummary
+    sample_count::Int
+    minimum::Int
+    mean::Float64
+    maximum::Int
+    standard_deviation::Float64
+end
+
 """Occurrence stability of one diagnostic code across repeated profile runs."""
 struct ProfileFindingStability
     stage::Symbol
@@ -557,6 +741,68 @@ struct ProfileFindingStability
     occurrence_count::Int
     run_count::Int
     fraction::Float64
+end
+
+"""
+Observed recovery rate for one `ProfileCase.expected_evidence` diagnostic code.
+
+The profile author supplies expected evidence as a hypothesis. A low recovery
+rate identifies a changed or point-sensitive diagnostic path; it does not by
+itself invalidate the model or the expectation.
+"""
+struct ProfileExpectedEvidenceSummary
+    code::Symbol
+    occurrence_count::Int
+    run_count::Int
+    fraction::Float64
+end
+
+"""
+Side-by-side descriptive comparison of one measured profiling stage.
+
+Ratios are candidate divided by baseline. They are unavailable when the
+baseline mean is zero, rather than being replaced with an arbitrary value.
+"""
+struct ProfileStageComparison
+    stage::Symbol
+    baseline_seconds::Float64
+    candidate_seconds::Float64
+    seconds_ratio::Union{Nothing,Float64}
+    baseline_allocations::Float64
+    candidate_allocations::Float64
+    allocations_ratio::Union{Nothing,Float64}
+end
+
+"""
+Side-by-side occurrence rates for one diagnostic code in a profile stage.
+
+The rates are observed across retained runs and do not assert that either
+profile is mathematically valid or physically preferable.
+"""
+struct ProfileFindingComparison
+    stage::Symbol
+    code::Symbol
+    baseline_fraction::Float64
+    candidate_fraction::Float64
+end
+
+"""
+Side-by-side availability-aware comparison of one numerical profile metric.
+
+Means and their difference/ratio are unavailable when either aggregate did
+not retain a finite observation. Availability counts make that distinction
+explicit rather than treating an unavailable rank or condition proxy as zero.
+"""
+struct ProfileNumericalComparison
+    metric::Symbol
+    baseline_available_count::Int
+    baseline_run_count::Int
+    candidate_available_count::Int
+    candidate_run_count::Int
+    baseline_mean::Union{Nothing,Float64}
+    candidate_mean::Union{Nothing,Float64}
+    mean_difference::Union{Nothing,Float64}
+    mean_ratio::Union{Nothing,Float64}
 end
 
 """
@@ -624,6 +870,44 @@ struct SolverIterationRecord
     text::String
 end
 
+"""
+One contiguous log-order iteration segment.
+
+Segments split when the printed iteration number decreases. Such a boundary can
+mean an appended solve, restart, or phase change; the generic core does not
+assign it a solver-specific cause.
+"""
+struct SolverIterationSegment
+    start_line::Int
+    end_line::Int
+    record_count::Int
+    first_iteration::Int
+    final_iteration::Int
+    formats::Vector{Symbol}
+    annotated_row_count::Int
+end
+
+"""
+Descriptive facts from a parsed solver iteration trace.
+
+Rows remain in log order. These fields summarize printed columns only; they
+do not certify residual semantics, feasibility, or convergence.
+"""
+struct SolverIterationSummary
+    record_count::Int
+    formats::Vector{Symbol}
+    first_iteration::Int
+    final_iteration::Int
+    first_primal_infeasibility::Float64
+    final_primal_infeasibility::Float64
+    minimum_primal_infeasibility::Float64
+    first_dual_infeasibility::Float64
+    final_dual_infeasibility::Float64
+    minimum_dual_infeasibility::Float64
+    annotated_row_count::Int
+    segment_count::Int
+end
+
 """A caller-supplied numerical point explicitly associated with one log row."""
 struct IterationPointBinding{T<:AbstractFloat}
     record::SolverIterationRecord
@@ -658,16 +942,35 @@ function SolverPostmortem(
 end
 
 """
-Repeated independent `ProfileCase` measurements with timing, finding-stability,
-and finite numerical-observation summaries.
+Repeated independent `ProfileCase` measurements with timing, allocation,
+finding-stability, and finite numerical-observation summaries.
 """
 struct ProfileAggregate{T<:AbstractFloat}
     case::ProfileCase{T}
     runs::Vector{ProfileResult{T}}
     warmup_performed::Bool
     stage_timing::Dict{Symbol,ProfileTimingSummary}
+    stage_allocations::Dict{Symbol,ProfileAllocationSummary}
     finding_stability::Vector{ProfileFindingStability}
+    expected_evidence::Vector{ProfileExpectedEvidenceSummary}
     numerical_summary::Vector{ProfileNumericalSummary}
+end
+
+"""
+Transparent comparison between two repeated `ProfileCase` aggregates.
+
+Only stages measured by both cases are compared. Finding comparisons include
+the union of codes observed in either retained aggregate, with a zero rate
+when a code was not observed on one side.
+"""
+struct ProfileComparison{T<:AbstractFloat}
+    baseline::ProfileAggregate{T}
+    candidate::ProfileAggregate{T}
+    task_relation::Symbol
+    task::Union{Nothing,String}
+    stage_comparisons::Vector{ProfileStageComparison}
+    finding_comparisons::Vector{ProfileFindingComparison}
+    numerical_comparisons::Vector{ProfileNumericalComparison}
 end
 
 """

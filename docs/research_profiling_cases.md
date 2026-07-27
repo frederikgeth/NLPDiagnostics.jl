@@ -62,6 +62,35 @@ The attached examples provide useful qualitative and quantitative anchors:
 These numbers should be used as behavioral anchors, not hard-coded package
 thresholds.
 
+## Synthetic sparse calibration corpus
+
+`synthetic_sparse_profile_corpus(; dimension = 32)` provides a deterministic
+generic-core corpus that does not depend on an OPF plugin. It returns models
+and aligned `ProfileCase`s for three affine sparse Jacobians:
+
+- `sparse_banded_full_rank` validates sparse matching and QR on a banded,
+  full-rank system;
+- `sparse_banded_rank_deficient` duplicates a terminal row to exercise the
+  sparse-QR deficiency path when dense SVD is guarded off; and
+- `sparse_banded_scaled` alternates extreme diagonal scales to exercise pivot
+  scale-spread and scaling-sensitivity evidence.
+
+Run the corpus with `profile_cases_repeated(models, cases; ...)` before using
+large-model timing or threshold changes as defaults. This corpus calibrates
+generic algorithm behavior; OPF and multiconductor cases remain necessary for
+physical interpretations.
+
+`compare_profiles(baseline, candidate)` provides a transparent comparison of
+two repeated aggregates. It retains per-stage time and allocated-byte means,
+their candidate-to-baseline ratios where defined, and the occurrence rates of
+all diagnostic codes observed on either side. It also compares retained
+availability-aware numerical metric means (currently Jacobian rank, sparse-QR
+rank, and sparse-QR condition proxy); absent finite measurements remain
+unavailable. It deliberately does not assign a formulation score or declare a
+winner. Set the optional `ProfileCase.task` field for formulations intended to
+represent the same physical task; the comparison records whether that relation
+was declared, undeclared, or explicitly different.
+
 ## Core versus plugin ownership
 
 The generic core can own:
@@ -97,18 +126,25 @@ formulation, and solver layers.
 2. Add Hessian and reduced-Hessian adapters to reproduce the IVR versus
    SVR/SVP second-order contrast.
 3. Use the implemented `ProfileCase` and `profile_case` runner to retain
-   formulation, initialization, scale, solver-label, expected-evidence, cache,
-   timing, and derivative-provenance data for each case. Timings are local
-   runtime observations and should be collected after warm-up before comparing
-   formulations.
+formulation, initialization, scale, solver-label, expected-evidence, cache,
+timing, and derivative-provenance data for each case. Timings are local
+runtime observations and should be collected after warm-up before comparing
+formulations. Repeated profiles also report the observed recovery rate of each
+`expected_evidence` code. Those codes remain profile hypotheses: an absent or
+intermittent finding calls for inspection of the point, formulation, and
+evidence path rather than an automatic benchmark failure.
 4. Connect PMDlab and the open unbalanced benchmark data through an optional
    PowerModelsDistribution extension.
 5. Add component metadata and expected-nullspace assembly before attempting
    automatic physical classification.
 ## Structural-stage timing
 
-`profile_case` separately records wall-clock observations for structural graph
-construction, maximum-cardinality matching, and Dulmage–Mendelsohn
-decomposition. As with all profile timings, these include Julia compilation and
-allocation effects unless callers warm up comparable cases; they are scaling
-evidence, not solver-performance measurements.
+`profile_case` separately records wall-clock and allocated-byte observations
+for snapshot extraction, structural graph construction, maximum-cardinality
+matching, Dulmage–Mendelsohn decomposition, evaluation, numerical analysis,
+active-set analysis, and degeneracy analysis. `profile_case_repeated` exposes
+descriptive summaries in `stage_timing` and `stage_allocations`.
+
+Both measures include Julia compilation and garbage-collector effects unless
+callers warm up comparable cases. They are local scaling evidence, not
+solver-performance measurements or complexity guarantees.

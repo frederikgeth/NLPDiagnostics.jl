@@ -377,6 +377,64 @@ function solver_iteration_records(log::AbstractString)
 end
 
 """
+    solver_iteration_segments(records)
+
+Split parsed rows in log order whenever a printed iteration number decreases.
+The resulting boundaries preserve evidence about appended or restarted traces
+without inferring why the solver restarted.
+"""
+function solver_iteration_segments(records::AbstractVector{SolverIterationRecord})
+    isempty(records) && return SolverIterationSegment[]
+    starts = Int[1]
+    for position in 2:length(records)
+        records[position].iteration < records[position - 1].iteration &&
+            push!(starts, position)
+    end
+    segments = SolverIterationSegment[]
+    for (segment_index, start) in enumerate(starts)
+        stop = segment_index == length(starts) ? length(records) : starts[segment_index + 1] - 1
+        rows = @view records[start:stop]
+        push!(segments, SolverIterationSegment(
+            first(rows).line,
+            last(rows).line,
+            length(rows),
+            first(rows).iteration,
+            last(rows).iteration,
+            sort!(unique(record.format for record in rows); by = string),
+            count(record -> record.phase == :annotated, rows),
+        ))
+    end
+    return segments
+end
+
+"""
+    solver_iteration_summary(records)
+
+Summarize parsed solver iteration rows in log order. Returns `nothing` for an
+empty trace because no initial or final row exists to summarize.
+"""
+function solver_iteration_summary(records::AbstractVector{SolverIterationRecord})
+    isempty(records) && return nothing
+    first_record = first(records)
+    final_record = last(records)
+    segments = solver_iteration_segments(records)
+    return SolverIterationSummary(
+        length(records),
+        sort!(unique(record.format for record in records); by = string),
+        first_record.iteration,
+        final_record.iteration,
+        first_record.primal_infeasibility,
+        final_record.primal_infeasibility,
+        minimum(record.primal_infeasibility for record in records),
+        first_record.dual_infeasibility,
+        final_record.dual_infeasibility,
+        minimum(record.dual_infeasibility for record in records),
+        count(record -> record.phase == :annotated, records),
+        length(segments),
+    )
+end
+
+"""
     analyze_solver_iterations(solver, log; residual_tolerance = 1e-6)
 
 Report parsed iteration-trace evidence without asserting that log columns are
@@ -395,9 +453,26 @@ function analyze_solver_iterations(
     report.metadata[:stage] = "solver_iterations"
     report.metadata[:solver] = String(solver)
     report.metadata[:parsed_iteration_count] = string(length(records))
-    isempty(records) && return report
+    summary = solver_iteration_summary(records)
+    isnothing(summary) && return report
+    report.metadata[:iteration_formats] = join(string.(summary.formats), ",")
+    report.metadata[:first_parsed_iteration] = string(summary.first_iteration)
+    report.metadata[:final_parsed_iteration] = string(summary.final_iteration)
+    report.metadata[:minimum_logged_primal_infeasibility] =
+        string(summary.minimum_primal_infeasibility)
+    report.metadata[:minimum_logged_dual_infeasibility] =
+        string(summary.minimum_dual_infeasibility)
+    report.metadata[:annotated_iteration_row_count] = string(summary.annotated_row_count)
+    report.metadata[:iteration_segment_count] = string(summary.segment_count)
     final = last(records)
-    residuals = [max(record.primal_infeasibility, record.dual_infeasibility) for record in records]
+    final_segment = last(solver_iteration_segments(records))
+    final_segment_records = records[
+        findfirst(record -> record.line == final_segment.start_line, records):end
+    ]
+    residuals = [
+        max(record.primal_infeasibility, record.dual_infeasibility) for
+        record in final_segment_records
+    ]
     evidence = [Evidence(
         "Solver iteration log line $(final.line)";
         details = ["solver" => solver, "format" => final.format, "iteration" => final.iteration,

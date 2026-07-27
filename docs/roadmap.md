@@ -100,8 +100,53 @@ evaluation layers can expose its supporting evidence.
   multiplier sign/complementarity screens and a numerical no-common-descent
   witness for explicitly selected scalar active rows.
 - Large-model profiling aggregates beyond timing and diagnostic-code stability
-  (implemented for availability-aware numerical rank and sparse-pivot metrics;
-  broader memory and allocation aggregation remains future work).
+  (implemented for availability-aware numerical rank and sparse-pivot metrics,
+  deterministic synthetic sparse calibration corpus and repeated batch harness,
+  per-stage allocated-byte summaries, and expected-evidence recovery rates;
+  transparent aggregate-to-aggregate formulation comparison including
+  availability-aware numerical metrics and declared task context; broader
+  memory-footprint and allocation-source attribution remain future work).
+
+## Auxiliary feasibility foundation
+
+The first elastic-feasibility slice is implemented. It creates a separate,
+never-solved-by-default auxiliary MOI model that relaxes selected `Float64`
+scalar affine, quadratic, and nonlinear rows with explicit nonnegative slacks;
+scalar variable bounds are opt-in. Plans retain supported, unsupported, and
+excluded rows plus exact slack counts, while auxiliary results map slack values
+back to source constraints and distinguish raw from weighted relaxation.
+
+Next auxiliary work:
+
+- wider multi-branch domain handling for remaining nonlinear operators; and
+- solver-specific certificate provenance for conflict output.
+
+Solver-managed execution, result-status provenance, weighted L1/L∞ objectives,
+and a conservative greedy local subset reduction are implemented. The subset
+reduction is intentionally labeled as scope-, order-, and solver-dependent;
+it is not an IIS certificate.
+An order ensemble now compares forward/reverse or caller-supplied deletion
+orders and distinguishes consensus rows from order-sensitive ones.
+A bounded exact minimum-cardinality elastic relaxation search is also
+implemented, with explicit truncation evidence instead of unbounded
+enumeration.
+Generic MOI solver-conflict extraction is implemented as an optional copied
+model workflow, with source-mapped definite and tentative memberships. It
+deliberately reports solver conflict output as evidence rather than proof.
+Conflict memberships can now be cross-checked against local, order-consensus,
+and minimum-support elastic evidence, retaining both agreement and disagreement.
+Nonlinear domain-guard planning is also implemented: it scopes static domain
+conditions to elastic rows and distinguishes directly materializable
+scalar-affine lower-domain guards from conditions that need a domain plugin or
+reformulation. Explicit opt-in guarded auxiliary construction now supports
+those materializable `log`/`log1p`/`sqrt` cases plus sign-confined reciprocal,
+division, and negative-power domains, and records its chosen margin.
+It also handles closed inverse-trigonometric intervals and `acosh`/`atanh`;
+the generic core continues to leave periodic and multi-branch domains explicit
+rather than choosing a branch, except for a finite interval that ends at one
+identified periodic singularity, where it can safely move that endpoint inward.
+Stable expression fingerprints now also produce non-mutating reformulation
+plans with explicit registration requirements for custom stable primitives.
 
 ## Degeneracy framework
 
@@ -113,13 +158,15 @@ equation dependencies. Next classifications:
 
 - expected coordinate gauge declarations and observed-nullspace comparison
   (implemented, including declared-span dimension checks);
-- dependent active constraints;
+- active-set nullspace classification beyond compact dependence, uniform
+  tangent shifts, and declared-mode span comparisons;
 - flat reduced-Hessian direction (available through active-set second-order
   probing); and
 - unknown local equality-Jacobian mode (implemented).
 
 PowerModels and multiconductor semantics follow only after these generic
-interfaces are stable.
+interfaces are stable. The dependency-free plugin boundary and first extension
+slice are specified in `docs/powermodels_extension.md`.
 
 ## Solver postmortem foundation
 
@@ -144,7 +191,10 @@ tables or make status text into a mathematical certificate. Structured Ipopt
 and MadNLP iteration-row parsing is now implemented for complete rows under
 recognized headers; final residual and residual-regression findings remain
 trace observations rather than KKT certificates. Parsed rows can be
-correlated with explicitly supplied evaluation points.
+correlated with explicitly supplied evaluation points, and inspectable
+log-order iteration summaries retain printed residual minima and phase facts.
+Decreasing printed iteration numbers create non-causal trace segments so final
+residual regression evidence does not compare across appended runs.
 
 Explicit iteration-point bindings are implemented. They run generic numerical
 analysis at caller-supplied points and compare logged primal infeasibility with

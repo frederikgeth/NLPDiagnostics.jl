@@ -16,6 +16,284 @@ function _activity_evidence(summary::ConstraintFeasibilitySummary, activity::Con
     )
 end
 
+function _active_left_nullspace_fingerprints(
+    evaluation::NumericalEvaluation{T},
+    selected_rows::Vector{Int},
+    estimate::JacobianRankEstimate{T};
+    support_relative::Real = 0.1,
+) where {T<:AbstractFloat}
+    estimate.available || return Finding[]
+    estimate.left_nullity > 0 || return Finding[]
+    relative = convert(T, support_relative)
+    zero(T) < relative <= one(T) || throw(ArgumentError(
+        "active nullspace support_relative must lie in (0, 1]",
+    ))
+    findings = Finding[]
+    for vector_index in axes(estimate.left_nullspace, 2)
+        vector = view(estimate.left_nullspace, :, vector_index)
+        magnitude = maximum(abs, vector; init = zero(T))
+        iszero(magnitude) && continue
+        local_support = findall(value -> abs(value) >= relative * magnitude, vector)
+        length(local_support) == 2 || continue
+        rows = selected_rows[local_support]
+        weights = abs.(vector[local_support]) ./ magnitude
+        push!(findings, Finding(:active_candidate_two_row_dependence;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = HeuristicInterpretation,
+            confidence = ConfidenceMedium,
+            observation = "A left-null vector of the selected active Jacobian is concentrated on active rows $(rows[1]) and $(rows[2]).",
+            why_it_matters = "This resembles a pair of locally dependent active gradients, but can still arise from point-specific derivative cancellation or activity selection.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set left-nullspace fingerprint"; details = [
+                    "vector_index" => vector_index,
+                    "active_rows" => join(rows, ","),
+                    "relative_support_threshold" => relative,
+                    "normalized_support_magnitudes" => join(weights, ","),
+                ]),
+            ],
+            affected = EntityRef[evaluation.constraint_sources[row] for row in rows],
+            suggested_actions = [
+                "Compare these rows with duplicate-expression and structural matching findings.",
+                "Repeat at nearby points and under varied activity tolerances before treating them as redundant equations.",
+            ],
+        ))
+    end
+    for vector_index in axes(estimate.left_nullspace, 2)
+        vector = view(estimate.left_nullspace, :, vector_index)
+        magnitude = maximum(abs, vector; init = zero(T))
+        iszero(magnitude) && continue
+        local_support = findall(value -> abs(value) >= relative * magnitude, vector)
+        3 <= length(local_support) <= 8 || continue
+        rows = selected_rows[local_support]
+        weights = abs.(vector[local_support]) ./ magnitude
+        push!(findings, Finding(:active_candidate_multirow_dependence;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = HeuristicInterpretation,
+            confidence = ConfidenceMedium,
+            observation = "A left-null vector of the selected active Jacobian has compact support on $(length(rows)) active rows.",
+            why_it_matters = "This resembles a locally dependent active constraint cluster, but can still reflect point-specific derivative cancellation or the chosen activity threshold.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set left-nullspace fingerprint"; details = [
+                    "vector_index" => vector_index,
+                    "active_rows" => join(rows, ","),
+                    "relative_support_threshold" => relative,
+                    "normalized_support_magnitudes" => join(weights, ","),
+                ]),
+            ],
+            affected = EntityRef[evaluation.constraint_sources[row] for row in rows],
+            suggested_actions = [
+                "Inspect this row cluster for redundant balances, duplicated equations, or an intended aggregate constraint.",
+                "Repeat at nearby points and under varied activity tolerances before treating the cluster as structurally redundant.",
+            ],
+        ))
+    end
+    return findings
+end
+
+function _active_right_nullspace_fingerprints(
+    evaluation::NumericalEvaluation{T},
+    estimate::JacobianRankEstimate{T};
+    support_relative::Real = 0.1,
+    uniform_shift_correlation::Real = 0.98,
+) where {T<:AbstractFloat}
+    estimate.available || return Finding[]
+    estimate.right_nullity > 0 || return Finding[]
+    relative = convert(T, support_relative)
+    correlation_threshold = convert(T, uniform_shift_correlation)
+    zero(T) < relative <= one(T) || throw(ArgumentError(
+        "active nullspace support_relative must lie in (0, 1]",
+    ))
+    zero(T) <= correlation_threshold <= one(T) || throw(ArgumentError(
+        "active nullspace uniform_shift_correlation must lie in [0, 1]",
+    ))
+    findings = Finding[]
+    for vector_index in axes(estimate.right_nullspace, 2)
+        vector = view(estimate.right_nullspace, :, vector_index)
+        magnitude = maximum(abs, vector; init = zero(T))
+        iszero(magnitude) && continue
+        local_support = findall(value -> abs(value) >= relative * magnitude, vector)
+        correlation = abs(sum(vector)) / (sqrt(T(length(vector))) * norm(vector))
+        length(vector) >= 2 && length(local_support) == length(vector) &&
+        correlation >= correlation_threshold || continue
+        push!(findings, Finding(:active_candidate_uniform_tangent_shift;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = HeuristicInterpretation,
+            confidence = ConfidenceMedium,
+            observation = "A right-null vector of the selected active Jacobian is nearly uniform across all $(length(vector)) evaluated coordinates.",
+            why_it_matters = "This resembles a common-coordinate tangent shift or gauge freedom, but coordinate units and model semantics are required before assigning a physical interpretation.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set right-nullspace fingerprint"; details = [
+                    "vector_index" => vector_index,
+                    "uniform_shift_correlation" => correlation,
+                    "relative_support_threshold" => relative,
+                ]),
+            ],
+            affected = EntityRef[
+                EntityRef(:variable, variable.value) for variable in evaluation.point.variables
+            ],
+            suggested_actions = [
+                "Confirm that the affected coordinates share units and admit a meaningful common reference direction.",
+                "Declare an expected gauge through a domain plugin before treating this mode as benign.",
+            ],
+        ))
+    end
+    return findings
+end
+
+function _active_expected_nullspace_mode_findings(
+    evaluation::NumericalEvaluation{T},
+    selected_rows::Vector{Int},
+    modes::AbstractVector{<:ExpectedNullspaceMode};
+    residual_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    isempty(selected_rows) && return Finding[]
+    tolerance = convert(T, residual_tolerance)
+    tolerance >= zero(T) || throw(ArgumentError(
+        "active expected-mode residual_tolerance must be nonnegative",
+    ))
+    column_by_variable = Dict(
+        variable => column for (column, variable) in enumerate(evaluation.point.variables)
+    )
+    selected_by_row = Dict(row => position for (position, row) in enumerate(selected_rows))
+    findings = Finding[]
+    for mode in modes
+        columns = [get(column_by_variable, variable, 0) for variable in mode.variables]
+        if any(iszero, columns)
+            push!(findings, Finding(:active_expected_nullspace_mode_unaligned;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Expected active-set nullspace mode $(mode.name) cannot be aligned with the evaluation coordinates.",
+                why_it_matters = "No active tangent comparison is valid when a declared mode omits or references unavailable variables.",
+                evidence = [Evidence("Active expected-nullspace declaration"; details = ["mode" => mode.name, "description" => mode.description])],
+                suggested_actions = ["Declare the mode in the current evaluation-point variable coordinates."],
+            ))
+            continue
+        end
+        direction = zeros(T, length(evaluation.point.variables))
+        for (column, value) in zip(columns, mode.direction)
+            direction[column] += convert(T, value)
+        end
+        residual = zeros(T, length(selected_rows))
+        for entry in evaluation.jacobian_entries
+            position = get(selected_by_row, entry.row, 0)
+            iszero(position) && continue
+            residual[position] += entry.value * direction[entry.column]
+        end
+        residual_norm = norm(residual)
+        direction_norm = norm(direction)
+        observed = residual_norm <= tolerance * max(one(T), direction_norm)
+        affected = EntityRef[
+            EntityRef(:variable, variable.value) for variable in mode.variables
+        ]
+        push!(findings, Finding(
+            observed ? :active_expected_nullspace_mode_observed :
+                       :active_expected_nullspace_mode_not_observed;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = observed ? PhysicalExpectation : LocalInference,
+            confidence = observed ? ConfidenceHigh : ConfidenceMedium,
+            observation = observed ?
+                          "Declared mode $(mode.name) is tangent to the selected active Jacobian at this point." :
+                          "Declared mode $(mode.name) is not tangent to the selected active Jacobian at this point.",
+            why_it_matters = observed ?
+                             "The observed active-set geometry is consistent with the declared expected mode, but this does not validate the model's physical semantics." :
+                             "An expected gauge can be removed by active constraints or fail to appear at this operating point; this is local evidence, not a plugin error.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active expected-nullspace comparison"; details = [
+                    "mode" => mode.name,
+                    "description" => mode.description,
+                    "selected_rows" => join(selected_rows, ","),
+                    "residual_norm" => residual_norm,
+                    "residual_tolerance" => tolerance,
+                ]),
+            ],
+            affected = affected,
+            suggested_actions = observed ?
+                                ["Retain the declaration as expected-mode evidence and confirm its units and domain semantics."] :
+                                ["Inspect the active constraints and operating point before changing the expected-mode declaration."],
+        ))
+    end
+    return findings
+end
+
+function _active_expected_nullspace_span_findings(
+    evaluation::NumericalEvaluation{T},
+    selected_rows::Vector{Int},
+    estimate::JacobianRankEstimate{T},
+    modes::AbstractVector{<:ExpectedNullspaceMode};
+    residual_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    (estimate.available && !isempty(selected_rows) && !isempty(modes)) || return Finding[]
+    tolerance = convert(T, residual_tolerance)
+    tolerance >= zero(T) || throw(ArgumentError(
+        "active expected-mode residual_tolerance must be nonnegative",
+    ))
+    column_by_variable = Dict(
+        variable => column for (column, variable) in enumerate(evaluation.point.variables)
+    )
+    selected_by_row = Dict(row => position for (position, row) in enumerate(selected_rows))
+    directions = Vector{Vector{T}}()
+    names = Symbol[]
+    all_tangent = true
+    for mode in modes
+        columns = [get(column_by_variable, variable, 0) for variable in mode.variables]
+        any(iszero, columns) && continue
+        direction = zeros(T, length(evaluation.point.variables))
+        for (column, value) in zip(columns, mode.direction)
+            direction[column] += convert(T, value)
+        end
+        residual = zeros(T, length(selected_rows))
+        for entry in evaluation.jacobian_entries
+            position = get(selected_by_row, entry.row, 0)
+            iszero(position) && continue
+            residual[position] += entry.value * direction[entry.column]
+        end
+        norm(residual) <= tolerance * max(one(T), norm(direction)) || (all_tangent = false)
+        push!(directions, direction)
+        push!(names, mode.name)
+    end
+    isempty(directions) && return Finding[]
+    matrix = hcat(directions...)
+    factorization = svd(matrix)
+    scale = isempty(factorization.S) ? one(T) : maximum(factorization.S)
+    declared_rank = count(value -> value > tolerance * max(one(T), scale), factorization.S)
+    findings = Finding[]
+    if declared_rank < length(directions)
+        push!(findings, Finding(:active_expected_nullspace_mode_declarations_dependent;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "$(length(directions)) declared active expected modes span only $declared_rank independent direction(s).",
+            why_it_matters = "Dependent declarations can overstate the expected active tangent dimension and obscure additional observed freedom.",
+            evidence = [Evidence("Active expected-nullspace span"; details = ["modes" => join(names, ","), "declared_count" => length(directions), "declared_rank" => declared_rank, "tolerance" => tolerance])],
+            suggested_actions = ["Remove duplicate mode declarations or combine them into an independent basis."],
+        ))
+    end
+    if all_tangent && estimate.right_nullity > declared_rank
+        push!(findings, Finding(:active_undeclared_tangent_directions;
+            severity = SeverityWarning, domain = NumericalIssue,
+            basis = LocalInference, confidence = ConfidenceHigh,
+            observation = "The selected active Jacobian has right nullity $(estimate.right_nullity), exceeding the declared active-mode span rank $declared_rank.",
+            why_it_matters = "Additional local active tangent directions remain unexplained by the declared modes; they may be missing gauges, unconstrained coordinates, or point-specific rank loss.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active expected-nullspace span"; details = ["modes" => join(names, ","), "declared_rank" => declared_rank, "observed_right_nullity" => estimate.right_nullity]),
+            ],
+            affected = EntityRef[
+                EntityRef(:variable, variable.value) for variable in evaluation.point.variables
+            ],
+            suggested_actions = ["Inspect the extra right-nullspace directions and declare only physically or representationally expected modes."],
+        ))
+    end
+    return findings
+end
+
 function _active_set_findings(
     evaluation::NumericalEvaluation,
     summary::ConstraintFeasibilitySummary,
@@ -381,6 +659,9 @@ function analyze_active_set(
         max(length(evaluation.point.variables), 1) * eps(T),
     rank_max_dense_entries::Integer = 4_000_000,
     mfcq_strict_tolerance::Real = sqrt(eps(T)),
+    expected_modes::AbstractVector{<:ExpectedNullspaceMode} =
+        expected_nullspace_modes(model, evaluation),
+    expected_mode_residual_tolerance::Real = sqrt(eps(T)),
 ) where {T<:AbstractFloat}
     summary = constraint_feasibility_summary(
         model,
@@ -417,6 +698,16 @@ function analyze_active_set(
     )
     report = DiagnosticReport()
     append!(report.findings, _active_set_findings(evaluation, summary, selected_rows, estimate, mfcq, recovery))
+    append!(report.findings, _active_left_nullspace_fingerprints(evaluation, selected_rows, estimate))
+    append!(report.findings, _active_right_nullspace_fingerprints(evaluation, estimate))
+    append!(report.findings, _active_expected_nullspace_mode_findings(
+        evaluation, selected_rows, expected_modes;
+        residual_tolerance = expected_mode_residual_tolerance,
+    ))
+    append!(report.findings, _active_expected_nullspace_span_findings(
+        evaluation, selected_rows, estimate, expected_modes;
+        residual_tolerance = expected_mode_residual_tolerance,
+    ))
     append!(report.findings, _active_matching_findings(evaluation, active_matching))
     append!(report.findings, _coupled_set_findings(coupled_summary))
     report.metadata[:stage] = "active_set"
@@ -428,6 +719,7 @@ function analyze_active_set(
     report.metadata[:active_structural_matching_available] = string(active_matching.complete)
     report.metadata[:active_structural_matching_cardinality] =
         string(matching_cardinality(active_matching.matching))
+    report.metadata[:active_expected_nullspace_mode_count] = string(length(expected_modes))
     report.metadata[:active_structural_unmapped_row_count] =
         string(length(active_matching.unmapped_rows))
     report.metadata[:supported_coupled_set_count] = string(length(coupled_summary.activities))

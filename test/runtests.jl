@@ -64,6 +64,647 @@ function evidence_details(finding)
     return Dict(finding.evidence[1].details)
 end
 
+@testset "profiling corpus input validation" begin
+    point = NLPDiagnostics.EvaluationPoint(MOI.VariableIndex[], Float64[])
+    first_case = NLPDiagnostics.ProfileCase("first", point)
+    @test_throws ArgumentError NLPDiagnostics.profile_cases_repeated(
+        MOI.ModelLike[],
+        [first_case],
+    )
+    @test isempty(NLPDiagnostics.profile_cases_repeated(MOI.ModelLike[], NLPDiagnostics.ProfileCase[]))
+    duplicate = NLPDiagnostics.ProfileCase("first", point)
+    @test_throws ArgumentError NLPDiagnostics.profile_cases_repeated(
+        MOI.ModelLike[],
+        [first_case, duplicate],
+    )
+end
+
+@testset "component metadata plugin boundary" begin
+    model = MOIU.Model{Float64}()
+    @test isempty(NLPDiagnostics.component_metadata(model))
+    @test NLPDiagnostics.analyze_static(model).metadata[:component_metadata_count] == "0"
+    @test NLPDiagnostics.analyze(model).metadata[:component_metadata_count] == "0"
+    metadata = NLPDiagnostics.ComponentMetadata(
+        :line,
+        "line_1";
+        variables = MOI.VariableIndex[MOI.VariableIndex(1)],
+        constraints = [NLPDiagnostics.EntityRef(:constraint, 1)],
+        units = Dict(:voltage => "kV"),
+        expected_rank = 2,
+    )
+    @test metadata.units[:voltage] == "kV"
+    @test metadata.variables == MOI.VariableIndex[MOI.VariableIndex(1)]
+    @test metadata.constraints == [NLPDiagnostics.EntityRef(:constraint, 1)]
+    @test metadata.expected_rank == 2
+    @test_throws ArgumentError NLPDiagnostics.ComponentMetadata(Symbol(""), "line")
+    @test_throws ArgumentError NLPDiagnostics.ComponentMetadata(:line, " ")
+    @test_throws ArgumentError NLPDiagnostics.ComponentMetadata(:line, "bad"; expected_rank = -1)
+    @test_throws ArgumentError NLPDiagnostics.ComponentMetadata(
+        :line,
+        "bad";
+        units = Dict(Symbol("") => "kV"),
+    )
+    @test_throws ArgumentError NLPDiagnostics.ComponentMetadata(
+        :line,
+        "bad";
+        variables = MOI.VariableIndex[MOI.VariableIndex(1), MOI.VariableIndex(1)],
+    )
+    @test_throws ArgumentError NLPDiagnostics.ComponentMetadata(
+        :line,
+        "bad";
+        variables = MOI.VariableIndex[MOI.VariableIndex(1)],
+        expected_rank = 2,
+    )
+    @test_throws ArgumentError NLPDiagnostics.ComponentMetadata(
+        :line,
+        "bad";
+        constraints = [NLPDiagnostics.EntityRef(:constraint, 1)],
+        expected_rank = 2,
+    )
+    malformed = NLPDiagnostics.ComponentMetadata[
+        NLPDiagnostics.ComponentMetadata(Symbol(""), "", MOI.VariableIndex[MOI.VariableIndex(2), MOI.VariableIndex(2)], NLPDiagnostics.EntityRef[], Dict(Symbol("") => " "), -1, Dict{String,String}()),
+        NLPDiagnostics.ComponentMetadata(:line, "duplicate", MOI.VariableIndex[], NLPDiagnostics.EntityRef[], Dict{Symbol,String}(), nothing, Dict{String,String}()),
+        NLPDiagnostics.ComponentMetadata(:line, "duplicate", MOI.VariableIndex[], NLPDiagnostics.EntityRef[], Dict{Symbol,String}(), nothing, Dict{String,String}()),
+        NLPDiagnostics.ComponentMetadata(:generator, "rank", MOI.VariableIndex[MOI.VariableIndex(3)], NLPDiagnostics.EntityRef[], Dict{Symbol,String}(), 2, Dict{String,String}()),
+        NLPDiagnostics.ComponentMetadata(:branch, "constraints", MOI.VariableIndex[], [NLPDiagnostics.EntityRef(:constraint, 4), NLPDiagnostics.EntityRef(:constraint, 4), NLPDiagnostics.EntityRef(:variable, 1)], Dict{Symbol,String}(), 2, Dict{String,String}()),
+    ]
+    metadata_report = NLPDiagnostics._component_metadata_findings(
+        malformed;
+        model_variables = MOI.VariableIndex[MOI.VariableIndex(1)],
+        model_constraints = [NLPDiagnostics.EntityRef(:constraint, 1)],
+    )
+    @test length(findings(metadata_report, :invalid_component_metadata_identity)) == 1
+    @test length(findings(metadata_report, :invalid_component_metadata_units)) == 1
+    @test length(findings(metadata_report, :invalid_component_metadata_expected_rank)) == 1
+    @test length(findings(metadata_report, :duplicate_component_metadata)) == 1
+    @test length(findings(metadata_report, :component_metadata_duplicate_variables)) == 1
+    @test length(findings(metadata_report, :component_metadata_unknown_variable)) == 2
+    @test length(findings(metadata_report, :component_metadata_expected_rank_exceeds_scope)) == 2
+    @test length(findings(metadata_report, :component_metadata_duplicate_constraints)) == 1
+    @test length(findings(metadata_report, :invalid_component_metadata_constraint_reference)) == 1
+    @test length(findings(metadata_report, :component_metadata_unknown_constraint)) == 1
+
+    rank_model = MOIU.Model{Float64}()
+    x = MOI.add_variable(rank_model)
+    constraint = MOI.add_constraint(rank_model, x, MOI.EqualTo(0.0))
+    point = NLPDiagnostics.evaluation_point(rank_model, [0.0])
+    evaluation = NLPDiagnostics.evaluate_numerical(rank_model, point)
+    aligned = NLPDiagnostics.ComponentMetadata(
+        :line,
+        "aligned";
+        variables = [x],
+        constraints = [NLPDiagnostics.EntityRef(:constraint, constraint.value)],
+        expected_rank = 1,
+    )
+    rank_report = NLPDiagnostics.analyze_component_ranks(
+        rank_model,
+        evaluation;
+        components = [aligned],
+    )
+    @test rank_report.metadata[:component_rank_declared_count] == "1"
+    @test rank_report.metadata[:component_rank_comparison_count] == "1"
+    @test rank_report.metadata[:component_rank_unavailable_count] == "0"
+    @test isempty(findings(rank_report, :component_expected_rank_mismatch))
+    mismatched = NLPDiagnostics.ComponentMetadata(
+        :line,
+        "mismatched";
+        variables = [x],
+        constraints = [NLPDiagnostics.EntityRef(:constraint, constraint.value)],
+        expected_rank = 0,
+    )
+    mismatch_report = NLPDiagnostics.analyze_component_ranks(
+        rank_model,
+        evaluation;
+        components = [mismatched],
+    )
+    @test length(findings(mismatch_report, :component_expected_rank_mismatch)) == 1
+end
+
+@testset "elastic feasibility planning is non-mutating and explicit" begin
+    model = MOIU.Model{Float64}()
+    x, y = MOI.add_variables(model, 2)
+    affine = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, x)], 0.0),
+        MOI.LessThan(1.0),
+    )
+    nonlinear = MOI.add_constraint(
+        model,
+        MOI.VectorOfVariables([x, y]),
+        MOI.SecondOrderCone(2),
+    )
+    before = length(MOI.get(model, MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}()))
+    plan = NLPDiagnostics.elastic_feasibility_plan(model)
+    @test plan.relaxation_count == 1
+    @test plan.slack_count == 1
+    @test only(plan.relaxable_constraints).index == affine.value
+    @test only(plan.unsupported_constraints).index == nonlinear.value
+    plan_report = NLPDiagnostics.analyze_elastic_feasibility_plan(plan)
+    @test plan_report.metadata[:unsupported_constraint_count] == "1"
+    @test length(findings(plan_report, :elastic_unsupported_constraints)) == 1
+    selected_plan = NLPDiagnostics.elastic_feasibility_plan(
+        model;
+        selected_constraints = [only(plan.relaxable_constraints)],
+    )
+    @test selected_plan.relaxation_count == 1
+    selected_report = NLPDiagnostics.analyze_elastic_feasibility_plan(selected_plan)
+    @test selected_report.metadata[:excluded_constraint_count] == "0"
+    @test_throws ArgumentError NLPDiagnostics.elastic_feasibility_plan(
+        model;
+        selected_constraints = [NLPDiagnostics.EntityRef(:constraint, 99)],
+    )
+    @test_throws ArgumentError NLPDiagnostics.elastic_feasibility_plan(
+        model;
+        selected_constraints = [only(plan.relaxable_constraints), only(plan.relaxable_constraints)],
+    )
+    focused_model = MOIU.Model{Float64}()
+    u, v = MOI.add_variables(focused_model, 2)
+    MOI.add_constraint(
+        focused_model,
+        MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, u)], 0.0),
+        MOI.LessThan(1.0),
+    )
+    MOI.add_constraint(
+        focused_model,
+        MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, v)], 0.0),
+        MOI.GreaterThan(0.0),
+    )
+    full_focused_plan = NLPDiagnostics.elastic_feasibility_plan(focused_model)
+    focused_plan = NLPDiagnostics.elastic_feasibility_plan(
+        focused_model;
+        selected_constraints = [full_focused_plan.relaxable_constraints[1]],
+    )
+    @test focused_plan.relaxation_count == 1
+    @test length(focused_plan.excluded_constraints) == 1
+    @test length(findings(
+        NLPDiagnostics.analyze_elastic_feasibility_plan(focused_plan),
+        :elastic_constraints_excluded,
+    )) == 1
+    @test length(MOI.get(model, MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}())) == before
+    auxiliary = NLPDiagnostics.build_elastic_feasibility_model(model)
+    @test auxiliary.plan.relaxation_count == plan.relaxation_count
+    @test length(auxiliary.relaxations) == 1
+    @test length(only(auxiliary.relaxations).slacks) == 1
+    @test auxiliary.source_variable_map[x] isa MOI.VariableIndex
+    @test auxiliary.source_variable_map[y] isa MOI.VariableIndex
+    @test haskey(auxiliary.relaxed_constraint_map, only(plan.relaxable_constraints))
+    @test MOI.get(auxiliary.model, MOI.ObjectiveSense()) == MOI.MIN_SENSE
+    @test length(MOI.get(auxiliary.model, MOI.ListOfVariableIndices())) == 3
+    relaxation = only(auxiliary.relaxations)
+    values = Dict(only(relaxation.slacks) => 0.25)
+    observed = NLPDiagnostics.elastic_relaxation_values(auxiliary, values)
+    @test only(observed).total == 0.25
+    @test only(observed).weighted_total == 0.25
+    @test only(observed).kind == :upper_bound
+    @test NLPDiagnostics.elastic_objective_value(auxiliary, values) == 0.25
+    report = NLPDiagnostics.analyze_elastic_relaxations(auxiliary, values)
+    @test report.metadata[:positive_elastic_relaxation_count] == "1"
+    relaxation_finding = only(findings(report, :elastic_constraint_relaxed))
+    @test evidence_details(relaxation_finding)["weighted_slack_magnitude"] == "0.25"
+    @test_throws ArgumentError NLPDiagnostics.elastic_relaxation_values(auxiliary, Dict{MOI.VariableIndex,Float64}())
+    @test_throws ArgumentError NLPDiagnostics.elastic_relaxation_values(auxiliary)
+    weighted = NLPDiagnostics.build_elastic_feasibility_model(
+        model;
+        weights = Dict(only(plan.relaxable_constraints) => 2.5),
+    )
+    objective = MOI.get(
+        weighted.model,
+        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+    )
+    @test only(objective.terms).coefficient == 2.5
+    weighted_values = NLPDiagnostics.elastic_relaxation_values(
+        weighted,
+        Dict(only(only(weighted.relaxations).slacks) => 0.25),
+    )
+    @test only(weighted_values).weighted_total == 0.625
+    @test_throws ArgumentError NLPDiagnostics.build_elastic_feasibility_model(
+        model;
+        weights = Dict(only(plan.relaxable_constraints) => 0.0),
+    )
+    linf_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        model;
+        objective_norm = :linf,
+    )
+    @test linf_auxiliary.objective_norm == :linf
+    @test !isnothing(linf_auxiliary.epigraph_variable)
+    linf_relaxation = only(linf_auxiliary.relaxations)
+    @test NLPDiagnostics.elastic_objective_value(
+        linf_auxiliary,
+        Dict(only(linf_relaxation.slacks) => 0.4),
+    ) == 0.4
+    @test_throws ArgumentError NLPDiagnostics.build_elastic_feasibility_model(
+        model;
+        objective_norm = :unsupported,
+    )
+    @test_throws ArgumentError NLPDiagnostics.build_elastic_feasibility_model(
+        model;
+        weights = Dict(NLPDiagnostics.EntityRef(:constraint, 99) => 1.0),
+    )
+
+    equality_model = MOIU.Model{Float64}()
+    z = MOI.add_variable(equality_model)
+    equality = MOI.add_constraint(
+        equality_model,
+        MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, z)], 0.0),
+        MOI.EqualTo(1.0),
+    )
+    equality_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(equality_model)
+    @test equality_auxiliary.plan.slack_count == 2
+    equality_relaxation = only(equality_auxiliary.relaxations)
+    @test equality_relaxation.source.index == equality.value
+    @test length(equality_relaxation.slacks) == 2
+    equality_values = Dict(
+        equality_relaxation.slacks[1] => 0.2,
+        equality_relaxation.slacks[2] => 0.05,
+    )
+    equality_observation = only(NLPDiagnostics.elastic_relaxation_values(
+        equality_auxiliary,
+        equality_values,
+    ))
+    @test equality_observation.values == [0.2, 0.05]
+    @test equality_observation.total == 0.25
+    @test equality_observation.kind == :equality
+
+    quadratic_model = MOIU.Model{Float64}()
+    q = MOI.add_variable(quadratic_model)
+    quadratic = MOI.add_constraint(
+        quadratic_model,
+        MOI.ScalarQuadraticFunction(
+            [MOI.ScalarQuadraticTerm(1.0, q, q)],
+            MOI.ScalarAffineTerm{Float64}[],
+            0.0,
+        ),
+        MOI.LessThan(1.0),
+    )
+    quadratic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(quadratic_model)
+    @test only(quadratic_auxiliary.relaxations).source.index == quadratic.value
+    @test length(only(quadratic_auxiliary.relaxations).slacks) == 1
+
+    nonlinear_model = MOIU.Model{Float64}()
+    n = MOI.add_variable(nonlinear_model)
+    nonlinear_constraint = MOI.add_constraint(
+        nonlinear_model,
+        MOI.ScalarNonlinearFunction(:sin, Any[n]),
+        MOI.LessThan(1.0),
+    )
+    nonlinear_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(nonlinear_model)
+    @test only(nonlinear_auxiliary.relaxations).source.index == nonlinear_constraint.value
+    @test length(only(nonlinear_auxiliary.relaxations).slacks) == 1
+
+    cone_model = MOIU.Model{Float64}()
+    t, w = MOI.add_variables(cone_model, 2)
+    cone = MOI.add_constraint(cone_model, MOI.VectorOfVariables([t, w]), MOI.SecondOrderCone(2))
+    cone_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(cone_model)
+    @test only(cone_auxiliary.relaxations).source.index == cone.value
+    @test length(only(cone_auxiliary.relaxations).slacks) == 1
+    @test only(cone_auxiliary.relaxations).kind == :second_order_cone
+
+    affine_cone_model = MOIU.Model{Float64}()
+    a, b = MOI.add_variables(affine_cone_model, 2)
+    affine_cone = MOI.add_constraint(
+        affine_cone_model,
+        MOI.VectorAffineFunction(
+            [
+                MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(1.0, a)),
+                MOI.VectorAffineTerm(2, MOI.ScalarAffineTerm(1.0, b)),
+            ],
+            [0.0, 0.0],
+        ),
+        MOI.SecondOrderCone(2),
+    )
+    affine_cone_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(affine_cone_model)
+    @test only(affine_cone_auxiliary.relaxations).source.index == affine_cone.value
+
+    rotated_cone_model = MOIU.Model{Float64}()
+    r1, r2 = MOI.add_variables(rotated_cone_model, 2)
+    rotated_cone = MOI.add_constraint(
+        rotated_cone_model,
+        MOI.VectorOfVariables([r1, r2]),
+        MOI.RotatedSecondOrderCone(2),
+    )
+    rotated_cone_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(rotated_cone_model)
+    @test only(rotated_cone_auxiliary.relaxations).source.index == rotated_cone.value
+
+    nonnegative_model = MOIU.Model{Float64}()
+    g, h = MOI.add_variables(nonnegative_model, 2)
+    nonnegative = MOI.add_constraint(
+        nonnegative_model,
+        MOI.VectorOfVariables([g, h]),
+        MOI.Nonnegatives(2),
+    )
+    nonnegative_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(nonnegative_model)
+    nonnegative_relaxation = only(nonnegative_auxiliary.relaxations)
+    @test nonnegative_relaxation.source.index == nonnegative.value
+    @test nonnegative_relaxation.kind == :nonnegatives
+    @test length(nonnegative_relaxation.slacks) == 2
+
+    nonpositive_model = MOIU.Model{Float64}()
+    m, n = MOI.add_variables(nonpositive_model, 2)
+    nonpositive = MOI.add_constraint(
+        nonpositive_model,
+        MOI.VectorOfVariables([m, n]),
+        MOI.Nonpositives(2),
+    )
+    nonpositive_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(nonpositive_model)
+    nonpositive_relaxation = only(nonpositive_auxiliary.relaxations)
+    @test nonpositive_relaxation.source.index == nonpositive.value
+    @test nonpositive_relaxation.kind == :nonpositives
+    @test length(nonpositive_relaxation.slacks) == 2
+
+    zero_model = MOIU.Model{Float64}()
+    p, q = MOI.add_variables(zero_model, 2)
+    zeros_constraint = MOI.add_constraint(zero_model, MOI.VectorOfVariables([p, q]), MOI.Zeros(2))
+    zero_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(zero_model)
+    zero_relaxation = only(zero_auxiliary.relaxations)
+    @test zero_relaxation.source.index == zeros_constraint.value
+    @test zero_relaxation.kind == :zeros
+    @test length(zero_relaxation.slacks) == 4
+
+    subset_reference = NLPDiagnostics.EntityRef(:constraint, affine.value)
+    positive_subset = NLPDiagnostics.ElasticSubsetSearch(
+        NLPDiagnostics.ElasticSubsetProbe(
+            [subset_reference], 1.0, true, "LOCALLY_INFEASIBLE", "FEASIBLE_POINT",
+        ),
+        NLPDiagnostics.ElasticSubsetProbe[],
+        [subset_reference],
+        NLPDiagnostics.EntityRef[],
+        1e-8,
+    )
+    subset_report = NLPDiagnostics.analyze_local_elastic_subset_search(positive_subset)
+    @test length(findings(subset_report, :elastic_subset_local_explanation)) == 1
+    consensus_ensemble = NLPDiagnostics.ElasticSubsetEnsemble(
+        [positive_subset, positive_subset], [subset_reference], [subset_reference],
+    )
+    @test length(findings(
+        NLPDiagnostics.analyze_local_elastic_subset_ensemble(consensus_ensemble),
+        :elastic_subset_order_consensus,
+    )) == 1
+    sensitive_ensemble = NLPDiagnostics.ElasticSubsetEnsemble(
+        [positive_subset, positive_subset], NLPDiagnostics.EntityRef[], [subset_reference],
+    )
+    @test length(findings(
+        NLPDiagnostics.analyze_local_elastic_subset_ensemble(sensitive_ensemble),
+        :elastic_subset_order_sensitive,
+    )) == 1
+    minimum_search = NLPDiagnostics.ElasticMinimumRelaxationSearch(
+        [subset_reference], 1, [positive_subset.baseline], 3, false, 1e-8,
+    )
+    @test length(findings(
+        NLPDiagnostics.analyze_minimum_elastic_relaxation_search(minimum_search),
+        :elastic_minimum_relaxation_support,
+    )) == 1
+    truncated_minimum_search = NLPDiagnostics.ElasticMinimumRelaxationSearch(
+        [subset_reference], nothing, NLPDiagnostics.ElasticSubsetProbe[], 2, true, 1e-8,
+    )
+    @test length(findings(
+        NLPDiagnostics.analyze_minimum_elastic_relaxation_search(truncated_minimum_search),
+        :elastic_minimum_relaxation_truncated,
+    )) == 1
+    conflict_model = MOIU.Model{Float64}()
+    conflict_variable = MOI.add_variable(conflict_model)
+    conflict_constraint = MOI.add_constraint(
+        conflict_model,
+        MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, conflict_variable)], 0.0),
+        MOI.LessThan(0.0),
+    )
+    conflict_optimizer = MOIU.MockOptimizer()
+    conflict_optimizer.optimize! = function (mock)
+        MOI.set(mock, MOI.ConflictStatus(), MOI.CONFLICT_FOUND)
+        copied_constraint = only(MOI.get(
+            mock,
+            MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}(),
+        ))
+        MOI.set(mock, MOI.ConstraintConflictStatus(), copied_constraint, MOI.IN_CONFLICT)
+    end
+    conflict_result = NLPDiagnostics.compute_solver_conflict!(
+        conflict_optimizer, conflict_model,
+    )
+    @test conflict_result.error === nothing
+    @test only(only(conflict_result.conflicts)).index == conflict_constraint.value
+    @test length(findings(
+        NLPDiagnostics.analyze_solver_conflict(conflict_result),
+        :solver_conflict_membership,
+    )) == 1
+    conflict_reference = NLPDiagnostics.EntityRef(:constraint, conflict_constraint.value)
+    conflict_subset = NLPDiagnostics.ElasticSubsetSearch(
+        NLPDiagnostics.ElasticSubsetProbe(
+            [conflict_reference], 1.0, true, "LOCALLY_INFEASIBLE", "FEASIBLE_POINT",
+        ),
+        NLPDiagnostics.ElasticSubsetProbe[],
+        [conflict_reference],
+        NLPDiagnostics.EntityRef[],
+        1e-8,
+    )
+    @test length(findings(
+        NLPDiagnostics.analyze_solver_conflict_crosscheck(conflict_result, conflict_subset),
+        :solver_conflict_elastic_overlap,
+    )) == 1
+    zero_subset = NLPDiagnostics.ElasticSubsetSearch(
+        NLPDiagnostics.ElasticSubsetProbe(
+            [subset_reference], 0.0, true, "OPTIMAL", "FEASIBLE_POINT",
+        ),
+        NLPDiagnostics.ElasticSubsetProbe[],
+        NLPDiagnostics.EntityRef[],
+        [subset_reference],
+        1e-8,
+    )
+    @test length(findings(
+        NLPDiagnostics.analyze_local_elastic_subset_search(zero_subset),
+        :elastic_subset_no_positive_residual,
+    )) == 1
+    @test_throws ArgumentError NLPDiagnostics.local_elastic_subset_search(
+        model, () -> nothing,
+    )
+
+    domain_guard_model = MOIU.Model{Float64}()
+    guarded = MOI.add_variable(domain_guard_model)
+    MOI.add_constraint(domain_guard_model, guarded, MOI.LessThan(-1.0))
+    guarded_constraint = MOI.add_constraint(
+        domain_guard_model,
+        MOI.ScalarNonlinearFunction(:log, Any[guarded]),
+        MOI.LessThan(0.0),
+    )
+    guard_plan = NLPDiagnostics.elastic_domain_guard_plan(domain_guard_model)
+    @test guard_plan.selected_constraint_count == 1
+    @test length(guard_plan.guards) == 1
+    @test only(guard_plan.guards).source.index == guarded_constraint.value
+    @test only(guard_plan.guards).materializable
+    guard_report = NLPDiagnostics.analyze_elastic_domain_guard_plan(guard_plan)
+    @test length(findings(guard_report, :elastic_proven_domain_guard_violation)) == 1
+    guarded_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        domain_guard_model;
+        domain_guard_margin = 1e-6,
+    )
+    @test length(guarded_auxiliary.domain_guards) == 1
+    @test guarded_auxiliary.domain_guard_margin == 1e-6
+    mapped_guarded = guarded_auxiliary.source_variable_map[guarded]
+    guard_constraints = MOI.get(
+        guarded_auxiliary.model,
+        MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}}(),
+    )
+    @test any(
+        index ->
+            only(MOI.get(guarded_auxiliary.model, MOI.ConstraintFunction(), index).terms).variable == mapped_guarded &&
+            MOI.get(guarded_auxiliary.model, MOI.ConstraintSet(), index).lower == 1e-6,
+        guard_constraints,
+    )
+    @test_throws ArgumentError NLPDiagnostics.build_elastic_feasibility_model(
+        domain_guard_model;
+        domain_guard_margin = 0.0,
+    )
+
+    reciprocal_guard_model = MOIU.Model{Float64}()
+    reciprocal = MOI.add_variable(reciprocal_guard_model)
+    MOI.add_constraint(reciprocal_guard_model, reciprocal, MOI.GreaterThan(0.0))
+    MOI.add_constraint(
+        reciprocal_guard_model,
+        MOI.ScalarNonlinearFunction(:inv, Any[reciprocal]),
+        MOI.LessThan(2.0),
+    )
+    reciprocal_plan = NLPDiagnostics.elastic_domain_guard_plan(reciprocal_guard_model)
+    @test length(reciprocal_plan.guards) == 1
+    @test only(reciprocal_plan.guards).materializable
+    reciprocal_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        reciprocal_guard_model;
+        domain_guard_margin = 1e-5,
+    )
+    mapped_reciprocal = reciprocal_auxiliary.source_variable_map[reciprocal]
+    reciprocal_guards = MOI.get(
+        reciprocal_auxiliary.model,
+        MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}}(),
+    )
+    @test any(
+        index ->
+            only(MOI.get(reciprocal_auxiliary.model, MOI.ConstraintFunction(), index).terms).variable == mapped_reciprocal &&
+            MOI.get(reciprocal_auxiliary.model, MOI.ConstraintSet(), index).lower == 1e-5,
+        reciprocal_guards,
+    )
+
+    atanh_guard_model = MOIU.Model{Float64}()
+    hyperbolic_argument = MOI.add_variable(atanh_guard_model)
+    MOI.add_constraint(
+        atanh_guard_model,
+        MOI.ScalarNonlinearFunction(:atanh, Any[hyperbolic_argument]),
+        MOI.LessThan(2.0),
+    )
+    atanh_plan = NLPDiagnostics.elastic_domain_guard_plan(atanh_guard_model)
+    @test length(atanh_plan.guards) == 1
+    @test only(atanh_plan.guards).materializable
+    atanh_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        atanh_guard_model;
+        domain_guard_margin = 1e-5,
+    )
+    mapped_hyperbolic = atanh_auxiliary.source_variable_map[hyperbolic_argument]
+    atanh_lower_guards = MOI.get(
+        atanh_auxiliary.model,
+        MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}}(),
+    )
+    atanh_upper_guards = MOI.get(
+        atanh_auxiliary.model,
+        MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}(),
+    )
+    @test any(
+        index ->
+            only(MOI.get(atanh_auxiliary.model, MOI.ConstraintFunction(), index).terms).variable == mapped_hyperbolic &&
+            MOI.get(atanh_auxiliary.model, MOI.ConstraintSet(), index).lower == -0.99999,
+        atanh_lower_guards,
+    )
+    @test any(
+        index ->
+            only(MOI.get(atanh_auxiliary.model, MOI.ConstraintFunction(), index).terms).variable == mapped_hyperbolic &&
+            MOI.get(atanh_auxiliary.model, MOI.ConstraintSet(), index).upper == 0.99999,
+        atanh_upper_guards,
+    )
+
+    periodic_guard_model = MOIU.Model{Float64}()
+    periodic_argument = MOI.add_variable(periodic_guard_model)
+    MOI.add_constraint(periodic_guard_model, periodic_argument, MOI.Interval(0.0, Float64(pi / 2)))
+    MOI.add_constraint(
+        periodic_guard_model,
+        MOI.ScalarNonlinearFunction(:tan, Any[periodic_argument]),
+        MOI.LessThan(10.0),
+    )
+    periodic_plan = NLPDiagnostics.elastic_domain_guard_plan(periodic_guard_model)
+    @test length(periodic_plan.guards) == 1
+    @test only(periodic_plan.guards).materializable
+    periodic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        periodic_guard_model;
+        domain_guard_margin = 1e-5,
+    )
+    mapped_periodic = periodic_auxiliary.source_variable_map[periodic_argument]
+    periodic_guards = MOI.get(
+        periodic_auxiliary.model,
+        MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}(),
+    )
+    @test any(
+        index ->
+            only(MOI.get(periodic_auxiliary.model, MOI.ConstraintFunction(), index).terms).variable == mapped_periodic &&
+            MOI.get(periodic_auxiliary.model, MOI.ConstraintSet(), index).upper ≈ Float64(pi / 2) - 1e-5,
+        periodic_guards,
+    )
+    crossing_periodic_model = MOIU.Model{Float64}()
+    crossing_argument = MOI.add_variable(crossing_periodic_model)
+    MOI.add_constraint(crossing_periodic_model, crossing_argument, MOI.Interval(-1.0, 2.0))
+    MOI.add_constraint(
+        crossing_periodic_model,
+        MOI.ScalarNonlinearFunction(:tan, Any[crossing_argument]),
+        MOI.LessThan(10.0),
+    )
+    crossing_plan = NLPDiagnostics.elastic_domain_guard_plan(crossing_periodic_model)
+    @test length(crossing_plan.guards) == 1
+    @test !only(crossing_plan.guards).materializable
+
+    bound_model = MOIU.Model{Float64}()
+    b = MOI.add_variable(bound_model)
+    bound = MOI.add_constraint(bound_model, b, MOI.GreaterThan(1.0))
+    @test NLPDiagnostics.elastic_feasibility_plan(bound_model).relaxation_count == 0
+    bound_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        bound_model;
+        relax_variable_bounds = true,
+    )
+    @test only(bound_auxiliary.relaxations).source.index == bound.value
+    @test length(only(bound_auxiliary.relaxations).slacks) == 1
+end
+
+@testset "synthetic sparse profiling corpus" begin
+    @test_throws ArgumentError NLPDiagnostics.synthetic_sparse_profile_corpus(dimension = 1)
+    models, cases = NLPDiagnostics.synthetic_sparse_profile_corpus(dimension = 3)
+    @test length(models) == 3
+    @test [case.name for case in cases] == [
+        "sparse_banded_full_rank",
+        "sparse_banded_rank_deficient",
+        "sparse_banded_scaled",
+    ]
+    @test cases[3].metadata["scale"] == "1.0e8"
+    result = NLPDiagnostics.profile_case(
+        models[2],
+        cases[2];
+        rank_max_dense_entries = 1,
+    )
+    @test any(
+        finding -> finding.code == :sparse_qr_jacobian_rank_deficiency,
+        result.numerical_report.findings,
+    )
+    scaled_result = NLPDiagnostics.profile_case(
+        models[3],
+        cases[3];
+        rank_max_dense_entries = 1,
+    )
+    @test any(
+        finding -> finding.code == :sparse_qr_pivot_scale_spread,
+        scaled_result.numerical_report.findings,
+    )
+    aggregates = NLPDiagnostics.profile_cases_repeated(
+        models,
+        cases;
+        repetitions = 1,
+        warmup = false,
+        rank_max_dense_entries = 1,
+    )
+    @test sort!(collect(keys(aggregates))) == [case.name for case in cases]
+    @test all(length(aggregate.runs) == 1 for aggregate in values(aggregates))
+end
+
 function NLPDiagnostics.operator_interval(
     ::Val{:positive_output},
     arguments::Vector{NLPDiagnostics.IntervalEnclosure},
@@ -2082,6 +2723,7 @@ end
         case = NLPDiagnostics.ProfileCase(
             "unit equality",
             point;
+            task = "one-variable equality",
             formulation = "toy-affine",
             initialization = "flat start",
             scale = "unit",
@@ -2094,6 +2736,7 @@ end
         result = NLPDiagnostics.profile_case(model, case; cache = cache)
         @test result.case.name == "unit equality"
         @test result.case.formulation == "toy-affine"
+        @test result.case.task == "one-variable equality"
         @test result.case.solver == "Ipopt"
         @test result.case.metadata["network"] == "none"
         @test result.evaluation.point == point
@@ -2103,6 +2746,8 @@ end
         @test result.cache_misses == 1
         @test result.cache_hits >= 1
         @test all(value -> value >= 0.0, values(result.stage_seconds))
+        @test all(value -> value >= 0, values(result.stage_allocations))
+        @test haskey(result.stage_allocations, :numerical)
         @test length(
             findings(result.degeneracy_report, :structural_numerical_rank_agreement),
         ) == 1
@@ -2119,6 +2764,11 @@ end
         @test evaluation_timing.minimum <= evaluation_timing.mean <=
               evaluation_timing.maximum
         @test evaluation_timing.standard_deviation >= 0.0
+        evaluation_allocations = aggregate.stage_allocations[:evaluation]
+        @test evaluation_allocations.sample_count == 2
+        @test evaluation_allocations.minimum <= evaluation_allocations.mean <=
+              evaluation_allocations.maximum
+        @test evaluation_allocations.standard_deviation >= 0.0
         stable_rank = only(filter(
             item -> item.stage == :degeneracy &&
                     item.code == :structural_numerical_rank_agreement,
@@ -2126,6 +2776,10 @@ end
         ))
         @test stable_rank.occurrence_count == 2
         @test stable_rank.fraction == 1.0
+        expected_rank = only(aggregate.expected_evidence)
+        @test expected_rank.code == :structural_numerical_rank_agreement
+        @test expected_rank.occurrence_count == 2
+        @test expected_rank.fraction == 1.0
         repeated_rank = only(filter(
             item -> item.metric == :jacobian_rank,
             aggregate.numerical_summary,
@@ -2141,6 +2795,58 @@ end
         ))
         @test repeated_proxy.available_count == 2
         @test repeated_proxy.minimum == 1.0
+        unmet_case = NLPDiagnostics.ProfileCase(
+            "unmet profile expectation",
+            point;
+            task = "one-variable equality",
+            expected_evidence = [:never_emitted],
+        )
+        unmet = NLPDiagnostics.profile_case_repeated(
+            model,
+            unmet_case;
+            repetitions = 1,
+            warmup = false,
+        )
+        unmet_expectation = only(unmet.expected_evidence)
+        @test unmet_expectation.code == :never_emitted
+        @test unmet_expectation.occurrence_count == 0
+        @test unmet_expectation.fraction == 0.0
+        comparison = NLPDiagnostics.compare_profiles(aggregate, unmet)
+        @test comparison.baseline === aggregate
+        @test comparison.candidate === unmet
+        @test comparison.task_relation == :declared_same_task
+        @test comparison.task == "one-variable equality"
+        evaluation_comparison = only(filter(
+            item -> item.stage == :evaluation,
+            comparison.stage_comparisons,
+        ))
+        @test evaluation_comparison.baseline_seconds >= 0.0
+        @test evaluation_comparison.candidate_seconds >= 0.0
+        @test evaluation_comparison.baseline_allocations >= 0.0
+        @test evaluation_comparison.candidate_allocations >= 0.0
+        @test any(
+            item -> item.code == :structural_numerical_rank_agreement &&
+                    item.baseline_fraction == 1.0 && item.candidate_fraction == 1.0,
+            comparison.finding_comparisons,
+        )
+        rank_comparison = only(filter(
+            item -> item.metric == :jacobian_rank,
+            comparison.numerical_comparisons,
+        ))
+        @test rank_comparison.baseline_available_count == 2
+        @test rank_comparison.candidate_available_count == 1
+        @test rank_comparison.baseline_mean == 1.0
+        @test rank_comparison.candidate_mean == 1.0
+        @test rank_comparison.mean_difference == 0.0
+        @test rank_comparison.mean_ratio == 1.0
+        different_task = NLPDiagnostics.profile_case_repeated(
+            model,
+            NLPDiagnostics.ProfileCase("different task", point; task = "different"),
+            repetitions = 1,
+            warmup = false,
+        )
+        @test NLPDiagnostics.compare_profiles(aggregate, different_task).task_relation ==
+              :declared_different_task
         @test_throws ArgumentError NLPDiagnostics.profile_case_repeated(
             model,
             case;
@@ -2184,6 +2890,61 @@ end
         )
         @test isempty(findings(report, :active_constraint_licq_failure))
         @test length(findings(report, :mfcq_common_descent_direction_found)) == 1
+
+        tangent_shift = new_model()
+        t1, t2 = MOI.add_variables(tangent_shift, 2)
+        MOI.add_constraint(
+            tangent_shift,
+            MOI.ScalarAffineFunction([
+                MOI.ScalarAffineTerm(1.0, t1),
+                MOI.ScalarAffineTerm(-1.0, t2),
+            ], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        tangent_report = NLPDiagnostics.analyze_active_set(tangent_shift, [0.0, 0.0])
+        @test length(findings(
+            tangent_report,
+            :active_candidate_uniform_tangent_shift,
+        )) == 1
+        active_common_shift = NLPDiagnostics.ExpectedNullspaceMode(
+            :active_common_shift,
+            [t1, t2],
+            [1.0, 1.0],
+            description = "active common-coordinate shift",
+        )
+        expected_tangent_report = NLPDiagnostics.analyze_active_set(
+            tangent_shift,
+            [0.0, 0.0];
+            expected_modes = [active_common_shift],
+        )
+        @test length(findings(
+            expected_tangent_report,
+            :active_expected_nullspace_mode_observed,
+        )) == 1
+        extra_tangent = new_model()
+        e1, e2, e3 = MOI.add_variables(extra_tangent, 3)
+        MOI.add_constraint(
+            extra_tangent,
+            MOI.ScalarAffineFunction([
+                MOI.ScalarAffineTerm(1.0, e1),
+                MOI.ScalarAffineTerm(-1.0, e2),
+            ], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        declared_tangent = NLPDiagnostics.ExpectedNullspaceMode(
+            :declared_tangent,
+            [e1, e2],
+            [1.0, 1.0],
+        )
+        extra_tangent_report = NLPDiagnostics.analyze_active_set(
+            extra_tangent,
+            [0.0, 0.0, 0.0];
+            expected_modes = [declared_tangent],
+        )
+        @test length(findings(
+            extra_tangent_report,
+            :active_undeclared_tangent_directions,
+        )) == 1
         combined = NLPDiagnostics.analyze(
             model;
             point = evaluation.point,
@@ -2233,6 +2994,28 @@ end
             active_tolerance = 1.0e-7,
         )
         @test length(findings(dependent_report, :active_constraint_licq_failure)) == 1
+        @test length(findings(
+            dependent_report,
+            :active_candidate_two_row_dependence,
+        )) == 1
+
+        dependent_cluster = new_model()
+        p, q = MOI.add_variables(dependent_cluster, 2)
+        MOI.add_constraint(dependent_cluster, p, MOI.EqualTo(0.0))
+        MOI.add_constraint(dependent_cluster, q, MOI.EqualTo(0.0))
+        MOI.add_constraint(
+            dependent_cluster,
+            MOI.ScalarAffineFunction([
+                T(1.0, p),
+                T(1.0, q),
+            ], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        cluster_report = NLPDiagnostics.analyze_active_set(dependent_cluster, [0.0, 0.0])
+        @test length(findings(
+            cluster_report,
+            :active_candidate_multirow_dependence,
+        )) == 1
 
         dual_model = new_model()
         d = MOI.add_variable(dual_model)
@@ -2773,6 +3556,16 @@ end
         @test length(findings(report, :unstable_logistic_expression)) == 1
         @test !isempty(findings(report, :exponential_overflow_risk))
         @test !isempty(findings(report, :exponential_underflow_risk))
+        reformulation_plan = NLPDiagnostics.stable_reformulation_plan(model)
+        @test length(reformulation_plan.candidates) == 4
+        @test Set(candidate.replacement for candidate in reformulation_plan.candidates) ==
+              Set([:log1pexp, :log1p, :expm1, :logistic])
+        @test count(
+            candidate -> candidate.requires_registered_operator,
+            reformulation_plan.candidates,
+        ) == 2
+        reformulation_report = NLPDiagnostics.analyze_stable_reformulation_plan(reformulation_plan)
+        @test length(findings(reformulation_report, :stable_reformulation_candidate)) == 4
 
         stable_model = new_model()
         z = MOI.add_variable(stable_model)
@@ -2964,6 +3757,27 @@ end
         @test records[2].format == :ipopt
         @test records[2].phase == :annotated
         @test records[2].primal_step == 1.0
+        summary = NLPDiagnostics.solver_iteration_summary(records)
+        @test summary.record_count == 2
+        @test summary.formats == [:ipopt]
+        @test summary.first_primal_infeasibility == 1.0
+        @test summary.final_primal_infeasibility == 1.0e-2
+        @test summary.minimum_dual_infeasibility == 3.0e-2
+        @test summary.annotated_row_count == 1
+        @test summary.segment_count == 1
+        @test isnothing(NLPDiagnostics.solver_iteration_summary(
+            NLPDiagnostics.SolverIterationRecord[],
+        ))
+        appended_records = [
+            records[1], records[2],
+            NLPDiagnostics.SolverIterationRecord(
+                :ipopt, 10, 0, :regular, 3.0, 4.0, 5.0, nothing, 0.0, "appended",
+            ),
+        ]
+        segments = NLPDiagnostics.solver_iteration_segments(appended_records)
+        @test length(segments) == 2
+        @test segments[2].start_line == 10
+        @test segments[2].first_iteration == 0
 
         madnlp_log = """
         iter    objective    inf_pr   inf_du inf_compl lg(mu) lg(rg) alpha_pr ir ls
@@ -2973,6 +3787,18 @@ end
         @test only(NLPDiagnostics.solver_iteration_records(madnlp_log)[2:2]).complementarity == 4.0
         report = NLPDiagnostics.analyze_solver_iterations("Ipopt", ipopt_log; residual_tolerance = 1e-3)
         @test length(findings(report, :solver_iteration_large_final_residual)) == 1
+        @test report.metadata[:minimum_logged_primal_infeasibility] == "0.01"
+        @test report.metadata[:annotated_iteration_row_count] == "1"
+        @test report.metadata[:iteration_segment_count] == "1"
+        appended_log = ipopt_log * "\n" *
+            "   0  3.0e+00 4.0e+00 5.0e+00  -1.0 0.0e+00    -  0.0e+00 0.0e+00   0\n"
+        appended_report = NLPDiagnostics.analyze_solver_iterations(
+            "Ipopt",
+            appended_log;
+            residual_tolerance = 1e-3,
+        )
+        @test appended_report.metadata[:iteration_segment_count] == "2"
+        @test isempty(findings(appended_report, :solver_iteration_residual_regression))
 
         model = new_model()
         x = MOI.add_variable(model)

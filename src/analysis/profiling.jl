@@ -1,5 +1,8 @@
-function _profile_elapsed_seconds(start_time)
-    return Float64(time_ns() - start_time) / 1.0e9
+function _profile_stage!(seconds, allocations, key, operation)
+    measured = @timed operation()
+    seconds[key] = measured.time
+    allocations[key] = measured.bytes
+    return measured.value
 end
 
 function _count_symbols(values)
@@ -33,31 +36,23 @@ function profile_case(
     hits_before = cache.hits
     misses_before = cache.misses
     timings = Dict{Symbol,Float64}()
+    allocations = Dict{Symbol,Int}()
 
-    start = time_ns()
-    structural_snapshot = snapshot(model)
-    structural_graph = incidence_graph(structural_snapshot)
-    timings[:structural_graph] = _profile_elapsed_seconds(start)
+    structural_snapshot = _profile_stage!(timings, allocations, :snapshot, () -> snapshot(model))
+    structural_graph = _profile_stage!(timings, allocations, :structural_graph, () -> incidence_graph(structural_snapshot))
 
-    start = time_ns()
-    structural_matching = maximum_matching(structural_graph)
-    timings[:structural_matching] = _profile_elapsed_seconds(start)
+    structural_matching = _profile_stage!(timings, allocations, :structural_matching, () -> maximum_matching(structural_graph))
 
-    start = time_ns()
-    dulmage_mendelsohn(structural_graph; matching = structural_matching)
-    timings[:structural_dm] = _profile_elapsed_seconds(start)
+    _profile_stage!(timings, allocations, :structural_dm, () -> dulmage_mendelsohn(structural_graph; matching = structural_matching))
 
-    start = time_ns()
-    evaluation = evaluate_numerical(
+    evaluation = _profile_stage!(timings, allocations, :evaluation, () -> evaluate_numerical(
         model,
         case.point;
         cache = cache,
         relative_step = relative_step,
-    )
-    timings[:evaluation] = _profile_elapsed_seconds(start)
+    ))
 
-    start = time_ns()
-    numerical_report = analyze_numerical(
+    numerical_report = _profile_stage!(timings, allocations, :numerical, () -> analyze_numerical(
         model,
         case.point;
         cache = cache,
@@ -65,28 +60,23 @@ function profile_case(
         scale_ratio_threshold = scale_ratio_threshold,
         rank_relative_tolerance = rank_relative_tolerance,
         rank_max_dense_entries = rank_max_dense_entries,
-    )
-    timings[:numerical] = _profile_elapsed_seconds(start)
+    ))
 
-    start = time_ns()
-    active_set_report = analyze_active_set(
+    active_set_report = _profile_stage!(timings, allocations, :active_set, () -> analyze_active_set(
         model,
         evaluation;
         feasibility_tolerance = feasibility_tolerance,
         active_tolerance = active_tolerance,
         rank_relative_tolerance = rank_relative_tolerance,
         rank_max_dense_entries = rank_max_dense_entries,
-    )
-    timings[:active_set] = _profile_elapsed_seconds(start)
+    ))
 
-    start = time_ns()
-    degeneracy_report = analyze_degeneracy(
+    degeneracy_report = _profile_stage!(timings, allocations, :degeneracy, () -> analyze_degeneracy(
         model,
         evaluation;
         relative_tolerance = rank_relative_tolerance,
         max_dense_entries = rank_max_dense_entries,
-    )
-    timings[:degeneracy] = _profile_elapsed_seconds(start)
+    ))
 
     return ProfileResult{T}(
         case,
@@ -95,6 +85,7 @@ function profile_case(
         active_set_report,
         degeneracy_report,
         timings,
+        allocations,
         evaluation_call_statistics(evaluation),
         _count_symbols(evaluation.jacobian_row_methods),
         _count_symbols(capability.source for capability in evaluation.capabilities),
@@ -108,6 +99,20 @@ function _profile_timing_summary(samples::Vector{Float64})
     average = sum(samples) / length(samples)
     variance = sum((sample - average)^2 for sample in samples) / length(samples)
     return ProfileTimingSummary(
+        length(samples),
+        minimum(samples),
+        average,
+        maximum(samples),
+        sqrt(variance),
+    )
+end
+
+function _profile_allocation_summary(samples::Vector{Int})
+    isempty(samples) && throw(ArgumentError("allocation samples must not be empty"))
+    values = Float64.(samples)
+    average = sum(values) / length(values)
+    variance = sum((value - average)^2 for value in values) / length(values)
+    return ProfileAllocationSummary(
         length(samples),
         minimum(samples),
         average,
@@ -143,6 +148,30 @@ function _profile_finding_stability(runs::Vector{<:ProfileResult})
         ];
         by = item -> (string(item.stage), string(item.code)),
     )
+end
+
+function _profile_expected_evidence_summary(runs::Vector{<:ProfileResult})
+    isempty(runs) && throw(ArgumentError("profile runs must not be empty"))
+    expected = runs[1].case.expected_evidence
+    all(run.case.expected_evidence == expected for run in runs) ||
+        throw(ArgumentError("profile runs must share expected evidence"))
+    summaries = ProfileExpectedEvidenceSummary[]
+    for code in sort!(collect(expected); by = string)
+        occurrence_count = count(runs) do run
+            any(code in (finding.code for finding in report.findings) for report in (
+                run.numerical_report,
+                run.active_set_report,
+                run.degeneracy_report,
+            ))
+        end
+        push!(summaries, ProfileExpectedEvidenceSummary(
+            code,
+            occurrence_count,
+            length(runs),
+            occurrence_count / length(runs),
+        ))
+    end
+    return summaries
 end
 
 function _profile_numerical_summary(runs::Vector{<:ProfileResult})
@@ -207,9 +236,13 @@ function profile_case_repeated(
     ]
     stages = sort!(unique!(reduce(vcat, [collect(keys(run.stage_seconds)) for run in runs])))
     timing = Dict{Symbol,ProfileTimingSummary}()
+    allocations = Dict{Symbol,ProfileAllocationSummary}()
     for stage in stages
         timing[stage] = _profile_timing_summary(
             Float64[run.stage_seconds[stage] for run in runs],
+        )
+        allocations[stage] = _profile_allocation_summary(
+            Int[run.stage_allocations[stage] for run in runs],
         )
     end
     return ProfileAggregate{T}(
@@ -217,7 +250,158 @@ function profile_case_repeated(
         runs,
         warmup,
         timing,
+        allocations,
         _profile_finding_stability(runs),
+        _profile_expected_evidence_summary(runs),
         _profile_numerical_summary(runs),
     )
+end
+
+"""Run a deterministic labeled profiling corpus and retain one aggregate per case."""
+function profile_cases_repeated(
+    models::AbstractVector{<:MOI.ModelLike},
+    cases::AbstractVector{<:ProfileCase};
+    kwargs...,
+)
+    length(models) == length(cases) ||
+        throw(ArgumentError("models and cases must have the same length"))
+    names = [case.name for case in cases]
+    length(unique(names)) == length(names) ||
+        throw(ArgumentError("profile case names must be unique"))
+    return Dict(
+        case.name => profile_case_repeated(model, case; kwargs...) for
+        (model, case) in zip(models, cases)
+    )
+end
+
+function _profile_ratio(candidate::Real, baseline::Real)
+    iszero(baseline) && return nothing
+    return Float64(candidate / baseline)
+end
+
+function _profile_task_relation(
+    baseline::ProfileCase,
+    candidate::ProfileCase,
+)
+    if !isnothing(baseline.task) && !isnothing(candidate.task)
+        return baseline.task == candidate.task ?
+               (:declared_same_task, baseline.task) :
+               (:declared_different_task, nothing)
+    end
+    return :undeclared_task_relation, nothing
+end
+
+"""
+    compare_profiles(baseline, candidate)
+
+Compare two repeated profile aggregates without collapsing timing, allocations,
+and diagnostic evidence into a score. Ratios are descriptive local
+observations: positive values above one mean the candidate's retained mean is
+larger than the baseline's for that stage. `task_relation` states whether both
+cases declared the same task, different tasks, or no comparable task context.
+"""
+function compare_profiles(
+    baseline::ProfileAggregate{T},
+    candidate::ProfileAggregate{T},
+) where {T<:AbstractFloat}
+    task_relation, task = _profile_task_relation(baseline.case, candidate.case)
+    common_stages = sort!(collect(intersect(
+        keys(baseline.stage_timing),
+        keys(candidate.stage_timing),
+    )); by = string)
+    stages = ProfileStageComparison[]
+    for stage in common_stages
+        baseline_time = baseline.stage_timing[stage].mean
+        candidate_time = candidate.stage_timing[stage].mean
+        baseline_allocation = baseline.stage_allocations[stage].mean
+        candidate_allocation = candidate.stage_allocations[stage].mean
+        push!(stages, ProfileStageComparison(
+            stage,
+            baseline_time,
+            candidate_time,
+            _profile_ratio(candidate_time, baseline_time),
+            baseline_allocation,
+            candidate_allocation,
+            _profile_ratio(candidate_allocation, baseline_allocation),
+        ))
+    end
+
+    baseline_findings = Dict(
+        (item.stage, item.code) => item.fraction for item in baseline.finding_stability
+    )
+    candidate_findings = Dict(
+        (item.stage, item.code) => item.fraction for item in candidate.finding_stability
+    )
+    keys_to_compare = sort!(collect(union(
+        keys(baseline_findings), keys(candidate_findings),
+    )); by = key -> (string(key[1]), string(key[2])))
+    findings = ProfileFindingComparison[
+        ProfileFindingComparison(
+            stage,
+            code,
+            get(baseline_findings, (stage, code), 0.0),
+            get(candidate_findings, (stage, code), 0.0),
+        ) for (stage, code) in keys_to_compare
+    ]
+    baseline_metrics = Dict(item.metric => item for item in baseline.numerical_summary)
+    candidate_metrics = Dict(item.metric => item for item in candidate.numerical_summary)
+    metrics = sort!(collect(union(keys(baseline_metrics), keys(candidate_metrics))); by = string)
+    numerical = ProfileNumericalComparison[]
+    for metric in metrics
+        baseline_metric = get(baseline_metrics, metric, nothing)
+        candidate_metric = get(candidate_metrics, metric, nothing)
+        baseline_mean = isnothing(baseline_metric) ? nothing : baseline_metric.mean
+        candidate_mean = isnothing(candidate_metric) ? nothing : candidate_metric.mean
+        both_available = !isnothing(baseline_mean) && !isnothing(candidate_mean)
+        push!(numerical, ProfileNumericalComparison(
+            metric,
+            isnothing(baseline_metric) ? 0 : baseline_metric.available_count,
+            isnothing(baseline_metric) ? 0 : baseline_metric.run_count,
+            isnothing(candidate_metric) ? 0 : candidate_metric.available_count,
+            isnothing(candidate_metric) ? 0 : candidate_metric.run_count,
+            baseline_mean,
+            candidate_mean,
+            both_available ? candidate_mean - baseline_mean : nothing,
+            both_available ? _profile_ratio(candidate_mean, baseline_mean) : nothing,
+        ))
+    end
+    return ProfileComparison{T}(
+        baseline,
+        candidate,
+        task_relation,
+        task,
+        stages,
+        findings,
+        numerical,
+    )
+end
+
+"""Create deterministic affine sparse-Jacobian benchmark cases for core calibration."""
+function synthetic_sparse_profile_corpus(; dimension::Integer = 32)
+    dimension >= 2 || throw(ArgumentError("dimension must be at least two"))
+    models = MOI.Utilities.Model{Float64}[]
+    cases = ProfileCase{Float64}[]
+    for (name, deficient, scale) in (("sparse_banded_full_rank", false, 1.0), ("sparse_banded_rank_deficient", true, 1.0), ("sparse_banded_scaled", false, 1.0e8))
+        model = MOI.Utilities.Model{Float64}()
+        variables = MOI.add_variables(model, dimension)
+        for row in 1:dimension
+            diagonal = scale == 1.0 ? 1.0 : (isodd(row) ? scale : inv(scale))
+            terms = MOI.ScalarAffineTerm{Float64}[MOI.ScalarAffineTerm(row == dimension && deficient ? 1.0 : diagonal, variables[row])]
+            row > 1 && push!(terms, MOI.ScalarAffineTerm(-1.0, variables[row - 1]))
+            row == dimension && deficient && (terms = MOI.ScalarAffineTerm{Float64}[MOI.ScalarAffineTerm(1.0, variables[1])])
+            MOI.add_constraint(model, MOI.ScalarAffineFunction(terms, 0.0), MOI.EqualTo(0.0))
+        end
+        point = evaluation_point(model, zeros(Float64, dimension); label = "zero")
+        push!(models, model)
+        push!(cases, ProfileCase(name, point;
+            description = "Deterministic sparse affine Jacobian calibration case.",
+            task = "synthetic sparse banded affine system",
+            formulation = "synthetic_banded_affine",
+            scale = string(scale),
+            expected_evidence = deficient ? [:sparse_qr_jacobian_rank_deficiency] : Symbol[],
+            tags = [:synthetic, :sparse, deficient ? :rank_deficient : :full_rank],
+            metadata = Dict("dimension" => dimension, "scale" => scale),
+        ))
+    end
+    return models, cases
 end

@@ -3,6 +3,162 @@
 This document records decisions that should remain stable as implementation
 details evolve.
 
+## Domain component metadata
+
+Optional domain plugins may extend `component_metadata(model)` to return
+`ComponentMetadata` records. Each record carries a stable component type and
+ID, optional variable-coordinate and constraint scopes, optional units, optional
+expected rank, and serializable metadata. The
+generic core does not infer these semantics from variable names. A future
+PowerModels extension should use this hook with `expected_nullspace_modes` to
+declare electrical references, ports, and expected physical gauges.
+Combined analysis records `component_metadata_count` and reports
+`duplicate_component_metadata` when a plugin supplies the same component type
+and ID more than once. It also reports malformed empty identities or units and
+negative expected ranks, even if a plugin bypassed the public convenience
+constructor. These are representational facts, not claims about the model's
+physical feasibility. When a component declares its variable scope, combined
+analysis also validates that the coordinates and constraints exist in the
+analyzed model and that its expected rank cannot exceed either declared scope
+dimension. At an explicit evaluation point, `analyze_component_ranks` aligns
+both scopes to the evaluated Jacobian and reports an expected-versus-observed
+rank mismatch as numerical evidence with representational interpretation. It
+does not assign a physical cause to that mismatch.
+
+## Auxiliary-feasibility boundary
+
+`elastic_feasibility_plan(model)` is the first non-mutating auxiliary-model
+slice. It identifies `Float64` scalar-affine, scalar-quadratic, and scalar-nonlinear `<=`, `>=`, and `==` rows eligible for a
+future elastic relaxation and retains all other non-variable constraints as
+explicitly unsupported. It never changes or solves the source model. A later
+`build_elastic_feasibility_model(model)` now constructs that separate initial
+auxiliary model for `Float64` scalar-affine, scalar-quadratic, and scalar-nonlinear rows, using one slack for one-sided
+rows and two for equalities; its objective is the sum of slacks. Unsupported
+constraints are copied unchanged rather than silently relaxed. Optional,
+positive per-source-row weights make the auxiliary objective a weighted slack
+sum without changing the original model. Scalar variable bounds remain fixed
+by default; `relax_variable_bounds = true` opts them into the same explicit
+elastic treatment.
+The auxiliary objective can be weighted L1 (`objective_norm = :l1`) or weighted
+L∞ (`:linf`), with the latter retaining an explicit epigraph variable.
+`elastic_objective_value` evaluates the configured objective from explicit
+mapped slack values, without requiring a solver result; it also accepts a
+solved auxiliary record and selected result index.
+`VectorOfVariables` and vector-affine second-order and rotated-second-order
+cones are also supported by adding one nonnegative slack to the leading cone
+coordinate. For rotated cones this is a conservative relaxation construction,
+not a canonical cone-distance measure. Other coupled/vector sets remain
+explicitly unsupported.
+`Nonnegatives` and `Nonpositives` vector rows are relaxed coordinatewise with
+one nonnegative auxiliary slack per output coordinate and the appropriate
+inequality direction.
+`Zeros` vector rows use a positive/negative slack pair per coordinate.
+Every supplied elastic weight must match a row in the selected plan; unknown
+or stale references are rejected rather than silently ignored.
+The plan also records the exact auxiliary slack count before a separate model
+is built: one slack for scalar one-sided rows, two for scalar equalities, and
+the corresponding per-coordinate construction for separable vector sets.
+`selected_constraints` can limit an auxiliary probe to specific eligible rows;
+the plan records other eligible rows as excluded, making a local experiment
+visibly different from a full-model restoration attempt.
+`analyze_elastic_feasibility_plan` reports unsupported and excluded rows before
+an auxiliary model is built, so coverage limits remain explicit in reports.
+The built auxiliary record includes an explicit source-to-auxiliary variable
+map and source-to-relaxed-constraint map; callers never need to assume that
+copied variable or replacement-constraint indices were preserved.
+`solve_elastic_feasibility!` requires an explicitly supplied empty optimizer,
+copies only the auxiliary model into it, and retains the auxiliary-to-solver
+slack map. It never modifies or solves the source model. The same
+`analyze_elastic_relaxations` interface accepts the resulting solve record and
+maps its selected result back to source-row findings, retaining optimizer type
+and result index as report provenance. Public solver termination and primal
+status are retained as observations, not upgraded into feasibility certificates.
+Solved reports also retain both the solver-reported and mapped-slack-recomputed
+auxiliary objective when available; any interpretation of a discrepancy remains
+solver- and formulation-dependent. A material mismatch is reported as
+representational numerical evidence with an explicit agreement tolerance, not
+as a solver-error claim.
+`elastic_relaxation_values` and `analyze_elastic_relaxations` map explicitly
+supplied solved slack values back to source rows. A positive slack is auxiliary
+numerical evidence, never an IIS certificate or a single-row causal proof.
+They retain both raw slack and weighted slack magnitude so a large penalty is
+not mistaken for a large underlying relaxation; for L∞ the magnitude is not an
+additive per-row objective contribution.
+`local_elastic_subset_search` is an opt-in, greedy deletion filter over an
+explicitly supplied relaxation scope and an explicitly supplied optimizer
+factory. It rebuilds and solves separate auxiliary models only; it never
+modifies the source. A row is removed only when hardening it still gives a
+readable auxiliary primal result with objective no greater than the selected
+tolerance. Its retained rows are deliberately reported as a local,
+order-dependent IIS-like explanation, never as an IIS certificate or an
+individual causal proof. Solver statuses are retained as provenance, while a
+missing readable trial primal result conservatively prevents removal.
+`local_elastic_subset_ensemble` addresses the deletion-order limitation without
+hiding it. By default it runs forward and reverse orders; callers may supply
+additional permutations. Its report separates rows retained in every order
+(consensus local evidence) from rows retained only in some orders
+(order-sensitive evidence). Neither is an IIS certificate, and both preserve
+their dependence on the selected scope, weights, tolerance, and solver.
+`minimum_elastic_relaxation_search` is a separate bounded enumeration of
+relaxation scopes in increasing cardinality. It reports zero-residual supports
+at the first successful cardinality as minimum elastic relaxation supports—not
+IISes—and makes its subset budget explicit. An exhausted budget produces a
+truncation finding rather than a cardinality-minimality claim.
+`compute_solver_conflict!` is the optional MOI conflict boundary. It copies the
+source model into an explicitly supplied empty optimizer, optionally solves the
+copy, calls `MOI.compute_conflict!`, and maps solver memberships back to source
+constraints. Conflict status, definite memberships, and `MAYBE_IN_CONFLICT`
+memberships are retained separately. This is solver-provided evidence for the
+copied model, not an independently verified IIS, infeasibility proof, or
+physical diagnosis; unsupported conflict interfaces are reported explicitly.
+`analyze_solver_conflict_crosscheck` compares definite solver memberships with
+one local elastic reduction, an order-consensus set, or bounded minimum
+relaxation supports. It reports overlap as stronger prioritization evidence and
+different memberships as diagnostic context. It deliberately does not choose a
+winner: the mechanisms use different auxiliary constructions and neither
+becomes ground truth by disagreement alone.
+`elastic_domain_guard_plan` is the corresponding pre-solve boundary for
+nonlinear operator domains. It reuses the static domain analysis, restricted to
+the selected elastic rows, and makes each condition inspectable before any
+guarded formulation is constructed. It currently recognizes when a direct
+scalar-affine argument to `log`, `log1p`, `log2`, `log10`, or `sqrt` could be
+given an explicit lower-domain guard. Other operators and non-affine arguments
+remain visible as nonmaterializable rather than being silently approximated.
+An elastic residual relaxation never, by itself, makes an undefined nonlinear
+operator evaluable.
+`build_elastic_feasibility_model(...; domain_guard_margin = ε)` is the
+explicit opt-in construction step. With finite `ε > 0`, it adds guards for
+materializable `log`/`log1p` arguments before the separate auxiliary model is
+solved; `sqrt` receives its closed value-domain guard. It also guards
+reciprocals, division denominators, and negative-integer powers only when the
+declared interval confines the argument to one sign branch. Guards are emitted
+as scalar-affine rows, rather than replacement variable bounds, so they do not
+collide with MOI's one-bound-per-side representation. This deliberately changes
+the auxiliary feasible region, so the applied guards and margin are retained on
+the auxiliary record and in elastic report metadata. The default is still
+unguarded, preserving prior mathematics and requiring the caller to make that
+modeling choice visibly.
+Closed inverse-trigonometric input intervals and the one-interval `acosh` /
+`atanh` domains are also materialized when their arguments are scalar affine;
+`atanh` uses two strict guard rows. Periodic singularity avoidance and other
+genuinely multi-branch domains remain nonmaterializable in the generic core,
+except for endpoint-safe intervals: when a finite declared interval ends at one
+identified `tan`/`sec`/`cot`/`csc` singularity (including degree variants), an
+explicit margin moves only that endpoint inward. Intervals crossing a
+singularity or containing multiple branches remain visible but unmaterialized.
+`stable_reformulation_plan` is a separate, non-mutating companion to numerical
+fingerprinting. It turns exact-real-semantics composition fingerprints into
+inspectable candidates: `log(1+x)` to `log1p`, `exp(x)-1` to `expm1`,
+`log(exp(x))` to `x`, and softplus/logistic composites to stable registered
+operators. It never rewrites a model. Candidates that need `log1pexp` or
+`logistic` explicitly say that a compatible nonlinear operator must first be
+registered and tested with the chosen solver stack.
+Each relaxation is labeled by its construction (for example scalar upper
+bound, equality, SOC, or rotated-SOC) so those different semantics are not
+silently conflated in a report.
+The same functions can read a solver-reported auxiliary result explicitly by
+`result_index`; they refuse to interpret a model with no reported result.
+
 ## Stable boundary
 
 The generic core consumes `MOI.ModelLike` through public attributes:

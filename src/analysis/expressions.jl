@@ -12,6 +12,23 @@ struct ExpressionNumericalRisk
     variables::Vector{MOI.VariableIndex}
 end
 
+"""One exact-real-semantics rewrite suggested by an expression fingerprint."""
+struct StableReformulationCandidate
+    source::EntityRef
+    path::ExpressionNodePath
+    fingerprint::Symbol
+    replacement::Symbol
+    replacement_description::String
+    requires_registered_operator::Bool
+    variables::Vector{MOI.VariableIndex}
+end
+
+"""Inspectable, non-mutating stable-reformulation suggestions."""
+struct StableReformulationPlan
+    candidates::Vector{StableReformulationCandidate}
+    numeric_type::DataType
+end
+
 _is_one(value) = value isa Real && value == one(value)
 _is_minus_one(value) = value isa Real && value == -one(value)
 _is_head(value, head) =
@@ -404,6 +421,84 @@ function expression_numerical_risks(
         _domain_variable_intervals(model);
         numeric_type = numeric_type,
     )
+end
+
+function _stable_reformulation_candidate(risk::ExpressionNumericalRisk)
+    replacement = if risk.code == :avoidable_log_exp_composition
+        (:identity, "replace log(exp(x)) with x under real-valued semantics", false)
+    elseif risk.code == :log_one_plus_cancellation_risk
+        (:log1p, "replace log(1 + x) with log1p(x)", false)
+    elseif risk.code == :exp_minus_one_cancellation_risk
+        (:expm1, "replace exp(x) - 1 with expm1(x)", false)
+    elseif risk.code == :unstable_softplus_expression
+        (:log1pexp, "replace the composite softplus with a registered stable log1pexp/softplus operator", true)
+    elseif risk.code == :unstable_logistic_expression
+        (:logistic, "replace the composite logistic expression with a registered sign-aware logistic operator", true)
+    else
+        return nothing
+    end
+    return StableReformulationCandidate(
+        risk.path.source,
+        risk.path,
+        risk.code,
+        replacement[1],
+        replacement[2],
+        replacement[3],
+        copy(risk.variables),
+    )
+end
+
+"""
+    stable_reformulation_plan(model; numeric_type = Float64)
+
+Return exact-real-semantics rewrite candidates detected from compositional
+numerical fingerprints. The plan never edits a model. Candidates that name
+`log1pexp`/`logistic` require a compatible registered nonlinear operator.
+"""
+function stable_reformulation_plan(
+    model::ModelSnapshot;
+    numeric_type::Type{<:AbstractFloat} = Float64,
+)
+    candidates = StableReformulationCandidate[]
+    for risk in expression_numerical_risks(model; numeric_type = numeric_type)
+        candidate = _stable_reformulation_candidate(risk)
+        isnothing(candidate) || push!(candidates, candidate)
+    end
+    return StableReformulationPlan(candidates, numeric_type)
+end
+
+function stable_reformulation_plan(
+    model::MOI.ModelLike;
+    numeric_type::Type{<:AbstractFloat} = Float64,
+)
+    return stable_reformulation_plan(snapshot(model); numeric_type = numeric_type)
+end
+
+"""Turn stable-reformulation candidates into evidence-first, non-mutating findings."""
+function analyze_stable_reformulation_plan(plan::StableReformulationPlan)
+    report = DiagnosticReport()
+    report.metadata[:stage] = "stable_reformulation_plan"
+    report.metadata[:stable_reformulation_count] = string(length(plan.candidates))
+    report.metadata[:stable_reformulation_numeric_type] = string(plan.numeric_type)
+    for candidate in plan.candidates
+        registration = candidate.requires_registered_operator ?
+                       "The replacement requires a registered nonlinear operator with the stated stable semantics." :
+                       "The replacement is available as a standard scalar primitive or direct expression simplification."
+        push!(report, Finding(:stable_reformulation_candidate;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = MathematicalProof,
+            confidence = ConfidenceCertain,
+            observation = "The $(candidate.fingerprint) fingerprint has an exact-real-semantics rewrite to $(candidate.replacement).",
+            why_it_matters = "$(candidate.replacement_description); $registration",
+            evidence = [Evidence("Stable reformulation fingerprint"; details = ["path" => _path_string(candidate.path), "fingerprint" => candidate.fingerprint, "replacement" => candidate.replacement, "requires_registered_operator" => candidate.requires_registered_operator])],
+            affected = [candidate.source],
+            suggested_actions = candidate.requires_registered_operator ?
+                                ["Register and test the stable operator with the chosen solver stack before replacing the expression."] :
+                                ["Apply and independently test the algebraically equivalent rewrite; NLPDiagnostics does not modify the source model."],
+        ))
+    end
+    return report
 end
 
 function expression_numerical_risks(
