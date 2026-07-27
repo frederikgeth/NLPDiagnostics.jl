@@ -118,6 +118,13 @@ function NLPDiagnostics.operator_derivative_requirements(
     ]
 end
 
+function NLPDiagnostics.fixed_operator_value(
+    ::Val{:fixed_test_operator},
+    values::Vector{Any},
+)
+    return only(values) + 1
+end
+
 function NLPDiagnostics.coupled_set_activity(
     ::MOI.ExponentialCone,
     source::NLPDiagnostics.EntityRef,
@@ -171,6 +178,340 @@ end
         @test length(findings(report, :redundant_constant_constraint)) == 1
     end
 
+    @testset "affine and quadratic term cancellation removes false incidence" begin
+        affine_model = new_model()
+        x = MOI.add_variable(affine_model)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        cancelled_affine = F([T(1.0, x), T(-1.0, x)], 2.0)
+        MOI.add_constraint(affine_model, cancelled_affine, MOI.LessThan(1.0))
+        affine_report = NLPDiagnostics.analyze_static(affine_model)
+        @test length(findings(affine_report, :infeasible_constant_constraint)) == 1
+        @test length(findings(affine_report, :disconnected_variable)) == 1
+
+        quadratic_model = new_model()
+        y = MOI.add_variable(quadratic_model)
+        QT = MOI.ScalarQuadraticTerm{Float64}
+        QF = MOI.ScalarQuadraticFunction{Float64}
+        cancelled_quadratic = QF(
+            QT[QT(2.0, y, y), QT(-2.0, y, y)],
+            MOI.ScalarAffineTerm{Float64}[],
+            0.0,
+        )
+        MOI.add_constraint(quadratic_model, cancelled_quadratic, MOI.EqualTo(0.0))
+        quadratic_report = NLPDiagnostics.analyze_static(quadratic_model)
+        @test length(findings(quadratic_report, :redundant_constant_constraint)) == 1
+        @test length(findings(quadratic_report, :disconnected_variable)) == 1
+    end
+
+    @testset "direct nonlinear variable cancellation is folded conservatively" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        cancelled = MOI.ScalarNonlinearFunction(:-, Any[x, x])
+        expression = MOI.ScalarNonlinearFunction(:sin, Any[cancelled])
+        MOI.add_constraint(model, expression, MOI.LessThan(-1.0))
+        report = NLPDiagnostics.analyze_static(model)
+        @test length(findings(report, :infeasible_constant_constraint)) == 1
+        @test length(findings(report, :disconnected_variable)) == 1
+    end
+
+    @testset "direct zero products are folded without hiding nested operators" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        zero_product = MOI.ScalarNonlinearFunction(:*, Any[0.0, x])
+        MOI.add_constraint(model, zero_product, MOI.GreaterThan(1.0))
+        report = NLPDiagnostics.analyze_static(model)
+        @test length(findings(report, :infeasible_constant_constraint)) == 1
+        @test length(findings(report, :disconnected_variable)) == 1
+
+        guarded = new_model()
+        y = MOI.add_variable(guarded)
+        unsafe_operand = MOI.ScalarNonlinearFunction(:log, Any[y])
+        guarded_product = MOI.ScalarNonlinearFunction(:*, Any[0.0, unsafe_operand])
+        MOI.add_constraint(guarded, guarded_product, MOI.EqualTo(0.0))
+        guarded_report = NLPDiagnostics.analyze_static(guarded)
+        @test isempty(findings(guarded_report, :redundant_constant_constraint))
+        @test isempty(findings(guarded_report, :disconnected_variable))
+    end
+
+    @testset "self division is identified only on a proven nonzero domain" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        MOI.add_constraint(model, x, MOI.GreaterThan(1.0))
+        identity = MOI.ScalarNonlinearFunction(:/, Any[x, x])
+        MOI.add_constraint(model, identity, MOI.LessThan(2.0))
+        report = NLPDiagnostics.analyze_static(model)
+        finding = only(findings(report, :nonzero_self_division_identity))
+        @test finding.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(finding)["lower"] == "1.0"
+        @test length(
+            findings(report, :redundant_nonzero_self_division_constraint),
+        ) == 1
+
+        infeasible = new_model()
+        z = MOI.add_variable(infeasible)
+        MOI.add_constraint(infeasible, z, MOI.GreaterThan(1.0))
+        MOI.add_constraint(
+            infeasible,
+            MOI.ScalarNonlinearFunction(:/, Any[z, z]),
+            MOI.LessThan(0.5),
+        )
+        infeasible_report = NLPDiagnostics.analyze_static(infeasible)
+        @test length(
+            findings(infeasible_report, :infeasible_nonzero_self_division_constraint),
+        ) == 1
+
+        uncertain = new_model()
+        y = MOI.add_variable(uncertain)
+        MOI.add_constraint(
+            uncertain,
+            MOI.ScalarNonlinearFunction(:/, Any[y, y]),
+            MOI.LessThan(2.0),
+        )
+        uncertain_report = NLPDiagnostics.analyze_static(uncertain)
+        @test isempty(findings(uncertain_report, :nonzero_self_division_identity))
+    end
+
+    @testset "root self-division objectives are proven constant" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        MOI.add_constraint(model, x, MOI.GreaterThan(1.0))
+        objective = MOI.ScalarNonlinearFunction(:/, Any[x, x])
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(model, MOI.ObjectiveFunction{MOI.ScalarNonlinearFunction}(), objective)
+        report = NLPDiagnostics.analyze_static(model)
+        constant = only(
+            findings(report, :constant_nonzero_self_division_objective),
+        )
+        @test constant.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(constant)["value"] == "1"
+    end
+
+    @testset "fully fixed affine rows are evaluated without model mutation" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(model, x, MOI.EqualTo(1.0))
+        MOI.add_constraint(model, y, MOI.EqualTo(2.0))
+        MOI.add_constraint(
+            model,
+            F([T(2.0, x), T(-1.0, y)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        report = NLPDiagnostics.analyze_static(model)
+        redundant = only(findings(report, :redundant_fixed_affine_constraint))
+        @test redundant.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(redundant)["evaluated_value"] == "0.0"
+
+        infeasible = new_model()
+        a, b = MOI.add_variables(infeasible, 2)
+        MOI.add_constraint(infeasible, a, MOI.EqualTo(1.0))
+        MOI.add_constraint(infeasible, b, MOI.EqualTo(2.0))
+        MOI.add_constraint(
+            infeasible,
+            F([T(1.0, a), T(1.0, b)], 0.0),
+            MOI.LessThan(2.0),
+        )
+        infeasible_report = NLPDiagnostics.analyze_static(infeasible)
+        @test length(findings(infeasible_report, :infeasible_fixed_affine_constraint)) == 1
+    end
+
+    @testset "fully fixed quadratic and nonlinear expressions are evaluated" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        Q = MOI.ScalarQuadraticFunction{Float64}
+        QT = MOI.ScalarQuadraticTerm{Float64}
+        MOI.add_constraint(model, x, MOI.EqualTo(2.0))
+        # MOI stores the diagonal coefficient as twice the polynomial coefficient.
+        MOI.add_constraint(model, Q(QT[QT(2.0, x, x)], MOI.ScalarAffineTerm{Float64}[], 0.0), MOI.EqualTo(4.0))
+        report = NLPDiagnostics.analyze_static(model)
+        @test length(findings(report, :redundant_fixed_expression_constraint)) == 1
+
+        nonlinear = new_model()
+        y = MOI.add_variable(nonlinear)
+        MOI.add_constraint(nonlinear, y, MOI.EqualTo(-1.0))
+        MOI.add_constraint(
+            nonlinear,
+            MOI.ScalarNonlinearFunction(:log, Any[y]),
+            MOI.LessThan(0.0),
+        )
+        nonlinear_report = NLPDiagnostics.analyze_static(nonlinear)
+        @test length(findings(nonlinear_report, :fixed_expression_domain_violation)) == 1
+    end
+
+    @testset "fixed stable nonlinear primitives avoid artificial overflow" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        MOI.add_constraint(model, x, MOI.EqualTo(1_000.0))
+        MOI.add_constraint(
+            model,
+            MOI.ScalarNonlinearFunction(:log1pexp, Any[x]),
+            MOI.EqualTo(1_000.0),
+        )
+        MOI.add_constraint(
+            model,
+            MOI.ScalarNonlinearFunction(:logistic, Any[x]),
+            MOI.Interval(0.999, 1.0),
+        )
+        report = NLPDiagnostics.analyze_static(model)
+        @test length(findings(report, :redundant_fixed_expression_constraint)) == 2
+        @test isempty(findings(report, :fixed_expression_domain_violation))
+    end
+
+    @testset "fixed objectives retain feasibility-versus-optimization evidence" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        MOI.add_constraint(model, x, MOI.EqualTo(3.0))
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        objective = F([T(2.0, x)], 1.0)
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(model, MOI.ObjectiveFunction{F}(), objective)
+        report = NLPDiagnostics.analyze_static(model)
+        fixed = only(findings(report, :fixed_objective))
+        @test fixed.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(fixed)["objective_value"] == "7.0"
+    end
+
+    @testset "constant objectives are distinguished from fixed objectives" begin
+        model = new_model()
+        F = MOI.ScalarAffineFunction{Float64}
+        objective = F(MOI.ScalarAffineTerm{Float64}[], 4.0)
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+        MOI.set(model, MOI.ObjectiveFunction{F}(), objective)
+        report = NLPDiagnostics.analyze_static(model)
+        constant = only(findings(report, :constant_objective))
+        @test constant.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(constant)["objective_value"] == "4.0"
+        @test isempty(findings(report, :fixed_objective))
+    end
+
+    @testset "disconnected affine objective variables expose conditional rays" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(model, MOI.ObjectiveFunction{MOI.VariableIndex}(), x)
+        report = NLPDiagnostics.analyze_static(model)
+        ray = only(findings(report, :unconstrained_affine_objective_ray))
+        @test ray.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(ray)["missing_bound"] == "lower"
+
+        bounded = new_model()
+        y = MOI.add_variable(bounded)
+        MOI.add_constraint(bounded, y, MOI.GreaterThan(0.0))
+        MOI.set(bounded, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(bounded, MOI.ObjectiveFunction{MOI.VariableIndex}(), y)
+        bounded_report = NLPDiagnostics.analyze_static(bounded)
+        @test isempty(findings(bounded_report, :unconstrained_affine_objective_ray))
+
+        free_row = new_model()
+        z = MOI.add_variable(free_row)
+        MOI.add_constraint(free_row, MOI.VectorOfVariables([z]), MOI.Reals(1))
+        MOI.set(free_row, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(free_row, MOI.ObjectiveFunction{MOI.VariableIndex}(), z)
+        free_row_report = NLPDiagnostics.analyze_static(free_row)
+        @test length(
+            findings(free_row_report, :unconstrained_affine_objective_ray),
+        ) == 1
+    end
+
+    @testset "disconnected quadratic objective curvature exposes conditional rays" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        Q = MOI.ScalarQuadraticFunction{Float64}
+        QT = MOI.ScalarQuadraticTerm{Float64}
+        objective = Q(QT[QT(-2.0, x, x)], MOI.ScalarAffineTerm{Float64}[], 0.0)
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(model, MOI.ObjectiveFunction{Q}(), objective)
+        report = NLPDiagnostics.analyze_static(model)
+        ray = only(findings(report, :unconstrained_quadratic_objective_ray))
+        @test ray.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(ray)["polynomial_coefficient"] == "-1.0"
+
+        bounded = new_model()
+        y = MOI.add_variable(bounded)
+        MOI.add_constraint(bounded, y, MOI.Interval(-1.0, 1.0))
+        bounded_objective = Q(
+            QT[QT(-2.0, y, y)],
+            MOI.ScalarAffineTerm{Float64}[],
+            0.0,
+        )
+        MOI.set(bounded, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(bounded, MOI.ObjectiveFunction{Q}(), bounded_objective)
+        bounded_report = NLPDiagnostics.analyze_static(bounded)
+        @test isempty(findings(bounded_report, :unconstrained_quadratic_objective_ray))
+    end
+
+    @testset "quadratic objectives retain purely affine disconnected rays" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        Q = MOI.ScalarQuadraticFunction{Float64}
+        QT = MOI.ScalarQuadraticTerm{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        objective = Q(QT[QT(2.0, y, y)], T[T(1.0, x)], 0.0)
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(model, MOI.ObjectiveFunction{Q}(), objective)
+        report = NLPDiagnostics.analyze_static(model)
+        @test length(findings(report, :unconstrained_affine_objective_ray)) == 1
+        @test isempty(findings(report, :unconstrained_quadratic_objective_ray))
+    end
+
+    @testset "fixed custom operator evaluation is explicit and extensible" begin
+        unavailable = new_model()
+        x = MOI.add_variable(unavailable)
+        MOI.add_constraint(unavailable, x, MOI.EqualTo(1.0))
+        MOI.add_constraint(
+            unavailable,
+            MOI.ScalarNonlinearFunction(:unavailable_fixed_operator, Any[x]),
+            MOI.EqualTo(0.0),
+        )
+        unavailable_report = NLPDiagnostics.analyze_static(unavailable)
+        @test length(
+            findings(unavailable_report, :fixed_expression_evaluation_unavailable),
+        ) == 1
+
+        extended = new_model()
+        y = MOI.add_variable(extended)
+        MOI.add_constraint(extended, y, MOI.EqualTo(1.0))
+        MOI.add_constraint(
+            extended,
+            MOI.ScalarNonlinearFunction(:fixed_test_operator, Any[y]),
+            MOI.EqualTo(2.0),
+        )
+        extended_report = NLPDiagnostics.analyze_static(extended)
+        @test length(
+            findings(extended_report, :redundant_fixed_expression_constraint),
+        ) == 1
+
+        overflow = new_model()
+        z = MOI.add_variable(overflow)
+        MOI.add_constraint(overflow, z, MOI.EqualTo(1_000.0))
+        MOI.add_constraint(
+            overflow,
+            MOI.ScalarNonlinearFunction(:exp, Any[z]),
+            MOI.LessThan(Inf),
+        )
+        overflow_report = NLPDiagnostics.analyze_static(overflow)
+        @test length(
+            findings(overflow_report, :fixed_expression_nonfinite_evaluation),
+        ) == 1
+    end
+
+    @testset "fixed degree-trigonometric primitives are evaluated exactly" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        MOI.add_constraint(model, x, MOI.EqualTo(0.0))
+        MOI.add_constraint(
+            model,
+            MOI.ScalarNonlinearFunction(:asind, Any[x]),
+            MOI.EqualTo(0.0),
+        )
+        report = NLPDiagnostics.analyze_static(model)
+        @test length(findings(report, :redundant_fixed_expression_constraint)) == 1
+        @test isempty(findings(report, :fixed_expression_evaluation_unavailable))
+    end
+
     @testset "constant nonlinear domain violation" begin
         model = new_model()
         f = MOI.ScalarNonlinearFunction(:log, Any[-1.0])
@@ -191,6 +532,90 @@ end
         report = NLPDiagnostics.analyze(model)
         @test length(findings(report, :duplicate_constraint)) == 1
         @test isempty(findings(report, :disconnected_variable))
+    end
+
+    @testset "proportional affine equalities are structurally redundant" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(model, F([T(1.0, x), T(-1.0, y)], 0.0), MOI.EqualTo(0.0))
+        MOI.add_constraint(model, F([T(-2.0, x), T(2.0, y)], 0.0), MOI.EqualTo(0.0))
+        report = NLPDiagnostics.analyze_static(model)
+        @test length(
+            findings(report, :proportional_affine_equality_constraints),
+        ) == 1
+        @test isempty(findings(report, :duplicate_constraint))
+    end
+
+    @testset "proportional affine inequalities preserve orientation" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(model, F([T(1.0, x)], 0.0), MOI.LessThan(1.0))
+        MOI.add_constraint(model, F([T(2.0, x)], 0.0), MOI.LessThan(2.0))
+        MOI.add_constraint(model, F([T(-1.0, x)], 0.0), MOI.GreaterThan(-1.0))
+        report = NLPDiagnostics.analyze_static(model)
+        @test length(
+            findings(report, :proportional_affine_inequality_constraints),
+        ) == 1
+    end
+
+    @testset "parallel affine inequalities expose dominated half-spaces" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(model, F([T(1.0, x)], 0.0), MOI.LessThan(1.0))
+        MOI.add_constraint(model, F([T(2.0, x)], 0.0), MOI.LessThan(4.0))
+        # This is x >= -3, so it is the opposite half-space and must not be
+        # treated as dominated by x <= 1.
+        MOI.add_constraint(model, F([T(-1.0, x)], 0.0), MOI.LessThan(3.0))
+        report = NLPDiagnostics.analyze_static(model)
+        dominated = only(findings(report, :dominated_affine_inequality))
+        @test dominated.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(dominated)["tightest_normalized_bound"] == "1.0"
+        @test evidence_details(dominated)["dominated_constraint_count"] == "1"
+    end
+
+    @testset "opposing affine inequalities prove an empty multi-variable slab" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        # x + y <= 1 and x + y >= 2; neither variable has declared bounds.
+        MOI.add_constraint(model, F([T(1.0, x), T(1.0, y)], 0.0), MOI.LessThan(1.0))
+        MOI.add_constraint(model, F([T(-2.0, x), T(-2.0, y)], 0.0), MOI.LessThan(-4.0))
+        report = NLPDiagnostics.analyze_static(model)
+        inconsistent = only(
+            findings(report, :inconsistent_opposing_affine_inequalities),
+        )
+        @test inconsistent.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(inconsistent)["normalized_lower"] == "2.0"
+        @test evidence_details(inconsistent)["normalized_upper"] == "1.0"
+    end
+
+    @testset "affine equalities are checked against parallel half-spaces" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        expression = F([T(1.0, x), T(1.0, y)], 0.0)
+        MOI.add_constraint(model, expression, MOI.EqualTo(2.0))
+        MOI.add_constraint(model, expression, MOI.LessThan(1.0))
+        report = NLPDiagnostics.analyze_static(model)
+        incompatible = only(findings(report, :inconsistent_affine_equality_halfspace))
+        @test incompatible.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(incompatible)["normalized_upper"] == "1.0"
+
+        parallel = new_model()
+        a, b = MOI.add_variables(parallel, 2)
+        parallel_expression = F([T(1.0, a), T(-1.0, b)], 0.0)
+        MOI.add_constraint(parallel, parallel_expression, MOI.EqualTo(0.0))
+        MOI.add_constraint(parallel, parallel_expression, MOI.EqualTo(1.0))
+        parallel_report = NLPDiagnostics.analyze_static(parallel)
+        @test length(findings(parallel_report, :inconsistent_parallel_affine_equalities)) == 1
     end
 
     @testset "reused scalar expressions retain set-intersection evidence" begin
@@ -224,6 +649,113 @@ end
         @test length(
             findings(inconsistent_report, :inconsistent_reused_expression_sets),
         ) == 1
+    end
+
+    @testset "one-variable affine rows imply bounds without model mutation" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(model, x, MOI.GreaterThan(0.0))
+        MOI.add_constraint(model, F([T(2.0, x)], 1.0), MOI.GreaterThan(5.0))
+        report = NLPDiagnostics.analyze_static(model)
+        implied = only(findings(report, :affine_implied_variable_bound))
+        @test evidence_details(implied)["implied_lower"] == "2.0"
+
+        inconsistent = new_model()
+        y = MOI.add_variable(inconsistent)
+        MOI.add_constraint(inconsistent, F([T(2.0, y)], 0.0), MOI.GreaterThan(4.0))
+        MOI.add_constraint(inconsistent, F([T(-1.0, y)], 0.0), MOI.GreaterThan(-1.0))
+        inconsistent_report = NLPDiagnostics.analyze_static(inconsistent)
+        @test length(
+            findings(
+                inconsistent_report,
+                :inconsistent_affine_implied_variable_bounds,
+            ),
+        ) == 1
+    end
+
+    @testset "multi-variable affine rows support one-pass interval propagation" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(model, x, MOI.Interval(0.0, 1.0))
+        MOI.add_constraint(
+            model,
+            F([T(1.0, x), T(1.0, y)], 0.0),
+            MOI.LessThan(3.0),
+        )
+        report = NLPDiagnostics.analyze_static(model)
+        propagated = only(findings(report, :affine_interval_propagated_variable_bound))
+        @test evidence_details(propagated)["derived_upper"] == "3.0"
+
+        inconsistent = new_model()
+        u, v = MOI.add_variables(inconsistent, 2)
+        MOI.add_constraint(inconsistent, u, MOI.Interval(0.0, 1.0))
+        MOI.add_constraint(inconsistent, v, MOI.GreaterThan(4.0))
+        MOI.add_constraint(
+            inconsistent,
+            F([T(1.0, u), T(1.0, v)], 0.0),
+            MOI.LessThan(3.0),
+        )
+        inconsistent_report = NLPDiagnostics.analyze_static(inconsistent)
+        @test !isempty(findings(
+            inconsistent_report,
+            :inconsistent_affine_interval_propagation,
+        ))
+
+        chained = new_model()
+        a, b, c = MOI.add_variables(chained, 3)
+        MOI.add_constraint(chained, a, MOI.Interval(0.0, 1.0))
+        MOI.add_constraint(
+            chained,
+            F([T(1.0, a), T(1.0, b)], 0.0),
+            MOI.EqualTo(3.0),
+        )
+        MOI.add_constraint(
+            chained,
+            F([T(1.0, b), T(1.0, c)], 0.0),
+            MOI.LessThan(4.0),
+        )
+        chained_report = NLPDiagnostics.analyze_static(
+            chained;
+            max_affine_propagation_passes = 3,
+        )
+        c_finding = only(filter(
+            finding -> any(ref -> ref.kind == :variable && ref.index == c.value, finding.affected),
+            findings(chained_report, :affine_interval_propagated_variable_bound),
+        ))
+        @test evidence_details(c_finding)["derived_upper"] == "2.0"
+        @test evidence_details(c_finding)["pass_count"] == "3.0"
+        @test chained_report.metadata[:affine_interval_propagation_converged] == "true"
+        limited_report = NLPDiagnostics.analyze_static(
+            chained;
+            max_affine_propagation_passes = 1,
+        )
+        @test length(
+            findings(limited_report, :affine_interval_propagation_limit_reached),
+        ) == 1
+        @test limited_report.metadata[:affine_interval_propagation_converged] == "false"
+
+        fixed = new_model()
+        s, t = MOI.add_variables(fixed, 2)
+        MOI.add_constraint(fixed, t, MOI.EqualTo(2.0))
+        MOI.add_constraint(
+            fixed,
+            F([T(1.0, s), T(1.0, t)], 0.0),
+            MOI.EqualTo(3.0),
+        )
+        fixed_report = NLPDiagnostics.analyze_static(fixed)
+        derived_fixed = only(findings(
+            fixed_report,
+            :affine_interval_propagated_variable_fixed,
+        ))
+        @test evidence_details(derived_fixed)["derived_value"] == "1.0"
+        @test_throws ArgumentError NLPDiagnostics.analyze_static(
+            chained;
+            max_affine_propagation_passes = 0,
+        )
     end
 
     @testset "objective participation connects a variable" begin

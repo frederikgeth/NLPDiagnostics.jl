@@ -138,6 +138,7 @@ export evaluate_numerical
 export evaluate_lagrangian_hessian
 export evaluator_capabilities
 export expression_numerical_risks
+export fixed_operator_value
 export incidence_graph
 export initialization_point
 export is_coordinatewise_set

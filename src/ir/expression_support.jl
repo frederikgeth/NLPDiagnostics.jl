@@ -43,8 +43,10 @@ end
     variable_support(function_value) -> VariableSupport
 
 Return the variables that occur with structurally nonzero coefficients in a
-public MOI function. Nonlinear support is syntactic: no algebraic cancellation
-is attempted.
+public MOI function. Affine and quadratic terms are first combined exactly by
+their MOI variable monomial, so duplicate terms that cancel do not create
+spurious incidence. Nonlinear support remains syntactic: no algebraic
+cancellation is attempted.
 
 Packages defining custom `MOI.AbstractFunction` types may extend this function.
 The fallback is deliberately incomplete rather than assuming an unknown
@@ -55,27 +57,70 @@ variable_support(value::Real) = VariableSupport()
 variable_support(value::MOI.VariableIndex) =
     VariableSupport(MOI.VariableIndex[value])
 
+"""Combine duplicate affine terms and remove exact zero coefficients."""
+function _canonical_affine_terms(terms)
+    coefficients = Dict{MOI.VariableIndex,Any}()
+    for term in terms
+        coefficients[term.variable] = get(
+            coefficients,
+            term.variable,
+            zero(term.coefficient),
+        ) + term.coefficient
+    end
+    return sort!(
+        filter(term -> !iszero(last(term)), collect(coefficients));
+        by = term -> first(term).value,
+    )
+end
+
+"""Combine duplicate symmetric quadratic monomials and remove exact zeros."""
+function _canonical_quadratic_terms(terms)
+    coefficients = Dict{Tuple{MOI.VariableIndex,MOI.VariableIndex},Any}()
+    for term in terms
+        key = term.variable_1.value <= term.variable_2.value ?
+              (term.variable_1, term.variable_2) :
+              (term.variable_2, term.variable_1)
+        coefficients[key] = get(coefficients, key, zero(term.coefficient)) +
+                            term.coefficient
+    end
+    return sort!(
+        filter(term -> !iszero(last(term)), collect(coefficients));
+        by = term -> (first(term)[1].value, first(term)[2].value),
+    )
+end
+
 function variable_support(value::MOI.ScalarAffineFunction)
-    variables = MOI.VariableIndex[
-        term.variable for term in value.terms if !iszero(term.coefficient)
-    ]
+    variables = MOI.VariableIndex[first(term) for term in _canonical_affine_terms(value.terms)]
     return VariableSupport(variables)
 end
 
 function variable_support(value::MOI.ScalarQuadraticFunction)
-    variables = MOI.VariableIndex[
-        term.variable for
-        term in value.affine_terms if !iszero(term.coefficient)
-    ]
-    for term in value.quadratic_terms
-        iszero(term.coefficient) && continue
-        push!(variables, term.variable_1)
-        push!(variables, term.variable_2)
+    variables = MOI.VariableIndex[first(term) for term in _canonical_affine_terms(value.affine_terms)]
+    for (variables_in_term, _) in _canonical_quadratic_terms(value.quadratic_terms)
+        push!(variables, variables_in_term[1])
+        push!(variables, variables_in_term[2])
     end
     return VariableSupport(variables)
 end
 
+"""Whether a nonlinear node is the safe direct variable identity ``x - x``."""
+function _is_direct_variable_cancellation(value::MOI.ScalarNonlinearFunction)
+    value.head == :- && length(value.args) == 2 || return false
+    left, right = value.args
+    return left isa MOI.VariableIndex && left == right
+end
+
+"""Whether a product is safely zero without suppressing a nested operator."""
+function _is_direct_zero_product(value::MOI.ScalarNonlinearFunction)
+    value.head == :* || return false
+    all(argument -> argument isa Union{Real,MOI.VariableIndex}, value.args) ||
+        return false
+    return any(argument -> argument isa Real && iszero(argument), value.args)
+end
+
 function variable_support(value::MOI.ScalarNonlinearFunction)
+    (_is_direct_variable_cancellation(value) || _is_direct_zero_product(value)) &&
+        return VariableSupport()
     return _merge_supports(variable_support(argument) for argument in value.args)
 end
 
