@@ -447,10 +447,41 @@ function _selected_jacobian_evaluation(
     )
 end
 
+"""Minimum-norm point in the convex hull of rows using deterministic Frank--Wolfe steps."""
+function _minimum_norm_convex_combination(
+    rows::Matrix{T};
+    max_iterations::Integer,
+    convergence_tolerance::T,
+) where {T<:AbstractFloat}
+    count = size(rows, 1)
+    count > 0 || return T[], nothing, false
+    weights = fill(inv(T(count)), count)
+    point = transpose(rows) * weights
+    for iteration in 1:max_iterations
+        scores = rows * point
+        target = argmin(scores)
+        displacement = view(rows, target, :) - point
+        denominator = sum(abs2, displacement)
+        if iszero(denominator)
+            return weights, norm(point), true
+        end
+        step = clamp(-dot(point, displacement) / denominator, zero(T), one(T))
+        weights .*= one(T) - step
+        weights[target] += step
+        point .+= step .* displacement
+        if step * sqrt(denominator) <= convergence_tolerance
+            return weights, norm(point), true
+        end
+    end
+    return weights, norm(point), false
+end
+
 function mfcq_screen(
     evaluation::NumericalEvaluation{T},
     summary::ConstraintFeasibilitySummary{T};
     strict_tolerance::Real = sqrt(eps(T)),
+    witness_tolerance::Real = sqrt(eps(T)),
+    witness_max_iterations::Integer = 1_000,
     rank_relative_tolerance::Real =
         max(length(evaluation.point.variables), 1) * eps(T),
     max_dense_entries::Integer = 4_000_000,
@@ -459,6 +490,10 @@ function mfcq_screen(
         throw(ArgumentError("evaluation and activity summary points differ"))
     strict = convert(T, strict_tolerance)
     strict > zero(T) || throw(ArgumentError("strict_tolerance must be positive"))
+    witness = convert(T, witness_tolerance)
+    witness >= zero(T) || throw(ArgumentError("witness_tolerance must be nonnegative"))
+    witness_max_iterations > 0 ||
+        throw(ArgumentError("witness_max_iterations must be positive"))
     equalities = Int[
         activity.row for activity in summary.activities if
         activity.classification == :equality
@@ -482,24 +517,27 @@ function mfcq_screen(
     )
     equality_estimate.available || return MFCQScreen{T}(
         false, equality_estimate.reason, equalities, inequality_rows, false,
-        zeros(T, length(evaluation.point.variables)), nothing,
+        zeros(T, length(evaluation.point.variables)), nothing, false, T[], nothing,
     )
     equality_estimate.rank == length(equalities) || return MFCQScreen{T}(
         true, "equality Jacobian is rank deficient", equalities, inequality_rows,
-        false, zeros(T, length(evaluation.point.variables)), nothing,
+        false, zeros(T, length(evaluation.point.variables)), nothing, false, T[], nothing,
     )
     isempty(inequality_rows) && return MFCQScreen{T}(
         true, nothing, equalities, inequality_rows, true,
-        zeros(T, length(evaluation.point.variables)), nothing,
+        zeros(T, length(evaluation.point.variables)), nothing, false, T[], nothing,
     )
     tangent = equality_estimate.right_nullspace
-    size(tangent, 2) > 0 || return MFCQScreen{T}(
-        true, "equality tangent space is trivial", equalities, inequality_rows,
-        false, zeros(T, length(evaluation.point.variables)), nothing,
-    )
     jacobian = _combined_jacobian_matrix(evaluation)
     gradients = jacobian[inequality_rows, :] .* signs
     projected = gradients * tangent
+    weights, witness_residual, witness_converged = _minimum_norm_convex_combination(
+        projected;
+        max_iterations = witness_max_iterations,
+        convergence_tolerance = witness,
+    )
+    witness_found = witness_converged && !isnothing(witness_residual) &&
+                    witness_residual <= witness
     direction = -tangent * transpose(projected) * ones(T, length(inequality_rows))
     direction_norm = norm(direction)
     iszero(direction_norm) || (direction ./= direction_norm)
@@ -507,11 +545,16 @@ function mfcq_screen(
     largest = maximum(directional_values)
     return MFCQScreen{T}(
         true,
-        largest < -strict ? nothing : "simple common-descent direction was not found",
+        largest < -strict ? nothing :
+        (witness_found ? "a numerical no-common-descent witness was found" :
+         "simple common-descent direction was not found"),
         equalities,
         inequality_rows,
         largest < -strict,
         direction,
         largest,
+        witness_found,
+        weights,
+        witness_residual,
     )
 end

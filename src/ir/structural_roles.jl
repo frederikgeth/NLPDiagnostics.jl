@@ -3,6 +3,8 @@
     FixedVariable = 1
     ParameterVariable = 2
     InfeasibleVariableDomain = 3
+    InvalidVariableDomain = 4
+    DiscreteVariable = 5
 end
 
 @enum ConstraintRole::UInt8 begin
@@ -13,9 +15,21 @@ end
     OpaqueConstraint = 4
 end
 
-function _simple_variable_intervals(model::ModelSnapshot)
-    lower = Dict(record.index => -Inf for record in model.variables)
-    upper = Dict(record.index => Inf for record in model.variables)
+"""Intersection of supported scalar variable-domain declarations."""
+struct VariableDomain
+    variable::MOI.VariableIndex
+    lower::Union{Nothing,Real}
+    upper::Union{Nothing,Real}
+    lower_sources::Vector{EntityRef}
+    upper_sources::Vector{EntityRef}
+    effective_lower_sources::Vector{EntityRef}
+    effective_upper_sources::Vector{EntityRef}
+    is_parameter::Bool
+end
+
+function variable_domains(model::ModelSnapshot)
+    lower = Dict(record.index => Tuple{Real,EntityRef}[] for record in model.variables)
+    upper = Dict(record.index => Tuple{Real,EntityRef}[] for record in model.variables)
     parameters = Set{MOI.VariableIndex}()
     for constraint in model.constraints
         variable = constraint.function_value
@@ -23,23 +37,44 @@ function _simple_variable_intervals(model::ModelSnapshot)
         set_value = constraint.set_value
         if set_value isa MOI.Parameter
             push!(parameters, variable)
-            lower[variable] = max(lower[variable], Float64(set_value.value))
-            upper[variable] = min(upper[variable], Float64(set_value.value))
+            value = set_value.value
+            push!(lower[variable], (value, _constraint_ref(constraint)))
+            push!(upper[variable], (value, _constraint_ref(constraint)))
         elseif set_value isa MOI.EqualTo
-            value = Float64(set_value.value)
-            lower[variable] = max(lower[variable], value)
-            upper[variable] = min(upper[variable], value)
+            value = set_value.value
+            push!(lower[variable], (value, _constraint_ref(constraint)))
+            push!(upper[variable], (value, _constraint_ref(constraint)))
         elseif set_value isa MOI.Interval
-            lower[variable] = max(lower[variable], Float64(set_value.lower))
-            upper[variable] = min(upper[variable], Float64(set_value.upper))
+            push!(lower[variable], (set_value.lower, _constraint_ref(constraint)))
+            push!(upper[variable], (set_value.upper, _constraint_ref(constraint)))
         elseif set_value isa MOI.GreaterThan
-            lower[variable] = max(lower[variable], Float64(set_value.lower))
+            push!(lower[variable], (set_value.lower, _constraint_ref(constraint)))
         elseif set_value isa MOI.LessThan
-            upper[variable] = min(upper[variable], Float64(set_value.upper))
+            push!(upper[variable], (set_value.upper, _constraint_ref(constraint)))
+        elseif set_value isa MOI.ZeroOne
+            reference = _constraint_ref(constraint)
+            push!(lower[variable], (0.0, reference))
+            push!(upper[variable], (1.0, reference))
         end
     end
-    return lower, upper, parameters
+    return [begin
+        lower_entries, upper_entries = lower[record.index], upper[record.index]
+        effective_lower = isempty(lower_entries) ? nothing : maximum(first, lower_entries)
+        effective_upper = isempty(upper_entries) ? nothing : minimum(first, upper_entries)
+        VariableDomain(
+            record.index, effective_lower, effective_upper,
+            EntityRef[last(item) for item in lower_entries],
+            EntityRef[last(item) for item in upper_entries],
+            isnothing(effective_lower) ? EntityRef[] :
+                EntityRef[last(item) for item in lower_entries if first(item) == effective_lower],
+            isnothing(effective_upper) ? EntityRef[] :
+                EntityRef[last(item) for item in upper_entries if first(item) == effective_upper],
+            record.index in parameters,
+        )
+    end for record in model.variables]
 end
+
+variable_domains(model::MOI.ModelLike) = variable_domains(snapshot(model))
 
 """
     variable_roles(snapshot::ModelSnapshot)
@@ -48,16 +83,27 @@ Classify variables for structural equation analysis. A variable fixed by the
 intersection of simple scalar bounds is not treated as a structural unknown.
 """
 function variable_roles(model::ModelSnapshot)
-    lower, upper, parameters = _simple_variable_intervals(model)
+    discrete_variables = Set{MOI.VariableIndex}(
+        constraint.function_value for constraint in model.constraints if
+        constraint.function_value isa MOI.VariableIndex &&
+        constraint.set_value isa Union{MOI.Integer,MOI.ZeroOne}
+    )
     roles = VariableRole[]
-    for record in model.variables
-        variable = record.index
-        role = if variable in parameters
-            ParameterVariable
-        elseif lower[variable] > upper[variable]
+    for domain in variable_domains(model)
+        has_nan = (!isnothing(domain.lower) && domain.lower isa AbstractFloat && isnan(domain.lower)) ||
+                  (!isnothing(domain.upper) && domain.upper isa AbstractFloat && isnan(domain.upper))
+        role = if has_nan
+            InvalidVariableDomain
+        elseif !isnothing(domain.lower) && !isnothing(domain.upper) &&
+               domain.lower > domain.upper
             InfeasibleVariableDomain
-        elseif isfinite(lower[variable]) && lower[variable] == upper[variable]
+        elseif domain.is_parameter
+            ParameterVariable
+        elseif !isnothing(domain.lower) && !isnothing(domain.upper) &&
+               domain.lower == domain.upper
             FixedVariable
+        elseif domain.variable in discrete_variables
+            DiscreteVariable
         else
             FreeVariable
         end

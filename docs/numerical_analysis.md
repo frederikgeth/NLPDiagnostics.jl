@@ -148,9 +148,12 @@ only feasible near-active inequality sides; both feasibility and activity
 tolerances are explicit parameters.
 
 `analyze_active_set` uses those selected rows for a local LICQ rank check. Its
-MFCQ screen is deliberately conservative: it may report a found common
-equality-tangent descent direction, but a failed screen is *inconclusive*, not
-an MFCQ-failure claim. Coupled and plugin-defined sets remain visible as
+MFCQ screen can report either a found common equality-tangent descent direction
+or a numerical no-common-descent witness: nonnegative weights whose convex
+combination of active inequality gradients is nearly zero in the equality
+tangent space. The latter is evidence against MFCQ for the selected rows, not
+an exact constraint-qualification proof. A failed screen without either result
+remains inconclusive. Coupled and plugin-defined sets remain visible as
 activity-semantics-unavailable evidence until a plugin provides the correct
 interpretation.
 
@@ -212,7 +215,11 @@ right-nullspace direction in `MOI.VariableIndex` coordinates. Pass declarations
 through `analyze_degeneracy(...; expected_modes = [...])`, or extend
 `expected_nullspace_modes(model, evaluation)`. The generic core reports whether
 the declared direction aligns with the observed local right nullspace; it does
-not suppress the underlying rank or nullspace evidence.
+not suppress the underlying rank or nullspace evidence. It also compares the
+span of aligned declarations with the observed nullspace: dependent
+declarations and observed directions outside an otherwise-aligned declared span
+are reported explicitly. These are representational findings, not claims that
+the remaining direction is mathematically erroneous or physically unexpected.
 
 ## Reproducible formulation profiles
 
@@ -234,9 +241,12 @@ portable solver-performance benchmark.
 independent runs with fresh caches, discards the optional warm-up measurement,
 and returns minimum, mean, maximum, and population standard deviation for each
 stage. It also returns per-stage diagnostic-code occurrence fractions, making
-stable versus intermittent findings explicit across retained runs. These
-summaries describe local observed variation; they are not statistical
-confidence intervals.
+stable versus intermittent findings explicit across retained runs. Its
+`numerical_summary` separately aggregates available finite Jacobian rank,
+sparse-QR rank, and sparse-QR pivot-proxy observations. Each metric records
+both retained-run count and available-value count, so unavailable diagnostics
+are never silently averaged as zeros. These summaries describe local observed
+variation; they are not statistical confidence intervals.
 
 ## Cache lifetime
 
@@ -303,14 +313,78 @@ to each format. Ambiguous or incomplete rows are not partially parsed.
 an optional residual-regression heuristic. These are log-column observations,
 not independently recomputed KKT residuals or convergence certificates.
 
+## Bound iteration points
+
+`bind_iteration_points(records, points)` connects a parsed row to a caller-
+supplied `EvaluationPoint`; it never reconstructs an iterate from log text.
+`analyze_iteration_points(model, bindings)` runs numerical diagnostics at each
+bound point and compares the log's primal-infeasibility column against three
+recomputed quantities: scalar-bound violation, coupled-set violation, and
+their maximum. A large mismatch is representational evidence, since solvers
+may use different scaling or feasibility semantics; it is not a solver-error
+claim. When an objective is available, it also compares the logged objective
+with the model objective at the supplied point. Potential barrier, penalty,
+scaling, and point-alignment differences remain evidence rather than an
+assumption that the log column is the unmodified model objective.
+
+Across two or more bound points, `analyze_iteration_points` additionally emits
+a heuristic trace-disagreement finding only when logged primal infeasibility
+falls by more than the configured factor while recomputed feasibility rises by
+more than that factor. This can reveal misaligned point capture, scaling, or
+semantics, but does not attribute the cause.
+
+For non-feasibility objective senses, it also reports a trace disagreement when
+the logged objective improves in the declared optimization direction while the
+recomputed model objective moves meaningfully in the opposite direction. This
+is a point-alignment and objective-semantics heuristic, not a statement about
+solver correctness or objective quality.
+
+## Sparse QR rank estimate
+
+`sparse_qr_rank_estimate(evaluation)` uses sparse QR diagonal pivots to give a
+local rank estimate without forming the dense Jacobian required by the guarded
+SVD path. Its threshold and pivots are retained explicitly. It is a numerical
+estimate, not a nullspace calculation or a proof of exact rank; the sparse
+pattern matching estimate remains the separate structural upper bound.
+When the dense SVD is unavailable, a deficient sparse-QR estimate is reported
+as `sparse_qr_jacobian_rank_deficiency` with medium confidence; it is never
+presented as an exact rank proof.
+The numerical report also compares unscaled and row-column-scaled sparse-QR
+ranks. A disagreement produces `sparse_qr_rank_scaling_sensitivity`, which is
+evidence that pivot-threshold semantics depend on scaling, not a diagnosis of
+structural degeneracy.
+When dense SVD is unavailable, an extreme retained-pivot ratio can also emit
+`sparse_qr_pivot_scale_spread`. This is intentionally a heuristic pivot-scale
+warning, not a numerical condition estimate.
+
+## Iterative sparse null-direction probe
+
+`iterative_right_nullspace_estimate(evaluation)` is an explicit, opt-in
+sparse-matvec probe for one candidate right direction with a small Jacobian
+residual. It uses normalized shifted `J'J` products and records both the
+returned residual and whether its direction iteration stabilized. It does not
+claim a nullspace, its dimension, or exact rank: use the guarded dense SVD when
+such a local numerical statement is required. The deterministic seed makes the
+candidate reproducible, while its residual keeps the evidence inspectable.
+`iterative_right_nullspace_subspace_estimate(evaluation, dimension)` provides
+the analogous block probe when several candidate directions are useful; it
+returns orthonormal columns and a residual for each column. Neither API is
+used implicitly by `analyze_numerical`, because a requested candidate subspace
+must not be confused with an inferred nullity.
+
+`iterative_jacobian_spectrum_estimate` combines a normal-operator power scale
+with the block probe's small-direction residuals. Its reported spectral spreads
+are screening proxies only—not condition estimates or singular-value bounds—so
+they remain opt-in and are never emitted as automatic conditioning findings.
+
 ## Current limits
 
 - Finite differences are probing evidence, not exact derivatives.
 - No automatic starting-point selection is performed.
 - Complete MOI variable starts can be inspected explicitly with
   `analyze_initialization`.
-- Rank and Hessian diagnostics use dense guarded algorithms; sparse and
-  iterative large-model methods remain future work.
+- Dense SVD remains the authoritative local numerical nullspace path; sparse
+  QR and the opt-in iterative candidate probe complement it for larger models.
 - Active-set selection and multiplier recovery remain explicit user or
   solver-extension responsibilities. The generic active-set selector handles
   scalar and coordinate-wise product-bound semantics, but not coupled-set

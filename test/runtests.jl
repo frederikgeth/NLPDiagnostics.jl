@@ -193,6 +193,39 @@ end
         @test isempty(findings(report, :disconnected_variable))
     end
 
+    @testset "reused scalar expressions retain set-intersection evidence" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        expression = F([T(2.0, x)], 1.0)
+        MOI.add_constraint(model, expression, MOI.GreaterThan(0.0))
+        MOI.add_constraint(model, expression, MOI.LessThan(3.0))
+        report = NLPDiagnostics.analyze_static(model)
+        @test length(findings(report, :reused_constraint_expression)) == 1
+
+        dominated = new_model()
+        z = MOI.add_variable(dominated)
+        dominated_expression = F([T(1.0, z)], 0.0)
+        MOI.add_constraint(dominated, dominated_expression, MOI.GreaterThan(0.0))
+        MOI.add_constraint(dominated, dominated_expression, MOI.GreaterThan(1.0))
+        MOI.add_constraint(dominated, dominated_expression, MOI.LessThan(3.0))
+        dominated_report = NLPDiagnostics.analyze_static(dominated)
+        @test length(
+            findings(dominated_report, :dominated_reused_expression_set),
+        ) == 1
+
+        inconsistent = new_model()
+        y = MOI.add_variable(inconsistent)
+        inconsistent_expression = F([T(1.0, y)], 0.0)
+        MOI.add_constraint(inconsistent, inconsistent_expression, MOI.GreaterThan(2.0))
+        MOI.add_constraint(inconsistent, inconsistent_expression, MOI.LessThan(1.0))
+        inconsistent_report = NLPDiagnostics.analyze_static(inconsistent)
+        @test length(
+            findings(inconsistent_report, :inconsistent_reused_expression_sets),
+        ) == 1
+    end
+
     @testset "objective participation connects a variable" begin
         model = new_model()
         x = MOI.add_variable(model)
@@ -1084,11 +1117,67 @@ end
         @test maximum(abs, [1.0 1.0; 2.0 2.0] * estimate.right_nullspace) < 1.0e-10
         report = NLPDiagnostics.analyze_numerical(model, [0.0, 0.0])
         @test length(findings(report, :numerical_jacobian_rank_deficiency)) == 1
+        @test report.metadata[:sparse_qr_rank_available] == "true"
+        @test report.metadata[:sparse_qr_rank] == "1"
+        @test report.metadata[:sparse_qr_rank_scaling] == "none"
+        @test report.metadata[:sparse_qr_row_column_rank] == "1"
+        @test report.metadata[:sparse_qr_condition_proxy] == "1.0"
         sparse = NLPDiagnostics.sparse_jacobian_pattern_estimate(evaluation)
         @test sparse.available
         # Pattern matching cannot see the numerical dependence of two
         # proportional rows, but it can prove a zero-column deficiency.
         @test sparse.rank_upper_bound == 2
+        sparse_qr = NLPDiagnostics.sparse_qr_rank_estimate(evaluation)
+        @test sparse_qr.available
+        @test sparse_qr.rank == 1
+        @test sparse_qr.condition_proxy == 1.0
+        scaled_sparse_qr = NLPDiagnostics.sparse_qr_rank_estimate(
+            evaluation;
+            scaling = :row_column,
+        )
+        @test scaled_sparse_qr.available
+        @test scaled_sparse_qr.rank == 1
+        @test scaled_sparse_qr.scaling == :row_column
+        iterative_null = NLPDiagnostics.iterative_right_nullspace_estimate(
+            evaluation;
+            iterations = 200,
+        )
+        @test iterative_null.available
+        @test iterative_null.residual_norm < 1.0e-6
+        @test maximum(abs, [1.0 1.0; 2.0 2.0] * iterative_null.direction) <
+              1.0e-6
+        two_dimensional_model = new_model()
+        a, b, c = MOI.add_variables(two_dimensional_model, 3)
+        MOI.add_constraint(
+            two_dimensional_model,
+            F([T(1.0, a), T(-1.0, b)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        two_dimensional_evaluation = NLPDiagnostics.evaluate_numerical(
+            two_dimensional_model,
+            [0.0, 0.0, 0.0],
+        )
+        iterative_subspace =
+            NLPDiagnostics.iterative_right_nullspace_subspace_estimate(
+                two_dimensional_evaluation,
+                2;
+                iterations = 200,
+            )
+        @test iterative_subspace.available
+        @test size(iterative_subspace.directions) == (3, 2)
+        @test maximum(iterative_subspace.residual_norms) < 1.0e-6
+        @test maximum(abs, transpose(iterative_subspace.directions) *
+                         iterative_subspace.directions - [1.0 0.0; 0.0 1.0]) <
+              1.0e-10
+        iterative_spectrum = NLPDiagnostics.iterative_jacobian_spectrum_estimate(
+            two_dimensional_evaluation;
+            probe_dimension = 2,
+            iterations = 200,
+        )
+        @test iterative_spectrum.available
+        @test iterative_spectrum.largest_singular_value_proxy ≈ sqrt(2.0) atol = 1.0e-6
+        @test maximum(iterative_spectrum.candidate_small_singular_values) < 1.0e-6
+        @test all(value -> value > 1.0e6, iterative_spectrum.spectral_spread_proxies)
 
         zero_column_model = new_model()
         r, s = MOI.add_variables(zero_column_model, 2)
@@ -1120,6 +1209,9 @@ end
         @test length(
             findings(guarded_report, :sparse_jacobian_pattern_rank_deficiency),
         ) == 1
+        @test length(
+            findings(guarded_report, :sparse_qr_jacobian_rank_deficiency),
+        ) == 1
 
         scaled_model = new_model()
         a, b = MOI.add_variables(scaled_model, 2)
@@ -1147,6 +1239,15 @@ end
             rank_relative_tolerance = 1.0e-6,
         )
         @test length(findings(scaled_report, :jacobian_rank_scaling_sensitive)) == 1
+        sparse_scaled_report = NLPDiagnostics.analyze_numerical(
+            scaled_model,
+            [0.0, 0.0];
+            rank_max_dense_entries = 1,
+            jacobian_condition_threshold = 1.0e5,
+        )
+        @test length(
+            findings(sparse_scaled_report, :sparse_qr_pivot_scale_spread),
+        ) == 1
     end
 
     @testset "structural and numerical rank comparison stays nonphysical" begin
@@ -1198,6 +1299,42 @@ end
         )
         @test length(
             findings(mismatch_report, :expected_nullspace_mode_not_observed),
+        ) == 1
+
+        extra_freedom = new_model()
+        a, b, c = MOI.add_variables(extra_freedom, 3)
+        MOI.add_constraint(
+            extra_freedom,
+            F([T(1.0, a), T(-1.0, b)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        partial_expected = NLPDiagnostics.ExpectedNullspaceMode(
+            :declared_common_shift,
+            [a, b],
+            [1.0, 1.0],
+        )
+        extra_freedom_report = NLPDiagnostics.analyze_degeneracy(
+            extra_freedom,
+            [0.0, 0.0, 0.0];
+            expected_modes = [partial_expected],
+        )
+        @test length(
+            findings(extra_freedom_report, :undeclared_observed_nullspace_directions),
+        ) == 1
+        duplicate_expected_report = NLPDiagnostics.analyze_degeneracy(
+            underdetermined,
+            [0.0, 0.0];
+            expected_modes = [common_shift, NLPDiagnostics.ExpectedNullspaceMode(
+                :same_common_shift,
+                [x, y],
+                [-2.0, -2.0],
+            )],
+        )
+        @test length(
+            findings(
+                duplicate_expected_report,
+                :expected_nullspace_mode_declarations_dependent,
+            ),
         ) == 1
 
         stationary = new_model()
@@ -1289,6 +1426,21 @@ end
         ))
         @test stable_rank.occurrence_count == 2
         @test stable_rank.fraction == 1.0
+        repeated_rank = only(filter(
+            item -> item.metric == :jacobian_rank,
+            aggregate.numerical_summary,
+        ))
+        @test repeated_rank.run_count == 2
+        @test repeated_rank.available_count == 2
+        @test repeated_rank.minimum == 1.0
+        @test repeated_rank.mean == 1.0
+        @test repeated_rank.maximum == 1.0
+        repeated_proxy = only(filter(
+            item -> item.metric == :sparse_qr_condition_proxy,
+            aggregate.numerical_summary,
+        ))
+        @test repeated_proxy.available_count == 2
+        @test repeated_proxy.minimum == 1.0
         @test_throws ArgumentError NLPDiagnostics.profile_case_repeated(
             model,
             case;
@@ -1346,6 +1498,27 @@ end
             active_tolerance = 1.0e-7,
         )
         @test length(findings(infeasible, :constraint_feasibility_violation)) == 1
+
+        opposing = new_model()
+        z = MOI.add_variable(opposing)
+        MOI.add_constraint(opposing, z, MOI.GreaterThan(0.0))
+        MOI.add_constraint(opposing, z, MOI.LessThan(0.0))
+        opposing_evaluation = NLPDiagnostics.evaluate_numerical(opposing, [0.0])
+        opposing_summary = NLPDiagnostics.constraint_feasibility_summary(
+            opposing,
+            opposing_evaluation,
+        )
+        opposing_screen = NLPDiagnostics.mfcq_screen(
+            opposing_evaluation,
+            opposing_summary;
+            strict_tolerance = 1.0e-10,
+        )
+        @test opposing_screen.available
+        @test !opposing_screen.direction_found
+        @test opposing_screen.failure_witness_found
+        @test opposing_screen.failure_witness_residual < 1.0e-10
+        opposing_report = NLPDiagnostics.analyze_active_set(opposing, [0.0])
+        @test length(findings(opposing_report, :mfcq_no_common_descent_witness)) == 1
 
         dependent = new_model()
         z = MOI.add_variable(dependent)
@@ -2100,5 +2273,226 @@ end
         @test only(NLPDiagnostics.solver_iteration_records(madnlp_log)[2:2]).complementarity == 4.0
         report = NLPDiagnostics.analyze_solver_iterations("Ipopt", ipopt_log; residual_tolerance = 1e-3)
         @test length(findings(report, :solver_iteration_large_final_residual)) == 1
+
+        model = new_model()
+        x = MOI.add_variable(model)
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(model, MOI.ObjectiveFunction{MOI.VariableIndex}(), x)
+        records = NLPDiagnostics.solver_iteration_records(ipopt_log)
+        bindings = NLPDiagnostics.bind_iteration_points(
+            records,
+            Dict(1 => NLPDiagnostics.EvaluationPoint([x], [1.0]; label = "ipopt-1")),
+        )
+        @test length(bindings) == 1
+        point_report = NLPDiagnostics.analyze_iteration_points(
+            model,
+            bindings;
+            objective_agreement_factor = 1.5,
+        )
+        @test point_report.metadata[:iteration_1_log_line] == "3"
+        @test point_report.metadata[:iteration_1_point_label] == "ipopt-1"
+        @test length(
+            findings(point_report, :solver_iteration_primal_residual_mismatch),
+        ) == 1
+        @test point_report.metadata[:iteration_1_logged_objective] == "2.0"
+        @test point_report.metadata[:iteration_1_recomputed_objective] == "1.0"
+        @test length(
+            findings(point_report, :solver_iteration_objective_mismatch),
+        ) == 1
+
+        cone_model = new_model()
+        t, z = MOI.add_variables(cone_model, 2)
+        MOI.add_constraint(cone_model, MOI.VectorOfVariables([t, z]), MOI.SecondOrderCone(2))
+        cone_binding = NLPDiagnostics.bind_iteration_points(
+            records,
+            Dict(1 => NLPDiagnostics.EvaluationPoint([t, z], [0.0, 1.0]; label = "cone-1")),
+        )
+        cone_report = NLPDiagnostics.analyze_iteration_points(cone_model, cone_binding)
+        @test cone_report.metadata[:iteration_1_recomputed_scalar_violation] == "0.0"
+        @test cone_report.metadata[:iteration_1_recomputed_coupled_violation] == "1.0"
+        @test cone_report.metadata[:iteration_1_recomputed_total_violation] == "1.0"
+
+        trend_model = new_model()
+        q = MOI.add_variable(trend_model)
+        MOI.add_constraint(trend_model, q, MOI.EqualTo(0.0))
+        MOI.set(trend_model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+        MOI.set(
+            trend_model,
+            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+            MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(-1.0, q)], 0.0),
+        )
+        trend_bindings = NLPDiagnostics.bind_iteration_points(
+            records,
+            Dict(
+                0 => NLPDiagnostics.EvaluationPoint([q], [0.0]; label = "trend-0"),
+                1 => NLPDiagnostics.EvaluationPoint([q], [10.0]; label = "trend-1"),
+            ),
+        )
+        trend_report = NLPDiagnostics.analyze_iteration_points(trend_model, trend_bindings)
+        @test length(
+            findings(trend_report, :solver_iteration_trace_feasibility_disagreement),
+        ) == 1
+        @test length(
+            findings(trend_report, :solver_iteration_trace_objective_disagreement),
+        ) == 1
+    end
+
+    @testset "profile includes structural-stage timings" begin
+        model = new_model()
+        x = MOI.add_variable(model)
+        case = NLPDiagnostics.ProfileCase(
+            "structural-timing",
+            NLPDiagnostics.EvaluationPoint([x], [0.0]),
+        )
+        result = NLPDiagnostics.profile_case(model, case)
+        @test all(
+            stage -> haskey(result.stage_seconds, stage),
+            (:structural_graph, :structural_matching, :structural_dm),
+        )
+    end
+
+    @testset "variable-domain intersections preserve type and infeasibility" begin
+        typed = MOIU.Model{BigFloat}()
+        x = MOI.add_variable(typed)
+        MOI.add_constraint(typed, x, MOI.Interval(big"1.0", big"2.0"))
+        domain = only(NLPDiagnostics.variable_domains(typed))
+        @test domain.lower isa BigFloat
+        @test domain.upper isa BigFloat
+        unbounded = new_model()
+        MOI.add_variable(unbounded)
+        @test isnothing(only(NLPDiagnostics.variable_domains(unbounded)).lower)
+
+        invalid_variable = MOI.VariableIndex(1)
+        invalid_snapshot = NLPDiagnostics.ModelSnapshot(
+            [NLPDiagnostics.VariableRecord(invalid_variable, nothing)],
+            [NLPDiagnostics.ConstraintRecord(
+                MOI.ConstraintIndex{MOI.VariableIndex,MOI.GreaterThan{Float64}}(1),
+                invalid_variable,
+                MOI.GreaterThan(NaN),
+                nothing,
+            )],
+            nothing,
+            nothing,
+            String[],
+        )
+        @test only(NLPDiagnostics.variable_roles(invalid_snapshot)) ==
+              NLPDiagnostics.InvalidVariableDomain
+        invalid_report = NLPDiagnostics.analyze_static(invalid_snapshot)
+        @test length(findings(invalid_report, :nan_variable_bound)) == 1
+
+        semi_snapshot = NLPDiagnostics.ModelSnapshot(
+            [NLPDiagnostics.VariableRecord(invalid_variable, nothing)],
+            [NLPDiagnostics.ConstraintRecord(
+                MOI.ConstraintIndex{MOI.VariableIndex,MOI.Semicontinuous{Float64}}(2),
+                invalid_variable,
+                MOI.Semicontinuous(1.0, 2.0),
+                nothing,
+            )],
+            nothing,
+            nothing,
+            String[],
+        )
+        semi_report = NLPDiagnostics.analyze_static(semi_snapshot)
+        @test length(findings(semi_report, :disjunctive_variable_domain)) == 1
+
+        binary_snapshot = NLPDiagnostics.ModelSnapshot(
+            [NLPDiagnostics.VariableRecord(invalid_variable, nothing)],
+            [NLPDiagnostics.ConstraintRecord(
+                MOI.ConstraintIndex{MOI.VariableIndex,MOI.ZeroOne}(3),
+                invalid_variable,
+                MOI.ZeroOne(),
+                nothing,
+            )],
+            nothing,
+            nothing,
+            String[],
+        )
+        @test only(NLPDiagnostics.variable_roles(binary_snapshot)) ==
+              NLPDiagnostics.DiscreteVariable
+        binary_report = NLPDiagnostics.analyze_static(binary_snapshot)
+        @test length(findings(binary_report, :discrete_variable_domain)) == 1
+
+        binary_infeasible_snapshot = NLPDiagnostics.ModelSnapshot(
+            [NLPDiagnostics.VariableRecord(invalid_variable, nothing)],
+            [
+                NLPDiagnostics.ConstraintRecord(
+                    MOI.ConstraintIndex{MOI.VariableIndex,MOI.ZeroOne}(4),
+                    invalid_variable,
+                    MOI.ZeroOne(),
+                    nothing,
+                ),
+                NLPDiagnostics.ConstraintRecord(
+                    MOI.ConstraintIndex{MOI.VariableIndex,MOI.EqualTo{Float64}}(5),
+                    invalid_variable,
+                    MOI.EqualTo(2.0),
+                    nothing,
+                ),
+            ],
+            nothing,
+            nothing,
+            String[],
+        )
+        @test only(NLPDiagnostics.variable_roles(binary_infeasible_snapshot)) ==
+              NLPDiagnostics.InfeasibleVariableDomain
+        @test length(
+            findings(
+                NLPDiagnostics.analyze_static(binary_infeasible_snapshot),
+                :inconsistent_variable_bounds,
+            ),
+        ) == 1
+
+        binary_fractional_snapshot = NLPDiagnostics.ModelSnapshot(
+            [NLPDiagnostics.VariableRecord(invalid_variable, nothing)],
+            [
+                NLPDiagnostics.ConstraintRecord(
+                    MOI.ConstraintIndex{MOI.VariableIndex,MOI.ZeroOne}(6),
+                    invalid_variable,
+                    MOI.ZeroOne(),
+                    nothing,
+                ),
+                NLPDiagnostics.ConstraintRecord(
+                    MOI.ConstraintIndex{MOI.VariableIndex,MOI.EqualTo{Float64}}(7),
+                    invalid_variable,
+                    MOI.EqualTo(0.5),
+                    nothing,
+                ),
+            ],
+            nothing,
+            nothing,
+            String[],
+        )
+        @test length(
+            findings(
+                NLPDiagnostics.analyze_static(binary_fractional_snapshot),
+                :nonintegral_discrete_fixed_value,
+            ),
+        ) == 1
+
+        binary_empty_snapshot = NLPDiagnostics.ModelSnapshot(
+            [NLPDiagnostics.VariableRecord(invalid_variable, nothing)],
+            [
+                NLPDiagnostics.ConstraintRecord(
+                    MOI.ConstraintIndex{MOI.VariableIndex,MOI.ZeroOne}(8),
+                    invalid_variable,
+                    MOI.ZeroOne(),
+                    nothing,
+                ),
+                NLPDiagnostics.ConstraintRecord(
+                    MOI.ConstraintIndex{MOI.VariableIndex,MOI.Interval{Float64}}(9),
+                    invalid_variable,
+                    MOI.Interval(0.1, 0.9),
+                    nothing,
+                ),
+            ],
+            nothing,
+            nothing,
+            String[],
+        )
+        @test length(
+            findings(
+                NLPDiagnostics.analyze_static(binary_empty_snapshot),
+                :empty_discrete_variable_domain,
+            ),
+        ) == 1
     end
 end

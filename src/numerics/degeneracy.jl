@@ -21,6 +21,32 @@ function _normalized_columns(matrix::Matrix{T}) where {T}
     return matrix
 end
 
+"""Combine additive raw Jacobian entries into one sparse matrix."""
+function _combined_sparse_jacobian_matrix(
+    evaluation::NumericalEvaluation{T},
+) where {T<:AbstractFloat}
+    combined = Dict{Tuple{Int,Int},T}()
+    for entry in evaluation.jacobian_entries
+        key = (entry.row, entry.column)
+        combined[key] = get(combined, key, zero(T)) + entry.value
+    end
+    rows = Int[]
+    columns = Int[]
+    values = T[]
+    for ((row, column), value) in combined
+        push!(rows, row)
+        push!(columns, column)
+        push!(values, value)
+    end
+    return sparse(
+        rows,
+        columns,
+        values,
+        length(evaluation.constraint_sources),
+        length(evaluation.point.variables),
+    )
+end
+
 function _unavailable_rank_estimate(
     evaluation::NumericalEvaluation{T},
     scaling::Symbol,
@@ -86,6 +112,275 @@ function _augment_sparse_row!(
         end
     end
     return false
+end
+
+function sparse_qr_rank_estimate(
+    evaluation::NumericalEvaluation{T};
+    relative_tolerance::Real = max(length(evaluation.constraint_sources), length(evaluation.point.variables), 1) * eps(T),
+    scaling::Symbol = :none,
+) where {T<:AbstractFloat}
+    rows, columns = length(evaluation.constraint_sources), length(evaluation.point.variables)
+    tolerance = convert(T, relative_tolerance)
+    tolerance >= zero(T) || throw(ArgumentError("relative_tolerance must be nonnegative"))
+    scaling in (:none, :row, :column, :row_column) ||
+        throw(ArgumentError("scaling must be :none, :row, :column, or :row_column"))
+    pattern = sparse_jacobian_pattern_estimate(evaluation)
+    !pattern.available && return SparseQRRankEstimate{T}(false, pattern.reason, evaluation.point, scaling, rows, columns, 0, T[], tolerance, zero(T), nothing)
+    matrix = _combined_sparse_jacobian_matrix(evaluation)
+    try
+        if scaling in (:row, :row_column)
+            row_norms = [norm(matrix[row, :], Inf) for row in 1:rows]
+            matrix = spdiagm(0 => T[iszero(value) ? one(T) : inv(value) for value in row_norms]) * matrix
+        end
+        if scaling in (:column, :row_column)
+            column_norms = [norm(matrix[:, column], Inf) for column in 1:columns]
+            matrix = matrix * spdiagm(0 => T[iszero(value) ? one(T) : inv(value) for value in column_norms])
+        end
+        factorization = qr(matrix)
+        pivots = T.(abs.(diag(factorization.R)))
+        threshold = isempty(pivots) ? zero(T) : tolerance * maximum(pivots)
+        retained = filter(value -> value > threshold, pivots)
+        proxy = isempty(retained) ? nothing : maximum(retained) / minimum(retained)
+        return SparseQRRankEstimate{T}(true, nothing, evaluation.point, scaling, rows, columns, length(retained), pivots, tolerance, threshold, proxy)
+    catch error
+        return SparseQRRankEstimate{T}(false, sprint(showerror, error), evaluation.point, scaling, rows, columns, 0, T[], tolerance, zero(T), nothing)
+    end
+end
+
+"""
+    iterative_right_nullspace_estimate(evaluation; iterations = 100,
+                                       convergence_tolerance = 1e-8)
+
+Use only sparse Jacobian--vector and transposed-Jacobian--vector products to
+probe for one locally small-residual right direction. The returned direction is
+a *candidate*: a small residual can be useful evidence of a possible gauge or
+near-null mode, but neither convergence nor a small residual proves a
+nullspace or establishes its dimension.
+
+The iteration is a normalized inverse-free iteration on a shifted `J'J`.
+Its deterministic initial direction makes reports reproducible, but callers
+should use the dense SVD nullspace when it is available and a certified local
+rank/nullity statement is needed.
+"""
+function iterative_right_nullspace_estimate(
+    evaluation::NumericalEvaluation{T};
+    iterations::Integer = 100,
+    convergence_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    iterations > 0 || throw(ArgumentError("iterations must be positive"))
+    tolerance = convert(T, convergence_tolerance)
+    tolerance >= zero(T) ||
+        throw(ArgumentError("convergence_tolerance must be nonnegative"))
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    unavailable(reason) = IterativeNullspaceEstimate{T}(
+        false, reason, evaluation.point, 0, false, T[], nothing,
+    )
+    columns > 0 || return unavailable("Jacobian has no variable columns")
+    pattern = sparse_jacobian_pattern_estimate(evaluation)
+    pattern.available || return unavailable(pattern.reason)
+
+    matrix = _combined_sparse_jacobian_matrix(evaluation)
+    direction = T[sin(T(index)) for index in 1:columns]
+    direction_norm = norm(direction)
+    isfinite(direction_norm) && !iszero(direction_norm) ||
+        return unavailable("could not construct a finite initial direction")
+    direction ./= direction_norm
+
+    # Estimate a safe upper scale for J'J with power products. Overestimating
+    # only slows the iteration; underestimating can reverse large modes.
+    probe = copy(direction)
+    spectral_scale = zero(T)
+    for _ in 1:min(20, Int(iterations))
+        normal_product = adjoint(matrix) * (matrix * probe)
+        product_norm = norm(normal_product)
+        isfinite(product_norm) ||
+            return unavailable("sparse Jacobian product became non-finite")
+        spectral_scale = max(spectral_scale, product_norm)
+        iszero(product_norm) && break
+        probe = normal_product / product_norm
+    end
+    shift = max(T(4) * spectral_scale, eps(T))
+    converged = false
+    completed_iterations = 0
+    for iteration in 1:Int(iterations)
+        candidate = direction - (adjoint(matrix) * (matrix * direction)) / shift
+        candidate_norm = norm(candidate)
+        isfinite(candidate_norm) && !iszero(candidate_norm) ||
+            return unavailable("iterative nullspace direction became invalid")
+        candidate ./= candidate_norm
+        dot(candidate, direction) < zero(T) && (candidate .*= -one(T))
+        completed_iterations = iteration
+        if norm(candidate - direction) <= tolerance
+            direction = candidate
+            converged = true
+            break
+        end
+        direction = candidate
+    end
+    residual = norm(matrix * direction)
+    isfinite(residual) || return unavailable("candidate residual became non-finite")
+    return IterativeNullspaceEstimate{T}(
+        true, nothing, evaluation.point, completed_iterations, converged,
+        direction, residual,
+    )
+end
+
+"""
+    iterative_right_nullspace_subspace_estimate(evaluation, dimension; ...)
+
+Use a block sparse-matvec iteration to probe `dimension` candidate right
+directions associated with small local Jacobian residuals. The returned matrix
+has orthonormal columns, and each residual is reported separately. This is an
+opt-in numerical probe, not a rank estimate, nullity certificate, or physical
+classification.
+"""
+function iterative_right_nullspace_subspace_estimate(
+    evaluation::NumericalEvaluation{T},
+    dimension::Integer;
+    iterations::Integer = 100,
+    convergence_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    dimension > 0 || throw(ArgumentError("dimension must be positive"))
+    iterations > 0 || throw(ArgumentError("iterations must be positive"))
+    tolerance = convert(T, convergence_tolerance)
+    tolerance >= zero(T) ||
+        throw(ArgumentError("convergence_tolerance must be nonnegative"))
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    unavailable(reason) = IterativeNullspaceSubspaceEstimate{T}(
+        false, reason, evaluation.point, Int(dimension), 0, false,
+        zeros(T, columns, 0), T[], nothing,
+    )
+    columns > 0 || return unavailable("Jacobian has no variable columns")
+    dimension <= columns ||
+        throw(ArgumentError("dimension must not exceed the Jacobian column count"))
+    pattern = sparse_jacobian_pattern_estimate(evaluation)
+    pattern.available || return unavailable(pattern.reason)
+    matrix = _combined_sparse_jacobian_matrix(evaluation)
+    seed = T[
+        sin(T(row * (column + 1))) + cos(T((row + 1) * column)) for
+        row in 1:columns, column in 1:dimension
+    ]
+    directions = try
+        Matrix(qr(seed).Q)[:, 1:dimension]
+    catch error
+        return unavailable("could not orthonormalize initial block: $(sprint(showerror, error))")
+    end
+    all(isfinite, directions) || return unavailable("initial block is non-finite")
+
+    probe = view(directions, :, 1)
+    spectral_scale = zero(T)
+    for _ in 1:min(20, Int(iterations))
+        normal_product = adjoint(matrix) * (matrix * probe)
+        product_norm = norm(normal_product)
+        isfinite(product_norm) ||
+            return unavailable("sparse Jacobian product became non-finite")
+        spectral_scale = max(spectral_scale, product_norm)
+        iszero(product_norm) && break
+        probe = normal_product / product_norm
+    end
+    shift = max(T(4) * spectral_scale, eps(T))
+    completed_iterations = 0
+    converged = false
+    subspace_change = nothing
+    for iteration in 1:Int(iterations)
+        candidate = directions - (adjoint(matrix) * (matrix * directions)) / shift
+        candidate = try
+            Matrix(qr(candidate).Q)[:, 1:dimension]
+        catch error
+            return unavailable("iterative candidate block became rank deficient: $(sprint(showerror, error))")
+        end
+        all(isfinite, candidate) || return unavailable("iterative candidate block became non-finite")
+        for column in 1:dimension
+            dot(candidate[:, column], directions[:, column]) < zero(T) &&
+                (candidate[:, column] .*= -one(T))
+        end
+        subspace_change = norm(candidate * transpose(candidate) -
+                               directions * transpose(directions))
+        directions = candidate
+        completed_iterations = iteration
+        if subspace_change <= tolerance
+            converged = true
+            break
+        end
+    end
+    residuals = T[norm(matrix * directions[:, column]) for column in 1:dimension]
+    all(isfinite, residuals) || return unavailable("candidate residual became non-finite")
+    return IterativeNullspaceSubspaceEstimate{T}(
+        true, nothing, evaluation.point, Int(dimension), completed_iterations,
+        converged, directions, residuals, subspace_change,
+    )
+end
+
+"""
+    iterative_jacobian_spectrum_estimate(evaluation; probe_dimension = 1, ...)
+
+Return a sparse-matvec spectral-scale proxy from a normal-operator power
+iteration together with residuals of one or more candidate small directions.
+The reported spreads divide the former by the latter. They are deliberately
+heuristic: neither side is a certified singular value, so this API must not be
+used as a condition-number calculation.
+"""
+function iterative_jacobian_spectrum_estimate(
+    evaluation::NumericalEvaluation{T};
+    probe_dimension::Integer = 1,
+    iterations::Integer = 100,
+    convergence_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    iterations > 0 || throw(ArgumentError("iterations must be positive"))
+    probe_dimension > 0 || throw(ArgumentError("probe_dimension must be positive"))
+    columns = length(evaluation.point.variables)
+    unavailable(reason) = IterativeJacobianSpectrumEstimate{T}(
+        false, reason, evaluation.point, 0, nothing, T[], T[], false,
+    )
+    columns > 0 || return unavailable("Jacobian has no variable columns")
+    probe_dimension <= columns ||
+        throw(ArgumentError("probe_dimension must not exceed the Jacobian column count"))
+    pattern = sparse_jacobian_pattern_estimate(evaluation)
+    pattern.available || return unavailable(pattern.reason)
+    matrix = _combined_sparse_jacobian_matrix(evaluation)
+    vector = T[sin(T(index)) for index in 1:columns]
+    vector_norm = norm(vector)
+    isfinite(vector_norm) && !iszero(vector_norm) ||
+        return unavailable("could not construct a finite power-iteration seed")
+    vector ./= vector_norm
+    completed_iterations = 0
+    for iteration in 1:Int(iterations)
+        normal_product = adjoint(matrix) * (matrix * vector)
+        product_norm = norm(normal_product)
+        isfinite(product_norm) ||
+            return unavailable("sparse normal-operator product became non-finite")
+        completed_iterations = iteration
+        iszero(product_norm) && break
+        vector = normal_product / product_norm
+    end
+    normal_product = adjoint(matrix) * (matrix * vector)
+    rayleigh = dot(vector, normal_product)
+    isfinite(rayleigh) && rayleigh >= zero(T) ||
+        return unavailable("power-iteration Rayleigh quotient became invalid")
+    largest = sqrt(rayleigh)
+    subspace = iterative_right_nullspace_subspace_estimate(
+        evaluation,
+        probe_dimension;
+        iterations = iterations,
+        convergence_tolerance = convergence_tolerance,
+    )
+    subspace.available || return unavailable(something(subspace.reason, "small-direction probe unavailable"))
+    spreads = T[
+        iszero(residual) ? T(Inf) : largest / residual for
+        residual in subspace.residual_norms
+    ]
+    return IterativeJacobianSpectrumEstimate{T}(
+        true,
+        nothing,
+        evaluation.point,
+        completed_iterations,
+        largest,
+        subspace.residual_norms,
+        spreads,
+        subspace.converged,
+    )
 end
 
 """

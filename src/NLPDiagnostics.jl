@@ -4,6 +4,7 @@ module NLPDiagnostics
 
 import MathOptInterface as MOI
 using LinearAlgebra
+using SparseArrays
 
 include("reports/types.jl")
 include("reports/text.jl")
@@ -63,6 +64,10 @@ export IntervalEnclosure
 export JacobianEntry
 export JacobianRankEstimate
 export SparseJacobianPatternEstimate
+export SparseQRRankEstimate
+export IterativeNullspaceEstimate
+export IterativeNullspaceSubspaceEstimate
+export IterativeJacobianSpectrumEstimate
 export JacobianScaleSummary
 export HessianEntry
 export HessianEvaluation
@@ -80,9 +85,11 @@ export ProfileAggregate
 export ProfileResult
 export ProfileTimingSummary
 export ProfileFindingStability
+export ProfileNumericalSummary
 export SolverPostmortem
 export SolverLogObservation
 export SolverIterationRecord
+export IterationPointBinding
 export MathematicalIssue, NumericalIssue, PhysicalIssue, RepresentationalIssue
 export MathematicalProof, NumericalObservation, PhysicalExpectation
 export LocalInference, HeuristicInterpretation, StructuralProof
@@ -97,7 +104,8 @@ export StructuralNumericalComparison
 export StructuralVariableNode
 export VariableSupport
 export VariableRole
-export FixedVariable, FreeVariable, InfeasibleVariableDomain, ParameterVariable
+export VariableDomain
+export DiscreteVariable, FixedVariable, FreeVariable, InfeasibleVariableDomain, InvalidVariableDomain, ParameterVariable
 export analyze
 export analyze_domains
 export analyze_derivatives
@@ -113,11 +121,13 @@ export analyze_structure
 export analyze_postmortem
 export analyze_solver_log
 export analyze_solver_iterations
+export analyze_iteration_points
 export profile_case
 export profile_case_repeated
 export solver_postmortem
 export solver_log_observations
 export solver_iteration_records
+export bind_iteration_points
 export connected_components
 export constraint_role
 export dulmage_mendelsohn
@@ -136,6 +146,10 @@ export maximum_matching
 export jacobian_scale_summary
 export jacobian_rank_estimate
 export sparse_jacobian_pattern_estimate
+export sparse_qr_rank_estimate
+export iterative_right_nullspace_estimate
+export iterative_right_nullspace_subspace_estimate
+export iterative_jacobian_spectrum_estimate
 export constraint_feasibility_summary
 export coupled_set_feasibility_summary
 export coupled_set_activity
@@ -156,6 +170,7 @@ export structural_graph_dot
 export structural_graph_text
 export variable_support
 export variable_roles
+export variable_domains
 export well_determined_blocks
 
 """

@@ -1,51 +1,31 @@
 # Stage 1 analyses make no calls to user functions or derivative evaluators.
-mutable struct _BoundState
-    lower::Vector{Tuple{Float64,EntityRef}}
-    upper::Vector{Tuple{Float64,EntityRef}}
-end
-
-_BoundState() = _BoundState(Tuple{Float64,EntityRef}[], Tuple{Float64,EntityRef}[])
-
-function _record_bounds!(
-    state::_BoundState,
-    set_value,
-    reference::EntityRef,
-)
-    if set_value isa MOI.GreaterThan
-        push!(state.lower, (Float64(set_value.lower), reference))
-    elseif set_value isa MOI.LessThan
-        push!(state.upper, (Float64(set_value.upper), reference))
-    elseif set_value isa MOI.EqualTo
-        value = Float64(set_value.value)
-        push!(state.lower, (value, reference))
-        push!(state.upper, (value, reference))
-    elseif set_value isa MOI.Interval
-        push!(state.lower, (Float64(set_value.lower), reference))
-        push!(state.upper, (Float64(set_value.upper), reference))
-    end
-    return
-end
-
-function _bound_states(model::ModelSnapshot)
-    states = Dict(record.index => _BoundState() for record in model.variables)
-    for constraint in model.constraints
-        constraint.function_value isa MOI.VariableIndex || continue
-        state = get!(states, constraint.function_value, _BoundState())
-        _record_bounds!(state, constraint.set_value, _constraint_ref(constraint))
-    end
-    return states
-end
 
 function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
     records = Dict(record.index => record for record in model.variables)
-    for (variable, state) in _bound_states(model)
-        record = records[variable]
+    for domain in variable_domains(model)
+        record = records[domain.variable]
         variable_ref = _variable_ref(record)
-        lower = isempty(state.lower) ? -Inf : maximum(first, state.lower)
-        upper = isempty(state.upper) ? Inf : minimum(first, state.upper)
-        bound_refs = EntityRef[last(item) for item in vcat(state.lower, state.upper)]
+        lower, upper = domain.lower, domain.upper
+        bound_refs = vcat(domain.lower_sources, domain.upper_sources)
 
-        if lower > upper
+        has_nan_bound = (!isnothing(lower) && lower isa AbstractFloat && isnan(lower)) ||
+                        (!isnothing(upper) && upper isa AbstractFloat && isnan(upper))
+        if has_nan_bound
+            push!(report, Finding(
+                :nan_variable_bound;
+                severity = SeverityError,
+                domain = MathematicalIssue,
+                basis = MathematicalProof,
+                confidence = ConfidenceCertain,
+                observation = "Variable $(_display_name(record)) has a NaN effective bound.",
+                why_it_matters = "NaN does not define an ordered domain endpoint, so bound-based feasibility and structural-role conclusions are invalid.",
+                evidence = [Evidence("Effective scalar-bound intersection";
+                    details = ["effective_lower" => lower, "effective_upper" => upper],
+                )],
+                suggested_actions = ["Trace the bound data source and replace NaN with a valid finite value or an intentional unbounded side."],
+                affected = vcat([variable_ref], bound_refs),
+            ))
+        elseif !isnothing(lower) && !isnothing(upper) && lower > upper
             push!(
                 report,
                 Finding(
@@ -69,7 +49,7 @@ function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
                     affected = vcat([variable_ref], bound_refs),
                 ),
             )
-        elseif isfinite(lower) && lower == upper
+        elseif !isnothing(lower) && !isnothing(upper) && lower == upper
             push!(
                 report,
                 Finding(
@@ -94,7 +74,7 @@ function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
             )
         end
 
-        if length(state.lower) > 1 || length(state.upper) > 1
+        if length(domain.lower_sources) > 1 || length(domain.upper_sources) > 1
             push!(
                 report,
                 Finding(
@@ -109,8 +89,10 @@ function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
                         Evidence(
                             "Multiple bound sources were found";
                             details = [
-                                "lower_sources" => length(state.lower),
-                                "upper_sources" => length(state.upper),
+                            "lower_sources" => length(domain.lower_sources),
+                            "upper_sources" => length(domain.upper_sources),
+                            "effective_lower_sources" => length(domain.effective_lower_sources),
+                            "effective_upper_sources" => length(domain.effective_upper_sources),
                             ],
                         ),
                     ],
@@ -121,6 +103,117 @@ function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
                 ),
             )
         end
+        shadowed_lower = setdiff(domain.lower_sources, domain.effective_lower_sources)
+        shadowed_upper = setdiff(domain.upper_sources, domain.effective_upper_sources)
+        if !isempty(shadowed_lower) || !isempty(shadowed_upper)
+            push!(report, Finding(
+                :dominated_variable_bound;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = MathematicalProof,
+                confidence = ConfidenceCertain,
+                observation = "Variable $(_display_name(record)) has $(length(shadowed_lower) + length(shadowed_upper)) scalar bound source(s) dominated by a stricter bound.",
+                why_it_matters = "The dominated bound does not change the current scalar domain intersection; it may be intentional documentation, but can also conceal duplicated or stale data.",
+                evidence = [Evidence(
+                    "Effective scalar-bound intersection";
+                    details = ["effective_lower" => lower, "effective_upper" => upper,
+                               "shadowed_lower_sources" => length(shadowed_lower),
+                               "shadowed_upper_sources" => length(shadowed_upper)],
+                )],
+                suggested_actions = ["Retain dominated bounds only when their separate provenance is useful to the model reader."],
+                affected = vcat([variable_ref], shadowed_lower, shadowed_upper),
+            ))
+        end
+    end
+    return
+end
+
+function _analyze_disjunctive_variable_domains!(report::DiagnosticReport, model::ModelSnapshot)
+    records = Dict(record.index => record for record in model.variables)
+    for constraint in model.constraints
+        variable = constraint.function_value
+        variable isa MOI.VariableIndex || continue
+        set_value = constraint.set_value
+        set_value isa Union{MOI.Semicontinuous,MOI.Semiinteger} || continue
+        record = records[variable]
+        push!(report, Finding(
+            :disjunctive_variable_domain;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = StructuralProof,
+            confidence = ConfidenceCertain,
+            observation = "Variable $(_display_name(record)) has a $(set_value isa MOI.Semicontinuous ? "semicontinuous" : "semiinteger") domain.",
+            why_it_matters = "Its finite endpoints do not form an ordinary interval because zero remains feasible; generic scalar-bound and free-variable reasoning deliberately do not collapse this disjunction.",
+            evidence = [Evidence("Declared MOI variable domain";
+                details = ["set" => typeof(set_value), "lower" => set_value.lower, "upper" => set_value.upper],
+            )],
+            suggested_actions = ["Use a mixed-integer-aware plugin or solver workflow when interpreting structural freedom."],
+            affected = [_variable_ref(record), _constraint_ref(constraint)],
+        ))
+    end
+    return
+end
+
+function _analyze_discrete_variables!(report::DiagnosticReport, model::ModelSnapshot)
+    records = Dict(record.index => record for record in model.variables)
+    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    for constraint in model.constraints
+        variable = constraint.function_value
+        variable isa MOI.VariableIndex || continue
+        constraint.set_value isa Union{MOI.Integer,MOI.ZeroOne} || continue
+        record = records[variable]
+        push!(report, Finding(:discrete_variable_domain;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Variable $(_display_name(record)) has a $(constraint.set_value isa MOI.ZeroOne ? "binary" : "integer") domain.",
+            why_it_matters = "Continuous Jacobian matching does not treat a discrete variable as a local continuous degree of freedom.",
+            evidence = [Evidence("Declared MOI integrality set"; details = ["set" => typeof(constraint.set_value)])],
+            suggested_actions = ["Use a MINLP-aware solver or plugin when interpreting this variable's discrete search semantics."],
+            affected = [_variable_ref(record), _constraint_ref(constraint)],
+        ))
+        domain = domains[variable]
+        empty_discrete_domain = if isnothing(domain.lower) || isnothing(domain.upper)
+            false
+        elseif constraint.set_value isa MOI.ZeroOne
+            !(domain.lower <= 0 <= domain.upper || domain.lower <= 1 <= domain.upper)
+        else
+            ceil(domain.lower) > floor(domain.upper)
+        end
+        if empty_discrete_domain
+            push!(report, Finding(:empty_discrete_variable_domain;
+                severity = SeverityError, domain = MathematicalIssue,
+                basis = MathematicalProof, confidence = ConfidenceCertain,
+                observation = "Discrete variable $(_display_name(record)) has no admissible value in its effective scalar interval [$((domain.lower)), $((domain.upper))].",
+                why_it_matters = "The continuous bounds exclude every value allowed by the integer or binary declaration.",
+                evidence = [Evidence("Intersection of scalar and discrete domains";
+                    details = ["lower" => domain.lower, "upper" => domain.upper,
+                               "set" => typeof(constraint.set_value)],
+                )],
+                suggested_actions = ["Relax the scalar bounds or correct the discrete declaration."],
+                affected = [_variable_ref(record), _constraint_ref(constraint)],
+            ))
+        end
+        fixed_value = !isnothing(domain.lower) && !isnothing(domain.upper) &&
+                      domain.lower == domain.upper ? domain.lower : nothing
+        invalid_fixed_value = if isnothing(fixed_value)
+            false
+        elseif constraint.set_value isa MOI.ZeroOne
+            fixed_value != 0 && fixed_value != 1
+        else
+            !isinteger(fixed_value)
+        end
+        invalid_fixed_value || continue
+        push!(report, Finding(:nonintegral_discrete_fixed_value;
+            severity = SeverityError, domain = MathematicalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Discrete variable $(_display_name(record)) is fixed at $fixed_value, outside its declared discrete domain.",
+            why_it_matters = "No value can satisfy both the fixed scalar domain and the declared integer or binary requirement.",
+            evidence = [Evidence("Intersection of fixed and discrete declarations";
+                details = ["fixed_value" => fixed_value, "set" => typeof(constraint.set_value)],
+            )],
+            suggested_actions = ["Correct the fixed value or remove the incompatible discrete declaration."],
+            affected = [_variable_ref(record), _constraint_ref(constraint)],
+        ))
     end
     return
 end
@@ -458,6 +551,127 @@ function _analyze_duplicate_constraints!(
     return
 end
 
+function _scalar_set_interval(set_value)
+    if set_value isa MOI.EqualTo
+        return set_value.value, set_value.value
+    elseif set_value isa MOI.LessThan
+        return nothing, set_value.upper
+    elseif set_value isa MOI.GreaterThan
+        return set_value.lower, nothing
+    elseif set_value isa MOI.Interval
+        return set_value.lower, set_value.upper
+    end
+    return nothing
+end
+
+function _interval_contains(outer, inner)
+    outer_lower, outer_upper = outer
+    inner_lower, inner_upper = inner
+    lower_contains = isnothing(outer_lower) ||
+                     (!isnothing(inner_lower) && outer_lower <= inner_lower)
+    upper_contains = isnothing(outer_upper) ||
+                     (!isnothing(inner_upper) && outer_upper >= inner_upper)
+    return lower_contains && upper_contains
+end
+
+"""Find repeated scalar expressions whose declared scalar sets differ."""
+function _analyze_reused_constraint_expressions!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    groups = Dict{String,Vector{ConstraintRecord}}()
+    for constraint in model.constraints
+        _is_variable_domain_constraint(constraint) && continue
+        constraint.function_value isa MOI.AbstractScalarFunction || continue
+        push!(get!(groups, _fingerprint(constraint.function_value), ConstraintRecord[]), constraint)
+    end
+    for constraints in values(groups)
+        length(constraints) > 1 || continue
+        set_fingerprints = unique(repr(constraint.set_value) for constraint in constraints)
+        length(set_fingerprints) > 1 || continue
+        intervals = [_scalar_set_interval(constraint.set_value) for constraint in constraints]
+        all(interval -> !isnothing(interval), intervals) || continue
+        lowers = Any[interval[1] for interval in intervals if !isnothing(interval[1])]
+        uppers = Any[interval[2] for interval in intervals if !isnothing(interval[2])]
+        lower = isempty(lowers) ? nothing : maximum(lowers)
+        upper = isempty(uppers) ? nothing : minimum(uppers)
+        references = _constraint_ref.(constraints)
+        indices = join((reference.index for reference in references), ", ")
+        if !isnothing(lower) && !isnothing(upper) && lower > upper
+            push!(report, Finding(
+                :inconsistent_reused_expression_sets;
+                severity = SeverityError,
+                domain = MathematicalIssue,
+                basis = MathematicalProof,
+                confidence = ConfidenceCertain,
+                observation = "Constraints $indices apply incompatible scalar sets to the same canonical expression.",
+                why_it_matters = "Their scalar-set intersection is empty, so no value of the shared expression can satisfy every constraint.",
+                evidence = [Evidence("Intersection of scalar sets on one canonical expression";
+                    details = ["effective_lower" => lower,
+                               "effective_upper" => upper,
+                               "constraint_count" => length(constraints)],
+                )],
+                suggested_actions = ["Correct the conflicting right-hand sides or remove the unintended repeated expression."],
+                affected = references,
+            ))
+        else
+            push!(report, Finding(
+                :reused_constraint_expression;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = "Constraints $indices reuse one canonical scalar expression with different scalar sets.",
+                why_it_matters = "This may be an intentional paired or layered bound, but it also makes equation reuse and set intersection explicit for presolve and degeneracy review.",
+                evidence = [Evidence("Shared canonical expression";
+                    details = ["constraint_count" => length(constraints),
+                               "effective_lower" => lower,
+                               "effective_upper" => upper],
+                )],
+                suggested_actions = ["Confirm that the shared expression and separate set semantics are intentional."],
+                affected = references,
+            ))
+            dominated = ConstraintRecord[]
+            for index in eachindex(constraints)
+                others = [intervals[other] for other in eachindex(intervals) if other != index]
+                other_lowers = Any[
+                    interval[1] for interval in others if !isnothing(interval[1])
+                ]
+                other_uppers = Any[
+                    interval[2] for interval in others if !isnothing(interval[2])
+                ]
+                other_interval = (
+                    isempty(other_lowers) ? nothing : maximum(other_lowers),
+                    isempty(other_uppers) ? nothing : minimum(other_uppers),
+                )
+                _interval_contains(intervals[index], other_interval) || continue
+                intervals[index] == other_interval && continue
+                push!(dominated, constraints[index])
+            end
+            if !isempty(dominated)
+                dominated_references = _constraint_ref.(dominated)
+                push!(report, Finding(
+                    :dominated_reused_expression_set;
+                    severity = SeverityInfo,
+                    domain = RepresentationalIssue,
+                    basis = MathematicalProof,
+                    confidence = ConfidenceCertain,
+                    observation = "$(length(dominated)) scalar set(s) on a reused canonical expression are implied by the remaining set intersection.",
+                    why_it_matters = "These sets do not further restrict the shared expression and may be stale, duplicated, or intentional provenance.",
+                    evidence = [Evidence("Repeated-expression set intersection";
+                        details = ["effective_lower" => lower,
+                                   "effective_upper" => upper,
+                                   "dominated_constraint_count" => length(dominated)],
+                    )],
+                    suggested_actions = ["Remove redundant sets when their separate provenance is not needed."],
+                    affected = dominated_references,
+                ))
+            end
+        end
+    end
+    return
+end
+
 function _unit_circle_radius_squared(function_value, set_value)
     function_value isa MOI.ScalarQuadraticFunction || return nothing
     set_value isa MOI.EqualTo || return nothing
@@ -548,8 +762,11 @@ function analyze_static(
     report.metadata[:constraint_count] = string(length(model.constraints))
 
     _analyze_bounds!(report, model)
+    _analyze_disjunctive_variable_domains!(report, model)
+    _analyze_discrete_variables!(report, model)
     _analyze_constant_constraints!(report, model)
     _analyze_duplicate_constraints!(report, model)
+    _analyze_reused_constraint_expressions!(report, model)
     _analyze_circular_normalization!(report, model)
     _analyze_disconnected_variables!(report, model, graph)
     sort!(

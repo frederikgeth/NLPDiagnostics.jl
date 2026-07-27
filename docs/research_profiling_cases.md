@@ -105,3 +105,10 @@ formulation, and solver layers.
    PowerModelsDistribution extension.
 5. Add component metadata and expected-nullspace assembly before attempting
    automatic physical classification.
+## Structural-stage timing
+
+`profile_case` separately records wall-clock observations for structural graph
+construction, maximum-cardinality matching, and Dulmage–Mendelsohn
+decomposition. As with all profile timings, these include Julia compilation and
+allocation effects unless callers warm up comparable cases; they are scaling
+evidence, not solver-performance measurements.

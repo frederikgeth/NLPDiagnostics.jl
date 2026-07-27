@@ -160,6 +160,37 @@ function _active_set_findings(
             ),
         )
     end
+    if mfcq.available && mfcq.failure_witness_found
+        push!(
+            findings,
+            Finding(
+                :mfcq_no_common_descent_witness;
+                severity = SeverityWarning,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "A nonnegative convex combination of the $(length(mfcq.inequality_rows)) selected active inequality gradients has equality-tangent residual $(mfcq.failure_witness_residual).",
+                why_it_matters = "This is numerical evidence against a common strict descent direction for the selected active rows. It can indicate MFCQ failure, but remains dependent on derivative accuracy, row selection, and the recorded tolerance.",
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence(
+                        "MFCQ no-common-descent witness";
+                        details = [
+                            "equality_rows" => join(mfcq.equality_rows, ","),
+                            "inequality_rows" => join(mfcq.inequality_rows, ","),
+                            "witness_weights" => join(mfcq.failure_witness_weights, ","),
+                            "witness_residual" => mfcq.failure_witness_residual,
+                        ],
+                    ),
+                ],
+                suggested_actions = [
+                    "Inspect opposing or dependent active inequality gradients and vary the documented activity tolerance.",
+                    "Repeat with exact derivatives or a solver-specific constraint qualification check before treating this as conclusive.",
+                ],
+                affected = affected,
+            ),
+        )
+    end
     if recovery.available && !recovery.unique
         push!(
             findings,
@@ -402,6 +433,10 @@ function analyze_active_set(
     report.metadata[:supported_coupled_set_count] = string(length(coupled_summary.activities))
     report.metadata[:mfcq_screen_available] = string(mfcq.available)
     report.metadata[:mfcq_common_descent_direction_found] = string(mfcq.direction_found)
+    report.metadata[:mfcq_no_common_descent_witness_found] =
+        string(mfcq.failure_witness_found)
+    report.metadata[:mfcq_no_common_descent_witness_residual] =
+        string(mfcq.failure_witness_residual)
     report.metadata[:multiplier_recovery_available] = string(recovery.available)
     report.metadata[:active_multiplier_unique] = string(recovery.unique)
     report.metadata[:active_multiplier_inequality_dual_violation] =

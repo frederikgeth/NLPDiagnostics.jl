@@ -556,6 +556,7 @@ function _rank_findings(
     scaled::JacobianRankEstimate;
     condition_threshold::Real,
     sparse_pattern::Union{Nothing,SparseJacobianPatternEstimate} = nothing,
+    sparse_qr::Union{Nothing,SparseQRRankEstimate} = nothing,
 )
     findings = Finding[]
     affected = vcat(
@@ -597,6 +598,32 @@ function _rank_findings(
                     affected = affected,
                 ),
             )
+        end
+        if !isnothing(sparse_qr) && sparse_qr.available &&
+           sparse_qr.rank < min(sparse_qr.rows, sparse_qr.columns)
+            push!(findings, Finding(
+                :sparse_qr_jacobian_rank_deficiency;
+                severity = SeverityWarning, domain = NumericalIssue,
+                basis = NumericalObservation, confidence = ConfidenceMedium,
+                observation = "Sparse QR estimates local Jacobian rank $(sparse_qr.rank), below maximum rank $(min(sparse_qr.rows, sparse_qr.columns)).",
+                why_it_matters = "This numerical pivot estimate complements the structural pattern bound but does not provide singular values or null vectors.",
+                evidence = [_point_evidence(evaluation.point), Evidence("Sparse QR diagonal pivots"; details = ["rank" => sparse_qr.rank, "threshold" => sparse_qr.absolute_threshold, "relative_tolerance" => sparse_qr.relative_tolerance, "pivot_count" => length(sparse_qr.diagonal_pivots)])],
+                suggested_actions = ["Inspect sparse-QR pivots and, where feasible, confirm with guarded dense SVD or iterative methods."],
+                affected = affected,
+            ))
+        end
+        if !isnothing(sparse_qr) && !isnothing(sparse_qr.condition_proxy) &&
+           sparse_qr.condition_proxy > condition_threshold
+            push!(findings, Finding(
+                :sparse_qr_pivot_scale_spread;
+                severity = SeverityWarning, domain = NumericalIssue,
+                basis = HeuristicInterpretation, confidence = ConfidenceMedium,
+                observation = "Sparse QR retained-pivot ratio $(sparse_qr.condition_proxy) exceeds threshold $condition_threshold.",
+                why_it_matters = "A large pivot spread may indicate scaling-sensitive linear algebra, but it is not a condition-number certificate.",
+                evidence = [_point_evidence(evaluation.point), Evidence("Sparse QR pivot proxy"; details = ["condition_proxy" => sparse_qr.condition_proxy, "threshold" => condition_threshold, "scaling" => sparse_qr.scaling])],
+                suggested_actions = ["Inspect row and column scaling and compare with dense-SVD conditioning where feasible."],
+                affected = affected,
+            ))
         end
         push!(
             findings,
@@ -745,12 +772,32 @@ function analyze_numerical(
         max_dense_entries = rank_max_dense_entries,
     )
     sparse_pattern = sparse_jacobian_pattern_estimate(evaluation)
+    sparse_qr = sparse_qr_rank_estimate(
+        evaluation;
+        relative_tolerance = rank_relative_tolerance,
+    )
+    scaled_sparse_qr = sparse_qr_rank_estimate(
+        evaluation;
+        relative_tolerance = rank_relative_tolerance,
+        scaling = :row_column,
+    )
     model_snapshot = snapshot(model)
     report = DiagnosticReport()
     append!(
         report.findings,
         _operating_point_domain_findings(model_snapshot, evaluation),
     )
+    if sparse_qr.available && scaled_sparse_qr.available &&
+       sparse_qr.rank != scaled_sparse_qr.rank
+        push!(report, Finding(:sparse_qr_rank_scaling_sensitivity;
+            severity = SeverityWarning, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceMedium,
+            observation = "Sparse QR estimates rank $(sparse_qr.rank) unscaled and $(scaled_sparse_qr.rank) after row-column normalization.",
+            why_it_matters = "The local rank conclusion is sensitive to scaling and pivot threshold semantics, so it should not be classified as a robust structural deficiency yet.",
+            evidence = [_point_evidence(point), Evidence("Sparse QR scaling comparison"; details = ["unscaled_rank" => sparse_qr.rank, "scaled_rank" => scaled_sparse_qr.rank, "relative_tolerance" => rank_relative_tolerance])],
+            suggested_actions = ["Inspect row and column scales and compare with dense-SVD results when feasible."],
+        ))
+    end
     append!(
         report.findings,
         _rank_findings(
@@ -758,7 +805,8 @@ function analyze_numerical(
             unscaled_rank,
             scaled_rank;
             condition_threshold = jacobian_condition_threshold,
-            sparse_pattern = sparse_pattern,
+        sparse_pattern = sparse_pattern,
+        sparse_qr = sparse_qr,
         ),
     )
     append!(report.findings, _nonfinite_value_findings(evaluation))
@@ -797,6 +845,11 @@ function analyze_numerical(
         string(sparse_pattern.available)
     report.metadata[:sparse_jacobian_pattern_rank_upper_bound] =
         string(sparse_pattern.rank_upper_bound)
+    report.metadata[:sparse_qr_rank_available] = string(sparse_qr.available)
+    report.metadata[:sparse_qr_rank] = string(sparse_qr.rank)
+    report.metadata[:sparse_qr_rank_scaling] = string(sparse_qr.scaling)
+    report.metadata[:sparse_qr_row_column_rank] = string(scaled_sparse_qr.rank)
+    report.metadata[:sparse_qr_condition_proxy] = string(sparse_qr.condition_proxy)
     report.metadata[:evaluation_sources] = join(
         unique(string(capability.source) for capability in evaluation.capabilities),
         ",",

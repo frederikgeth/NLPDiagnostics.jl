@@ -173,9 +173,10 @@ function solver_log_observations(log::AbstractString)
                occursin("overflow", normalized) ||
                occursin("underflow", normalized)
             :invalid_number
-        elseif occursin("infeasible", normalized)
+        elseif occursin("infeasib", normalized)
             :reported_infeasibility
         elseif occursin("maximum iterations", normalized) ||
+               occursin("maximum number of iterations", normalized) ||
                occursin("iteration limit", normalized) ||
                occursin("time limit", normalized) ||
                occursin("maximum cpu time", normalized) ||
@@ -423,6 +424,187 @@ function analyze_solver_iterations(
             evidence = evidence,
             suggested_actions = ["Inspect the surrounding solver log and compare scaling and domain evidence."],
         ))
+    end
+    return report
+end
+
+"""Bind caller-provided points to parsed iterations; logs never create points."""
+function bind_iteration_points(
+    records::AbstractVector{SolverIterationRecord},
+    points::AbstractDict{<:Integer,<:EvaluationPoint},
+)
+    bindings = IterationPointBinding[]
+    for record in records
+        haskey(points, record.iteration) || continue
+        push!(bindings, IterationPointBinding(record, points[record.iteration]))
+    end
+    return bindings
+end
+
+"""Run point-local numerical diagnostics at explicitly bound solver iterations."""
+function analyze_iteration_points(
+    model::MOI.ModelLike,
+    bindings::AbstractVector{<:IterationPointBinding};
+    cache::EvaluationCache = EvaluationCache(),
+    residual_agreement_factor::Real = 100,
+    objective_agreement_factor::Real = 100,
+    trace_trend_factor::Real = 10,
+    objective_trace_tolerance::Real = sqrt(eps(Float64)),
+    kwargs...,
+)
+    residual_agreement_factor > 1 || throw(
+        ArgumentError("residual_agreement_factor must be greater than one"),
+    )
+    objective_agreement_factor > 1 || throw(
+        ArgumentError("objective_agreement_factor must be greater than one"),
+    )
+    trace_trend_factor > 1 || throw(ArgumentError("trace_trend_factor must be greater than one"))
+    objective_trace_tolerance >= 0 ||
+        throw(ArgumentError("objective_trace_tolerance must be nonnegative"))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "iteration_points"
+    report.metadata[:bound_iteration_count] = string(length(bindings))
+    trace = Tuple{IterationPointBinding,Float64}[]
+    objective_trace = Tuple{IterationPointBinding,Float64}[]
+    for binding in bindings
+        point_report = analyze_numerical(model, binding.point; cache = cache, kwargs...)
+        append!(report.findings, point_report.findings)
+        evaluation = evaluate_numerical(model, binding.point; cache = cache)
+        feasibility = constraint_feasibility_summary(model, evaluation)
+        violations = [
+            activity.feasibility_violation for activity in feasibility.activities if
+            !isnothing(activity.feasibility_violation)
+        ]
+        scalar_violation = isempty(violations) ? 0.0 : Float64(maximum(violations))
+        coupled = coupled_set_feasibility_summary(
+            model,
+            evaluation,
+        )
+        coupled_violations = [
+            activity.feasibility_violation for activity in coupled.activities if
+            !isnothing(activity.feasibility_violation)
+        ]
+        coupled_violation = isempty(coupled_violations) ? 0.0 :
+                            Float64(maximum(coupled_violations))
+        recomputed_primal = max(scalar_violation, coupled_violation)
+        push!(trace, (binding, recomputed_primal))
+        logged_primal = binding.record.primal_infeasibility
+        smaller = min(logged_primal, recomputed_primal)
+        larger = max(logged_primal, recomputed_primal)
+        prefix = "iteration_$(binding.record.iteration)"
+        report.metadata[Symbol(prefix * "_log_line")] = string(binding.record.line)
+        report.metadata[Symbol(prefix * "_point_label")] = binding.point.label
+        report.metadata[Symbol(prefix * "_logged_primal_infeasibility")] = string(logged_primal)
+        report.metadata[Symbol(prefix * "_recomputed_total_violation")] = string(recomputed_primal)
+        report.metadata[Symbol(prefix * "_recomputed_scalar_violation")] = string(scalar_violation)
+        report.metadata[Symbol(prefix * "_recomputed_coupled_violation")] = string(coupled_violation)
+        recomputed_objective = evaluation.objective_value
+        objective_available = !isnothing(recomputed_objective) &&
+                              !ismissing(recomputed_objective)
+        report.metadata[Symbol(prefix * "_logged_objective")] =
+            string(binding.record.objective)
+        report.metadata[Symbol(prefix * "_recomputed_objective")] =
+            objective_available ? string(recomputed_objective) : "unavailable"
+        if larger > 0 && (smaller == 0 || larger / smaller > residual_agreement_factor)
+            push!(report, Finding(:solver_iteration_primal_residual_mismatch;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = NumericalObservation, confidence = ConfidenceMedium,
+                observation = "Iteration $(binding.record.iteration) records primal infeasibility $logged_primal, while generic scalar and coupled-set evaluation gives $recomputed_primal at supplied point \"$(binding.point.label)\".",
+                why_it_matters = "These quantities can use different scaling, constraint representations, or coupled-set semantics; the mismatch is evidence to inspect, not a solver-error claim.",
+                evidence = [Evidence("Bound iteration and recomputed feasibility";
+                    details = ["iteration" => binding.record.iteration, "log_line" => binding.record.line,
+                               "logged_primal_infeasibility" => logged_primal,
+                               "recomputed_scalar_violation" => recomputed_primal,
+                               "point_label" => binding.point.label],
+                )],
+                suggested_actions = ["Check solver scaling and coupled-set semantics before comparing residual magnitudes directly."],
+            ))
+        end
+        if objective_available
+            numeric_objective = Float64(recomputed_objective)
+            push!(objective_trace, (binding, numeric_objective))
+            smaller_objective = min(abs(binding.record.objective), abs(numeric_objective))
+            larger_objective = max(abs(binding.record.objective), abs(numeric_objective))
+            if larger_objective > 0 &&
+               (smaller_objective == 0 ||
+                larger_objective / smaller_objective > objective_agreement_factor)
+                push!(report, Finding(:solver_iteration_objective_mismatch;
+                    severity = SeverityInfo, domain = RepresentationalIssue,
+                    basis = NumericalObservation, confidence = ConfidenceMedium,
+                    observation = "Iteration $(binding.record.iteration) records objective $(binding.record.objective), while objective evaluation gives $numeric_objective at supplied point \"$(binding.point.label)\".",
+                    why_it_matters = "A log objective can include barrier terms, scaling, or a differently timed iterate. The mismatch is evidence to inspect, not a solver-error claim.",
+                    evidence = [Evidence("Bound iteration and recomputed objective";
+                        details = ["iteration" => binding.record.iteration,
+                                   "log_line" => binding.record.line,
+                                   "logged_objective" => binding.record.objective,
+                                   "recomputed_objective" => numeric_objective,
+                                   "agreement_factor" => objective_agreement_factor,
+                                   "point_label" => binding.point.label],
+                    )],
+                    suggested_actions = ["Check objective scaling, barrier or penalty reporting, and point-to-iteration alignment before comparing objective values directly."],
+                ))
+            end
+        end
+    end
+    sort!(trace; by = item -> item[1].record.iteration)
+    sort!(objective_trace; by = item -> item[1].record.iteration)
+    if length(trace) >= 2
+        first_binding, first_recomputed = first(trace)
+        final_binding, final_recomputed = last(trace)
+        first_logged = first_binding.record.primal_infeasibility
+        final_logged = final_binding.record.primal_infeasibility
+        log_improved = final_logged * trace_trend_factor < first_logged
+        recomputed_worsened = final_recomputed >
+                              max(first_recomputed * trace_trend_factor, 0.0)
+        if log_improved && recomputed_worsened
+            push!(report, Finding(:solver_iteration_trace_feasibility_disagreement;
+                severity = SeverityWarning, domain = RepresentationalIssue,
+                basis = HeuristicInterpretation, confidence = ConfidenceMedium,
+                observation = "Logged primal infeasibility decreases from $first_logged to $final_logged, while recomputed feasibility increases from $first_recomputed to $final_recomputed across bound iterations.",
+                why_it_matters = "The supplied points and solver log may use different scaling, timing, or feasibility semantics; this trend disagreement needs inspection rather than attribution.",
+                evidence = [Evidence("Bound iteration trace endpoints";
+                    details = ["first_iteration" => first_binding.record.iteration,
+                               "final_iteration" => final_binding.record.iteration,
+                               "first_logged_primal" => first_logged,
+                               "final_logged_primal" => final_logged,
+                               "first_recomputed_violation" => first_recomputed,
+                               "final_recomputed_violation" => final_recomputed],
+                )],
+                suggested_actions = ["Verify point-to-iteration alignment and compare solver scaling with the model's constraint semantics."],
+            ))
+        end
+    end
+    if length(objective_trace) >= 2
+        sense = MOI.get(model, MOI.ObjectiveSense())
+        if sense != MOI.FEASIBILITY_SENSE
+            first_binding, first_objective = first(objective_trace)
+            final_binding, final_objective = last(objective_trace)
+            orientation = sense == MOI.MAX_SENSE ? 1.0 : -1.0
+            logged_progress = orientation * (
+                final_binding.record.objective - first_binding.record.objective
+            )
+            recomputed_progress = orientation * (final_objective - first_objective)
+            if logged_progress > objective_trace_tolerance &&
+               recomputed_progress < -objective_trace_tolerance
+                push!(report, Finding(:solver_iteration_trace_objective_disagreement;
+                    severity = SeverityWarning, domain = RepresentationalIssue,
+                    basis = HeuristicInterpretation, confidence = ConfidenceMedium,
+                    observation = "Logged objective moves in the $(sense == MOI.MAX_SENSE ? "maximizing" : "minimizing") direction from $(first_binding.record.objective) to $(final_binding.record.objective), while the recomputed model objective moves oppositely from $first_objective to $final_objective across bound iterations.",
+                    why_it_matters = "The log may report a scaled, barrier, penalty, or differently timed objective. This trace disagreement needs alignment inspection rather than solver attribution.",
+                    evidence = [Evidence("Bound iteration objective trace endpoints";
+                        details = ["objective_sense" => sense,
+                                   "first_iteration" => first_binding.record.iteration,
+                                   "final_iteration" => final_binding.record.iteration,
+                                   "first_logged_objective" => first_binding.record.objective,
+                                   "final_logged_objective" => final_binding.record.objective,
+                                   "first_recomputed_objective" => first_objective,
+                                   "final_recomputed_objective" => final_objective,
+                                   "objective_trace_tolerance" => objective_trace_tolerance],
+                    )],
+                    suggested_actions = ["Verify objective reporting semantics and iteration-point alignment before comparing objective trends."],
+                ))
+            end
+        end
     end
     return report
 end

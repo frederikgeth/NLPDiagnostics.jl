@@ -10,7 +10,8 @@ evaluation layers can expose its supporting evidence.
 - Evidence-first findings with independent severity, issue domain, evidence
   basis, and confidence.
 - Static checks for bounds, fixed variables, constant constraints, constant
-  domain failures, exact duplicate constraints, and disconnected variables.
+  domain failures, exact duplicate constraints, repeated-expression scalar-set
+  intersections, and disconnected variables.
 - Reusable variable-support extraction for scalar and vector MOI functions.
 - Variable–constraint bipartite graph with scalar rows for coordinate-wise
   product sets and block vertices for coupled vector sets.
@@ -72,20 +73,28 @@ evaluation layers can expose its supporting evidence.
 - Separately labeled active-set matching after numerical evaluation, restricted
   to aligned ordinary scalar rows and with unmapped rows kept explicit.
 - Replace simple fixed-variable classification with a richer variable-domain
-  intersection abstraction for non-`Float64` coefficient types.
+  intersection abstraction for non-`Float64` coefficient types (implemented
+  for supported scalar variable-bound sets, including source provenance and
+  explicit invalid-domain handling).
 - Benchmark the prototype matching and strongly connected-component
   algorithms on large sparse models before treating them as production-scale
   implementations.
 
 ## Next: numerical rank and derivative refinement
 
-- Sparse nonzero-pattern rank upper bounds alongside guarded dense SVD;
-  iterative sparse numerical-rank, conditioning, and nullspace estimates.
+- Sparse nonzero-pattern rank upper bounds and sparse-QR diagonal-pivot rank
+  estimates alongside guarded dense SVD, plus explicit iterative sparse
+  candidate right-null-direction and block-subspace probes, plus an explicit
+  heuristic spectral-spread probe. Production-scale sparse-conditioning
+  estimates and independently certified nullity remain future work.
 - Generic SOC and rotated-SOC feasibility/boundary evidence; general coupled-
   set and plugin-supplied active-set semantics.
 - Full MFCQ failure certificates; the generic core now has local recovered-
-  multiplier sign and complementarity screens.
-- Large-model profiling aggregates beyond timing and diagnostic-code stability.
+  multiplier sign/complementarity screens and a numerical no-common-descent
+  witness for explicitly selected scalar active rows.
+- Large-model profiling aggregates beyond timing and diagnostic-code stability
+  (implemented for availability-aware numerical rank and sparse-pivot metrics;
+  broader memory and allocation aggregation remains future work).
 
 ## Degeneracy framework
 
@@ -95,7 +104,8 @@ classifications include structurally expected local nullspaces and unexpected
 local rank loss, candidate common-coordinate shifts, and candidate two-row
 equation dependencies. Next classifications:
 
-- expected coordinate gauge declarations and observed-nullspace comparison;
+- expected coordinate gauge declarations and observed-nullspace comparison
+  (implemented, including declared-span dimension checks);
 - dependent active constraints;
 - flat reduced-Hessian direction (available through active-set second-order
   probing); and
@@ -126,5 +136,13 @@ It retains matching line text and numbers but does not parse solver iteration
 tables or make status text into a mathematical certificate. Structured Ipopt
 and MadNLP iteration-row parsing is now implemented for complete rows under
 recognized headers; final residual and residual-regression findings remain
-trace observations rather than KKT certificates. The next refinement is to
-correlate parsed rows with explicitly supplied evaluation points.
+trace observations rather than KKT certificates. Parsed rows can be
+correlated with explicitly supplied evaluation points.
+
+Explicit iteration-point bindings are implemented. They run generic numerical
+analysis at caller-supplied points and compare logged primal infeasibility with
+recomputed scalar-bound and coupled-set violation, retaining all three values
+as metadata; they also compare the logged and recomputed model objectives when
+available. Trace-level feasibility and objective disagreement across multiple
+bound points is reported conservatively. Future work is solver-specific iterate
+capture rather than reconstructing points from raw text.

@@ -35,6 +35,19 @@ function profile_case(
     timings = Dict{Symbol,Float64}()
 
     start = time_ns()
+    structural_snapshot = snapshot(model)
+    structural_graph = incidence_graph(structural_snapshot)
+    timings[:structural_graph] = _profile_elapsed_seconds(start)
+
+    start = time_ns()
+    structural_matching = maximum_matching(structural_graph)
+    timings[:structural_matching] = _profile_elapsed_seconds(start)
+
+    start = time_ns()
+    dulmage_mendelsohn(structural_graph; matching = structural_matching)
+    timings[:structural_dm] = _profile_elapsed_seconds(start)
+
+    start = time_ns()
     evaluation = evaluate_numerical(
         model,
         case.point;
@@ -132,6 +145,46 @@ function _profile_finding_stability(runs::Vector{<:ProfileResult})
     )
 end
 
+function _profile_numerical_summary(runs::Vector{<:ProfileResult})
+    metrics = (
+        :jacobian_rank => :jacobian_rank_available,
+        :sparse_qr_rank => :sparse_qr_rank_available,
+        :sparse_qr_condition_proxy => nothing,
+    )
+    summaries = ProfileNumericalSummary[]
+    for (metric, availability_key) in metrics
+        values = Float64[]
+        for run in runs
+            metadata = run.numerical_report.metadata
+            haskey(metadata, metric) || continue
+            if !isnothing(availability_key) &&
+               get(metadata, availability_key, "false") != "true"
+                continue
+            end
+            value = tryparse(Float64, metadata[metric])
+            isnothing(value) || !isfinite(value) || push!(values, value)
+        end
+        if isempty(values)
+            push!(summaries, ProfileNumericalSummary(
+                metric, length(runs), 0, nothing, nothing, nothing, nothing,
+            ))
+            continue
+        end
+        mean_value = sum(values) / length(values)
+        deviation = sqrt(sum((value - mean_value)^2 for value in values) / length(values))
+        push!(summaries, ProfileNumericalSummary(
+            metric,
+            length(runs),
+            length(values),
+            minimum(values),
+            mean_value,
+            maximum(values),
+            deviation,
+        ))
+    end
+    return summaries
+end
+
 """
     profile_case_repeated(model, case; repetitions = 3, warmup = true, ...)
 
@@ -165,5 +218,6 @@ function profile_case_repeated(
         warmup,
         timing,
         _profile_finding_stability(runs),
+        _profile_numerical_summary(runs),
     )
 end

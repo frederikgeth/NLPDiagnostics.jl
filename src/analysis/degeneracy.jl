@@ -587,6 +587,107 @@ function _expected_nullspace_mode_findings(
     return findings
 end
 
+"""Compare the declared expected-mode span with the observed right nullspace."""
+function _expected_nullspace_span_findings(
+    comparison::StructuralNumericalComparison{T},
+    modes::AbstractVector{<:ExpectedNullspaceMode};
+    residual_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    comparison.available || return Finding[]
+    isempty(modes) && return Finding[]
+    tolerance = convert(T, residual_tolerance)
+    tolerance >= zero(T) ||
+        throw(ArgumentError("residual_tolerance must be nonnegative"))
+    estimate = something(comparison.estimate)
+    point_columns = Dict(
+        variable => column for
+        (column, variable) in enumerate(comparison.point.variables)
+    )
+    local_columns = Dict(
+        column => local_position for
+        (local_position, column) in enumerate(comparison.free_variable_columns)
+    )
+    directions = Vector{Vector{T}}()
+    names = Symbol[]
+    for mode in modes
+        direction = zeros(T, length(comparison.free_variable_columns))
+        aligned = true
+        for (variable, coefficient) in zip(mode.variables, mode.direction)
+            column = get(point_columns, variable, 0)
+            local_column = get(local_columns, column, 0)
+            if iszero(local_column)
+                aligned = false
+                break
+            end
+            direction[local_column] += convert(T, coefficient)
+        end
+        aligned && !iszero(norm(direction)) || continue
+        push!(directions, direction / norm(direction))
+        push!(names, mode.name)
+    end
+    isempty(directions) && return Finding[]
+    declared = hcat(directions...)
+    decomposition = svd(declared; full = false)
+    threshold = isempty(decomposition.S) ? zero(T) :
+                max(tolerance, eps(T) * max(size(declared)...)) *
+                maximum(decomposition.S)
+    declared_rank = count(value -> value > threshold, decomposition.S)
+    declared_basis = declared_rank == 0 ? zeros(T, size(declared, 1), 0) :
+                     decomposition.U[:, 1:declared_rank]
+    observed_basis = estimate.right_nullspace
+    projection_residual = size(observed_basis, 2) == 0 ? one(T) :
+                          norm(declared - observed_basis *
+                               (transpose(observed_basis) * declared)) / norm(declared)
+    findings = Finding[]
+    if declared_rank < length(names)
+        push!(findings, Finding(
+            :expected_nullspace_mode_declarations_dependent;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "$(length(names)) aligned expected-nullspace declarations span only $declared_rank independent direction(s).",
+            why_it_matters = "Duplicate or linearly dependent declarations obscure the expected gauge dimension and can make expected-versus-observed comparisons misleading.",
+            evidence = [Evidence("Expected-nullspace declaration span"; details = [
+                "aligned_modes" => join(string.(names), ","),
+                "aligned_mode_count" => length(names),
+                "declared_span_rank" => declared_rank,
+                "rank_threshold" => threshold,
+            ])],
+            suggested_actions = [
+                "Keep one independent declaration per expected gauge direction.",
+            ],
+        ))
+    end
+    if projection_residual <= tolerance &&
+       estimate.right_nullity > declared_rank
+        push!(findings, Finding(
+            :undeclared_observed_nullspace_directions;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = "The observed local right nullspace has $(estimate.right_nullity) direction(s), while aligned expected declarations account for $declared_rank independent direction(s).",
+            why_it_matters = "At least $(estimate.right_nullity - declared_rank) observed direction(s) remain semantically undeclared. They may be additional gauges, formulation freedom, or local numerical degeneracy.",
+            evidence = [
+                _point_evidence(comparison.point),
+                Evidence("Expected versus observed nullspace span"; details = [
+                    "aligned_modes" => join(string.(names), ","),
+                    "declared_span_rank" => declared_rank,
+                    "observed_right_nullity" => estimate.right_nullity,
+                    "declared_span_projection_residual" => projection_residual,
+                    "tolerance" => tolerance,
+                ]),
+            ],
+            suggested_actions = [
+                "Inspect the remaining observed nullspace vectors before declaring them expected or physical.",
+                "Add an independent expected-mode declaration only when model or domain semantics justifies it.",
+            ],
+        ))
+    end
+    return findings
+end
+
 """
     analyze_degeneracy(model, evaluation; ...)
 
@@ -611,6 +712,14 @@ function analyze_degeneracy(
     append!(
         report.findings,
         _expected_nullspace_mode_findings(
+            comparison,
+            expected_modes;
+            residual_tolerance = expected_mode_residual_tolerance,
+        ),
+    )
+    append!(
+        report.findings,
+        _expected_nullspace_span_findings(
             comparison,
             expected_modes;
             residual_tolerance = expected_mode_residual_tolerance,

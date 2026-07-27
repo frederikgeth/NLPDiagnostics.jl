@@ -159,6 +159,57 @@ struct SparseJacobianPatternEstimate{T<:AbstractFloat}
     unmatched_columns::Vector{Int}
 end
 
+"""Sparse-QR diagonal-pivot local rank estimate without a dense SVD."""
+struct SparseQRRankEstimate{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    scaling::Symbol
+    rows::Int
+    columns::Int
+    rank::Int
+    diagonal_pivots::Vector{T}
+    relative_tolerance::T
+    absolute_threshold::T
+    condition_proxy::Union{Nothing,T}
+end
+
+"""Iterative sparse-matvec probe for one candidate right-null direction."""
+struct IterativeNullspaceEstimate{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    iterations::Int
+    converged::Bool
+    direction::Vector{T}
+    residual_norm::Union{Nothing,T}
+end
+
+"""Iterative sparse-matvec probe for a candidate right-null subspace."""
+struct IterativeNullspaceSubspaceEstimate{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    requested_dimension::Int
+    iterations::Int
+    converged::Bool
+    directions::Matrix{T}
+    residual_norms::Vector{T}
+    subspace_change::Union{Nothing,T}
+end
+
+"""Sparse-matvec spectral-scale and small-direction residual probe."""
+struct IterativeJacobianSpectrumEstimate{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    iterations::Int
+    largest_singular_value_proxy::Union{Nothing,T}
+    candidate_small_singular_values::Vector{T}
+    spectral_spread_proxies::Vector{T}
+    candidate_subspace_converged::Bool
+end
+
 """
 One raw Hessian-of-the-Lagrangian entry.
 
@@ -263,8 +314,11 @@ end
 """
 Result of a deliberately conservative Mangasarian--Fromovitz screen.
 
-`direction_found` is a sufficient numerical certificate only. A false value is
-inconclusive and is never reported as MFCQ failure.
+`direction_found` is a sufficient numerical certificate. A
+`failure_witness_found` result is a separate numerical Farkas-style witness:
+a nonnegative convex combination of selected active inequality gradients is
+nearly zero in the equality tangent space. Neither result is an exact
+mathematical certificate outside the recorded derivative and tolerance model.
 """
 struct MFCQScreen{T<:AbstractFloat}
     available::Bool
@@ -274,6 +328,9 @@ struct MFCQScreen{T<:AbstractFloat}
     direction_found::Bool
     direction::Vector{T}
     largest_active_inequality_directional_derivative::Union{Nothing,T}
+    failure_witness_found::Bool
+    failure_witness_weights::Vector{T}
+    failure_witness_residual::Union{Nothing,T}
 end
 
 """
@@ -503,6 +560,23 @@ struct ProfileFindingStability
 end
 
 """
+Observed numerical metric across retained repeated profile runs.
+
+Only runs that expose a finite value contribute to the descriptive statistics.
+`available_count` is retained separately so an unavailable dense rank or
+condition estimate cannot be mistaken for a zero-valued observation.
+"""
+struct ProfileNumericalSummary
+    metric::Symbol
+    run_count::Int
+    available_count::Int
+    minimum::Union{Nothing,Float64}
+    mean::Union{Nothing,Float64}
+    maximum::Union{Nothing,Float64}
+    standard_deviation::Union{Nothing,Float64}
+end
+
+"""
 Normalized evidence captured from a completed solver run.
 
 Solver extensions translate their native status and residual information into
@@ -550,6 +624,12 @@ struct SolverIterationRecord
     text::String
 end
 
+"""A caller-supplied numerical point explicitly associated with one log row."""
+struct IterationPointBinding{T<:AbstractFloat}
+    record::SolverIterationRecord
+    point::EvaluationPoint{T}
+end
+
 function SolverPostmortem(
     solver::AbstractString,
     termination::Symbol;
@@ -578,7 +658,8 @@ function SolverPostmortem(
 end
 
 """
-Repeated independent `ProfileCase` measurements and per-stage timing summaries.
+Repeated independent `ProfileCase` measurements with timing, finding-stability,
+and finite numerical-observation summaries.
 """
 struct ProfileAggregate{T<:AbstractFloat}
     case::ProfileCase{T}
@@ -586,6 +667,7 @@ struct ProfileAggregate{T<:AbstractFloat}
     warmup_performed::Bool
     stage_timing::Dict{Symbol,ProfileTimingSummary}
     finding_stability::Vector{ProfileFindingStability}
+    numerical_summary::Vector{ProfileNumericalSummary}
 end
 
 """
