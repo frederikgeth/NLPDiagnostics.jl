@@ -315,12 +315,20 @@ only the raw `Restoration Failed` status records unsuccessful restoration.
 ## Raw solver-log evidence
 
 `solver_log_observations(log)` retains the original line number and text for a
-small set of explicit generic markers: restoration failure, invalid-number
+small set of explicit generic markers: restoration-phase entry, restoration
+failure, invalid-number
 text, infeasibility text, termination limits, and selected numerical-failure
 phrases. `analyze_solver_log(solver, log)` groups these lines into findings.
+Explicit overflow and underflow text are retained as separate floating-point
+range markers, not collapsed into a generic invalid-number diagnosis.
+Explicit singular-matrix or rank-deficiency text is likewise retained as a
+local linear-system observation, with follow-up directed to Jacobian and
+active-set rank diagnostics rather than a global singularity claim.
 It does not parse iteration tables, reconstruct residuals, or treat log text as
 a proof of infeasibility or optimality. Future solver extensions can add
 structured log parsers while preserving these raw, inspectable evidence lines.
+Restoration entry and restoration failure remain separate observations: an
+attempt is never upgraded to a failure or an infeasibility certificate.
 
 ## Structured iteration-log evidence
 
@@ -335,9 +343,18 @@ count; it returns no summary for an empty trace.
 the printed iteration number decreases. The final-residual regression heuristic
 uses only the final segment, avoiding comparisons against an earlier logged
 solve; a segment boundary is not attributed to a specific solver event.
-`analyze_solver_iterations(solver, log)` reports a final recorded residual and
-an optional residual-regression heuristic. These are log-column observations,
-not independently recomputed KKT residuals or convergence certificates.
+`analyze_solver_iterations(solver, log)` reports a final recorded residual,
+an optional residual-regression heuristic, and an optional final-segment tail
+stagnation heuristic. The latter requires at least three final-segment rows
+that remain above the supplied tolerance and improve by less than its explicit
+factor threshold. These are log-column observations, not independently
+recomputed KKT residuals or convergence certificates.
+When the same final window stays above tolerance and every parsed primal-step
+column is below `small_primal_step_threshold`, it separately reports a stalled-
+step heuristic. This does not assign a line-search or restoration cause to the
+trace.
+Rows with a solver-specific iteration suffix are also surfaced as annotation
+evidence. Their meaning is intentionally not generalized across solvers.
 
 ## Bound iteration points
 

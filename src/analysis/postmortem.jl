@@ -155,10 +155,10 @@ end
     solver_log_observations(log)
 
 Extract deliberately conservative line-level markers from raw solver log text.
-The generic scanner recognizes only explicit restoration failures, reported
-infeasibility, termination limits, invalid-number markers, and a small set of
-numerical-failure phrases. Solver extensions may later add richer structured
-parsers without changing this raw-evidence boundary.
+The generic scanner recognizes explicit restoration attempts and failures,
+reported infeasibility, termination limits, invalid-number markers, and a
+small set of numerical-failure phrases. Solver extensions may later add richer
+structured parsers without changing this raw-evidence boundary.
 """
 function solver_log_observations(log::AbstractString)
     observations = SolverLogObservation[]
@@ -167,11 +167,16 @@ function solver_log_observations(log::AbstractString)
         isempty(normalized) && continue
         category = if occursin("restoration failed", normalized)
             :restoration_failed
+        elseif occursin("restoration phase", normalized) ||
+               occursin("restoration is called", normalized)
+            :restoration_attempted
+        elseif occursin("overflow", normalized)
+            :overflow_marker
+        elseif occursin("underflow", normalized)
+            :underflow_marker
         elseif occursin("invalid number", normalized) ||
                occursin("nan", normalized) ||
-               occursin("not a number", normalized) ||
-               occursin("overflow", normalized) ||
-               occursin("underflow", normalized)
+               occursin("not a number", normalized)
             :invalid_number
         elseif occursin("infeasib", normalized)
             :reported_infeasibility
@@ -182,6 +187,10 @@ function solver_log_observations(log::AbstractString)
                occursin("maximum cpu time", normalized) ||
                occursin("maximum wall", normalized)
             :termination_limit
+        elseif occursin("singular matrix", normalized) ||
+               occursin("singular jacobian", normalized) ||
+               occursin("rank deficient", normalized)
+            :linear_system_singularity
         elseif occursin("error in step", normalized) ||
                occursin("factorization failed", normalized) ||
                occursin("singular matrix", normalized) ||
@@ -264,6 +273,21 @@ function analyze_solver_log(
                 evidence = evidence,
                 suggested_actions = ["Inspect the final point and run elastic feasibility diagnostics."],
             ))
+        elseif category == :restoration_attempted
+            push!(report, Finding(
+                :solver_log_restoration_attempted;
+                severity = SeverityInfo,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "$(solver) log contains $count_text reporting a restoration-phase attempt.",
+                why_it_matters = "Restoration entry is a local solver event. It can motivate feasibility and domain checks, but does not by itself establish infeasibility or restoration failure.",
+                evidence = evidence,
+                suggested_actions = [
+                    "Inspect nearby residual and step-trace evidence.",
+                    "Compare the associated point with elastic feasibility and expression-domain diagnostics when available.",
+                ],
+            ))
         elseif category == :reported_infeasibility
             push!(report, Finding(
                 :solver_log_reported_infeasibility;
@@ -299,6 +323,51 @@ function analyze_solver_log(
                 why_it_matters = "The logged text may reflect a value or derivative domain failure, overflow, or another evaluation instability.",
                 evidence = evidence,
                 suggested_actions = ["Evaluate expression and derivative-domain diagnostics at the implicated iterate."],
+            ))
+        elseif category == :overflow_marker
+            push!(report, Finding(
+                :solver_log_overflow_marker;
+                severity = SeverityWarning,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "$(solver) log contains $count_text mentioning overflow.",
+                why_it_matters = "The text records a floating-point range event, but does not identify the expression, precision, or scaling convention responsible.",
+                evidence = evidence,
+                suggested_actions = [
+                    "Inspect exponential and power fingerprints at captured iterates.",
+                    "Compare variable units, scaling, and numeric precision before attributing the event to a formulation error.",
+                ],
+            ))
+        elseif category == :underflow_marker
+            push!(report, Finding(
+                :solver_log_underflow_marker;
+                severity = SeverityInfo,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "$(solver) log contains $count_text mentioning underflow.",
+                why_it_matters = "Underflow can erase small values or derivative contributions, but the generic log text does not establish whether this changed the solver's mathematical conclusion.",
+                evidence = evidence,
+                suggested_actions = [
+                    "Inspect small-scale expression fingerprints and derivative magnitudes at captured iterates.",
+                    "Review scaling and tolerance semantics before treating small terms as negligible.",
+                ],
+            ))
+        elseif category == :linear_system_singularity
+            push!(report, Finding(
+                :solver_log_linear_system_singularity;
+                severity = SeverityWarning,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "$(solver) log contains $count_text reporting a singular or rank-deficient linear system.",
+                why_it_matters = "This records a solver linear-algebra event at a local state; it does not prove that the model Jacobian is globally or structurally singular.",
+                evidence = evidence,
+                suggested_actions = [
+                    "Compare local Jacobian rank, nullspace, and active-set diagnostics at an explicitly captured point.",
+                    "Inspect scaling-sensitive rank evidence before classifying the event as mathematical degeneracy.",
+                ],
             ))
         elseif category == :numerical_failure
             push!(report, Finding(
@@ -435,19 +504,31 @@ function solver_iteration_summary(records::AbstractVector{SolverIterationRecord}
 end
 
 """
-    analyze_solver_iterations(solver, log; residual_tolerance = 1e-6)
+    analyze_solver_iterations(solver, log; residual_tolerance = 1e-6,
+                              stagnation_window = 5,
+                              stagnation_improvement_factor = 2)
 
 Report parsed iteration-trace evidence without asserting that log columns are
 identical across solvers. A final recorded residual above tolerance is a log
-observation only; an increasing final residual is a heuristic trace warning.
+observation only; increasing and tail-stagnation residual patterns are
+heuristic trace warnings.
 """
 function analyze_solver_iterations(
     solver::AbstractString,
     log::AbstractString;
     residual_tolerance::Real = 1e-6,
+    stagnation_window::Integer = 5,
+    stagnation_improvement_factor::Real = 2,
+    small_primal_step_threshold::Real = 1e-8,
 )
     tolerance = Float64(residual_tolerance)
     tolerance >= 0 || throw(ArgumentError("residual_tolerance must be nonnegative"))
+    stagnation_window >= 3 ||
+        throw(ArgumentError("stagnation_window must be at least three"))
+    stagnation_improvement_factor > 1 ||
+        throw(ArgumentError("stagnation_improvement_factor must exceed one"))
+    small_primal_step_threshold >= 0 ||
+        throw(ArgumentError("small_primal_step_threshold must be nonnegative"))
     records = solver_iteration_records(log)
     report = DiagnosticReport()
     report.metadata[:stage] = "solver_iterations"
@@ -464,6 +545,11 @@ function analyze_solver_iterations(
         string(summary.minimum_dual_infeasibility)
     report.metadata[:annotated_iteration_row_count] = string(summary.annotated_row_count)
     report.metadata[:iteration_segment_count] = string(summary.segment_count)
+    report.metadata[:stagnation_window] = string(stagnation_window)
+    report.metadata[:stagnation_improvement_factor] =
+        string(stagnation_improvement_factor)
+    report.metadata[:small_primal_step_threshold] =
+        string(small_primal_step_threshold)
     final = last(records)
     final_segment = last(solver_iteration_segments(records))
     final_segment_records = records[
@@ -473,6 +559,12 @@ function analyze_solver_iterations(
         max(record.primal_infeasibility, record.dual_infeasibility) for
         record in final_segment_records
     ]
+    final_segment_annotated = count(
+        record -> record.phase == :annotated,
+        final_segment_records,
+    )
+    report.metadata[:final_segment_annotated_iteration_row_count] =
+        string(final_segment_annotated)
     evidence = [Evidence(
         "Solver iteration log line $(final.line)";
         details = ["solver" => solver, "format" => final.format, "iteration" => final.iteration,
@@ -490,6 +582,23 @@ function analyze_solver_iterations(
             suggested_actions = ["Compare the final point with numerical and active-set diagnostics."],
         ))
     end
+    if final_segment_annotated > 0
+        push!(report, Finding(:solver_iteration_annotated_rows;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The final parsed $(solver) trace segment contains $final_segment_annotated row(s) with a solver-specific iteration suffix annotation.",
+            why_it_matters = "The parser preserves the annotation as trace evidence, but does not assign it a generic restoration, regularization, or failure meaning.",
+            evidence = vcat(evidence, [Evidence("Final trace-segment suffix annotations"; details = [
+                "annotated_row_count" => final_segment_annotated,
+                "final_segment_row_count" => length(final_segment_records),
+                "phases" => join(string.(unique(record.phase for record in final_segment_records)), ","),
+            ])]),
+            suggested_actions = [
+                "Inspect the solver's documentation and surrounding raw log lines for the suffix meaning.",
+                "Correlate the annotated rows with explicit captured points before interpreting their numerical state.",
+            ],
+        ))
+    end
     if length(records) >= 3 && residuals[end] > tolerance && residuals[end] > 10 * minimum(residuals)
         push!(report, Finding(:solver_iteration_residual_regression;
             severity = SeverityWarning, domain = NumericalIssue,
@@ -498,6 +607,51 @@ function analyze_solver_iterations(
             why_it_matters = "This may indicate late-iteration instability or a phase change, but the generic parser cannot establish its cause.",
             evidence = evidence,
             suggested_actions = ["Inspect the surrounding solver log and compare scaling and domain evidence."],
+        ))
+    end
+    window_start = max(1, length(residuals) - stagnation_window + 1)
+    tail_residuals = @view residuals[window_start:end]
+    if length(tail_residuals) >= 3 && minimum(tail_residuals) > tolerance &&
+       tail_residuals[1] / minimum(tail_residuals) < stagnation_improvement_factor
+        push!(report, Finding(:solver_iteration_residual_stagnation;
+            severity = SeverityWarning, domain = NumericalIssue,
+            basis = HeuristicInterpretation, confidence = ConfidenceMedium,
+            observation = "The final parsed $(solver) trace segment shows less than a factor of $(stagnation_improvement_factor) residual improvement across its final $(length(tail_residuals)) rows, all above tolerance $tolerance.",
+            why_it_matters = "This is a log-local progress heuristic, not a statement about convergence, feasibility, or the reason progress slowed.",
+            evidence = vcat(evidence, [Evidence("Final trace-segment residual window"; details = [
+                "window_row_count" => length(tail_residuals),
+                "window_first_residual" => first(tail_residuals),
+                "window_minimum_residual" => minimum(tail_residuals),
+                "window_final_residual" => last(tail_residuals),
+                "improvement_factor_threshold" => stagnation_improvement_factor,
+                "residual_tolerance" => tolerance,
+            ])]),
+            suggested_actions = [
+                "Compare the same rows with scaling, derivative-domain, and active-set diagnostics.",
+                "Inspect solver-specific step acceptance and restoration text before assigning a cause.",
+            ],
+        ))
+    end
+    tail_steps = [record.primal_step for record in
+                  final_segment_records[window_start:end]]
+    if length(tail_steps) >= 3 && minimum(tail_residuals) > tolerance &&
+       all(step -> step <= small_primal_step_threshold, tail_steps)
+        push!(report, Finding(:solver_iteration_small_primal_steps;
+            severity = SeverityWarning, domain = NumericalIssue,
+            basis = HeuristicInterpretation, confidence = ConfidenceMedium,
+            observation = "The final parsed $(solver) trace segment has $(length(tail_steps)) consecutive logged primal steps at or below $small_primal_step_threshold while its residual remains above tolerance $tolerance.",
+            why_it_matters = "Repeated small accepted primal steps with unresolved printed residuals can indicate a stalled search, but log column semantics and solver phases remain solver-specific.",
+            evidence = vcat(evidence, [Evidence("Final trace-segment primal-step window"; details = [
+                "window_row_count" => length(tail_steps),
+                "maximum_primal_step" => maximum(tail_steps),
+                "minimum_residual" => minimum(tail_residuals),
+                "small_primal_step_threshold" => small_primal_step_threshold,
+                "residual_tolerance" => tolerance,
+            ])]),
+            suggested_actions = [
+                "Inspect line-search, restoration, and regularization messages around these rows.",
+                "Compare domain margins, derivative magnitudes, and scaling at explicitly captured iterates.",
+            ],
         ))
     end
     return report

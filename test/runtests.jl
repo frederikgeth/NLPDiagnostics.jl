@@ -6726,15 +6726,23 @@ end
     @testset "raw solver log evidence" begin
         log = """
         iter 0
+        Restoration Phase is called at point 0
         Restoration Failed
         Invalid number in NLP Jacobian detected.
+        Floating point overflow occurred.
+        Floating point underflow occurred.
+        Singular matrix encountered.
         Converged to a point of local infeasibility.
         Maximum Number of Iterations Exceeded.
         """
         observations = NLPDiagnostics.solver_log_observations(log)
         @test [observation.category for observation in observations] == [
+            :restoration_attempted,
             :restoration_failed,
             :invalid_number,
+            :overflow_marker,
+            :underflow_marker,
+            :linear_system_singularity,
             :reported_infeasibility,
             :termination_limit,
         ]
@@ -6744,10 +6752,15 @@ end
             max_evidence_lines = 1,
         )
         @test length(findings(report, :solver_log_restoration_failure)) == 1
+        @test length(findings(report, :solver_log_restoration_attempted)) == 1
         @test length(findings(report, :solver_log_invalid_number)) == 1
+        @test length(findings(report, :solver_log_overflow_marker)) == 1
+        @test length(findings(report, :solver_log_underflow_marker)) == 1
+        singularity = only(findings(report, :solver_log_linear_system_singularity))
+        @test singularity.basis == NLPDiagnostics.NumericalObservation
         @test length(findings(report, :solver_log_reported_infeasibility)) == 1
         @test length(findings(report, :solver_log_termination_limit)) == 1
-        @test report.metadata[:recognized_log_observation_count] == "4"
+        @test report.metadata[:recognized_log_observation_count] == "8"
         @test evidence_details(
             only(findings(report, :solver_log_restoration_failure)),
         )["line"] == "2"
@@ -6802,6 +6815,10 @@ end
         @test report.metadata[:minimum_logged_primal_infeasibility] == "0.01"
         @test report.metadata[:annotated_iteration_row_count] == "1"
         @test report.metadata[:iteration_segment_count] == "1"
+        @test report.metadata[:final_segment_annotated_iteration_row_count] == "1"
+        annotation = only(findings(report, :solver_iteration_annotated_rows))
+        @test annotation.basis == NLPDiagnostics.NumericalObservation
+        @test annotation.domain == NLPDiagnostics.RepresentationalIssue
         appended_log = ipopt_log * "\n" *
             "   0  3.0e+00 4.0e+00 5.0e+00  -1.0 0.0e+00    -  0.0e+00 0.0e+00   0\n"
         appended_report = NLPDiagnostics.analyze_solver_iterations(
@@ -6811,6 +6828,53 @@ end
         )
         @test appended_report.metadata[:iteration_segment_count] == "2"
         @test isempty(findings(appended_report, :solver_iteration_residual_regression))
+
+        stagnant_log = """
+        iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+           0  1.0e+00 1.0e+00 1.0e+00  -1.0 0.0e+00    -  0.0e+00 0.0e+00   0
+           1  1.0e+00 9.0e-01 9.0e-01  -1.0 0.0e+00    -  0.0e+00 0.0e+00   0
+           2  1.0e+00 8.0e-01 8.0e-01  -1.0 0.0e+00    -  0.0e+00 0.0e+00   0
+        """
+        stagnant_report = NLPDiagnostics.analyze_solver_iterations(
+            "Ipopt",
+            stagnant_log;
+            residual_tolerance = 1e-3,
+            stagnation_window = 3,
+            stagnation_improvement_factor = 2,
+        )
+        stagnation = only(findings(
+            stagnant_report,
+            :solver_iteration_residual_stagnation,
+        ))
+        @test stagnation.basis == NLPDiagnostics.HeuristicInterpretation
+        @test stagnation.confidence == NLPDiagnostics.ConfidenceMedium
+        @test stagnant_report.metadata[:stagnation_window] == "3"
+        @test stagnant_report.metadata[:small_primal_step_threshold] == "1.0e-8"
+        @test_throws ArgumentError NLPDiagnostics.analyze_solver_iterations(
+            "Ipopt", stagnant_log; stagnation_window = 2,
+        )
+
+        stalled_step_log = """
+        iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+           0  1.0e+00 1.0e+00 1.0e+00  -1.0 0.0e+00    -  0.0e+00 1.0e-10   0
+           1  1.0e+00 9.0e-01 9.0e-01  -1.0 0.0e+00    -  0.0e+00 1.0e-10   0
+           2  1.0e+00 8.0e-01 8.0e-01  -1.0 0.0e+00    -  0.0e+00 1.0e-10   0
+        """
+        stalled_step_report = NLPDiagnostics.analyze_solver_iterations(
+            "Ipopt", stalled_step_log;
+            residual_tolerance = 1e-3,
+            stagnation_window = 3,
+            small_primal_step_threshold = 1e-8,
+        )
+        small_steps = only(findings(
+            stalled_step_report,
+            :solver_iteration_small_primal_steps,
+        ))
+        @test small_steps.basis == NLPDiagnostics.HeuristicInterpretation
+        @test small_steps.confidence == NLPDiagnostics.ConfidenceMedium
+        @test_throws ArgumentError NLPDiagnostics.analyze_solver_iterations(
+            "Ipopt", stalled_step_log; small_primal_step_threshold = -1,
+        )
 
         model = new_model()
         x = MOI.add_variable(model)
