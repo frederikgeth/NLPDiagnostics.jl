@@ -219,15 +219,17 @@ becomes ground truth by disagreement alone.
 nonlinear operator domains. It reuses the static domain analysis, restricted to
 the selected elastic rows, and makes each condition inspectable before any
 guarded formulation is constructed. It currently recognizes when a direct
-scalar-affine argument to `log`, `log1p`, `log2`, `log10`, or `sqrt` could be
-given an explicit lower-domain guard. Other operators and non-affine arguments
-remain visible as nonmaterializable rather than being silently approximated.
+scalar-affine argument to `log`, `log1p`, `log2`, `log10`, `log1mexp`, or
+`sqrt` could be given an explicit one-sided domain guard. Other operators and
+non-affine arguments remain visible as nonmaterializable rather than being
+silently approximated.
 An elastic residual relaxation never, by itself, makes an undefined nonlinear
 operator evaluable.
 `build_elastic_feasibility_model(...; domain_guard_margin = ε)` is the
 explicit opt-in construction step. With finite `ε > 0`, it adds guards for
-materializable `log`/`log1p` arguments before the separate auxiliary model is
-solved; `sqrt` receives its closed value-domain guard. It also guards
+materializable `log`/`log1p`/`log1mexp` arguments before the separate auxiliary
+model is solved; `sqrt` receives its closed value-domain guard. `log1mexp`
+uses the strict upper guard `x ≤ -ε`. It also guards
 reciprocals, division denominators, and negative-integer powers only when the
 declared interval confines the argument to one sign branch. Guards are emitted
 as scalar-affine rows, rather than replacement variable bounds, so they do not
@@ -236,6 +238,10 @@ the auxiliary feasible region, so the applied guards and margin are retained on
 the auxiliary record and in elastic report metadata. The default is still
 unguarded, preserving prior mathematics and requiring the caller to make that
 modeling choice visibly.
+`logdiffexp(a, b)` is represented as one relational guard, rather than two
+independent argument bounds. When both arguments are scalar affine, the
+auxiliary model materializes its strict domain as `a - b ≥ ε`; otherwise it
+remains visible but nonmaterializable.
 Closed inverse-trigonometric input intervals and the one-interval `acosh` /
 `atanh` domains are also materialized when their arguments are scalar affine;
 `atanh` uses two strict guard rows. Periodic singularity avoidance and other

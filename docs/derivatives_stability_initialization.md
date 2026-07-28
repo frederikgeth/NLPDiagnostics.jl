@@ -9,6 +9,8 @@ For example:
 |---|---|---|---|
 | `log(x)` | `x > 0` | same as value domain | same as value domain |
 | `log1p(x)` | `x > -1` | same as value domain | same as value domain |
+| `log1mexp(x)` | `x < 0` | same as value domain | same as value domain |
+| `logdiffexp(a, b)` | `a > b` | same as value domain | same as value domain |
 | `sqrt(x)` | `x >= 0` | `x > 0` | `x > 0` |
 | `cbrt(x)` | all real `x` | `x != 0` | `x != 0` |
 | `abs(x)` | all real `x` | not classically differentiable at zero | not analyzed after a first-order failure |
@@ -45,6 +47,27 @@ Current range fingerprints include:
 
 The numeric type is evidence. For example, `exp(100)` is finite in `Float64`
 but overflows in `Float32`.
+
+For logarithmic primitives with a strict real domain, exact-point expression
+analysis also emits a heuristic derivative-amplification warning when the
+positive domain margin is at most `sqrt(eps(T))`: `x` for `log(x)`, `1 + x`
+for `log1p(x)`, `-x` for `log1mexp(x)`, and `a - b` for
+`logdiffexp(a, b)`. This also catches a fragile composite whose outer `log`
+has a near-zero positive argument. It is not a domain violation—the value is
+still valid—but it makes the rapidly growing local derivative and numeric type
+explicit.
+The same point-local warning covers `sqrt(x)` near zero and reciprocal factors
+(`inv(x)` or a division denominator) near their nonzero boundary. These retain
+their existing exact derivative-domain errors at the boundary itself; the new
+warning describes large but finite derivatives strictly inside the domain.
+For a non-integer `x^p` with positive base near zero, the evidence includes
+both derivative orders because the exponent determines which one is amplified:
+for example, `0 < p < 1` affects both, while `1 < p < 2` can leave the first
+derivative finite but make the second derivative large.
+The finding includes stable estimates of the local first- and second-derivative
+magnitudes (the maximum first derivative across `a` and `b` for
+`logdiffexp`); an infinite estimate is useful floating-point evidence, not a
+claim that the mathematical derivative is undefined.
 
 These are numerical representation findings, not mathematical domain
 failures. Underflow can be harmless in some applications, but in an NLP model
@@ -107,6 +130,8 @@ A complete initialization is checked for:
 - non-fixed variables exactly on finite bounds;
 - value-domain violations;
 - derivative-domain violations;
+- strict-domain derivative-amplification warnings for stable `log1mexp` and
+  `logdiffexp` operators near their boundaries;
 - overflow, underflow, and non-finite values or derivatives; and
 - Jacobian zero sensitivities and scaling spread;
 - scalar-bound constraint feasibility violations and interior margins; and

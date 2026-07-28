@@ -306,6 +306,22 @@ function _lower_domain_assessment(
     return DomainSafe
 end
 
+function _upper_domain_assessment(
+    enclosure::IntervalEnclosure,
+    threshold::Real;
+    strict::Bool,
+)
+    enclosure.valid || return DomainSafe
+    if strict
+        enclosure.lower >= threshold && return DomainProvenViolation
+        enclosure.upper >= threshold && return DomainPossibleViolation
+    else
+        enclosure.lower > threshold && return DomainProvenViolation
+        enclosure.upper > threshold && return DomainPossibleViolation
+    end
+    return DomainSafe
+end
+
 function _nonzero_domain_assessment(enclosure::IntervalEnclosure)
     enclosure.valid || return DomainSafe
     enclosure.lower == enclosure.upper == 0.0 &&
@@ -344,6 +360,20 @@ end
 
 function _operator_symbol(operator::Val)
     return typeof(operator).parameters[1]
+end
+
+_stable_log1mexp_value(x) =
+    x < -log(2.0) ? log1p(-exp(x)) : log(-expm1(x))
+
+_stable_logcosh_value(x) =
+    abs(x) + log1p(exp(-2 * abs(x))) - log(2.0)
+
+function _stable_logsumexp_values(values)
+    isempty(values) && throw(ArgumentError("logsumexp requires at least one argument"))
+    shift = maximum(values)
+    shift == -Inf && return -Inf
+    shift == Inf && return Inf
+    return shift + log(sum(exp(value - shift) for value in values))
 end
 
 """
@@ -463,6 +493,42 @@ function operator_interval(
             value.valid,
             value.informative,
         )
+    elseif head == :log1mexp
+        value = only(arguments)
+        value.valid || return _invalid_interval()
+        value.lower >= 0.0 && return _full_interval()
+        return IntervalEnclosure(
+            value.upper >= 0.0 ? -Inf : _stable_log1mexp_value(value.upper),
+            _stable_log1mexp_value(value.lower),
+            true,
+            value.informative,
+        )
+    elseif head == :logcosh
+        value = only(arguments)
+        lower_input = _contains_zero(value) ? 0.0 : min(abs(value.lower), abs(value.upper))
+        upper_input = max(abs(value.lower), abs(value.upper))
+        return IntervalEnclosure(
+            _stable_logcosh_value(lower_input), _stable_logcosh_value(upper_input),
+            value.valid, value.informative,
+        )
+    elseif head == :logsumexp
+        isempty(arguments) && return _full_interval()
+        return IntervalEnclosure(
+            _stable_logsumexp_values([value.lower for value in arguments]),
+            _stable_logsumexp_values([value.upper for value in arguments]),
+            all(value -> value.valid, arguments),
+            all(value -> value.informative, arguments),
+        )
+    elseif head == :logdiffexp && length(arguments) == 2
+        first_value, second_value = arguments
+        difference = _interval_add(first_value, _interval_scale(second_value, -1.0))
+        difference.valid || return _invalid_interval()
+        difference.upper <= 0.0 && return _full_interval()
+        lower = difference.lower <= 0.0 ? -Inf :
+                first_value.lower + _stable_log1mexp_value(second_value.upper - first_value.lower)
+        upper = first_value.upper + _stable_log1mexp_value(second_value.lower - first_value.upper)
+        return IntervalEnclosure(lower, upper, true,
+            first_value.informative && second_value.informative)
     elseif head == :abs
         value = only(arguments)
         lower = _contains_zero(value) ?
@@ -621,6 +687,34 @@ function operator_domain_requirements(
                 "argument > -1",
             ),
         )
+    elseif head == :log1mexp
+        push!(
+            requirements,
+            OperatorDomainRequirement(
+                1,
+                _upper_domain_assessment(
+                    argument_intervals[1],
+                    0.0;
+                    strict = true,
+                ),
+                "argument < 0",
+            ),
+        )
+    elseif head == :logdiffexp && length(argument_intervals) == 2
+        difference = _interval_add(
+            argument_intervals[1], _interval_scale(argument_intervals[2], -1.0),
+        )
+        assessment = _lower_domain_assessment(difference, 0.0; strict = true)
+        for argument in 1:2
+            push!(
+                requirements,
+                OperatorDomainRequirement(
+                    argument,
+                    assessment,
+                    "first argument > second argument",
+                ),
+            )
+        end
     elseif head == :sqrt
         push!(
             requirements,

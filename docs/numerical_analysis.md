@@ -237,13 +237,20 @@ the remaining direction is mathematically erroneous or physically unexpected.
 
 `ProfileCase` records a named point together with formulation, initialization,
 scale, solver-label, tags, metadata, and expected-evidence hypotheses.
-`profile_case(model, case)` runs the generic numerical, active-set, and
-degeneracy stages without invoking a solver. Its `ProfileResult` retains the
+`profile_case(model, case)` runs static, expression, stable-reformulation,
+generic numerical, active-set, and degeneracy stages without invoking a solver.
+Its `ProfileResult` retains the
 reports, cache hits/misses, derivative-row-method and capability-source counts,
-wall-clock time by stage, and per-evaluation callback statistics. Exact NLP
+wall-clock time by stage, and per-evaluation callback statistics. Expression
+findings such as stability fingerprints, and static structural or
+representational findings, participate in repeated-profile evidence recovery
+alongside numerical findings. Exact NLP
 evaluator initialization/value/gradient/Jacobian calls and oracle
 value/Jacobian calls are counted separately; ordinary MOI work is recorded as
 one symbolic-stage measurement.
+For callers that manually construct `ProfileResult`, the former positional
+constructor remains available and creates empty static/expression/reformulation reports;
+`profile_case` always supplies the fully populated reports.
 
 Stage timings include Julia compilation and allocation effects unless callers
 warm up a comparable case first. They are useful profiling evidence, not a

@@ -16,10 +16,11 @@ end
 """
     profile_case(model, case; cache = EvaluationCache(), ...)
 
-Run the generic numerical, active-set, and structural-numerical degeneracy
-stages for one labeled `ProfileCase`. No solver is invoked and no model data is
-modified. The result retains timing and derivative-provenance counts alongside
-the full reports so formulation cases can be compared reproducibly.
+Run the generic static, expression, stable-reformulation, numerical, active-set,
+and structural-numerical degeneracy stages for one labeled `ProfileCase`. No
+solver is invoked and no model data is modified. The result retains timing and
+derivative-provenance counts alongside the full reports so formulation cases can
+be compared reproducibly.
 """
 function profile_case(
     model::MOI.ModelLike,
@@ -44,6 +45,20 @@ function profile_case(
     structural_matching = _profile_stage!(timings, allocations, :structural_matching, () -> maximum_matching(structural_graph))
 
     _profile_stage!(timings, allocations, :structural_dm, () -> dulmage_mendelsohn(structural_graph; matching = structural_matching))
+
+    static_report = _profile_stage!(timings, allocations, :static, () ->
+        analyze_static(structural_snapshot; graph = structural_graph),
+    )
+
+    expression_report = _profile_stage!(timings, allocations, :expressions, () ->
+        analyze_expressions(model; numeric_type = T),
+    )
+
+    reformulation_report = _profile_stage!(timings, allocations, :reformulation, () ->
+        analyze_stable_reformulation_plan(
+            stable_reformulation_plan(model; numeric_type = T),
+        ),
+    )
 
     evaluation = _profile_stage!(timings, allocations, :evaluation, () -> evaluate_numerical(
         model,
@@ -81,6 +96,9 @@ function profile_case(
     return ProfileResult{T}(
         case,
         evaluation,
+        static_report,
+        expression_report,
+        reformulation_report,
         numerical_report,
         active_set_report,
         degeneracy_report,
@@ -125,6 +143,9 @@ function _profile_finding_stability(runs::Vector{<:ProfileResult})
     counts = Dict{Tuple{Symbol,Symbol},Int}()
     for run in runs
         for (stage, report) in (
+            :static => run.static_report,
+            :expressions => run.expression_report,
+            :reformulation => run.reformulation_report,
             :numerical => run.numerical_report,
             :active_set => run.active_set_report,
             :degeneracy => run.degeneracy_report,
@@ -159,6 +180,9 @@ function _profile_expected_evidence_summary(runs::Vector{<:ProfileResult})
     for code in sort!(collect(expected); by = string)
         occurrence_count = count(runs) do run
             any(code in (finding.code for finding in report.findings) for report in (
+                run.static_report,
+                run.expression_report,
+                run.reformulation_report,
                 run.numerical_report,
                 run.active_set_report,
                 run.degeneracy_report,
@@ -404,6 +428,128 @@ function synthetic_sparse_profile_corpus(; dimension::Integer = 32)
         ))
     end
     return models, cases
+end
+
+"""
+    synthetic_stability_profile_corpus()
+
+Return small, safe-point MOI models that retain deliberately fragile expression
+forms. They are solver-independent profile cases for expression-analysis time,
+allocation, and fingerprint recovery; their selected points avoid overflow so
+numerical evaluation can proceed without hiding the static formulation risk.
+"""
+function synthetic_stability_profile_corpus()
+    models = MOI.Utilities.Model{Float64}[]
+    cases = ProfileCase{Float64}[]
+    specifications = (
+        (
+            "stability_log1mexp_composite",
+            :log_one_minus_exp_cancellation_risk,
+            "log(1 - exp(x)) composition",
+            -1.0,
+            x -> MOI.ScalarNonlinearFunction(:log, Any[
+                MOI.ScalarNonlinearFunction(:-, Any[
+                    1.0, MOI.ScalarNonlinearFunction(:exp, Any[x]),
+                ]),
+            ]),
+        ),
+        (
+            "stability_logcosh_composite",
+            :unstable_logcosh_expression,
+            "log(cosh(x)) composition",
+            30.0,
+            x -> MOI.ScalarNonlinearFunction(:log, Any[
+                MOI.ScalarNonlinearFunction(:cosh, Any[x]),
+            ]),
+        ),
+        (
+            "stability_complementary_logistic",
+            :unstable_complementary_logistic_expression,
+            "1 / (1 + exp(x)) composition",
+            30.0,
+            x -> MOI.ScalarNonlinearFunction(:/, Any[
+                1.0, MOI.ScalarNonlinearFunction(:+, Any[
+                    1.0, MOI.ScalarNonlinearFunction(:exp, Any[x]),
+                ]),
+            ]),
+        ),
+    )
+    for (name, expected, description, value, expression_builder) in specifications
+        model = MOI.Utilities.Model{Float64}()
+        variable = MOI.add_variable(model)
+        MOI.add_constraint(model, variable, MOI.EqualTo(value))
+        MOI.add_constraint(model, expression_builder(variable), MOI.LessThan(1.0e100))
+        point = evaluation_point(model, [value]; label = "safe representative point")
+        push!(models, model)
+        push!(cases, ProfileCase(name, point;
+            description = "Solver-independent stable-expression profiling case: $description.",
+            task = "synthetic stable-expression diagnostics",
+            formulation = "direct fragile composition",
+            initialization = "safe representative point",
+            scale = "Float64",
+            expected_evidence = [expected],
+            tags = [:synthetic, :stability, :expression],
+            metadata = Dict("fingerprint" => expected, "representative_value" => value),
+        ))
+    end
+    for (name, expected, description, values, expression_builder) in (
+        (
+            "stability_logsumexp_composite",
+            :unstable_logsumexp_expression,
+            "log(exp(a) + exp(b)) composition",
+            [30.0, -30.0],
+            (a, b) -> MOI.ScalarNonlinearFunction(:log, Any[
+                MOI.ScalarNonlinearFunction(:+, Any[
+                    MOI.ScalarNonlinearFunction(:exp, Any[a]),
+                    MOI.ScalarNonlinearFunction(:exp, Any[b]),
+                ]),
+            ]),
+        ),
+        (
+            "stability_logdiffexp_composite",
+            :unstable_logdiffexp_expression,
+            "log(exp(a) - exp(b)) composition",
+            [30.0, 0.0],
+            (a, b) -> MOI.ScalarNonlinearFunction(:log, Any[
+                MOI.ScalarNonlinearFunction(:-, Any[
+                    MOI.ScalarNonlinearFunction(:exp, Any[a]),
+                    MOI.ScalarNonlinearFunction(:exp, Any[b]),
+                ]),
+            ]),
+        ),
+    )
+        model = MOI.Utilities.Model{Float64}()
+        variables = MOI.add_variables(model, 2)
+        for (variable, value) in zip(variables, values)
+            MOI.add_constraint(model, variable, MOI.EqualTo(value))
+        end
+        MOI.add_constraint(model, expression_builder(variables...), MOI.LessThan(1.0e100))
+        point = evaluation_point(model, values; label = "safe representative point")
+        push!(models, model)
+        push!(cases, ProfileCase(name, point;
+            description = "Solver-independent stable-expression profiling case: $description.",
+            task = "synthetic stable-expression diagnostics",
+            formulation = "direct fragile composition",
+            initialization = "safe representative point",
+            scale = "Float64",
+            expected_evidence = [expected],
+            tags = [:synthetic, :stability, :expression],
+            metadata = Dict("fingerprint" => expected, "representative_values" => join(values, ",")),
+        ))
+    end
+    return models, cases
+end
+
+"""
+    profile_synthetic_stability_corpus(; kwargs...)
+
+Run repeated solver-independent profiles for every case in
+`synthetic_stability_profile_corpus`. Keyword arguments are forwarded to
+`profile_cases_repeated`, including `repetitions` and `warmup`.
+"""
+function profile_synthetic_stability_corpus(; kwargs...)
+    models, cases = synthetic_stability_profile_corpus()
+    return profile_cases_repeated(models, cases; kwargs...)
 end
 
 """

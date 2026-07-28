@@ -85,6 +85,16 @@ and case. Use it to inspect sparse matching, QR availability, allocations, and
 expected-evidence recovery as size grows; it deliberately does not infer a
 portable runtime law or choose a production threshold.
 
+`synthetic_stability_profile_corpus()` supplies complementary safe-point cases
+for fragile `log(1-exp(x))`, `log(cosh(x))`, complementary-logistic,
+log-sum-exp, and log-difference-exp compositions. They exercise both the
+expression and non-mutating stable-reformulation stages added to `profile_case`;
+the chosen points are finite so profile timing and derivative provenance remain
+available while the static fingerprint still records the formulation risk.
+`profile_synthetic_stability_corpus(; repetitions = 3, warmup = true)` runs
+the whole set and returns named repeated aggregates, including expression- and
+reformulation-stage timing, allocation, and expected-fingerprint recovery rates.
+
 `compare_profiles(baseline, candidate)` provides a transparent comparison of
 two repeated aggregates. It retains per-stage time and allocated-byte means,
 their candidate-to-baseline ratios where defined, and the occurrence rates of
@@ -107,6 +117,7 @@ The generic core can own:
 - repeated or nearly repeated algebraic structure;
 - model dimensions and sparsity;
 - solver-independent evaluation failures; and
+- expression-stability fingerprint recovery in repeated profile runs; and
 - comparisons between labeled formulations of the same task.
 
 An OPF or multiconductor plugin should own:
@@ -146,7 +157,8 @@ evidence path rather than an automatic benchmark failure.
 
 `profile_case` separately records wall-clock and allocated-byte observations
 for snapshot extraction, structural graph construction, maximum-cardinality
-matching, Dulmage–Mendelsohn decomposition, evaluation, numerical analysis,
+matching, Dulmage–Mendelsohn decomposition, static analysis, expression
+fingerprinting, stable-reformulation planning, evaluation, numerical analysis,
 active-set analysis, and degeneracy analysis. `profile_case_repeated` exposes
 descriptive summaries in `stage_timing` and `stage_allocations`.
 

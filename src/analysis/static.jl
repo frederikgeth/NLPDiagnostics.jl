@@ -414,6 +414,10 @@ function fixed_operator_value(operator::Val, values::Vector{Any})
     return _apply_constant_operator(typeof(operator).parameters[1], values)
 end
 
+function fixed_operator_value(operator::Val, values::AbstractVector)
+    return fixed_operator_value(operator, Any[values...])
+end
+
 function _apply_constant_operator(head::Symbol, values::Vector{Any})
     stable_softplus(value) =
         value > zero(value) ? value + log1p(exp(-value)) : log1p(exp(value))
@@ -426,6 +430,8 @@ function _apply_constant_operator(head::Symbol, values::Vector{Any})
     stable_logsumexp(arguments) = begin
         isempty(arguments) && throw(ArgumentError("logsumexp requires at least one argument"))
         shift = maximum(arguments)
+        shift == -Inf && return -Inf
+        shift == Inf && return Inf
         shift + log(sum(exp(value - shift) for value in arguments))
     end
     stable_logdiffexp(first_value, second_value) =

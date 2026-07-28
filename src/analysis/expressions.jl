@@ -91,6 +91,68 @@ function _risk_assessment_below(interval, threshold)
     return DomainSafe
 end
 
+function _strict_log_margin_derivative_estimates(
+    margin::Real;
+    logdiffexp::Bool = false,
+    numeric_type::Type{T} = Float64,
+) where {T<:AbstractFloat}
+    # For m > 0, `-expm1(-m)` computes 1 - exp(-m) without cancellation.
+    # The result is intentionally allowed to be Inf: that is meaningful
+    # floating-point evidence for a derivative that cannot be represented.
+    typed_margin = T(margin)
+    denominator = -expm1(-typed_margin)
+    exponential = exp(-typed_margin)
+    first = logdiffexp ? inv(denominator) : exponential / denominator
+    second = exponential / denominator^2
+    return first, second
+end
+
+function _strict_positive_margin_derivative_estimates(
+    margin::Real,
+    ::Type{T};
+    multiplier::Real = 1.0,
+) where {T<:AbstractFloat}
+    typed_margin = T(margin)
+    typed_multiplier = T(multiplier)
+    return typed_multiplier / typed_margin, typed_multiplier / typed_margin^2
+end
+
+function _strict_nonzero_margin(interval::IntervalEnclosure)
+    !interval.valid && return nothing
+    interval.lower > 0.0 && return interval.lower
+    interval.upper < 0.0 && return -interval.upper
+    return nothing
+end
+
+function _reciprocal_derivative_estimates(
+    margin::Real,
+    ::Type{T},
+) where {T<:AbstractFloat}
+    reciprocal = inv(T(margin))
+    return reciprocal^2, 2 * reciprocal^3
+end
+
+function _sqrt_derivative_estimates(
+    margin::Real,
+    ::Type{T},
+) where {T<:AbstractFloat}
+    root = sqrt(T(margin))
+    return inv(2 * root), inv(4 * root^3)
+end
+
+function _power_derivative_estimates(
+    margin::Real,
+    exponent::Real,
+    ::Type{T},
+) where {T<:AbstractFloat}
+    typed_margin = T(margin)
+    typed_exponent = T(exponent)
+    first = abs(typed_exponent) * typed_margin^(typed_exponent - one(T))
+    second = abs(typed_exponent * (typed_exponent - one(T))) *
+             typed_margin^(typed_exponent - T(2))
+    return first, second
+end
+
 function _push_expression_risk!(
     risks,
     source,
@@ -246,6 +308,240 @@ function _primitive_range_risks!(
             ],
             ["Rescale the argument or reformulate the expression."],
         )
+    elseif head == :sqrt
+        proximity_threshold = sqrt(eps(T))
+        if input.valid && input.lower > 0.0
+            strict_margin = input.lower
+            if strict_margin <= proximity_threshold
+                first_derivative, second_derivative =
+                    _sqrt_derivative_estimates(strict_margin, T)
+                _push_expression_risk!(
+                    risks,
+                    source,
+                    path,
+                    value,
+                    :strict_domain_derivative_amplification,
+                    DomainPossibleViolation,
+                    "sqrt is evaluated very close to its derivative boundary at zero.",
+                    "The value remains defined, but the first and second derivatives grow as inverse powers of sqrt(x) and can dominate local scaling.",
+                    [
+                        "operator" => head,
+                        "argument_interval" => "[$(input.lower), $(input.upper)]",
+                        "strict_margin" => strict_margin,
+                        "estimated_first_derivative_magnitude" => first_derivative,
+                        "estimated_second_derivative_magnitude" => second_derivative,
+                        "numeric_type" => T,
+                        "proximity_threshold" => proximity_threshold,
+                    ],
+                    [
+                        "Choose an initialization farther from zero when the model semantics allow it.",
+                        "Inspect derivative-domain and Jacobian scaling findings at the same point.",
+                    ],
+                )
+            end
+        end
+    elseif head == :inv || (head == :/ && length(intervals) == 2)
+        denominator = head == :inv ? input : intervals[2]
+        strict_margin = _strict_nonzero_margin(denominator)
+        proximity_threshold = sqrt(eps(T))
+        if !isnothing(strict_margin) && strict_margin <= proximity_threshold
+            first_derivative, second_derivative =
+                _reciprocal_derivative_estimates(strict_margin, T)
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :strict_domain_derivative_amplification,
+                DomainPossibleViolation,
+                "$(head == :inv ? "inv" : "division") is evaluated very close to a nonzero denominator boundary.",
+                "The value remains defined, but the reciprocal derivative factor grows as inverse powers of the denominator and can dominate local scaling.",
+                [
+                    "operator" => head,
+                    "denominator_interval" => "[$(denominator.lower), $(denominator.upper)]",
+                    "strict_margin" => strict_margin,
+                    "estimated_reciprocal_first_derivative_magnitude" => first_derivative,
+                    "estimated_reciprocal_second_derivative_magnitude" => second_derivative,
+                    "numeric_type" => T,
+                    "proximity_threshold" => proximity_threshold,
+                ],
+                [
+                    "Choose an initialization with a larger nonzero denominator margin when the model semantics allow it.",
+                    "Inspect derivative-domain and Jacobian scaling findings at the same point.",
+                ],
+            )
+        end
+    elseif head == :^ && length(intervals) == 2 &&
+           value.args[2] isa Real && !isinteger(value.args[2])
+        exponent = Float64(value.args[2])
+        proximity_threshold = sqrt(eps(T))
+        if input.valid && input.lower > 0.0 && exponent < 2.0 &&
+           input.lower <= proximity_threshold
+            first_derivative, second_derivative =
+                _power_derivative_estimates(input.lower, exponent, T)
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :strict_domain_derivative_amplification,
+                DomainPossibleViolation,
+                "A non-integer power is evaluated close to its positive-base boundary.",
+                "Depending on the exponent, its first derivative, second derivative, or both grow as inverse powers of the base and can dominate local scaling.",
+                [
+                    "operator" => head,
+                    "base_interval" => "[$(input.lower), $(input.upper)]",
+                    "exponent" => exponent,
+                    "strict_margin" => input.lower,
+                    "estimated_first_derivative_magnitude" => first_derivative,
+                    "estimated_second_derivative_magnitude" => second_derivative,
+                    "numeric_type" => T,
+                    "proximity_threshold" => proximity_threshold,
+                ],
+                [
+                    "Choose an initialization with a larger positive-base margin when the model semantics allow it.",
+                    "Inspect derivative-domain and reduced-Hessian evidence at the same point.",
+                ],
+            )
+        end
+    elseif head in (:log, :log2, :log10)
+        proximity_threshold = sqrt(eps(T))
+        if input.valid && input.lower > 0.0
+            strict_margin = input.lower
+            if strict_margin <= proximity_threshold
+                multiplier = head == :log ? 1.0 : inv(log(head == :log2 ? 2.0 : 10.0))
+                first_derivative, second_derivative =
+                    _strict_positive_margin_derivative_estimates(
+                        strict_margin, T; multiplier = multiplier,
+                    )
+                _push_expression_risk!(
+                    risks,
+                    source,
+                    path,
+                    value,
+                    :strict_domain_derivative_amplification,
+                    DomainPossibleViolation,
+                    "$(head) is evaluated very close to its strict domain boundary.",
+                    "The value remains defined, but its first and second derivatives grow as reciprocal powers of the positive argument and can dominate local scaling.",
+                    [
+                        "operator" => head,
+                        "argument_interval" => "[$(input.lower), $(input.upper)]",
+                        "strict_margin" => strict_margin,
+                        "estimated_first_derivative_magnitude" => first_derivative,
+                        "estimated_second_derivative_magnitude" => second_derivative,
+                        "numeric_type" => T,
+                        "proximity_threshold" => proximity_threshold,
+                    ],
+                    [
+                        "Choose an initialization with a larger positive argument margin when the model semantics allow it.",
+                        "Inspect Jacobian row and column scales at the same point.",
+                    ],
+                )
+            end
+        end
+    elseif head == :log1p
+        proximity_threshold = sqrt(eps(T))
+        if input.valid && input.lower > -1.0
+            strict_margin = 1.0 + input.lower
+            if strict_margin <= proximity_threshold
+                first_derivative, second_derivative =
+                    _strict_positive_margin_derivative_estimates(strict_margin, T)
+                _push_expression_risk!(
+                    risks,
+                    source,
+                    path,
+                    value,
+                    :strict_domain_derivative_amplification,
+                    DomainPossibleViolation,
+                    "log1p is evaluated very close to its strict domain boundary.",
+                    "The value remains defined, but its first and second derivatives grow as reciprocal powers of 1 + x and can dominate local scaling.",
+                    [
+                        "operator" => head,
+                        "argument_interval" => "[$(input.lower), $(input.upper)]",
+                        "strict_margin" => strict_margin,
+                        "estimated_first_derivative_magnitude" => first_derivative,
+                        "estimated_second_derivative_magnitude" => second_derivative,
+                        "numeric_type" => T,
+                        "proximity_threshold" => proximity_threshold,
+                    ],
+                    [
+                        "Choose an initialization with a larger 1 + x margin when the model semantics allow it.",
+                        "Inspect Jacobian row and column scales at the same point.",
+                    ],
+                )
+            end
+        end
+    elseif head == :log1mexp
+        # The value domain is x < 0. Even strictly inside it, the derivative
+        # grows like 1 / abs(x) as x approaches zero from below.
+        proximity_threshold = sqrt(eps(T))
+        if input.valid && input.upper < 0.0
+            strict_margin = -input.upper
+            if strict_margin <= proximity_threshold
+                first_derivative, second_derivative =
+                    _strict_log_margin_derivative_estimates(
+                        strict_margin; numeric_type = T,
+                    )
+                _push_expression_risk!(
+                    risks,
+                    source,
+                    path,
+                    value,
+                    :strict_domain_derivative_amplification,
+                    DomainPossibleViolation,
+                    "log1mexp is evaluated very close to its strict domain boundary.",
+                    "The value remains defined, but its derivative grows rapidly as the argument approaches zero from below and can dominate local Jacobian scaling.",
+                    [
+                        "operator" => head,
+                        "argument_interval" => "[$(input.lower), $(input.upper)]",
+                        "strict_margin" => strict_margin,
+                        "estimated_first_derivative_magnitude" => first_derivative,
+                        "estimated_second_derivative_magnitude" => second_derivative,
+                        "numeric_type" => T,
+                        "proximity_threshold" => proximity_threshold,
+                    ],
+                    [
+                        "Choose an initialization with a larger strict-domain margin when the model semantics allow it.",
+                        "Inspect Jacobian row and column scales at the same point.",
+                    ],
+                )
+            end
+        end
+    elseif head == :logdiffexp && length(intervals) == 2
+        difference = _interval_add(intervals[1], _interval_scale(intervals[2], -1.0))
+        proximity_threshold = sqrt(eps(T))
+        if difference.valid && difference.lower > 0.0
+            strict_margin = difference.lower
+            if strict_margin <= proximity_threshold
+                first_derivative, second_derivative =
+                    _strict_log_margin_derivative_estimates(
+                        strict_margin; logdiffexp = true, numeric_type = T,
+                    )
+                _push_expression_risk!(
+                    risks,
+                    source,
+                    path,
+                    value,
+                    :strict_domain_derivative_amplification,
+                    DomainPossibleViolation,
+                    "logdiffexp is evaluated very close to its strict a > b domain boundary.",
+                    "The value remains defined, but derivatives with respect to a and b grow rapidly as a - b approaches zero from above and can dominate local Jacobian scaling.",
+                    [
+                        "operator" => head,
+                        "difference_interval" => "[$(difference.lower), $(difference.upper)]",
+                        "strict_margin" => strict_margin,
+                        "estimated_maximum_first_derivative_magnitude" => first_derivative,
+                        "estimated_second_derivative_magnitude" => second_derivative,
+                        "numeric_type" => T,
+                        "proximity_threshold" => proximity_threshold,
+                    ],
+                    [
+                        "Choose an initialization with a larger a - b margin when the model semantics allow it.",
+                        "Inspect Jacobian row and column scales at the same point.",
+                    ],
+                )
+            end
+        end
     end
     return
 end
@@ -752,11 +1048,12 @@ function analyze_expressions(
         # range failures.
         risks = filter(
             risk ->
-                risk.code in (
+                (risk.code in (
                     :exponential_overflow_risk,
                     :exponential_underflow_risk,
                     :hyperbolic_overflow_risk,
-                ) && risk.assessment == DomainProvenViolation,
+                ) && risk.assessment == DomainProvenViolation) ||
+                risk.code == :strict_domain_derivative_amplification,
             risks,
         )
     end

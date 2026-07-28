@@ -142,9 +142,9 @@ Conflict memberships can now be cross-checked against local, order-consensus,
 and minimum-support elastic evidence, retaining both agreement and disagreement.
 Nonlinear domain-guard planning is also implemented: it scopes static domain
 conditions to elastic rows and distinguishes directly materializable
-scalar-affine lower-domain guards from conditions that need a domain plugin or
+scalar-affine one-sided domain guards from conditions that need a domain plugin or
 reformulation. Explicit opt-in guarded auxiliary construction now supports
-those materializable `log`/`log1p`/`sqrt` cases plus sign-confined reciprocal,
+those materializable `log`/`log1p`/`log1mexp`/`sqrt` cases plus sign-confined reciprocal,
 division, and negative-power domains, and records its chosen margin.
 It also handles closed inverse-trigonometric intervals and `acosh`/`atanh`;
 the generic core continues to leave periodic and multi-branch domains explicit
@@ -153,6 +153,9 @@ identified periodic singularity, where it can safely move that endpoint inward.
 Stable expression fingerprints now also produce non-mutating reformulation
 plans with explicit registration requirements for custom stable primitives,
 including a domain-preserving `log1mexp` candidate for `log(1 - exp(x))`.
+The guarded auxiliary layer also materializes the scalar-affine relational
+domain `a - b ≥ ε` for `logdiffexp(a, b)` as one inspectable guard rather than
+two independent argument bounds.
 
 ## Degeneracy framework
 

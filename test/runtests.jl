@@ -72,6 +72,27 @@ end
         [first_case],
     )
     @test isempty(NLPDiagnostics.profile_cases_repeated(MOI.ModelLike[], NLPDiagnostics.ProfileCase[]))
+    stability_models, stability_cases = NLPDiagnostics.synthetic_stability_profile_corpus()
+    @test length(stability_models) == length(stability_cases) == 5
+    @test [case.name for case in stability_cases] == [
+        "stability_log1mexp_composite",
+        "stability_logcosh_composite",
+        "stability_complementary_logistic",
+        "stability_logsumexp_composite",
+        "stability_logdiffexp_composite",
+    ]
+    stability_aggregates = NLPDiagnostics.profile_synthetic_stability_corpus(
+        repetitions = 1, warmup = false,
+    )
+    @test Set(keys(stability_aggregates)) == Set(case.name for case in stability_cases)
+    for aggregate in values(stability_aggregates)
+        run = only(aggregate.runs)
+        @test haskey(run.stage_seconds, :static)
+        @test haskey(run.stage_seconds, :expressions)
+        @test haskey(run.stage_seconds, :reformulation)
+        @test !isempty(run.expression_report.findings)
+        @test length(findings(run.reformulation_report, :stable_reformulation_candidate)) == 1
+    end
     duplicate = NLPDiagnostics.ProfileCase("first", point)
     @test_throws ArgumentError NLPDiagnostics.profile_cases_repeated(
         MOI.ModelLike[],
@@ -896,6 +917,65 @@ end
         domain_guard_margin = 0.0,
     )
 
+    log1mexp_guard_model = MOIU.Model{Float64}()
+    log1mexp_argument = MOI.add_variable(log1mexp_guard_model)
+    MOI.add_constraint(
+        log1mexp_guard_model,
+        MOI.ScalarNonlinearFunction(:log1mexp, Any[log1mexp_argument]),
+        MOI.LessThan(0.0),
+    )
+    log1mexp_plan = NLPDiagnostics.elastic_domain_guard_plan(log1mexp_guard_model)
+    @test length(log1mexp_plan.guards) == 1
+    @test only(log1mexp_plan.guards).materializable
+    log1mexp_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        log1mexp_guard_model;
+        domain_guard_margin = 1e-5,
+    )
+    mapped_log1mexp = log1mexp_auxiliary.source_variable_map[log1mexp_argument]
+    log1mexp_guards = MOI.get(
+        log1mexp_auxiliary.model,
+        MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}(),
+    )
+    @test any(
+        index ->
+            only(MOI.get(log1mexp_auxiliary.model, MOI.ConstraintFunction(), index).terms).variable == mapped_log1mexp &&
+            MOI.get(log1mexp_auxiliary.model, MOI.ConstraintSet(), index).upper == -1e-5,
+        log1mexp_guards,
+    )
+
+    logdiffexp_guard_model = MOIU.Model{Float64}()
+    logdiffexp_a, logdiffexp_b = MOI.add_variables(logdiffexp_guard_model, 2)
+    MOI.add_constraint(
+        logdiffexp_guard_model,
+        MOI.ScalarNonlinearFunction(:logdiffexp, Any[logdiffexp_a, logdiffexp_b]),
+        MOI.LessThan(0.0),
+    )
+    logdiffexp_plan = NLPDiagnostics.elastic_domain_guard_plan(logdiffexp_guard_model)
+    @test length(logdiffexp_plan.guards) == 1
+    @test only(logdiffexp_plan.guards).materializable
+    @test only(logdiffexp_plan.guards).related_argument == 2
+    logdiffexp_guard_report = NLPDiagnostics.analyze_elastic_domain_guard_plan(
+        logdiffexp_plan,
+    )
+    @test Dict(only(logdiffexp_guard_report.findings).evidence[1].details)["related_argument"] == "2"
+    logdiffexp_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        logdiffexp_guard_model;
+        domain_guard_margin = 1e-5,
+    )
+    mapped_logdiffexp_a = logdiffexp_auxiliary.source_variable_map[logdiffexp_a]
+    mapped_logdiffexp_b = logdiffexp_auxiliary.source_variable_map[logdiffexp_b]
+    logdiffexp_guards = MOI.get(
+        logdiffexp_auxiliary.model,
+        MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}}(),
+    )
+    @test any(logdiffexp_guards) do index
+        function_value = MOI.get(logdiffexp_auxiliary.model, MOI.ConstraintFunction(), index)
+        coefficients = Dict(term.variable => term.coefficient for term in function_value.terms)
+        MOI.get(logdiffexp_auxiliary.model, MOI.ConstraintSet(), index).lower == 1e-5 &&
+        get(coefficients, mapped_logdiffexp_a, 0.0) == 1.0 &&
+        get(coefficients, mapped_logdiffexp_b, 0.0) == -1.0
+    end
+
     reciprocal_guard_model = MOIU.Model{Float64}()
     reciprocal = MOI.add_variable(reciprocal_guard_model)
     MOI.add_constraint(reciprocal_guard_model, reciprocal, MOI.GreaterThan(0.0))
@@ -1619,6 +1699,12 @@ end
     end
 
     @testset "fixed custom operator evaluation is explicit and extensible" begin
+        @test NLPDiagnostics.fixed_operator_value(
+            Val(:fixed_test_operator), [1.0],
+        ) == 2.0
+        @test isfinite(NLPDiagnostics.fixed_operator_value(
+            Val(:logsumexp), [1_000.0, 999.0],
+        ))
         unavailable = new_model()
         x = MOI.add_variable(unavailable)
         MOI.add_constraint(unavailable, x, MOI.EqualTo(1.0))
@@ -3099,6 +3185,12 @@ end
         @test result.cache_hits >= 1
         @test all(value -> value >= 0.0, values(result.stage_seconds))
         @test all(value -> value >= 0, values(result.stage_allocations))
+        @test haskey(result.stage_seconds, :static)
+        @test haskey(result.stage_allocations, :static)
+        @test isempty(result.static_report.findings)
+        @test haskey(result.stage_seconds, :expressions)
+        @test haskey(result.stage_allocations, :expressions)
+        @test isempty(result.expression_report.findings)
         @test haskey(result.stage_allocations, :numerical)
         @test length(
             findings(result.degeneracy_report, :structural_numerical_rank_agreement),
@@ -4547,6 +4639,180 @@ end
                 :unstable_softplus_expression,
             ),
         )
+
+        stable_domain_model = new_model()
+        stable_domain_argument = MOI.add_variable(stable_domain_model)
+        MOI.add_constraint(stable_domain_model, stable_domain_argument, MOI.GreaterThan(0.0))
+        MOI.add_constraint(
+            stable_domain_model,
+            MOI.ScalarNonlinearFunction(:log1mexp, Any[stable_domain_argument]),
+            MOI.LessThan(0.0),
+        )
+        @test count(
+            issue -> issue.operator == :log1mexp &&
+                     issue.assessment == NLPDiagnostics.DomainProvenViolation,
+            NLPDiagnostics.domain_issues(stable_domain_model),
+        ) == 1
+
+        logdiff_domain_model = new_model()
+        logdiff_a, logdiff_b = MOI.add_variables(logdiff_domain_model, 2)
+        MOI.add_constraint(logdiff_domain_model, logdiff_a, MOI.LessThan(0.0))
+        MOI.add_constraint(logdiff_domain_model, logdiff_b, MOI.GreaterThan(1.0))
+        MOI.add_constraint(
+            logdiff_domain_model,
+            MOI.ScalarNonlinearFunction(:logdiffexp, Any[logdiff_a, logdiff_b]),
+            MOI.LessThan(0.0),
+        )
+        @test count(
+            issue -> issue.operator == :logdiffexp &&
+                     issue.assessment == NLPDiagnostics.DomainProvenViolation,
+            NLPDiagnostics.domain_issues(logdiff_domain_model),
+        ) == 2
+
+        # Stable interval rules must remain meaningful at IEEE endpoint values:
+        # these are common during loose-bound static analysis, even when a
+        # representative initialization is finite.
+        all_negative_infinite = NLPDiagnostics.operator_interval(
+            Val(:logsumexp),
+            [NLPDiagnostics.IntervalEnclosure(-Inf, -Inf)],
+            Any[],
+        )
+        mixed_infinite = NLPDiagnostics.operator_interval(
+            Val(:logsumexp),
+            [
+                NLPDiagnostics.IntervalEnclosure(-Inf, Inf),
+                NLPDiagnostics.IntervalEnclosure(-1.0, 1.0),
+            ],
+            Any[],
+        )
+        @test all_negative_infinite.lower == -Inf
+        @test all_negative_infinite.upper == -Inf
+        @test !isnan(mixed_infinite.lower)
+        @test !isnan(mixed_infinite.upper)
+
+        near_log1mexp_model = new_model()
+        near_log1mexp = MOI.add_variable(near_log1mexp_model)
+        MOI.add_constraint(
+            near_log1mexp_model,
+            MOI.ScalarNonlinearFunction(:log1mexp, Any[near_log1mexp]),
+            MOI.LessThan(0.0),
+        )
+        near_log1mexp_point = NLPDiagnostics.EvaluationPoint(
+            [near_log1mexp], [-1e-12]; label = "near log1mexp boundary",
+        )
+        near_log1mexp_report = NLPDiagnostics.analyze_expressions(
+            near_log1mexp_model; point = near_log1mexp_point,
+        )
+        @test length(findings(
+            near_log1mexp_report,
+            :operating_point_strict_domain_derivative_amplification,
+        )) == 1
+        near_log1mexp_evidence = Dict(
+            only(near_log1mexp_report.findings).evidence[end].details,
+        )
+        @test parse(Float64, near_log1mexp_evidence["estimated_first_derivative_magnitude"]) > 1e11
+        @test parse(Float64, near_log1mexp_evidence["estimated_second_derivative_magnitude"]) > 1e23
+        MOI.set(
+            near_log1mexp_model,
+            MOI.VariablePrimalStart(),
+            near_log1mexp,
+            -1e-12,
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_initialization(near_log1mexp_model),
+            :operating_point_strict_domain_derivative_amplification,
+        )) == 1
+
+        near_composite_log_model = new_model()
+        near_composite_log = MOI.add_variable(near_composite_log_model)
+        MOI.add_constraint(
+            near_composite_log_model,
+            MOI.ScalarNonlinearFunction(:log, Any[
+                MOI.ScalarNonlinearFunction(:-, Any[
+                    1.0,
+                    MOI.ScalarNonlinearFunction(:exp, Any[near_composite_log]),
+                ]),
+            ]),
+            MOI.LessThan(0.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                near_composite_log_model;
+                point = NLPDiagnostics.EvaluationPoint([near_composite_log], [-1e-12]),
+            ),
+            :operating_point_strict_domain_derivative_amplification,
+        )) == 1
+
+        near_logdiffexp_model = new_model()
+        near_a, near_b = MOI.add_variables(near_logdiffexp_model, 2)
+        MOI.add_constraint(
+            near_logdiffexp_model,
+            MOI.ScalarNonlinearFunction(:logdiffexp, Any[near_a, near_b]),
+            MOI.LessThan(0.0),
+        )
+        near_logdiffexp_point = NLPDiagnostics.EvaluationPoint(
+            [near_a, near_b], [1.0, 1.0 - 1e-12];
+            label = "near logdiffexp boundary",
+        )
+        near_logdiffexp_report = NLPDiagnostics.analyze_expressions(
+            near_logdiffexp_model; point = near_logdiffexp_point,
+        )
+        @test length(findings(
+            near_logdiffexp_report,
+            :operating_point_strict_domain_derivative_amplification,
+        )) == 1
+        near_logdiffexp_evidence = Dict(
+            only(near_logdiffexp_report.findings).evidence[end].details,
+        )
+        @test parse(Float64, near_logdiffexp_evidence["estimated_maximum_first_derivative_magnitude"]) > 1e11
+        @test parse(Float64, near_logdiffexp_evidence["estimated_second_derivative_magnitude"]) > 1e23
+
+        near_sqrt_model = new_model()
+        near_sqrt = MOI.add_variable(near_sqrt_model)
+        MOI.add_constraint(
+            near_sqrt_model,
+            MOI.ScalarNonlinearFunction(:sqrt, Any[near_sqrt]),
+            MOI.LessThan(1.0),
+        )
+        near_sqrt_report = NLPDiagnostics.analyze_expressions(
+            near_sqrt_model;
+            point = NLPDiagnostics.EvaluationPoint([near_sqrt], [1e-12]),
+        )
+        near_sqrt_evidence = Dict(only(near_sqrt_report.findings).evidence[end].details)
+        @test parse(Float64, near_sqrt_evidence["estimated_first_derivative_magnitude"]) > 1e5
+        @test parse(Float64, near_sqrt_evidence["estimated_second_derivative_magnitude"]) > 1e17
+
+        near_reciprocal_model = new_model()
+        near_denominator = MOI.add_variable(near_reciprocal_model)
+        MOI.add_constraint(
+            near_reciprocal_model,
+            MOI.ScalarNonlinearFunction(:inv, Any[near_denominator]),
+            MOI.LessThan(1e20),
+        )
+        near_reciprocal_report = NLPDiagnostics.analyze_expressions(
+            near_reciprocal_model;
+            point = NLPDiagnostics.EvaluationPoint([near_denominator], [1e-12]),
+        )
+        near_reciprocal_evidence = Dict(
+            only(near_reciprocal_report.findings).evidence[end].details,
+        )
+        @test parse(Float64, near_reciprocal_evidence["estimated_reciprocal_first_derivative_magnitude"]) > 1e23
+        @test parse(Float64, near_reciprocal_evidence["estimated_reciprocal_second_derivative_magnitude"]) > 1e35
+
+        near_power_model = new_model()
+        near_power = MOI.add_variable(near_power_model)
+        MOI.add_constraint(
+            near_power_model,
+            MOI.ScalarNonlinearFunction(:^, Any[near_power, 1.5]),
+            MOI.LessThan(1.0),
+        )
+        near_power_report = NLPDiagnostics.analyze_expressions(
+            near_power_model;
+            point = NLPDiagnostics.EvaluationPoint([near_power], [1e-12]),
+        )
+        near_power_evidence = Dict(only(near_power_report.findings).evidence[end].details)
+        @test near_power_evidence["exponent"] == "1.5"
+        @test parse(Float64, near_power_evidence["estimated_second_derivative_magnitude"]) > 1e5
     end
 
     @testset "numeric type controls overflow fingerprints" begin

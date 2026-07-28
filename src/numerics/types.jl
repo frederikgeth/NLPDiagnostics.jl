@@ -539,6 +539,28 @@ struct ElasticDomainGuard
     interval_informative::Bool
     materializable::Bool
     reason::String
+    related_argument::Union{Nothing,Int}
+end
+
+"""Compatibility construction for a one-argument elastic domain guard."""
+function ElasticDomainGuard(
+    source::EntityRef,
+    path::Vector{Int},
+    operator::Symbol,
+    argument::Int,
+    requirement::String,
+    assessment::Symbol,
+    variables::Vector{MOI.VariableIndex},
+    lower::Float64,
+    upper::Float64,
+    interval_informative::Bool,
+    materializable::Bool,
+    reason::String,
+)
+    return ElasticDomainGuard(
+        source, path, operator, argument, requirement, assessment, variables,
+        lower, upper, interval_informative, materializable, reason, nothing,
+    )
 end
 
 """Inspectable scope for optional, explicit nonlinear domain guards."""
@@ -981,6 +1003,9 @@ effects unless the caller has performed a warm-up run.
 struct ProfileResult{T<:AbstractFloat}
     case::ProfileCase{T}
     evaluation::NumericalEvaluation{T}
+    static_report::DiagnosticReport
+    expression_report::DiagnosticReport
+    reformulation_report::DiagnosticReport
     numerical_report::DiagnosticReport
     active_set_report::DiagnosticReport
     degeneracy_report::DiagnosticReport
@@ -991,6 +1016,40 @@ struct ProfileResult{T<:AbstractFloat}
     capability_source_counts::Dict{Symbol,Int}
     cache_hits::Int
     cache_misses::Int
+end
+
+"""Backward-compatible positional construction without static/expression/reformulation reports."""
+function ProfileResult(
+    case::ProfileCase{T},
+    evaluation::NumericalEvaluation{T},
+    numerical_report::DiagnosticReport,
+    active_set_report::DiagnosticReport,
+    degeneracy_report::DiagnosticReport,
+    stage_seconds::Dict{Symbol,Float64},
+    stage_allocations::Dict{Symbol,Int},
+    callback_statistics::Dict{Symbol,Tuple{Int,Float64}},
+    derivative_row_method_counts::Dict{Symbol,Int},
+    capability_source_counts::Dict{Symbol,Int},
+    cache_hits::Int,
+    cache_misses::Int,
+) where {T<:AbstractFloat}
+    return ProfileResult{T}(
+        case,
+        evaluation,
+        DiagnosticReport(),
+        DiagnosticReport(),
+        DiagnosticReport(),
+        numerical_report,
+        active_set_report,
+        degeneracy_report,
+        stage_seconds,
+        stage_allocations,
+        callback_statistics,
+        derivative_row_method_counts,
+        capability_source_counts,
+        cache_hits,
+        cache_misses,
+    )
 end
 
 """

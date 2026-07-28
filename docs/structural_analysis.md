@@ -166,7 +166,9 @@ solver-facing values and derivatives.
 It also evaluates ordinary radian and degree-based trigonometric primitives,
 including `asind` and `acosd`, consistently with the domain layer.
 
-Custom operators can extend `fixed_operator_value(Val(:operator), values)`.
+Custom operators can extend `fixed_operator_value(Val(:operator), values)`;
+the hook accepts ordinary typed vectors as well as the internal `Vector{Any}`
+form.
 If a fully fixed expression contains an operator without such an evaluator,
 the static pass reports `fixed_expression_evaluation_unavailable` rather than
 guessing whether the row is feasible. A non-finite floating-point result from

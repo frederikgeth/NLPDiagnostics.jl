@@ -186,6 +186,8 @@ export profile_cases_repeated
 export profile_synthetic_sparse_ladder
 export compare_profiles
 export synthetic_sparse_profile_corpus
+export synthetic_stability_profile_corpus
+export profile_synthetic_stability_corpus
 export solver_postmortem
 export solver_log_observations
 export solver_iteration_records
@@ -1642,6 +1644,7 @@ end
 function _elastic_domain_argument(
     model_snapshot::ModelSnapshot,
     issue::ExpressionDomainIssue,
+    argument::Integer = issue.argument,
 )
     issue.path.source.kind == :constraint || return nothing
     record = findfirst(
@@ -1656,22 +1659,33 @@ function _elastic_domain_argument(
         expression = expression.args[argument_index]
     end
     expression isa MOI.ScalarNonlinearFunction || return nothing
-    issue.argument <= length(expression.args) || return nothing
-    return expression.args[issue.argument]
+    argument <= length(expression.args) || return nothing
+    return expression.args[argument]
 end
 
 function _elastic_domain_guard_materialization(
     model_snapshot::ModelSnapshot,
     issue::ExpressionDomainIssue,
 )
+    if issue.operator == :logdiffexp
+        first_argument = _elastic_domain_argument(model_snapshot, issue, 1)
+        second_argument = _elastic_domain_argument(model_snapshot, issue, 2)
+        (isnothing(first_argument) || isnothing(second_argument)) && return false,
+            "the nonlinear arguments cannot be recovered as scalar source expressions"
+        (first_argument isa Union{MOI.VariableIndex,MOI.ScalarAffineFunction{Float64}} &&
+            second_argument isa Union{MOI.VariableIndex,MOI.ScalarAffineFunction{Float64}}) ||
+            return false, "the strict first-argument-minus-second-argument relation is not directly scalar affine"
+        return true, "the strict scalar-affine first-argument-minus-second-argument guard can be materialized explicitly"
+    end
     argument = _elastic_domain_argument(model_snapshot, issue)
     isnothing(argument) && return false,
         "the nonlinear argument cannot be recovered as a scalar source expression"
     argument isa Union{MOI.VariableIndex,MOI.ScalarAffineFunction{Float64}} ||
         return false, "the argument is not a directly guardable scalar affine expression"
-    if issue.operator in (:log, :log10, :log2, :log1p, :sqrt) ||
+    if issue.operator in (:log, :log10, :log2, :log1p, :log1mexp, :sqrt) ||
        (issue.operator == :^ && startswith(issue.requirement, "base > 0"))
-        return true, "a scalar affine lower-domain guard can be materialized explicitly"
+        direction = issue.operator == :log1mexp ? "upper" : "lower"
+        return true, "a scalar affine $direction-domain guard can be materialized explicitly"
     elseif issue.operator in (:asin, :acos, :asind, :acosd)
         return true, "the closed inverse-trigonometric input interval can be materialized explicitly"
     elseif issue.operator == :acosh
@@ -1754,6 +1768,9 @@ function elastic_domain_guard_plan(
     nonmaterializable = ElasticDomainGuard[]
     for issue in domain_issues(model_snapshot)
         issue.path.source in selected || continue
+        # `logdiffexp(a, b)` yields two static issue attachments for source
+        # provenance, but its strict domain is one joint relation a - b > 0.
+        issue.operator == :logdiffexp && issue.argument != 1 && continue
         materializable, reason = _elastic_domain_guard_materialization(model_snapshot, issue)
         guard = ElasticDomainGuard(
             issue.path.source,
@@ -1768,6 +1785,7 @@ function elastic_domain_guard_plan(
             issue.enclosure.informative,
             materializable,
             reason,
+            issue.operator == :logdiffexp ? 2 : nothing,
         )
         push!(guards, guard)
         materializable || push!(nonmaterializable, guard)
@@ -1792,7 +1810,15 @@ function analyze_elastic_domain_guard_plan(plan::ElasticDomainGuardPlan)
             confidence = proven ? ConfidenceCertain : ConfidenceHigh,
             observation = "An elastic-scope constraint applies $(guard.operator) at path $(join(guard.path, "/")) where $(guard.requirement).",
             why_it_matters = "Relaxing a constraint residual does not make an undefined nonlinear operator evaluable; auxiliary slack evidence is unreliable outside this operator domain.",
-            evidence = [Evidence("Elastic domain guard"; details = ["operator" => guard.operator, "argument" => guard.argument, "requirement" => guard.requirement, "assessment" => guard.assessment, "materializable" => guard.materializable, "reason" => guard.reason])],
+            evidence = [Evidence("Elastic domain guard"; details = [
+                "operator" => guard.operator,
+                "argument" => guard.argument,
+                "related_argument" => something(guard.related_argument, "none"),
+                "requirement" => guard.requirement,
+                "assessment" => guard.assessment,
+                "materializable" => guard.materializable,
+                "reason" => guard.reason,
+            ])],
             affected = [guard.source],
             suggested_actions = guard.materializable ?
                                 ["Use an explicit guarded auxiliary formulation with a stated positive margin before interpreting elastic results."] :
@@ -1829,6 +1855,7 @@ end
 function _elastic_domain_argument(
     model_snapshot::ModelSnapshot,
     guard::ElasticDomainGuard,
+    argument::Integer = guard.argument,
 )
     guard.source.kind == :constraint || return nothing
     record_index = findfirst(
@@ -1843,8 +1870,8 @@ function _elastic_domain_argument(
         expression = expression.args[argument_index]
     end
     expression isa MOI.ScalarNonlinearFunction || return nothing
-    guard.argument <= length(expression.args) || return nothing
-    return expression.args[guard.argument]
+    argument <= length(expression.args) || return nothing
+    return expression.args[argument]
 end
 
 function _map_elastic_guard_argument(
@@ -1855,6 +1882,15 @@ function _map_elastic_guard_argument(
         [MOI.ScalarAffineTerm(1.0, index_map[value])],
         0.0,
     )
+end
+
+function _elastic_affine_difference(
+    first::MOI.ScalarAffineFunction{Float64},
+    second::MOI.ScalarAffineFunction{Float64},
+)
+    terms = copy(first.terms)
+    append!(terms, MOI.ScalarAffineTerm(-term.coefficient, term.variable) for term in second.terms)
+    return MOI.ScalarAffineFunction(terms, first.constant - second.constant)
 end
 
 function _map_elastic_guard_argument(
@@ -1872,6 +1908,10 @@ function _elastic_domain_guard_sets(guard::ElasticDomainGuard, margin::Float64)
         return Any[MOI.GreaterThan(margin)]
     elseif guard.operator == :log1p
         return Any[MOI.GreaterThan(-1.0 + margin)]
+    elseif guard.operator == :log1mexp
+        return Any[MOI.LessThan(-margin)]
+    elseif guard.operator == :logdiffexp
+        return Any[MOI.GreaterThan(margin)]
     elseif guard.operator == :sqrt
         return Any[MOI.GreaterThan(0.0)]
     elseif guard.operator in (:asin, :acos, :asind, :acosd)
@@ -2062,6 +2102,20 @@ function build_elastic_feasibility_model(
                 "elastic domain guard plan/build argument mismatch",
             ))
             mapped_argument = _map_elastic_guard_argument(argument, index_map)
+            if !isnothing(guard.related_argument)
+                related_argument = _elastic_domain_argument(
+                    model_snapshot, guard, guard.related_argument,
+                )
+                isnothing(related_argument) && throw(ErrorException(
+                    "elastic relational domain guard plan/build argument mismatch",
+                ))
+                mapped_related_argument = _map_elastic_guard_argument(
+                    related_argument, index_map,
+                )
+                mapped_argument = _elastic_affine_difference(
+                    mapped_argument, mapped_related_argument,
+                )
+            end
             for set_value in _elastic_domain_guard_sets(guard, guard_margin)
                 MOI.add_constraint(auxiliary, mapped_argument, set_value)
             end
