@@ -476,6 +476,28 @@ struct PortCoordinateMap{T<:AbstractFloat}
     description::String
 end
 
+"""Plugin-declared physical interpretation of one port's terminal coordinates."""
+struct PortCoordinateSemantics
+    component_type::Symbol
+    component_id::String
+    port_id::String
+    quantity::Symbol
+    representation::Symbol
+    units::Dict{String,String}
+    description::String
+end
+
+"""Plugin-declared physical interpretation of selected component model coordinates."""
+struct ComponentCoordinateSemantics
+    component_type::Symbol
+    component_id::String
+    variables::Vector{MOI.VariableIndex}
+    quantity::Symbol
+    representation::Symbol
+    units::Dict{String,String}
+    description::String
+end
+
 """A topology-nullspace basis projected through plugin-declared port coordinate maps."""
 struct PortTopologyCoordinateProjection{T<:AbstractFloat}
     available::Bool
@@ -742,6 +764,46 @@ function PortCoordinateMap(
         component_type, string(component_id), string(port_id), collect(variables),
         T.(terminal_to_variable), String(description),
     )
+end
+
+function PortCoordinateSemantics(
+    component_type::Symbol, component_id, port_id;
+    quantity::Symbol,
+    representation::Symbol = :generic,
+    units::AbstractDict = Dict{String,String}(),
+    description::AbstractString = "",
+)
+    all(!isempty(strip(string(value))) for value in (component_type, component_id, port_id)) ||
+        throw(ArgumentError("port coordinate-semantics identities must be nonempty"))
+    quantity in (:voltage, :current, :power, :angle, :generic) ||
+        throw(ArgumentError("port coordinate quantity must be :voltage, :current, :power, :angle, or :generic"))
+    isempty(String(representation)) &&
+        throw(ArgumentError("port coordinate representation must be nonempty"))
+    any(isempty(strip(string(key))) || isempty(strip(string(value))) for (key, value) in units) &&
+        throw(ArgumentError("port coordinate semantics unit names and labels must be nonempty"))
+    return PortCoordinateSemantics(
+        component_type, string(component_id), string(port_id), quantity, representation,
+        Dict(string(key) => string(value) for (key, value) in units), String(description),
+    )
+end
+
+function ComponentCoordinateSemantics(
+    component_type::Symbol, component_id, variables::AbstractVector{MOI.VariableIndex};
+    quantity::Symbol, representation::Symbol = :generic,
+    units::AbstractDict = Dict{String,String}(), description::AbstractString = "",
+)
+    all(!isempty(strip(string(value))) for value in (component_type, component_id)) ||
+        throw(ArgumentError("component coordinate-semantics identities must be nonempty"))
+    isempty(variables) && throw(ArgumentError("component coordinate semantics requires variables"))
+    length(unique(variables)) == length(variables) ||
+        throw(ArgumentError("component coordinate semantics variables must be unique"))
+    quantity in (:voltage, :current, :power, :angle, :generic) ||
+        throw(ArgumentError("component coordinate quantity is unsupported"))
+    isempty(String(representation)) && throw(ArgumentError("component coordinate representation must be nonempty"))
+    any(isempty(strip(string(key))) || isempty(strip(string(value))) for (key, value) in units) &&
+        throw(ArgumentError("component coordinate semantics unit names and labels must be nonempty"))
+    return ComponentCoordinateSemantics(component_type, string(component_id), collect(variables),
+        quantity, representation, Dict(string(key) => string(value) for (key, value) in units), String(description))
 end
 
 """

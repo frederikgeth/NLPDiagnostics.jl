@@ -62,6 +62,22 @@ independent `port_topology_candidate_mode_*` declarations. Degeneracy analysis
 compares those candidates with an observed local Jacobian right nullspace by
 default, but retains their representational provenance and never upgrades that
 comparison into an electrical interpretation.
+`component_port_coordinate_semantics(model)` separately declares whether a
+port's terminals represent voltage, current, power, angle, or a plugin-defined generic
+quantity, together with their representation and units. Combined analysis
+reports duplicate or unaligned declarations and records when a semantics
+declaration has no `PortCoordinateMap`; physical meaning without that bridge is
+not treated as numerical model-coordinate evidence. For non-generic quantities,
+an omitted unit convention is retained as a structural declaration but reported
+as insufficient evidence for physical scaling or tolerance interpretation.
+When maps make several terminal declarations share an MOI variable, their
+quantity, representation, and unit conventions must agree. A disagreement is
+reported as representational metadata conflict before any numerical scaling or
+nullspace interpretation is attempted.
+Component-coordinate and mapped port-coordinate declarations are checked across
+the same bridge as well. This prevents a plugin from labelling a model variable
+as, for example, an angle at component level and a voltage at terminal level
+without an explicit transformed-coordinate convention.
 Only ports incident to at least one declared connection contribute topology
 candidates: an isolated port is reported structurally, but its unconstrained
 terminal coordinates are not silently treated as an expected model gauge.
@@ -92,6 +108,20 @@ dimension. At an explicit evaluation point, `analyze_component_ranks` aligns
 both scopes to the evaluated Jacobian and reports an expected-versus-observed
 rank mismatch as numerical evidence with representational interpretation. It
 does not assign a physical cause to that mismatch.
+Plugins may separately declare `component_coordinate_semantics(model)` with
+`ComponentCoordinateSemantics` records. These label selected model coordinates
+as voltage, current, power, angle, or generic quantities, with an explicit
+representation and unit convention. Combined analysis checks that the declared
+variables exist and, when matching `ComponentMetadata` supplies a nonempty
+variable scope, that one such scope covers the semantics declaration. This is a
+representational consistency check—not evidence that the coordinates have the
+claimed physical meaning. Missing units for non-generic quantities are reported
+as insufficient evidence for physical scaling and tolerance interpretation.
+If several declarations share a model coordinate but disagree on quantity,
+representation, or units, combined analysis reports a representational conflict
+before any physical scaling interpretation is attempted. Identical declarations
+may intentionally share a coordinate; differing declarations require an
+explicit transformed-coordinate model or a plugin-level explanation.
 
 ## Auxiliary-feasibility boundary
 
@@ -216,11 +246,13 @@ explicit margin moves only that endpoint inward. Intervals crossing a
 singularity or containing multiple branches remain visible but unmaterialized.
 `stable_reformulation_plan` is a separate, non-mutating companion to numerical
 fingerprinting. It turns exact-real-semantics composition fingerprints into
-inspectable candidates: `log(1+x)` to `log1p`, `exp(x)-1` to `expm1`,
-`log(exp(x))` to `x`, and softplus/logistic composites to stable registered
-operators. It never rewrites a model. Candidates that need `log1pexp` or
-`logistic` explicitly say that a compatible nonlinear operator must first be
-registered and tested with the chosen solver stack.
+inspectable candidates: `log(1+x)` or `log(1-x)` to `log1p`, `exp(x)-1` to `expm1`,
+`log(exp(x))` to `x`, `log(1-exp(x))` or `log1p(-exp(x))` to a branch-aware `log1mexp`, and
+`log(exp(a)-exp(b))` to a branch-aware `logdiffexp`, and
+softplus/logistic and complementary-logistic/`log(cosh(x))`/multi-term log-sum-exp composites to stable
+registered operators. It never rewrites a model. The `log1mexp` candidate retains the real-domain
+requirement `x < 0`, and `logdiffexp` retains `a > b`; neither is a domain guard.
+Candidates that need `log1pexp`, `log1mexp`, `logcosh`, `logsumexp`, `logdiffexp`, or `logistic` explicitly say that a compatible nonlinear operator must first be registered and tested with the chosen solver stack.
 Each relaxation is labeled by its construction (for example scalar upper
 bound, equality, SOC, or rotated-SOC) so those different semantics are not
 silently conflated in a report.

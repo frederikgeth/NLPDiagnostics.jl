@@ -42,6 +42,35 @@ function _addition_other_than_one(value)
     return nothing
 end
 
+function _subtraction_from_one(value)
+    _is_head(value, :-) || return nothing
+    length(value.args) == 2 || return nothing
+    _is_one(value.args[1]) && return value.args[2]
+    return nothing
+end
+
+function _addition_terms(value)
+    _is_head(value, :+) || return Any[value]
+    terms = Any[]
+    for argument in value.args
+        append!(terms, _addition_terms(argument))
+    end
+    return terms
+end
+
+function _logsumexp_terms(value)
+    terms = _addition_terms(value)
+    length(terms) >= 2 && all(term -> _is_head(term, :exp), terms) || return nothing
+    return terms
+end
+
+function _logdiffexp_terms(value)
+    _is_head(value, :-) || return nothing
+    length(value.args) == 2 || return nothing
+    all(term -> _is_head(term, :exp), value.args) || return nothing
+    return value.args
+end
+
 function _negative_argument(value)
     _is_head(value, :-) || return nothing
     length(value.args) == 1 && return value.args[1]
@@ -230,7 +259,55 @@ function _composition_fingerprint_risks!(
     head = value.head
     if head == :log && length(value.args) == 1
         argument = only(value.args)
-        if _is_head(argument, :exp)
+        logsumexp_terms = _logsumexp_terms(argument)
+        logdiffexp_terms = _logdiffexp_terms(argument)
+        if _is_head(argument, :cosh)
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :unstable_logcosh_expression,
+                DomainPossibleViolation,
+                "The expression computes log(cosh(x)) explicitly.",
+                "The composite value is well defined for real x, but the intermediate cosh can overflow for large magnitude arguments.",
+                ["pattern" => "log(cosh(x))"],
+                [
+                    "Use a stable logcosh implementation based on abs(x) + log1p(exp(-2abs(x))) - log(2).",
+                ],
+            )
+        elseif !isnothing(logsumexp_terms)
+            term_count = length(logsumexp_terms)
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :unstable_logsumexp_expression,
+                DomainPossibleViolation,
+                "The expression computes a $(term_count)-term log-sum-exp explicitly.",
+                "Either intermediate exponential can overflow even when the final log-sum-exp value is well scaled.",
+                ["pattern" => "log(sum(exp(term)))", "term_count" => term_count],
+                [
+                    "Use a stable logsumexp implementation based on a max-shift before exponentiation.",
+                ],
+            )
+        elseif !isnothing(logdiffexp_terms)
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :unstable_logdiffexp_expression,
+                DomainPossibleViolation,
+                "The expression computes log(exp(a) - exp(b)) explicitly.",
+                "The exponential difference can overflow or lose significant digits when a and b are close, even where the final log-difference is well scaled.",
+                ["pattern" => "log(exp(a) - exp(b))", "real_domain" => "a > b"],
+                [
+                    "Use a stable branch-aware logdiffexp implementation, and retain the explicit real-domain requirement a > b.",
+                ],
+            )
+        elseif _is_head(argument, :exp)
             _push_expression_risk!(
                 risks,
                 source,
@@ -246,8 +323,37 @@ function _composition_fingerprint_risks!(
                 ],
             )
         else
+            difference = _subtraction_from_one(argument)
             other = _addition_other_than_one(argument)
-            if !isnothing(other) && _is_head(other, :exp)
+            if !isnothing(difference) && _is_head(difference, :exp)
+                _push_expression_risk!(
+                    risks,
+                    source,
+                    path,
+                    value,
+                    :log_one_minus_exp_cancellation_risk,
+                    DomainPossibleViolation,
+                    "The expression computes log(1 - exp(x)) explicitly.",
+                    "For x close to zero from below, subtracting exp(x) from one loses significant digits and rounding can push the logarithm argument outside its domain.",
+                    ["pattern" => "log(1 - exp(x))"],
+                    [
+                        "Use a stable branch-aware log1mexp implementation, and retain the explicit real-domain requirement x < 0.",
+                    ],
+                )
+            elseif !isnothing(difference) && !isempty(variable_support(difference).variables)
+                _push_expression_risk!(
+                    risks,
+                    source,
+                    path,
+                    value,
+                    :log_one_minus_cancellation_risk,
+                    DomainPossibleViolation,
+                    "The expression computes log(1 - x) explicitly.",
+                    "For x close to zero, forming 1 - x can lose significant digits before the logarithm is evaluated.",
+                    ["pattern" => "log(1 - x)"],
+                    ["Use log1p(-x) to preserve accuracy near zero."],
+                )
+            elseif !isnothing(other) && _is_head(other, :exp)
                 _push_expression_risk!(
                     risks,
                     source,
@@ -277,23 +383,40 @@ function _composition_fingerprint_risks!(
                 )
             end
         end
-    elseif head == :log1p &&
-           length(value.args) == 1 &&
-           _is_head(only(value.args), :exp)
-        _push_expression_risk!(
-            risks,
-            source,
-            path,
-            value,
-            :unstable_softplus_expression,
-            DomainPossibleViolation,
-            "The expression implements softplus as log1p(exp(x)).",
-            "log1p avoids cancellation near zero but the intermediate exponential can still overflow.",
-            ["pattern" => "log1p(exp(x))"],
-            [
-                "Use a stable log1pexp/softplus implementation that does not form exp(x) for large positive x.",
-            ],
-        )
+    elseif head == :log1p && length(value.args) == 1
+        argument = only(value.args)
+        if _is_head(argument, :exp)
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :unstable_softplus_expression,
+                DomainPossibleViolation,
+                "The expression implements softplus as log1p(exp(x)).",
+                "log1p avoids cancellation near zero but the intermediate exponential can still overflow.",
+                ["pattern" => "log1p(exp(x))"],
+                [
+                    "Use a stable log1pexp/softplus implementation that does not form exp(x) for large positive x.",
+                ],
+            )
+        elseif !isnothing(_negative_argument(argument)) &&
+               _is_head(_negative_argument(argument), :exp)
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :log_one_minus_exp_cancellation_risk,
+                DomainPossibleViolation,
+                "The expression computes log1p(-exp(x)) explicitly.",
+                "The outer log1p avoids one subtraction, but exp(x) can still round to one near x = 0 from below and make the strict logarithm domain numerically fragile.",
+                ["pattern" => "log1p(-exp(x))"],
+                [
+                    "Use a stable branch-aware log1mexp implementation, and retain the explicit real-domain requirement x < 0.",
+                ],
+            )
+        end
     elseif head == :- && length(value.args) == 2
         if _is_head(value.args[1], :exp) && _is_one(value.args[2])
             _push_expression_risk!(
@@ -326,6 +449,37 @@ function _composition_fingerprint_risks!(
                 "The expression implements a logistic function as 1 / (1 + exp(-x)).",
                 "The intermediate exponential can overflow for large negative x even though the logistic value is bounded.",
                 ["pattern" => "1 / (1 + exp(-x))"],
+                [
+                    "Use a sign-aware stable logistic implementation that exponentiates the non-positive branch.",
+                ],
+            )
+        elseif _is_one(numerator) && !isnothing(other) && _is_head(other, :exp)
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :unstable_complementary_logistic_expression,
+                DomainPossibleViolation,
+                "The expression computes a complementary logistic function as 1 / (1 + exp(x)).",
+                "The intermediate exponential can overflow for large positive x even though the final value is bounded.",
+                ["pattern" => "1 / (1 + exp(x))"],
+                [
+                    "Use a sign-aware stable logistic implementation as logistic(-x).",
+                ],
+            )
+        elseif _is_head(numerator, :exp) && !isnothing(other) &&
+               _fingerprint(numerator) == _fingerprint(other)
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :unstable_logistic_expression,
+                DomainPossibleViolation,
+                "The expression implements a logistic function as exp(x) / (1 + exp(x)).",
+                "The intermediate exponential can overflow for large positive x even though the logistic value is bounded.",
+                ["pattern" => "exp(x) / (1 + exp(x))"],
                 [
                     "Use a sign-aware stable logistic implementation that exponentiates the non-positive branch.",
                 ],
@@ -428,12 +582,24 @@ function _stable_reformulation_candidate(risk::ExpressionNumericalRisk)
         (:identity, "replace log(exp(x)) with x under real-valued semantics", false)
     elseif risk.code == :log_one_plus_cancellation_risk
         (:log1p, "replace log(1 + x) with log1p(x)", false)
+    elseif risk.code == :log_one_minus_cancellation_risk
+        (:log1p, "replace log(1 - x) with log1p(-x)", false)
     elseif risk.code == :exp_minus_one_cancellation_risk
         (:expm1, "replace exp(x) - 1 with expm1(x)", false)
+    elseif risk.code == :log_one_minus_exp_cancellation_risk
+        (:log1mexp, "replace log(1 - exp(x)) with a registered branch-aware stable log1mexp operator", true)
+    elseif risk.code == :unstable_logcosh_expression
+        (:logcosh, "replace log(cosh(x)) with a registered overflow-safe logcosh operator", true)
+    elseif risk.code == :unstable_logsumexp_expression
+        (:logsumexp, "replace log(exp(a) + exp(b)) with a registered max-shifted logsumexp operator", true)
+    elseif risk.code == :unstable_logdiffexp_expression
+        (:logdiffexp, "replace log(exp(a) - exp(b)) with a registered branch-aware stable logdiffexp operator", true)
     elseif risk.code == :unstable_softplus_expression
         (:log1pexp, "replace the composite softplus with a registered stable log1pexp/softplus operator", true)
     elseif risk.code == :unstable_logistic_expression
         (:logistic, "replace the composite logistic expression with a registered sign-aware logistic operator", true)
+    elseif risk.code == :unstable_complementary_logistic_expression
+        (:logistic, "replace 1 / (1 + exp(x)) with a registered sign-aware logistic(-x) operator", true)
     else
         return nothing
     end
@@ -453,7 +619,8 @@ end
 
 Return exact-real-semantics rewrite candidates detected from compositional
 numerical fingerprints. The plan never edits a model. Candidates that name
-`log1pexp`/`logistic` require a compatible registered nonlinear operator.
+`log1pexp`, `log1mexp`, `logcosh`, `logsumexp`, and `logistic` require compatible registered nonlinear
+operators.
 """
 function stable_reformulation_plan(
     model::ModelSnapshot;

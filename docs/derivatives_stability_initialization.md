@@ -58,11 +58,17 @@ floating-point-fragile compositions:
 | Fingerprint | Suggested primitive or reformulation |
 |---|---|
 | `log(1 + x)` | `log1p(x)` |
+| `log(1 - x)` | `log1p(-x)` |
 | `exp(x) - 1` | `expm1(x)` |
 | `log(exp(x))` | `x`, when equivalent real semantics are intended |
 | `log(1 + exp(x))` | stable softplus / `log1pexp` |
 | `log1p(exp(x))` | stable softplus / `log1pexp` |
-| `1 / (1 + exp(-x))` | sign-aware stable logistic |
+| `log(1 - exp(x))`, `log1p(-exp(x))` | branch-aware `log1mexp` (`x < 0`) |
+| `log(exp(a) - exp(b))` | branch-aware `logdiffexp` (`a > b`) |
+| `log(cosh(x))` | overflow-safe `logcosh` |
+| `log(sum(exp(xᵢ)))` | max-shifted `logsumexp` |
+| `1 / (1 + exp(-x))`, `exp(x) / (1 + exp(x))` | sign-aware stable logistic |
+| `1 / (1 + exp(x))` | sign-aware `logistic(-x)` |
 
 For softplus, a stable scalar implementation is:
 
@@ -71,9 +77,12 @@ max(x, zero(x)) + log1p(exp(-abs(x)))
 ```
 
 `log1pexp` is the common Julia name; `log1exp` and `softplus` are also
-recognized as stable custom-operator heads for interval propagation. These
-operators are not necessarily built into MOI and may need to be registered by
-the modeling package.
+recognized as stable custom-operator heads for interval propagation. Fixed-value
+static evaluation additionally recognizes `log1mexp`, `logdiffexp`, `logcosh`,
+and `logsumexp` with stable formulas. These operators are not necessarily built
+into MOI and may need to be registered by the modeling package. In particular,
+registration must supply correct values and derivatives; a static fixed-value
+evaluator does not make a custom head available to a solver's AD pipeline.
 
 Fingerprints are warnings rather than algebraic rewrites. NLPDiagnostics never
 changes the model, and user-defined operator semantics may prevent an

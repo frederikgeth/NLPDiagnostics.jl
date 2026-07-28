@@ -66,10 +66,10 @@ bus-name heuristics are not an acceptable substitute.
 ## Dependency boundary
 
 `PowerModels` is registered as a weak dependency and `PowerModelsExt` is an
-optional extension. The current module intentionally establishes only the load
-boundary. Component extraction requires a tested public API target; until that
-is available, the generic `ComponentMetadata` /
-`expected_nullspace_modes` hooks remain the stable semantic boundary.
+optional extension. The implementation targets a deliberately small, tested
+public API surface. Unsupported formulation coordinate families remain visible
+as adapter-capability limits rather than being guessed from internal fields or
+rendered variable names.
 
 ## Confirmed public API target
 
@@ -88,7 +88,12 @@ The implemented first slice is
 branches, generators, loads, shunts, switches, storage, and DC lines across
 networks through those public references, assigning stable `nw<ID>:<ID>`
 component identities and per-unit unit labels. It intentionally returns no
-variable/constraint scopes and no expected rank or gauge declaration yet.
+constraint scopes and no expected rank or gauge declaration yet. Where public
+scalar `:va` entries exist, the corresponding bus record also carries that
+single MOI variable scope and `scalar_angle_coordinate=va`; other coordinate
+families remain deliberately unscoped.
+The extension additionally returns matching `component_coordinate_semantics(pm)`
+records with quantity `:angle`, polar representation, and radians units.
 When the extension is loaded, `component_metadata(pm)` delegates to this
 adapter for a `PowerModels.AbstractPowerModel`.
 Bus records additionally preserve `declared_reference_bus=true` when the
@@ -97,5 +102,47 @@ evidence only; it does not assert that the selected formulation includes an
 angle-reference equation.
 `NLPDiagnostics.powermodels_reference_bus_report(pm)` additionally reports
 zero, one, or multiple declared references independently for each network.
-It is a data-level diagnostic; it does not inspect the formulation's JuMP/MOI
-constraints or classify a numerical nullspace.
+When PowerModels exposes public connected-component data, it also reports this
+cardinality per island. It is a data-level diagnostic; it does not inspect the
+formulation's JuMP/MOI constraints or classify a numerical nullspace.
+Its metadata includes separate missing/multiple counts at network and island
+scope, including the informational multiple-across-islands classification.
+
+`NLPDiagnostics.powermodels_variable_indices(pm, key; network=nothing)` is
+the tested-convention boundary for scalar formulation variables: it converts
+public `var` entries to `MOI.VariableIndex` values through `JuMP.index` and
+keys them by network/component ID. It intentionally omits container-valued
+entries until their coordinate ordering is declared by a formulation adapter.
+`NLPDiagnostics.powermodels_capability_report(pm)` makes this boundary
+inspectable per network. In particular, it reports when public scalar `:va`
+coordinates are absent, which means the generic scalar common-angle candidate
+cannot be constructed for that network without a formulation-specific adapter.
+`powermodels_jump_model(pm; key=:va)` recovers the owning JuMP model from
+those public scalar entries, after checking that they all share one owner. It
+is the safe handoff for running generic JuMP/MOI analysis; it never reads a
+PowerModels internal model field.
+The extension also defines `analyze(pm; owner_variable_key=:va)`: it runs the
+generic analysis on that recovered JuMP model, adds counts for public
+PowerModels component metadata, validates scoped public `:va` coordinates
+against the recovered MOI backend, and appends adapter-capability and data-level
+reference-bus reports. Angle-gauge candidates remain explicit opt-in inputs rather than an
+automatic physical classification.
+For the targeted numerical screen,
+`powermodels_analyze_degeneracy(pm, point)` runs generic Jacobian-nullspace
+analysis on the recovered MOI backend and includes missing-reference scalar
+angle candidates by default. Set `include_angle_gauge_modes=false` to obtain
+the bare generic screen, or pass additional `expected_modes` explicitly.
+`powermodels_analyze_active_set(pm, point)` applies the same candidate policy
+to the selected active Jacobian, distinguishing a locally tangent angle mode
+from one removed by active constraints.
+`powermodels_analyze_reduced_hessian_persistence(pm, snapshots)` supplies the
+same optional candidates to cross-point flat-curvature persistence analysis;
+the snapshots remain the sole source of second-order numerical evidence.
+
+For a polar formulation whose scalar angle variables are publicly exposed as
+`:va`, `powermodels_angle_gauge_modes(pm, evaluation)` creates one opt-in
+common-angle candidate per unreferenced network island when public component
+data is available (otherwise per unreferenced network). Pass these as
+`expected_modes` to generic degeneracy or active-set analysis only after
+confirming the formulation's coordinate semantics; a declared reference bus is
+not treated as proof that an angle equation was created.

@@ -151,7 +151,8 @@ the generic core continues to leave periodic and multi-branch domains explicit
 rather than choosing a branch, except for a finite interval that ends at one
 identified periodic singularity, where it can safely move that endpoint inward.
 Stable expression fingerprints now also produce non-mutating reformulation
-plans with explicit registration requirements for custom stable primitives.
+plans with explicit registration requirements for custom stable primitives,
+including a domain-preserving `log1mexp` candidate for `log(1 - exp(x))`.
 
 ## Degeneracy framework
 
@@ -175,8 +176,17 @@ equation dependencies. Next classifications:
 - unknown local equality-Jacobian mode (implemented).
 
 PowerModels and multiconductor semantics follow only after these generic
-interfaces are stable. The dependency-free plugin boundary and first extension
-slice are specified in `docs/powermodels_extension.md`.
+interfaces are stable. The optional PowerModels `0.21` public-reference first
+slice is now implemented: it enumerates standard component metadata, preserves
+per-unit labels and public scalar `:va` MOI scopes, reports reference-bus
+cardinality per network and declared island, and provides explicit angle-mode
+candidate entry points for generic degeneracy, active-set, and reduced-Hessian
+persistence analysis. It does not inspect private PowerModels fields, parse
+variable names, infer actual reference constraints, or declare multiconductor
+ports. Those formulation-specific and physical-semantic layers remain future
+work; see `docs/powermodels_extension.md`.
+The concrete multiconductor declaration boundary is recorded in
+`docs/multiconductor_extension.md`.
 
 ## Solver postmortem foundation
 

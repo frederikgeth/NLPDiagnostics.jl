@@ -419,6 +419,17 @@ function _apply_constant_operator(head::Symbol, values::Vector{Any})
         value > zero(value) ? value + log1p(exp(-value)) : log1p(exp(value))
     stable_logistic(value) =
         value >= zero(value) ? inv(one(value) + exp(-value)) : exp(value) / (one(value) + exp(value))
+    stable_log1mexp(value) =
+        value < -log(convert(typeof(value), 2)) ? log1p(-exp(value)) : log(-expm1(value))
+    stable_logcosh(value) =
+        abs(value) + log1p(exp(-2 * abs(value))) - log(convert(typeof(value), 2))
+    stable_logsumexp(arguments) = begin
+        isempty(arguments) && throw(ArgumentError("logsumexp requires at least one argument"))
+        shift = maximum(arguments)
+        shift + log(sum(exp(value - shift) for value in arguments))
+    end
+    stable_logdiffexp(first_value, second_value) =
+        first_value + stable_log1mexp(second_value - first_value)
     head == :+ && return +(values...)
     head == :- && return -(values...)
     head == :* && return *(values...)
@@ -434,6 +445,10 @@ function _apply_constant_operator(head::Symbol, values::Vector{Any})
     head == :exp2 && return exp2(only(values))
     head == :expm1 && return expm1(only(values))
     head in (:log1pexp, :log1exp, :softplus) && return stable_softplus(only(values))
+    head == :log1mexp && return stable_log1mexp(only(values))
+    head == :logcosh && return stable_logcosh(only(values))
+    head == :logsumexp && return stable_logsumexp(values)
+    head == :logdiffexp && return stable_logdiffexp(values...)
     head == :logistic && return stable_logistic(only(values))
     head == :sin && return sin(only(values))
     head == :cos && return cos(only(values))

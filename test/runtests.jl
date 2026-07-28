@@ -218,6 +218,140 @@ end
         model_variables = MOI.VariableIndex[MOI.VariableIndex(1)],
     )
     @test isempty(coordinate_map_report.findings)
+    port_semantics = NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "high";
+        quantity = :voltage, representation = :polar,
+        units = Dict("voltage" => "p.u."),
+    )
+    @test NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "angle";
+        quantity = :angle, representation = :polar,
+        units = Dict("angle" => "rad"),
+    ).quantity == :angle
+    unmapped_semantics_report =
+        NLPDiagnostics._component_port_coordinate_semantics_findings(
+            [rank_deficient_port], [port_semantics],
+        )
+    @test length(findings(
+        unmapped_semantics_report,
+        :component_port_coordinate_semantics_unmapped,
+    )) == 1
+    mapped_semantics_report =
+        NLPDiagnostics._component_port_coordinate_semantics_findings(
+            [rank_deficient_port], [port_semantics], [coordinate_map],
+        )
+    @test isempty(mapped_semantics_report.findings)
+    second_coordinate_map = NLPDiagnostics.PortCoordinateMap(
+        :transformer, "tx_1", "low", MOI.VariableIndex[MOI.VariableIndex(1)];
+        terminal_to_variable = reshape([1.0, 0.0], 1, 2),
+    )
+    conflicting_port_semantics = NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "low";
+        quantity = :current, representation = :rectangular,
+        units = Dict("current" => "p.u."),
+    )
+    conflicting_port_semantics_report =
+        NLPDiagnostics._component_port_coordinate_semantics_findings(
+            [rank_deficient_port, second_port],
+            [port_semantics, conflicting_port_semantics],
+            [coordinate_map, second_coordinate_map],
+        )
+    @test length(findings(
+        conflicting_port_semantics_report,
+        :component_port_coordinate_semantics_variable_conflict,
+    )) == 1
+    cross_layer_component_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
+        :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
+        quantity = :angle, representation = :polar,
+        units = Dict("angle" => "rad"),
+    )
+    component_port_semantics_report =
+        NLPDiagnostics._component_port_coordinate_semantics_cross_layer_findings(
+            [cross_layer_component_semantics], [port_semantics], [coordinate_map],
+        )
+    @test length(findings(
+        component_port_semantics_report,
+        :component_port_coordinate_semantics_cross_layer_conflict,
+    )) == 1
+    aligned_component_port_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
+        :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
+        quantity = :voltage, representation = :polar,
+        units = Dict("voltage" => "p.u."),
+    )
+    @test isempty(NLPDiagnostics._component_port_coordinate_semantics_cross_layer_findings(
+        [aligned_component_port_semantics], [port_semantics], [coordinate_map],
+    ).findings)
+    unitless_semantics = NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "high"; quantity = :current,
+    )
+    unitless_semantics_report =
+        NLPDiagnostics._component_port_coordinate_semantics_findings(
+            [rank_deficient_port], [unitless_semantics], [coordinate_map],
+        )
+    @test length(findings(
+        unitless_semantics_report,
+        :component_port_coordinate_semantics_units_unspecified,
+    )) == 1
+    @test_throws ArgumentError NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "high"; quantity = :temperature,
+    )
+    @test_throws ArgumentError NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "high";
+        quantity = :voltage, units = Dict("voltage" => " "),
+    )
+    component_angle_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
+        :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
+        quantity = :angle, representation = :polar,
+        units = Dict("angle" => "rad"),
+    )
+    @test isempty(NLPDiagnostics._component_coordinate_semantics_findings(
+        [component_angle_semantics], MOI.VariableIndex[MOI.VariableIndex(1)],
+        components = [NLPDiagnostics.ComponentMetadata(
+            :bus, "bus_1"; variables = MOI.VariableIndex[MOI.VariableIndex(1)],
+        )],
+    ).findings)
+    duplicate_component_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
+        :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)]; quantity = :voltage,
+    )
+    duplicate_component_semantics_report =
+        NLPDiagnostics._component_coordinate_semantics_findings(
+            [component_angle_semantics, duplicate_component_semantics],
+            MOI.VariableIndex[MOI.VariableIndex(1)],
+        )
+    @test length(findings(
+        duplicate_component_semantics_report,
+        :duplicate_component_coordinate_semantics,
+    )) == 1
+    conflicting_component_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
+        :controller, "ctl_1", MOI.VariableIndex[MOI.VariableIndex(1)];
+        quantity = :voltage, representation = :rectangular,
+        units = Dict("voltage" => "p.u."),
+    )
+    conflicting_component_semantics_report =
+        NLPDiagnostics._component_coordinate_semantics_findings(
+            [component_angle_semantics, conflicting_component_semantics],
+            MOI.VariableIndex[MOI.VariableIndex(1)],
+        )
+    @test length(findings(
+        conflicting_component_semantics_report,
+        :component_coordinate_semantics_variable_conflict,
+    )) == 1
+    out_of_scope_component_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
+        :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(2)];
+        quantity = :angle, representation = :polar, units = Dict("angle" => "rad"),
+    )
+    out_of_scope_component_semantics_report =
+        NLPDiagnostics._component_coordinate_semantics_findings(
+            [out_of_scope_component_semantics],
+            MOI.VariableIndex[MOI.VariableIndex(1), MOI.VariableIndex(2)],
+            components = [NLPDiagnostics.ComponentMetadata(
+                :bus, "bus_1"; variables = MOI.VariableIndex[MOI.VariableIndex(1)],
+            )],
+        )
+    @test length(findings(
+        out_of_scope_component_semantics_report,
+        :component_coordinate_semantics_scope_outside_component,
+    )) == 1
     terminal_port_mode = NLPDiagnostics.PortNullspaceMode(
         :transformer, "tx_1", "high", :terminal, [0.0, 1.0],
     )
@@ -4287,8 +4421,52 @@ end
             :log,
             Any[MOI.ScalarNonlinearFunction(:+, Any[1.0, x])],
         )
+        log_one_minus = MOI.ScalarNonlinearFunction(
+            :log,
+            Any[MOI.ScalarNonlinearFunction(:-, Any[1.0, x])],
+        )
         exp_minus_one =
             MOI.ScalarNonlinearFunction(:-, Any[exp_x, 1.0])
+        log_one_minus_exp = MOI.ScalarNonlinearFunction(
+            :log,
+            Any[MOI.ScalarNonlinearFunction(:-, Any[1.0, exp_x])],
+        )
+        log1p_negative_exp = MOI.ScalarNonlinearFunction(
+            :log1p,
+            Any[MOI.ScalarNonlinearFunction(:-, Any[exp_x])],
+        )
+        log_cosh = MOI.ScalarNonlinearFunction(
+            :log,
+            Any[MOI.ScalarNonlinearFunction(:cosh, Any[x])],
+        )
+        log_sum_exp = MOI.ScalarNonlinearFunction(
+            :log,
+            Any[MOI.ScalarNonlinearFunction(:+, Any[
+                exp_x,
+                MOI.ScalarNonlinearFunction(:exp, Any[
+                    MOI.ScalarNonlinearFunction(:-, Any[x]),
+                ]),
+            ])],
+        )
+        log_sum_exp_three_terms = MOI.ScalarNonlinearFunction(
+            :log,
+            Any[MOI.ScalarNonlinearFunction(:+, Any[
+                exp_x,
+                MOI.ScalarNonlinearFunction(:exp, Any[
+                    MOI.ScalarNonlinearFunction(:-, Any[x]),
+                ]),
+                MOI.ScalarNonlinearFunction(:exp, Any[
+                    MOI.ScalarNonlinearFunction(:*, Any[2.0, x]),
+                ]),
+            ])],
+        )
+        log_diff_exp = MOI.ScalarNonlinearFunction(
+            :log,
+            Any[MOI.ScalarNonlinearFunction(:-, Any[
+                MOI.ScalarNonlinearFunction(:exp, Any[1.0]),
+                exp_x,
+            ])],
+        )
         logistic = MOI.ScalarNonlinearFunction(
             :/,
             Any[
@@ -4310,29 +4488,54 @@ end
                 ),
             ],
         )
+        logistic_exp_over_sum = MOI.ScalarNonlinearFunction(
+            :/,
+            Any[
+                exp_x,
+                MOI.ScalarNonlinearFunction(:+, Any[1.0, exp_x]),
+            ],
+        )
+        complementary_logistic = MOI.ScalarNonlinearFunction(
+            :/,
+            Any[
+                1.0,
+                MOI.ScalarNonlinearFunction(:+, Any[1.0, exp_x]),
+            ],
+        )
         for expression in
-            (softplus, log_one_plus, exp_minus_one, logistic)
+            (softplus, log_one_plus, log_one_minus, exp_minus_one, log_one_minus_exp,
+             log1p_negative_exp, log_cosh, log_sum_exp, log_sum_exp_three_terms,
+             log_diff_exp, logistic, logistic_exp_over_sum, complementary_logistic)
             MOI.add_constraint(model, expression, MOI.LessThan(1.0e6))
         end
         report = NLPDiagnostics.analyze_expressions(model)
         @test length(findings(report, :unstable_softplus_expression)) == 1
         @test length(findings(report, :log_one_plus_cancellation_risk)) ==
               1
+        @test length(findings(report, :log_one_minus_cancellation_risk)) ==
+              1
         @test length(findings(report, :exp_minus_one_cancellation_risk)) ==
               1
-        @test length(findings(report, :unstable_logistic_expression)) == 1
+        @test length(findings(report, :log_one_minus_exp_cancellation_risk)) ==
+              2
+        @test length(findings(report, :unstable_logcosh_expression)) == 1
+        @test length(findings(report, :unstable_logsumexp_expression)) == 2
+        @test length(findings(report, :unstable_logdiffexp_expression)) == 1
+        @test length(findings(report, :unstable_logistic_expression)) == 2
+        @test length(findings(report, :unstable_complementary_logistic_expression)) == 1
         @test !isempty(findings(report, :exponential_overflow_risk))
         @test !isempty(findings(report, :exponential_underflow_risk))
         reformulation_plan = NLPDiagnostics.stable_reformulation_plan(model)
-        @test length(reformulation_plan.candidates) == 4
+        @test length(reformulation_plan.candidates) == 13
         @test Set(candidate.replacement for candidate in reformulation_plan.candidates) ==
-              Set([:log1pexp, :log1p, :expm1, :logistic])
+              Set([:log1pexp, :log1p, :expm1, :log1mexp, :logcosh, :logsumexp,
+                   :logdiffexp, :logistic])
         @test count(
             candidate -> candidate.requires_registered_operator,
             reformulation_plan.candidates,
-        ) == 2
+        ) == 10
         reformulation_report = NLPDiagnostics.analyze_stable_reformulation_plan(reformulation_plan)
-        @test length(findings(reformulation_report, :stable_reformulation_candidate)) == 4
+        @test length(findings(reformulation_report, :stable_reformulation_candidate)) == 13
 
         stable_model = new_model()
         z = MOI.add_variable(stable_model)

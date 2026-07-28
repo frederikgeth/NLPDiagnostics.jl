@@ -157,10 +157,12 @@ at an initialization point because the substituted values are mathematically
 required by declared bounds.
 
 Fixed-value evaluation recognizes numerically deliberate primitives including
-`log1p`, `expm1`, `log1pexp`/`log1exp`/`softplus`, and `logistic`. The latter
-two use sign-aware stable formulas, so a fixed large positive argument does
-not create an artificial overflow while the diagnostic is trying to establish
-a mathematical fact.
+`log1p`, `expm1`, `log1pexp`/`log1exp`/`softplus`, `log1mexp`, `logdiffexp`,
+`logcosh`, `logsumexp`, and `logistic`. The composite primitives use stable
+formulas, so a fixed extreme argument does not create an artificial overflow
+while the diagnostic is trying to establish a mathematical fact. This supports
+static evaluation only; custom operator registration remains responsible for
+solver-facing values and derivatives.
 It also evaluates ordinary radian and degree-based trigonometric primitives,
 including `asind` and `acosd`, consistently with the domain layer.
 

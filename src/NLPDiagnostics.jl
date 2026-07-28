@@ -45,6 +45,8 @@ export PortNullspaceMode
 export PortConnectionMetadata
 export PortTopologyNullspace
 export PortCoordinateMap
+export PortCoordinateSemantics
+export ComponentCoordinateSemantics
 export PortTopologyCoordinateProjection
 export port_topology_expected_nullspace_modes
 export port_component_expected_nullspace_modes
@@ -224,12 +226,21 @@ export recover_stationarity_multipliers
 export nullspace_fingerprints
 export expected_nullspace_modes
 export component_metadata
+export component_coordinate_semantics
 export powermodels_component_metadata
+export powermodels_capability_report
 export powermodels_reference_bus_report
+export powermodels_variable_indices
+export powermodels_angle_gauge_modes
+export powermodels_jump_model
+export powermodels_analyze_degeneracy
+export powermodels_analyze_active_set
+export powermodels_analyze_reduced_hessian_persistence
 export component_port_metadata
 export component_port_nullspace_modes
 export component_port_connections
 export component_port_coordinate_maps
+export component_port_coordinate_semantics
 export port_topology_nullspace
 export structural_numerical_comparison
 export reduced_hessian_analysis
@@ -385,6 +396,104 @@ function _component_metadata_findings(
                     suggested_actions = ["Rebuild metadata after model construction and use constraints from the analyzed model."],
                 ))
             end
+        end
+    end
+    return report
+end
+
+function _component_coordinate_semantics_findings(
+    items::AbstractVector{<:ComponentCoordinateSemantics},
+    model_variables::AbstractVector{MOI.VariableIndex},
+    ; components::AbstractVector{<:ComponentMetadata} = ComponentMetadata[],
+)
+    report = DiagnosticReport()
+    known = Set(model_variables)
+    semantic_keys = [(item.component_type, item.component_id, Tuple(item.variables)) for item in items]
+    for key in unique([key for key in semantic_keys if count(==(key), semantic_keys) > 1])
+        push!(report, Finding(:duplicate_component_coordinate_semantics;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Component coordinate semantics declares the same component variable scope more than once.",
+            why_it_matters = "Competing quantity or representation declarations make physical interpretation ambiguous.",
+            evidence = [Evidence("Duplicate component coordinate semantics"; details = ["component_type" => key[1], "component_id" => key[2], "variable_count" => length(key[3])])],
+            affected = [EntityRef(:variable, variable.value) for variable in key[3]],
+            suggested_actions = ["Provide one coordinate semantics declaration per component variable scope."],
+        ))
+    end
+    variables_to_items = Dict{MOI.VariableIndex,Vector{ComponentCoordinateSemantics}}()
+    for item in items, variable in item.variables
+        push!(get!(variables_to_items, variable, ComponentCoordinateSemantics[]), item)
+    end
+    for variable in sort!(collect(keys(variables_to_items)); by = index -> index.value)
+        declarations = variables_to_items[variable]
+        signatures = unique([
+            (item.quantity, item.representation, Tuple(sort!(collect(item.units); by = first)))
+            for item in declarations
+        ])
+        length(signatures) <= 1 && continue
+        component_labels = sort!(unique([
+            "$(item.component_type):$(item.component_id)" for item in declarations
+        ]))
+        descriptions = sort!(unique([
+            "$(signature[1])/$(signature[2])" *
+            (isempty(signature[3]) ? "" : " [" * join(("$(first(unit))=$(last(unit))" for unit in signature[3]), ", ") * "]")
+            for signature in signatures
+        ]))
+        push!(report, Finding(:component_coordinate_semantics_variable_conflict;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Model variable $(variable.value) has $(length(signatures)) incompatible component-coordinate semantics declarations.",
+            why_it_matters = "A shared coordinate cannot be given a single physical-scaling or tolerance interpretation until the plugin explains the competing declarations.",
+            evidence = [Evidence("Conflicting component coordinate semantics"; details = [
+                "variable" => variable.value,
+                "components" => join(component_labels, ", "),
+                "semantics" => join(descriptions, " | "),
+            ])],
+            affected = [EntityRef(:variable, variable.value)],
+            suggested_actions = ["Use one quantity, representation, and unit convention for this shared coordinate, or split it into explicitly transformed model variables."],
+        ))
+    end
+    for item in items
+        unknown = [variable for variable in item.variables if !(variable in known)]
+        isempty(unknown) || push!(report, Finding(:component_coordinate_semantics_unknown_variable;
+            severity = SeverityError, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Component coordinate semantics references $(length(unknown)) variable(s) absent from the model.",
+            why_it_matters = "A stale coordinate declaration cannot support numerical or physical interpretation.",
+            evidence = [Evidence("Component coordinate semantics scope")],
+            affected = [EntityRef(:variable, variable.value) for variable in unknown],
+            suggested_actions = ["Rebuild coordinate semantics after model construction."],
+        ))
+        matching_scopes = [
+            Set(component.variables) for component in components if
+            component.component_type == item.component_type &&
+            component.component_id == item.component_id && !isempty(component.variables)
+        ]
+        if !isempty(matching_scopes) && !any(scope -> all(variable in scope for variable in item.variables), matching_scopes)
+            push!(report, Finding(:component_coordinate_semantics_scope_outside_component;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Component coordinate semantics for $(item.component_type) '$(item.component_id)' declares coordinates outside every matching component variable scope.",
+                why_it_matters = "A component-level physical interpretation must not silently extend beyond the component coordinates declared by the same plugin.",
+                evidence = [Evidence("Component coordinate semantics scope mismatch"; details = [
+                    "semantic_variable_count" => length(item.variables),
+                    "declared_component_scope_count" => length(matching_scopes),
+                    "declared_component_scope_sizes" => join(length.(matching_scopes), ","),
+                ])],
+                affected = [EntityRef(:variable, variable.value) for variable in item.variables],
+                suggested_actions = ["Align the coordinate semantics variables with one declared ComponentMetadata scope, or split the declaration by component."],
+            ))
+        end
+        if item.quantity != :generic && isempty(item.units)
+            push!(report, Finding(:component_coordinate_semantics_units_unspecified;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Declared $(item.quantity) component coordinates have no unit convention.",
+                why_it_matters = "The coordinate scope is structurally usable, but physical scaling and tolerance interpretation remain unavailable.",
+                evidence = [Evidence("Component coordinate semantics units"; details = ["component_type" => item.component_type, "component_id" => item.component_id, "quantity" => item.quantity])],
+                affected = [EntityRef(:variable, variable.value) for variable in item.variables],
+                suggested_actions = ["Declare a unit convention such as rad, p.u., kV, A, or MVA before requesting physical scaling interpretation."],
+            ))
         end
     end
     return report
@@ -762,6 +871,163 @@ function _component_port_coordinate_map_findings(
                 ))
             end
         end
+    end
+    return report
+end
+
+function _component_port_coordinate_semantics_findings(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    semantics::AbstractVector{<:PortCoordinateSemantics},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap} = PortCoordinateMap[],
+)
+    report = DiagnosticReport()
+    port_keys = Set((port.component_type, port.component_id, port.port_id) for port in ports)
+    semantic_keys = [(item.component_type, item.component_id, item.port_id) for item in semantics]
+    for key in unique([key for key in semantic_keys if count(==(key), semantic_keys) > 1])
+        push!(report, Finding(:duplicate_component_port_coordinate_semantics;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Port coordinate semantics declares $(key[1]) '$(key[2])' port '$(key[3])' more than once.",
+            why_it_matters = "Competing quantity or representation declarations make later physical interpretation ambiguous.",
+            evidence = [Evidence("Duplicate port coordinate semantics")],
+            suggested_actions = ["Provide one semantics declaration per stable component port."],
+        ))
+    end
+    maps_by_key = Dict{Tuple{Symbol,String,String},Vector{PortCoordinateMap}}()
+    for map in coordinate_maps
+        key = (map.component_type, map.component_id, map.port_id)
+        push!(get!(maps_by_key, key, PortCoordinateMap[]), map)
+    end
+    variables_to_semantics = Dict{MOI.VariableIndex,Vector{PortCoordinateSemantics}}()
+    for item in semantics
+        key = (item.component_type, item.component_id, item.port_id)
+        for map in get(maps_by_key, key, PortCoordinateMap[]), variable in map.variables
+            push!(get!(variables_to_semantics, variable, PortCoordinateSemantics[]), item)
+        end
+    end
+    for variable in sort!(collect(Base.keys(variables_to_semantics)); by = index -> index.value)
+        declarations = variables_to_semantics[variable]
+        signatures = unique([
+            (item.quantity, item.representation, Tuple(sort!(collect(item.units); by = first)))
+            for item in declarations
+        ])
+        length(signatures) <= 1 && continue
+        port_labels = sort!(unique([
+            "$(item.component_type):$(item.component_id):$(item.port_id)" for item in declarations
+        ]))
+        descriptions = sort!(unique([
+            "$(signature[1])/$(signature[2])" *
+            (isempty(signature[3]) ? "" : " [" * join(("$(first(unit))=$(last(unit))" for unit in signature[3]), ", ") * "]")
+            for signature in signatures
+        ]))
+        push!(report, Finding(:component_port_coordinate_semantics_variable_conflict;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Model variable $(variable.value) has $(length(signatures)) incompatible port-coordinate semantics declarations.",
+            why_it_matters = "A shared terminal-to-model coordinate cannot receive one physical-scaling or tolerance interpretation until the plugin resolves the competing declarations.",
+            evidence = [Evidence("Conflicting port coordinate semantics"; details = [
+                "variable" => variable.value,
+                "ports" => join(port_labels, ", "),
+                "semantics" => join(descriptions, " | "),
+            ])],
+            affected = [EntityRef(:variable, variable.value)],
+            suggested_actions = ["Use one quantity, representation, and unit convention for this shared coordinate, or introduce an explicit transformation between terminal and model coordinates."],
+        ))
+    end
+    for item in semantics
+        key = (item.component_type, item.component_id, item.port_id)
+        key in port_keys || push!(report, Finding(:component_port_coordinate_semantics_unaligned;
+            severity = SeverityError, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Port coordinate semantics references a component port that was not declared.",
+            why_it_matters = "A physical coordinate convention cannot be checked or composed without a matching port identity.",
+            evidence = [Evidence("Port coordinate semantics endpoint"; details = ["component_type" => item.component_type, "component_id" => item.component_id, "port_id" => item.port_id])],
+            suggested_actions = ["Declare the component port before attaching coordinate semantics."],
+        ))
+        haskey(maps_by_key, key) ||
+            push!(report, Finding(:component_port_coordinate_semantics_unmapped;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Declared $(item.quantity) port semantics has no terminal-to-model-coordinate map.",
+                why_it_matters = "Physical coordinate meaning cannot be compared with numerical model modes until the plugin declares its MOI-variable bridge.",
+                evidence = [Evidence("Port coordinate semantics mapping"; details = ["component_type" => item.component_type, "component_id" => item.component_id, "port_id" => item.port_id, "quantity" => item.quantity, "representation" => item.representation])],
+                suggested_actions = ["Add a PortCoordinateMap when this terminal convention should participate in model-coordinate diagnostics."],
+            ))
+        if item.quantity != :generic && isempty(item.units)
+            push!(report, Finding(:component_port_coordinate_semantics_units_unspecified;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Declared $(item.quantity) port semantics has no unit convention.",
+                why_it_matters = "The terminal coordinates remain structurally usable, but scaling and tolerance interpretations cannot be related to physical units.",
+                evidence = [Evidence("Port coordinate semantics units"; details = ["component_type" => item.component_type, "component_id" => item.component_id, "port_id" => item.port_id, "quantity" => item.quantity])],
+                suggested_actions = ["Declare a unit convention such as p.u., kV, A, or MVA before requesting physical scaling interpretation."],
+            ))
+        end
+    end
+    return report
+end
+
+"""Validate agreement between component-coordinate and mapped port-coordinate semantics."""
+function _component_port_coordinate_semantics_cross_layer_findings(
+    component_semantics::AbstractVector{<:ComponentCoordinateSemantics},
+    port_semantics::AbstractVector{<:PortCoordinateSemantics},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap} = PortCoordinateMap[],
+)
+    report = DiagnosticReport()
+    component_by_variable = Dict{MOI.VariableIndex,Vector{ComponentCoordinateSemantics}}()
+    for item in component_semantics, variable in item.variables
+        push!(get!(component_by_variable, variable, ComponentCoordinateSemantics[]), item)
+    end
+    maps_by_key = Dict{Tuple{Symbol,String,String},Vector{PortCoordinateMap}}()
+    for map in coordinate_maps
+        key = (map.component_type, map.component_id, map.port_id)
+        push!(get!(maps_by_key, key, PortCoordinateMap[]), map)
+    end
+    ports_by_variable = Dict{MOI.VariableIndex,Vector{PortCoordinateSemantics}}()
+    for item in port_semantics
+        key = (item.component_type, item.component_id, item.port_id)
+        for map in get(maps_by_key, key, PortCoordinateMap[]), variable in map.variables
+            push!(get!(ports_by_variable, variable, PortCoordinateSemantics[]), item)
+        end
+    end
+    shared_variables = sort!(collect(intersect(
+        Set(Base.keys(component_by_variable)), Set(Base.keys(ports_by_variable)),
+    )); by = index -> index.value)
+    for variable in shared_variables
+        component_declarations = component_by_variable[variable]
+        port_declarations = ports_by_variable[variable]
+        signatures = unique(vcat(
+            [(item.quantity, item.representation, Tuple(sort!(collect(item.units); by = first)))
+             for item in component_declarations],
+            [(item.quantity, item.representation, Tuple(sort!(collect(item.units); by = first)))
+             for item in port_declarations],
+        ))
+        length(signatures) <= 1 && continue
+        component_labels = sort!(unique([
+            "$(item.component_type):$(item.component_id)" for item in component_declarations
+        ]))
+        port_labels = sort!(unique([
+            "$(item.component_type):$(item.component_id):$(item.port_id)" for item in port_declarations
+        ]))
+        descriptions = sort!(unique([
+            "$(signature[1])/$(signature[2])" *
+            (isempty(signature[3]) ? "" : " [" * join(("$(first(unit))=$(last(unit))" for unit in signature[3]), ", ") * "]")
+            for signature in signatures
+        ]))
+        push!(report, Finding(:component_port_coordinate_semantics_cross_layer_conflict;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Model variable $(variable.value) has incompatible component- and port-coordinate semantics declarations.",
+            why_it_matters = "A terminal map is an explicit bridge to model coordinates, so inconsistent labels across that bridge make physical scaling and tolerance interpretation ambiguous.",
+            evidence = [Evidence("Cross-layer coordinate semantics conflict"; details = [
+                "variable" => variable.value,
+                "components" => join(component_labels, ", "),
+                "ports" => join(port_labels, ", "),
+                "semantics" => join(descriptions, " | "),
+            ])],
+            affected = [EntityRef(:variable, variable.value)],
+            suggested_actions = ["Align the component and port quantity, representation, and unit declarations, or introduce an explicit transformed coordinate."],
+        ))
     end
     return report
 end
@@ -2740,10 +3006,12 @@ function analyze(
     check_degeneracy::Bool = false,
 )
     declared_components = component_metadata(model)
+    declared_component_coordinate_semantics = component_coordinate_semantics(model)
     declared_ports = component_port_metadata(model)
     declared_port_modes = component_port_nullspace_modes(model)
     declared_port_connections = component_port_connections(model)
     declared_port_coordinate_maps = component_port_coordinate_maps(model)
+    declared_port_coordinate_semantics = component_port_coordinate_semantics(model)
     selected_numeric_type = if !isnothing(numeric_type)
         numeric_type
     elseif !isnothing(point)
@@ -2755,16 +3023,24 @@ function analyze(
     graph = incidence_graph(model_snapshot)
     report = analyze_static(model_snapshot; graph = graph)
     report.metadata[:component_metadata_count] = string(length(declared_components))
+    report.metadata[:component_coordinate_semantics_count] = string(length(declared_component_coordinate_semantics))
     report.metadata[:component_port_metadata_count] = string(length(declared_ports))
     report.metadata[:component_port_nullspace_mode_count] = string(length(declared_port_modes))
     report.metadata[:component_port_connection_count] = string(length(declared_port_connections))
     report.metadata[:component_port_coordinate_map_count] = string(length(declared_port_coordinate_maps))
+    report.metadata[:component_port_coordinate_semantics_count] = string(length(declared_port_coordinate_semantics))
     component_report = _component_metadata_findings(
         declared_components;
         model_variables = [record.index for record in model_snapshot.variables],
         model_constraints = [_constraint_ref(record) for record in model_snapshot.constraints],
     )
     append!(report.findings, component_report.findings)
+    component_semantics_report = _component_coordinate_semantics_findings(
+        declared_component_coordinate_semantics,
+        [record.index for record in model_snapshot.variables],
+        components = declared_components,
+    )
+    append!(report.findings, component_semantics_report.findings)
     port_report = _component_port_metadata_findings(
         declared_ports;
         model_variables = [record.index for record in model_snapshot.variables],
@@ -2787,6 +3063,16 @@ function analyze(
         declared_ports, declared_port_modes, declared_port_coordinate_maps,
     )
     append!(report.findings, port_mode_coordinate_report.findings)
+    port_semantics_report = _component_port_coordinate_semantics_findings(
+        declared_ports, declared_port_coordinate_semantics, declared_port_coordinate_maps,
+    )
+    append!(report.findings, port_semantics_report.findings)
+    cross_layer_semantics_report = _component_port_coordinate_semantics_cross_layer_findings(
+        declared_component_coordinate_semantics,
+        declared_port_coordinate_semantics,
+        declared_port_coordinate_maps,
+    )
+    append!(report.findings, cross_layer_semantics_report.findings)
     port_expected_modes = port_expected_nullspace_modes(
         declared_ports, declared_port_modes, declared_port_connections,
         declared_port_coordinate_maps,

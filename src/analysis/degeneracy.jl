@@ -14,10 +14,34 @@ expected_nullspace_modes(model::MOI.ModelLike, evaluation::NumericalEvaluation) 
 """Optional domain-plugin component declarations; the generic default is empty."""
 component_metadata(model::MOI.ModelLike) = ComponentMetadata[]
 component_metadata(model::ModelSnapshot) = ComponentMetadata[]
+"""Optional plugin declarations of component model-coordinate semantics."""
+component_coordinate_semantics(model::MOI.ModelLike) = ComponentCoordinateSemantics[]
+component_coordinate_semantics(model::ModelSnapshot) = ComponentCoordinateSemantics[]
 """Optional PowerModels adapter hook; extended only when PowerModels is loaded."""
 powermodels_component_metadata(model) = ComponentMetadata[]
+"""Optional PowerModels public-API capability report hook."""
+powermodels_capability_report(model) = DiagnosticReport()
 """Optional PowerModels data-level reference-bus report hook."""
 powermodels_reference_bus_report(model) = DiagnosticReport()
+"""Optional PowerModels public-variable to MOI-index adapter hook."""
+powermodels_variable_indices(model, key::Symbol; network = nothing) =
+    Dict{Tuple{Any,Any},MOI.VariableIndex}()
+"""Optional PowerModels scalar-angle expected-gauge adapter hook."""
+powermodels_angle_gauge_modes(model, evaluation; kwargs...) = ExpectedNullspaceMode[]
+"""Optional PowerModels-to-owning-JuMP-model adapter hook."""
+powermodels_jump_model(model; kwargs...) = nothing
+"""Optional PowerModels expected-angle-mode degeneracy analysis entry point."""
+function powermodels_analyze_degeneracy(model, point; kwargs...)
+    throw(ArgumentError("PowerModels support is not loaded for this model"))
+end
+"""Optional PowerModels expected-angle-mode active-set analysis entry point."""
+function powermodels_analyze_active_set(model, point; kwargs...)
+    throw(ArgumentError("PowerModels support is not loaded for this model"))
+end
+"""Optional PowerModels expected-angle-mode reduced-Hessian persistence entry point."""
+function powermodels_analyze_reduced_hessian_persistence(model, snapshots; kwargs...)
+    throw(ArgumentError("PowerModels support is not loaded for this model"))
+end
 """Optional domain-plugin port/connection declarations; the generic default is empty."""
 component_port_metadata(model::MOI.ModelLike) = ComponentPortMetadata[]
 component_port_metadata(model::ModelSnapshot) = ComponentPortMetadata[]
@@ -30,6 +54,9 @@ component_port_connections(model::ModelSnapshot) = PortConnectionMetadata[]
 """Optional plugin maps from declared port terminal coordinates to model variables."""
 component_port_coordinate_maps(model::MOI.ModelLike) = PortCoordinateMap[]
 component_port_coordinate_maps(model::ModelSnapshot) = PortCoordinateMap[]
+"""Optional plugin declarations of physical terminal-coordinate semantics."""
+component_port_coordinate_semantics(model::MOI.ModelLike) = PortCoordinateSemantics[]
+component_port_coordinate_semantics(model::ModelSnapshot) = PortCoordinateSemantics[]
 
 function _selected_jacobian_submatrix_evaluation(
     evaluation::NumericalEvaluation{T},
