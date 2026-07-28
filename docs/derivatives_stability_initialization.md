@@ -64,6 +64,16 @@ For a non-integer `x^p` with positive base near zero, the evidence includes
 both derivative orders because the exponent determines which one is amplified:
 for example, `0 < p < 1` affects both, while `1 < p < 2` can leave the first
 derivative finite but make the second derivative large.
+Negative integer powers are included on either sign branch: `x^-1` near a
+small positive or negative nonzero base reports the reciprocal-like derivative
+amplification without incorrectly requiring a positive base.
+At exact floating-point points near a `tan`/`sec`/`csc`/`cot` singularity, the
+same warning reports the relevant sine or cosine denominator and derivative
+estimates. This is intentionally numerical evidence: a floating-point
+approximation of `π/2` is not treated as an exact symbolic pole.
+`asin`, `acos`, and `atanh` receive endpoint-margin evidence near `±1`, while
+`acosh` receives it just above `1`. These warnings complement the existing
+exact derivative-domain findings at their closed or strict boundaries.
 The finding includes stable estimates of the local first- and second-derivative
 magnitudes (the maximum first derivative across `a` and `b` for
 `logdiffexp`); an infinite estimate is useful floating-point evidence, not a

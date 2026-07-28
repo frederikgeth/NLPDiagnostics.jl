@@ -153,6 +153,51 @@ function _power_derivative_estimates(
     return first, second
 end
 
+function _periodic_derivative_estimates(
+    operator::Symbol,
+    argument::Real,
+    ::Type{T},
+) where {T<:AbstractFloat}
+    sine, cosine = sincos(T(argument))
+    if operator == :tan
+        secant = inv(cosine)
+        return abs(secant^2), abs(2 * secant^2 * (sine / cosine)), abs(cosine)
+    elseif operator == :sec
+        secant = inv(cosine)
+        tangent = sine / cosine
+        return abs(secant * tangent), abs(secant * (tangent^2 + secant^2)), abs(cosine)
+    elseif operator == :csc
+        cosecant = inv(sine)
+        cotangent = cosine / sine
+        return abs(cosecant * cotangent), abs(cosecant * (cotangent^2 + cosecant^2)), abs(sine)
+    elseif operator == :cot
+        cosecant = inv(sine)
+        cotangent = cosine / sine
+        return abs(cosecant^2), abs(2 * cosecant^2 * cotangent), abs(sine)
+    end
+    throw(ArgumentError("unsupported periodic derivative operator $operator"))
+end
+
+function _inverse_boundary_derivative_estimates(
+    operator::Symbol,
+    argument::Real,
+    ::Type{T},
+) where {T<:AbstractFloat}
+    value = T(argument)
+    if operator in (:asin, :acos)
+        denominator_squared = one(T) - value^2
+        return inv(sqrt(denominator_squared)),
+               abs(value) / denominator_squared^(T(3) / T(2))
+    elseif operator == :atanh
+        denominator = one(T) - value^2
+        return inv(denominator), 2 * abs(value) / denominator^2
+    elseif operator == :acosh
+        denominator = value^2 - one(T)
+        return inv(sqrt(denominator)), value / denominator^(T(3) / T(2))
+    end
+    throw(ArgumentError("unsupported inverse-boundary derivative operator $operator"))
+end
+
 function _push_expression_risk!(
     risks,
     source,
@@ -371,14 +416,19 @@ function _primitive_range_risks!(
                 ],
             )
         end
-    elseif head == :^ && length(intervals) == 2 &&
-           value.args[2] isa Real && !isinteger(value.args[2])
-        exponent = Float64(value.args[2])
+    elseif head in (:asin, :acos, :atanh, :acosh) && input.valid &&
+           input.lower == input.upper && isfinite(input.lower)
+        argument = input.lower
+        strict_margin = if head in (:asin, :acos, :atanh)
+            abs(argument) < 1.0 ? 1.0 - abs(argument) : nothing
+        else
+            argument > 1.0 ? argument - 1.0 : nothing
+        end
         proximity_threshold = sqrt(eps(T))
-        if input.valid && input.lower > 0.0 && exponent < 2.0 &&
-           input.lower <= proximity_threshold
+        if !isnothing(strict_margin) && strict_margin <= proximity_threshold
             first_derivative, second_derivative =
-                _power_derivative_estimates(input.lower, exponent, T)
+                _inverse_boundary_derivative_estimates(head, argument, T)
+            boundary = head == :acosh ? "1" : "±1"
             _push_expression_risk!(
                 risks,
                 source,
@@ -386,13 +436,86 @@ function _primitive_range_risks!(
                 value,
                 :strict_domain_derivative_amplification,
                 DomainPossibleViolation,
-                "A non-integer power is evaluated close to its positive-base boundary.",
+                "$(head) is evaluated very close to its finite derivative boundary.",
+                "The value remains defined, but the first and second derivatives grow rapidly near the $boundary boundary and can dominate local scaling.",
+                [
+                    "operator" => head,
+                    "argument" => argument,
+                    "strict_margin" => strict_margin,
+                    "boundary" => boundary,
+                    "estimated_first_derivative_magnitude" => first_derivative,
+                    "estimated_second_derivative_magnitude" => second_derivative,
+                    "numeric_type" => T,
+                    "proximity_threshold" => proximity_threshold,
+                ],
+                [
+                    "Choose an initialization farther from the finite derivative boundary when the model semantics allow it.",
+                    "Inspect derivative-domain and Jacobian scaling findings at the same point.",
+                ],
+            )
+        end
+    elseif head in (:tan, :sec, :csc, :cot) && input.valid &&
+           input.lower == input.upper && isfinite(input.lower)
+        proximity_threshold = sqrt(eps(T))
+        first_derivative, second_derivative, denominator_magnitude =
+            _periodic_derivative_estimates(head, input.lower, T)
+        if denominator_magnitude <= proximity_threshold
+            denominator_name = head in (:tan, :sec) ? "cos(argument)" : "sin(argument)"
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :strict_domain_derivative_amplification,
+                DomainPossibleViolation,
+                "$(head) is evaluated close to a periodic singularity.",
+                "The value may still be finite at the floating-point argument, but reciprocal trigonometric derivative factors can dominate local scaling near a zero of $denominator_name.",
+                [
+                    "operator" => head,
+                    "argument" => input.lower,
+                    "denominator" => denominator_name,
+                    "denominator_magnitude" => denominator_magnitude,
+                    "estimated_first_derivative_magnitude" => first_derivative,
+                    "estimated_second_derivative_magnitude" => second_derivative,
+                    "numeric_type" => T,
+                    "proximity_threshold" => proximity_threshold,
+                ],
+                [
+                    "Choose an initialization away from the periodic singularity when the model semantics allow it.",
+                    "Inspect derivative-domain and Jacobian scaling findings at the same point.",
+                ],
+            )
+        end
+    elseif head == :^ && length(intervals) == 2 && value.args[2] isa Real
+        exponent = Float64(value.args[2])
+        proximity_threshold = sqrt(eps(T))
+        integer_exponent = isinteger(value.args[2])
+        strict_margin = if integer_exponent && exponent < 0.0
+            _strict_nonzero_margin(input)
+        elseif !integer_exponent && input.valid && input.lower > 0.0 && exponent < 2.0
+            input.lower
+        else
+            nothing
+        end
+        if !isnothing(strict_margin) && strict_margin <= proximity_threshold
+            first_derivative, second_derivative =
+                _power_derivative_estimates(strict_margin, exponent, T)
+            base_requirement = integer_exponent ? "nonzero base" : "positive base"
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :strict_domain_derivative_amplification,
+                DomainPossibleViolation,
+                "A power is evaluated close to its $base_requirement boundary.",
                 "Depending on the exponent, its first derivative, second derivative, or both grow as inverse powers of the base and can dominate local scaling.",
                 [
                     "operator" => head,
                     "base_interval" => "[$(input.lower), $(input.upper)]",
                     "exponent" => exponent,
-                    "strict_margin" => input.lower,
+                    "base_requirement" => base_requirement,
+                    "strict_margin" => strict_margin,
                     "estimated_first_derivative_magnitude" => first_derivative,
                     "estimated_second_derivative_magnitude" => second_derivative,
                     "numeric_type" => T,

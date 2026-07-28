@@ -188,6 +188,8 @@ export compare_profiles
 export synthetic_sparse_profile_corpus
 export synthetic_stability_profile_corpus
 export profile_synthetic_stability_corpus
+export synthetic_derivative_boundary_profile_corpus
+export profile_synthetic_derivative_boundary_corpus
 export solver_postmortem
 export solver_log_observations
 export solver_iteration_records

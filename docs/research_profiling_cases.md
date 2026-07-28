@@ -95,6 +95,13 @@ available while the static fingerprint still records the formulation risk.
 the whole set and returns named repeated aggregates, including expression- and
 reformulation-stage timing, allocation, and expected-fingerprint recovery rates.
 
+`synthetic_derivative_boundary_profile_corpus()` supplies finite but deliberately
+near-boundary `sqrt`, reciprocal, fractional-power, and `atanh` cases. Its
+expected evidence is the generic `strict_domain_derivative_amplification`
+finding, so repeated profiles can measure whether valid-but-large derivative
+conditions remain visible across changes. Run it with
+`profile_synthetic_derivative_boundary_corpus(; repetitions = 3, warmup = true)`.
+
 `compare_profiles(baseline, candidate)` provides a transparent comparison of
 two repeated aggregates. It retains per-stage time and allocated-byte means,
 their candidate-to-baseline ratios where defined, and the occurrence rates of

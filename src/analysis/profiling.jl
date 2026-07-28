@@ -553,6 +553,75 @@ function profile_synthetic_stability_corpus(; kwargs...)
 end
 
 """
+    synthetic_derivative_boundary_profile_corpus()
+
+Return small, finite-point MOI models near ordinary primitive derivative
+boundaries. These cases preserve valid function values while deliberately
+creating large local first or second derivatives, so they exercise the generic
+strict-domain amplification evidence without invoking a solver.
+"""
+function synthetic_derivative_boundary_profile_corpus()
+    models = MOI.Utilities.Model{Float64}[]
+    cases = ProfileCase{Float64}[]
+    specifications = (
+        (
+            "boundary_sqrt",
+            "sqrt(x) near zero",
+            1.0e-12,
+            x -> MOI.ScalarNonlinearFunction(:sqrt, Any[x]),
+        ),
+        (
+            "boundary_reciprocal",
+            "inv(x) near zero",
+            1.0e-12,
+            x -> MOI.ScalarNonlinearFunction(:inv, Any[x]),
+        ),
+        (
+            "boundary_fractional_power",
+            "x^1.5 near zero",
+            1.0e-12,
+            x -> MOI.ScalarNonlinearFunction(:^, Any[x, 1.5]),
+        ),
+        (
+            "boundary_atanh",
+            "atanh(x) near one",
+            1.0 - 1.0e-12,
+            x -> MOI.ScalarNonlinearFunction(:atanh, Any[x]),
+        ),
+    )
+    for (name, description, value, expression_builder) in specifications
+        model = MOI.Utilities.Model{Float64}()
+        variable = MOI.add_variable(model)
+        MOI.add_constraint(model, variable, MOI.EqualTo(value))
+        MOI.add_constraint(model, expression_builder(variable), MOI.LessThan(1.0e100))
+        point = evaluation_point(model, [value]; label = "near derivative boundary")
+        push!(models, model)
+        push!(cases, ProfileCase(name, point;
+            description = "Solver-independent derivative-boundary profiling case: $description.",
+            task = "synthetic derivative-boundary diagnostics",
+            formulation = "direct primitive near a valid derivative boundary",
+            initialization = "finite near-boundary point",
+            scale = "Float64",
+            expected_evidence = [:strict_domain_derivative_amplification],
+            tags = [:synthetic, :derivatives, :initialization, :stability],
+            metadata = Dict("primitive" => description, "representative_value" => value),
+        ))
+    end
+    return models, cases
+end
+
+"""
+    profile_synthetic_derivative_boundary_corpus(; kwargs...)
+
+Run repeated solver-independent profiles for every case in
+`synthetic_derivative_boundary_profile_corpus`.
+"""
+function profile_synthetic_derivative_boundary_corpus(; kwargs...)
+    models, cases = synthetic_derivative_boundary_profile_corpus()
+    return profile_cases_repeated(models, cases; kwargs...)
+end
+
+"""
     profile_synthetic_sparse_ladder(dimensions; ...)
 
 Run the deterministic sparse calibration corpus at each requested dimension.

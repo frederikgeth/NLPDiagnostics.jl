@@ -93,6 +93,21 @@ end
         @test !isempty(run.expression_report.findings)
         @test length(findings(run.reformulation_report, :stable_reformulation_candidate)) == 1
     end
+    boundary_models, boundary_cases =
+        NLPDiagnostics.synthetic_derivative_boundary_profile_corpus()
+    @test length(boundary_models) == length(boundary_cases) == 4
+    @test all(
+        case -> case.expected_evidence == [:strict_domain_derivative_amplification],
+        boundary_cases,
+    )
+    boundary_aggregates = NLPDiagnostics.profile_synthetic_derivative_boundary_corpus(
+        repetitions = 1, warmup = false,
+    )
+    @test Set(keys(boundary_aggregates)) == Set(case.name for case in boundary_cases)
+    @test all(
+        aggregate -> only(aggregate.expected_evidence).fraction == 1.0,
+        values(boundary_aggregates),
+    )
     duplicate = NLPDiagnostics.ProfileCase("first", point)
     @test_throws ArgumentError NLPDiagnostics.profile_cases_repeated(
         MOI.ModelLike[],
@@ -4813,6 +4828,67 @@ end
         near_power_evidence = Dict(only(near_power_report.findings).evidence[end].details)
         @test near_power_evidence["exponent"] == "1.5"
         @test parse(Float64, near_power_evidence["estimated_second_derivative_magnitude"]) > 1e5
+
+        near_negative_power_model = new_model()
+        near_negative_power = MOI.add_variable(near_negative_power_model)
+        MOI.add_constraint(
+            near_negative_power_model,
+            MOI.ScalarNonlinearFunction(:^, Any[near_negative_power, -1]),
+            MOI.LessThan(1e20),
+        )
+        near_negative_power_report = NLPDiagnostics.analyze_expressions(
+            near_negative_power_model;
+            point = NLPDiagnostics.EvaluationPoint([near_negative_power], [-1e-12]),
+        )
+        near_negative_power_evidence = Dict(
+            only(near_negative_power_report.findings).evidence[end].details,
+        )
+        @test near_negative_power_evidence["base_requirement"] == "nonzero base"
+        @test parse(Float64, near_negative_power_evidence["estimated_first_derivative_magnitude"]) > 1e23
+
+        near_tan_model = new_model()
+        near_tan = MOI.add_variable(near_tan_model)
+        MOI.add_constraint(
+            near_tan_model,
+            MOI.ScalarNonlinearFunction(:tan, Any[near_tan]),
+            MOI.LessThan(1e20),
+        )
+        near_tan_report = NLPDiagnostics.analyze_expressions(
+            near_tan_model;
+            point = NLPDiagnostics.EvaluationPoint([near_tan], [Float64(pi / 2)]),
+        )
+        near_tan_evidence = Dict(only(near_tan_report.findings).evidence[end].details)
+        @test near_tan_evidence["denominator"] == "cos(argument)"
+        @test parse(Float64, near_tan_evidence["estimated_first_derivative_magnitude"]) > 1e30
+
+        near_asin_model = new_model()
+        near_asin = MOI.add_variable(near_asin_model)
+        MOI.add_constraint(
+            near_asin_model,
+            MOI.ScalarNonlinearFunction(:asin, Any[near_asin]),
+            MOI.LessThan(2.0),
+        )
+        near_asin_report = NLPDiagnostics.analyze_expressions(
+            near_asin_model;
+            point = NLPDiagnostics.EvaluationPoint([near_asin], [1.0 - 1e-12]),
+        )
+        near_asin_evidence = Dict(only(near_asin_report.findings).evidence[end].details)
+        @test near_asin_evidence["boundary"] == "±1"
+        @test parse(Float64, near_asin_evidence["estimated_first_derivative_magnitude"]) > 1e5
+
+        near_atanh_model = new_model()
+        near_atanh = MOI.add_variable(near_atanh_model)
+        MOI.add_constraint(
+            near_atanh_model,
+            MOI.ScalarNonlinearFunction(:atanh, Any[near_atanh]),
+            MOI.LessThan(20.0),
+        )
+        near_atanh_report = NLPDiagnostics.analyze_expressions(
+            near_atanh_model;
+            point = NLPDiagnostics.EvaluationPoint([near_atanh], [1.0 - 1e-12]),
+        )
+        near_atanh_evidence = Dict(only(near_atanh_report.findings).evidence[end].details)
+        @test parse(Float64, near_atanh_evidence["estimated_second_derivative_magnitude"]) > 1e23
     end
 
     @testset "numeric type controls overflow fingerprints" begin
