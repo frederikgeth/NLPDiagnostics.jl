@@ -82,6 +82,7 @@ end
 @testset "component metadata plugin boundary" begin
     model = MOIU.Model{Float64}()
     @test isempty(NLPDiagnostics.component_metadata(model))
+    @test isempty(NLPDiagnostics.component_port_metadata(model))
     @test NLPDiagnostics.analyze_static(model).metadata[:component_metadata_count] == "0"
     @test NLPDiagnostics.analyze(model).metadata[:component_metadata_count] == "0"
     metadata = NLPDiagnostics.ComponentMetadata(
@@ -96,6 +97,185 @@ end
     @test metadata.variables == MOI.VariableIndex[MOI.VariableIndex(1)]
     @test metadata.constraints == [NLPDiagnostics.EntityRef(:constraint, 1)]
     @test metadata.expected_rank == 2
+    port = NLPDiagnostics.ComponentPortMetadata(
+        :line,
+        "line_1",
+        "from";
+        terminal_labels = ["a", "b"],
+        mode_labels = ["phase_a", "phase_b"],
+        variables = MOI.VariableIndex[MOI.VariableIndex(1)],
+        connection_matrix = [1.0 0.0; 0.0 1.0],
+        metadata = Dict("connection" => "wye"),
+    )
+    @test port.connection_matrix == [1.0 0.0; 0.0 1.0]
+    @test port.terminal_labels == ["a", "b"]
+    port_report = NLPDiagnostics._component_port_metadata_findings(
+        [port]; model_variables = MOI.VariableIndex[MOI.VariableIndex(1)],
+    )
+    @test isempty(port_report.findings)
+    malformed_port = NLPDiagnostics.ComponentPortMetadata{Float64}(
+        :line, "line_1", "from", ["a"], ["a", "b"],
+        MOI.VariableIndex[MOI.VariableIndex(2), MOI.VariableIndex(2)],
+        reshape([NaN], 1, 1), Dict{String,String}(),
+    )
+    malformed_port_report = NLPDiagnostics._component_port_metadata_findings(
+        [malformed_port]; model_variables = MOI.VariableIndex[MOI.VariableIndex(1)],
+    )
+    @test length(findings(
+        malformed_port_report,
+        :component_port_metadata_connection_dimension_mismatch,
+    )) == 1
+    @test length(findings(
+        malformed_port_report,
+        :component_port_metadata_nonfinite_connection,
+    )) == 1
+    @test length(findings(
+        malformed_port_report,
+        :component_port_metadata_duplicate_variables,
+    )) == 1
+    @test length(findings(
+        malformed_port_report,
+        :component_port_metadata_unknown_variable,
+    )) == 1
+    rank_deficient_port = NLPDiagnostics.ComponentPortMetadata(
+        :transformer, "tx_1", "high";
+        terminal_labels = ["a", "b"], mode_labels = ["a", "b"],
+        connection_matrix = [1.0 0.0; 0.0 0.0],
+    )
+    rank_deficient_port_report = NLPDiagnostics._component_port_metadata_findings(
+        [rank_deficient_port],
+    )
+    @test length(findings(
+        rank_deficient_port_report,
+        :component_port_metadata_connection_rank_deficient,
+    )) == 1
+    observed_port_mode = NLPDiagnostics.PortNullspaceMode(
+        :transformer, "tx_1", "high", :mode, [0.0, 1.0],
+    )
+    unobserved_port_mode = NLPDiagnostics.PortNullspaceMode(
+        :transformer, "tx_1", "high", :mode, [1.0, 0.0],
+    )
+    port_mode_report = NLPDiagnostics._component_port_nullspace_mode_findings(
+        [rank_deficient_port], [observed_port_mode, unobserved_port_mode],
+    )
+    @test length(findings(
+        port_mode_report,
+        :component_port_expected_nullspace_mode_observed,
+    )) == 1
+    @test length(findings(
+        port_mode_report,
+        :component_port_expected_nullspace_mode_not_observed,
+    )) == 1
+    second_port = NLPDiagnostics.ComponentPortMetadata(
+        :transformer, "tx_1", "low";
+        terminal_labels = ["a", "b"], mode_labels = ["a", "b"],
+        connection_matrix = [1.0 0.0; 0.0 1.0],
+    )
+    connection = NLPDiagnostics.PortConnectionMetadata(
+        :transformer, "tx_1", "high", :transformer, "tx_1", "low";
+        connection_matrix = [1.0 0.0; 0.0 1.0],
+    )
+    connection_report = NLPDiagnostics._component_port_connection_findings(
+        [rank_deficient_port, second_port], [connection],
+    )
+    @test isempty(connection_report.findings)
+    bad_connection = NLPDiagnostics.PortConnectionMetadata(
+        :transformer, "tx_1", "missing", :transformer, "tx_1", "low";
+        connection_matrix = reshape([1.0], 1, 1),
+    )
+    bad_connection_report = NLPDiagnostics._component_port_connection_findings(
+        [rank_deficient_port, second_port], [bad_connection],
+    )
+    @test length(findings(
+        bad_connection_report,
+        :component_port_connection_unaligned,
+    )) == 1
+    isolated_port = NLPDiagnostics.ComponentPortMetadata(
+        :load, "load_1", "terminal";
+        terminal_labels = ["a"], mode_labels = ["a"],
+        connection_matrix = reshape([1.0], 1, 1),
+    )
+    topology_report = NLPDiagnostics._component_port_topology_findings(
+        [rank_deficient_port, second_port, isolated_port], [connection],
+    )
+    @test length(findings(
+        topology_report,
+        :component_port_topology_isolated_port,
+    )) == 1
+    topology_nullspace = NLPDiagnostics.port_topology_nullspace(
+        [rank_deficient_port, second_port], [connection],
+    )
+    @test topology_nullspace.available
+    @test topology_nullspace.rank == 2
+    @test size(topology_nullspace.nullspace) == (4, 2)
+    coordinate_map = NLPDiagnostics.PortCoordinateMap(
+        :transformer, "tx_1", "high", MOI.VariableIndex[MOI.VariableIndex(1)];
+        terminal_to_variable = reshape([1.0, 0.0], 1, 2),
+    )
+    @test size(coordinate_map.terminal_to_variable) == (1, 2)
+    coordinate_map_report = NLPDiagnostics._component_port_coordinate_map_findings(
+        [rank_deficient_port], [coordinate_map];
+        model_variables = MOI.VariableIndex[MOI.VariableIndex(1)],
+    )
+    @test isempty(coordinate_map_report.findings)
+    unaligned_coordinate_map = NLPDiagnostics.PortCoordinateMap(
+        :transformer, "tx_1", "missing", MOI.VariableIndex[MOI.VariableIndex(1)];
+        terminal_to_variable = reshape([1.0], 1, 1),
+    )
+    unaligned_coordinate_map_report = NLPDiagnostics._component_port_coordinate_map_findings(
+        [rank_deficient_port], [unaligned_coordinate_map];
+        model_variables = MOI.VariableIndex[MOI.VariableIndex(1)],
+    )
+    @test length(findings(
+        unaligned_coordinate_map_report,
+        :component_port_coordinate_map_unaligned,
+    )) == 1
+    coordinate_projection = NLPDiagnostics.port_topology_coordinate_projection(
+        [rank_deficient_port, second_port], [connection],
+        [coordinate_map, NLPDiagnostics.PortCoordinateMap(
+            :transformer, "tx_1", "low", MOI.VariableIndex[MOI.VariableIndex(2)];
+            terminal_to_variable = reshape([1.0, 0.0], 1, 2),
+        )],
+    )
+    @test coordinate_projection.available
+    @test coordinate_projection.variables == MOI.VariableIndex[MOI.VariableIndex(1), MOI.VariableIndex(2)]
+    @test size(coordinate_projection.projected_nullspace) == (2, 2)
+    projected_modes = NLPDiagnostics.port_topology_expected_nullspace_modes(
+        [rank_deficient_port, second_port], [connection],
+        [coordinate_map, NLPDiagnostics.PortCoordinateMap(
+            :transformer, "tx_1", "low", MOI.VariableIndex[MOI.VariableIndex(2)];
+            terminal_to_variable = reshape([1.0, 0.0], 1, 2),
+        )],
+    )
+    @test length(projected_modes) == 1
+    @test projected_modes[1].name == :port_topology_candidate_mode_1
+    coordinate_projection_report = NLPDiagnostics._component_port_topology_coordinate_projection_findings(
+        [rank_deficient_port, second_port], [connection],
+        [coordinate_map, NLPDiagnostics.PortCoordinateMap(
+            :transformer, "tx_1", "low", MOI.VariableIndex[MOI.VariableIndex(2)];
+            terminal_to_variable = reshape([1.0, 0.0], 1, 2),
+        )],
+    )
+    @test length(findings(
+        coordinate_projection_report,
+        :component_port_topology_model_projection_available,
+    )) == 1
+    @test_throws DimensionMismatch NLPDiagnostics.PortCoordinateMap(
+        :transformer, "tx_1", "high", MOI.VariableIndex[MOI.VariableIndex(1)];
+        terminal_to_variable = [1.0 0.0; 0.0 1.0],
+    )
+    topology_nullspace_report = NLPDiagnostics._component_port_topology_nullspace_findings(
+        [rank_deficient_port, second_port], [connection],
+    )
+    @test length(findings(
+        topology_nullspace_report,
+        :component_port_topology_expected_nullspace,
+    )) == 1
+    @test_throws DimensionMismatch NLPDiagnostics.ComponentPortMetadata(
+        :line, "line_1", "bad";
+        terminal_labels = ["a"], mode_labels = ["a", "b"],
+        connection_matrix = [1.0],
+    )
     @test_throws ArgumentError NLPDiagnostics.ComponentMetadata(Symbol(""), "line")
     @test_throws ArgumentError NLPDiagnostics.ComponentMetadata(:line, " ")
     @test_throws ArgumentError NLPDiagnostics.ComponentMetadata(:line, "bad"; expected_rank = -1)
@@ -703,6 +883,15 @@ end
     )
     @test sort!(collect(keys(aggregates))) == [case.name for case in cases]
     @test all(length(aggregate.runs) == 1 for aggregate in values(aggregates))
+    ladder = NLPDiagnostics.profile_synthetic_sparse_ladder(
+        [3, 4];
+        repetitions = 1,
+        warmup = false,
+        rank_max_dense_entries = 1,
+    )
+    @test sort!(collect(keys(ladder))) == [3, 4]
+    @test all(length(aggregates_by_size) == 3 for aggregates_by_size in values(ladder))
+    @test_throws ArgumentError NLPDiagnostics.profile_synthetic_sparse_ladder([3, 3])
 end
 
 function NLPDiagnostics.operator_interval(
@@ -3130,8 +3319,55 @@ end
         @test only(cone_summary.activities).classification == :boundary
         cone_report = NLPDiagnostics.analyze_active_set(cone_model, cone_evaluation)
         @test length(findings(cone_report, :coupled_set_boundary_active)) == 1
+        @test length(findings(
+            cone_report,
+            :coupled_set_smooth_boundary_tangent_available,
+        )) == 1
+        @test length(findings(
+            cone_report,
+            :coupled_set_smooth_boundary_tangent_gradient_available,
+        )) == 1
+        cone_apex_report = NLPDiagnostics.analyze_active_set(cone_model, [0.0, 0.0])
+        @test length(findings(
+            cone_apex_report,
+            :coupled_set_nonsmooth_boundary_active,
+        )) == 1
+        @test isempty(findings(
+            cone_apex_report,
+            :coupled_set_smooth_boundary_tangent_available,
+        ))
         outside_cone = NLPDiagnostics.analyze_active_set(cone_model, [0.0, 1.0])
         @test length(findings(outside_cone, :coupled_set_feasibility_violation)) == 1
+
+        rotated_cone_model = new_model()
+        rotated_u, rotated_v, rotated_w = MOI.add_variables(rotated_cone_model, 3)
+        MOI.add_constraint(
+            rotated_cone_model,
+            MOI.VectorOfVariables([rotated_u, rotated_v, rotated_w]),
+            MOI.RotatedSecondOrderCone(3),
+        )
+        rotated_smooth_report = NLPDiagnostics.analyze_active_set(
+            rotated_cone_model, [1.0, 1.0, sqrt(2.0)],
+        )
+        @test length(findings(
+            rotated_smooth_report,
+            :coupled_set_boundary_active,
+        )) == 1
+        @test length(findings(
+            rotated_smooth_report,
+            :coupled_set_smooth_boundary_tangent_available,
+        )) == 1
+        @test length(findings(
+            rotated_smooth_report,
+            :coupled_set_smooth_boundary_tangent_gradient_available,
+        )) == 1
+        rotated_axis_report = NLPDiagnostics.analyze_active_set(
+            rotated_cone_model, [0.0, 1.0, 0.0],
+        )
+        @test length(findings(
+            rotated_axis_report,
+            :coupled_set_nonsmooth_boundary_active,
+        )) == 1
 
         plugin_cone_model = new_model()
         e1, e2, e3 = MOI.add_variables(plugin_cone_model, 3)
@@ -3619,6 +3855,91 @@ end
         @test length(findings(
             multiplier_changing_report,
             :reduced_hessian_multiplier_representative_changing,
+        )) == 1
+
+        scaling_model = new_model()
+        scale_x, scale_y = MOI.add_variables(scaling_model, 2)
+        scaling_quadratic = MOI.ScalarQuadraticFunction(
+            [MOI.ScalarQuadraticTerm(1.0, scale_x, scale_x)],
+            MOI.ScalarAffineTerm{Float64}[],
+            0.0,
+        )
+        scaling_affine = MOI.ScalarAffineFunction(
+            [MOI.ScalarAffineTerm(1.0, scale_y)],
+            0.0,
+        )
+        MOI.add_constraint(scaling_model, scaling_quadratic, MOI.EqualTo(0.0))
+        MOI.add_constraint(scaling_model, scaling_affine, MOI.EqualTo(0.0))
+        scaling_evaluation_1 = NLPDiagnostics.evaluate_numerical(
+            scaling_model, [1.0, 0.0]; label = "small_scale",
+        )
+        scaling_evaluation_2 = NLPDiagnostics.evaluate_numerical(
+            scaling_model, [100.0, 0.0]; label = "large_scale",
+        )
+        scaling_hessian_1 = NLPDiagnostics.HessianEvaluation(
+            scaling_evaluation_1.point,
+            1.0,
+            [0.0, 0.0],
+            NLPDiagnostics.HessianEntry{Float64}[],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        scaling_hessian_2 = NLPDiagnostics.HessianEvaluation(
+            scaling_evaluation_2.point,
+            1.0,
+            [0.0, 0.0],
+            NLPDiagnostics.HessianEntry{Float64}[],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        scaling_analysis_1 = NLPDiagnostics.reduced_hessian_analysis(
+            scaling_evaluation_1, scaling_hessian_1; active_rows = Int[],
+        )
+        scaling_analysis_2 = NLPDiagnostics.reduced_hessian_analysis(
+            scaling_evaluation_2, scaling_hessian_2; active_rows = Int[],
+        )
+        scaling_changing_report =
+            NLPDiagnostics.analyze_reduced_hessian_persistence([
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    scaling_evaluation_1, scaling_analysis_1,
+                ),
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    scaling_evaluation_2, scaling_analysis_2,
+                ),
+            ])
+        @test length(findings(
+            scaling_changing_report,
+            :reduced_hessian_jacobian_scaling_changing,
+        )) == 1
+
+        spectral_hessian = NLPDiagnostics.HessianEvaluation(
+            persistent_evaluation.point,
+            1.0,
+            zeros(3),
+            NLPDiagnostics.HessianEntry{Float64}[
+                NLPDiagnostics.HessianEntry(1, 1, 100.0),
+                NLPDiagnostics.HessianEntry(1, 2, -100.0),
+                NLPDiagnostics.HessianEntry(2, 2, 100.0),
+                NLPDiagnostics.HessianEntry(3, 3, 200.0),
+            ],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        spectral_analysis = NLPDiagnostics.reduced_hessian_analysis(
+            persistent_evaluation, spectral_hessian; active_rows = Int[],
+        )
+        spectral_changing_report = NLPDiagnostics.analyze_reduced_hessian_persistence([
+            NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),
+            NLPDiagnostics.ReducedHessianSnapshot(
+                persistent_evaluation, spectral_analysis,
+            ),
+        ])
+        @test length(findings(
+            spectral_changing_report,
+            :reduced_hessian_spectral_scale_changing,
         )) == 1
     end
 

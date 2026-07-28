@@ -202,6 +202,15 @@ semantics; they should not manufacture scalar active rows.
 """
 coupled_set_activity(args...) = nothing
 
+"""
+    coupled_set_tangent_evidence(set, source, values, activity, active_tolerance)
+
+Return a smooth boundary normal in the vector-function output coordinates, or
+`nothing` when no generic or plugin tangent statement is available. This hook
+does not authorize scalar active-row conversion.
+"""
+coupled_set_tangent_evidence(args...) = nothing
+
 function coupled_set_activity(
     set_value::MOI.SecondOrderCone,
     source::EntityRef,
@@ -220,6 +229,45 @@ function coupled_set_activity(
     return CoupledSetActivity{T}(
         source, :second_order_cone, values, margin, violation,
         classification == :boundary, classification,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    ::MOI.SecondOrderCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    tail_norm = norm(numeric[2:end])
+    tail_norm > active || return nothing
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :second_order_cone,
+        vcat(one(T), -numeric[2:end] ./ tail_norm),
+        "gradient of t - norm(x) at a smooth SOC boundary",
+    )
+end
+
+function coupled_set_tangent_evidence(
+    ::MOI.RotatedSecondOrderCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    numeric[1] > active && numeric[2] > active || return nothing
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :rotated_second_order_cone,
+        vcat(2 * numeric[2], 2 * numeric[1], -2 .* numeric[3:end]),
+        "gradient of 2uv - norm(w)^2 at a smooth rotated-SOC boundary",
     )
 end
 
@@ -267,6 +315,7 @@ function coupled_set_feasibility_summary(
         (row, source) in enumerate(evaluation.constraint_sources)
     )
     activities = CoupledSetActivity{T}[]
+    tangents = CoupledSetTangentEvidence{T}[]
     for constraint in snapshot(model).constraints
         set_value = constraint.set_value
         constraint.function_value isa MOI.AbstractVectorFunction || continue
@@ -291,10 +340,15 @@ function coupled_set_feasibility_summary(
             feasibility,
             active,
         )
-        isnothing(activity) || push!(activities, activity)
+        isnothing(activity) && continue
+        push!(activities, activity)
+        tangent = coupled_set_tangent_evidence(
+            set_value, source, source_values, activity, active,
+        )
+        isnothing(tangent) || push!(tangents, tangent)
     end
     return CoupledSetFeasibilitySummary{T}(
-        evaluation.point, activities, feasibility, active,
+        evaluation.point, activities, tangents, feasibility, active,
     )
 end
 

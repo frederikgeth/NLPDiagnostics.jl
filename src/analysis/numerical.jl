@@ -1262,6 +1262,194 @@ function _append_reduced_hessian_multiplier_persistence_findings!(
     return report
 end
 
+function _scale_ratio_change_factor(
+    left::Union{Nothing,T},
+    right::Union{Nothing,T},
+    ::Type{T},
+) where {T<:AbstractFloat}
+    isnothing(left) && isnothing(right) && return one(T)
+    (isnothing(left) || isnothing(right)) && return T(Inf)
+    (isfinite(left) && isfinite(right) && !iszero(left) && !iszero(right)) ||
+        return T(Inf)
+    return max(left / right, right / left)
+end
+
+function _append_reduced_hessian_jacobian_scaling_persistence_findings!(
+    report::DiagnosticReport,
+    candidates::AbstractVector{<:ReducedHessianSnapshot{T}};
+    change_factor_threshold::Real,
+) where {T<:AbstractFloat}
+    length(candidates) >= 2 || return report
+    reference_sources = first(candidates).evaluation.constraint_sources
+    if any(snapshot.evaluation.constraint_sources != reference_sources for snapshot in candidates)
+        push!(report, Finding(
+            :reduced_hessian_jacobian_scaling_persistence_unaligned;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = StructuralProof,
+            confidence = ConfidenceCertain,
+            observation = "Reduced-Hessian snapshots do not share one constraint-row source ordering for Jacobian scaling comparison.",
+            why_it_matters = "Row-scale changes are only semantically comparable when their constraint rows are aligned across points.",
+            evidence = [Evidence("Reduced-Hessian Jacobian scaling alignment"; details = [
+                "snapshot_count" => length(candidates),
+            ])],
+            suggested_actions = [
+                "Evaluate the same ordered constraint rows at every point before comparing Jacobian scaling persistence.",
+            ],
+        ))
+        return report
+    end
+    summaries = [jacobian_scale_summary(snapshot.evaluation) for snapshot in candidates]
+    if any(!isempty(summary.nonfinite_rows) || !isempty(summary.nonfinite_columns)
+           for summary in summaries)
+        push!(report, Finding(
+            :reduced_hessian_jacobian_scaling_persistence_unavailable;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "Jacobian scaling persistence is unavailable because at least one snapshot has non-finite row or column derivatives.",
+            why_it_matters = "Scale ratios cannot be safely compared across non-finite derivative observations.",
+            evidence = [Evidence("Reduced-Hessian Jacobian scaling availability"; details = [
+                "nonfinite_row_counts" => join(
+                    (length(summary.nonfinite_rows) for summary in summaries), ",",
+                ),
+                "nonfinite_column_counts" => join(
+                    (length(summary.nonfinite_columns) for summary in summaries), ",",
+                ),
+            ])],
+            suggested_actions = [
+                "Resolve derivative-domain or numerical failures before interpreting cross-point scaling changes.",
+            ],
+        ))
+        return report
+    end
+    reference_summary = first(summaries)
+    row_change_factor = maximum(
+        (_scale_ratio_change_factor(
+            reference_summary.row_scale_ratio, summary.row_scale_ratio,
+            T,
+        ) for summary in summaries[2:end]);
+        init = one(T),
+    )
+    column_change_factor = maximum(
+        (_scale_ratio_change_factor(
+            reference_summary.column_scale_ratio, summary.column_scale_ratio,
+            T,
+        ) for summary in summaries[2:end]);
+        init = one(T),
+    )
+    persistent = row_change_factor <= convert(T, change_factor_threshold) &&
+                 column_change_factor <= convert(T, change_factor_threshold)
+    labels = join((snapshot.evaluation.point.label for snapshot in candidates), ",")
+    push!(report, Finding(
+        persistent ? :reduced_hessian_jacobian_scaling_persistent :
+                     :reduced_hessian_jacobian_scaling_changing;
+        severity = SeverityInfo,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = persistent ?
+                      "Jacobian row and column scale-spread ratios remain within a factor of $(change_factor_threshold) across $(length(candidates)) points." :
+                      "Jacobian row or column scale-spread ratios change by more than the configured factor across $(length(candidates)) points.",
+        why_it_matters = persistent ?
+                         "Stable derivative scaling helps isolate rank or curvature changes from operating-point-dependent scale spread." :
+                         "Changing derivative scale spread can alter rank thresholds, linear-system conditioning, and tolerance semantics without proving a mathematical model defect.",
+        evidence = [Evidence("Reduced-Hessian Jacobian scaling persistence"; details = [
+            "point_labels" => labels,
+            "row_scale_ratios" => join((summary.row_scale_ratio for summary in summaries), ","),
+            "column_scale_ratios" => join((summary.column_scale_ratio for summary in summaries), ","),
+            "row_change_factor" => row_change_factor,
+            "column_change_factor" => column_change_factor,
+            "change_factor_threshold" => change_factor_threshold,
+        ])],
+        affected = EntityRef[
+            EntityRef(:variable, variable.value)
+            for variable in first(candidates).evaluation.point.variables
+        ],
+        suggested_actions = persistent ?
+                            ["Use the stable scaling evidence when interpreting cross-point rank and curvature changes."] :
+                            ["Inspect row/column norm changes, coordinate units, and solver scaling before treating rank or curvature changes as intrinsic."],
+    ))
+    return report
+end
+
+function _spectral_scale_change_factor(left::T, right::T) where {T<:AbstractFloat}
+    iszero(left) && iszero(right) && return one(T)
+    (isfinite(left) && isfinite(right) && !iszero(left) && !iszero(right)) ||
+        return T(Inf)
+    return max(left / right, right / left)
+end
+
+function _append_reduced_hessian_spectral_scale_persistence_findings!(
+    report::DiagnosticReport,
+    candidates::AbstractVector{<:ReducedHessianSnapshot{T}};
+    change_factor_threshold::Real,
+) where {T<:AbstractFloat}
+    length(candidates) >= 2 || return report
+    spectral_scales = [
+        maximum(abs, snapshot.analysis.eigenvalues; init = zero(T))
+        for snapshot in candidates
+    ]
+    if any(!isfinite, spectral_scales)
+        push!(report, Finding(
+            :reduced_hessian_spectral_scale_persistence_unavailable;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "Reduced-Hessian spectral-scale persistence is unavailable because at least one local spectrum is non-finite.",
+            why_it_matters = "A finite curvature-magnitude comparison cannot be made from non-finite eigenvalue evidence.",
+            evidence = [Evidence("Reduced-Hessian spectral-scale availability"; details = [
+                "spectral_scales" => join(spectral_scales, ","),
+            ])],
+            suggested_actions = [
+                "Resolve Hessian or derivative non-finiteness before comparing local curvature scale across points.",
+            ],
+        ))
+        return report
+    end
+    reference_scale = first(spectral_scales)
+    change_factor = maximum(
+        (_spectral_scale_change_factor(reference_scale, scale)
+         for scale in spectral_scales[2:end]);
+        init = one(T),
+    )
+    persistent = change_factor <= convert(T, change_factor_threshold)
+    labels = join((snapshot.evaluation.point.label for snapshot in candidates), ",")
+    push!(report, Finding(
+        persistent ? :reduced_hessian_spectral_scale_persistent :
+                     :reduced_hessian_spectral_scale_changing;
+        severity = SeverityInfo,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = persistent ?
+                      "Reduced-Hessian spectral scale remains within a factor of $(change_factor_threshold) across $(length(candidates)) points." :
+                      "Reduced-Hessian spectral scale changes by more than the configured factor across $(length(candidates)) points.",
+        why_it_matters = persistent ?
+                         "Stable curvature magnitude helps distinguish changing flat-direction geometry from a broad change in local second-order scale." :
+                         "Changing curvature magnitude can alter Newton-step behavior and reduced-Hessian thresholds without, by itself, proving a bifurcation or modeling error.",
+        evidence = [Evidence("Reduced-Hessian spectral-scale persistence"; details = [
+            "point_labels" => labels,
+            "spectral_scales" => join(spectral_scales, ","),
+            "change_factor" => change_factor,
+            "change_factor_threshold" => change_factor_threshold,
+            "tangent_dimensions" => join(
+                (snapshot.analysis.tangent_dimension for snapshot in candidates), ",",
+            ),
+        ])],
+        affected = EntityRef[
+            EntityRef(:variable, variable.value)
+            for variable in first(candidates).evaluation.point.variables
+        ],
+        suggested_actions = persistent ?
+                            ["Interpret changing flat-direction orientation together with stable curvature magnitude and first-order geometry."] :
+                            ["Inspect Hessian terms, multiplier representatives, and coordinate scaling before assigning a physical cause to curvature-scale changes."],
+    ))
+    return report
+end
+
 function _append_persistent_flat_component_metadata_findings!(
     report::DiagnosticReport,
     snapshots::AbstractVector{<:ReducedHessianSnapshot{T}},
@@ -1423,6 +1611,8 @@ function analyze_reduced_hessian_persistence(
     subspace_alignment_threshold::Real = 0.98,
     flat_support_relative_tolerance::Real = 0.1,
     multiplier_relative_tolerance::Real = sqrt(eps(T)),
+    scaling_change_factor_threshold::Real = 10,
+    spectral_scale_change_factor_threshold::Real = 10,
     expected_modes::AbstractVector{<:ExpectedNullspaceMode} = ExpectedNullspaceMode[],
     expected_mode_alignment_threshold::Real = 0.98,
     expected_mode_rank_relative_tolerance::Real = sqrt(eps(T)),
@@ -1435,6 +1625,12 @@ function analyze_reduced_hessian_persistence(
         throw(ArgumentError("flat_support_relative_tolerance must lie in (0, 1]"))
     multiplier_relative_tolerance >= zero(T) ||
         throw(ArgumentError("multiplier_relative_tolerance must be nonnegative"))
+    scaling_change_factor_threshold >= one(T) ||
+        throw(ArgumentError("scaling_change_factor_threshold must be at least one"))
+    spectral_scale_change_factor_threshold >= one(T) ||
+        throw(ArgumentError(
+            "spectral_scale_change_factor_threshold must be at least one",
+        ))
     zero(T) <= expected_mode_alignment_threshold <= one(T) ||
         throw(ArgumentError("expected_mode_alignment_threshold must lie in [0, 1]"))
     expected_mode_rank_relative_tolerance >= zero(T) ||
@@ -1541,6 +1737,16 @@ function analyze_reduced_hessian_persistence(
         report,
         candidates;
         relative_tolerance = multiplier_relative_tolerance,
+    )
+    _append_reduced_hessian_jacobian_scaling_persistence_findings!(
+        report,
+        candidates;
+        change_factor_threshold = scaling_change_factor_threshold,
+    )
+    _append_reduced_hessian_spectral_scale_persistence_findings!(
+        report,
+        candidates;
+        change_factor_threshold = spectral_scale_change_factor_threshold,
     )
     if persistent
         _append_persistent_flat_expected_mode_findings!(

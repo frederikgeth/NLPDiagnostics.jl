@@ -303,10 +303,19 @@ struct CoupledSetActivity{T<:AbstractFloat}
     classification::Symbol
 end
 
+"""A smooth coupled-set boundary normal supplied by the generic core or a plugin."""
+struct CoupledSetTangentEvidence{T<:AbstractFloat}
+    source::EntityRef
+    set_kind::Symbol
+    normal::Vector{T}
+    description::String
+end
+
 """Coupled-set activity evidence tied to one numerical evaluation point."""
 struct CoupledSetFeasibilitySummary{T<:AbstractFloat}
     point::EvaluationPoint{T}
     activities::Vector{CoupledSetActivity{T}}
+    tangents::Vector{CoupledSetTangentEvidence{T}}
     feasibility_tolerance::T
     active_tolerance::T
 end
@@ -404,6 +413,77 @@ struct ComponentMetadata
     units::Dict{Symbol,String}
     expected_rank::Union{Nothing,Int}
     metadata::Dict{String,String}
+end
+
+"""
+Typed port/connection declaration supplied by an optional domain plugin.
+
+`connection_matrix` maps the declared mode coordinates (its columns) into the
+declared terminal coordinates (its rows). The generic core preserves this map
+as inspectable structural metadata; its physical voltage/current semantics are
+owned by the plugin.
+"""
+struct ComponentPortMetadata{T<:AbstractFloat}
+    component_type::Symbol
+    component_id::String
+    port_id::String
+    terminal_labels::Vector{String}
+    mode_labels::Vector{String}
+    variables::Vector{MOI.VariableIndex}
+    connection_matrix::Matrix{T}
+    metadata::Dict{String,String}
+end
+
+"""A plugin-declared terminal- or mode-space null direction for one port map."""
+struct PortNullspaceMode{T<:AbstractFloat}
+    component_type::Symbol
+    component_id::String
+    port_id::String
+    space::Symbol
+    direction::Vector{T}
+    description::String
+end
+
+"""A plugin-declared directed linear map between two named component ports."""
+struct PortConnectionMetadata{T<:AbstractFloat}
+    from_component_type::Symbol
+    from_component_id::String
+    from_port_id::String
+    to_component_type::Symbol
+    to_component_id::String
+    to_port_id::String
+    connection_matrix::Matrix{T}
+    metadata::Dict{String,String}
+end
+
+"""Nullspace of explicitly declared port-connection equations."""
+struct PortTopologyNullspace{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    port_keys::Vector{Tuple{Symbol,String,String}}
+    connection_matrix::Matrix{T}
+    rank::Int
+    nullspace::Matrix{T}
+end
+
+"""A plugin-declared linear map from port terminal coordinates to model variables."""
+struct PortCoordinateMap{T<:AbstractFloat}
+    component_type::Symbol
+    component_id::String
+    port_id::String
+    variables::Vector{MOI.VariableIndex}
+    terminal_to_variable::Matrix{T}
+    description::String
+end
+
+"""A topology-nullspace basis projected through plugin-declared port coordinate maps."""
+struct PortTopologyCoordinateProjection{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    variables::Vector{MOI.VariableIndex}
+    topology::PortTopologyNullspace{T}
+    projected_nullspace::Matrix{T}
+    consistency_residual::T
 end
 
 """Inspectable, non-mutating scope for a future elastic-feasibility auxiliary model."""
@@ -555,6 +635,113 @@ function ComponentMetadata(
         Dict(Symbol(key) => string(value) for (key, value) in units),
         isnothing(expected_rank) ? nothing : Int(expected_rank),
         Dict(string(key) => string(value) for (key, value) in metadata))
+end
+
+function ComponentPortMetadata(
+    component_type::Symbol,
+    component_id,
+    port_id;
+    terminal_labels::AbstractVector = String[],
+    mode_labels::AbstractVector = String[],
+    variables::AbstractVector{MOI.VariableIndex} = MOI.VariableIndex[],
+    connection_matrix::AbstractMatrix{<:Real},
+    metadata::AbstractDict = Dict{String,String}(),
+)
+    isempty(String(component_type)) &&
+        throw(ArgumentError("component_type must be nonempty"))
+    isempty(strip(string(component_id))) &&
+        throw(ArgumentError("component_id must be nonempty"))
+    isempty(strip(string(port_id))) &&
+        throw(ArgumentError("port_id must be nonempty"))
+    terminals = string.(terminal_labels)
+    modes = string.(mode_labels)
+    isempty(terminals) && throw(ArgumentError("port terminal_labels must be nonempty"))
+    isempty(modes) && throw(ArgumentError("port mode_labels must be nonempty"))
+    any(isempty ∘ strip, terminals) &&
+        throw(ArgumentError("port terminal labels must be nonempty"))
+    any(isempty ∘ strip, modes) &&
+        throw(ArgumentError("port mode labels must be nonempty"))
+    length(unique(terminals)) == length(terminals) ||
+        throw(ArgumentError("port terminal labels must be unique"))
+    length(unique(modes)) == length(modes) ||
+        throw(ArgumentError("port mode labels must be unique"))
+    length(unique(variables)) == length(variables) ||
+        throw(ArgumentError("port variables must be unique"))
+    size(connection_matrix) == (length(terminals), length(modes)) ||
+        throw(DimensionMismatch(
+            "connection_matrix dimensions must match terminal_labels by mode_labels",
+        ))
+    T = float(eltype(connection_matrix))
+    return ComponentPortMetadata{T}(
+        component_type,
+        string(component_id),
+        string(port_id),
+        terminals,
+        modes,
+        collect(variables),
+        T.(connection_matrix),
+        Dict(string(key) => string(value) for (key, value) in metadata),
+    )
+end
+
+function PortNullspaceMode(
+    component_type::Symbol,
+    component_id,
+    port_id,
+    space::Symbol,
+    direction::AbstractVector{<:Real};
+    description::AbstractString = "",
+)
+    space in (:terminal, :mode) ||
+        throw(ArgumentError("port nullspace space must be :terminal or :mode"))
+    isempty(direction) && throw(ArgumentError("port nullspace direction must be nonempty"))
+    T = float(promote_type(map(typeof, direction)...))
+    converted = T.(direction)
+    iszero(norm(converted)) &&
+        throw(ArgumentError("port nullspace direction must be nonzero"))
+    return PortNullspaceMode{T}(
+        component_type, string(component_id), string(port_id), space,
+        converted, String(description),
+    )
+end
+
+function PortConnectionMetadata(
+    from_component_type::Symbol, from_component_id, from_port_id,
+    to_component_type::Symbol, to_component_id, to_port_id;
+    connection_matrix::AbstractMatrix{<:Real},
+    metadata::AbstractDict = Dict{String,String}(),
+)
+    all(!isempty(strip(string(value))) for value in (
+        from_component_type, from_component_id, from_port_id,
+        to_component_type, to_component_id, to_port_id,
+    )) || throw(ArgumentError("port connection identities must be nonempty"))
+    T = float(eltype(connection_matrix))
+    return PortConnectionMetadata{T}(
+        from_component_type, string(from_component_id), string(from_port_id),
+        to_component_type, string(to_component_id), string(to_port_id),
+        T.(connection_matrix), Dict(string(key) => string(value) for (key, value) in metadata),
+    )
+end
+
+function PortCoordinateMap(
+    component_type::Symbol, component_id, port_id,
+    variables::AbstractVector{MOI.VariableIndex};
+    terminal_to_variable::AbstractMatrix{<:Real},
+    description::AbstractString = "",
+)
+    all(!isempty(strip(string(value))) for value in (component_type, component_id, port_id)) ||
+        throw(ArgumentError("port coordinate-map identities must be nonempty"))
+    length(unique(variables)) == length(variables) ||
+        throw(ArgumentError("port coordinate-map variables must be unique"))
+    size(terminal_to_variable, 1) == length(variables) ||
+        throw(DimensionMismatch(
+            "terminal_to_variable rows must match declared variables",
+        ))
+    T = float(eltype(terminal_to_variable))
+    return PortCoordinateMap{T}(
+        component_type, string(component_id), string(port_id), collect(variables),
+        T.(terminal_to_variable), String(description),
+    )
 end
 
 """

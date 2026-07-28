@@ -37,8 +37,16 @@ export ConstraintRole
 export ConstraintActivity
 export ConstraintFeasibilitySummary
 export CoupledSetActivity
+export CoupledSetTangentEvidence
 export CoupledSetFeasibilitySummary
 export ComponentMetadata
+export ComponentPortMetadata
+export PortNullspaceMode
+export PortConnectionMetadata
+export PortTopologyNullspace
+export PortCoordinateMap
+export PortTopologyCoordinateProjection
+export port_topology_expected_nullspace_modes
 export ElasticFeasibilityPlan
 export ElasticRelaxation
 export ElasticFeasibilityModel
@@ -171,6 +179,7 @@ export analyze_iteration_points
 export profile_case
 export profile_case_repeated
 export profile_cases_repeated
+export profile_synthetic_sparse_ladder
 export compare_profiles
 export synthetic_sparse_profile_corpus
 export solver_postmortem
@@ -205,6 +214,7 @@ export iterative_jacobian_spectrum_estimate
 export constraint_feasibility_summary
 export coupled_set_feasibility_summary
 export coupled_set_activity
+export coupled_set_tangent_evidence
 export active_constraint_rows
 export active_set_matching
 export mfcq_screen
@@ -212,6 +222,11 @@ export recover_stationarity_multipliers
 export nullspace_fingerprints
 export expected_nullspace_modes
 export component_metadata
+export component_port_metadata
+export component_port_nullspace_modes
+export component_port_connections
+export component_port_coordinate_maps
+export port_topology_nullspace
 export structural_numerical_comparison
 export reduced_hessian_analysis
 export operator_domain_requirements
@@ -367,6 +382,664 @@ function _component_metadata_findings(
                 ))
             end
         end
+    end
+    return report
+end
+
+function _component_port_metadata_findings(
+    items::AbstractVector{<:ComponentPortMetadata};
+    model_variables::Union{Nothing,AbstractVector{MOI.VariableIndex}} = nothing,
+)
+    report = DiagnosticReport()
+    keys = [(item.component_type, item.component_id, item.port_id) for item in items]
+    duplicate_keys = unique([key for key in keys if count(==(key), keys) > 1])
+    for (component_type, component_id, port_id) in duplicate_keys
+        push!(report, Finding(:duplicate_component_port_metadata;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Port metadata declares $(component_type) '$component_id' port '$port_id' more than once.",
+            why_it_matters = "Ambiguous port identity makes connection-map and terminal-mode interpretation unreliable.",
+            evidence = [Evidence("Duplicate plugin port key"; details = ["component_type" => component_type, "component_id" => component_id, "port_id" => port_id])],
+            suggested_actions = ["Provide one metadata record per stable component type, ID, and port ID."],
+        ))
+    end
+    known_variables = isnothing(model_variables) ? nothing : Set(model_variables)
+    for item in items
+        expected_size = (length(item.terminal_labels), length(item.mode_labels))
+        if size(item.connection_matrix) != expected_size
+            push!(report, Finding(:component_port_metadata_connection_dimension_mismatch;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Port metadata connection matrix has size $(size(item.connection_matrix)) but declared terminal/mode labels require $expected_size.",
+                why_it_matters = "A dimension-mismatched connection map cannot be interpreted or composed safely.",
+                evidence = [Evidence("Plugin port connection dimensions"; details = ["component_type" => item.component_type, "component_id" => item.component_id, "port_id" => item.port_id])],
+                suggested_actions = ["Align connection-matrix rows with terminal labels and columns with mode labels."],
+            ))
+        end
+        if !all(isfinite, item.connection_matrix)
+            push!(report, Finding(:component_port_metadata_nonfinite_connection;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Port metadata connection matrix contains non-finite coefficients.",
+                why_it_matters = "Non-finite connection coefficients cannot support inspectable terminal-mode analysis.",
+                evidence = [Evidence("Plugin port connection coefficients"; details = ["component_type" => item.component_type, "component_id" => item.component_id, "port_id" => item.port_id])],
+                suggested_actions = ["Declare finite connection-matrix coefficients or omit the port until they are available."],
+            ))
+        else
+            singular_values = svdvals(item.connection_matrix)
+            scale = maximum(singular_values; init = zero(eltype(item.connection_matrix)))
+            threshold = sqrt(eps(eltype(item.connection_matrix))) * scale
+            connection_rank = count(value -> value > threshold, singular_values)
+            maximum_rank = min(size(item.connection_matrix)...)
+            if iszero(connection_rank)
+                push!(report, Finding(:component_port_metadata_zero_connection_map;
+                    severity = SeverityWarning, domain = RepresentationalIssue,
+                    basis = StructuralProof, confidence = ConfidenceCertain,
+                    observation = "Port metadata declares an all-zero connection map.",
+                    why_it_matters = "A zero map exposes no declared terminal mode, which can indicate incomplete metadata or an intentionally disconnected port.",
+                    evidence = [Evidence("Plugin port connection rank"; details = ["component_type" => item.component_type, "component_id" => item.component_id, "port_id" => item.port_id, "rank" => connection_rank, "maximum_rank" => maximum_rank])],
+                    suggested_actions = ["Confirm that the port is intentionally disconnected or provide its finite connection map."],
+                ))
+            elseif connection_rank < maximum_rank
+                push!(report, Finding(:component_port_metadata_connection_rank_deficient;
+                    severity = SeverityInfo, domain = RepresentationalIssue,
+                    basis = NumericalObservation, confidence = ConfidenceHigh,
+                    observation = "Port metadata connection map has rank $connection_rank below its maximum possible rank $maximum_rank.",
+                    why_it_matters = "The declaration contains terminal or mode directions that are not connected by this map. That may be an expected hidden mode, but its semantics must come from the plugin.",
+                    evidence = [Evidence("Plugin port connection rank"; details = ["component_type" => item.component_type, "component_id" => item.component_id, "port_id" => item.port_id, "rank" => connection_rank, "maximum_rank" => maximum_rank, "threshold" => threshold])],
+                    suggested_actions = ["Declare expected hidden modes or connection semantics before interpreting this rank deficiency physically."],
+                ))
+            end
+        end
+        duplicate_variables = unique([variable for variable in item.variables if count(==(variable), item.variables) > 1])
+        if !isempty(duplicate_variables)
+            push!(report, Finding(:component_port_metadata_duplicate_variables;
+                severity = SeverityWarning, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Port metadata repeats $(length(duplicate_variables)) variable coordinate(s).",
+                why_it_matters = "Repeated port coordinates make the declared scope ambiguous.",
+                evidence = [Evidence("Duplicate plugin port coordinates")],
+                affected = [EntityRef(:variable, variable.value) for variable in duplicate_variables],
+                suggested_actions = ["Declare each port variable coordinate at most once."],
+            ))
+        end
+        if !isnothing(known_variables)
+            unknown_variables = [variable for variable in item.variables if !(variable in known_variables)]
+            if !isempty(unknown_variables)
+                push!(report, Finding(:component_port_metadata_unknown_variable;
+                    severity = SeverityError, domain = RepresentationalIssue,
+                    basis = StructuralProof, confidence = ConfidenceCertain,
+                    observation = "Port metadata references $(length(unknown_variables)) variable coordinate(s) absent from the model.",
+                    why_it_matters = "A stale port scope cannot be aligned with an analyzed model's coordinate system.",
+                    evidence = [Evidence("Unknown plugin port coordinates")],
+                    affected = [EntityRef(:variable, variable.value) for variable in unknown_variables],
+                    suggested_actions = ["Rebuild port metadata after model construction."],
+                ))
+            end
+        end
+    end
+    return report
+end
+
+function _component_port_nullspace_mode_findings(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    modes::AbstractVector{<:PortNullspaceMode};
+    relative_tolerance::Real = sqrt(eps(Float64)),
+)
+    report = DiagnosticReport()
+    port_by_key = Dict(
+        (port.component_type, port.component_id, port.port_id) => port for port in ports
+    )
+    for mode in modes
+        key = (mode.component_type, mode.component_id, mode.port_id)
+        port = get(port_by_key, key, nothing)
+        if isnothing(port)
+            push!(report, Finding(:component_port_expected_nullspace_mode_unaligned;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Declared port nullspace mode cannot be aligned with a declared component port.",
+                why_it_matters = "A connection-map nullspace comparison requires a stable component and port identity.",
+                evidence = [Evidence("Declared port nullspace mode"; details = ["component_type" => mode.component_type, "component_id" => mode.component_id, "port_id" => mode.port_id, "space" => mode.space])],
+                suggested_actions = ["Declare the corresponding component port or correct the mode identity."],
+            ))
+            continue
+        end
+        expected_dimension = mode.space == :terminal ?
+                             length(port.terminal_labels) : length(port.mode_labels)
+        if length(mode.direction) != expected_dimension
+            push!(report, Finding(:component_port_expected_nullspace_mode_dimension_mismatch;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Declared $(mode.space)-space port null mode has dimension $(length(mode.direction)), but the port map expects $expected_dimension.",
+                why_it_matters = "A direction can only be compared with a connection map in its declared coordinate space.",
+                evidence = [Evidence("Declared port nullspace mode dimensions"; details = ["component_type" => mode.component_type, "component_id" => mode.component_id, "port_id" => mode.port_id])],
+                suggested_actions = ["Use one direction entry per declared terminal or mode label."],
+            ))
+            continue
+        end
+        T = eltype(port.connection_matrix)
+        direction = T.(mode.direction)
+        residual = mode.space == :terminal ?
+                   norm(transpose(port.connection_matrix) * direction) :
+                   norm(port.connection_matrix * direction)
+        threshold = convert(T, relative_tolerance) *
+                    max(one(T), norm(port.connection_matrix) * norm(direction))
+        observed = residual <= threshold
+        push!(report, Finding(
+            observed ? :component_port_expected_nullspace_mode_observed :
+                       :component_port_expected_nullspace_mode_not_observed;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = observed ? PhysicalExpectation : LocalInference,
+            confidence = observed ? ConfidenceHigh : ConfidenceMedium,
+            observation = observed ?
+                          "Declared $(mode.space)-space null mode is consistent with the component port connection map." :
+                          "Declared $(mode.space)-space null mode is not consistent with the component port connection map.",
+            why_it_matters = observed ?
+                             "The declared hidden mode agrees with this plugin-supplied map, without validating its physical interpretation or network assembly." :
+                             "A mismatch can reflect stale metadata, a connection convention error, or an intentionally operating-point-dependent declaration.",
+            evidence = [Evidence("Component port nullspace comparison"; details = ["component_type" => mode.component_type, "component_id" => mode.component_id, "port_id" => mode.port_id, "space" => mode.space, "residual_norm" => residual, "threshold" => threshold, "description" => mode.description])],
+            suggested_actions = observed ?
+                                ["Retain the declaration as port-level expected-mode evidence and compare it with network-level observed modes later."] :
+                                ["Check terminal/mode ordering and connection conventions before changing the declared physical interpretation."],
+        ))
+    end
+    return report
+end
+
+function _component_port_connection_findings(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    connections::AbstractVector{<:PortConnectionMetadata},
+)
+    report = DiagnosticReport()
+    port_by_key = Dict(
+        (port.component_type, port.component_id, port.port_id) => port for port in ports
+    )
+    keys = [
+        ((item.from_component_type, item.from_component_id, item.from_port_id),
+         (item.to_component_type, item.to_component_id, item.to_port_id))
+        for item in connections
+    ]
+    for key in unique([key for key in keys if count(==(key), keys) > 1])
+        push!(report, Finding(:duplicate_component_port_connection;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Port connection metadata declares the same directed endpoint pair more than once.",
+            why_it_matters = "Duplicate directed maps make compositional port topology ambiguous.",
+            evidence = [Evidence("Duplicate plugin port connection"; details = ["from" => join(string.(key[1]), ":"), "to" => join(string.(key[2]), ":")])],
+            suggested_actions = ["Provide one directed map per source and destination port pair."],
+        ))
+    end
+    for item in connections
+        from_key = (item.from_component_type, item.from_component_id, item.from_port_id)
+        to_key = (item.to_component_type, item.to_component_id, item.to_port_id)
+        from_port = get(port_by_key, from_key, nothing)
+        to_port = get(port_by_key, to_key, nothing)
+        if isnothing(from_port) || isnothing(to_port)
+            push!(report, Finding(:component_port_connection_unaligned;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Port connection metadata references a source or destination port that was not declared.",
+                why_it_matters = "A network connection map cannot be composed without both named port declarations.",
+                evidence = [Evidence("Plugin port connection endpoints"; details = ["from" => join(string.(from_key), ":"), "to" => join(string.(to_key), ":")])],
+                suggested_actions = ["Declare both endpoint ports with component_port_metadata before declaring their connection."],
+            ))
+            continue
+        end
+        expected_size = (length(to_port.terminal_labels), length(from_port.terminal_labels))
+        if size(item.connection_matrix) != expected_size
+            push!(report, Finding(:component_port_connection_dimension_mismatch;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Port connection matrix has size $(size(item.connection_matrix)) but endpoint terminal scopes require $expected_size.",
+                why_it_matters = "A dimension-mismatched connection map cannot compose the declared terminal coordinates.",
+                evidence = [Evidence("Plugin port connection dimensions"; details = ["from" => join(string.(from_key), ":"), "to" => join(string.(to_key), ":")])],
+                suggested_actions = ["Use destination-terminal rows and source-terminal columns in the declared connection map."],
+            ))
+        end
+        if !all(isfinite, item.connection_matrix)
+            push!(report, Finding(:component_port_connection_nonfinite;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Port connection metadata contains non-finite coefficients.",
+                why_it_matters = "Non-finite connection coefficients prevent inspectable topology composition.",
+                evidence = [Evidence("Plugin port connection coefficients")],
+                suggested_actions = ["Declare finite connection-map coefficients."],
+            ))
+        end
+    end
+    return report
+end
+
+"""Validate plugin-declared terminal-to-model-coordinate maps without inferring physics."""
+function _component_port_coordinate_map_findings(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    maps::AbstractVector{<:PortCoordinateMap};
+    model_variables::Union{Nothing,AbstractVector{MOI.VariableIndex}} = nothing,
+)
+    report = DiagnosticReport()
+    port_by_key = Dict(
+        (port.component_type, port.component_id, port.port_id) => port for port in ports
+    )
+    keys = [(item.component_type, item.component_id, item.port_id) for item in maps]
+    for key in unique([key for key in keys if count(==(key), keys) > 1])
+        push!(report, Finding(:duplicate_component_port_coordinate_map;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Port coordinate metadata declares $(key[1]) '$(key[2])' port '$(key[3])' more than once.",
+            why_it_matters = "More than one terminal-to-variable convention for a port makes any projected topology mode ambiguous.",
+            evidence = [Evidence("Duplicate plugin port coordinate map"; details = ["component_type" => key[1], "component_id" => key[2], "port_id" => key[3]])],
+            suggested_actions = ["Provide one terminal-to-variable map per stable component port."],
+        ))
+    end
+    known_variables = isnothing(model_variables) ? nothing : Set(model_variables)
+    for item in maps
+        key = (item.component_type, item.component_id, item.port_id)
+        port = get(port_by_key, key, nothing)
+        if isnothing(port)
+            push!(report, Finding(:component_port_coordinate_map_unaligned;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "A terminal-to-variable map references a component port that was not declared.",
+                why_it_matters = "The terminal-coordinate dimension and ordering cannot be inspected without the corresponding port declaration.",
+                evidence = [Evidence("Plugin port coordinate-map endpoint"; details = ["component_type" => item.component_type, "component_id" => item.component_id, "port_id" => item.port_id])],
+                suggested_actions = ["Declare the component port with component_port_metadata before mapping it to model variables."],
+            ))
+        elseif size(item.terminal_to_variable) != (length(item.variables), length(port.terminal_labels))
+            expected = (length(item.variables), length(port.terminal_labels))
+            push!(report, Finding(:component_port_coordinate_map_dimension_mismatch;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "A terminal-to-variable map has size $(size(item.terminal_to_variable)) but its variable and terminal scopes require $expected.",
+                why_it_matters = "A projected port direction is only meaningful when map rows are model variables and columns are the declared terminal coordinates.",
+                evidence = [Evidence("Plugin port coordinate-map dimensions"; details = ["component_type" => item.component_type, "component_id" => item.component_id, "port_id" => item.port_id])],
+                suggested_actions = ["Use one row per declared model variable and one column per declared terminal label."],
+            ))
+        end
+        if !all(isfinite, item.terminal_to_variable)
+            push!(report, Finding(:component_port_coordinate_map_nonfinite;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "A terminal-to-variable map contains non-finite coefficients.",
+                why_it_matters = "Non-finite coefficients cannot be used to project topology directions into model coordinates.",
+                evidence = [Evidence("Plugin port coordinate-map coefficients"; details = ["component_type" => item.component_type, "component_id" => item.component_id, "port_id" => item.port_id])],
+                suggested_actions = ["Declare finite terminal-to-variable coefficients."],
+            ))
+        end
+        duplicate_variables = unique([variable for variable in item.variables if count(==(variable), item.variables) > 1])
+        if !isempty(duplicate_variables)
+            push!(report, Finding(:component_port_coordinate_map_duplicate_variables;
+                severity = SeverityWarning, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "A terminal-to-variable map repeats $(length(duplicate_variables)) model coordinate(s).",
+                why_it_matters = "Repeated rows leave the intended coordinate convention ambiguous.",
+                evidence = [Evidence("Duplicate plugin port coordinate-map variables")],
+                affected = [EntityRef(:variable, variable.value) for variable in duplicate_variables],
+                suggested_actions = ["Declare each mapped model variable at most once per port."],
+            ))
+        end
+        if !isnothing(known_variables)
+            unknown_variables = [variable for variable in item.variables if !(variable in known_variables)]
+            if !isempty(unknown_variables)
+                push!(report, Finding(:component_port_coordinate_map_unknown_variable;
+                    severity = SeverityError, domain = RepresentationalIssue,
+                    basis = StructuralProof, confidence = ConfidenceCertain,
+                    observation = "A terminal-to-variable map references $(length(unknown_variables)) model coordinate(s) absent from the model.",
+                    why_it_matters = "A stale coordinate map cannot be compared with numerical model modes.",
+                    evidence = [Evidence("Unknown plugin port coordinate-map variables")],
+                    affected = [EntityRef(:variable, variable.value) for variable in unknown_variables],
+                    suggested_actions = ["Rebuild coordinate maps after model construction."],
+                ))
+            end
+        end
+    end
+    return report
+end
+
+"""
+    port_topology_coordinate_projection(ports, connections, coordinate_maps; ...)
+
+Project a plugin-declared terminal-coordinate topology nullspace through explicit
+terminal-to-model-variable maps. Repeated declarations for one model variable
+must agree on every topology-nullspace direction. The result is candidate
+expected model-coordinate freedom only: it does not establish a physical gauge
+or compare the candidate with an observed Jacobian nullspace.
+"""
+function port_topology_coordinate_projection(
+    ports::AbstractVector{<:ComponentPortMetadata{T}},
+    connections::AbstractVector{<:PortConnectionMetadata{T}},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap{T}};
+    relative_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    topology = port_topology_nullspace(
+        ports, connections; relative_tolerance = relative_tolerance,
+    )
+    empty_projection(reason) = PortTopologyCoordinateProjection{T}(
+        false, reason, MOI.VariableIndex[], topology, zeros(T, 0, 0), zero(T),
+    )
+    topology.available || return empty_projection(something(topology.reason, "topology unavailable"))
+    port_by_key = Dict(
+        (port.component_type, port.component_id, port.port_id) => port for port in ports
+    )
+    offset_by_key = Dict{Tuple{Symbol,String,String},Int}()
+    offset = 0
+    for port in ports
+        key = (port.component_type, port.component_id, port.port_id)
+        offset_by_key[key] = offset + 1
+        offset += length(port.terminal_labels)
+    end
+    rows_by_variable = Dict{MOI.VariableIndex,Vector{Vector{T}}}()
+    seen_port_keys = Set{Tuple{Symbol,String,String}}()
+    for map in coordinate_maps
+        key = (map.component_type, map.component_id, map.port_id)
+        haskey(port_by_key, key) || return empty_projection("coordinate map endpoint is not a declared port")
+        key in seen_port_keys && return empty_projection("duplicate coordinate map for one port")
+        push!(seen_port_keys, key)
+        port = port_by_key[key]
+        size(map.terminal_to_variable) == (length(map.variables), length(port.terminal_labels)) ||
+            return empty_projection("coordinate-map dimensions do not match its port")
+        all(isfinite, map.terminal_to_variable) ||
+            return empty_projection("coordinate map contains non-finite coefficients")
+        start = offset_by_key[key]
+        for (row, variable) in enumerate(map.variables)
+            lifted = zeros(T, offset)
+            lifted[start:(start + length(port.terminal_labels) - 1)] .= map.terminal_to_variable[row, :]
+            push!(get!(rows_by_variable, variable, Vector{Vector{T}}()), lifted)
+        end
+    end
+    variables = sort!(collect(keys(rows_by_variable)); by = variable -> variable.value)
+    projected = zeros(T, length(variables), size(topology.nullspace, 2))
+    maximum_residual = zero(T)
+    threshold = convert(T, relative_tolerance)
+    for (row, variable) in enumerate(variables)
+        candidates = [vec(transpose(lifted) * topology.nullspace) for lifted in rows_by_variable[variable]]
+        reference = first(candidates)
+        projected[row, :] .= reference
+        for candidate in Iterators.drop(candidates, 1)
+            residual = norm(candidate - reference)
+            maximum_residual = max(maximum_residual, residual)
+            residual <= threshold * max(one(T), norm(reference), norm(candidate)) ||
+                return PortTopologyCoordinateProjection{T}(
+                    false, "coordinate maps for one model variable disagree on topology directions",
+                    variables, topology, zeros(T, 0, 0), maximum_residual,
+                )
+        end
+    end
+    return PortTopologyCoordinateProjection{T}(
+        true, nothing, variables, topology, projected, maximum_residual,
+    )
+end
+
+function _component_port_topology_coordinate_projection_findings(
+    ports::AbstractVector{<:ComponentPortMetadata{T}},
+    connections::AbstractVector{<:PortConnectionMetadata{T}},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap{T}};
+    relative_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    report = DiagnosticReport()
+    isempty(coordinate_maps) && return report
+    projection = port_topology_coordinate_projection(
+        ports, connections, coordinate_maps; relative_tolerance = relative_tolerance,
+    )
+    report.metadata[:component_port_topology_model_projection_available] = string(projection.available)
+    if !projection.available
+        push!(report, Finding(:component_port_topology_model_projection_unavailable;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Declared terminal topology modes cannot be projected into model coordinates: $(projection.reason).",
+            why_it_matters = "The generic debugger must not compare terminal-space topology modes with a Jacobian until their coordinate convention is explicit and consistent.",
+            evidence = [Evidence("Port topology coordinate projection"; details = ["reason" => projection.reason])],
+            suggested_actions = ["Provide one finite, dimension-aligned coordinate map per declared port and reconcile repeated model-variable mappings."],
+        ))
+        return report
+    end
+    singular_values = svdvals(projection.projected_nullspace)
+    scale = maximum(singular_values; init = zero(T))
+    projected_rank = count(value -> value > convert(T, relative_tolerance) * max(one(T), scale), singular_values)
+    terminal_nullity = size(projection.topology.nullspace, 2)
+    report.metadata[:component_port_topology_model_projection_rank] = string(projected_rank)
+    report.metadata[:component_port_topology_model_projection_nullity] = string(terminal_nullity)
+    push!(report, Finding(:component_port_topology_model_projection_available;
+        severity = SeverityInfo, domain = RepresentationalIssue,
+        basis = StructuralProof, confidence = ConfidenceHigh,
+        observation = "Declared topology has $terminal_nullity terminal-space null direction(s), projected into $(length(projection.variables)) model coordinate(s) with rank $projected_rank.",
+        why_it_matters = "This supplies inspectable candidate directions for later comparison with numerical model nullspaces; it does not classify them physically.",
+        evidence = [Evidence("Port topology coordinate projection"; details = ["terminal_nullity" => terminal_nullity, "projected_rank" => projected_rank, "variables" => length(projection.variables), "consistency_residual" => projection.consistency_residual])],
+        affected = [EntityRef(:variable, variable.value) for variable in projection.variables],
+        suggested_actions = ["Compare these candidate coordinates with an evaluated Jacobian nullspace only after checking the plugin's physical convention."],
+    ))
+    if projected_rank < terminal_nullity
+        push!(report, Finding(:component_port_topology_mode_hidden_from_model_coordinates;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceHigh,
+            observation = "At least $(terminal_nullity - projected_rank) declared terminal-space topology mode(s) are not visible through the supplied model-coordinate maps.",
+            why_it_matters = "A terminal nullspace can contain internal or omitted directions that must not be treated as model-variable gauges.",
+            evidence = [Evidence("Port topology projection rank"; details = ["terminal_nullity" => terminal_nullity, "projected_rank" => projected_rank])],
+            suggested_actions = ["Declare additional model-coordinate maps if these directions should be observable, or document them as intentionally hidden port modes."],
+        ))
+    end
+    return report
+end
+
+# The generic hook returns an unparameterized empty vector. It intentionally
+# means that no plugin has opted into a terminal-to-model-coordinate convention.
+function _component_port_topology_coordinate_projection_findings(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    connections::AbstractVector{<:PortConnectionMetadata},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap},
+)
+    isempty(coordinate_maps) || throw(ArgumentError(
+        "port metadata, connections, and coordinate maps must use one floating-point type",
+    ))
+    return DiagnosticReport()
+end
+
+"""
+    port_topology_expected_nullspace_modes(ports, connections, coordinate_maps; ...)
+
+Convert independent, nonzero projected topology directions into generic
+`ExpectedNullspaceMode` declarations. The generated names deliberately say
+`port_topology_candidate_mode_*`: they are representational candidates derived
+from declared maps, not assertions of a physical gauge.
+"""
+function port_topology_expected_nullspace_modes(
+    ports::AbstractVector{<:ComponentPortMetadata{T}},
+    connections::AbstractVector{<:PortConnectionMetadata{T}},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap{T}};
+    relative_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    isempty(coordinate_maps) && return ExpectedNullspaceMode{T}[]
+    projection = port_topology_coordinate_projection(
+        ports, connections, coordinate_maps; relative_tolerance = relative_tolerance,
+    )
+    projection.available || return ExpectedNullspaceMode{T}[]
+    matrix = projection.projected_nullspace
+    isempty(matrix) && return ExpectedNullspaceMode{T}[]
+    decomposition = svd(matrix; full = false)
+    scale = maximum(decomposition.S; init = zero(T))
+    threshold = convert(T, relative_tolerance) * max(one(T), scale)
+    rank = count(value -> value > threshold, decomposition.S)
+    return ExpectedNullspaceMode{T}[
+        ExpectedNullspaceMode(
+            Symbol("port_topology_candidate_mode_", index),
+            projection.variables,
+            decomposition.U[:, index];
+            description = "Candidate expected mode projected from declared port topology maps (terminal nullity $(size(projection.topology.nullspace, 2))).",
+        ) for index in 1:rank
+    ]
+end
+
+function port_topology_expected_nullspace_modes(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    connections::AbstractVector{<:PortConnectionMetadata},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap};
+    kwargs...,
+)
+    isempty(coordinate_maps) && return ExpectedNullspaceMode[]
+    throw(ArgumentError(
+        "port metadata, connections, and coordinate maps must use one floating-point type",
+    ))
+end
+
+"""
+    port_topology_nullspace(ports, connections; relative_tolerance = sqrt(eps(T)))
+
+Assemble equations `destination - connection_matrix * source = 0` in declared
+terminal coordinates and return their numerical nullspace. This is a statement
+about plugin-declared maps only; it is not a physical network observability or
+model-coordinate nullspace calculation.
+"""
+function port_topology_nullspace(
+    ports::AbstractVector{<:ComponentPortMetadata{T}},
+    connections::AbstractVector{<:PortConnectionMetadata{T}};
+    relative_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    tolerance = convert(T, relative_tolerance)
+    tolerance >= zero(T) || throw(ArgumentError("relative_tolerance must be nonnegative"))
+    keys = [(port.component_type, port.component_id, port.port_id) for port in ports]
+    offsets = Dict{Tuple{Symbol,String,String},Int}()
+    coordinate_count = 0
+    for (key, port) in zip(keys, ports)
+        haskey(offsets, key) && return PortTopologyNullspace{T}(
+            false, "duplicate port identity", keys, zeros(T, 0, 0), 0, zeros(T, 0, 0),
+        )
+        offsets[key] = coordinate_count + 1
+        coordinate_count += length(port.terminal_labels)
+    end
+    by_key = Dict(key => port for (key, port) in zip(keys, ports))
+    row_count = 0
+    for connection in connections
+        to_key = (connection.to_component_type, connection.to_component_id, connection.to_port_id)
+        row_count += haskey(by_key, to_key) ? length(by_key[to_key].terminal_labels) : 0
+    end
+    matrix = zeros(T, row_count, coordinate_count)
+    row_offset = 0
+    for connection in connections
+        from_key = (connection.from_component_type, connection.from_component_id, connection.from_port_id)
+        to_key = (connection.to_component_type, connection.to_component_id, connection.to_port_id)
+        (haskey(by_key, from_key) && haskey(by_key, to_key)) || return PortTopologyNullspace{T}(
+            false, "connection endpoint is not a declared port", keys, zeros(T, 0, 0), 0, zeros(T, 0, 0),
+        )
+        from_port, to_port = by_key[from_key], by_key[to_key]
+        expected_size = (length(to_port.terminal_labels), length(from_port.terminal_labels))
+        size(connection.connection_matrix) == expected_size || return PortTopologyNullspace{T}(
+            false, "connection matrix dimensions do not match endpoint terminals", keys, zeros(T, 0, 0), 0, zeros(T, 0, 0),
+        )
+        all(isfinite, connection.connection_matrix) || return PortTopologyNullspace{T}(
+            false, "connection matrix contains non-finite coefficients", keys, zeros(T, 0, 0), 0, zeros(T, 0, 0),
+        )
+        rows = (row_offset + 1):(row_offset + expected_size[1])
+        from_columns = offsets[from_key]:(offsets[from_key] + expected_size[2] - 1)
+        to_columns = offsets[to_key]:(offsets[to_key] + expected_size[1] - 1)
+        matrix[rows, from_columns] .-= connection.connection_matrix
+        matrix[rows, to_columns] .+= Matrix{T}(I, expected_size[1], expected_size[1])
+        row_offset += expected_size[1]
+    end
+    factorization = svd(matrix; full = true)
+    scale = maximum(factorization.S; init = zero(T))
+    rank = count(value -> value > tolerance * scale, factorization.S)
+    nullspace = Matrix(factorization.V[:, (rank + 1):coordinate_count])
+    return PortTopologyNullspace{T}(true, nothing, keys, matrix, rank, nullspace)
+end
+
+function _component_port_topology_nullspace_findings(
+    ports::AbstractVector{<:ComponentPortMetadata{T}},
+    connections::AbstractVector{<:PortConnectionMetadata{T}},
+) where {T<:AbstractFloat}
+    report = DiagnosticReport()
+    analysis = port_topology_nullspace(ports, connections)
+    report.metadata[:component_port_topology_nullspace_available] = string(analysis.available)
+    report.metadata[:component_port_topology_rank] = string(analysis.rank)
+    report.metadata[:component_port_topology_nullity] = string(size(analysis.nullspace, 2))
+    if !analysis.available
+        push!(report, Finding(:component_port_topology_nullspace_unavailable;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Declared port-topology nullspace assembly is unavailable: $(analysis.reason).",
+            why_it_matters = "Invalid declared connection maps must not be partially assembled into expected network freedom evidence.",
+            evidence = [Evidence("Declared port topology nullspace availability")],
+            suggested_actions = ["Resolve declared port and connection-map validation findings before requesting topology nullspace interpretation."],
+        ))
+    elseif size(analysis.nullspace, 2) > 0
+        push!(report, Finding(:component_port_topology_expected_nullspace;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Declared port topology has $(size(analysis.nullspace, 2)) terminal-coordinate null direction(s).",
+            why_it_matters = "This is expected freedom of the declared connection equations. A plugin must map it to model or physical coordinates before comparing it with observed model nullspaces.",
+            evidence = [Evidence("Declared port topology nullspace"; details = ["port_count" => length(analysis.port_keys), "connection_equation_count" => size(analysis.connection_matrix, 1), "rank" => analysis.rank, "nullity" => size(analysis.nullspace, 2)])],
+            suggested_actions = ["Map these terminal-coordinate directions through plugin-declared model coordinates before assigning a physical gauge interpretation."],
+        ))
+    end
+    return report
+end
+
+function _component_port_topology_nullspace_findings(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    connections::AbstractVector{<:PortConnectionMetadata},
+)
+    isempty(ports) && isempty(connections) || throw(ArgumentError(
+        "port topology declarations must use one concrete floating-point metadata type",
+    ))
+    report = DiagnosticReport()
+    report.metadata[:component_port_topology_nullspace_available] = "true"
+    report.metadata[:component_port_topology_rank] = "0"
+    report.metadata[:component_port_topology_nullity] = "0"
+    return report
+end
+
+function _component_port_topology_findings(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    connections::AbstractVector{<:PortConnectionMetadata},
+)
+    report = DiagnosticReport()
+    keys = [(port.component_type, port.component_id, port.port_id) for port in ports]
+    key_set = Set(keys)
+    adjacency = Dict(key => Set{typeof(key)}() for key in keys)
+    for connection in connections
+        from = (connection.from_component_type, connection.from_component_id, connection.from_port_id)
+        to = (connection.to_component_type, connection.to_component_id, connection.to_port_id)
+        from in key_set && to in key_set || continue
+        push!(adjacency[from], to)
+        push!(adjacency[to], from)
+    end
+    isolated = [key for key in keys if isempty(adjacency[key])]
+    if !isempty(isolated)
+        push!(report, Finding(:component_port_topology_isolated_port;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Declared port topology contains $(length(isolated)) isolated port(s).",
+            why_it_matters = "An isolated declared port can be intentional, but it may also expose missing connection metadata or an unassembled subsystem.",
+            evidence = [Evidence("Declared port topology"; details = ["isolated_ports" => join((join(string.(key), ":") for key in isolated), ",")])],
+            suggested_actions = ["Confirm that each isolated port is intentionally external or declare its explicit port connection."],
+        ))
+    end
+    visited = Set{eltype(keys)}()
+    components = Vector{Vector{eltype(keys)}}()
+    for start in keys
+        start in visited && continue
+        component = eltype(keys)[]
+        stack = [start]
+        push!(visited, start)
+        while !isempty(stack)
+            current = pop!(stack)
+            push!(component, current)
+            for neighbor in adjacency[current]
+                neighbor in visited && continue
+                push!(visited, neighbor)
+                push!(stack, neighbor)
+            end
+        end
+        push!(components, component)
+    end
+    nontrivial = [component for component in components if length(component) > 1]
+    if length(nontrivial) > 1
+        push!(report, Finding(:component_port_topology_disconnected_islands;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Declared port topology contains $(length(nontrivial)) disconnected nontrivial connection-map islands.",
+            why_it_matters = "Separate declared port islands may be intentional, but unexpected separation can reveal missing topology metadata or unassembled subsystems.",
+            evidence = [Evidence("Declared port topology"; details = ["component_sizes" => join(length.(nontrivial), ",")])],
+            suggested_actions = ["Inspect whether the separated port islands are intentional before attaching network-level semantics."],
+        ))
     end
     return report
 end
@@ -1831,6 +2504,10 @@ function analyze(
     check_degeneracy::Bool = false,
 )
     declared_components = component_metadata(model)
+    declared_ports = component_port_metadata(model)
+    declared_port_modes = component_port_nullspace_modes(model)
+    declared_port_connections = component_port_connections(model)
+    declared_port_coordinate_maps = component_port_coordinate_maps(model)
     selected_numeric_type = if !isnothing(numeric_type)
         numeric_type
     elseif !isnothing(point)
@@ -1842,12 +2519,48 @@ function analyze(
     graph = incidence_graph(model_snapshot)
     report = analyze_static(model_snapshot; graph = graph)
     report.metadata[:component_metadata_count] = string(length(declared_components))
+    report.metadata[:component_port_metadata_count] = string(length(declared_ports))
+    report.metadata[:component_port_nullspace_mode_count] = string(length(declared_port_modes))
+    report.metadata[:component_port_connection_count] = string(length(declared_port_connections))
+    report.metadata[:component_port_coordinate_map_count] = string(length(declared_port_coordinate_maps))
     component_report = _component_metadata_findings(
         declared_components;
         model_variables = [record.index for record in model_snapshot.variables],
         model_constraints = [_constraint_ref(record) for record in model_snapshot.constraints],
     )
     append!(report.findings, component_report.findings)
+    port_report = _component_port_metadata_findings(
+        declared_ports;
+        model_variables = [record.index for record in model_snapshot.variables],
+    )
+    append!(report.findings, port_report.findings)
+    port_mode_report = _component_port_nullspace_mode_findings(
+        declared_ports, declared_port_modes,
+    )
+    append!(report.findings, port_mode_report.findings)
+    port_connection_report = _component_port_connection_findings(
+        declared_ports, declared_port_connections,
+    )
+    append!(report.findings, port_connection_report.findings)
+    port_coordinate_map_report = _component_port_coordinate_map_findings(
+        declared_ports, declared_port_coordinate_maps;
+        model_variables = [record.index for record in model_snapshot.variables],
+    )
+    append!(report.findings, port_coordinate_map_report.findings)
+    port_projection_report = _component_port_topology_coordinate_projection_findings(
+        declared_ports, declared_port_connections, declared_port_coordinate_maps,
+    )
+    append!(report.findings, port_projection_report.findings)
+    merge!(report.metadata, port_projection_report.metadata)
+    port_topology_report = _component_port_topology_findings(
+        declared_ports, declared_port_connections,
+    )
+    append!(report.findings, port_topology_report.findings)
+    port_nullspace_report = _component_port_topology_nullspace_findings(
+        declared_ports, declared_port_connections,
+    )
+    append!(report.findings, port_nullspace_report.findings)
+    merge!(report.metadata, port_nullspace_report.metadata)
     domain_report = analyze_domains(model_snapshot)
     derivative_report = analyze_derivatives(model_snapshot)
     expression_report = analyze_expressions(

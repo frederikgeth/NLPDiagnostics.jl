@@ -180,6 +180,18 @@ the generic core does not turn it into scalar active rows for LICQ, MFCQ, or
 multiplier recovery. Other coupled sets remain plugin extension points through
 `coupled_set_activity(set, source, values, feasibility_tolerance,
 active_tolerance)`, which may return a `CoupledSetActivity` or `nothing`.
+For SOC apex and rotated-SOC axis boundaries, the report additionally labels
+the boundary as nonsmooth. This is a geometric fact that strengthens the case
+against scalar active-row reductions; it does not supply a cone multiplier or
+a full conic constraint qualification screen.
+At smooth SOC and rotated-SOC boundaries, `coupled_set_tangent_evidence`
+provides an output-coordinate boundary normal. Plugins may extend the same
+hook for other coupled sets. These normals remain coupled-set evidence and are
+never silently inserted into scalar LICQ, MFCQ, or multiplier calculations.
+For aligned vector outputs, the generic active-set report also maps a smooth
+boundary normal through the vector-function Jacobian and records its
+model-coordinate gradient. A zero mapped gradient is reported as local
+stationarity evidence, not treated as a regular scalar cone tangent.
 
 ## Structural versus numerical degeneracy
 
@@ -462,6 +474,15 @@ If each supplied snapshot retains its `HessianEvaluation`, persistence analysis
 also compares the row-aligned multiplier representative and objective weight.
 This is opt-in evidence about the supplied representatives, not a claim that
 multipliers are unique or that a dual solution has been verified.
+Persistence analysis also compares finite Jacobian row and column
+scale-spread ratios with an explicit change-factor threshold. This exposes
+operating-point-dependent derivative scaling beside rank and curvature changes;
+it is numerical evidence, not proof that a formulation is mathematically
+wrong.
+The retained reduced-Hessian spectra are also compared directly by maximum
+absolute eigenvalue. This isolates broad curvature-magnitude changes from
+flat-subspace orientation and Jacobian scaling, while remaining a local
+numerical observation rather than a physical stability classification.
 
 ## Current limits
 

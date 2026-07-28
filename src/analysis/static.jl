@@ -2509,5 +2509,7 @@ end
 function analyze_static(model::MOI.ModelLike; kwargs...)
     report = analyze_static(snapshot(model); kwargs...)
     report.metadata[:component_metadata_count] = string(length(component_metadata(model)))
+    report.metadata[:component_port_metadata_count] =
+        string(length(component_port_metadata(model)))
     return report
 end

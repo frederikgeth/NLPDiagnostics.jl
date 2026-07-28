@@ -85,7 +85,9 @@ evaluation layers can expose its supporting evidence.
   explicit invalid-domain handling).
 - Benchmark the prototype matching and strongly connected-component
   algorithms on large sparse models before treating them as production-scale
-  implementations.
+  implementations. A deterministic sparse calibration ladder now provides the
+  repeatable harness; collecting and interpreting large-machine observations
+  remains future work.
 
 ## Next: numerical rank and derivative refinement
 
@@ -94,8 +96,11 @@ evaluation layers can expose its supporting evidence.
   candidate right-null-direction and block-subspace probes, plus an explicit
   heuristic spectral-spread probe. Production-scale sparse-conditioning
   estimates and independently certified nullity remain future work.
-- Generic SOC and rotated-SOC feasibility/boundary evidence; general coupled-
-  set and plugin-supplied active-set semantics.
+- Generic SOC and rotated-SOC feasibility/boundary evidence, including
+  nonsmooth apex/axis labels and smooth-boundary tangent-evidence hooks;
+  smooth normals can be mapped through complete vector-function Jacobians for
+  cone-aware local evidence. General coupled-set and plugin-supplied active-set
+  semantics remain future work.
 - Full MFCQ failure certificates; the generic core now has local recovered-
   multiplier sign/complementarity screens and a numerical no-common-descent
   witness for explicitly selected scalar active rows.
@@ -165,7 +170,8 @@ equation dependencies. Next classifications:
   checks, including generic structural component scope and declared component
   metadata overlap, persistent expected-mode span comparisons, and
   stable-versus-changing flat-support, active-row, and active-Jacobian rank
-  fingerprints, plus opt-in multiplier-representative persistence; and
+  fingerprints, plus opt-in multiplier-representative and Jacobian-scaling
+  persistence, and direct reduced-Hessian spectral-scale persistence; and
 - unknown local equality-Jacobian mode (implemented).
 
 PowerModels and multiconductor semantics follow only after these generic

@@ -12,6 +12,56 @@ expected rank, and serializable metadata. The
 generic core does not infer these semantics from variable names. A future
 PowerModels extension should use this hook with `expected_nullspace_modes` to
 declare electrical references, ports, and expected physical gauges.
+Plugins may additionally extend `component_port_metadata(model)` with typed
+`ComponentPortMetadata` records. A record names component and port identities,
+terminal and mode coordinates, an inspectable connection matrix, and optional
+MOI variable scope. The generic core validates only representation dimensions
+and identities: voltage/current semantics, complex-coordinate conventions, and
+physical rank expectations remain with the plugin.
+Combined analysis records `component_port_metadata_count` and validates
+duplicate port keys, stale variable scopes, non-finite connection coefficients,
+and terminal/mode dimension mismatches as representational findings.
+It also reports zero and rank-deficient declared connection maps. A deficient
+map is not a generic error: it may express a hidden or intentionally disconnected
+mode, whose physical interpretation must be declared by the plugin.
+Plugins can declare those expected terminal- or mode-space freedoms with
+`component_port_nullspace_modes(model)`. Combined analysis compares each
+declared direction to its connection map and reports agreement or mismatch;
+this is port-level consistency evidence, not network-level observability.
+Plugins may declare topology with `component_port_connections(model)`, returning
+directed `PortConnectionMetadata` maps from source-terminal to
+destination-terminal coordinates. Combined analysis validates endpoint ports,
+matrix dimensions, finiteness, and duplicate directed links. It does not infer
+connections from labels or claim that a declared map represents physical flow.
+The same declarations produce a generic undirected port-topology view with
+isolated-port and disconnected-island findings. These are structural facts
+about declared maps, not electrical-islanding or observability conclusions.
+`port_topology_nullspace(ports, connections)` additionally assembles the
+declared equations `destination - map * source = 0` in terminal coordinates.
+Its nullspace is an expected topology-level freedom of the declarations, not a
+model-variable or physically classified network nullspace.
+Combined analysis reports its rank and nullity as
+`component_port_topology_expected_nullspace` only when all declarations are
+valid. Plugins remain responsible for mapping this terminal-coordinate basis to
+model coordinates and for any physical classification.
+`component_port_coordinate_maps(model)` supplies the missing explicit bridge
+from terminal coordinates to selected MOI variables through `PortCoordinateMap`.
+The generic core never assumes that a port variable scope is terminal-ordered;
+plugins must declare this map before topology nullspace directions can be
+compared with model-coordinate modes. Combined analysis validates the port
+identity, terminal/variable dimensions, finite coefficients, and model-variable
+scope first; it reports these as representational metadata findings, without
+claiming that a coordinate convention is physically correct.
+When maps are supplied, the package projects the declared terminal topology
+nullspace into model coordinates and checks agreement where several port maps
+refer to one variable. The resulting directions are only candidate expected
+modes. Their agreement with a Jacobian nullspace, and any OPF interpretation,
+remain separate numerical and plugin responsibilities.
+`port_topology_expected_nullspace_modes` reduces the visible projected span to
+independent `port_topology_candidate_mode_*` declarations. Degeneracy analysis
+compares those candidates with an observed local Jacobian right nullspace by
+default, but retains their representational provenance and never upgrades that
+comparison into an electrical interpretation.
 Combined analysis records `component_metadata_count` and reports
 `duplicate_component_metadata` when a plugin supplies the same component type
 and ID more than once. It also reports malformed empty identities or units and

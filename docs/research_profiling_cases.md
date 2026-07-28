@@ -79,6 +79,11 @@ Run the corpus with `profile_cases_repeated(models, cases; ...)` before using
 large-model timing or threshold changes as defaults. This corpus calibrates
 generic algorithm behavior; OPF and multiconductor cases remain necessary for
 physical interpretations.
+`profile_synthetic_sparse_ladder(dimensions; ...)` runs that same corpus at
+multiple explicitly selected sizes and retains a separate aggregate per size
+and case. Use it to inspect sparse matching, QR availability, allocations, and
+expected-evidence recovery as size grows; it deliberately does not infer a
+portable runtime law or choose a production threshold.
 
 `compare_profiles(baseline, candidate)` provides a transparent comparison of
 two repeated aggregates. It retains per-stage time and allocated-byte means,

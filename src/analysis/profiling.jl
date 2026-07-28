@@ -405,3 +405,28 @@ function synthetic_sparse_profile_corpus(; dimension::Integer = 32)
     end
     return models, cases
 end
+
+"""
+    profile_synthetic_sparse_ladder(dimensions; ...)
+
+Run the deterministic sparse calibration corpus at each requested dimension.
+Results remain grouped by dimension and case so local timing, allocation,
+availability, and expected-evidence observations are never reduced to one
+cross-size performance score.
+"""
+function profile_synthetic_sparse_ladder(
+    dimensions::AbstractVector{<:Integer};
+    kwargs...,
+)
+    isempty(dimensions) && return Dict{Int,Dict{String,ProfileAggregate{Float64}}}()
+    all(dimension -> dimension >= 2, dimensions) ||
+        throw(ArgumentError("every sparse ladder dimension must be at least two"))
+    length(unique(dimensions)) == length(dimensions) ||
+        throw(ArgumentError("sparse ladder dimensions must be unique"))
+    ladder = Dict{Int,Dict{String,ProfileAggregate{Float64}}}()
+    for dimension in dimensions
+        models, cases = synthetic_sparse_profile_corpus(dimension = dimension)
+        ladder[Int(dimension)] = profile_cases_repeated(models, cases; kwargs...)
+    end
+    return ladder
+end

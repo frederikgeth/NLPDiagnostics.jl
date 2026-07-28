@@ -691,25 +691,51 @@ function _active_structural_numerical_tangent_findings(
     return findings
 end
 
+function _coupled_set_boundary_is_nonsmooth(
+    activity::CoupledSetActivity{T},
+    tolerance::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return false
+    any(ismissing, activity.values) && return false
+    numeric = T[value::T for value in activity.values]
+    all(isfinite, numeric) || return false
+    if activity.set_kind == :second_order_cone
+        return abs(numeric[1]) <= tolerance &&
+               norm(numeric[2:end]) <= tolerance
+    elseif activity.set_kind == :rotated_second_order_cone
+        return abs(numeric[1]) <= tolerance || abs(numeric[2]) <= tolerance
+    end
+    return false
+end
+
 function _coupled_set_findings(summary::CoupledSetFeasibilitySummary)
     findings = Finding[]
     for activity in summary.activities
         activity.classification in (:violated, :boundary) || continue
         violated = activity.classification == :violated
+        nonsmooth_boundary = !violated && _coupled_set_boundary_is_nonsmooth(
+            activity, summary.active_tolerance,
+        )
         push!(
             findings,
             Finding(
-                violated ? :coupled_set_feasibility_violation : :coupled_set_boundary_active;
+                violated ? :coupled_set_feasibility_violation :
+                (nonsmooth_boundary ? :coupled_set_nonsmooth_boundary_active :
+                 :coupled_set_boundary_active);
                 severity = violated ? SeverityError : SeverityInfo,
                 domain = MathematicalIssue,
                 basis = MathematicalProof,
                 confidence = ConfidenceCertain,
                 observation = violated ?
                               "The $(activity.set_kind) constraint has feasibility residual $(activity.feasibility_violation)." :
-                              "The $(activity.set_kind) constraint is on its cone boundary (margin $(activity.margin)).",
+                              (nonsmooth_boundary ?
+                               "The $(activity.set_kind) constraint is on a nonsmooth cone boundary (margin $(activity.margin))." :
+                               "The $(activity.set_kind) constraint is on its smooth cone boundary (margin $(activity.margin))."),
                 why_it_matters = violated ?
                                   "The evaluated point is outside this coupled set." :
-                                  "Cone-boundary activity is vector-set geometry and is intentionally not converted into scalar active rows by the generic core.",
+                                  (nonsmooth_boundary ?
+                                   "The cone has no unique scalar boundary normal at this point, so scalar active-row reductions are especially misleading." :
+                                   "Cone-boundary activity is vector-set geometry and is intentionally not converted into scalar active rows by the generic core."),
                 evidence = [Evidence("Coupled-set feasibility"; details = [
                     "set_kind" => activity.set_kind,
                     "margin" => activity.margin,
@@ -719,10 +745,156 @@ function _coupled_set_findings(summary::CoupledSetFeasibilitySummary)
                 ])],
                 suggested_actions = violated ?
                                     ["Inspect the vector components and use a cone-aware feasibility restoration diagnostic."] :
-                                    ["Use a cone-aware solver or plugin before interpreting this boundary as scalar active constraints."],
+                                    (nonsmooth_boundary ?
+                                     ["Avoid scalarizing this apex or axis boundary; use a cone-aware solver or plugin for tangent interpretation."] :
+                                     ["Use a cone-aware solver or plugin before interpreting this boundary as scalar active constraints."]),
                 affected = [activity.source],
             ),
         )
+    end
+    return findings
+end
+
+function _coupled_set_tangent_findings(summary::CoupledSetFeasibilitySummary)
+    return [Finding(
+        :coupled_set_smooth_boundary_tangent_available;
+        severity = SeverityInfo,
+        domain = NumericalIssue,
+        basis = MathematicalProof,
+        confidence = ConfidenceCertain,
+        observation = "A smooth $(tangent.set_kind) boundary normal is available in vector-function coordinates.",
+        why_it_matters = "This supports cone-aware local interpretation, but remains coupled-set geometry rather than a scalar LICQ/MFCQ row.",
+        evidence = [Evidence("Coupled-set tangent evidence"; details = [
+            "set_kind" => tangent.set_kind,
+            "normal_dimension" => length(tangent.normal),
+            "normal" => join(tangent.normal, ","),
+            "description" => tangent.description,
+        ])],
+        affected = [tangent.source],
+        suggested_actions = [
+            "Use the normal only with cone-aware tangent or KKT analysis; do not treat it as an automatically selected scalar active row.",
+        ],
+    ) for tangent in summary.tangents]
+end
+
+function _coupled_set_tangent_gradient_findings(
+    evaluation::NumericalEvaluation{T},
+    summary::CoupledSetFeasibilitySummary{T},
+) where {T<:AbstractFloat}
+    findings = Finding[]
+    for tangent in summary.tangents
+        rows = [
+            row for (row, source) in enumerate(evaluation.constraint_sources)
+            if source.kind == :constraint && source.index == tangent.source.index &&
+               !isnothing(source.subindex)
+        ]
+        sort!(rows; by = row -> something(evaluation.constraint_sources[row].subindex))
+        if length(rows) != length(tangent.normal)
+            push!(findings, Finding(
+                :coupled_set_boundary_tangent_gradient_unavailable;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = "The $(tangent.set_kind) boundary normal cannot be aligned with all evaluated vector-function rows.",
+                why_it_matters = "A model-coordinate cone tangent gradient requires the same ordered vector outputs as the declared normal.",
+                evidence = [Evidence("Coupled-set tangent gradient alignment"; details = [
+                    "set_kind" => tangent.set_kind,
+                    "normal_dimension" => length(tangent.normal),
+                    "aligned_row_count" => length(rows),
+                ])],
+                affected = [tangent.source],
+                suggested_actions = [
+                    "Evaluate every vector output row of the coupled constraint before requesting cone tangent interpretation.",
+                ],
+            ))
+            continue
+        end
+        if any(
+            row > length(evaluation.jacobian_row_methods) ||
+            evaluation.jacobian_row_methods[row] in
+            (:unavailable, :partial_central_finite_difference)
+            for row in rows
+        )
+            push!(findings, Finding(
+                :coupled_set_boundary_tangent_gradient_unavailable;
+                severity = SeverityInfo,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "The $(tangent.set_kind) boundary tangent gradient requires incomplete vector-function derivative rows.",
+                why_it_matters = "Missing derivative rows must not be treated as zero cone-tangent sensitivities.",
+                evidence = [Evidence("Coupled-set tangent gradient availability"; details = [
+                    "set_kind" => tangent.set_kind,
+                    "rows" => join(rows, ","),
+                ])],
+                affected = [tangent.source],
+                suggested_actions = [
+                    "Supply complete vector-function derivatives before interpreting the coupled-set boundary tangent.",
+                ],
+            ))
+            continue
+        end
+        position_by_row = Dict(row => position for (position, row) in enumerate(rows))
+        gradient = zeros(T, length(evaluation.point.variables))
+        complete = true
+        for entry in evaluation.jacobian_entries
+            position = get(position_by_row, entry.row, 0)
+            iszero(position) && continue
+            if !isfinite(entry.value)
+                complete = false
+                break
+            end
+            gradient[entry.column] += tangent.normal[position] * entry.value
+        end
+        if !complete
+            push!(findings, Finding(
+                :coupled_set_boundary_tangent_gradient_unavailable;
+                severity = SeverityInfo,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "The $(tangent.set_kind) boundary tangent gradient contains non-finite derivative evidence.",
+                why_it_matters = "A finite model-coordinate cone tangent gradient cannot be formed from non-finite Jacobian entries.",
+                evidence = [Evidence("Coupled-set tangent gradient availability"; details = [
+                    "set_kind" => tangent.set_kind,
+                ])],
+                affected = [tangent.source],
+                suggested_actions = [
+                    "Resolve derivative-domain failures before interpreting the coupled-set boundary tangent.",
+                ],
+            ))
+            continue
+        end
+        gradient_norm = norm(gradient)
+        support = findall(value -> !iszero(value), gradient)
+        zero_gradient = iszero(gradient_norm)
+        push!(findings, Finding(
+            zero_gradient ? :coupled_set_smooth_boundary_tangent_gradient_zero :
+                            :coupled_set_smooth_boundary_tangent_gradient_available;
+            severity = zero_gradient ? SeverityWarning : SeverityInfo,
+            domain = zero_gradient ? NumericalIssue : RepresentationalIssue,
+            basis = zero_gradient ? LocalInference : MathematicalProof,
+            confidence = ConfidenceHigh,
+            observation = zero_gradient ?
+                          "The smooth $(tangent.set_kind) boundary normal maps to a zero model-coordinate gradient at this point." :
+                          "The smooth $(tangent.set_kind) boundary normal maps to a nonzero model-coordinate gradient at this point.",
+            why_it_matters = zero_gradient ?
+                             "The coupled constraint is locally stationary in the model coordinates, so even a smooth cone boundary does not supply a regular scalar tangent screen here." :
+                             "The gradient is usable as cone-aware local geometry, but it is intentionally not folded into generic scalar LICQ, MFCQ, or multiplier recovery.",
+            evidence = [Evidence("Coupled-set tangent gradient"; details = [
+                "set_kind" => tangent.set_kind,
+                "gradient_norm" => gradient_norm,
+                "support_coordinate_count" => length(support),
+            ])],
+            affected = isempty(support) ? [tangent.source] : EntityRef[
+                EntityRef(:variable, evaluation.point.variables[column].value)
+                for column in support
+            ],
+            suggested_actions = zero_gradient ?
+                                ["Inspect the vector-function Jacobian and nearby points before treating this cone boundary as regular."] :
+                                ["Use a cone-aware solver or plugin for tangent/KKT interpretation; retain this gradient as local geometry evidence."],
+        ))
     end
     return findings
 end
@@ -798,6 +970,10 @@ function analyze_active_set(
         rank_max_dense_entries = rank_max_dense_entries,
     ))
     append!(report.findings, _coupled_set_findings(coupled_summary))
+    append!(report.findings, _coupled_set_tangent_findings(coupled_summary))
+    append!(report.findings, _coupled_set_tangent_gradient_findings(
+        evaluation, coupled_summary,
+    ))
     report.metadata[:stage] = "active_set"
     report.metadata[:evaluation_point_label] = evaluation.point.label
     report.metadata[:active_rows] = join(selected_rows, ",")

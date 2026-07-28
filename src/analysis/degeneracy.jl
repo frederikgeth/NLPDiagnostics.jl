@@ -14,6 +14,18 @@ expected_nullspace_modes(model::MOI.ModelLike, evaluation::NumericalEvaluation) 
 """Optional domain-plugin component declarations; the generic default is empty."""
 component_metadata(model::MOI.ModelLike) = ComponentMetadata[]
 component_metadata(model::ModelSnapshot) = ComponentMetadata[]
+"""Optional domain-plugin port/connection declarations; the generic default is empty."""
+component_port_metadata(model::MOI.ModelLike) = ComponentPortMetadata[]
+component_port_metadata(model::ModelSnapshot) = ComponentPortMetadata[]
+"""Optional plugin declarations of expected terminal/mode port null directions."""
+component_port_nullspace_modes(model::MOI.ModelLike) = PortNullspaceMode[]
+component_port_nullspace_modes(model::ModelSnapshot) = PortNullspaceMode[]
+"""Optional plugin-declared directed maps between named component ports."""
+component_port_connections(model::MOI.ModelLike) = PortConnectionMetadata[]
+component_port_connections(model::ModelSnapshot) = PortConnectionMetadata[]
+"""Optional plugin maps from declared port terminal coordinates to model variables."""
+component_port_coordinate_maps(model::MOI.ModelLike) = PortCoordinateMap[]
+component_port_coordinate_maps(model::ModelSnapshot) = PortCoordinateMap[]
 
 function _selected_jacobian_submatrix_evaluation(
     evaluation::NumericalEvaluation{T},
@@ -703,10 +715,17 @@ function analyze_degeneracy(
     evaluation::NumericalEvaluation;
     expected_modes::AbstractVector{<:ExpectedNullspaceMode} =
         expected_nullspace_modes(model, evaluation),
+    include_port_topology_modes::Bool = true,
     expected_mode_residual_tolerance::Real =
         sqrt(eps(eltype(evaluation.point.values))),
     kwargs...,
 )
+    port_modes = include_port_topology_modes ? port_topology_expected_nullspace_modes(
+        component_port_metadata(model),
+        component_port_connections(model),
+        component_port_coordinate_maps(model),
+    ) : ExpectedNullspaceMode[]
+    all_expected_modes = vcat(expected_modes, port_modes)
     comparison = structural_numerical_comparison(model, evaluation; kwargs...)
     fingerprints = nullspace_fingerprints(comparison)
     report = DiagnosticReport()
@@ -717,7 +736,7 @@ function analyze_degeneracy(
         report.findings,
         _expected_nullspace_mode_findings(
             comparison,
-            expected_modes;
+            all_expected_modes;
             residual_tolerance = expected_mode_residual_tolerance,
         ),
     )
@@ -725,7 +744,7 @@ function analyze_degeneracy(
         report.findings,
         _expected_nullspace_span_findings(
             comparison,
-            expected_modes;
+            all_expected_modes;
             residual_tolerance = expected_mode_residual_tolerance,
         ),
     )
@@ -738,6 +757,7 @@ function analyze_degeneracy(
     report.metadata[:aligned_numerical_rank] = string(comparison.numerical_rank)
     report.metadata[:generic_nullspace_fingerprint_count] = string(length(fingerprints))
     report.metadata[:declared_expected_nullspace_mode_count] = string(length(expected_modes))
+    report.metadata[:port_topology_expected_nullspace_mode_count] = string(length(port_modes))
     sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
 end

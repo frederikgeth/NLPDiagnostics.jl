@@ -15,6 +15,20 @@ For a PowerModels model, the extension should implement:
 - plugin findings that attach physical interpretation only after generic
   structural/numerical evidence is available.
 
+For multiconductor work, it should also implement `component_port_metadata(model)`:
+one `ComponentPortMetadata` record per terminal-bearing device port, with
+terminal/mode labels and an explicit connection matrix. The generic core does
+not infer these maps from bus or variable names.
+It may declare expected terminal- or mode-space hidden directions through
+`component_port_nullspace_modes(model)`, which the generic core checks against
+each supplied connection map before any network-level interpretation.
+Network topology must be supplied explicitly through
+`component_port_connections(model)` with `PortConnectionMetadata` maps; the
+generic core will not infer port connections from component IDs or variable
+labels.
+The generic topology report can identify declared disconnected port islands,
+but the extension must supply any electrical interpretation of those islands.
+
 Component IDs must be stable within a component type. Metadata should include
 device/bus identifiers, units, conductor or port labels, connection type, and
 parameter-dependent expected rank where known.
