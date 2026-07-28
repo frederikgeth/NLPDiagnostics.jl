@@ -62,6 +62,18 @@ independent `port_topology_candidate_mode_*` declarations. Degeneracy analysis
 compares those candidates with an observed local Jacobian right nullspace by
 default, but retains their representational provenance and never upgrades that
 comparison into an electrical interpretation.
+Terminal-space `PortNullspaceMode` declarations can also be projected through
+their matching coordinate map as `component_port_candidate_mode_*` candidates.
+Mode-space declarations are kept at port level until a plugin explicitly adds a
+mode-to-variable convention.
+The same candidate declarations are also screened against the selected active
+Jacobian. This makes it explicit when active bounds or inequalities remove a
+topology candidate, without conflating that local result with generic LICQ or
+physical feasibility claims.
+Model-aware reduced-Hessian persistence analysis also includes these candidates
+when it compares a persistent flat subspace with declared expected modes. This
+is still a cross-point numerical alignment screen, not a conclusion that a
+topology declaration explains second-order degeneracy.
 Combined analysis records `component_metadata_count` and reports
 `duplicate_component_metadata` when a plugin supplies the same component type
 and ID more than once. It also reports malformed empty identities or units and

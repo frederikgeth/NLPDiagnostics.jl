@@ -916,8 +916,16 @@ function analyze_active_set(
     mfcq_strict_tolerance::Real = sqrt(eps(T)),
     expected_modes::AbstractVector{<:ExpectedNullspaceMode} =
         expected_nullspace_modes(model, evaluation),
+    include_port_topology_modes::Bool = true,
     expected_mode_residual_tolerance::Real = sqrt(eps(T)),
 ) where {T<:AbstractFloat}
+    port_modes = include_port_topology_modes ? port_expected_nullspace_modes(
+        component_port_metadata(model),
+        component_port_nullspace_modes(model),
+        component_port_connections(model),
+        component_port_coordinate_maps(model),
+    ) : ExpectedNullspaceMode[]
+    all_expected_modes = vcat(expected_modes, port_modes)
     summary = constraint_feasibility_summary(
         model,
         evaluation;
@@ -956,11 +964,11 @@ function analyze_active_set(
     append!(report.findings, _active_left_nullspace_fingerprints(evaluation, selected_rows, estimate))
     append!(report.findings, _active_right_nullspace_fingerprints(evaluation, estimate))
     append!(report.findings, _active_expected_nullspace_mode_findings(
-        evaluation, selected_rows, expected_modes;
+        evaluation, selected_rows, all_expected_modes;
         residual_tolerance = expected_mode_residual_tolerance,
     ))
     append!(report.findings, _active_expected_nullspace_span_findings(
-        evaluation, selected_rows, estimate, expected_modes;
+        evaluation, selected_rows, estimate, all_expected_modes;
         residual_tolerance = expected_mode_residual_tolerance,
     ))
     append!(report.findings, _active_matching_findings(evaluation, active_matching))
@@ -984,6 +992,14 @@ function analyze_active_set(
     report.metadata[:active_structural_matching_cardinality] =
         string(matching_cardinality(active_matching.matching))
     report.metadata[:active_expected_nullspace_mode_count] = string(length(expected_modes))
+    report.metadata[:active_port_expected_nullspace_mode_count] =
+        string(length(port_modes))
+    report.metadata[:active_port_component_expected_nullspace_mode_count] = string(count(
+        mode -> startswith(string(mode.name), "component_port_candidate_mode_"), port_modes,
+    ))
+    report.metadata[:active_port_topology_expected_nullspace_mode_count] = string(count(
+        mode -> startswith(string(mode.name), "port_topology_candidate_mode_"), port_modes,
+    ))
     report.metadata[:active_structural_unmapped_row_count] =
         string(length(active_matching.unmapped_rows))
     report.metadata[:supported_coupled_set_count] = string(length(coupled_summary.activities))

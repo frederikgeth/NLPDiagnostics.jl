@@ -720,8 +720,9 @@ function analyze_degeneracy(
         sqrt(eps(eltype(evaluation.point.values))),
     kwargs...,
 )
-    port_modes = include_port_topology_modes ? port_topology_expected_nullspace_modes(
+    port_modes = include_port_topology_modes ? port_expected_nullspace_modes(
         component_port_metadata(model),
+        component_port_nullspace_modes(model),
         component_port_connections(model),
         component_port_coordinate_maps(model),
     ) : ExpectedNullspaceMode[]
@@ -757,7 +758,13 @@ function analyze_degeneracy(
     report.metadata[:aligned_numerical_rank] = string(comparison.numerical_rank)
     report.metadata[:generic_nullspace_fingerprint_count] = string(length(fingerprints))
     report.metadata[:declared_expected_nullspace_mode_count] = string(length(expected_modes))
-    report.metadata[:port_topology_expected_nullspace_mode_count] = string(length(port_modes))
+    report.metadata[:port_expected_nullspace_mode_count] = string(length(port_modes))
+    report.metadata[:port_component_expected_nullspace_mode_count] = string(count(
+        mode -> startswith(string(mode.name), "component_port_candidate_mode_"), port_modes,
+    ))
+    report.metadata[:port_topology_expected_nullspace_mode_count] = string(count(
+        mode -> startswith(string(mode.name), "port_topology_candidate_mode_"), port_modes,
+    ))
     sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
 end

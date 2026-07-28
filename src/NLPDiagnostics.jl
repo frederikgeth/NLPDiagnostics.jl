@@ -47,6 +47,8 @@ export PortTopologyNullspace
 export PortCoordinateMap
 export PortTopologyCoordinateProjection
 export port_topology_expected_nullspace_modes
+export port_component_expected_nullspace_modes
+export port_expected_nullspace_modes
 export ElasticFeasibilityPlan
 export ElasticRelaxation
 export ElasticFeasibilityModel
@@ -866,6 +868,85 @@ function port_topology_expected_nullspace_modes(
             description = "Candidate expected mode projected from declared port topology maps (terminal nullity $(size(projection.topology.nullspace, 2))).",
         ) for index in 1:rank
     ]
+end
+
+"""
+    port_component_expected_nullspace_modes(ports, port_modes, coordinate_maps)
+
+Map plugin-declared **terminal-space** component-port null directions into MOI
+variables. Mode-space declarations are intentionally excluded: the generic
+contract has no mode-to-variable map, and guessing one would hide a plugin
+convention behind numerical evidence.
+"""
+function port_component_expected_nullspace_modes(
+    ports::AbstractVector{<:ComponentPortMetadata{T}},
+    port_modes::AbstractVector{<:PortNullspaceMode{T}},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap{T}},
+) where {T<:AbstractFloat}
+    port_by_key = Dict(
+        (port.component_type, port.component_id, port.port_id) => port for port in ports
+    )
+    map_by_key = Dict(
+        (map.component_type, map.component_id, map.port_id) => map for map in coordinate_maps
+    )
+    result = ExpectedNullspaceMode{T}[]
+    for mode in port_modes
+        mode.space == :terminal || continue
+        key = (mode.component_type, mode.component_id, mode.port_id)
+        port = get(port_by_key, key, nothing)
+        map = get(map_by_key, key, nothing)
+        (isnothing(port) || isnothing(map)) && continue
+        length(mode.direction) == length(port.terminal_labels) || continue
+        size(map.terminal_to_variable) == (length(map.variables), length(port.terminal_labels)) || continue
+        all(isfinite, map.terminal_to_variable) || continue
+        direction = map.terminal_to_variable * mode.direction
+        iszero(norm(direction)) && continue
+        push!(result, ExpectedNullspaceMode(
+            Symbol("component_port_candidate_mode_", mode.component_type, "_", mode.component_id, "_", mode.port_id),
+            map.variables,
+            direction;
+            description = isempty(mode.description) ?
+                          "Candidate expected mode projected from a declared terminal-space component-port null direction." :
+                          "Candidate expected mode projected from component-port declaration: $(mode.description)",
+        ))
+    end
+    return result
+end
+
+function port_component_expected_nullspace_modes(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    port_modes::AbstractVector{<:PortNullspaceMode},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap},
+)
+    (isempty(port_modes) || isempty(coordinate_maps)) && return ExpectedNullspaceMode[]
+    throw(ArgumentError(
+        "port metadata, port modes, and coordinate maps must use one floating-point type",
+    ))
+end
+
+"""Combine declared component-port and declared topology candidate mode projections."""
+function port_expected_nullspace_modes(
+    ports::AbstractVector{<:ComponentPortMetadata{T}},
+    port_modes::AbstractVector{<:PortNullspaceMode{T}},
+    connections::AbstractVector{<:PortConnectionMetadata{T}},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap{T}},
+) where {T<:AbstractFloat}
+    return vcat(
+        port_component_expected_nullspace_modes(ports, port_modes, coordinate_maps),
+        port_topology_expected_nullspace_modes(ports, connections, coordinate_maps),
+    )
+end
+
+function port_expected_nullspace_modes(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    port_modes::AbstractVector{<:PortNullspaceMode},
+    connections::AbstractVector{<:PortConnectionMetadata},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap},
+)
+    isempty(coordinate_maps) && return ExpectedNullspaceMode[]
+    throw(ArgumentError(
+        "port metadata, modes, connections, and coordinate maps must use one floating-point type",
+    ))
 end
 
 function port_topology_expected_nullspace_modes(
