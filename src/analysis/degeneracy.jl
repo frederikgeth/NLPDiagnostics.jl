@@ -14,6 +14,10 @@ expected_nullspace_modes(model::MOI.ModelLike, evaluation::NumericalEvaluation) 
 """Optional domain-plugin component declarations; the generic default is empty."""
 component_metadata(model::MOI.ModelLike) = ComponentMetadata[]
 component_metadata(model::ModelSnapshot) = ComponentMetadata[]
+"""Optional PowerModels adapter hook; extended only when PowerModels is loaded."""
+powermodels_component_metadata(model) = ComponentMetadata[]
+"""Optional PowerModels data-level reference-bus report hook."""
+powermodels_reference_bus_report(model) = DiagnosticReport()
 """Optional domain-plugin port/connection declarations; the generic default is empty."""
 component_port_metadata(model::MOI.ModelLike) = ComponentPortMetadata[]
 component_port_metadata(model::ModelSnapshot) = ComponentPortMetadata[]

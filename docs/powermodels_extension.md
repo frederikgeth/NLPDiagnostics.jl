@@ -70,3 +70,32 @@ optional extension. The current module intentionally establishes only the load
 boundary. Component extraction requires a tested public API target; until that
 is available, the generic `ComponentMetadata` /
 `expected_nullspace_modes` hooks remain the stable semantic boundary.
+
+## Confirmed public API target
+
+The first adapter should target PowerModels `0.21` using only its exported
+`AbstractPowerModel`, `ids`, `ref`, `var`, and `nw_ids` interfaces. It should
+obtain component identities and network/reference data through `ref`/`ids`,
+and inspect formulation-owned JuMP variables through `var`; it must not reach
+into `pm` fields or parse rendered variable names. The adapter must first
+establish a tested mapping from those JuMP variables to MOI indices before
+returning `ComponentMetadata` or expected modes to the generic core.
+Formulation coverage (ACP, ACR, DC, and relaxations) remains an explicit
+capability decision rather than a best-effort common implementation.
+
+The implemented first slice is
+`NLPDiagnostics.powermodels_component_metadata(pm)`. It enumerates buses,
+branches, generators, loads, shunts, switches, storage, and DC lines across
+networks through those public references, assigning stable `nw<ID>:<ID>`
+component identities and per-unit unit labels. It intentionally returns no
+variable/constraint scopes and no expected rank or gauge declaration yet.
+When the extension is loaded, `component_metadata(pm)` delegates to this
+adapter for a `PowerModels.AbstractPowerModel`.
+Bus records additionally preserve `declared_reference_bus=true` when the
+public `:ref_buses` reference set contains that bus. This is source-data
+evidence only; it does not assert that the selected formulation includes an
+angle-reference equation.
+`NLPDiagnostics.powermodels_reference_bus_report(pm)` additionally reports
+zero, one, or multiple declared references independently for each network.
+It is a data-level diagnostic; it does not inspect the formulation's JuMP/MOI
+constraints or classify a numerical nullspace.

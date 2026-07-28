@@ -224,6 +224,8 @@ export recover_stationarity_multipliers
 export nullspace_fingerprints
 export expected_nullspace_modes
 export component_metadata
+export powermodels_component_metadata
+export powermodels_reference_bus_report
 export component_port_metadata
 export component_port_nullspace_modes
 export component_port_connections
@@ -548,6 +550,73 @@ function _component_port_nullspace_mode_findings(
     return report
 end
 
+"""Report whether declared component terminal modes have an explicit model-coordinate image."""
+function _component_port_mode_coordinate_projection_findings(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    modes::AbstractVector{<:PortNullspaceMode},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap};
+    relative_tolerance::Real = sqrt(eps(Float64)),
+)
+    report = DiagnosticReport()
+    port_by_key = Dict(
+        (port.component_type, port.component_id, port.port_id) => port for port in ports
+    )
+    map_by_key = Dict(
+        (map.component_type, map.component_id, map.port_id) => map for map in coordinate_maps
+    )
+    for mode in modes
+        key = (mode.component_type, mode.component_id, mode.port_id)
+        if mode.space != :terminal
+            push!(report, Finding(:component_port_mode_coordinate_projection_unavailable;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Declared mode-space component-port null direction has no generic model-coordinate projection.",
+                why_it_matters = "The generic port contract maps terminal coordinates only; inferring a mode-to-variable convention would make the evidence non-inspectable.",
+                evidence = [Evidence("Component port mode-coordinate projection"; details = ["component_type" => mode.component_type, "component_id" => mode.component_id, "port_id" => mode.port_id, "space" => mode.space])],
+                suggested_actions = ["Add a plugin-specific mode-to-variable convention if this internal mode should be compared with numerical model nullspaces."],
+            ))
+            continue
+        end
+        port, map = get(port_by_key, key, nothing), get(map_by_key, key, nothing)
+        if isnothing(port) || isnothing(map)
+            push!(report, Finding(:component_port_mode_coordinate_projection_unavailable;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Declared terminal-space component-port null direction has no aligned terminal-to-variable map.",
+                why_it_matters = "A port-level direction cannot be compared with a Jacobian until its model-variable coordinates are declared.",
+                evidence = [Evidence("Component port mode-coordinate projection"; details = ["component_type" => mode.component_type, "component_id" => mode.component_id, "port_id" => mode.port_id, "space" => mode.space])],
+                suggested_actions = ["Declare one finite, dimension-aligned PortCoordinateMap for this terminal port."],
+            ))
+            continue
+        end
+        valid_dimensions = length(mode.direction) == length(port.terminal_labels) &&
+                           size(map.terminal_to_variable) ==
+                           (length(map.variables), length(port.terminal_labels))
+        (valid_dimensions && all(isfinite, map.terminal_to_variable)) || continue
+        projected = map.terminal_to_variable * mode.direction
+        threshold = relative_tolerance * max(1.0, norm(mode.direction))
+        visible = norm(projected) > threshold
+        push!(report, Finding(
+            visible ? :component_port_mode_coordinate_projection_available :
+                      :component_port_mode_hidden_from_model_coordinates;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceHigh,
+            observation = visible ?
+                          "Declared terminal-space component-port null direction projects into $(length(map.variables)) model coordinate(s)." :
+                          "Declared terminal-space component-port null direction is hidden by the supplied model-coordinate map.",
+            why_it_matters = visible ?
+                             "The direction is eligible for later local Jacobian and active-set comparisons, without validating its physical interpretation." :
+                             "A port-level hidden direction must not be treated as a model-variable gauge when its declared coordinate image is zero.",
+            evidence = [Evidence("Component port mode-coordinate projection"; details = ["component_type" => mode.component_type, "component_id" => mode.component_id, "port_id" => mode.port_id, "projected_norm" => norm(projected), "visibility_threshold" => threshold])],
+            affected = [EntityRef(:variable, variable.value) for variable in map.variables],
+            suggested_actions = visible ?
+                                ["Compare this candidate against local numerical nullspaces at relevant evaluation points."] :
+                                ["Document the direction as intentionally internal, or supply a different coordinate convention if it should be observable."],
+        ))
+    end
+    return report
+end
+
 function _component_port_connection_findings(
     ports::AbstractVector{<:ComponentPortMetadata},
     connections::AbstractVector{<:PortConnectionMetadata},
@@ -850,8 +919,26 @@ function port_topology_expected_nullspace_modes(
     relative_tolerance::Real = sqrt(eps(T)),
 ) where {T<:AbstractFloat}
     isempty(coordinate_maps) && return ExpectedNullspaceMode{T}[]
+    isempty(connections) && return ExpectedNullspaceMode{T}[]
+    connected_keys = Set{Tuple{Symbol,String,String}}()
+    for connection in connections
+        push!(connected_keys, (
+            connection.from_component_type, connection.from_component_id,
+            connection.from_port_id,
+        ))
+        push!(connected_keys, (
+            connection.to_component_type, connection.to_component_id,
+            connection.to_port_id,
+        ))
+    end
+    connected_ports = [port for port in ports if
+                       (port.component_type, port.component_id, port.port_id) in connected_keys]
+    connected_maps = [map for map in coordinate_maps if
+                      (map.component_type, map.component_id, map.port_id) in connected_keys]
+    isempty(connected_maps) && return ExpectedNullspaceMode{T}[]
     projection = port_topology_coordinate_projection(
-        ports, connections, coordinate_maps; relative_tolerance = relative_tolerance,
+        connected_ports, connections, connected_maps;
+        relative_tolerance = relative_tolerance,
     )
     projection.available || return ExpectedNullspaceMode{T}[]
     matrix = projection.projected_nullspace
@@ -865,7 +952,7 @@ function port_topology_expected_nullspace_modes(
             Symbol("port_topology_candidate_mode_", index),
             projection.variables,
             decomposition.U[:, index];
-            description = "Candidate expected mode projected from declared port topology maps (terminal nullity $(size(projection.topology.nullspace, 2))).",
+            description = "Candidate expected mode projected from declared connected-port topology maps (terminal nullity $(size(projection.topology.nullspace, 2))).",
         ) for index in 1:rank
     ]
 end
@@ -890,6 +977,7 @@ function port_component_expected_nullspace_modes(
         (map.component_type, map.component_id, map.port_id) => map for map in coordinate_maps
     )
     result = ExpectedNullspaceMode{T}[]
+    ordinal_by_key = Dict{Tuple{Symbol,String,String},Int}()
     for mode in port_modes
         mode.space == :terminal || continue
         key = (mode.component_type, mode.component_id, mode.port_id)
@@ -901,8 +989,13 @@ function port_component_expected_nullspace_modes(
         all(isfinite, map.terminal_to_variable) || continue
         direction = map.terminal_to_variable * mode.direction
         iszero(norm(direction)) && continue
+        ordinal = get(ordinal_by_key, key, 0) + 1
+        ordinal_by_key[key] = ordinal
         push!(result, ExpectedNullspaceMode(
-            Symbol("component_port_candidate_mode_", mode.component_type, "_", mode.component_id, "_", mode.port_id),
+            Symbol(
+                "component_port_candidate_mode_", mode.component_type, "_",
+                mode.component_id, "_", mode.port_id, "_", ordinal,
+            ),
             map.variables,
             direction;
             description = isempty(mode.description) ?
@@ -937,6 +1030,46 @@ function port_expected_nullspace_modes(
     )
 end
 
+"""Identify near-identical component- and topology-derived candidate directions."""
+function _port_expected_mode_overlap_findings(
+    modes::AbstractVector{<:ExpectedNullspaceMode};
+    alignment_tolerance::Real = 1 - sqrt(eps(Float64)),
+)
+    zero(alignment_tolerance) <= alignment_tolerance <= one(alignment_tolerance) ||
+        throw(ArgumentError("alignment_tolerance must lie in [0, 1]"))
+    report = DiagnosticReport()
+    component_modes = [mode for mode in modes if
+                       startswith(string(mode.name), "component_port_candidate_mode_")]
+    topology_modes = [mode for mode in modes if
+                      startswith(string(mode.name), "port_topology_candidate_mode_")]
+    for component_mode in component_modes, topology_mode in topology_modes
+        variables = sort!(unique(vcat(component_mode.variables, topology_mode.variables));
+                          by = variable -> variable.value)
+        component_direction = zeros(Float64, length(variables))
+        topology_direction = zeros(Float64, length(variables))
+        position = Dict(variable => index for (index, variable) in enumerate(variables))
+        for (variable, value) in zip(component_mode.variables, component_mode.direction)
+            component_direction[position[variable]] += value
+        end
+        for (variable, value) in zip(topology_mode.variables, topology_mode.direction)
+            topology_direction[position[variable]] += value
+        end
+        alignment = abs(dot(component_direction, topology_direction)) /
+                    (norm(component_direction) * norm(topology_direction))
+        alignment >= alignment_tolerance || continue
+        push!(report, Finding(:port_expected_nullspace_candidate_overlap;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceHigh,
+            observation = "A component-port candidate and a topology candidate are nearly the same declared model-coordinate direction.",
+            why_it_matters = "The sources are complementary evidence, but treating both as independent expected modes would overstate the declared nullspace dimension.",
+            evidence = [Evidence("Port expected-mode overlap"; details = ["component_mode" => component_mode.name, "topology_mode" => topology_mode.name, "absolute_cosine" => alignment, "alignment_tolerance" => alignment_tolerance])],
+            affected = [EntityRef(:variable, variable.value) for variable in variables],
+            suggested_actions = ["Retain both provenance records if useful, but count their shared direction only once when declaring expected nullity."],
+        ))
+    end
+    return report
+end
+
 function port_expected_nullspace_modes(
     ports::AbstractVector{<:ComponentPortMetadata},
     port_modes::AbstractVector{<:PortNullspaceMode},
@@ -944,6 +1077,20 @@ function port_expected_nullspace_modes(
     coordinate_maps::AbstractVector{<:PortCoordinateMap},
 )
     isempty(coordinate_maps) && return ExpectedNullspaceMode[]
+    # Generic extension hooks use unparameterized empty vectors. Preserve
+    # valid port/map declarations when a plugin simply has no connections or
+    # no component-level modes, by materializing the matching typed empties.
+    T = eltype(first(coordinate_maps).terminal_to_variable)
+    typed_ports = ComponentPortMetadata{T}[ports...]
+    typed_maps = PortCoordinateMap{T}[coordinate_maps...]
+    typed_connections = isempty(connections) ? PortConnectionMetadata{T}[] : connections
+    typed_modes = isempty(port_modes) ? PortNullspaceMode{T}[] : port_modes
+    if typed_connections isa AbstractVector{<:PortConnectionMetadata{T}} &&
+       typed_modes isa AbstractVector{<:PortNullspaceMode{T}}
+        return port_expected_nullspace_modes(
+            typed_ports, typed_modes, typed_connections, typed_maps,
+        )
+    end
     throw(ArgumentError(
         "port metadata, modes, connections, and coordinate maps must use one floating-point type",
     ))
@@ -956,6 +1103,14 @@ function port_topology_expected_nullspace_modes(
     kwargs...,
 )
     isempty(coordinate_maps) && return ExpectedNullspaceMode[]
+    T = eltype(first(coordinate_maps).terminal_to_variable)
+    if isempty(connections)
+        return port_topology_expected_nullspace_modes(
+            ComponentPortMetadata{T}[ports...], PortConnectionMetadata{T}[],
+            PortCoordinateMap{T}[coordinate_maps...];
+            kwargs...,
+        )
+    end
     throw(ArgumentError(
         "port metadata, connections, and coordinate maps must use one floating-point type",
     ))
@@ -2628,6 +2783,18 @@ function analyze(
         model_variables = [record.index for record in model_snapshot.variables],
     )
     append!(report.findings, port_coordinate_map_report.findings)
+    port_mode_coordinate_report = _component_port_mode_coordinate_projection_findings(
+        declared_ports, declared_port_modes, declared_port_coordinate_maps,
+    )
+    append!(report.findings, port_mode_coordinate_report.findings)
+    port_expected_modes = port_expected_nullspace_modes(
+        declared_ports, declared_port_modes, declared_port_connections,
+        declared_port_coordinate_maps,
+    )
+    port_overlap_report = _port_expected_mode_overlap_findings(port_expected_modes)
+    append!(report.findings, port_overlap_report.findings)
+    report.metadata[:port_expected_nullspace_candidate_count] =
+        string(length(port_expected_modes))
     port_projection_report = _component_port_topology_coordinate_projection_findings(
         declared_ports, declared_port_connections, declared_port_coordinate_maps,
     )

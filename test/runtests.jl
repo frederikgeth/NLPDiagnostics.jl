@@ -218,6 +218,27 @@ end
         model_variables = MOI.VariableIndex[MOI.VariableIndex(1)],
     )
     @test isempty(coordinate_map_report.findings)
+    terminal_port_mode = NLPDiagnostics.PortNullspaceMode(
+        :transformer, "tx_1", "high", :terminal, [0.0, 1.0],
+    )
+    visible_coordinate_map = NLPDiagnostics.PortCoordinateMap(
+        :transformer, "tx_1", "high", MOI.VariableIndex[MOI.VariableIndex(1)];
+        terminal_to_variable = reshape([0.0, 1.0], 1, 2),
+    )
+    port_mode_coordinate_report =
+        NLPDiagnostics._component_port_mode_coordinate_projection_findings(
+            [rank_deficient_port], [terminal_port_mode], [visible_coordinate_map],
+        )
+    @test length(findings(
+        port_mode_coordinate_report,
+        :component_port_mode_coordinate_projection_available,
+    )) == 1
+    component_projected_modes = NLPDiagnostics.port_component_expected_nullspace_modes(
+        [rank_deficient_port], [terminal_port_mode], [visible_coordinate_map],
+    )
+    @test length(component_projected_modes) == 1
+    @test component_projected_modes[1].name ==
+          :component_port_candidate_mode_transformer_tx_1_high_1
     unaligned_coordinate_map = NLPDiagnostics.PortCoordinateMap(
         :transformer, "tx_1", "missing", MOI.VariableIndex[MOI.VariableIndex(1)];
         terminal_to_variable = reshape([1.0], 1, 1),
@@ -240,6 +261,14 @@ end
     @test coordinate_projection.available
     @test coordinate_projection.variables == MOI.VariableIndex[MOI.VariableIndex(1), MOI.VariableIndex(2)]
     @test size(coordinate_projection.projected_nullspace) == (2, 2)
+    isolated_coordinate_map = NLPDiagnostics.PortCoordinateMap(
+        :load, "load_1", "terminal", MOI.VariableIndex[MOI.VariableIndex(3)];
+        terminal_to_variable = reshape([1.0], 1, 1),
+    )
+    @test isempty(NLPDiagnostics.port_topology_expected_nullspace_modes(
+        [isolated_port], NLPDiagnostics.PortConnectionMetadata{Float64}[],
+        [isolated_coordinate_map],
+    ))
     projected_modes = NLPDiagnostics.port_topology_expected_nullspace_modes(
         [rank_deficient_port, second_port], [connection],
         [coordinate_map, NLPDiagnostics.PortCoordinateMap(

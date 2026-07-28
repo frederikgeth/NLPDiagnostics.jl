@@ -62,10 +62,16 @@ independent `port_topology_candidate_mode_*` declarations. Degeneracy analysis
 compares those candidates with an observed local Jacobian right nullspace by
 default, but retains their representational provenance and never upgrades that
 comparison into an electrical interpretation.
+Only ports incident to at least one declared connection contribute topology
+candidates: an isolated port is reported structurally, but its unconstrained
+terminal coordinates are not silently treated as an expected model gauge.
 Terminal-space `PortNullspaceMode` declarations can also be projected through
 their matching coordinate map as `component_port_candidate_mode_*` candidates.
 Mode-space declarations are kept at port level until a plugin explicitly adds a
 mode-to-variable convention.
+When component and connected-topology candidates coincide in model coordinates,
+combined analysis reports the overlap explicitly. This prevents provenance-rich
+metadata from being mistaken for multiple independent expected freedoms.
 The same candidate declarations are also screened against the selected active
 Jacobian. This makes it explicit when active bounds or inequalities remove a
 topology candidate, without conflating that local result with generic LICQ or
