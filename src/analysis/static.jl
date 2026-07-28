@@ -467,7 +467,8 @@ function _apply_constant_operator(head::Symbol, values::Vector{Any})
     head == :tanh && return tanh(only(values))
     head == :asin && return asin(only(values))
     head == :acos && return acos(only(values))
-    head == :atan && return atan(only(values))
+    # Julia uses `atan(y, x)` for the quadrant-aware two-argument form.
+    head == :atan && return atan(values...)
     head == :asind && return asind(only(values))
     head == :acosd && return acosd(only(values))
     head == :atand && return atand(only(values))
@@ -475,6 +476,8 @@ function _apply_constant_operator(head::Symbol, values::Vector{Any})
     head == :acosh && return acosh(only(values))
     head == :atanh && return atanh(only(values))
     head == :abs && return abs(only(values))
+    head == :cbrt && return cbrt(only(values))
+    head == :sign && return sign(only(values))
     head == :min && return min(values...)
     head == :max && return max(values...)
     throw(ArgumentError("constant evaluation does not support operator :$head"))
@@ -1367,6 +1370,67 @@ function _analyze_bound_resolved_minmax!(
     return
 end
 
+"""Flag one-argument arctangents applied to an explicit ratio expression."""
+function _analyze_atan_ratio_formulations!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    records = Dict(record.index => record for record in model.variables)
+    function scan(value, source, path)
+        value isa MOI.ScalarNonlinearFunction || return
+        if value.head == :atan && length(value.args) == 1
+            argument = only(value.args)
+            if argument isa MOI.ScalarNonlinearFunction &&
+               argument.head == :/ && length(argument.args) == 2
+                numerator, denominator = argument.args
+                numerator_support = variable_support(numerator)
+                denominator_support = variable_support(denominator)
+                affected = EntityRef[source]
+                for variable in unique(vcat(
+                    numerator_support.variables,
+                    denominator_support.variables,
+                ))
+                    haskey(records, variable) || continue
+                    push!(affected, _variable_ref(records[variable]))
+                end
+                path_label = isempty(path) ? "root" : join(path, "/")
+                push!(report, Finding(:atan_ratio_may_need_atan2;
+                    severity = SeverityWarning,
+                    domain = RepresentationalIssue,
+                    basis = HeuristicInterpretation,
+                    confidence = ConfidenceMedium,
+                    observation = "One-argument atan at $path_label is applied to an explicit numerator/denominator ratio.",
+                    why_it_matters = "atan(y / x) loses quadrant information and introduces a denominator singularity. If this expression represents an orientation, phase, or angle of a two-coordinate vector, a two-argument atan convention is usually the intended representation.",
+                    evidence = [Evidence("Arctangent ratio fingerprint"; details = [
+                        "expression_path" => path_label,
+                        "pattern" => "atan(numerator / denominator)",
+                        "numerator_variable_indices" => join((item.value for item in numerator_support.variables), ","),
+                        "denominator_variable_indices" => join((item.value for item in denominator_support.variables), ","),
+                        "quadrant_aware_julia_convention" => "atan(y, x)",
+                    ])],
+                    suggested_actions = [
+                        "If this is an orientation or phase, use the two-argument atan(y, x) convention after confirming solver/operator support.",
+                        "If the ratio is intentional, bound or otherwise protect the denominator and document the chosen branch convention.",
+                    ],
+                    affected = affected,
+                ))
+            end
+        end
+        for (argument_index, argument) in enumerate(value.args)
+            scan(argument, source, vcat(path, argument_index))
+        end
+        return
+    end
+    if !isnothing(model.objective)
+        objective = model.objective
+        scan(objective.function_value, _objective_ref(objective.function_value), Int[])
+    end
+    for constraint in model.constraints
+        scan(constraint.function_value, _constraint_ref(constraint), Int[])
+    end
+    return
+end
+
 function _analyze_absolute_zero_constraints!(report::DiagnosticReport, model::ModelSnapshot)
     records = Dict(record.index => record for record in model.variables)
     domains = Dict(domain.variable => domain for domain in variable_domains(model))
@@ -1453,6 +1517,51 @@ function _analyze_absolute_zero_constraints!(report::DiagnosticReport, model::Mo
     return
 end
 
+"""Use the discrete real codomain of a direct `sign(x)` row."""
+function _analyze_sign_constraints!(report::DiagnosticReport, model::ModelSnapshot)
+    records = Dict(record.index => record for record in model.variables)
+    for constraint in model.constraints
+        value = constraint.function_value
+        value isa MOI.ScalarNonlinearFunction && value.head == :sign &&
+            length(value.args) == 1 || continue
+        variable = only(value.args)
+        variable isa MOI.VariableIndex || continue
+        reference = _constraint_ref(constraint)
+        feasibility = [_satisfies(candidate, constraint.set_value) for
+                       candidate in (-1.0, 0.0, 1.0)]
+        any(isnothing, feasibility) && continue
+        if !any(feasibility)
+            push!(report, Finding(:infeasible_sign_range_constraint;
+                severity = SeverityError, domain = MathematicalIssue,
+                basis = MathematicalProof, confidence = ConfidenceCertain,
+                observation = "Constraint $(reference.index) excludes every real value of sign($(_display_name(records[variable]))).",
+                why_it_matters = "The real sign function has only the values -1, 0, and 1, so this single row proves infeasibility.",
+                evidence = [Evidence("Discrete sign-function codomain"; details = [
+                    "operator_range" => "{-1, 0, 1}",
+                    "set" => constraint.set_value,
+                ])],
+                suggested_actions = ["Correct the row set or replace sign with the intended continuous approximation."],
+                affected = [reference, _variable_ref(records[variable])],
+            ))
+        end
+        set_value = constraint.set_value
+        zero_only = (set_value isa MOI.EqualTo && set_value.value == 0) ||
+                    (set_value isa MOI.Interval &&
+                     set_value.lower == 0 == set_value.upper)
+        zero_only || continue
+        push!(report, Finding(:sign_zero_implies_fixed_variable;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(reference.index) requires sign($(_display_name(records[variable]))) = 0, so the variable is fixed at zero.",
+            why_it_matters = "This discontinuous-looking row exactly removes a degree of freedom and may explain an unexpected fixed coordinate or nonsmooth solver behavior.",
+            evidence = [Evidence("Zero is the unique preimage of zero under real sign"; details = ["implied_value" => 0])],
+            suggested_actions = ["Confirm the zero fixing is intended; NLPDiagnostics does not modify the model."],
+            affected = [reference, _variable_ref(records[variable])],
+        ))
+    end
+    return
+end
+
 function _analyze_exponential_range_constraints!(report::DiagnosticReport, model::ModelSnapshot)
     records = Dict(record.index => record for record in model.variables)
     for constraint in model.constraints
@@ -1493,12 +1602,20 @@ function _unary_operator_real_range(head::Symbol)
         return 0.0, Inf, false, false
     elseif head == :cosh
         return 1.0, Inf, false, false
-    elseif head in (:sin, :cos)
+    elseif head in (:sin, :cos, :sind, :cosd)
         return -1.0, 1.0, false, false
-    elseif head in (:asin, :acos)
+    elseif head == :asin
         return -pi / 2, pi / 2, false, false
+    elseif head == :acos
+        return 0.0, pi, false, false
     elseif head == :atan
         return -pi / 2, pi / 2, true, true
+    elseif head == :asind
+        return -90.0, 90.0, false, false
+    elseif head == :acosd
+        return 0.0, 180.0, false, false
+    elseif head == :atand
+        return -90.0, 90.0, true, true
     end
     return nothing
 end
@@ -3415,8 +3532,10 @@ function analyze_static(
     _analyze_unconstrained_affine_objective_rays!(report, model)
     _analyze_unconstrained_quadratic_objective_rays!(report, model)
     _analyze_sign_resolved_absolute_values!(report, model)
+    _analyze_atan_ratio_formulations!(report, model)
     _analyze_bound_resolved_minmax!(report, model)
     _analyze_absolute_zero_constraints!(report, model)
+    _analyze_sign_constraints!(report, model)
     _analyze_exponential_range_constraints!(report, model)
     _analyze_unary_operator_range_constraints!(report, model)
     _analyze_duplicate_constraints!(report, model)

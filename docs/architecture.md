@@ -354,17 +354,34 @@ order-independent fixed point rather than an unbounded presolver loop.
 Direct unary nonlinear rows for supported monotone `log`-, `exp`-, and
 `sqrt`-family primitives can likewise be inverted into input intervals,
 including the decreasing stable `log1mexp` primitive and open-range logistic
-logit/tanh inverse mappings and inverse-hyperbolic pairs. This does not extend
-to arbitrary compositions or non-monotone expressions.
+logit/tanh inverse mappings, stable softplus inversion, and inverse-hyperbolic
+pairs, plus the globally monotone `atan`/`tan` pair. This does not extend to
+arbitrary compositions or non-monotone expressions.
+The same direct-row inversion covers increasing `asin`/`asind`/`atand` and
+decreasing `acos`/`acosd`, with radian and degree output ranges kept separate.
+`sinh` and real `cbrt` rows are likewise inverted monotonically, including
+across negative values for the odd cube-root map.
+Expression-node interval evaluation also covers monotone hyperbolic and
+inverse-hyperbolic primitives, while `cosh` and `logcosh` retain their
+zero-aware non-monotone enclosures.
+It also propagates scalar `min`/`max`, `sign`, and `cbrt` ranges, so downstream
+domain checks can retain the effect of common piecewise modeling primitives.
+Direct `sign` rows additionally use its discrete codomain `{−1, 0, 1}` to
+prove impossible row sets and to expose the exact fixing implied by `sign(x)=0`.
 One deliberately supported non-monotone case is a direct `abs(x)` row with a
 finite nonnegative upper set bound, which exactly implies the connected input
 interval `-u ≤ x ≤ u`; disjunctive lower-range implications remain explicit.
 The same connected-range treatment applies to `cosh(x) ≤ u` for `u ≥ 1`,
 giving `|x| ≤ acosh(u)` without choosing a sign branch.
+For the stable `logcosh(x)` primitive, a finite nonnegative upper row yields
+the same kind of interval through a cancellation- and overflow-safe evaluation
+of `acosh(exp(u))`.
 Independently, direct unary rows whose scalar set excludes a primitive's real
 output range are reported as mathematical infeasibility proofs. Open endpoints
 are retained—for example, logistic outputs never equal zero or one—so valid
-closed boundaries such as `cosh(x) = 1` are not misclassified.
+closed boundaries such as `cosh(x) = 1` are not misclassified. This includes
+the radian and degree inverse-trigonometric primitives, whose different output
+units and endpoint conventions are kept explicit.
 Expression-domain and initialization findings retain the corresponding
 interval-origin categories and source constraint indices in their evidence, so
 derived range conclusions remain inspectable rather than opaque.
@@ -372,6 +389,12 @@ derived range conclusions remain inspectable rather than opaque.
 analysis-only coordinate intervals, including validity, informativeness, and
 the same provenance, when an application needs to inspect safe implications
 that did not themselves trigger a finding.
+The static expression layer also flags `atan(y / x)` as a heuristic
+representation fingerprint when a quadrant-aware angle may have been intended;
+it recommends inspecting `atan(y, x)` support and never rewrites the model.
+The two-argument Julia form is separately constant-folded and given the
+conservative full-angle range `[-π, π]`; its derivative check independently
+identifies the joint `(y, x) = (0, 0)` singularity.
 
 ## Next slices
 

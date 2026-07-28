@@ -1619,9 +1619,17 @@ end
             (:cosh, MOI.LessThan(0.9)),
             (:sin, MOI.GreaterThan(1.1)),
             (:cos, MOI.LessThan(-1.1)),
+            (:sind, MOI.GreaterThan(1.1)),
+            (:cosd, MOI.LessThan(-1.1)),
             (:tanh, MOI.GreaterThan(1.0)),
             (:asin, MOI.GreaterThan(pi / 2 + 0.1)),
+            (:acos, MOI.LessThan(-0.1)),
+            (:acos, MOI.GreaterThan(pi + 0.1)),
             (:atan, MOI.EqualTo(pi / 2)),
+            (:asind, MOI.GreaterThan(90.1)),
+            (:acosd, MOI.LessThan(-0.1)),
+            (:acosd, MOI.GreaterThan(180.1)),
+            (:atand, MOI.EqualTo(90.0)),
         ]
             range_model = new_model()
             range_x = MOI.add_variable(range_model)
@@ -1650,6 +1658,86 @@ end
             NLPDiagnostics.analyze_static(boundary_cosh),
             :infeasible_unary_operator_range_constraint,
         ))
+
+        boundary_acos = new_model()
+        boundary_acos_x = MOI.add_variable(boundary_acos)
+        MOI.add_constraint(
+            boundary_acos,
+            MOI.ScalarNonlinearFunction(:acos, Any[boundary_acos_x]),
+            MOI.Interval(0.0, Float64(pi)),
+        )
+        @test isempty(findings(
+            NLPDiagnostics.analyze_static(boundary_acos),
+            :infeasible_unary_operator_range_constraint,
+        ))
+
+        @test NLPDiagnostics.operator_interval(
+            Val(:asind), [NLPDiagnostics.IntervalEnclosure(-1.0, 1.0)], Any[],
+        ).lower == -90.0
+        @test NLPDiagnostics.operator_interval(
+            Val(:acosd), [NLPDiagnostics.IntervalEnclosure(-1.0, 1.0)], Any[],
+        ).upper == 180.0
+        atand_interval = NLPDiagnostics.operator_interval(
+            Val(:atand), [NLPDiagnostics.IntervalEnclosure(-1.0, 1.0)], Any[],
+        )
+        @test atand_interval.lower == atand(-1.0)
+        @test atand_interval.upper == atand(1.0)
+
+        sinh_interval = NLPDiagnostics.operator_interval(
+            Val(:sinh), [NLPDiagnostics.IntervalEnclosure(-1.0, 2.0)], Any[],
+        )
+        @test sinh_interval.lower == sinh(-1.0)
+        @test sinh_interval.upper == sinh(2.0)
+        cosh_interval = NLPDiagnostics.operator_interval(
+            Val(:cosh), [NLPDiagnostics.IntervalEnclosure(-2.0, 1.0)], Any[],
+        )
+        @test cosh_interval.lower == 1.0
+        @test cosh_interval.upper == cosh(2.0)
+        atanh_interval = NLPDiagnostics.operator_interval(
+            Val(:atanh), [NLPDiagnostics.IntervalEnclosure(-1.0, 0.5)], Any[],
+        )
+        @test atanh_interval.lower == -Inf
+        @test atanh_interval.upper == atanh(0.5)
+        acosh_interval = NLPDiagnostics.operator_interval(
+            Val(:acosh), [NLPDiagnostics.IntervalEnclosure(0.0, 2.0)], Any[],
+        )
+        @test acosh_interval.lower == 0.0
+        @test acosh_interval.upper == acosh(2.0)
+
+        min_interval = NLPDiagnostics.operator_interval(
+            Val(:min),
+            [
+                NLPDiagnostics.IntervalEnclosure(-2.0, 3.0),
+                NLPDiagnostics.IntervalEnclosure(1.0, 4.0),
+            ],
+            Any[],
+        )
+        @test min_interval.lower == -2.0
+        @test min_interval.upper == 3.0
+        max_interval = NLPDiagnostics.operator_interval(
+            Val(:max),
+            [
+                NLPDiagnostics.IntervalEnclosure(-2.0, 3.0),
+                NLPDiagnostics.IntervalEnclosure(1.0, 4.0),
+            ],
+            Any[],
+        )
+        @test max_interval.lower == 1.0
+        @test max_interval.upper == 4.0
+        @test NLPDiagnostics.operator_interval(
+            Val(:sign), [NLPDiagnostics.IntervalEnclosure(0.2, 1.0)], Any[],
+        ).lower == 1.0
+        sign_crossing = NLPDiagnostics.operator_interval(
+            Val(:sign), [NLPDiagnostics.IntervalEnclosure(-1.0, 1.0)], Any[],
+        )
+        @test sign_crossing.lower == -1.0
+        @test sign_crossing.upper == 1.0
+        cbrt_interval = NLPDiagnostics.operator_interval(
+            Val(:cbrt), [NLPDiagnostics.IntervalEnclosure(-8.0, 27.0)], Any[],
+        )
+        @test cbrt_interval.lower == -2.0
+        @test cbrt_interval.upper == 3.0
+        @test NLPDiagnostics.fixed_operator_value(Val(:sign), Any[-2.0]) == -1.0
     end
 
     @testset "min/max branches are resolved by declared bounds" begin
@@ -1709,6 +1797,40 @@ end
         @test length(
             findings(objective_report, :constant_bound_resolved_minmax_objective),
         ) == 1
+    end
+
+    @testset "discrete sign-function rows" begin
+        infeasible = new_model()
+        x = MOI.add_variable(infeasible)
+        MOI.add_constraint(
+            infeasible,
+            MOI.ScalarNonlinearFunction(:sign, Any[x]),
+            MOI.EqualTo(0.5),
+        )
+        infeasible_finding = only(findings(
+            NLPDiagnostics.analyze_static(infeasible),
+            :infeasible_sign_range_constraint,
+        ))
+        @test infeasible_finding.basis == NLPDiagnostics.MathematicalProof
+        @test infeasible_finding.confidence == NLPDiagnostics.ConfidenceCertain
+        @test evidence_details(infeasible_finding)["operator_range"] == "{-1, 0, 1}"
+
+        fixed = new_model()
+        y = MOI.add_variable(fixed)
+        MOI.add_constraint(
+            fixed,
+            MOI.ScalarNonlinearFunction(:sign, Any[y]),
+            MOI.EqualTo(0.0),
+        )
+        fixed_finding = only(findings(
+            NLPDiagnostics.analyze_static(fixed),
+            :sign_zero_implies_fixed_variable,
+        ))
+        @test fixed_finding.basis == NLPDiagnostics.MathematicalProof
+        @test isempty(findings(
+            NLPDiagnostics.analyze_static(fixed),
+            :infeasible_sign_range_constraint,
+        ))
     end
 
     @testset "fully fixed affine rows are evaluated without model mutation" begin
@@ -2585,6 +2707,58 @@ end
         log_x = MOI.ScalarNonlinearFunction(:log, Any[x])
         MOI.add_constraint(safe_model, log_x, MOI.LessThan(1.0))
         @test isempty(NLPDiagnostics.domain_issues(safe_model))
+    end
+
+    @testset "atan ratio formulation fingerprint" begin
+        ratio_model = new_model()
+        denominator, numerator = MOI.add_variables(ratio_model, 2)
+        ratio = MOI.ScalarNonlinearFunction(:/, Any[numerator, denominator])
+        MOI.add_constraint(
+            ratio_model,
+            MOI.ScalarNonlinearFunction(:atan, Any[ratio]),
+            MOI.LessThan(2.0),
+        )
+        ratio_finding = only(findings(
+            NLPDiagnostics.analyze_static(ratio_model),
+            :atan_ratio_may_need_atan2,
+        ))
+        @test ratio_finding.domain == NLPDiagnostics.RepresentationalIssue
+        @test ratio_finding.basis == NLPDiagnostics.HeuristicInterpretation
+        @test ratio_finding.confidence == NLPDiagnostics.ConfidenceMedium
+        @test Dict(ratio_finding.evidence[1].details)[
+            "quadrant_aware_julia_convention"
+        ] == "atan(y, x)"
+
+        two_argument_model = new_model()
+        x, y = MOI.add_variables(two_argument_model, 2)
+        MOI.add_constraint(
+            two_argument_model,
+            MOI.ScalarNonlinearFunction(:atan, Any[y, x]),
+            MOI.LessThan(2.0),
+        )
+        @test isempty(findings(
+            NLPDiagnostics.analyze_static(two_argument_model),
+            :atan_ratio_may_need_atan2,
+        ))
+
+        # Preserve Julia's `atan(y, x)` semantics when a two-coordinate
+        # expression becomes fixed, and do not apply the unary range rule to
+        # its rectangular input domain.
+        @test NLPDiagnostics.fixed_operator_value(
+            Val(:atan),
+            Any[0.0, -1.0],
+        ) == Float64(pi)
+        atan2_interval = NLPDiagnostics.operator_interval(
+            Val(:atan),
+            [
+                NLPDiagnostics.IntervalEnclosure(-1.0, 1.0),
+                NLPDiagnostics.IntervalEnclosure(-1.0, 1.0),
+            ],
+            Any[],
+        )
+        @test atan2_interval.lower == -Float64(pi)
+        @test atan2_interval.upper == Float64(pi)
+        @test !atan2_interval.informative
     end
 
     @testset "square root and quadratic interval propagation" begin
@@ -5049,6 +5223,80 @@ end
         @test acosh_domains[acosh_x].lower ≈ cosh(1.0) atol = 1.0e-12
         @test isempty(NLPDiagnostics.domain_issues(acosh_domain_model))
 
+        atan_domain_model = new_model()
+        atan_x = MOI.add_variable(atan_domain_model)
+        MOI.add_constraint(
+            atan_domain_model,
+            MOI.ScalarNonlinearFunction(:atan, Any[atan_x]),
+            MOI.GreaterThan(1.0),
+        )
+        MOI.add_constraint(
+            atan_domain_model,
+            MOI.ScalarNonlinearFunction(:log, Any[atan_x]),
+            MOI.LessThan(10.0),
+        )
+        atan_domains = NLPDiagnostics._domain_variable_intervals(
+            NLPDiagnostics.snapshot(atan_domain_model),
+        )
+        @test atan_domains[atan_x].lower ≈ tan(1.0) atol = 1.0e-12
+        @test isempty(NLPDiagnostics.domain_issues(atan_domain_model))
+
+        inverse_trig_domain_model = new_model()
+        asin_x, acos_x, asind_x, acosd_x, atand_x = MOI.add_variables(
+            inverse_trig_domain_model, 5,
+        )
+        MOI.add_constraint(
+            inverse_trig_domain_model,
+            MOI.ScalarNonlinearFunction(:asin, Any[asin_x]),
+            MOI.GreaterThan(0.5),
+        )
+        MOI.add_constraint(
+            inverse_trig_domain_model,
+            MOI.ScalarNonlinearFunction(:acos, Any[acos_x]),
+            MOI.LessThan(1.0),
+        )
+        MOI.add_constraint(
+            inverse_trig_domain_model,
+            MOI.ScalarNonlinearFunction(:asind, Any[asind_x]),
+            MOI.GreaterThan(30.0),
+        )
+        MOI.add_constraint(
+            inverse_trig_domain_model,
+            MOI.ScalarNonlinearFunction(:acosd, Any[acosd_x]),
+            MOI.LessThan(60.0),
+        )
+        MOI.add_constraint(
+            inverse_trig_domain_model,
+            MOI.ScalarNonlinearFunction(:atand, Any[atand_x]),
+            MOI.GreaterThan(45.0),
+        )
+        inverse_trig_domains = NLPDiagnostics._domain_variable_intervals(
+            NLPDiagnostics.snapshot(inverse_trig_domain_model),
+        )
+        @test inverse_trig_domains[asin_x].lower ≈ sin(0.5) atol = 1.0e-12
+        @test inverse_trig_domains[acos_x].lower ≈ cos(1.0) atol = 1.0e-12
+        @test inverse_trig_domains[asind_x].lower ≈ 0.5 atol = 1.0e-12
+        @test inverse_trig_domains[acosd_x].lower ≈ 0.5 atol = 1.0e-12
+        @test inverse_trig_domains[atand_x].lower ≈ 1.0 atol = 1.0e-12
+
+        monotone_extension_model = new_model()
+        sinh_x, cbrt_x = MOI.add_variables(monotone_extension_model, 2)
+        MOI.add_constraint(
+            monotone_extension_model,
+            MOI.ScalarNonlinearFunction(:sinh, Any[sinh_x]),
+            MOI.GreaterThan(1.0),
+        )
+        MOI.add_constraint(
+            monotone_extension_model,
+            MOI.ScalarNonlinearFunction(:cbrt, Any[cbrt_x]),
+            MOI.GreaterThan(2.0),
+        )
+        monotone_extension_domains = NLPDiagnostics._domain_variable_intervals(
+            NLPDiagnostics.snapshot(monotone_extension_model),
+        )
+        @test monotone_extension_domains[sinh_x].lower ≈ asinh(1.0) atol = 1.0e-12
+        @test monotone_extension_domains[cbrt_x].lower == 8.0
+
         absolute_domain_model = new_model()
         absolute_x = MOI.add_variable(absolute_domain_model)
         MOI.add_constraint(
@@ -5101,6 +5349,34 @@ end
         @test occursin(
             "cosh_range:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.EqualTo{Float64}#1",
             Dict(cosh_domain_finding.evidence[1].details)[
+                "support_interval_origins"
+            ],
+        )
+
+        logcosh_domain_model = new_model()
+        logcosh_x = MOI.add_variable(logcosh_domain_model)
+        MOI.add_constraint(
+            logcosh_domain_model,
+            MOI.ScalarNonlinearFunction(:logcosh, Any[logcosh_x]),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            logcosh_domain_model,
+            MOI.ScalarNonlinearFunction(:log, Any[logcosh_x]),
+            MOI.LessThan(10.0),
+        )
+        logcosh_domains = NLPDiagnostics._domain_variable_intervals(
+            NLPDiagnostics.snapshot(logcosh_domain_model),
+        )
+        @test logcosh_domains[logcosh_x].lower == 0.0
+        @test logcosh_domains[logcosh_x].upper == 0.0
+        logcosh_domain_finding = only(findings(
+            NLPDiagnostics.analyze_domains(logcosh_domain_model),
+            :proven_expression_domain_violation,
+        ))
+        @test occursin(
+            "logcosh_range:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.EqualTo{Float64}#1",
+            Dict(logcosh_domain_finding.evidence[1].details)[
                 "support_interval_origins"
             ],
         )

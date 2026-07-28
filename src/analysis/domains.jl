@@ -354,6 +354,52 @@ function _monotone_unary_input_bounds(head::Symbol, lower, upper)
         input_lower <= input_upper || return nothing
         return input_lower, input_upper
     end
+    if head == :atan
+        input_lower = -Inf
+        input_upper = Inf
+        !isnothing(lower) && -pi / 2 < lower < pi / 2 &&
+            (input_lower = tan(lower))
+        !isnothing(upper) && -pi / 2 < upper < pi / 2 &&
+            (input_upper = tan(upper))
+        isfinite(input_lower) || (input_lower = -Inf)
+        isfinite(input_upper) || (input_upper = Inf)
+        input_lower <= input_upper || return nothing
+        return input_lower, input_upper
+    end
+    if head in (:asin, :asind, :atand)
+        lower_limit, upper_limit, inverse = if head == :asin
+            (-pi / 2, pi / 2, sin)
+        elseif head == :asind
+            (-90.0, 90.0, sind)
+        else
+            (-90.0, 90.0, tand)
+        end
+        input_lower = -Inf
+        input_upper = Inf
+        !isnothing(lower) && lower_limit <= lower <= upper_limit &&
+            (input_lower = inverse(lower))
+        !isnothing(upper) && lower_limit <= upper <= upper_limit &&
+            (input_upper = inverse(upper))
+        isfinite(input_lower) || (input_lower = -Inf)
+        isfinite(input_upper) || (input_upper = Inf)
+        input_lower <= input_upper || return nothing
+        return input_lower, input_upper
+    end
+    if head in (:acos, :acosd)
+        lower_limit, upper_limit, inverse = head == :acos ?
+            (0.0, pi, cos) : (0.0, 180.0, cosd)
+        # acos is decreasing: a lower output bound gives an upper input bound.
+        input_lower = -Inf
+        input_upper = Inf
+        !isnothing(lower) && lower_limit <= lower <= upper_limit &&
+            (input_upper = inverse(lower))
+        !isnothing(upper) && lower_limit <= upper <= upper_limit &&
+            (input_lower = inverse(upper))
+        isfinite(input_lower) || (input_lower = -Inf)
+        isfinite(input_upper) || (input_upper = Inf)
+        input_lower <= input_upper || return nothing
+        return input_lower, input_upper
+    end
     inverse = if head == :log
         exp
     elseif head == :log10
@@ -370,6 +416,10 @@ function _monotone_unary_input_bounds(head::Symbol, lower, upper)
         log1p
     elseif head == :sqrt
         value -> value^2
+    elseif head == :cbrt
+        value -> value^3
+    elseif head == :sinh
+        asinh
     elseif head == :asinh
         sinh
     elseif head == :atanh
@@ -489,6 +539,30 @@ function _propagate_cosh_intervals!(intervals, model; origins = nothing)
     return
 end
 
+"""Propagate the connected input interval implied by direct `logcosh(x)` upper rows."""
+function _propagate_logcosh_intervals!(intervals, model; origins = nothing)
+    for constraint in model.constraints
+        function_value = constraint.function_value
+        function_value isa MOI.ScalarNonlinearFunction || continue
+        function_value.head == :logcosh && length(function_value.args) == 1 ||
+            continue
+        variable = only(function_value.args)
+        variable isa MOI.VariableIndex || continue
+        row_interval = _domain_scalar_set_interval(constraint.set_value)
+        isnothing(row_interval) && continue
+        _, upper = row_interval
+        upper isa Real && isfinite(upper) && upper >= 0 || continue
+        # acosh(exp(u)) = u + log(1 + sqrt(1 - exp(-2u))).
+        radius = upper + log1p(sqrt(-expm1(-2 * upper)))
+        _tighten_domain_interval!(intervals, variable, -radius, radius) &&
+            _record_domain_interval_origin!(
+                origins, variable, :logcosh_range,
+                _domain_constraint_origin_id(constraint),
+            )
+    end
+    return
+end
+
 """Propagate exact one-sided intervals from direct variable/constant min/max rows."""
 function _propagate_minmax_intervals!(intervals, model; origins = nothing)
     for constraint in model.constraints
@@ -578,6 +652,7 @@ function _domain_variable_interval_state(model::ModelSnapshot)
     _propagate_scalar_affine_intervals!(intervals, model; origins = origins)
     _propagate_absolute_value_intervals!(intervals, model; origins = origins)
     _propagate_cosh_intervals!(intervals, model; origins = origins)
+    _propagate_logcosh_intervals!(intervals, model; origins = origins)
     _propagate_minmax_intervals!(intervals, model; origins = origins)
     _propagate_monotone_unary_intervals!(intervals, model; origins = origins)
     # A monotone row may have produced a new affine input bound. One final
@@ -1018,6 +1093,42 @@ function operator_interval(
             _stable_logcosh_value(lower_input), _stable_logcosh_value(upper_input),
             value.valid, value.informative,
         )
+    elseif head in (:sinh, :asinh, :tanh) && length(arguments) == 1
+        value = only(arguments)
+        transform = head == :sinh ? sinh : head == :asinh ? asinh : tanh
+        return IntervalEnclosure(
+            transform(value.lower),
+            transform(value.upper),
+            value.valid,
+            value.informative,
+        )
+    elseif head == :cosh && length(arguments) == 1
+        value = only(arguments)
+        lower_input = _contains_zero(value) ? 0.0 : min(abs(value.lower), abs(value.upper))
+        upper_input = max(abs(value.lower), abs(value.upper))
+        return IntervalEnclosure(
+            cosh(lower_input),
+            cosh(upper_input),
+            value.valid,
+            value.informative,
+        )
+    elseif head == :acosh && length(arguments) == 1
+        value = only(arguments)
+        value.valid || return _invalid_interval()
+        value.upper < 1.0 && return _full_interval()
+        return IntervalEnclosure(
+            acosh(max(1.0, value.lower)),
+            acosh(value.upper),
+            true,
+            value.informative,
+        )
+    elseif head == :atanh && length(arguments) == 1
+        value = only(arguments)
+        value.valid || return _invalid_interval()
+        (value.upper <= -1.0 || value.lower >= 1.0) && return _full_interval()
+        lower = value.lower <= -1.0 ? -Inf : atanh(value.lower)
+        upper = value.upper >= 1.0 ? Inf : atanh(value.upper)
+        return IntervalEnclosure(lower, upper, true, value.informative)
     elseif head == :logsumexp
         isempty(arguments) && return _full_interval()
         return IntervalEnclosure(
@@ -1047,7 +1158,99 @@ function operator_interval(
             value.valid,
             value.informative,
         )
-    elseif head == :sin || head == :cos
+    elseif head == :cbrt && length(arguments) == 1
+        value = only(arguments)
+        return IntervalEnclosure(
+            cbrt(value.lower),
+            cbrt(value.upper),
+            value.valid,
+            value.informative,
+        )
+    elseif head == :sign && length(arguments) == 1
+        value = only(arguments)
+        value.valid || return _invalid_interval()
+        if value.lower > 0.0
+            return IntervalEnclosure(1.0, 1.0, true, value.informative)
+        elseif value.upper < 0.0
+            return IntervalEnclosure(-1.0, -1.0, true, value.informative)
+        elseif value.lower == 0.0 && value.upper == 0.0
+            return IntervalEnclosure(0.0, 0.0, true, value.informative)
+        elseif value.lower >= 0.0
+            return IntervalEnclosure(0.0, 1.0, true, value.informative)
+        elseif value.upper <= 0.0
+            return IntervalEnclosure(-1.0, 0.0, true, value.informative)
+        end
+        return IntervalEnclosure(-1.0, 1.0, true, value.informative)
+    elseif head in (:min, :max)
+        isempty(arguments) && return _full_interval()
+        valid = all(value -> value.valid, arguments)
+        valid || return _invalid_interval()
+        informative = all(value -> value.informative, arguments)
+        if head == :min
+            return IntervalEnclosure(
+                min((value.lower for value in arguments)...),
+                min((value.upper for value in arguments)...),
+                true,
+                informative,
+            )
+        end
+        return IntervalEnclosure(
+            max((value.lower for value in arguments)...),
+            max((value.upper for value in arguments)...),
+            true,
+            informative,
+        )
+    elseif head == :atan && length(arguments) == 1
+        value = only(arguments)
+        return IntervalEnclosure(
+            atan(value.lower),
+            atan(value.upper),
+            value.valid,
+            value.informative,
+        )
+    elseif head == :atan && length(arguments) == 2
+        # `atan(y, x)` is Julia's quadrant-aware two-argument arctangent.
+        # A rectangle in (y, x) can straddle its branch cut, so retain the
+        # complete closed range as a conservative enclosure rather than
+        # applying the unary monotonicity rule to either coordinate.
+        return IntervalEnclosure(
+            -Float64(pi),
+            Float64(pi),
+            all(value -> value.valid, arguments),
+            false,
+        )
+    elseif head in (:asin, :asind) && length(arguments) == 1
+        value = only(arguments)
+        value.valid || return _invalid_interval()
+        (value.upper < -1.0 || value.lower > 1.0) && return _full_interval()
+        inverse = head == :asin ? asin : asind
+        return IntervalEnclosure(
+            inverse(max(-1.0, value.lower)),
+            inverse(min(1.0, value.upper)),
+            true,
+            value.informative,
+        )
+    elseif head in (:acos, :acosd) && length(arguments) == 1
+        value = only(arguments)
+        value.valid || return _invalid_interval()
+        (value.upper < -1.0 || value.lower > 1.0) && return _full_interval()
+        inverse = head == :acos ? acos : acosd
+        # acos is decreasing on its real domain.
+        return IntervalEnclosure(
+            inverse(min(1.0, value.upper)),
+            inverse(max(-1.0, value.lower)),
+            true,
+            value.informative,
+        )
+    elseif head == :atand && length(arguments) == 1
+        value = only(arguments)
+        return IntervalEnclosure(
+            atand(value.lower),
+            atand(value.upper),
+            value.valid,
+            value.informative,
+        )
+    elseif head in (:sin, :cos, :sind, :cosd)
         return IntervalEnclosure(-1.0, 1.0, true, false)
     elseif head == :tan
         return _full_interval()
