@@ -430,6 +430,38 @@ Plugins can instead declare `ExpectedNullspaceMode` values for
 The report then records whether each declaration is an observed near-flat
 tangent direction at that point. This is a consistency check—not a claim that
 the declared physical interpretation, model, or reference choice is correct.
+`analyze_reduced_hessian_persistence` compares explicitly supplied snapshots
+at multiple points using flat-subspace principal angles. It reports persistent
+or changing local flat geometry without choosing points, recomputing Hessians,
+or turning repeated numerical evidence into a physical claim.
+Its model-aware overload additionally maps the material support of a persistent
+mode to generic incidence components, distinguishing a structurally localized
+mode from one that spans components. This remains syntactic structural evidence
+and does not attach electrical or other domain semantics.
+When optional `ComponentMetadata` is supplied (or exposed by a plugin), the
+same overload also records which declared component scopes overlap a persistent
+mode. That is plugin-declared context, not validation of the metadata, expected
+rank, units, or a physical interpretation.
+`ExpectedNullspaceMode` declarations can also be compared as an independent
+span against the persistent flat subspace. This principal-angle comparison is
+stronger than a single-point directional check, while still reporting only
+consistency with a declaration rather than proof of a physical gauge.
+Persistence analysis also compares the material coordinate support of each
+flat subspace. Stable support and changing support are reported independently
+of subspace alignment, so a localized mode that migrates between variables is
+not hidden by an aggregate flat-direction count.
+The same screen also compares the explicitly supplied reduced-Hessian active
+rows when the evaluated constraint-row identities align. This distinguishes a
+changing tangent selection from curvature changes under a stable active set;
+it never infers which constraints should have been active.
+When those rows align, persistence analysis also compares the recorded
+active-Jacobian numerical rank and tangent dimension. This provides first-order
+context for changing flat curvature, while preserving the distinction between a
+stable selected row set and a change in local derivative geometry.
+If each supplied snapshot retains its `HessianEvaluation`, persistence analysis
+also compares the row-aligned multiplier representative and objective weight.
+This is opt-in evidence about the supplied representatives, not a claim that
+multipliers are unique or that a dual solution has been verified.
 
 ## Current limits
 

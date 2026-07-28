@@ -952,6 +952,732 @@ function _reduced_hessian_expected_mode_findings(
     return findings
 end
 
+function _flat_reduced_hessian_subspace(analysis::ReducedHessianAnalysis{T}) where {T}
+    analysis.available || return zeros(T, size(analysis.tangent_basis, 1), 0)
+    indices = findall(abs(value) <= analysis.eigenvalue_threshold for value in analysis.eigenvalues)
+    isempty(indices) && return zeros(T, size(analysis.tangent_basis, 1), 0)
+    return analysis.tangent_basis * analysis.reduced_eigenvectors[:, indices]
+end
+
+function _persistent_flat_support_variables(
+    snapshots::AbstractVector{<:ReducedHessianSnapshot{T}},
+    relative_tolerance::Real,
+) where {T<:AbstractFloat}
+    candidates = [
+        snapshot for snapshot in snapshots
+        if snapshot.analysis.available && snapshot.analysis.zero_eigenvalues > 0
+    ]
+    isempty(candidates) && return MOI.VariableIndex[]
+    subspace = _flat_reduced_hessian_subspace(first(candidates).analysis)
+    row_magnitudes = [norm(view(subspace, row, :)) for row in axes(subspace, 1)]
+    maximum_magnitude = maximum(row_magnitudes; init = zero(T))
+    positions = findall(value >= convert(T, relative_tolerance) * maximum_magnitude
+                        for value in row_magnitudes)
+    return first(candidates).evaluation.point.variables[positions]
+end
+
+function _flat_subspace_support_positions(
+    analysis::ReducedHessianAnalysis{T},
+    relative_tolerance::Real,
+) where {T<:AbstractFloat}
+    subspace = _flat_reduced_hessian_subspace(analysis)
+    row_magnitudes = [norm(view(subspace, row, :)) for row in axes(subspace, 1)]
+    maximum_magnitude = maximum(row_magnitudes; init = zero(T))
+    return findall(value >= convert(T, relative_tolerance) * maximum_magnitude
+                   for value in row_magnitudes)
+end
+
+function _append_flat_support_persistence_findings!(
+    report::DiagnosticReport,
+    snapshots::AbstractVector{<:ReducedHessianSnapshot{T}},
+    candidates::AbstractVector{<:ReducedHessianSnapshot{T}};
+    support_relative_tolerance::Real,
+) where {T<:AbstractFloat}
+    length(candidates) >= 2 || return report
+    supports = [
+        _flat_subspace_support_positions(
+            snapshot.analysis, support_relative_tolerance,
+        ) for snapshot in candidates
+    ]
+    support_sets = Set.(supports)
+    pairwise_jaccard = T[]
+    for left in eachindex(support_sets), right in (left + 1):length(support_sets)
+        intersection_size = length(intersect(support_sets[left], support_sets[right]))
+        union_size = length(union(support_sets[left], support_sets[right]))
+        push!(pairwise_jaccard, union_size == 0 ? one(T) :
+              T(intersection_size) / T(union_size))
+    end
+    support_persistent = all(==(first(supports)), supports)
+    minimum_jaccard = isempty(pairwise_jaccard) ? one(T) : minimum(pairwise_jaccard)
+    union_support = sort!(collect(union(support_sets...)))
+    reference_variables = first(snapshots).evaluation.point.variables
+    labels = join((snapshot.evaluation.point.label for snapshot in candidates), ",")
+    push!(report, Finding(
+        support_persistent ? :reduced_hessian_flat_support_persistent :
+                             :reduced_hessian_flat_support_changing;
+        severity = SeverityInfo,
+        domain = NumericalIssue,
+        basis = HeuristicInterpretation,
+        confidence = ConfidenceMedium,
+        observation = support_persistent ?
+                      "The material variable support of the reduced-Hessian flat subspace is unchanged across $(length(candidates)) explicitly supplied points." :
+                      "The material variable support of the reduced-Hessian flat subspace changes across $(length(candidates)) explicitly supplied points.",
+        why_it_matters = support_persistent ?
+                         "Repeated support strengthens the case for a localized persistent weak-curvature subsystem, but does not identify its cause." :
+                         "Support changes can reveal operating-point-sensitive weak curvature or changing active geometry, even when some flat directions remain aligned.",
+        evidence = [Evidence("Reduced-Hessian flat-support persistence"; details = [
+            "point_labels" => labels,
+            "support_relative_tolerance" => support_relative_tolerance,
+            "support_sizes" => join(length.(supports), ","),
+            "minimum_pairwise_jaccard" => minimum_jaccard,
+            "union_support_coordinates" => join(union_support, ","),
+        ])],
+        affected = EntityRef[
+            EntityRef(:variable, reference_variables[position].value)
+            for position in union_support
+        ],
+        suggested_actions = support_persistent ?
+                            ["Inspect the stable support as a candidate localized subsystem, then compare incidence and declared component context."] :
+                            ["Compare active rows, scaling, and nearby operating points to explain the changing support."],
+    ))
+    return report
+end
+
+function _append_reduced_hessian_active_row_persistence_findings!(
+    report::DiagnosticReport,
+    candidates::AbstractVector{<:ReducedHessianSnapshot},
+)
+    length(candidates) >= 2 || return report
+    reference_sources = first(candidates).evaluation.constraint_sources
+    if any(snapshot.evaluation.constraint_sources != reference_sources for snapshot in candidates)
+        push!(report, Finding(
+            :reduced_hessian_active_row_persistence_unaligned;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = StructuralProof,
+            confidence = ConfidenceCertain,
+            observation = "Reduced-Hessian snapshots do not share one constraint-row source ordering for active-row comparison.",
+            why_it_matters = "Active-row indices are only comparable when their constraint sources are aligned across points.",
+            evidence = [Evidence("Reduced-Hessian active-row alignment"; details = [
+                "snapshot_count" => length(candidates),
+            ])],
+            suggested_actions = [
+                "Evaluate the same ordered constraint rows at every point before comparing active-set persistence.",
+            ],
+        ))
+        return report
+    end
+    row_sets = [Set(snapshot.analysis.active_rows) for snapshot in candidates]
+    active_rows_persistent = all(==(first(row_sets)), row_sets)
+    changing_rows = sort!(collect(union(row_sets...)))
+    labels = join((snapshot.evaluation.point.label for snapshot in candidates), ",")
+    push!(report, Finding(
+        active_rows_persistent ? :reduced_hessian_active_rows_persistent :
+                                 :reduced_hessian_active_rows_changing;
+        severity = SeverityInfo,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = active_rows_persistent ?
+                      "The explicitly supplied reduced-Hessian active-row set is unchanged across $(length(candidates)) points." :
+                      "The explicitly supplied reduced-Hessian active-row set changes across $(length(candidates)) points.",
+        why_it_matters = active_rows_persistent ?
+                         "A changing flat subspace under this stable selected active set is more directly attributable to local curvature or derivative changes than to row selection." :
+                         "A changing selected active set can alter the tangent space and therefore the reduced-Hessian flat directions; this records the supplied selection rather than inferring activity.",
+        evidence = [Evidence("Reduced-Hessian active-row persistence"; details = [
+            "point_labels" => labels,
+            "active_row_sets" => join((join(sort!(collect(rows)), ",") for rows in row_sets), ";"),
+        ])],
+        affected = EntityRef[
+            reference_sources[row] for row in changing_rows
+            if 1 <= row <= length(reference_sources)
+        ],
+        suggested_actions = active_rows_persistent ?
+                            ["Compare Hessian and derivative changes at the supplied points before attributing changing flat geometry to active-set selection."] :
+                            ["Inspect feasibility margins and active-set selection tolerances before interpreting changing reduced-Hessian geometry."],
+    ))
+    return report
+end
+
+function _append_reduced_hessian_active_jacobian_persistence_findings!(
+    report::DiagnosticReport,
+    candidates::AbstractVector{<:ReducedHessianSnapshot},
+)
+    length(candidates) >= 2 || return report
+    reference_sources = first(candidates).evaluation.constraint_sources
+    if any(snapshot.evaluation.constraint_sources != reference_sources for snapshot in candidates)
+        push!(report, Finding(
+            :reduced_hessian_active_jacobian_rank_persistence_unaligned;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = StructuralProof,
+            confidence = ConfidenceCertain,
+            observation = "Reduced-Hessian snapshots do not share one constraint-row source ordering for active-Jacobian rank comparison.",
+            why_it_matters = "First-order active-Jacobian geometry is only semantically comparable when the selected row sources are aligned across points.",
+            evidence = [Evidence("Reduced-Hessian active-Jacobian alignment"; details = [
+                "snapshot_count" => length(candidates),
+            ])],
+            suggested_actions = [
+                "Evaluate the same ordered constraint rows at every point before comparing active-Jacobian rank persistence.",
+            ],
+        ))
+        return report
+    end
+    ranks = [snapshot.analysis.jacobian_rank for snapshot in candidates]
+    tangent_dimensions = [snapshot.analysis.tangent_dimension for snapshot in candidates]
+    row_sets = [Set(snapshot.analysis.active_rows) for snapshot in candidates]
+    persistent = all(==(first(ranks)), ranks) &&
+                 all(==(first(tangent_dimensions)), tangent_dimensions)
+    active_rows_persistent = all(==(first(row_sets)), row_sets)
+    affected_rows = sort!(collect(union(row_sets...)))
+    labels = join((snapshot.evaluation.point.label for snapshot in candidates), ",")
+    push!(report, Finding(
+        persistent ? :reduced_hessian_active_jacobian_rank_persistent :
+                     :reduced_hessian_active_jacobian_rank_changing;
+        severity = SeverityInfo,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = persistent ?
+                      "The reduced-Hessian active-Jacobian rank and tangent dimension are unchanged across $(length(candidates)) points." :
+                      "The reduced-Hessian active-Jacobian rank or tangent dimension changes across $(length(candidates)) points.",
+        why_it_matters = persistent ?
+                         "Changing flat curvature under stable first-order geometry is more consistent with a second-order or derivative-value effect than a changing local rank deficiency." :
+                         (active_rows_persistent ?
+                          "The selected rows are unchanged, so this first-order geometry change is local derivative evidence rather than a row-selection change." :
+                          "Both active-row selection and local derivative geometry may contribute; inspect the separate active-row persistence evidence."),
+        evidence = [Evidence("Reduced-Hessian active-Jacobian persistence"; details = [
+            "point_labels" => labels,
+            "active_jacobian_ranks" => join(ranks, ","),
+            "tangent_dimensions" => join(tangent_dimensions, ","),
+            "active_rows_persistent" => active_rows_persistent,
+        ])],
+        affected = EntityRef[
+            reference_sources[row] for row in affected_rows
+            if 1 <= row <= length(reference_sources)
+        ],
+        suggested_actions = persistent ?
+                            ["Use the stable first-order geometry as context when inspecting Hessian, scaling, and multiplier changes."] :
+                            ["Inspect active-row persistence, Jacobian singular values, and nearby points before attributing reduced-Hessian changes to curvature alone."],
+    ))
+    return report
+end
+
+function _append_reduced_hessian_multiplier_persistence_findings!(
+    report::DiagnosticReport,
+    candidates::AbstractVector{<:ReducedHessianSnapshot{T}};
+    relative_tolerance::Real,
+) where {T<:AbstractFloat}
+    all(!isnothing(snapshot.hessian) for snapshot in candidates) || return report
+    reference_sources = first(candidates).evaluation.constraint_sources
+    if any(snapshot.evaluation.constraint_sources != reference_sources for snapshot in candidates)
+        push!(report, Finding(
+            :reduced_hessian_multiplier_persistence_unaligned;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = StructuralProof,
+            confidence = ConfidenceCertain,
+            observation = "Reduced-Hessian snapshots do not share one constraint-row source ordering for multiplier comparison.",
+            why_it_matters = "Multiplier entries can only be compared when their constraint sources are aligned across points.",
+            evidence = [Evidence("Reduced-Hessian multiplier alignment"; details = [
+                "snapshot_count" => length(candidates),
+            ])],
+            suggested_actions = [
+                "Supply Hessian snapshots evaluated against the same ordered constraint rows.",
+            ],
+        ))
+        return report
+    end
+    hessians = HessianEvaluation{T}[snapshot.hessian for snapshot in candidates]
+    if any(length(hessian.constraint_multipliers) != length(reference_sources)
+           for hessian in hessians)
+        push!(report, Finding(
+            :reduced_hessian_multiplier_persistence_unavailable;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "At least one retained Hessian snapshot does not provide one multiplier per evaluated constraint row.",
+            why_it_matters = "A partial multiplier vector cannot be compared with a full row-aligned multiplier representative.",
+            evidence = [Evidence("Reduced-Hessian multiplier availability"; details = [
+                "constraint_row_count" => length(reference_sources),
+                "multiplier_lengths" => join(
+                    (length(hessian.constraint_multipliers) for hessian in hessians), ",",
+                ),
+            ])],
+            suggested_actions = [
+                "Retain complete row-aligned multiplier vectors with every Hessian snapshot.",
+            ],
+        ))
+        return report
+    end
+    reference_hessian = first(hessians)
+    maximum_difference = maximum(
+        maximum(abs, hessian.constraint_multipliers .-
+                 reference_hessian.constraint_multipliers; init = zero(T))
+        for hessian in hessians[2:end];
+        init = zero(T),
+    )
+    scale = maximum(
+        maximum(abs, hessian.constraint_multipliers; init = zero(T))
+        for hessian in hessians;
+        init = one(T),
+    )
+    weight_difference = maximum(
+        (abs(hessian.objective_weight - reference_hessian.objective_weight)
+         for hessian in hessians[2:end]);
+        init = zero(T),
+    )
+    multiplier_persistent = maximum_difference <= convert(T, relative_tolerance) * scale &&
+                             weight_difference <= convert(T, relative_tolerance) *
+                                                  max(one(T), abs(reference_hessian.objective_weight))
+    active_rows = sort!(collect(union((Set(snapshot.analysis.active_rows) for snapshot in candidates)...)))
+    push!(report, Finding(
+        multiplier_persistent ? :reduced_hessian_multiplier_representative_persistent :
+                               :reduced_hessian_multiplier_representative_changing;
+        severity = SeverityInfo,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = multiplier_persistent ?
+                      "The retained reduced-Hessian multiplier representative is unchanged within the configured relative tolerance." :
+                      "The retained reduced-Hessian multiplier representative changes across the supplied points.",
+        why_it_matters = multiplier_persistent ?
+                         "Stable multiplier weighting helps isolate reduced-Hessian changes to local derivatives or curvature rather than multiplier selection." :
+                         "Changing multiplier representatives can alter a Lagrangian Hessian even under stable active-row geometry; this is evidence about the retained representatives, not dual uniqueness.",
+        evidence = [Evidence("Reduced-Hessian multiplier persistence"; details = [
+            "maximum_multiplier_difference" => maximum_difference,
+            "multiplier_scale" => scale,
+            "objective_weight_difference" => weight_difference,
+            "relative_tolerance" => relative_tolerance,
+        ])],
+        affected = EntityRef[
+            reference_sources[row] for row in active_rows
+            if 1 <= row <= length(reference_sources)
+        ],
+        suggested_actions = multiplier_persistent ?
+                            ["Interpret curvature changes together with derivative and Hessian changes, retaining multiplier representative evidence."] :
+                            ["Inspect multiplier recovery uniqueness and active-gradient dependence before attributing reduced-Hessian changes to primal curvature."],
+    ))
+    return report
+end
+
+function _append_persistent_flat_component_metadata_findings!(
+    report::DiagnosticReport,
+    snapshots::AbstractVector{<:ReducedHessianSnapshot{T}},
+    components::AbstractVector{<:ComponentMetadata};
+    support_relative_tolerance::Real,
+) where {T<:AbstractFloat}
+    report.metadata[:persistent_flat_declared_component_count] = string(length(components))
+    isempty(components) && return report
+    support_variables = _persistent_flat_support_variables(
+        snapshots, support_relative_tolerance,
+    )
+    overlaps = [
+        component for component in components
+        if !isempty(intersect(component.variables, support_variables))
+    ]
+    report.metadata[:persistent_flat_overlapping_component_count] = string(length(overlaps))
+    isempty(overlaps) && return report
+    affected_variables = unique(vcat(
+        (intersect(component.variables, support_variables) for component in overlaps)...,
+    ))
+    component_labels = join(
+        ("$(component.component_type):$(component.component_id)" for component in overlaps),
+        ",",
+    )
+    push!(report, Finding(
+        :reduced_hessian_persistent_flat_declared_component_overlap;
+        severity = SeverityInfo,
+        domain = RepresentationalIssue,
+        basis = PhysicalExpectation,
+        confidence = ConfidenceHigh,
+        observation = "The persistent flat subspace overlaps $(length(overlaps)) domain-declared component scope(s).",
+        why_it_matters = "Plugin-declared component ownership gives inspectable domain context for a persistent numerical mode, but does not validate the metadata or identify a physical cause.",
+        evidence = [Evidence("Persistent flat-mode declared component overlap"; details = [
+            "components" => component_labels,
+            "overlap_variable_count" => length(affected_variables),
+            "support_relative_tolerance" => support_relative_tolerance,
+        ])],
+        affected = EntityRef[
+            EntityRef(:variable, variable.value) for variable in affected_variables
+        ],
+        suggested_actions = [
+            "Inspect the listed declared components alongside their expected rank, units, and mode declarations.",
+            "Treat metadata overlap as domain context, then confirm the mechanism with constraints and nearby points.",
+        ],
+    ))
+    return report
+end
+
+function _orthonormal_mode_basis(
+    directions::Matrix{T};
+    relative_tolerance::Real,
+) where {T<:AbstractFloat}
+    isempty(directions) && return zeros(T, size(directions, 1), 0)
+    factorization = svd(directions)
+    isempty(factorization.S) && return zeros(T, size(directions, 1), 0)
+    threshold = convert(T, relative_tolerance) * maximum(factorization.S)
+    rank = count(value -> value > threshold, factorization.S)
+    return factorization.U[:, 1:rank]
+end
+
+function _append_persistent_flat_expected_mode_findings!(
+    report::DiagnosticReport,
+    snapshots::AbstractVector{<:ReducedHessianSnapshot{T}},
+    modes::AbstractVector{<:ExpectedNullspaceMode};
+    alignment_threshold::Real,
+    mode_rank_relative_tolerance::Real,
+) where {T<:AbstractFloat}
+    report.metadata[:persistent_flat_expected_mode_count] = string(length(modes))
+    isempty(modes) && return report
+    reference_variables = first(snapshots).evaluation.point.variables
+    columns_by_variable = Dict(
+        variable => column for (column, variable) in enumerate(reference_variables)
+    )
+    directions = zeros(T, length(reference_variables), length(modes))
+    for (mode_column, mode) in enumerate(modes)
+        coordinates = [get(columns_by_variable, variable, 0) for variable in mode.variables]
+        if any(iszero, coordinates)
+            push!(report, Finding(
+                :reduced_hessian_persistent_expected_mode_subspace_unaligned;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = "Declared expected mode $(mode.name) cannot be aligned with the persistent flat-subspace coordinates.",
+                why_it_matters = "A subspace comparison requires every declared mode to use the shared evaluation-coordinate scope.",
+                evidence = [Evidence("Persistent flat-mode expected declaration"; details = [
+                    "mode" => mode.name,
+                    "description" => mode.description,
+                ])],
+                suggested_actions = [
+                    "Declare expected modes using the shared evaluation-point variable coordinates.",
+                ],
+            ))
+            return report
+        end
+        for (coordinate, value) in zip(coordinates, mode.direction)
+            directions[coordinate, mode_column] += convert(T, value)
+        end
+    end
+    declared_basis = _orthonormal_mode_basis(
+        directions; relative_tolerance = mode_rank_relative_tolerance,
+    )
+    flat_basis = _flat_reduced_hessian_subspace(first(filter(
+        snapshot -> snapshot.analysis.available && snapshot.analysis.zero_eigenvalues > 0,
+        snapshots,
+    )).analysis)
+    declared_dimension = size(declared_basis, 2)
+    flat_dimension = size(flat_basis, 2)
+    singular_values = declared_dimension == 0 ? T[] :
+                      svdvals(transpose(flat_basis) * declared_basis)
+    minimum_alignment = isempty(singular_values) ? zero(T) : minimum(singular_values)
+    observed = declared_dimension > 0 && declared_dimension <= flat_dimension &&
+               minimum_alignment >= convert(T, alignment_threshold)
+    report.metadata[:persistent_flat_expected_mode_span_dimension] = string(declared_dimension)
+    report.metadata[:persistent_flat_subspace_dimension] = string(flat_dimension)
+    affected = EntityRef[]
+    for mode in modes, variable in mode.variables
+        push!(affected, EntityRef(:variable, variable.value))
+    end
+    unique!(affected)
+    push!(report, Finding(
+        observed ? :reduced_hessian_persistent_expected_mode_subspace_observed :
+                   :reduced_hessian_persistent_expected_mode_subspace_not_observed;
+        severity = SeverityInfo,
+        domain = RepresentationalIssue,
+        basis = observed ? PhysicalExpectation : LocalInference,
+        confidence = observed ? ConfidenceHigh : ConfidenceMedium,
+        observation = observed ?
+                      "The declared expected-mode span is aligned with the persistent reduced-Hessian flat subspace." :
+                      "The declared expected-mode span is not aligned with the persistent reduced-Hessian flat subspace.",
+        why_it_matters = observed ?
+                         "Repeated local curvature is consistent with the declared mode span, without validating the declaration's physical interpretation." :
+                         "A declared mode can be removed, supplemented, or rotated by the operating point and active geometry; this is persistent numerical evidence, not a plugin error.",
+        evidence = [Evidence("Persistent flat-subspace expected-mode comparison"; details = [
+            "declared_mode_count" => length(modes),
+            "declared_span_dimension" => declared_dimension,
+            "flat_subspace_dimension" => flat_dimension,
+            "minimum_principal_cosine" => minimum_alignment,
+            "alignment_threshold" => alignment_threshold,
+        ])],
+        affected = affected,
+        suggested_actions = observed ?
+                            ["Retain the declaration as expected-mode evidence and confirm the units and domain semantics in the plugin."] :
+                            ["Inspect active geometry and nearby points before changing the declared expected-mode span."],
+    ))
+    return report
+end
+
+"""
+    analyze_reduced_hessian_persistence(snapshots; ...)
+
+Compare caller-supplied local reduced-Hessian flat subspaces across explicitly
+chosen points. The screen uses principal-angle alignment, so arbitrary signs
+or rotations within a degenerate flat subspace do not change the result.
+"""
+function analyze_reduced_hessian_persistence(
+    snapshots::AbstractVector{<:ReducedHessianSnapshot{T}};
+    minimum_snapshots::Integer = 2,
+    subspace_alignment_threshold::Real = 0.98,
+    flat_support_relative_tolerance::Real = 0.1,
+    multiplier_relative_tolerance::Real = sqrt(eps(T)),
+    expected_modes::AbstractVector{<:ExpectedNullspaceMode} = ExpectedNullspaceMode[],
+    expected_mode_alignment_threshold::Real = 0.98,
+    expected_mode_rank_relative_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    minimum_snapshots >= 2 ||
+        throw(ArgumentError("minimum_snapshots must be at least two"))
+    zero(T) <= subspace_alignment_threshold <= one(T) ||
+        throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    zero(T) < flat_support_relative_tolerance <= one(T) ||
+        throw(ArgumentError("flat_support_relative_tolerance must lie in (0, 1]"))
+    multiplier_relative_tolerance >= zero(T) ||
+        throw(ArgumentError("multiplier_relative_tolerance must be nonnegative"))
+    zero(T) <= expected_mode_alignment_threshold <= one(T) ||
+        throw(ArgumentError("expected_mode_alignment_threshold must lie in [0, 1]"))
+    expected_mode_rank_relative_tolerance >= zero(T) ||
+        throw(ArgumentError("expected_mode_rank_relative_tolerance must be nonnegative"))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "reduced_hessian_persistence"
+    report.metadata[:snapshot_count] = string(length(snapshots))
+    report.metadata[:minimum_snapshots] = string(minimum_snapshots)
+    report.metadata[:subspace_alignment_threshold] = string(subspace_alignment_threshold)
+    isempty(snapshots) && return report
+    reference_variables = snapshots[1].evaluation.point.variables
+    if any(snapshot.evaluation.point.variables != reference_variables for snapshot in snapshots)
+        push!(report, Finding(
+            :reduced_hessian_flat_persistence_coordinate_mismatch;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = StructuralProof,
+            confidence = ConfidenceCertain,
+            observation = "Reduced-Hessian snapshots do not share one evaluation-coordinate ordering.",
+            why_it_matters = "Flat-direction persistence cannot be compared across different coordinate scopes or orderings.",
+            evidence = [Evidence("Reduced-Hessian snapshot alignment"; details = [
+                "snapshot_count" => length(snapshots),
+            ])],
+            suggested_actions = [
+                "Evaluate the same ordered variable coordinates at every point before requesting persistence analysis.",
+            ],
+        ))
+        return report
+    end
+    candidates = [
+        snapshot for snapshot in snapshots
+        if snapshot.analysis.available && snapshot.analysis.zero_eigenvalues > 0
+    ]
+    report.metadata[:flat_snapshot_count] = string(length(candidates))
+    if length(candidates) < minimum_snapshots
+        push!(report, Finding(
+            :reduced_hessian_flat_persistence_unavailable;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "Only $(length(candidates)) supplied snapshot(s) have an available nonempty reduced-Hessian flat subspace.",
+            why_it_matters = "Persistence requires repeated local flat-direction evidence; absent or unavailable curvature is not evidence of stability.",
+            evidence = [Evidence("Reduced-Hessian persistence availability"; details = [
+                "snapshot_count" => length(snapshots),
+                "flat_snapshot_count" => length(candidates),
+                "minimum_snapshots" => minimum_snapshots,
+            ])],
+            suggested_actions = [
+                "Supply at least two complete reduced-Hessian analyses with flat directions at explicitly selected nearby points.",
+            ],
+        ))
+        return report
+    end
+    subspaces = [_flat_reduced_hessian_subspace(snapshot.analysis) for snapshot in candidates]
+    dimensions = size.(subspaces, 2)
+    same_dimension = all(==(first(dimensions)), dimensions)
+    pairwise_alignments = T[]
+    if same_dimension
+        for left in eachindex(subspaces), right in (left + 1):length(subspaces)
+            append!(pairwise_alignments, svdvals(transpose(subspaces[left]) * subspaces[right]))
+        end
+    end
+    minimum_alignment = isempty(pairwise_alignments) ? zero(T) : minimum(pairwise_alignments)
+    persistent = same_dimension &&
+                 minimum_alignment >= convert(T, subspace_alignment_threshold)
+    labels = join((snapshot.evaluation.point.label for snapshot in candidates), ",")
+    evidence = [Evidence("Reduced-Hessian flat-subspace persistence"; details = [
+        "point_labels" => labels,
+        "flat_dimensions" => join(dimensions, ","),
+        "minimum_principal_cosine" => minimum_alignment,
+        "alignment_threshold" => subspace_alignment_threshold,
+    ])]
+    push!(report, Finding(
+        persistent ? :reduced_hessian_flat_subspace_persistent :
+                     :reduced_hessian_flat_subspace_not_persistent;
+        severity = SeverityInfo,
+        domain = NumericalIssue,
+        basis = HeuristicInterpretation,
+        confidence = ConfidenceMedium,
+        observation = persistent ?
+                      "The same-dimensional reduced-Hessian flat subspace is aligned across $(length(candidates)) explicitly supplied points." :
+                      "The reduced-Hessian flat subspace is not consistently aligned across $(length(candidates)) explicitly supplied points.",
+        why_it_matters = persistent ?
+                         "Repeated local geometry is more consistent with a structural or persistent weak-curvature mode than a one-point artifact, but it does not establish a physical cause." :
+                         "A changing flat subspace can indicate operating-point dependence, active-set changes, or numerical sensitivity; it does not by itself rule out a meaningful physical mode.",
+        evidence = evidence,
+        affected = EntityRef[
+            EntityRef(:variable, variable.value) for variable in reference_variables
+        ],
+        suggested_actions = persistent ?
+                            ["Compare the persistent subspace with plugin-declared modes and nearby active-set fingerprints."] :
+                            ["Inspect changes in active rows, scaling, and operating point before interpreting the flat directions."],
+    ))
+    _append_flat_support_persistence_findings!(
+        report,
+        snapshots,
+        candidates;
+        support_relative_tolerance = flat_support_relative_tolerance,
+    )
+    _append_reduced_hessian_active_row_persistence_findings!(report, candidates)
+    _append_reduced_hessian_active_jacobian_persistence_findings!(report, candidates)
+    _append_reduced_hessian_multiplier_persistence_findings!(
+        report,
+        candidates;
+        relative_tolerance = multiplier_relative_tolerance,
+    )
+    if persistent
+        _append_persistent_flat_expected_mode_findings!(
+            report,
+            snapshots,
+            expected_modes;
+            alignment_threshold = expected_mode_alignment_threshold,
+            mode_rank_relative_tolerance = expected_mode_rank_relative_tolerance,
+        )
+    end
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return report
+end
+
+"""
+    analyze_reduced_hessian_persistence(model, snapshots; ...)
+
+Extend cross-point flat-subspace persistence with a syntactic-incidence
+classification of the persistent mode's support, plus optional declared
+component-metadata overlap. Neither result infers domain semantics.
+"""
+function analyze_reduced_hessian_persistence(
+    model::MOI.ModelLike,
+    snapshots::AbstractVector{<:ReducedHessianSnapshot{T}};
+    structural_support_relative_tolerance::Real = 0.1,
+    components::AbstractVector{<:ComponentMetadata} = component_metadata(model),
+    expected_modes = nothing,
+    kwargs...,
+) where {T<:AbstractFloat}
+    zero(T) < structural_support_relative_tolerance <= one(T) ||
+        throw(ArgumentError(
+            "structural_support_relative_tolerance must lie in (0, 1]",
+        ))
+    resolved_expected_modes = isnothing(expected_modes) ?
+                              (isempty(snapshots) ? ExpectedNullspaceMode[] :
+                               expected_nullspace_modes(
+                                   model, first(snapshots).evaluation,
+                               )) : expected_modes
+    resolved_expected_modes isa AbstractVector{<:ExpectedNullspaceMode} ||
+        throw(ArgumentError("expected_modes must be a vector of ExpectedNullspaceMode values"))
+    report = analyze_reduced_hessian_persistence(
+        snapshots;
+        expected_modes = resolved_expected_modes,
+        kwargs...,
+    )
+    any(finding -> finding.code == :reduced_hessian_flat_subspace_persistent,
+        report.findings) || return report
+    _append_persistent_flat_component_metadata_findings!(
+        report,
+        snapshots,
+        components;
+        support_relative_tolerance = structural_support_relative_tolerance,
+    )
+    graph = incidence_graph(model)
+    if !graph.complete
+        push!(report, Finding(
+            :reduced_hessian_persistent_flat_structural_scope_unavailable;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = StructuralProof,
+            confidence = ConfidenceCertain,
+            observation = "The persistent flat subspace cannot be scoped to structural components because incidence is incomplete.",
+            why_it_matters = "Missing symbolic edges can make a localized mode appear to span unrelated components.",
+            evidence = [Evidence("Persistent flat-mode structural scope"; details = [
+                "opaque_source_count" => length(graph.opaque_sources),
+            ])],
+            suggested_actions = [
+                "Resolve opaque or unsupported expressions before interpreting structural component scope.",
+            ],
+        ))
+        return report
+    end
+    support_variables = _persistent_flat_support_variables(
+        snapshots, structural_support_relative_tolerance,
+    )
+    graph_positions = Dict(
+        record.index => position for (position, record) in enumerate(graph.variables)
+    )
+    variable_positions = [get(graph_positions, variable, 0) for variable in support_variables]
+    if any(iszero, variable_positions)
+        push!(report, Finding(
+            :reduced_hessian_persistent_flat_structural_scope_unaligned;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = StructuralProof,
+            confidence = ConfidenceCertain,
+            observation = "Persistent flat-direction support cannot be aligned with every model incidence variable.",
+            why_it_matters = "A structural-component classification requires the same variable scope in the evaluation and model graph.",
+            evidence = [Evidence("Persistent flat-mode coordinate alignment"; details = [
+                "support_variable_count" => length(support_variables),
+            ])],
+            suggested_actions = [
+                "Evaluate all variables in the model incidence scope before requesting structural flat-mode classification.",
+            ],
+        ))
+        return report
+    end
+    component_by_position = Dict{Int,Int}()
+    structural_components = connected_components(graph)
+    for (number, component) in enumerate(structural_components), position in component.variable_positions
+        component_by_position[position] = number
+    end
+    component_numbers = unique(get(component_by_position, position, 0) for position in variable_positions)
+    if any(iszero, component_numbers)
+        return report
+    end
+    component_labels = join(sort(component_numbers), ",")
+    localized = length(component_numbers) == 1
+    push!(report, Finding(
+        localized ? :reduced_hessian_persistent_flat_structurally_localized :
+                    :reduced_hessian_persistent_flat_spans_components;
+        severity = SeverityInfo,
+        domain = RepresentationalIssue,
+        basis = StructuralProof,
+        confidence = ConfidenceCertain,
+        observation = localized ?
+                      "The persistent flat subspace is materially supported within structural component $(only(component_numbers))." :
+                      "The persistent flat subspace materially spans $(length(component_numbers)) structural incidence components.",
+        why_it_matters = localized ?
+                         "A localized persistent mode supports component-focused debugging, but does not establish why that component is weakly constrained." :
+                         "A spanning persistent mode can reflect a missing coupling equation or coordinated freedom, but incidence alone cannot distinguish them.",
+        evidence = [Evidence("Persistent flat-mode structural scope"; details = [
+            "support_relative_tolerance" => structural_support_relative_tolerance,
+            "support_variable_count" => length(support_variables),
+            "structural_components" => component_labels,
+        ])],
+        affected = EntityRef[
+            EntityRef(:variable, variable.value) for variable in support_variables
+        ],
+        suggested_actions = localized ?
+                            ["Inspect the affected component's constraints, scaling, and domain metadata."] :
+                            ["Inspect missing couplings and compare the mode with domain-declared expected freedoms."],
+    ))
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return report
+end
+
 """
     analyze_reduced_hessian(evaluation, hessian; active_rows, ...)
 

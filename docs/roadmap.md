@@ -161,7 +161,11 @@ equation dependencies. Next classifications:
 - active-set nullspace classification beyond structural/numerical tangent
   comparisons, compact dependence, uniform shifts, and declared-mode spans;
 - richer flat reduced-Hessian direction fingerprints beyond uniform,
-  compact-support, and declared-mode consistency checks; and
+  compact-support, declared-mode consistency, and cross-point persistence
+  checks, including generic structural component scope and declared component
+  metadata overlap, persistent expected-mode span comparisons, and
+  stable-versus-changing flat-support, active-row, and active-Jacobian rank
+  fingerprints, plus opt-in multiplier-representative persistence; and
 - unknown local equality-Jacobian mode (implemented).
 
 PowerModels and multiconductor semantics follow only after these generic

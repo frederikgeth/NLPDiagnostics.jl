@@ -686,6 +686,44 @@ function NumericalEvaluation{T}(
 end
 
 """
+One explicitly supplied reduced-Hessian result for cross-point comparison.
+
+The snapshot preserves the point and the local analysis separately so a
+persistence screen never reconstructs an iterate or silently recomputes a
+Hessian.
+"""
+struct ReducedHessianSnapshot{T<:AbstractFloat}
+    evaluation::NumericalEvaluation{T}
+    analysis::ReducedHessianAnalysis{T}
+    hessian::Union{Nothing,HessianEvaluation{T}}
+end
+
+function ReducedHessianSnapshot(
+    evaluation::NumericalEvaluation{T},
+    analysis::ReducedHessianAnalysis{T},
+) where {T<:AbstractFloat}
+    size(analysis.tangent_basis, 1) == length(evaluation.point.variables) ||
+        throw(DimensionMismatch(
+            "reduced-Hessian tangent basis does not match evaluation coordinates",
+        ))
+    return ReducedHessianSnapshot{T}(evaluation, analysis, nothing)
+end
+
+function ReducedHessianSnapshot(
+    evaluation::NumericalEvaluation{T},
+    analysis::ReducedHessianAnalysis{T},
+    hessian::HessianEvaluation{T},
+) where {T<:AbstractFloat}
+    size(analysis.tangent_basis, 1) == length(evaluation.point.variables) ||
+        throw(DimensionMismatch(
+            "reduced-Hessian tangent basis does not match evaluation coordinates",
+        ))
+    hessian.point == evaluation.point ||
+        throw(ArgumentError("reduced-Hessian snapshot Hessian point differs from evaluation point"))
+    return ReducedHessianSnapshot{T}(evaluation, analysis, hessian)
+end
+
+"""
 Evidence and wall-clock timings from one `ProfileCase` run.
 
 Timings are diagnostic observations and include Julia compilation/allocation

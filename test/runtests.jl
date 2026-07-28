@@ -3301,6 +3301,325 @@ end
         )
         @test length(compact_findings) == 1
         @test length(only(compact_findings).affected) == 2
+
+        persistent_evaluation = NLPDiagnostics.evaluate_numerical(
+            compact_model, [0.01, 0.01, 0.2]; label = "nearby",
+        )
+        persistent_hessian = NLPDiagnostics.HessianEvaluation(
+            persistent_evaluation.point,
+            1.0,
+            zeros(3),
+            NLPDiagnostics.HessianEntry{Float64}[
+                NLPDiagnostics.HessianEntry(1, 1, 1.0),
+                NLPDiagnostics.HessianEntry(1, 2, -1.0),
+                NLPDiagnostics.HessianEntry(2, 2, 1.0),
+                NLPDiagnostics.HessianEntry(3, 3, 2.0),
+            ],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        persistent_analysis = NLPDiagnostics.reduced_hessian_analysis(
+            persistent_evaluation,
+            persistent_hessian;
+            active_rows = Int[],
+        )
+        compact_analysis = NLPDiagnostics.reduced_hessian_analysis(
+            compact_evaluation,
+            compact_hessian;
+            active_rows = Int[],
+        )
+        persistence_report = NLPDiagnostics.analyze_reduced_hessian_persistence([
+            NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),
+            NLPDiagnostics.ReducedHessianSnapshot(persistent_evaluation, persistent_analysis),
+        ])
+        @test length(findings(
+            persistence_report,
+            :reduced_hessian_flat_subspace_persistent,
+        )) == 1
+        expected_subspace_report = NLPDiagnostics.analyze_reduced_hessian_persistence(
+            [
+                NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),
+                NLPDiagnostics.ReducedHessianSnapshot(persistent_evaluation, persistent_analysis),
+            ];
+            expected_modes = [
+                NLPDiagnostics.ExpectedNullspaceMode(
+                    :common_shift,
+                    [c1, c2],
+                    [1.0, 1.0],
+                ),
+            ],
+        )
+        @test length(findings(
+            expected_subspace_report,
+            :reduced_hessian_persistent_expected_mode_subspace_observed,
+        )) == 1
+        unexpected_subspace_report = NLPDiagnostics.analyze_reduced_hessian_persistence(
+            [
+                NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),
+                NLPDiagnostics.ReducedHessianSnapshot(persistent_evaluation, persistent_analysis),
+            ];
+            expected_modes = [
+                NLPDiagnostics.ExpectedNullspaceMode(
+                    :differential_shift,
+                    [c1, c2],
+                    [1.0, -1.0],
+                ),
+            ],
+        )
+        @test length(findings(
+            unexpected_subspace_report,
+            :reduced_hessian_persistent_expected_mode_subspace_not_observed,
+        )) == 1
+        @test length(findings(
+            persistence_report,
+            :reduced_hessian_flat_support_persistent,
+        )) == 1
+        @test length(findings(
+            persistence_report,
+            :reduced_hessian_active_rows_persistent,
+        )) == 1
+        @test length(findings(
+            persistence_report,
+            :reduced_hessian_active_jacobian_rank_persistent,
+        )) == 1
+        spanning_report = NLPDiagnostics.analyze_reduced_hessian_persistence(
+            compact_model,
+            [
+                NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),
+                NLPDiagnostics.ReducedHessianSnapshot(persistent_evaluation, persistent_analysis),
+            ],
+        )
+        @test length(findings(
+            spanning_report,
+            :reduced_hessian_persistent_flat_spans_components,
+        )) == 1
+        linking_constraint = MOI.ScalarAffineFunction(
+            [MOI.ScalarAffineTerm(1.0, c1), MOI.ScalarAffineTerm(-1.0, c2)],
+            0.0,
+        )
+        MOI.add_constraint(compact_model, linking_constraint, MOI.EqualTo(0.0))
+        localized_report = NLPDiagnostics.analyze_reduced_hessian_persistence(
+            compact_model,
+            [
+                NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),
+                NLPDiagnostics.ReducedHessianSnapshot(persistent_evaluation, persistent_analysis),
+            ],
+        )
+        @test length(findings(
+            localized_report,
+            :reduced_hessian_persistent_flat_structurally_localized,
+        )) == 1
+        component_overlap_report = NLPDiagnostics.analyze_reduced_hessian_persistence(
+            compact_model,
+            [
+                NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),
+                NLPDiagnostics.ReducedHessianSnapshot(persistent_evaluation, persistent_analysis),
+            ];
+            components = [
+                NLPDiagnostics.ComponentMetadata(
+                    :test_device,
+                    "local";
+                    variables = [c1, c2],
+                    units = Dict(:voltage => "pu"),
+                ),
+                NLPDiagnostics.ComponentMetadata(
+                    :test_device,
+                    "outside";
+                    variables = [c3],
+                ),
+            ],
+        )
+        overlaps = findings(
+            component_overlap_report,
+            :reduced_hessian_persistent_flat_declared_component_overlap,
+        )
+        @test length(overlaps) == 1
+        @test length(only(overlaps).affected) == 2
+
+        changing_hessian = NLPDiagnostics.HessianEvaluation(
+            persistent_evaluation.point,
+            1.0,
+            zeros(3),
+            NLPDiagnostics.HessianEntry{Float64}[
+                NLPDiagnostics.HessianEntry(1, 1, 1.0),
+                NLPDiagnostics.HessianEntry(1, 2, 1.0),
+                NLPDiagnostics.HessianEntry(2, 2, 1.0),
+                NLPDiagnostics.HessianEntry(3, 3, 2.0),
+            ],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        changing_analysis = NLPDiagnostics.reduced_hessian_analysis(
+            persistent_evaluation,
+            changing_hessian;
+            active_rows = Int[],
+        )
+        changing_report = NLPDiagnostics.analyze_reduced_hessian_persistence([
+            NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),
+            NLPDiagnostics.ReducedHessianSnapshot(persistent_evaluation, changing_analysis),
+        ])
+        @test length(findings(
+            changing_report,
+            :reduced_hessian_flat_subspace_not_persistent,
+        )) == 1
+        @test length(findings(
+            changing_report,
+            :reduced_hessian_flat_support_persistent,
+        )) == 1
+
+        support_changing_hessian = NLPDiagnostics.HessianEvaluation(
+            persistent_evaluation.point,
+            1.0,
+            zeros(3),
+            NLPDiagnostics.HessianEntry{Float64}[
+                NLPDiagnostics.HessianEntry(1, 1, 2.0),
+                NLPDiagnostics.HessianEntry(2, 2, 1.0),
+                NLPDiagnostics.HessianEntry(2, 3, -1.0),
+                NLPDiagnostics.HessianEntry(3, 3, 1.0),
+            ],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        support_changing_analysis = NLPDiagnostics.reduced_hessian_analysis(
+            persistent_evaluation,
+            support_changing_hessian;
+            active_rows = Int[],
+        )
+        support_changing_report = NLPDiagnostics.analyze_reduced_hessian_persistence([
+            NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),
+            NLPDiagnostics.ReducedHessianSnapshot(
+                persistent_evaluation, support_changing_analysis,
+            ),
+        ])
+        @test length(findings(
+            support_changing_report,
+            :reduced_hessian_flat_support_changing,
+        )) == 1
+
+        active_model = new_model()
+        a1, a2 = MOI.add_variables(active_model, 2)
+        active_constraint = MOI.ScalarAffineFunction(
+            [MOI.ScalarAffineTerm(1.0, a1), MOI.ScalarAffineTerm(-1.0, a2)],
+            0.0,
+        )
+        MOI.add_constraint(active_model, active_constraint, MOI.EqualTo(0.0))
+        active_evaluation_1 = NLPDiagnostics.evaluate_numerical(
+            active_model, [0.0, 0.0]; label = "active",
+        )
+        active_evaluation_2 = NLPDiagnostics.evaluate_numerical(
+            active_model, [0.01, 0.01]; label = "inactive",
+        )
+        active_hessian_1 = NLPDiagnostics.HessianEvaluation(
+            active_evaluation_1.point,
+            1.0,
+            zeros(2),
+            NLPDiagnostics.HessianEntry{Float64}[],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        active_hessian_2 = NLPDiagnostics.HessianEvaluation(
+            active_evaluation_2.point,
+            1.0,
+            zeros(2),
+            NLPDiagnostics.HessianEntry{Float64}[],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        active_analysis_1 = NLPDiagnostics.reduced_hessian_analysis(
+            active_evaluation_1, active_hessian_1; active_rows = [1],
+        )
+        active_analysis_2 = NLPDiagnostics.reduced_hessian_analysis(
+            active_evaluation_2, active_hessian_2; active_rows = Int[],
+        )
+        active_changing_report = NLPDiagnostics.analyze_reduced_hessian_persistence([
+            NLPDiagnostics.ReducedHessianSnapshot(
+                active_evaluation_1, active_analysis_1,
+            ),
+            NLPDiagnostics.ReducedHessianSnapshot(
+                active_evaluation_2, active_analysis_2,
+            ),
+        ])
+        @test length(findings(
+            active_changing_report,
+            :reduced_hessian_active_rows_changing,
+        )) == 1
+        @test length(findings(
+            active_changing_report,
+            :reduced_hessian_active_jacobian_rank_changing,
+        )) == 1
+
+        multiplier_hessian_1 = NLPDiagnostics.HessianEvaluation(
+            active_evaluation_1.point,
+            1.0,
+            [1.0],
+            NLPDiagnostics.HessianEntry{Float64}[],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        multiplier_hessian_2 = NLPDiagnostics.HessianEvaluation(
+            active_evaluation_2.point,
+            1.0,
+            [1.0],
+            NLPDiagnostics.HessianEntry{Float64}[],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        multiplier_analysis_1 = NLPDiagnostics.reduced_hessian_analysis(
+            active_evaluation_1, multiplier_hessian_1; active_rows = [1],
+        )
+        multiplier_analysis_2 = NLPDiagnostics.reduced_hessian_analysis(
+            active_evaluation_2, multiplier_hessian_2; active_rows = [1],
+        )
+        multiplier_persistent_report =
+            NLPDiagnostics.analyze_reduced_hessian_persistence([
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    active_evaluation_1,
+                    multiplier_analysis_1,
+                    multiplier_hessian_1,
+                ),
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    active_evaluation_2,
+                    multiplier_analysis_2,
+                    multiplier_hessian_2,
+                ),
+            ])
+        @test length(findings(
+            multiplier_persistent_report,
+            :reduced_hessian_multiplier_representative_persistent,
+        )) == 1
+        multiplier_changing_hessian = NLPDiagnostics.HessianEvaluation(
+            active_evaluation_2.point,
+            1.0,
+            [2.0],
+            NLPDiagnostics.HessianEntry{Float64}[],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        multiplier_changing_report =
+            NLPDiagnostics.analyze_reduced_hessian_persistence([
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    active_evaluation_1,
+                    multiplier_analysis_1,
+                    multiplier_hessian_1,
+                ),
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    active_evaluation_2,
+                    multiplier_analysis_2,
+                    multiplier_changing_hessian,
+                ),
+            ])
+        @test length(findings(
+            multiplier_changing_report,
+            :reduced_hessian_multiplier_representative_changing,
+        )) == 1
     end
 
     @testset "non-unit circular equalities are explicit scaling hints" begin

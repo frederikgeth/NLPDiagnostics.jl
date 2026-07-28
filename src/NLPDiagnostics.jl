@@ -93,6 +93,7 @@ export MultiplierRecovery
 export NullspaceFingerprint
 export ExpectedNullspaceMode
 export ReducedHessianAnalysis
+export ReducedHessianSnapshot
 export OperatorDomainRequirement
 export OperatorDerivativeRequirement
 export ProfileCase
@@ -139,6 +140,7 @@ export analyze_stable_reformulation_plan
 export analyze_initialization
 export analyze_numerical
 export analyze_reduced_hessian
+export analyze_reduced_hessian_persistence
 export analyze_active_set
 export analyze_active_set_second_order
 export analyze_component_ranks
