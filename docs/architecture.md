@@ -368,6 +368,22 @@ It also propagates scalar `min`/`max`, `sign`, and `cbrt` ranges, so downstream
 domain checks can retain the effect of common piecewise modeling primitives.
 Direct `sign` rows additionally use its discrete codomain `{−1, 0, 1}` to
 prove impossible row sets and to expose the exact fixing implied by `sign(x)=0`.
+Bounded logistic inputs retain stable finite output endpoints, enabling nested
+domain checks such as `log(logistic(x))` without overflow-based widening.
+For finite, numerically moderate phase intervals shorter than one period,
+`sin`/`cos` and their degree variants retain endpoint and interior-extremum
+ranges; wider or huge-angle intervals deliberately widen to `[-1, 1]`.
+`tan`/`tand` retain an endpoint range only when the whole phase interval avoids
+their periodic poles; an interval containing a pole is intentionally widened.
+The reciprocal trigonometric aliases `sec`, `csc`, and `cot` (including degree
+variants) reuse those validated sine/cosine enclosures and retain a finite range
+only when the corresponding denominator is proven nonzero.
+Their inverse aliases `asec` and `acsc` likewise propagate intervals only when
+the input is confined to one real-domain branch (`x ≤ -1` or `x ≥ 1`), avoiding
+an unjustified monotonicity claim across the excluded central interval.
+The same one-branch principle applies to reciprocal hyperbolic aliases
+(`sech`/`csch`/`coth` and `asech`/`acsch`/`acoth`), preserving singular-domain
+evidence rather than guessing across zero or the inverse-hyperbolic boundaries.
 One deliberately supported non-monotone case is a direct `abs(x)` row with a
 finite nonnegative upper set bound, which exactly implies the connected input
 interval `-u ≤ x ≤ u`; disjunctive lower-range implications remain explicit.
@@ -411,12 +427,16 @@ identifies the joint `(y, x) = (0, 0)` singularity.
    **Implemented for symbolic functions, `NLPBlock`, and
    `VectorNonlinearOracle`.**
 5. Report Jacobian row/column norms and rank estimates with method, threshold,
-   scale, and evaluation point. **Infinity-norm scale summaries implemented;
-   rank estimates remain next.**
+   scale, and evaluation point. **Implemented with guarded dense SVD,
+   sparse-pattern and sparse-QR complements, scaling comparisons, and
+   inspectable left/right nullspace evidence where dense analysis is safe.**
 6. Separate primitive value domains, finite derivative domains, and
    floating-point range/fingerprint risks. **Initial implementation complete.**
-7. Introduce `DegeneracyHypothesis` to compare observed nullspaces with expected
-   gauges supplied by plugins.
+7. Compare observed nullspaces with expected gauges supplied by plugins.
+   **Implemented through expected-nullspace mode declarations, declared-span
+   checks, and port-topology candidate modes; a future
+   `DegeneracyHypothesis` object may package these evidence sources without
+   changing their semantics.**
 
 PowerModels and multiconductor semantics should begin only after these generic
 interfaces have tests and extension points.

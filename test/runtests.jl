@@ -1738,6 +1738,76 @@ end
         @test cbrt_interval.lower == -2.0
         @test cbrt_interval.upper == 3.0
         @test NLPDiagnostics.fixed_operator_value(Val(:sign), Any[-2.0]) == -1.0
+
+        logistic_interval = NLPDiagnostics.operator_interval(
+            Val(:logistic), [NLPDiagnostics.IntervalEnclosure(-2.0, 2.0)], Any[],
+        )
+        @test logistic_interval.lower ≈ inv(1 + exp(2.0)) atol = 1.0e-12
+        @test logistic_interval.upper ≈ inv(1 + exp(-2.0)) atol = 1.0e-12
+
+        sin_interval = NLPDiagnostics.operator_interval(
+            Val(:sin), [NLPDiagnostics.IntervalEnclosure(0.1, 0.2)], Any[],
+        )
+        @test sin_interval.lower ≈ sin(0.1) atol = 1.0e-12
+        @test sin_interval.upper ≈ sin(0.2) atol = 1.0e-12
+        cos_interval = NLPDiagnostics.operator_interval(
+            Val(:cos), [NLPDiagnostics.IntervalEnclosure(2.9, 3.3)], Any[],
+        )
+        @test cos_interval.lower == -1.0
+        sind_interval = NLPDiagnostics.operator_interval(
+            Val(:sind), [NLPDiagnostics.IntervalEnclosure(10.0, 20.0)], Any[],
+        )
+        @test sind_interval.lower ≈ sind(10.0) atol = 1.0e-12
+        @test sind_interval.upper ≈ sind(20.0) atol = 1.0e-12
+        tan_interval = NLPDiagnostics.operator_interval(
+            Val(:tan), [NLPDiagnostics.IntervalEnclosure(0.1, 0.2)], Any[],
+        )
+        @test tan_interval.lower ≈ tan(0.1) atol = 1.0e-12
+        @test tan_interval.upper ≈ tan(0.2) atol = 1.0e-12
+        @test !NLPDiagnostics.operator_interval(
+            Val(:tan), [NLPDiagnostics.IntervalEnclosure(1.4, 1.8)], Any[],
+        ).informative
+        sec_interval = NLPDiagnostics.operator_interval(
+            Val(:sec), [NLPDiagnostics.IntervalEnclosure(0.1, 0.2)], Any[],
+        )
+        @test sec_interval.lower ≈ inv(cos(0.1)) atol = 1.0e-12
+        @test sec_interval.upper ≈ inv(cos(0.2)) atol = 1.0e-12
+        csc_interval = NLPDiagnostics.operator_interval(
+            Val(:csc), [NLPDiagnostics.IntervalEnclosure(0.1, 0.2)], Any[],
+        )
+        @test csc_interval.lower ≈ inv(sin(0.2)) atol = 1.0e-12
+        @test csc_interval.upper ≈ inv(sin(0.1)) atol = 1.0e-12
+        @test NLPDiagnostics.fixed_operator_value(Val(:cot), Any[pi / 4]) ≈ 1.0
+        asec_interval = NLPDiagnostics.operator_interval(
+            Val(:asec), [NLPDiagnostics.IntervalEnclosure(1.0, 2.0)], Any[],
+        )
+        @test asec_interval.lower == 0.0
+        @test asec_interval.upper ≈ acos(0.5) atol = 1.0e-12
+        acsc_interval = NLPDiagnostics.operator_interval(
+            Val(:acsc), [NLPDiagnostics.IntervalEnclosure(1.0, 2.0)], Any[],
+        )
+        @test acsc_interval.lower ≈ asin(0.5) atol = 1.0e-12
+        @test acsc_interval.upper == Float64(pi) / 2
+        @test !NLPDiagnostics.operator_interval(
+            Val(:asec), [NLPDiagnostics.IntervalEnclosure(-2.0, 2.0)], Any[],
+        ).informative
+        @test NLPDiagnostics.fixed_operator_value(Val(:asecd), Any[2.0]) ≈ 60.0
+        sech_interval = NLPDiagnostics.operator_interval(
+            Val(:sech), [NLPDiagnostics.IntervalEnclosure(0.0, 1.0)], Any[],
+        )
+        @test sech_interval.lower ≈ inv(cosh(1.0)) atol = 1.0e-12
+        @test sech_interval.upper == 1.0
+        csch_interval = NLPDiagnostics.operator_interval(
+            Val(:csch), [NLPDiagnostics.IntervalEnclosure(1.0, 2.0)], Any[],
+        )
+        @test csch_interval.lower ≈ inv(sinh(2.0)) atol = 1.0e-12
+        @test csch_interval.upper ≈ inv(sinh(1.0)) atol = 1.0e-12
+        asech_interval = NLPDiagnostics.operator_interval(
+            Val(:asech), [NLPDiagnostics.IntervalEnclosure(0.5, 1.0)], Any[],
+        )
+        @test asech_interval.lower == 0.0
+        @test asech_interval.upper ≈ acosh(2.0) atol = 1.0e-12
+        @test NLPDiagnostics.fixed_operator_value(Val(:acsch), Any[2.0]) ≈ asinh(0.5)
     end
 
     @testset "min/max branches are resolved by declared bounds" begin
@@ -5296,6 +5366,66 @@ end
         )
         @test monotone_extension_domains[sinh_x].lower ≈ asinh(1.0) atol = 1.0e-12
         @test monotone_extension_domains[cbrt_x].lower == 8.0
+
+        bounded_logistic_model = new_model()
+        bounded_logistic_x = MOI.add_variable(bounded_logistic_model)
+        MOI.add_constraint(
+            bounded_logistic_model,
+            bounded_logistic_x,
+            MOI.Interval(-2.0, 2.0),
+        )
+        MOI.add_constraint(
+            bounded_logistic_model,
+            MOI.ScalarNonlinearFunction(
+                :log,
+                Any[MOI.ScalarNonlinearFunction(:logistic, Any[bounded_logistic_x])],
+            ),
+            MOI.LessThan(10.0),
+        )
+        @test isempty(filter(
+            issue -> issue.operator == :log,
+            NLPDiagnostics.domain_issues(bounded_logistic_model),
+        ))
+
+        bounded_sine_model = new_model()
+        bounded_sine_x = MOI.add_variable(bounded_sine_model)
+        MOI.add_constraint(
+            bounded_sine_model,
+            bounded_sine_x,
+            MOI.Interval(0.1, 0.2),
+        )
+        MOI.add_constraint(
+            bounded_sine_model,
+            MOI.ScalarNonlinearFunction(
+                :log,
+                Any[MOI.ScalarNonlinearFunction(:sin, Any[bounded_sine_x])],
+            ),
+            MOI.LessThan(10.0),
+        )
+        @test isempty(filter(
+            issue -> issue.operator == :log,
+            NLPDiagnostics.domain_issues(bounded_sine_model),
+        ))
+
+        bounded_tangent_model = new_model()
+        bounded_tangent_x = MOI.add_variable(bounded_tangent_model)
+        MOI.add_constraint(
+            bounded_tangent_model,
+            bounded_tangent_x,
+            MOI.Interval(0.1, 0.2),
+        )
+        MOI.add_constraint(
+            bounded_tangent_model,
+            MOI.ScalarNonlinearFunction(
+                :log,
+                Any[MOI.ScalarNonlinearFunction(:tan, Any[bounded_tangent_x])],
+            ),
+            MOI.LessThan(10.0),
+        )
+        @test isempty(filter(
+            issue -> issue.operator == :log,
+            NLPDiagnostics.domain_issues(bounded_tangent_model),
+        ))
 
         absolute_domain_model = new_model()
         absolute_x = MOI.add_variable(absolute_domain_model)

@@ -958,6 +958,92 @@ function _stable_logsumexp_values(values)
     return shift + log(sum(exp(value - shift) for value in values))
 end
 
+"""Conservatively enclose sin/cos over one finite, numerically moderate period."""
+function _periodic_trig_interval(
+    value::IntervalEnclosure,
+    endpoint_function,
+    maximum_offset::Real,
+    minimum_offset::Real,
+    period::Real,
+)
+    value.valid || return _invalid_interval()
+    lower, upper = value.lower, value.upper
+    # Wide, unbounded, or very-large arguments are deliberately widened. The
+    # latter avoids treating floating-point argument reduction as a proof.
+    (!isfinite(lower) || !isfinite(upper) || upper - lower >= period ||
+     max(abs(lower), abs(upper)) > 1.0e12) && return _full_interval()
+    contains_phase(offset) =
+        ceil((lower - offset) / period) <= floor((upper - offset) / period)
+    endpoint_lower = endpoint_function(lower)
+    endpoint_upper = endpoint_function(upper)
+    range_lower = min(endpoint_lower, endpoint_upper)
+    range_upper = max(endpoint_lower, endpoint_upper)
+    contains_phase(maximum_offset) && (range_upper = 1.0)
+    contains_phase(minimum_offset) && (range_lower = -1.0)
+    return IntervalEnclosure(range_lower, range_upper, true, value.informative)
+end
+
+"""Enclose tangent on one finite branch; any included pole widens the range."""
+function _periodic_tangent_interval(
+    value::IntervalEnclosure,
+    endpoint_function,
+    singular_offset::Real,
+    period::Real,
+)
+    value.valid || return _invalid_interval()
+    lower, upper = value.lower, value.upper
+    (!isfinite(lower) || !isfinite(upper) ||
+     max(abs(lower), abs(upper)) > 1.0e12) && return _full_interval()
+    contains_pole =
+        ceil((lower - singular_offset) / period) <=
+        floor((upper - singular_offset) / period)
+    contains_pole && return _full_interval()
+    # tan is strictly increasing between adjacent poles.
+    return IntervalEnclosure(
+        endpoint_function(lower),
+        endpoint_function(upper),
+        true,
+        value.informative,
+    )
+end
+
+"""Enclose inverse secant/cosecant only on one valid sign branch."""
+function _inverse_reciprocal_trig_interval(
+    value::IntervalEnclosure,
+    transform;
+    increasing::Bool,
+)
+    value.valid || return _invalid_interval()
+    # The real domain has two components. An enclosure spanning the excluded
+    # interval [-1, 1] must not be treated as a monotone branch.
+    (value.lower >= 1.0 || value.upper <= -1.0) || return _full_interval()
+    lower_value = transform(value.lower)
+    upper_value = transform(value.upper)
+    return increasing ?
+           IntervalEnclosure(lower_value, upper_value, true, value.informative) :
+           IntervalEnclosure(upper_value, lower_value, true, value.informative)
+end
+
+"""Enclose an inverse reciprocal hyperbolic primitive on one domain branch."""
+function _inverse_reciprocal_hyperbolic_interval(
+    value::IntervalEnclosure,
+    transform;
+    lower_limit::Real,
+    upper_limit::Real,
+    lower_strict::Bool,
+    upper_strict::Bool,
+)
+    value.valid || return _invalid_interval()
+    lower_ok = lower_strict ? value.lower > lower_limit : value.lower >= lower_limit
+    upper_ok = upper_strict ? value.upper < upper_limit : value.upper <= upper_limit
+    (lower_ok && upper_ok) || return _full_interval()
+    # Each supported inverse reciprocal hyperbolic primitive is decreasing on
+    # its selected real-domain branch.
+    return IntervalEnclosure(
+        transform(value.upper), transform(value.lower), true, value.informative,
+    )
+end
+
 """
     operator_interval(Val(operator), argument_intervals, original_arguments)
 
@@ -1072,6 +1158,17 @@ function operator_interval(
         return IntervalEnclosure(
             stable_softplus(value.lower),
             stable_softplus(value.upper),
+            value.valid,
+            value.informative,
+        )
+    elseif head == :logistic && length(arguments) == 1
+        value = only(arguments)
+        # Preserve finite interval endpoints without overflow in exp(±x).
+        stable_logistic(x) =
+            x >= 0 ? inv(1 + exp(-x)) : exp(x) / (1 + exp(x))
+        return IntervalEnclosure(
+            stable_logistic(value.lower),
+            stable_logistic(value.upper),
             value.valid,
             value.informative,
         )
@@ -1250,10 +1347,100 @@ function operator_interval(
             value.valid,
             value.informative,
         )
-    elseif head in (:sin, :cos, :sind, :cosd)
-        return IntervalEnclosure(-1.0, 1.0, true, false)
-    elseif head == :tan
-        return _full_interval()
+    elseif head == :sin && length(arguments) == 1
+        return _periodic_trig_interval(
+            only(arguments), sin, pi / 2, -pi / 2, 2pi,
+        )
+    elseif head == :cos && length(arguments) == 1
+        return _periodic_trig_interval(
+            only(arguments), cos, 0.0, pi, 2pi,
+        )
+    elseif head == :sind && length(arguments) == 1
+        return _periodic_trig_interval(
+            only(arguments), sind, 90.0, -90.0, 360.0,
+        )
+    elseif head == :cosd && length(arguments) == 1
+        return _periodic_trig_interval(
+            only(arguments), cosd, 0.0, 180.0, 360.0,
+        )
+    elseif head == :tan && length(arguments) == 1
+        return _periodic_tangent_interval(
+            only(arguments), tan, pi / 2, pi,
+        )
+    elseif head == :tand && length(arguments) == 1
+        return _periodic_tangent_interval(
+            only(arguments), tand, 90.0, 180.0,
+        )
+    elseif head in (:sec, :secd) && length(arguments) == 1
+        cosine = operator_interval(
+            Val(head == :sec ? :cos : :cosd), arguments, original_arguments,
+        )
+        return _interval_reciprocal(cosine)
+    elseif head in (:csc, :cscd) && length(arguments) == 1
+        sine = operator_interval(
+            Val(head == :csc ? :sin : :sind), arguments, original_arguments,
+        )
+        return _interval_reciprocal(sine)
+    elseif head in (:cot, :cotd) && length(arguments) == 1
+        cosine = operator_interval(
+            Val(head == :cot ? :cos : :cosd), arguments, original_arguments,
+        )
+        sine = operator_interval(
+            Val(head == :cot ? :sin : :sind), arguments, original_arguments,
+        )
+        return _interval_multiply(cosine, _interval_reciprocal(sine))
+    elseif head in (:asec, :asecd) && length(arguments) == 1
+        transform = head == :asec ? value -> acos(inv(value)) :
+                                      value -> acosd(inv(value))
+        return _inverse_reciprocal_trig_interval(
+            only(arguments), transform; increasing = true,
+        )
+    elseif head in (:acsc, :acscd) && length(arguments) == 1
+        transform = head == :acsc ? value -> asin(inv(value)) :
+                                      value -> asind(inv(value))
+        return _inverse_reciprocal_trig_interval(
+            only(arguments), transform; increasing = false,
+        )
+    elseif head == :sech && length(arguments) == 1
+        cosh_value = operator_interval(Val(:cosh), arguments, original_arguments)
+        return _interval_reciprocal(cosh_value)
+    elseif head == :csch && length(arguments) == 1
+        sinh_value = operator_interval(Val(:sinh), arguments, original_arguments)
+        return _interval_reciprocal(sinh_value)
+    elseif head == :coth && length(arguments) == 1
+        cosh_value = operator_interval(Val(:cosh), arguments, original_arguments)
+        sinh_value = operator_interval(Val(:sinh), arguments, original_arguments)
+        return _interval_multiply(cosh_value, _interval_reciprocal(sinh_value))
+    elseif head == :asech && length(arguments) == 1
+        return _inverse_reciprocal_hyperbolic_interval(
+            only(arguments), value -> acosh(inv(value));
+            lower_limit = 0.0,
+            upper_limit = 1.0,
+            lower_strict = true,
+            upper_strict = false,
+        )
+    elseif head == :acsch && length(arguments) == 1
+        value = only(arguments)
+        value.valid || return _invalid_interval()
+        (value.lower > 0.0 || value.upper < 0.0) || return _full_interval()
+        return _inverse_reciprocal_hyperbolic_interval(
+            value, item -> asinh(inv(item));
+            lower_limit = -Inf,
+            upper_limit = Inf,
+            lower_strict = false,
+            upper_strict = false,
+        )
+    elseif head == :acoth && length(arguments) == 1
+        value = only(arguments)
+        value.valid || return _invalid_interval()
+        (value.lower > 1.0 || value.upper < -1.0) || return _full_interval()
+        return _inverse_reciprocal_hyperbolic_interval(
+            value, item -> atanh(inv(item));
+            lower_limit = -Inf,
+            upper_limit = Inf,
+            lower_strict = false,
+            upper_strict = false,
+        )
     elseif head == :^ && length(arguments) == 2
         exponent = original_arguments[2]
         integer_exponent = _integer_exponent(exponent)
