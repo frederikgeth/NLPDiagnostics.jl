@@ -152,3 +152,124 @@ Base.isempty(report::DiagnosticReport) = isempty(report.findings)
 Base.length(report::DiagnosticReport) = length(report.findings)
 Base.iterate(report::DiagnosticReport, state...) =
     iterate(report.findings, state...)
+
+"""
+    findings(report; code = nothing, severity = nothing, domain = nothing, basis = nothing, confidence = nothing)
+
+Return findings satisfying every supplied classification filter. The returned
+vector is independent of the report's storage and may be safely reordered by a
+caller.
+"""
+function findings(
+    report::DiagnosticReport;
+    code::Union{Nothing,Symbol} = nothing,
+    severity::Union{Nothing,Severity} = nothing,
+    domain::Union{Nothing,IssueDomain} = nothing,
+    basis::Union{Nothing,EvidenceBasis} = nothing,
+    confidence::Union{Nothing,Confidence} = nothing,
+)
+    return Finding[
+        finding for finding in report.findings if
+        (isnothing(code) || finding.code == code) &&
+        (isnothing(severity) || finding.severity == severity) &&
+        (isnothing(domain) || finding.domain == domain) &&
+        (isnothing(basis) || finding.basis == basis) &&
+        (isnothing(confidence) || finding.confidence == confidence)
+    ]
+end
+
+findings(report::DiagnosticReport, code::Symbol) = findings(report; code = code)
+
+"""Return deterministic per-code finding counts for one diagnostic report."""
+function finding_code_counts(report::DiagnosticReport)
+    counts = Dict{Symbol,Int}()
+    for finding in report.findings
+        counts[finding.code] = get(counts, finding.code, 0) + 1
+    end
+    return Dict(code => counts[code] for code in sort!(collect(keys(counts)); by = string))
+end
+
+_report_enum_label(value::Severity) = Dict(
+    SeverityInfo => "info",
+    SeverityWarning => "warning",
+    SeverityError => "error",
+)[value]
+
+_report_enum_label(value::Confidence) = Dict(
+    ConfidenceLow => "low",
+    ConfidenceMedium => "medium",
+    ConfidenceHigh => "high",
+    ConfidenceCertain => "certain",
+)[value]
+
+_report_enum_label(value::EvidenceBasis) = Dict(
+    MathematicalProof => "mathematical_proof",
+    StructuralProof => "structural_proof",
+    PhysicalExpectation => "physical_expectation",
+    NumericalObservation => "numerical_observation",
+    LocalInference => "local_inference",
+    HeuristicInterpretation => "heuristic_interpretation",
+)[value]
+
+_report_enum_label(value::IssueDomain) = Dict(
+    MathematicalIssue => "mathematical",
+    NumericalIssue => "numerical",
+    PhysicalIssue => "physical",
+    RepresentationalIssue => "representational",
+)[value]
+
+"""Return a renderer-neutral, serializable representation of one affected entity."""
+function entity_data(entity::EntityRef)
+    return Dict{String,Any}(
+        "kind" => string(entity.kind),
+        "index" => entity.index,
+        "subindex" => entity.subindex,
+        "name" => entity.name,
+        "function_type" => entity.function_type,
+        "set_type" => entity.set_type,
+    )
+end
+
+"""Return a renderer-neutral, serializable representation of one evidence item."""
+function evidence_data(evidence::Evidence)
+    return Dict{String,Any}(
+        "summary" => evidence.summary,
+        "details" => Dict(detail for detail in evidence.details),
+    )
+end
+
+"""Return a renderer-neutral, serializable representation of one finding."""
+function finding_data(finding::Finding)
+    return Dict{String,Any}(
+        "code" => string(finding.code),
+        "severity" => _report_enum_label(finding.severity),
+        "domain" => _report_enum_label(finding.domain),
+        "basis" => _report_enum_label(finding.basis),
+        "confidence" => _report_enum_label(finding.confidence),
+        "observation" => finding.observation,
+        "why_it_matters" => finding.why_it_matters,
+        "evidence" => [evidence_data(item) for item in finding.evidence],
+        "suggested_actions" => copy(finding.suggested_actions),
+        "affected" => [entity_data(entity) for entity in finding.affected],
+    )
+end
+
+"""
+    report_data(report)
+
+Return a renderer-neutral dictionary containing all report findings and sorted
+string metadata. The core package deliberately does not select a JSON package;
+callers may pass this data directly to their preferred serializer.
+"""
+function report_data(report::DiagnosticReport)
+    metadata = Dict{String,String}(
+        string(key) => report.metadata[key] for key in sort!(collect(keys(report.metadata)); by = string)
+    )
+    return Dict{String,Any}(
+        "findings" => [finding_data(finding) for finding in report.findings],
+        "finding_code_counts" => Dict(
+            string(code) => count for (code, count) in finding_code_counts(report)
+        ),
+        "metadata" => metadata,
+    )
+end

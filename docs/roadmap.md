@@ -59,8 +59,29 @@ evaluation layers can expose its supporting evidence.
   common-descent witnesses.
 - Structural-to-numerical equality-rank comparison that distinguishes expected
   structural rectangular freedom from additional local rank loss.
-- Conservative non-unit circular-equality normalization hints for exact
-  unshifted isotropic quadratic forms.
+- Conservative circular/ellipsoidal equality analysis for exact positive
+  diagonal quadratic forms (including affine shifts): proven negative- and
+  zero-level consequences, plus configurable non-unit radius and semiaxis
+  normalization hints; exact upper bounds below (or equal to) a positive
+  diagonal quadratic minimum also produce infeasibility (or implicit-fixing)
+  proofs, while higher finite upper levels yield per-coordinate implied bounds.
+  Those implied bounds are cross-checked against declared scalar bounds for
+  additional infeasibility proofs, including exact-minimum and zero-radius
+  implied centers, and zero-level diagonal ellipsoid centers.
+  Positive-radius circular equalities also yield exact coordinate intervals
+  and scalar-bound conflict proofs; the same holds for positive-level
+  diagonal ellipsoidal equalities.
+  Zero-radius and zero-level equalities also report their exact nonregular
+  implicit-fixing geometry, so singular local Jacobians are not mistaken for
+  free coordinates. Minimum-level positive-diagonal upper bounds likewise
+  report their zero-gradient active-inequality nonregularity.
+  The same upper-bound implications apply to
+  recognized nonlinear positive-diagonal expressions. The circular slice also recognizes the
+  exact positive diagonal `sum(aᵢ*xᵢ^2 + bᵢ*xᵢ) + c == d`
+  nonlinear-expression spelling, including isotropic-circle and ellipsoid
+  cases, so this evidence is not restricted to MOI quadratic-function
+  representation. Cross terms remain deliberately unclassified by this exact
+  positive-diagonal slice.
 - Separate first- and second-derivative domain requirements with custom
   operator extension hooks.
 - Inverse trigonometric, hyperbolic, and periodic primitive-domain coverage.

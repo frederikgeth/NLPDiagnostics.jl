@@ -64,6 +64,69 @@ end
 
 _path_string(path::ExpressionNodePath) = sprint(show, path)
 
+function _tighten_domain_interval!(intervals, variable, lower::Real, upper::Real)
+    current = intervals[variable]
+    current.valid || return
+    tightened_lower = max(current.lower, lower)
+    tightened_upper = min(current.upper, upper)
+    intervals[variable] = tightened_lower <= tightened_upper ?
+                          IntervalEnclosure(
+        tightened_lower,
+        tightened_upper,
+        true,
+        current.informative,
+    ) : _invalid_interval()
+    return
+end
+
+"""Propagate exact coordinate intervals from recognized positive diagonal geometry."""
+function _propagate_diagonal_quadratic_geometry_intervals!(intervals, model)
+    for constraint in model.constraints
+        equality = _positive_diagonal_quadratic_equality(
+            constraint.function_value,
+            constraint.set_value,
+        )
+        isnothing(equality) && (equality = _nonlinear_positive_diagonal_equality(
+            constraint.function_value,
+            constraint.set_value,
+        ))
+        if !isnothing(equality) && equality.effective_level > 0 &&
+           all(value -> value > 0 && isfinite(value), equality.axis_squared)
+            for (variable, center, axis_squared) in
+                zip(equality.variables, equality.centers, equality.axis_squared)
+                radius = sqrt(axis_squared)
+                _tighten_domain_interval!(intervals, variable, center - radius, center + radius)
+            end
+            continue
+        end
+
+        set_value = constraint.set_value
+        upper = if set_value isa MOI.LessThan
+            Float64(set_value.upper)
+        elseif set_value isa MOI.Interval
+            Float64(set_value.upper)
+        else
+            continue
+        end
+        minimum = _positive_diagonal_quadratic_minimum(constraint.function_value)
+        isnothing(minimum) && (minimum = _nonlinear_positive_diagonal_minimum(
+            constraint.function_value,
+        ))
+        isnothing(minimum) && continue
+        isfinite(upper) && isfinite(minimum.minimum_value) &&
+            upper > minimum.minimum_value || continue
+        for (variable, coefficient, center) in
+            zip(minimum.variables, minimum.coefficients, minimum.centers)
+            axis_squared = minimum.axis_squared_multiplier *
+                           (upper - minimum.minimum_value) / coefficient
+            axis_squared > 0 && isfinite(axis_squared) || continue
+            radius = sqrt(axis_squared)
+            _tighten_domain_interval!(intervals, variable, center - radius, center + radius)
+        end
+    end
+    return
+end
+
 function _domain_variable_intervals(model::ModelSnapshot)
     intervals = Dict(
         record.index => _full_interval(informative = true) for
@@ -106,6 +169,7 @@ function _domain_variable_intervals(model::ModelSnapshot)
             current.informative && candidate.informative,
         ) : _invalid_interval()
     end
+    _propagate_diagonal_quadratic_geometry_intervals!(intervals, model)
     return intervals
 end
 

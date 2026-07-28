@@ -158,22 +158,31 @@ function _periodic_derivative_estimates(
     argument::Real,
     ::Type{T},
 ) where {T<:AbstractFloat}
-    sine, cosine = sincos(T(argument))
-    if operator == :tan
+    degree = operator in (:tand, :secd, :cscd, :cotd)
+    sine, cosine = degree ?
+                   (sind(T(argument)), cosd(T(argument))) :
+                   sincos(T(argument))
+    first_scale = degree ? T(pi / 180) : one(T)
+    second_scale = first_scale^2
+    if operator in (:tan, :tand)
         secant = inv(cosine)
-        return abs(secant^2), abs(2 * secant^2 * (sine / cosine)), abs(cosine)
-    elseif operator == :sec
+        return abs(first_scale * secant^2),
+               abs(second_scale * 2 * secant^2 * (sine / cosine)), abs(cosine)
+    elseif operator in (:sec, :secd)
         secant = inv(cosine)
         tangent = sine / cosine
-        return abs(secant * tangent), abs(secant * (tangent^2 + secant^2)), abs(cosine)
-    elseif operator == :csc
+        return abs(first_scale * secant * tangent),
+               abs(second_scale * secant * (tangent^2 + secant^2)), abs(cosine)
+    elseif operator in (:csc, :cscd)
         cosecant = inv(sine)
         cotangent = cosine / sine
-        return abs(cosecant * cotangent), abs(cosecant * (cotangent^2 + cosecant^2)), abs(sine)
-    elseif operator == :cot
+        return abs(first_scale * cosecant * cotangent),
+               abs(second_scale * cosecant * (cotangent^2 + cosecant^2)), abs(sine)
+    elseif operator in (:cot, :cotd)
         cosecant = inv(sine)
         cotangent = cosine / sine
-        return abs(cosecant^2), abs(2 * cosecant^2 * cotangent), abs(sine)
+        return abs(first_scale * cosecant^2),
+               abs(second_scale * 2 * cosecant^2 * cotangent), abs(sine)
     end
     throw(ArgumentError("unsupported periodic derivative operator $operator"))
 end
@@ -184,16 +193,25 @@ function _inverse_boundary_derivative_estimates(
     ::Type{T},
 ) where {T<:AbstractFloat}
     value = T(argument)
-    if operator in (:asin, :acos)
+    if operator in (:asin, :acos, :asind, :acosd)
         denominator_squared = one(T) - value^2
-        return inv(sqrt(denominator_squared)),
-               abs(value) / denominator_squared^(T(3) / T(2))
+        degree_scale = operator in (:asind, :acosd) ? T(180 / pi) : one(T)
+        return degree_scale * inv(sqrt(denominator_squared)),
+               degree_scale * abs(value) / denominator_squared^(T(3) / T(2))
     elseif operator == :atanh
         denominator = one(T) - value^2
         return inv(denominator), 2 * abs(value) / denominator^2
     elseif operator == :acosh
         denominator = value^2 - one(T)
         return inv(sqrt(denominator)), value / denominator^(T(3) / T(2))
+    elseif operator in (:asec, :acsc, :asecd, :acscd)
+        magnitude = abs(value)
+        denominator = magnitude^2 - one(T)
+        degree_scale = operator in (:asecd, :acscd) ? T(180 / pi) : one(T)
+        first = degree_scale / (magnitude * sqrt(denominator))
+        second = degree_scale * (2 * magnitude^2 - one(T)) /
+                 (magnitude^2 * denominator^(T(3) / T(2)))
+        return abs(first), abs(second)
     end
     throw(ArgumentError("unsupported inverse-boundary derivative operator $operator"))
 end
@@ -431,11 +449,14 @@ function _primitive_range_risks!(
                 ],
             )
         end
-    elseif head in (:asin, :acos, :atanh, :acosh) && input.valid &&
+    elseif head in (:asin, :acos, :asind, :acosd, :atanh, :acosh,
+                    :asec, :acsc, :asecd, :acscd) && input.valid &&
            input.lower == input.upper && isfinite(input.lower)
         argument = input.lower
-        strict_margin = if head in (:asin, :acos, :atanh)
+        strict_margin = if head in (:asin, :acos, :asind, :acosd, :atanh)
             abs(argument) < 1.0 ? 1.0 - abs(argument) : nothing
+        elseif head in (:asec, :acsc, :asecd, :acscd)
+            abs(argument) > 1.0 ? abs(argument) - 1.0 : nothing
         else
             argument > 1.0 ? argument - 1.0 : nothing
         end
@@ -472,13 +493,15 @@ function _primitive_range_risks!(
                 ],
             )
         end
-    elseif head in (:tan, :sec, :csc, :cot) && input.valid &&
+    elseif head in (:tan, :sec, :csc, :cot, :tand, :secd, :cscd, :cotd) && input.valid &&
            input.lower == input.upper && isfinite(input.lower)
         proximity_threshold = strict_domain_proximity_threshold
         first_derivative, second_derivative, denominator_magnitude =
             _periodic_derivative_estimates(head, input.lower, T)
         if denominator_magnitude <= proximity_threshold
-            denominator_name = head in (:tan, :sec) ? "cos(argument)" : "sin(argument)"
+            denominator_name = head in (:tan, :sec, :tand, :secd) ?
+                               (head in (:tand, :secd) ? "cosd(argument)" : "cos(argument)") :
+                               (head in (:cscd, :cotd) ? "sind(argument)" : "sin(argument)")
             _push_expression_risk!(
                 risks,
                 source,

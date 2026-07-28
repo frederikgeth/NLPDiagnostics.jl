@@ -22,6 +22,17 @@ The first and second derivative checks matter because gradient-based solvers
 may evaluate a valid function value and still receive an infinite,
 discontinuous, or implementation-defined derivative.
 
+Initialization analysis also distinguishes declared scalar-bound violations from
+coordinates that violate an interval mathematically implied by a recognized
+positive diagonal quadratic upper level. The latter finding identifies the
+source quadratic row and coordinate interval; it does not claim that remaining
+coordinates inside their individual intervals make the full quadratic row
+feasible.
+The same implication is available when that quadratic is represented as an
+exact recognized MOI nonlinear expression.
+Positive-level circle and diagonal-ellipsoid equalities supply the analogous
+coordinate intervals during initialization analysis.
+
 `operator_derivative_requirements(Val(operator), arguments, intervals)` is a
 public extension hook for user-defined operators. Value-domain requirements
 that are identical to derivative requirements are not duplicated. Thus
@@ -67,13 +78,18 @@ derivative finite but make the second derivative large.
 Negative integer powers are included on either sign branch: `x^-1` near a
 small positive or negative nonzero base reports the reciprocal-like derivative
 amplification without incorrectly requiring a positive base.
-At exact floating-point points near a `tan`/`sec`/`csc`/`cot` singularity, the
-same warning reports the relevant sine or cosine denominator and derivative
-estimates. This is intentionally numerical evidence: a floating-point
-approximation of `π/2` is not treated as an exact symbolic pole.
-`asin`, `acos`, and `atanh` receive endpoint-margin evidence near `±1`, while
-`acosh` receives it just above `1`. These warnings complement the existing
-exact derivative-domain findings at their closed or strict boundaries.
+At exact floating-point points near a `tan`/`sec`/`csc`/`cot` singularity (or
+their degree variants), the same warning reports the relevant sine or cosine
+denominator and derivative estimates. This is intentionally numerical
+evidence: a floating-point approximation of `π/2` is not treated as an exact
+symbolic pole.
+`asin`, `acos`, their degree variants, and `atanh` receive endpoint-margin
+evidence near `±1`, while `acosh` receives it just above `1`. These warnings
+complement the existing exact derivative-domain findings at their closed or
+strict boundaries.
+`asec`/`acsc` and their degree variants receive analogous branch-endpoint
+evidence just outside `|x| = 1`; the report retains this as local numerical
+evidence without choosing a global branch for an interval.
 
 The default proximity threshold is `sqrt(eps(T))`, recorded in each finding.
 Pass a finite positive `strict_domain_proximity_threshold` to
@@ -164,3 +180,4 @@ modify slacks, or apply their own initialization procedures.
 The generic core understands scalar lower/upper/equality bounds. Coupled cones,
 device semantics, strict interior rules, and solver-specific initialization
 transformations remain plugin or solver-extension work.
+# Derivative domains, numerical fingerprints, and initialization

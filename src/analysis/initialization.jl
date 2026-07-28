@@ -179,6 +179,143 @@ function _initialization_constraint_margin_findings(
     ]
 end
 
+"""Identify starts outside coordinate intervals proved by diagonal quadratic upper levels."""
+function _initialization_diagonal_quadratic_bound_findings(
+    model_snapshot::ModelSnapshot,
+    point::EvaluationPoint,
+)
+    values = Dict(zip(point.variables, point.values))
+    records = Dict(record.index => record for record in model_snapshot.variables)
+    findings = Finding[]
+    for constraint in model_snapshot.constraints
+        set_value = constraint.set_value
+        upper = if set_value isa MOI.LessThan
+            Float64(set_value.upper)
+        elseif set_value isa MOI.Interval
+            Float64(set_value.upper)
+        else
+            continue
+        end
+        result = _positive_diagonal_quadratic_minimum(constraint.function_value)
+        isnothing(result) && (result = _nonlinear_positive_diagonal_minimum(
+            constraint.function_value,
+        ))
+        isnothing(result) && continue
+        isfinite(upper) && isfinite(result.minimum_value) || continue
+        upper > result.minimum_value || continue
+        violated = Tuple{MOI.VariableIndex,Real,Real,Real}[]
+        for (variable, coefficient, center) in
+            zip(result.variables, result.coefficients, result.centers)
+            radius_squared = result.axis_squared_multiplier *
+                             (upper - result.minimum_value) / coefficient
+            radius_squared >= 0 && isfinite(radius_squared) || continue
+            radius = sqrt(radius_squared)
+            lower, coordinate_upper = center - radius, center + radius
+            value = values[variable]
+            (value < lower || value > coordinate_upper) &&
+                push!(violated, (variable, value, lower, coordinate_upper))
+        end
+        isempty(violated) && continue
+        details = Pair{String,Any}[
+            "v$(variable.value)" =>
+                "value=$value, implied_interval=[$lower, $coordinate_upper]" for
+            (variable, value, lower, coordinate_upper) in violated
+        ]
+        push!(findings, Finding(
+            :initialization_violates_diagonal_quadratic_implied_bound;
+            severity = SeverityError,
+            domain = MathematicalIssue,
+            basis = MathematicalProof,
+            confidence = ConfidenceCertain,
+            observation = "$(length(violated)) initial coordinate value(s) lie outside intervals mathematically implied by quadratic constraint $(constraint.index.value).",
+            why_it_matters = "The supplied start cannot satisfy this quadratic upper level; the coordinate-level intervals identify a direct cause before solver-specific restoration behavior is considered.",
+            evidence = [_point_evidence(point), Evidence(
+                "Completed positive diagonal quadratic initialization intervals";
+                details = vcat(
+                    ["constraint_upper_bound" => upper,
+                     "minimum_value" => result.minimum_value,
+                     "center" => result.centers],
+                    details,
+                ),
+            )],
+            suggested_actions = [
+                "Choose starts inside the reported coordinate intervals, then check full constraint feasibility.",
+                "Confirm the quadratic level and coordinate scaling if the current start was intended.",
+            ],
+            affected = vcat(
+                [_constraint_ref(constraint)],
+                [_variable_ref(records[variable]) for (variable, _, _, _) in violated],
+            ),
+        ))
+    end
+    return findings
+end
+
+"""Identify starts outside coordinate intervals proved by diagonal quadratic equalities."""
+function _initialization_diagonal_quadratic_equality_bound_findings(
+    model_snapshot::ModelSnapshot,
+    point::EvaluationPoint,
+)
+    values = Dict(zip(point.variables, point.values))
+    records = Dict(record.index => record for record in model_snapshot.variables)
+    findings = Finding[]
+    for constraint in model_snapshot.constraints
+        result = _positive_diagonal_quadratic_equality(
+            constraint.function_value,
+            constraint.set_value,
+        )
+        isnothing(result) && (result = _nonlinear_positive_diagonal_equality(
+            constraint.function_value,
+            constraint.set_value,
+        ))
+        isnothing(result) && continue
+        result.effective_level > 0 || continue
+        all(axis_squared -> axis_squared > 0 && isfinite(axis_squared), result.axis_squared) ||
+            continue
+        semiaxes = sqrt.(result.axis_squared)
+        violated = Tuple{MOI.VariableIndex,Real,Real,Real}[]
+        for (variable, center, semiaxis) in
+            zip(result.variables, result.centers, semiaxes)
+            lower, upper = center - semiaxis, center + semiaxis
+            value = values[variable]
+            (value < lower || value > upper) &&
+                push!(violated, (variable, value, lower, upper))
+        end
+        isempty(violated) && continue
+        details = Pair{String,Any}[
+            "v$(variable.value)" => "value=$value, implied_interval=[$lower, $upper]" for
+            (variable, value, lower, upper) in violated
+        ]
+        push!(findings, Finding(
+            :initialization_violates_diagonal_quadratic_equality_implied_bound;
+            severity = SeverityError,
+            domain = MathematicalIssue,
+            basis = MathematicalProof,
+            confidence = ConfidenceCertain,
+            observation = "$(length(violated)) initial coordinate value(s) lie outside intervals mathematically implied by quadratic equality constraint $(constraint.index.value).",
+            why_it_matters = "The supplied start cannot satisfy this equality; the coordinate-level intervals identify a direct cause before solver-specific restoration behavior is considered.",
+            evidence = [_point_evidence(point), Evidence(
+                "Completed positive diagonal quadratic equality initialization intervals";
+                details = vcat(
+                    ["center" => result.centers,
+                     "semiaxes" => semiaxes,
+                     "representation" => result.representation],
+                    details,
+                ),
+            )],
+            suggested_actions = [
+                "Choose starts inside the reported coordinate intervals, then check the full equality residual.",
+                "Confirm the quadratic level and coordinate scaling if the current start was intended.",
+            ],
+            affected = vcat(
+                [_constraint_ref(constraint)],
+                [_variable_ref(records[variable]) for (variable, _, _, _) in violated],
+            ),
+        ))
+    end
+    return findings
+end
+
 """
     analyze_initialization(model; cache = EvaluationCache())
 
@@ -287,6 +424,17 @@ function analyze_initialization(
     append!(
         report.findings,
         _initialization_bound_findings(snapshot(model), point),
+    )
+    append!(
+        report.findings,
+        _initialization_diagonal_quadratic_bound_findings(snapshot(model), point),
+    )
+    append!(
+        report.findings,
+        _initialization_diagonal_quadratic_equality_bound_findings(
+            snapshot(model),
+            point,
+        ),
     )
     sort!(
         report.findings;

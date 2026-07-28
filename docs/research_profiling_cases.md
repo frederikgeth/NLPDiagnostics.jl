@@ -109,6 +109,30 @@ not representable. Its profile findings should be error-level numerical
 observations, preserving the distinction between Float64 mathematics and the
 chosen floating-point implementation.
 
+`synthetic_quadratic_geometry_profile_corpus()` supplies exact non-unit circle,
+shifted ellipsoid, zero-radius equality, negative-radius infeasibility, and
+quadratic-implied-bound-conflict and minimum-level-inequality cases. It
+calibrates recovery of static
+radius/semiaxis scaling evidence, implicit fixing with its nonregular
+zero-Jacobian interpretation, and infeasibility proofs
+independently of a solver or OPF plugin. Its two radius-two circle cases encode
+the same mathematics through MOI quadratic and nonlinear representations, so
+their retained profile aggregates can be compared directly; the shifted
+ellipsoid has the same representation-invariance pair. Run it with
+`profile_synthetic_quadratic_geometry_corpus(; repetitions = 3, warmup = true)`.
+
+`profile_result_data` and `profile_aggregate_data` expose retained runs,
+stage summaries, expected-evidence recovery, and nested diagnostic reports as
+renderer-neutral dictionaries. The package does not impose a JSON dependency;
+benchmark infrastructure can serialize the data with its own chosen package.
+`profile_comparison_data` provides the corresponding portable stage, finding,
+and numerical-metric comparisons without assigning either formulation a score.
+`markdown_profile_aggregate` provides a concise human-facing view of one
+aggregate's retained runs, expected-evidence recovery, stage observations, and
+finding stability.
+`markdown_profile_comparison` provides the corresponding human-facing stage,
+finding, and numerical-metric comparison without selecting a winner.
+
 `compare_profiles(baseline, candidate)` provides a transparent comparison of
 two repeated aggregates. It retains per-stage time and allocated-byte means,
 their candidate-to-baseline ratios where defined, and the occurrence rates of

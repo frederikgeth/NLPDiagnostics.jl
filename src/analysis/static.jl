@@ -2401,29 +2401,469 @@ function _analyze_reused_constraint_expressions!(
     return
 end
 
-function _unit_circle_radius_squared(function_value, set_value)
+_canonical_signed_zero(value::Real) = iszero(value) ? 0.0 : value
+
+"""Recognize an exact positive diagonal quadratic equality by completing squares.
+
+The recognized form is `sum(cᵢ / 2 * (xᵢ - centerᵢ)^2) = level`, with each
+`cᵢ > 0`.  Nonpositive effective levels are retained because they provide
+static feasibility and fixed-coordinate conclusions.
+"""
+function _positive_diagonal_quadratic_equality(function_value, set_value)
     function_value isa MOI.ScalarQuadraticFunction || return nothing
     set_value isa MOI.EqualTo || return nothing
-    isempty(function_value.affine_terms) || return nothing
     coefficients = Float64[]
     variables = MOI.VariableIndex[]
     for term in function_value.quadratic_terms
         term.variable_1 == term.variable_2 || return nothing
         coefficient = Float64(term.coefficient)
-        coefficient > 0 || return nothing
+        isfinite(coefficient) && coefficient > 0 || return nothing
         push!(coefficients, coefficient)
         push!(variables, term.variable_1)
     end
     length(coefficients) >= 2 || return nothing
     length(unique(variables)) == length(variables) || return nothing
-    all(coefficient -> coefficient == first(coefficients), coefficients) ||
+    affine_coefficients = Dict(variable => 0.0 for variable in variables)
+    for term in function_value.affine_terms
+        haskey(affine_coefficients, term.variable) || return nothing
+        coefficient = Float64(term.coefficient)
+        isfinite(coefficient) || return nothing
+        affine_coefficients[term.variable] += coefficient
+    end
+    centers = [
+        _canonical_signed_zero(-affine_coefficients[variable] / coefficient) for
+        (variable, coefficient) in zip(variables, coefficients)
+    ]
+    set_value_value = Float64(set_value.value)
+    constant_value = Float64(function_value.constant)
+    isfinite(set_value_value) && isfinite(constant_value) || return nothing
+    effective_level = set_value_value - constant_value +
+                      sum(
+        affine_coefficients[variable]^2 / (2 * coefficient) for
+        (variable, coefficient) in zip(variables, coefficients)
+    )
+    axis_squared = [2 * effective_level / coefficient for coefficient in coefficients]
+    return (
+        coefficients = coefficients,
+        variables = variables,
+        centers = centers,
+        effective_level = effective_level,
+        axis_squared = axis_squared,
+        is_shifted = any(!iszero, centers),
+        representation = "ScalarQuadraticFunction",
+    )
+end
+
+"""Return the exact center and minimum of a positive diagonal quadratic function."""
+function _positive_diagonal_quadratic_minimum(function_value)
+    function_value isa MOI.ScalarQuadraticFunction || return nothing
+    coefficients = Float64[]
+    variables = MOI.VariableIndex[]
+    for term in function_value.quadratic_terms
+        term.variable_1 == term.variable_2 || return nothing
+        coefficient = Float64(term.coefficient)
+        isfinite(coefficient) && coefficient > 0 || return nothing
+        push!(coefficients, coefficient)
+        push!(variables, term.variable_1)
+    end
+    length(coefficients) >= 2 || return nothing
+    length(unique(variables)) == length(variables) || return nothing
+    affine_coefficients = Dict(variable => 0.0 for variable in variables)
+    for term in function_value.affine_terms
+        haskey(affine_coefficients, term.variable) || return nothing
+        coefficient = Float64(term.coefficient)
+        isfinite(coefficient) || return nothing
+        affine_coefficients[term.variable] += coefficient
+    end
+    centers = [
+        _canonical_signed_zero(-affine_coefficients[variable] / coefficient) for
+        (variable, coefficient) in zip(variables, coefficients)
+    ]
+    constant_value = Float64(function_value.constant)
+    isfinite(constant_value) || return nothing
+    minimum_value = constant_value - sum(
+        affine_coefficients[variable]^2 / (2 * coefficient) for
+        (variable, coefficient) in zip(variables, coefficients)
+    )
+    return (
+        coefficients = coefficients,
+        variables = variables,
+        centers = centers,
+        minimum_value = minimum_value,
+        is_shifted = any(!iszero, centers),
+        axis_squared_multiplier = 2.0,
+    )
+end
+
+function _analyze_diagonal_quadratic_upper_bounds!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    records = Dict(record.index => record for record in model.variables)
+    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    for constraint in model.constraints
+        set_value = constraint.set_value
+        upper = if set_value isa MOI.LessThan
+            Float64(set_value.upper)
+        elseif set_value isa MOI.Interval
+            Float64(set_value.upper)
+        else
+            continue
+        end
+        result = _positive_diagonal_quadratic_minimum(constraint.function_value)
+        isnothing(result) && (result = _nonlinear_positive_diagonal_minimum(
+            constraint.function_value,
+        ))
+        isnothing(result) && continue
+        affected = [_constraint_ref(constraint)]
+        append!(affected, [_variable_ref(records[variable]) for variable in result.variables])
+        geometry = result.is_shifted ? "shifted positive diagonal quadratic" : "positive diagonal quadratic"
+        if upper < result.minimum_value
+            push!(report, Finding(
+                :infeasible_below_minimum_diagonal_quadratic_constraint;
+                severity = SeverityError,
+                domain = MathematicalIssue,
+                basis = MathematicalProof,
+                confidence = ConfidenceCertain,
+                observation = "Constraint $(constraint.index.value) bounds a $geometry expression above by $upper, below its exact minimum $(result.minimum_value).",
+                why_it_matters = "This single constraint is infeasible independently of initialization, numerical tolerances, or the remaining model.",
+                evidence = [Evidence("Completed positive diagonal quadratic minimum";
+                    details = ["upper_bound" => upper,
+                               "minimum_value" => result.minimum_value,
+                               "center" => result.centers,
+                               "coefficients" => result.coefficients],
+                )],
+                suggested_actions = ["Correct the upper bound, affine terms, or constant term if a feasible constraint was intended."],
+                affected = affected,
+            ))
+        elseif upper == result.minimum_value
+            for (variable, center) in zip(result.variables, result.centers)
+                declared = domains[variable]
+                lower_conflict = !isnothing(declared.lower) && declared.lower > center
+                upper_conflict = !isnothing(declared.upper) && declared.upper < center
+                if lower_conflict || upper_conflict
+                    bound_sources = vcat(
+                        lower_conflict ? declared.effective_lower_sources : EntityRef[],
+                        upper_conflict ? declared.effective_upper_sources : EntityRef[],
+                    )
+                    push!(report, Finding(
+                        :inconsistent_diagonal_quadratic_minimum_variable_bound;
+                        severity = SeverityError,
+                        domain = MathematicalIssue,
+                        basis = MathematicalProof,
+                        confidence = ConfidenceCertain,
+                        observation = "Constraint $(constraint.index.value) fixes $(_display_name(records[variable])) to $center at its exact positive-diagonal quadratic minimum, conflicting with the declared bound intersection.",
+                        why_it_matters = "The exact quadratic minimum and scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
+                        evidence = [Evidence("Completed positive diagonal quadratic minimum coordinate";
+                            details = ["implied_value" => center,
+                                       "minimum_value" => result.minimum_value,
+                                       "declared_lower" => declared.lower,
+                                       "declared_upper" => declared.upper],
+                        )],
+                        suggested_actions = ["Inspect the quadratic level and the effective scalar bound sources for this coordinate."],
+                        affected = vcat(
+                            [_constraint_ref(constraint), _variable_ref(records[variable])],
+                            bound_sources,
+                        ),
+                    ))
+                end
+            end
+            push!(report, Finding(
+                :minimum_level_diagonal_quadratic_constraint;
+                severity = SeverityWarning,
+                domain = MathematicalIssue,
+                basis = MathematicalProof,
+                confidence = ConfidenceCertain,
+                observation = "Constraint $(constraint.index.value) reaches the exact minimum of a $geometry expression, so every involved variable is mathematically fixed to its inferred center.",
+                why_it_matters = "This may be intentional, but it creates implicit fixed variables and can expose a missing margin or incorrectly scaled upper bound.",
+                evidence = [Evidence("Completed positive diagonal quadratic minimum";
+                    details = ["upper_bound" => upper,
+                               "minimum_value" => result.minimum_value,
+                               "center" => result.centers,
+                               "coefficients" => result.coefficients],
+                )],
+                suggested_actions = ["Confirm the implied coordinate values, or add the intended positive margin to the upper bound."],
+                affected = affected,
+            ))
+            push!(report, Finding(
+                :nonregular_minimum_level_diagonal_quadratic_inequality;
+                severity = SeverityWarning,
+                domain = NumericalIssue,
+                basis = MathematicalProof,
+                confidence = ConfidenceCertain,
+                observation = "The positive diagonal quadratic upper bound is active only at its minimum, where its constraint gradient vanishes.",
+                why_it_matters = "This is an exact nonregular active inequality: standard constraint qualifications such as MFCQ can fail even though the feasible set is a single intended point.",
+                evidence = [Evidence("Completed positive diagonal quadratic minimum";
+                    details = ["minimum_value" => result.minimum_value,
+                               "center" => result.centers,
+                               "variable_count" => length(result.variables)],
+                )],
+                suggested_actions = [
+                    "If the point fixing is intentional, consider explicit variable bounds or substitutions when compatible with the formulation.",
+                    "Interpret active-set and restoration findings together with this exact nonregularity evidence.",
+                ],
+                affected = affected,
+            ))
+        elseif isfinite(upper) && isfinite(result.minimum_value)
+            for (variable, coefficient, center) in
+                zip(result.variables, result.coefficients, result.centers)
+                radius_squared = result.axis_squared_multiplier *
+                                 (upper - result.minimum_value) / coefficient
+                radius_squared >= 0 && isfinite(radius_squared) || continue
+                radius = sqrt(radius_squared)
+                lower = center - radius
+                upper_coordinate = center + radius
+                declared = domains[variable]
+                lower_conflict = !isnothing(declared.lower) &&
+                                 declared.lower > upper_coordinate
+                upper_conflict = !isnothing(declared.upper) &&
+                                 declared.upper < lower
+                if lower_conflict || upper_conflict
+                    bound_sources = vcat(
+                        lower_conflict ? declared.effective_lower_sources : EntityRef[],
+                        upper_conflict ? declared.effective_upper_sources : EntityRef[],
+                    )
+                    push!(report, Finding(
+                        :inconsistent_diagonal_quadratic_implied_variable_bound;
+                        severity = SeverityError,
+                        domain = MathematicalIssue,
+                        basis = MathematicalProof,
+                        confidence = ConfidenceCertain,
+                        observation = "Constraint $(constraint.index.value) implies $(_display_name(records[variable])) lies in [$lower, $upper_coordinate], which conflicts with its declared bound intersection.",
+                        why_it_matters = "The quadratic upper level and the scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
+                        evidence = [Evidence("Completed positive diagonal quadratic coordinate interval";
+                            details = ["derived_lower" => lower,
+                                       "derived_upper" => upper_coordinate,
+                                       "declared_lower" => declared.lower,
+                                       "declared_upper" => declared.upper,
+                                       "minimum_value" => result.minimum_value],
+                        )],
+                        suggested_actions = ["Inspect the quadratic level and the effective scalar bound sources for this coordinate."],
+                        affected = vcat(
+                            [_constraint_ref(constraint), _variable_ref(records[variable])],
+                            bound_sources,
+                        ),
+                    ))
+                    continue
+                end
+                push!(report, Finding(
+                    :diagonal_quadratic_implied_variable_bound;
+                    severity = SeverityInfo,
+                    domain = RepresentationalIssue,
+                    basis = MathematicalProof,
+                    confidence = ConfidenceCertain,
+                    observation = "Constraint $(constraint.index.value) proves $(lower) ≤ $(_display_name(records[variable])) ≤ $(upper_coordinate) from its positive diagonal quadratic upper level.",
+                    why_it_matters = "The nonlinear row supplies an exact finite coordinate bound that can improve initialization, scaling interpretation, and downstream presolve without changing the model.",
+                    evidence = [Evidence("Completed positive diagonal quadratic coordinate interval";
+                        details = ["constraint_upper_bound" => upper,
+                                   "minimum_value" => result.minimum_value,
+                                   "center" => center,
+                                   "coefficient" => coefficient,
+                                   "derived_lower" => lower,
+                                   "derived_upper" => upper_coordinate],
+                    )],
+                    suggested_actions = ["Compare this implied interval with declared variable bounds and initialization values; NLPDiagnostics does not add bounds automatically."],
+                    affected = [_constraint_ref(constraint), _variable_ref(records[variable])],
+                ))
+            end
+        end
+    end
+    return
+end
+
+"""Recognize an exact isotropic quadratic equality by completing squares.
+
+The recognized form is `c / 2 * sum((xᵢ - centerᵢ)^2) = level`, for a common
+positive MOI diagonal coefficient `c`.  The returned radius squared deliberately
+retains nonpositive values: those cases have useful, stronger static conclusions
+than a radius-normalization hint.
+"""
+function _isotropic_quadratic_equality(function_value, set_value)
+    result = _positive_diagonal_quadratic_equality(function_value, set_value)
+    isnothing(result) && return nothing
+    all(coefficient -> coefficient == first(result.coefficients), result.coefficients) ||
         return nothing
-    # MOI's diagonal quadratic coefficient represents coefficient / 2 * x^2.
-    radius_squared =
-        2 * (Float64(set_value.value) - Float64(function_value.constant)) /
-        first(coefficients)
-    radius_squared > 0 || return nothing
-    return radius_squared, variables
+    return (
+        radius_squared = first(result.axis_squared),
+        variables = result.variables,
+        centers = result.centers,
+        is_shifted = result.is_shifted,
+        representation = "ScalarQuadraticFunction",
+    )
+end
+
+function _nonlinear_signed_addition_terms(value, sign::Real = 1.0)
+    if value isa MOI.ScalarNonlinearFunction && value.head == :+
+        terms = Tuple{Float64,Any}[]
+        for argument in value.args
+            append!(terms, _nonlinear_signed_addition_terms(argument, sign))
+        end
+        return terms
+    elseif value isa MOI.ScalarNonlinearFunction && value.head == :-
+        if length(value.args) == 1
+            return _nonlinear_signed_addition_terms(only(value.args), -sign)
+        elseif length(value.args) == 2
+            terms = _nonlinear_signed_addition_terms(value.args[1], sign)
+            append!(terms, _nonlinear_signed_addition_terms(value.args[2], -sign))
+            return terms
+        end
+    end
+    return Tuple{Float64,Any}[(Float64(sign), value)]
+end
+
+function _nonlinear_square_variable(value)
+    value isa MOI.ScalarNonlinearFunction || return nothing
+    if value.head == :^ && length(value.args) == 2 &&
+       value.args[1] isa MOI.VariableIndex &&
+       value.args[2] isa Real && value.args[2] == 2
+        return value.args[1]
+    elseif value.head == :* && length(value.args) == 2 &&
+           value.args[1] isa MOI.VariableIndex && value.args[1] == value.args[2]
+        return value.args[1]
+    end
+    return nothing
+end
+
+function _nonlinear_weighted_square(value)
+    variable = _nonlinear_square_variable(value)
+    !isnothing(variable) && return 1.0, variable
+    value isa MOI.ScalarNonlinearFunction && value.head == :* || return nothing
+    numeric_factors = Real[argument for argument in value.args if argument isa Real]
+    nonnumeric_factors = Any[argument for argument in value.args if !(argument isa Real)]
+    isempty(numeric_factors) && return nothing
+    coefficient = prod(Float64.(numeric_factors))
+    if length(nonnumeric_factors) == 1
+        variable = _nonlinear_square_variable(only(nonnumeric_factors))
+        !isnothing(variable) && return coefficient, variable
+    elseif length(nonnumeric_factors) == 2 &&
+           all(argument -> argument isa MOI.VariableIndex, nonnumeric_factors) &&
+           first(nonnumeric_factors) == last(nonnumeric_factors)
+        return coefficient, first(nonnumeric_factors)
+    end
+    return nothing
+end
+
+function _nonlinear_weighted_variable(value)
+    value isa MOI.VariableIndex && return 1.0, value
+    value isa MOI.ScalarNonlinearFunction && value.head == :* || return nothing
+    numeric_factors = Real[argument for argument in value.args if argument isa Real]
+    nonnumeric_factors = Any[argument for argument in value.args if !(argument isa Real)]
+    length(nonnumeric_factors) == 1 && only(nonnumeric_factors) isa MOI.VariableIndex ||
+        return nothing
+    isempty(numeric_factors) && return nothing
+    return prod(Float64.(numeric_factors)), only(nonnumeric_factors)
+end
+
+"""Normalize an exact positive diagonal nonlinear quadratic expression."""
+function _nonlinear_positive_diagonal_components(function_value)
+    function_value isa MOI.ScalarNonlinearFunction || return nothing
+    variables = MOI.VariableIndex[]
+    coefficients = Float64[]
+    linear_coefficients = Dict{MOI.VariableIndex,Float64}()
+    constant = 0.0
+    for (sign, term) in _nonlinear_signed_addition_terms(function_value)
+        if term isa Real
+            term_value = Float64(term)
+            isfinite(term_value) || return nothing
+            constant += sign * term_value
+            continue
+        end
+        weighted_square = _nonlinear_weighted_square(term)
+        if !isnothing(weighted_square)
+            coefficient, variable = weighted_square
+            coefficient *= sign
+            isfinite(coefficient) && coefficient > 0 || return nothing
+            push!(coefficients, coefficient)
+            push!(variables, variable)
+            continue
+        end
+        weighted_variable = _nonlinear_weighted_variable(term)
+        isnothing(weighted_variable) && return nothing
+        coefficient, variable = weighted_variable
+        isfinite(coefficient) || return nothing
+        linear_coefficients[variable] =
+            get(linear_coefficients, variable, 0.0) + sign * coefficient
+    end
+    length(variables) >= 2 || return nothing
+    length(unique(variables)) == length(variables) || return nothing
+    all(variable -> variable in variables, keys(linear_coefficients)) ||
+        return nothing
+    isfinite(constant) || return nothing
+    return (
+        coefficients = coefficients,
+        variables = variables,
+        linear_coefficients = linear_coefficients,
+        constant = constant,
+    )
+end
+
+"""Recognize an exact positive diagonal nonlinear quadratic equality."""
+function _nonlinear_positive_diagonal_equality(function_value, set_value)
+    set_value isa MOI.EqualTo || return nothing
+    components = _nonlinear_positive_diagonal_components(function_value)
+    isnothing(components) && return nothing
+    set_value_value = Float64(set_value.value)
+    isfinite(set_value_value) || return nothing
+    coefficients = components.coefficients
+    variables = components.variables
+    linear_coefficients = components.linear_coefficients
+    centers = [
+        _canonical_signed_zero(-get(linear_coefficients, variable, 0.0) / (2 * coefficient)) for
+        (variable, coefficient) in zip(variables, coefficients)
+    ]
+    effective_level = set_value_value - components.constant + sum(
+        get(linear_coefficients, variable, 0.0)^2 / (4 * coefficient) for
+        (variable, coefficient) in zip(variables, coefficients)
+    )
+    return (
+        coefficients = coefficients,
+        variables = variables,
+        centers = centers,
+        effective_level = effective_level,
+        axis_squared = [effective_level / coefficient for coefficient in coefficients],
+        is_shifted = any(!iszero, centers),
+        representation = "ScalarNonlinearFunction",
+    )
+end
+
+"""Return the exact center and minimum of a positive diagonal nonlinear quadratic."""
+function _nonlinear_positive_diagonal_minimum(function_value)
+    components = _nonlinear_positive_diagonal_components(function_value)
+    isnothing(components) && return nothing
+    coefficients = components.coefficients
+    variables = components.variables
+    linear_coefficients = components.linear_coefficients
+    centers = [
+        _canonical_signed_zero(-get(linear_coefficients, variable, 0.0) / (2 * coefficient)) for
+        (variable, coefficient) in zip(variables, coefficients)
+    ]
+    minimum_value = components.constant - sum(
+        get(linear_coefficients, variable, 0.0)^2 / (4 * coefficient) for
+        (variable, coefficient) in zip(variables, coefficients)
+    )
+    return (
+        coefficients = coefficients,
+        variables = variables,
+        centers = centers,
+        minimum_value = minimum_value,
+        is_shifted = any(!iszero, centers),
+        axis_squared_multiplier = 1.0,
+    )
+end
+
+"""Recognize `sum(a*xᵢ^2 + bᵢ*xᵢ) + c == d` with common positive `a` exactly."""
+function _nonlinear_isotropic_square_equality(function_value, set_value)
+    result = _nonlinear_positive_diagonal_equality(function_value, set_value)
+    isnothing(result) && return nothing
+    all(coefficient -> coefficient == first(result.coefficients), result.coefficients) ||
+        return nothing
+    return (
+        radius_squared = first(result.axis_squared),
+        variables = result.variables,
+        centers = result.centers,
+        is_shifted = result.is_shifted,
+        representation = result.representation,
+    )
 end
 
 function _analyze_circular_normalization!(
@@ -2431,22 +2871,201 @@ function _analyze_circular_normalization!(
     model::ModelSnapshot;
     unit_radius_tolerance::Real = 1.0e-6,
 )
+    isfinite(unit_radius_tolerance) && unit_radius_tolerance >= 0 ||
+        throw(ArgumentError("unit_radius_tolerance must be finite and nonnegative"))
     records = Dict(record.index => record for record in model.variables)
+    domains = Dict(domain.variable => domain for domain in variable_domains(model))
     for constraint in model.constraints
-        result = _unit_circle_radius_squared(
+        result = _isotropic_quadratic_equality(
             constraint.function_value,
             constraint.set_value,
         )
+        isnothing(result) && (result = _nonlinear_isotropic_square_equality(
+            constraint.function_value,
+            constraint.set_value,
+        ))
         isnothing(result) && continue
-        radius_squared, variables = result
-        isapprox(radius_squared, 1.0; rtol = unit_radius_tolerance, atol = unit_radius_tolerance) &&
-            continue
-        radius = sqrt(radius_squared)
+        radius_squared = result.radius_squared
+        variables = result.variables
+        centers = result.centers
+        is_shifted = result.is_shifted
+        representation = result.representation
+        geometry = is_shifted ? "shifted isotropic" : "unshifted isotropic"
         affected = [_constraint_ref(constraint)]
         append!(
             affected,
             [_variable_ref(records[variable]) for variable in variables],
         )
+        if radius_squared < 0
+            push!(
+                report,
+                Finding(
+                    :infeasible_negative_radius_squared_circular_constraint;
+                    severity = SeverityError,
+                    domain = MathematicalIssue,
+                    basis = MathematicalProof,
+                    confidence = ConfidenceCertain,
+                    observation = "A $geometry sum-of-squares equality has negative radius squared $radius_squared and is infeasible.",
+                    why_it_matters = "A positive weighted sum of squares cannot equal a negative level, independently of initialization or solver tolerances.",
+                    evidence = [Evidence(
+                        "Recognized isotropic quadratic equality";
+                        details = [
+                            "variable_count" => length(variables),
+                            "radius_squared" => radius_squared,
+                            "is_shifted" => is_shifted,
+                            "center" => centers,
+                            "representation" => representation,
+                        ],
+                    )],
+                    suggested_actions = [
+                        "Correct the right-hand side or the constant term if a feasible circular constraint was intended.",
+                    ],
+                    affected = affected,
+                ),
+            )
+            continue
+        elseif iszero(radius_squared)
+            for (variable, center) in zip(variables, centers)
+                declared = domains[variable]
+                lower_conflict = !isnothing(declared.lower) && declared.lower > center
+                upper_conflict = !isnothing(declared.upper) && declared.upper < center
+                if lower_conflict || upper_conflict
+                    bound_sources = vcat(
+                        lower_conflict ? declared.effective_lower_sources : EntityRef[],
+                        upper_conflict ? declared.effective_upper_sources : EntityRef[],
+                    )
+                    push!(report, Finding(
+                        :inconsistent_zero_radius_circular_variable_bound;
+                        severity = SeverityError,
+                        domain = MathematicalIssue,
+                        basis = MathematicalProof,
+                        confidence = ConfidenceCertain,
+                        observation = "The zero-radius circular equality fixes $(_display_name(records[variable])) to $center, conflicting with the declared bound intersection.",
+                        why_it_matters = "The implied circular center and scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
+                        evidence = [Evidence("Zero-radius isotropic quadratic coordinate";
+                            details = ["implied_value" => center,
+                                       "declared_lower" => declared.lower,
+                                       "declared_upper" => declared.upper,
+                                       "representation" => representation],
+                        )],
+                        suggested_actions = ["Inspect the circular level and the effective scalar bound sources for this coordinate."],
+                        affected = vcat(
+                            [_constraint_ref(constraint), _variable_ref(records[variable])],
+                            bound_sources,
+                        ),
+                    ))
+                end
+            end
+            push!(
+                report,
+                Finding(
+                    :zero_radius_circular_constraint;
+                    severity = SeverityWarning,
+                    domain = MathematicalIssue,
+                    basis = MathematicalProof,
+                    confidence = ConfidenceCertain,
+                    observation = "A $geometry sum-of-squares equality has zero radius, so every involved variable is mathematically fixed to its inferred center.",
+                    why_it_matters = "This may be intentional, but it creates implicit fixed variables and can expose a missing or incorrectly scaled right-hand side.",
+                    evidence = [Evidence(
+                        "Recognized zero-radius isotropic quadratic equality";
+                        details = [
+                            "variable_count" => length(variables),
+                            "radius_squared" => radius_squared,
+                            "is_shifted" => is_shifted,
+                            "center" => centers,
+                            "representation" => representation,
+                        ],
+                    )],
+                    suggested_actions = [
+                        "Confirm that fixing every coordinate to zero is intended, or correct the right-hand side and scaling.",
+                    ],
+                    affected = affected,
+                ),
+            )
+            push!(
+                report,
+                Finding(
+                    :nonregular_zero_radius_quadratic_fixing;
+                    severity = SeverityWarning,
+                    domain = NumericalIssue,
+                    basis = MathematicalProof,
+                    confidence = ConfidenceCertain,
+                    observation = "The zero-radius equality fixes $(length(variables)) coordinate(s), but its equality Jacobian vanishes at the only feasible center.",
+                    why_it_matters = "This exact implicit fixing is nonregular in standard equality coordinates: local rank, LICQ, and derivative-based solver diagnostics can report a singular row even though the feasible set is a point.",
+                    evidence = [Evidence(
+                        "Zero-radius completed-square geometry";
+                        details = [
+                            "variable_count" => length(variables),
+                            "center" => centers,
+                            "representation" => representation,
+                        ],
+                    )],
+                    suggested_actions = [
+                        "If this fixing is intentional, consider explicit variable bounds or substitutions when compatible with the formulation.",
+                        "Interpret zero-Jacobian and active-set rank findings together with this exact geometric evidence.",
+                    ],
+                    affected = affected,
+                ),
+            )
+            continue
+        end
+        radius = sqrt(radius_squared)
+        for (variable, center) in zip(variables, centers)
+            lower, upper = center - radius, center + radius
+            declared = domains[variable]
+            lower_conflict = !isnothing(declared.lower) && declared.lower > upper
+            upper_conflict = !isnothing(declared.upper) && declared.upper < lower
+            if lower_conflict || upper_conflict
+                bound_sources = vcat(
+                    lower_conflict ? declared.effective_lower_sources : EntityRef[],
+                    upper_conflict ? declared.effective_upper_sources : EntityRef[],
+                )
+                push!(report, Finding(
+                    :inconsistent_circular_implied_variable_bound;
+                    severity = SeverityError,
+                    domain = MathematicalIssue,
+                    basis = MathematicalProof,
+                    confidence = ConfidenceCertain,
+                    observation = "The circular equality implies $(_display_name(records[variable])) lies in [$lower, $upper], conflicting with the declared bound intersection.",
+                    why_it_matters = "The exact circular coordinate interval and scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
+                    evidence = [Evidence("Circular equality coordinate interval";
+                        details = ["derived_lower" => lower,
+                                   "derived_upper" => upper,
+                                   "center" => center,
+                                   "radius" => radius,
+                                   "declared_lower" => declared.lower,
+                                   "declared_upper" => declared.upper,
+                                   "representation" => representation],
+                    )],
+                    suggested_actions = ["Inspect the circular level and the effective scalar bound sources for this coordinate."],
+                    affected = vcat(
+                        [_constraint_ref(constraint), _variable_ref(records[variable])],
+                        bound_sources,
+                    ),
+                ))
+            else
+                push!(report, Finding(
+                    :circular_implied_variable_bound;
+                    severity = SeverityInfo,
+                    domain = RepresentationalIssue,
+                    basis = MathematicalProof,
+                    confidence = ConfidenceCertain,
+                    observation = "The circular equality proves $(_display_name(records[variable])) lies in [$lower, $upper].",
+                    why_it_matters = "This exact coordinate interval can reveal hidden scaling, unsafe initialization, or safe presolve tightening without modifying the model.",
+                    evidence = [Evidence("Circular equality coordinate interval";
+                        details = ["derived_lower" => lower,
+                                   "derived_upper" => upper,
+                                   "center" => center,
+                                   "radius" => radius,
+                                   "representation" => representation],
+                    )],
+                    suggested_actions = ["Compare this interval with declared bounds and initialization values; NLPDiagnostics does not add bounds automatically."],
+                    affected = [_constraint_ref(constraint), _variable_ref(records[variable])],
+                ))
+            end
+        end
+        isapprox(radius_squared, 1.0; rtol = unit_radius_tolerance, atol = unit_radius_tolerance) &&
+            continue
         push!(
             report,
             Finding(
@@ -2455,7 +3074,7 @@ function _analyze_circular_normalization!(
                 domain = RepresentationalIssue,
                 basis = HeuristicInterpretation,
                 confidence = ConfidenceMedium,
-                observation = "An unshifted circular equality has inferred radius $radius (radius squared $radius_squared), rather than approximately one.",
+                observation = "A $geometry quadratic equality has inferred radius $radius (radius squared $radius_squared), rather than approximately one.",
                 why_it_matters = "This is mathematically valid, but non-unit radii can obscure per-unit assumptions and alter derivative and tolerance scales.",
                 evidence = [
                     Evidence(
@@ -2464,6 +3083,9 @@ function _analyze_circular_normalization!(
                             "variable_count" => length(variables),
                             "radius" => radius,
                             "radius_squared" => radius_squared,
+                            "is_shifted" => is_shifted,
+                            "center" => centers,
+                            "representation" => representation,
                             "unit_radius_tolerance" => unit_radius_tolerance,
                         ],
                     ),
@@ -2479,10 +3101,210 @@ function _analyze_circular_normalization!(
     return
 end
 
+function _analyze_ellipsoidal_normalization!(
+    report::DiagnosticReport,
+    model::ModelSnapshot;
+    unit_radius_tolerance::Real = 1.0e-6,
+)
+    records = Dict(record.index => record for record in model.variables)
+    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    for constraint in model.constraints
+        result = _positive_diagonal_quadratic_equality(
+            constraint.function_value,
+            constraint.set_value,
+        )
+        isnothing(result) && (result = _nonlinear_positive_diagonal_equality(
+            constraint.function_value,
+            constraint.set_value,
+        ))
+        isnothing(result) && continue
+        all(coefficient -> coefficient == first(result.coefficients), result.coefficients) &&
+            continue
+        affected = [_constraint_ref(constraint)]
+        append!(affected, [_variable_ref(records[variable]) for variable in result.variables])
+        geometry = result.is_shifted ? "shifted diagonal ellipsoid" : "diagonal ellipsoid"
+        if result.effective_level < 0
+            push!(report, Finding(
+                :infeasible_negative_level_diagonal_quadratic_constraint;
+                severity = SeverityError,
+                domain = MathematicalIssue,
+                basis = MathematicalProof,
+                confidence = ConfidenceCertain,
+                observation = "A $geometry equality has negative completed-square level $(result.effective_level) and is infeasible.",
+                why_it_matters = "A positive weighted sum of squares cannot equal a negative level, independently of initialization or solver tolerances.",
+                evidence = [Evidence("Completed positive diagonal quadratic equality";
+                    details = ["variable_count" => length(result.variables),
+                               "effective_level" => result.effective_level,
+                               "coefficients" => result.coefficients,
+                               "center" => result.centers,
+                               "representation" => result.representation],
+                )],
+                suggested_actions = ["Correct the right-hand side, affine terms, or constant term if a feasible ellipsoidal constraint was intended."],
+                affected = affected,
+            ))
+            continue
+        elseif iszero(result.effective_level)
+            for (variable, center) in zip(result.variables, result.centers)
+                declared = domains[variable]
+                lower_conflict = !isnothing(declared.lower) && declared.lower > center
+                upper_conflict = !isnothing(declared.upper) && declared.upper < center
+                if lower_conflict || upper_conflict
+                    bound_sources = vcat(
+                        lower_conflict ? declared.effective_lower_sources : EntityRef[],
+                        upper_conflict ? declared.effective_upper_sources : EntityRef[],
+                    )
+                    push!(report, Finding(
+                        :inconsistent_zero_level_diagonal_quadratic_variable_bound;
+                        severity = SeverityError,
+                        domain = MathematicalIssue,
+                        basis = MathematicalProof,
+                        confidence = ConfidenceCertain,
+                        observation = "The zero-level diagonal quadratic equality fixes $(_display_name(records[variable])) to $center, conflicting with the declared bound intersection.",
+                        why_it_matters = "The implied ellipsoid center and scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
+                        evidence = [Evidence("Zero-level positive diagonal quadratic coordinate";
+                            details = ["implied_value" => center,
+                                       "declared_lower" => declared.lower,
+                                       "declared_upper" => declared.upper,
+                                       "representation" => result.representation],
+                        )],
+                        suggested_actions = ["Inspect the quadratic level and the effective scalar bound sources for this coordinate."],
+                        affected = vcat(
+                            [_constraint_ref(constraint), _variable_ref(records[variable])],
+                            bound_sources,
+                        ),
+                    ))
+                end
+            end
+            push!(report, Finding(
+                :zero_level_diagonal_quadratic_constraint;
+                severity = SeverityWarning,
+                domain = MathematicalIssue,
+                basis = MathematicalProof,
+                confidence = ConfidenceCertain,
+                observation = "A $geometry equality has zero completed-square level, so every involved variable is mathematically fixed to its inferred center.",
+                why_it_matters = "This may be intentional, but it creates implicit fixed variables and can expose a missing or incorrectly scaled right-hand side.",
+                evidence = [Evidence("Completed positive diagonal quadratic equality";
+                    details = ["variable_count" => length(result.variables),
+                               "effective_level" => result.effective_level,
+                               "center" => result.centers,
+                               "representation" => result.representation],
+                )],
+                suggested_actions = ["Confirm the implied coordinate values, or correct the right-hand side and scaling."],
+                affected = affected,
+            ))
+            push!(report, Finding(
+                :nonregular_zero_level_diagonal_quadratic_fixing;
+                severity = SeverityWarning,
+                domain = NumericalIssue,
+                basis = MathematicalProof,
+                confidence = ConfidenceCertain,
+                observation = "The zero-level diagonal ellipsoid fixes $(length(result.variables)) coordinate(s), but its equality Jacobian vanishes at the only feasible center.",
+                why_it_matters = "This exact implicit fixing is nonregular in standard equality coordinates and can produce singular local Jacobian or active-set evidence despite a point feasible set.",
+                evidence = [Evidence("Zero-level completed-square geometry";
+                    details = ["variable_count" => length(result.variables),
+                               "center" => result.centers,
+                               "representation" => result.representation],
+                )],
+                suggested_actions = [
+                    "If this fixing is intentional, consider explicit variable bounds or substitutions when compatible with the formulation.",
+                    "Interpret zero-Jacobian and active-set rank findings together with this exact geometric evidence.",
+                ],
+                affected = affected,
+            ))
+            continue
+        end
+        semiaxes = sqrt.(result.axis_squared)
+        for (variable, center, semiaxis) in
+            zip(result.variables, result.centers, semiaxes)
+            lower, upper = center - semiaxis, center + semiaxis
+            declared = domains[variable]
+            lower_conflict = !isnothing(declared.lower) && declared.lower > upper
+            upper_conflict = !isnothing(declared.upper) && declared.upper < lower
+            if lower_conflict || upper_conflict
+                bound_sources = vcat(
+                    lower_conflict ? declared.effective_lower_sources : EntityRef[],
+                    upper_conflict ? declared.effective_upper_sources : EntityRef[],
+                )
+                push!(report, Finding(
+                    :inconsistent_ellipsoidal_implied_variable_bound;
+                    severity = SeverityError,
+                    domain = MathematicalIssue,
+                    basis = MathematicalProof,
+                    confidence = ConfidenceCertain,
+                    observation = "The ellipsoidal equality implies $(_display_name(records[variable])) lies in [$lower, $upper], conflicting with the declared bound intersection.",
+                    why_it_matters = "The exact ellipsoidal coordinate interval and scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
+                    evidence = [Evidence("Ellipsoidal equality coordinate interval";
+                        details = ["derived_lower" => lower,
+                                   "derived_upper" => upper,
+                                   "center" => center,
+                                   "semiaxis" => semiaxis,
+                                   "declared_lower" => declared.lower,
+                                   "declared_upper" => declared.upper,
+                                   "representation" => result.representation],
+                    )],
+                    suggested_actions = ["Inspect the ellipsoidal level and the effective scalar bound sources for this coordinate."],
+                    affected = vcat(
+                        [_constraint_ref(constraint), _variable_ref(records[variable])],
+                        bound_sources,
+                    ),
+                ))
+            else
+                push!(report, Finding(
+                    :ellipsoidal_implied_variable_bound;
+                    severity = SeverityInfo,
+                    domain = RepresentationalIssue,
+                    basis = MathematicalProof,
+                    confidence = ConfidenceCertain,
+                    observation = "The ellipsoidal equality proves $(_display_name(records[variable])) lies in [$lower, $upper].",
+                    why_it_matters = "This exact coordinate interval can reveal hidden scaling, unsafe initialization, or safe presolve tightening without modifying the model.",
+                    evidence = [Evidence("Ellipsoidal equality coordinate interval";
+                        details = ["derived_lower" => lower,
+                                   "derived_upper" => upper,
+                                   "center" => center,
+                                   "semiaxis" => semiaxis,
+                                   "representation" => result.representation],
+                    )],
+                    suggested_actions = ["Compare this interval with declared bounds and initialization values; NLPDiagnostics does not add bounds automatically."],
+                    affected = [_constraint_ref(constraint), _variable_ref(records[variable])],
+                ))
+            end
+        end
+        all(axis_squared -> isapprox(axis_squared, 1.0;
+                                     rtol = unit_radius_tolerance,
+                                     atol = unit_radius_tolerance), result.axis_squared) && continue
+        push!(report, Finding(
+            :nonunit_ellipsoidal_constraint_axes;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = HeuristicInterpretation,
+            confidence = ConfidenceMedium,
+            observation = "A $geometry equality has inferred semiaxes $semiaxes, rather than approximately unit coordinate scales.",
+            why_it_matters = "The equality is mathematically valid, but unequal or non-unit axes can hide coordinate scaling and change derivative and tolerance semantics.",
+            evidence = [Evidence("Completed positive diagonal quadratic equality";
+                details = ["variable_count" => length(result.variables),
+                           "semiaxes" => semiaxes,
+                           "axis_squared" => result.axis_squared,
+                           "coefficients" => result.coefficients,
+                           "center" => result.centers,
+                           "is_shifted" => result.is_shifted,
+                           "representation" => result.representation,
+                           "unit_radius_tolerance" => unit_radius_tolerance],
+            )],
+            suggested_actions = [
+                "Confirm that the semiaxes carry intended physical units and coordinate scales.",
+                "If unit-scaled coordinates were intended, rescale the variables and document the resulting tolerance semantics.",
+            ],
+            affected = affected,
+        ))
+    end
+    return
+end
+
 function analyze_static(
     model::ModelSnapshot;
     graph::IncidenceGraph = incidence_graph(model),
     max_affine_propagation_passes::Integer = 5,
+    unit_circle_radius_tolerance::Real = 1.0e-6,
 )
     report = DiagnosticReport()
     report.metadata[:stage] = "static"
@@ -2518,7 +3340,17 @@ function analyze_static(
         model,
         max_affine_propagation_passes,
     )
-    _analyze_circular_normalization!(report, model)
+    _analyze_circular_normalization!(
+        report,
+        model;
+        unit_radius_tolerance = unit_circle_radius_tolerance,
+    )
+    _analyze_ellipsoidal_normalization!(
+        report,
+        model;
+        unit_radius_tolerance = unit_circle_radius_tolerance,
+    )
+    _analyze_diagonal_quadratic_upper_bounds!(report, model)
     _analyze_disconnected_variables!(report, model, graph)
     sort!(
         report.findings;

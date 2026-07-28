@@ -93,6 +93,38 @@ end
         @test !isempty(run.expression_report.findings)
         @test length(findings(run.reformulation_report, :stable_reformulation_candidate)) == 1
     end
+    stability_data = NLPDiagnostics.profile_aggregate_data(
+        stability_aggregates["stability_log1mexp_composite"],
+    )
+    @test stability_data["case"]["name"] == "stability_log1mexp_composite"
+    @test haskey(stability_data["stage_timing"], "expressions")
+    @test only(stability_data["runs"])["reports"]["reformulation"]["metadata"]["stage"] ==
+          "stable_reformulation_plan"
+    stability_comparison = NLPDiagnostics.compare_profiles(
+        stability_aggregates["stability_log1mexp_composite"],
+        stability_aggregates["stability_logcosh_composite"],
+    )
+    stability_comparison_data = NLPDiagnostics.profile_comparison_data(
+        stability_comparison,
+    )
+    @test stability_comparison_data["baseline_case"]["name"] ==
+          "stability_log1mexp_composite"
+    @test any(
+        item -> item["stage"] == "expressions",
+        stability_comparison_data["stage_comparisons"],
+    )
+    stability_markdown = NLPDiagnostics.markdown_profile_aggregate(
+        stability_aggregates["stability_log1mexp_composite"],
+    )
+    @test occursin("# NLPDiagnostics profile: stability_log1mexp_composite", stability_markdown)
+    @test occursin("## Expected evidence", stability_markdown)
+    @test occursin("`expressions`", stability_markdown)
+    stability_comparison_markdown = NLPDiagnostics.markdown_profile_comparison(
+        stability_comparison,
+    )
+    @test occursin("# NLPDiagnostics profile comparison", stability_comparison_markdown)
+    @test occursin("Baseline: `stability_log1mexp_composite`", stability_comparison_markdown)
+    @test occursin("## Numerical metric comparison", stability_comparison_markdown)
     boundary_models, boundary_cases =
         NLPDiagnostics.synthetic_derivative_boundary_profile_corpus()
     @test length(boundary_models) == length(boundary_cases) == 8
@@ -127,11 +159,85 @@ end
         ),
         values(float32_aggregates),
     )
+    geometry_models, geometry_cases =
+        NLPDiagnostics.synthetic_quadratic_geometry_profile_corpus()
+    @test length(geometry_models) == length(geometry_cases) == 8
+    @test [case.name for case in geometry_cases] == [
+        "quadratic_nonunit_circle",
+        "nonlinear_nonunit_circle",
+        "quadratic_shifted_ellipsoid",
+        "nonlinear_shifted_ellipsoid",
+        "quadratic_zero_radius",
+        "quadratic_negative_radius_squared",
+        "quadratic_implied_bound_conflict",
+        "quadratic_minimum_level_inequality",
+    ]
+    geometry_aggregates = NLPDiagnostics.profile_synthetic_quadratic_geometry_corpus(
+        repetitions = 1, warmup = false,
+    )
+    @test all(
+        aggregate -> all(item -> item.fraction == 1.0, aggregate.expected_evidence),
+        values(geometry_aggregates),
+    )
+    @test Set(item.code for item in geometry_aggregates["quadratic_zero_radius"].expected_evidence) ==
+          Set([:zero_radius_circular_constraint, :nonregular_zero_radius_quadratic_fixing])
+    @test Set(item.code for item in geometry_aggregates["quadratic_minimum_level_inequality"].expected_evidence) ==
+          Set([
+              :minimum_level_diagonal_quadratic_constraint,
+              :nonregular_minimum_level_diagonal_quadratic_inequality,
+          ])
     duplicate = NLPDiagnostics.ProfileCase("first", point)
     @test_throws ArgumentError NLPDiagnostics.profile_cases_repeated(
         MOI.ModelLike[],
         [first_case, duplicate],
     )
+end
+
+@testset "renderer-neutral report data" begin
+    entity = NLPDiagnostics.EntityRef(
+        :constraint,
+        3;
+        subindex = 2,
+        name = "balance",
+        function_type = "ScalarNonlinearFunction",
+        set_type = "EqualTo",
+    )
+    finding = NLPDiagnostics.Finding(
+        :example;
+        severity = NLPDiagnostics.SeverityWarning,
+        domain = NLPDiagnostics.NumericalIssue,
+        basis = NLPDiagnostics.NumericalObservation,
+        confidence = NLPDiagnostics.ConfidenceHigh,
+        observation = "Example finding.",
+        why_it_matters = "Example evidence serialization.",
+        evidence = [NLPDiagnostics.Evidence("Example"; details = ["margin" => "1e-6"])],
+        suggested_actions = ["Inspect the source row."],
+        affected = [entity],
+    )
+    report = NLPDiagnostics.DiagnosticReport([finding], Dict(:stage => "test"))
+    data = NLPDiagnostics.report_data(report)
+    @test data["metadata"] == Dict("stage" => "test")
+    finding_data = only(data["findings"])
+    @test finding_data["severity"] == "warning"
+    @test finding_data["domain"] == "numerical"
+    @test finding_data["basis"] == "numerical_observation"
+    @test only(finding_data["evidence"])["details"] == Dict("margin" => "1e-6")
+    @test only(finding_data["affected"])["subindex"] == 2
+    @test NLPDiagnostics.findings(
+        report;
+        code = :example,
+        severity = NLPDiagnostics.SeverityWarning,
+        domain = NLPDiagnostics.NumericalIssue,
+    ) == [finding]
+    @test isempty(NLPDiagnostics.findings(report; severity = NLPDiagnostics.SeverityError))
+    @test NLPDiagnostics.finding_code_counts(report) == Dict(:example => 1)
+    @test data["finding_code_counts"] == Dict("example" => 1)
+    markdown = NLPDiagnostics.markdown_report(report)
+    @test occursin("# NLPDiagnostics report", markdown)
+    @test occursin("## WARNING · numerical · `example`", markdown)
+    @test occursin("### Evidence", markdown)
+    @test occursin("`constraint[3/2] (balance)`", markdown)
+    @test sprint(show, MIME"text/markdown"(), report) == markdown
 end
 
 @testset "component metadata plugin boundary" begin
@@ -4247,6 +4353,604 @@ end
         @test finding.domain == NLPDiagnostics.RepresentationalIssue
         @test finding.basis == NLPDiagnostics.HeuristicInterpretation
         @test Dict(finding.evidence[1].details)["radius"] == "2.0"
+
+        near_unit = new_model()
+        u, v = MOI.add_variables(near_unit, 2)
+        near_unit_circle = Q(
+            [QT(2.0, u, u), QT(2.0, v, v)],
+            MOI.ScalarAffineTerm{Float64}[],
+            0.0,
+        )
+        MOI.add_constraint(near_unit, near_unit_circle, MOI.EqualTo(1.0001))
+        @test isempty(findings(
+            NLPDiagnostics.analyze_static(
+                near_unit;
+                unit_circle_radius_tolerance = 1.0e-3,
+            ),
+            :nonunit_circular_constraint_radius,
+        ))
+        @test length(findings(
+            NLPDiagnostics.analyze_static(
+                near_unit;
+                unit_circle_radius_tolerance = 1.0e-6,
+            ),
+            :nonunit_circular_constraint_radius,
+        )) == 1
+
+        nonlinear = new_model()
+        u, v = MOI.add_variables(nonlinear, 2)
+        sum_of_squares = MOI.ScalarNonlinearFunction(
+            :+,
+            Any[
+                MOI.ScalarNonlinearFunction(:^, Any[u, 2]),
+                MOI.ScalarNonlinearFunction(:*, Any[v, v]),
+            ],
+        )
+        MOI.add_constraint(nonlinear, sum_of_squares, MOI.EqualTo(4.0))
+        nonlinear_finding = only(findings(
+            NLPDiagnostics.analyze_static(nonlinear),
+            :nonunit_circular_constraint_radius,
+        ))
+        @test evidence_details(nonlinear_finding)["representation"] ==
+              "ScalarNonlinearFunction"
+
+        weighted_nonlinear = new_model()
+        p, q = MOI.add_variables(weighted_nonlinear, 2)
+        weighted_sum_of_squares = MOI.ScalarNonlinearFunction(
+            :+,
+            Any[
+                MOI.ScalarNonlinearFunction(
+                    :*,
+                    Any[2.0, MOI.ScalarNonlinearFunction(:^, Any[p, 2])],
+                ),
+                MOI.ScalarNonlinearFunction(
+                    :*,
+                    Any[MOI.ScalarNonlinearFunction(:*, Any[q, q]), 2.0],
+                ),
+            ],
+        )
+        MOI.add_constraint(weighted_nonlinear, weighted_sum_of_squares, MOI.EqualTo(4.0))
+        weighted_finding = only(findings(
+            NLPDiagnostics.analyze_static(weighted_nonlinear),
+            :nonunit_circular_constraint_radius,
+        ))
+        @test evidence_details(weighted_finding)["radius_squared"] == "2.0"
+
+        nary_weighted_nonlinear = new_model()
+        r, s = MOI.add_variables(nary_weighted_nonlinear, 2)
+        nary_weighted_sum = MOI.ScalarNonlinearFunction(
+            :+,
+            Any[
+                MOI.ScalarNonlinearFunction(:*, Any[2.0, r, r]),
+                MOI.ScalarNonlinearFunction(:*, Any[s, 2.0, s]),
+            ],
+        )
+        MOI.add_constraint(nary_weighted_nonlinear, nary_weighted_sum, MOI.EqualTo(4.0))
+        nary_finding = only(findings(
+            NLPDiagnostics.analyze_static(nary_weighted_nonlinear),
+            :nonunit_circular_constraint_radius,
+        ))
+        @test evidence_details(nary_finding)["radius_squared"] == "2.0"
+
+        coupled = new_model()
+        m, n = MOI.add_variables(coupled, 2)
+        coupled_quadratic = MOI.ScalarNonlinearFunction(
+            :+,
+            Any[
+                MOI.ScalarNonlinearFunction(:^, Any[m, 2]),
+                MOI.ScalarNonlinearFunction(:^, Any[n, 2]),
+                MOI.ScalarNonlinearFunction(:*, Any[m, n]),
+            ],
+        )
+        MOI.add_constraint(coupled, coupled_quadratic, MOI.EqualTo(4.0))
+        coupled_report = NLPDiagnostics.analyze_static(coupled)
+        @test isempty(findings(coupled_report, :nonunit_circular_constraint_radius))
+        @test isempty(findings(coupled_report, :nonunit_ellipsoidal_constraint_axes))
+
+        nonfinite = new_model()
+        α, β = MOI.add_variables(nonfinite, 2)
+        nonfinite_circle = Q(
+            [QT(Inf, α, α), QT(2.0, β, β)],
+            MOI.ScalarAffineTerm{Float64}[],
+            0.0,
+        )
+        MOI.add_constraint(nonfinite, nonfinite_circle, MOI.EqualTo(4.0))
+        nonfinite_report = NLPDiagnostics.analyze_static(nonfinite)
+        @test isempty(findings(nonfinite_report, :nonunit_circular_constraint_radius))
+        @test isempty(findings(nonfinite_report, :nonunit_ellipsoidal_constraint_axes))
+
+        shifted_level_nonlinear = new_model()
+        a, b = MOI.add_variables(shifted_level_nonlinear, 2)
+        level_in_expression = MOI.ScalarNonlinearFunction(
+            :-,
+            Any[
+                MOI.ScalarNonlinearFunction(
+                    :+,
+                    Any[
+                        MOI.ScalarNonlinearFunction(:^, Any[a, 2]),
+                        MOI.ScalarNonlinearFunction(:^, Any[b, 2]),
+                    ],
+                ),
+                4.0,
+            ],
+        )
+        MOI.add_constraint(shifted_level_nonlinear, level_in_expression, MOI.EqualTo(0.0))
+        level_finding = only(findings(
+            NLPDiagnostics.analyze_static(shifted_level_nonlinear),
+            :nonunit_circular_constraint_radius,
+        ))
+        @test evidence_details(level_finding)["radius_squared"] == "4.0"
+
+        bounded_circle = new_model()
+        r, s = MOI.add_variables(bounded_circle, 2)
+        bounded_circle_function = Q(
+            [QT(2.0, r, r), QT(2.0, s, s)],
+            MOI.ScalarAffineTerm{Float64}[],
+            0.0,
+        )
+        MOI.add_constraint(bounded_circle, bounded_circle_function, MOI.EqualTo(4.0))
+        MOI.add_constraint(bounded_circle, r, MOI.GreaterThan(3.0))
+        circle_contradiction = only(findings(
+            NLPDiagnostics.analyze_static(bounded_circle),
+            :inconsistent_circular_implied_variable_bound,
+        ))
+        @test circle_contradiction.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(circle_contradiction)["derived_upper"] == "2.0"
+
+        shifted_center_nonlinear = new_model()
+        c, d = MOI.add_variables(shifted_center_nonlinear, 2)
+        shifted_circle_expression = MOI.ScalarNonlinearFunction(
+            :+,
+            Any[
+                MOI.ScalarNonlinearFunction(:^, Any[c, 2]),
+                MOI.ScalarNonlinearFunction(:^, Any[d, 2]),
+                MOI.ScalarNonlinearFunction(:*, Any[-4.0, c]),
+                MOI.ScalarNonlinearFunction(:*, Any[6.0, d]),
+            ],
+        )
+        # (c - 2)^2 + (d + 3)^2 = 4.
+        MOI.add_constraint(shifted_center_nonlinear, shifted_circle_expression, MOI.EqualTo(-9.0))
+        shifted_finding = only(findings(
+            NLPDiagnostics.analyze_static(shifted_center_nonlinear),
+            :nonunit_circular_constraint_radius,
+        ))
+        @test evidence_details(shifted_finding)["center"] == "[2.0, -3.0]"
+        @test evidence_details(shifted_finding)["radius_squared"] == "4.0"
+    end
+
+    @testset "nonpositive circular equality levels have proven consequences" begin
+        Q = MOI.ScalarQuadraticFunction{Float64}
+        QT = MOI.ScalarQuadraticTerm{Float64}
+
+        infeasible = new_model()
+        x, y = MOI.add_variables(infeasible, 2)
+        circle = Q(
+            [QT(2.0, x, x), QT(2.0, y, y)],
+            MOI.ScalarAffineTerm{Float64}[],
+            0.0,
+        )
+        MOI.add_constraint(infeasible, circle, MOI.EqualTo(-1.0))
+        negative = only(findings(
+            NLPDiagnostics.analyze_static(infeasible),
+            :infeasible_negative_radius_squared_circular_constraint,
+        ))
+        @test negative.severity == NLPDiagnostics.SeverityError
+        @test negative.basis == NLPDiagnostics.MathematicalProof
+
+        zero_radius = new_model()
+        p, q = MOI.add_variables(zero_radius, 2)
+        zero_circle = Q(
+            [QT(2.0, p, p), QT(2.0, q, q)],
+            MOI.ScalarAffineTerm{Float64}[],
+            0.0,
+        )
+        MOI.add_constraint(zero_radius, zero_circle, MOI.EqualTo(0.0))
+        zero = only(findings(
+            NLPDiagnostics.analyze_static(zero_radius),
+            :zero_radius_circular_constraint,
+        ))
+        @test zero.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(zero)["center"] == "[0.0, 0.0]"
+        nonregular = only(findings(
+            NLPDiagnostics.analyze_static(zero_radius),
+            :nonregular_zero_radius_quadratic_fixing,
+        ))
+        @test nonregular.domain == NLPDiagnostics.NumericalIssue
+        @test nonregular.basis == NLPDiagnostics.MathematicalProof
+
+        zero_conflict = new_model()
+        u, v = MOI.add_variables(zero_conflict, 2)
+        conflicting_circle = Q(
+            [QT(2.0, u, u), QT(2.0, v, v)],
+            MOI.ScalarAffineTerm{Float64}[],
+            0.0,
+        )
+        MOI.add_constraint(zero_conflict, conflicting_circle, MOI.EqualTo(0.0))
+        MOI.add_constraint(zero_conflict, u, MOI.GreaterThan(1.0))
+        contradiction = only(findings(
+            NLPDiagnostics.analyze_static(zero_conflict),
+            :inconsistent_zero_radius_circular_variable_bound,
+        ))
+        @test contradiction.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(contradiction)["implied_value"] == "0.0"
+    end
+
+    @testset "shifted isotropic quadratic equalities are completed statically" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        Q = MOI.ScalarQuadraticFunction{Float64}
+        QT = MOI.ScalarQuadraticTerm{Float64}
+        AT = MOI.ScalarAffineTerm{Float64}
+        shifted_circle = Q(
+            [QT(2.0, x, x), QT(2.0, y, y)],
+            [AT(-4.0, x), AT(6.0, y)],
+            0.0,
+        )
+        # (x - 2)^2 + (y + 3)^2 = 4.
+        MOI.add_constraint(model, shifted_circle, MOI.EqualTo(-9.0))
+        scaling = only(findings(
+            NLPDiagnostics.analyze_static(model),
+            :nonunit_circular_constraint_radius,
+        ))
+        @test evidence_details(scaling)["is_shifted"] == "true"
+        @test evidence_details(scaling)["center"] == "[2.0, -3.0]"
+        @test evidence_details(scaling)["radius_squared"] == "4.0"
+
+        impossible = new_model()
+        u, v = MOI.add_variables(impossible, 2)
+        impossible_circle = Q(
+            [QT(2.0, u, u), QT(2.0, v, v)],
+            [AT(-4.0, u), AT(6.0, v)],
+            0.0,
+        )
+        MOI.add_constraint(impossible, impossible_circle, MOI.EqualTo(-14.0))
+        @test length(findings(
+            NLPDiagnostics.analyze_static(impossible),
+            :infeasible_negative_radius_squared_circular_constraint,
+        )) == 1
+    end
+
+    @testset "diagonal ellipsoidal equalities expose axis scaling" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        Q = MOI.ScalarQuadraticFunction{Float64}
+        QT = MOI.ScalarQuadraticTerm{Float64}
+        AT = MOI.ScalarAffineTerm{Float64}
+        ellipsoid = Q(
+            [QT(2.0, x, x), QT(8.0, y, y)],
+            [AT(-4.0, x), AT(8.0, y)],
+            0.0,
+        )
+        # (x - 2)^2 + 4 * (y + 1)^2 = 4.
+        MOI.add_constraint(model, ellipsoid, MOI.EqualTo(-4.0))
+        scaling = only(findings(
+            NLPDiagnostics.analyze_static(model),
+            :nonunit_ellipsoidal_constraint_axes,
+        ))
+        @test evidence_details(scaling)["center"] == "[2.0, -1.0]"
+        @test evidence_details(scaling)["semiaxes"] == "[2.0, 1.0]"
+
+        impossible = new_model()
+        u, v = MOI.add_variables(impossible, 2)
+        impossible_ellipsoid = Q(
+            [QT(2.0, u, u), QT(8.0, v, v)],
+            [AT(-4.0, u), AT(8.0, v)],
+            0.0,
+        )
+        MOI.add_constraint(impossible, impossible_ellipsoid, MOI.EqualTo(-9.0))
+        @test length(findings(
+            NLPDiagnostics.analyze_static(impossible),
+            :infeasible_negative_level_diagonal_quadratic_constraint,
+        )) == 1
+
+        zero_level = new_model()
+        p, q = MOI.add_variables(zero_level, 2)
+        zero_ellipsoid = Q(
+            [QT(2.0, p, p), QT(8.0, q, q)],
+            [AT(-4.0, p), AT(8.0, q)],
+            0.0,
+        )
+        MOI.add_constraint(zero_level, zero_ellipsoid, MOI.EqualTo(-8.0))
+        fixed = only(findings(
+            NLPDiagnostics.analyze_static(zero_level),
+            :zero_level_diagonal_quadratic_constraint,
+        ))
+        @test fixed.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(fixed)["center"] == "[2.0, -1.0]"
+        @test length(findings(
+            NLPDiagnostics.analyze_static(zero_level),
+            :nonregular_zero_level_diagonal_quadratic_fixing,
+        )) == 1
+
+        minimum_conflict = new_model()
+        c, d = MOI.add_variables(minimum_conflict, 2)
+        conflicting_minimum_bowl = Q(
+            [QT(2.0, c, c), QT(8.0, d, d)],
+            [AT(-4.0, c), AT(8.0, d)],
+            3.0,
+        )
+        MOI.add_constraint(minimum_conflict, conflicting_minimum_bowl, MOI.LessThan(-5.0))
+        MOI.add_constraint(minimum_conflict, c, MOI.GreaterThan(3.0))
+        minimum_contradiction = only(findings(
+            NLPDiagnostics.analyze_static(minimum_conflict),
+            :inconsistent_diagonal_quadratic_minimum_variable_bound,
+        ))
+        @test minimum_contradiction.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(minimum_contradiction)["implied_value"] == "2.0"
+
+        nonlinear = new_model()
+        a, b = MOI.add_variables(nonlinear, 2)
+        nonlinear_ellipsoid = MOI.ScalarNonlinearFunction(
+            :+,
+            Any[
+                MOI.ScalarNonlinearFunction(:^, Any[a, 2]),
+                MOI.ScalarNonlinearFunction(
+                    :*,
+                    Any[4.0, MOI.ScalarNonlinearFunction(:^, Any[b, 2])],
+                ),
+                MOI.ScalarNonlinearFunction(:*, Any[-4.0, a]),
+                MOI.ScalarNonlinearFunction(:*, Any[8.0, b]),
+            ],
+        )
+        # (a - 2)^2 + 4 * (b + 1)^2 = 4.
+        MOI.add_constraint(nonlinear, nonlinear_ellipsoid, MOI.EqualTo(-4.0))
+        nonlinear_scaling = only(findings(
+            NLPDiagnostics.analyze_static(nonlinear),
+            :nonunit_ellipsoidal_constraint_axes,
+        ))
+        @test evidence_details(nonlinear_scaling)["semiaxes"] == "[2.0, 1.0]"
+        @test evidence_details(nonlinear_scaling)["representation"] ==
+              "ScalarNonlinearFunction"
+
+        bounded_ellipsoid = new_model()
+        g, h = MOI.add_variables(bounded_ellipsoid, 2)
+        bounded_ellipsoid_function = Q(
+            [QT(2.0, g, g), QT(8.0, h, h)],
+            [AT(-4.0, g), AT(8.0, h)],
+            0.0,
+        )
+        MOI.add_constraint(bounded_ellipsoid, bounded_ellipsoid_function, MOI.EqualTo(-4.0))
+        MOI.add_constraint(bounded_ellipsoid, g, MOI.GreaterThan(5.0))
+        ellipsoid_contradiction = only(findings(
+            NLPDiagnostics.analyze_static(bounded_ellipsoid),
+            :inconsistent_ellipsoidal_implied_variable_bound,
+        ))
+        @test ellipsoid_contradiction.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(ellipsoid_contradiction)["derived_upper"] == "4.0"
+
+        domain_model = new_model()
+        domain_x, domain_y = MOI.add_variables(domain_model, 2)
+        domain_ellipsoid = Q(
+            [QT(2.0, domain_x, domain_x), QT(8.0, domain_y, domain_y)],
+            [AT(-4.0, domain_x), AT(8.0, domain_y)],
+            0.0,
+        )
+        # (x - 2)^2 + 4 * (y + 1)^2 = 1, so x ∈ [1, 3].
+        MOI.add_constraint(domain_model, domain_ellipsoid, MOI.EqualTo(-7.0))
+        propagated_domains = NLPDiagnostics._domain_variable_intervals(
+            NLPDiagnostics.snapshot(domain_model),
+        )
+        @test propagated_domains[domain_x].lower == 1.0
+        @test propagated_domains[domain_x].upper == 3.0
+
+        near_unit = new_model()
+        near_x, near_y = MOI.add_variables(near_unit, 2)
+        near_unit_ellipsoid = Q(
+            [QT(2.0, near_x, near_x), QT(2.000001, near_y, near_y)],
+            MOI.ScalarAffineTerm{Float64}[],
+            0.0,
+        )
+        MOI.add_constraint(near_unit, near_unit_ellipsoid, MOI.EqualTo(1.0))
+        near_report = NLPDiagnostics.analyze_static(near_unit)
+        @test isempty(findings(near_report, :nonunit_ellipsoidal_constraint_axes))
+        @test length(findings(near_report, :ellipsoidal_implied_variable_bound)) == 2
+
+        zero_conflict = new_model()
+        e, f = MOI.add_variables(zero_conflict, 2)
+        zero_ellipsoid_conflict = Q(
+            [QT(2.0, e, e), QT(8.0, f, f)],
+            [AT(-4.0, e), AT(8.0, f)],
+            0.0,
+        )
+        MOI.add_constraint(zero_conflict, zero_ellipsoid_conflict, MOI.EqualTo(-8.0))
+        MOI.add_constraint(zero_conflict, e, MOI.GreaterThan(3.0))
+        zero_contradiction = only(findings(
+            NLPDiagnostics.analyze_static(zero_conflict),
+            :inconsistent_zero_level_diagonal_quadratic_variable_bound,
+        ))
+        @test zero_contradiction.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(zero_contradiction)["implied_value"] == "2.0"
+    end
+
+    @testset "diagonal quadratic upper bounds expose exact minima" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        Q = MOI.ScalarQuadraticFunction{Float64}
+        QT = MOI.ScalarQuadraticTerm{Float64}
+        AT = MOI.ScalarAffineTerm{Float64}
+        bowl = Q(
+            [QT(2.0, x, x), QT(8.0, y, y)],
+            [AT(-4.0, x), AT(8.0, y)],
+            3.0,
+        )
+        # (x - 2)^2 + 4 * (y + 1)^2 - 5 has minimum -5.
+        MOI.add_constraint(model, bowl, MOI.LessThan(-6.0))
+        infeasible = only(findings(
+            NLPDiagnostics.analyze_static(model),
+            :infeasible_below_minimum_diagonal_quadratic_constraint,
+        ))
+        @test infeasible.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(infeasible)["minimum_value"] == "-5.0"
+
+        minimum_level = new_model()
+        u, v = MOI.add_variables(minimum_level, 2)
+        minimum_bowl = Q(
+            [QT(2.0, u, u), QT(8.0, v, v)],
+            [AT(-4.0, u), AT(8.0, v)],
+            3.0,
+        )
+        MOI.add_constraint(minimum_level, minimum_bowl, MOI.Interval(-10.0, -5.0))
+        fixed = only(findings(
+            NLPDiagnostics.analyze_static(minimum_level),
+            :minimum_level_diagonal_quadratic_constraint,
+        ))
+        @test evidence_details(fixed)["center"] == "[2.0, -1.0]"
+        nonregular_minimum = only(findings(
+            NLPDiagnostics.analyze_static(minimum_level),
+            :nonregular_minimum_level_diagonal_quadratic_inequality,
+        ))
+        @test nonregular_minimum.domain == NLPDiagnostics.NumericalIssue
+        @test nonregular_minimum.basis == NLPDiagnostics.MathematicalProof
+
+        bounded = new_model()
+        p, q = MOI.add_variables(bounded, 2)
+        bounded_bowl = Q(
+            [QT(2.0, p, p), QT(8.0, q, q)],
+            [AT(-4.0, p), AT(8.0, q)],
+            3.0,
+        )
+        # The level -1 is four above the minimum, giving p ∈ [0, 4], q ∈ [-2, 0].
+        MOI.add_constraint(bounded, bounded_bowl, MOI.LessThan(-1.0))
+        implied = findings(
+            NLPDiagnostics.analyze_static(bounded),
+            :diagonal_quadratic_implied_variable_bound,
+        )
+        @test length(implied) == 2
+        implied_by_variable = Dict(
+            only(ref.index for ref in finding.affected if ref.kind == :variable) =>
+                evidence_details(finding) for finding in implied
+        )
+        @test implied_by_variable[p.value]["derived_lower"] == "0.0"
+        @test implied_by_variable[p.value]["derived_upper"] == "4.0"
+        @test implied_by_variable[q.value]["derived_lower"] == "-2.0"
+        @test implied_by_variable[q.value]["derived_upper"] == "0.0"
+
+        nonlinear_bounded = new_model()
+        nonlinear_p, nonlinear_q = MOI.add_variables(nonlinear_bounded, 2)
+        nonlinear_bowl = MOI.ScalarNonlinearFunction(
+            :+,
+            Any[
+                MOI.ScalarNonlinearFunction(:^, Any[nonlinear_p, 2]),
+                MOI.ScalarNonlinearFunction(
+                    :*,
+                    Any[4.0, MOI.ScalarNonlinearFunction(:^, Any[nonlinear_q, 2])],
+                ),
+                MOI.ScalarNonlinearFunction(:*, Any[-4.0, nonlinear_p]),
+                MOI.ScalarNonlinearFunction(:*, Any[8.0, nonlinear_q]),
+                3.0,
+            ],
+        )
+        MOI.add_constraint(nonlinear_bounded, nonlinear_bowl, MOI.LessThan(-1.0))
+        nonlinear_implied = findings(
+            NLPDiagnostics.analyze_static(nonlinear_bounded),
+            :diagonal_quadratic_implied_variable_bound,
+        )
+        @test length(nonlinear_implied) == 2
+        @test Set(evidence_details(finding)["derived_upper"] for finding in nonlinear_implied) ==
+              Set(["4.0", "0.0"])
+
+        conflicting_bound = new_model()
+        a, b = MOI.add_variables(conflicting_bound, 2)
+        conflicting_bowl = Q(
+            [QT(2.0, a, a), QT(8.0, b, b)],
+            [AT(-4.0, a), AT(8.0, b)],
+            3.0,
+        )
+        MOI.add_constraint(conflicting_bound, conflicting_bowl, MOI.LessThan(-1.0))
+        MOI.add_constraint(conflicting_bound, a, MOI.GreaterThan(5.0))
+        contradiction = only(findings(
+            NLPDiagnostics.analyze_static(conflicting_bound),
+            :inconsistent_diagonal_quadratic_implied_variable_bound,
+        ))
+        @test contradiction.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(contradiction)["derived_upper"] == "4.0"
+        @test evidence_details(contradiction)["declared_lower"] == "5.0"
+    end
+
+    @testset "initialization identifies diagonal quadratic coordinate violations" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        Q = MOI.ScalarQuadraticFunction{Float64}
+        QT = MOI.ScalarQuadraticTerm{Float64}
+        AT = MOI.ScalarAffineTerm{Float64}
+        bowl = Q(
+            [QT(2.0, x, x), QT(8.0, y, y)],
+            [AT(-4.0, x), AT(8.0, y)],
+            3.0,
+        )
+        MOI.add_constraint(model, bowl, MOI.LessThan(-1.0))
+        MOI.set(model, MOI.VariablePrimalStart(), x, 5.0)
+        MOI.set(model, MOI.VariablePrimalStart(), y, -1.0)
+        report = NLPDiagnostics.analyze_initialization(model)
+        violation = only(findings(
+            report,
+            :initialization_violates_diagonal_quadratic_implied_bound,
+        ))
+        @test violation.basis == NLPDiagnostics.MathematicalProof
+        @test occursin(
+            "value=5.0",
+            Dict(violation.evidence[2].details)["v$(x.value)"],
+        )
+
+        nonlinear = new_model()
+        p, q = MOI.add_variables(nonlinear, 2)
+        nonlinear_bowl = MOI.ScalarNonlinearFunction(
+            :+,
+            Any[
+                MOI.ScalarNonlinearFunction(:^, Any[p, 2]),
+                MOI.ScalarNonlinearFunction(
+                    :*,
+                    Any[4.0, MOI.ScalarNonlinearFunction(:^, Any[q, 2])],
+                ),
+                MOI.ScalarNonlinearFunction(:*, Any[-4.0, p]),
+                MOI.ScalarNonlinearFunction(:*, Any[8.0, q]),
+                3.0,
+            ],
+        )
+        MOI.add_constraint(nonlinear, nonlinear_bowl, MOI.LessThan(-1.0))
+        MOI.set(nonlinear, MOI.VariablePrimalStart(), p, 5.0)
+        MOI.set(nonlinear, MOI.VariablePrimalStart(), q, -1.0)
+        nonlinear_report = NLPDiagnostics.analyze_initialization(nonlinear)
+        @test length(findings(
+            nonlinear_report,
+            :initialization_violates_diagonal_quadratic_implied_bound,
+        )) == 1
+
+        equality = new_model()
+        a, b = MOI.add_variables(equality, 2)
+        circle = Q(
+            [QT(2.0, a, a), QT(2.0, b, b)],
+            MOI.ScalarAffineTerm{Float64}[],
+            0.0,
+        )
+        MOI.add_constraint(equality, circle, MOI.EqualTo(4.0))
+        MOI.set(equality, MOI.VariablePrimalStart(), a, 3.0)
+        MOI.set(equality, MOI.VariablePrimalStart(), b, 0.0)
+        equality_report = NLPDiagnostics.analyze_initialization(equality)
+        @test length(findings(
+            equality_report,
+            :initialization_violates_diagonal_quadratic_equality_implied_bound,
+        )) == 1
+
+        nonlinear_equality = new_model()
+        c, d = MOI.add_variables(nonlinear_equality, 2)
+        nonlinear_circle = MOI.ScalarNonlinearFunction(
+            :+,
+            Any[
+                MOI.ScalarNonlinearFunction(:^, Any[c, 2]),
+                MOI.ScalarNonlinearFunction(:^, Any[d, 2]),
+            ],
+        )
+        MOI.add_constraint(nonlinear_equality, nonlinear_circle, MOI.EqualTo(4.0))
+        MOI.set(nonlinear_equality, MOI.VariablePrimalStart(), c, 3.0)
+        MOI.set(nonlinear_equality, MOI.VariablePrimalStart(), d, 0.0)
+        nonlinear_equality_report = NLPDiagnostics.analyze_initialization(nonlinear_equality)
+        nonlinear_equality_violation = only(findings(
+            nonlinear_equality_report,
+            :initialization_violates_diagonal_quadratic_equality_implied_bound,
+        ))
+        @test Dict(nonlinear_equality_violation.evidence[2].details)["representation"] ==
+              "ScalarNonlinearFunction"
     end
 
     @testset "operating-point domain failures are captured" begin
@@ -4927,6 +5631,21 @@ end
         @test near_tan_evidence["denominator"] == "cos(argument)"
         @test parse(Float64, near_tan_evidence["estimated_first_derivative_magnitude"]) > 1e30
 
+        near_tand_model = new_model()
+        near_tand = MOI.add_variable(near_tand_model)
+        MOI.add_constraint(
+            near_tand_model,
+            MOI.ScalarNonlinearFunction(:tand, Any[near_tand]),
+            MOI.LessThan(1e20),
+        )
+        near_tand_report = NLPDiagnostics.analyze_expressions(
+            near_tand_model;
+            point = NLPDiagnostics.EvaluationPoint([near_tand], [90.0]),
+        )
+        near_tand_evidence = Dict(only(near_tand_report.findings).evidence[end].details)
+        @test near_tand_evidence["denominator"] == "cosd(argument)"
+        @test only(near_tand_report.findings).severity == NLPDiagnostics.SeverityError
+
         near_asin_model = new_model()
         near_asin = MOI.add_variable(near_asin_model)
         MOI.add_constraint(
@@ -4941,6 +5660,35 @@ end
         near_asin_evidence = Dict(only(near_asin_report.findings).evidence[end].details)
         @test near_asin_evidence["boundary"] == "±1"
         @test parse(Float64, near_asin_evidence["estimated_first_derivative_magnitude"]) > 1e5
+
+        near_asind_model = new_model()
+        near_asind = MOI.add_variable(near_asind_model)
+        MOI.add_constraint(
+            near_asind_model,
+            MOI.ScalarNonlinearFunction(:asind, Any[near_asind]),
+            MOI.LessThan(100.0),
+        )
+        near_asind_report = NLPDiagnostics.analyze_expressions(
+            near_asind_model;
+            point = NLPDiagnostics.EvaluationPoint([near_asind], [1.0 - 1e-12]),
+        )
+        near_asind_evidence = Dict(only(near_asind_report.findings).evidence[end].details)
+        @test parse(Float64, near_asind_evidence["estimated_first_derivative_magnitude"]) > 1e7
+
+        near_asec_model = new_model()
+        near_asec = MOI.add_variable(near_asec_model)
+        MOI.add_constraint(
+            near_asec_model,
+            MOI.ScalarNonlinearFunction(:asec, Any[near_asec]),
+            MOI.LessThan(2.0),
+        )
+        near_asec_report = NLPDiagnostics.analyze_expressions(
+            near_asec_model;
+            point = NLPDiagnostics.EvaluationPoint([near_asec], [1.0 + 1e-12]),
+        )
+        near_asec_evidence = Dict(only(near_asec_report.findings).evidence[end].details)
+        @test near_asec_evidence["boundary"] == "±1"
+        @test parse(Float64, near_asec_evidence["estimated_second_derivative_magnitude"]) > 1e17
 
         near_atanh_model = new_model()
         near_atanh = MOI.add_variable(near_atanh_model)

@@ -72,7 +72,9 @@ export DomainPossibleViolation, DomainProvenViolation, DomainSafe
 export DulmageMendelsohnBlock
 export DulmageMendelsohnPartition
 export EntityRef
+export entity_data
 export Evidence
+export evidence_data
 export EvidenceBasis
 export EvaluationCache
 export EvaluationFailure
@@ -85,6 +87,9 @@ export StableReformulationCandidate
 export StableReformulationPlan
 export ExpressionNodePath
 export Finding
+export finding_data
+export findings
+export finding_code_counts
 export IncidenceGraph
 export IssueDomain
 export IntervalEnclosure
@@ -110,7 +115,12 @@ export OperatorDomainRequirement
 export OperatorDerivativeRequirement
 export ProfileCase
 export ProfileAggregate
+export profile_aggregate_data
+export profile_comparison_data
+export markdown_profile_aggregate
+export markdown_profile_comparison
 export ProfileResult
+export profile_result_data
 export ProfileTimingSummary
 export ProfileAllocationSummary
 export ProfileFindingStability
@@ -128,8 +138,10 @@ export SolverIterationSummary
 export IterationPointBinding
 export MathematicalIssue, NumericalIssue, PhysicalIssue, RepresentationalIssue
 export MathematicalProof, NumericalObservation, PhysicalExpectation
+export markdown_report
 export LocalInference, HeuristicInterpretation, StructuralProof
 export Severity
+export report_data
 export SeverityError, SeverityInfo, SeverityWarning
 export StructuralComponent
 export StructuralConstraintNode
@@ -191,6 +203,8 @@ export profile_synthetic_stability_corpus
 export synthetic_derivative_boundary_profile_corpus
 export profile_synthetic_derivative_boundary_corpus
 export synthetic_float32_derivative_overflow_profile_corpus
+export synthetic_quadratic_geometry_profile_corpus
+export profile_synthetic_quadratic_geometry_corpus
 export profile_synthetic_float32_derivative_overflow_corpus
 export solver_postmortem
 export solver_log_observations
@@ -3058,6 +3072,7 @@ function analyze(
     point::Union{Nothing,EvaluationPoint} = nothing,
     cache::EvaluationCache = EvaluationCache(),
     scale_ratio_threshold::Real = 1.0e6,
+    unit_circle_radius_tolerance::Real = 1.0e-6,
     numeric_type::Union{Nothing,Type{<:AbstractFloat}} = nothing,
     strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
     check_initialization::Bool = false,
@@ -3080,7 +3095,11 @@ function analyze(
     end
     model_snapshot = snapshot(model)
     graph = incidence_graph(model_snapshot)
-    report = analyze_static(model_snapshot; graph = graph)
+    report = analyze_static(
+        model_snapshot;
+        graph = graph,
+        unit_circle_radius_tolerance = unit_circle_radius_tolerance,
+    )
     report.metadata[:component_metadata_count] = string(length(declared_components))
     report.metadata[:component_coordinate_semantics_count] = string(length(declared_component_coordinate_semantics))
     report.metadata[:component_port_metadata_count] = string(length(declared_ports))

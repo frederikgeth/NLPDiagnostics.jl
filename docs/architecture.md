@@ -329,12 +329,26 @@ A finding has four independent classification axes:
 This avoids treating “physical” or “numerical” as confidence levels. Plugins
 may contribute physical evidence, but the generic core owns the report schema.
 
+`report_data(report)` exposes the schema as renderer-neutral dictionaries:
+findings retain their code, four classification axes, observation, rationale,
+evidence, suggested actions, and affected entities; report metadata is emitted
+with string keys. The core deliberately does not choose a JSON dependency, so
+applications may serialize this stable data with their own preferred package.
+`findings(report; ...)` and `finding_code_counts(report)` provide the matching
+typed query surface for interactive and programmatic consumers.
+`markdown_report(report)` provides a deterministic human-facing rendering that
+retains every finding's evidence, actions, and affected entities.
+
 ## Static-analysis scope
 
 The first implementation intentionally detects exact or canonical facts. It
 does not claim algebraic equivalence of arbitrary nonlinear expressions.
 Likewise, a disconnected variable means no incidence in the objective or a
 non-domain constraint; bounds and integrality alone do not count as incidence.
+Recognized exact positive-diagonal circle and ellipsoid geometry can contribute
+coordinate intervals to expression-domain propagation. These intervals are
+mathematical implications of the source rows, retained only in analysis state;
+the package never writes them back to the model.
 
 ## Next slices
 

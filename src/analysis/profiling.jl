@@ -5,6 +5,247 @@ function _profile_stage!(seconds, allocations, key, operation)
     return measured.value
 end
 
+_profile_sorted_data(values) = Dict(
+    string(key) => values[key] for key in sort!(collect(keys(values)); by = string)
+)
+
+function _profile_case_data(case::ProfileCase)
+    return Dict{String,Any}(
+        "name" => case.name,
+        "description" => case.description,
+        "task" => case.task,
+        "formulation" => case.formulation,
+        "initialization" => case.initialization,
+        "scale" => case.scale,
+        "solver" => case.solver,
+        "tags" => string.(case.tags),
+        "metadata" => _profile_sorted_data(case.metadata),
+        "expected_evidence" => string.(case.expected_evidence),
+        "point" => Dict(
+            "label" => case.point.label,
+            "variables" => [variable.value for variable in case.point.variables],
+            "values" => copy(case.point.values),
+        ),
+    )
+end
+
+"""Return renderer-neutral, serializable data for one retained profile run."""
+function profile_result_data(result::ProfileResult)
+    return Dict{String,Any}(
+        "case" => _profile_case_data(result.case),
+        "reports" => Dict(
+            "static" => report_data(result.static_report),
+            "expressions" => report_data(result.expression_report),
+            "reformulation" => report_data(result.reformulation_report),
+            "numerical" => report_data(result.numerical_report),
+            "active_set" => report_data(result.active_set_report),
+            "degeneracy" => report_data(result.degeneracy_report),
+        ),
+        "stage_seconds" => _profile_sorted_data(result.stage_seconds),
+        "stage_allocations" => _profile_sorted_data(result.stage_allocations),
+        "callback_statistics" => Dict(
+            string(key) => Dict("count" => value[1], "seconds" => value[2]) for
+            (key, value) in sort!(collect(result.callback_statistics); by = item -> string(first(item)))
+        ),
+        "derivative_row_method_counts" => _profile_sorted_data(result.derivative_row_method_counts),
+        "capability_source_counts" => _profile_sorted_data(result.capability_source_counts),
+        "cache" => Dict("hits" => result.cache_hits, "misses" => result.cache_misses),
+    )
+end
+
+"""Return renderer-neutral, serializable data for a repeated profile aggregate."""
+function profile_aggregate_data(aggregate::ProfileAggregate)
+    timing_data = Dict(
+        string(stage) => Dict(
+            "sample_count" => summary.sample_count,
+            "minimum" => summary.minimum,
+            "mean" => summary.mean,
+            "maximum" => summary.maximum,
+            "standard_deviation" => summary.standard_deviation,
+        ) for (stage, summary) in
+        sort!(collect(aggregate.stage_timing); by = item -> string(first(item)))
+    )
+    allocation_data = Dict(
+        string(stage) => Dict(
+            "sample_count" => summary.sample_count,
+            "minimum" => summary.minimum,
+            "mean" => summary.mean,
+            "maximum" => summary.maximum,
+            "standard_deviation" => summary.standard_deviation,
+        ) for (stage, summary) in
+        sort!(collect(aggregate.stage_allocations); by = item -> string(first(item)))
+    )
+    return Dict{String,Any}(
+        "case" => _profile_case_data(aggregate.case),
+        "warmup_performed" => aggregate.warmup_performed,
+        "runs" => [profile_result_data(run) for run in aggregate.runs],
+        "stage_timing" => timing_data,
+        "stage_allocations" => allocation_data,
+        "finding_stability" => [
+            Dict(
+                "stage" => string(item.stage), "code" => string(item.code),
+                "occurrence_count" => item.occurrence_count,
+                "run_count" => item.run_count, "fraction" => item.fraction,
+            ) for item in aggregate.finding_stability
+        ],
+        "expected_evidence" => [
+            Dict(
+                "code" => string(item.code),
+                "occurrence_count" => item.occurrence_count,
+                "run_count" => item.run_count, "fraction" => item.fraction,
+            ) for item in aggregate.expected_evidence
+        ],
+        "numerical_summary" => [
+            Dict(
+                "metric" => string(item.metric), "run_count" => item.run_count,
+                "available_count" => item.available_count, "minimum" => item.minimum,
+                "mean" => item.mean, "maximum" => item.maximum,
+                "standard_deviation" => item.standard_deviation,
+            ) for item in aggregate.numerical_summary
+        ],
+    )
+end
+
+"""Return renderer-neutral, serializable data for a profile comparison."""
+function profile_comparison_data(comparison::ProfileComparison)
+    return Dict{String,Any}(
+        "baseline_case" => _profile_case_data(comparison.baseline.case),
+        "candidate_case" => _profile_case_data(comparison.candidate.case),
+        "task_relation" => string(comparison.task_relation),
+        "task" => comparison.task,
+        "stage_comparisons" => [
+            Dict(
+                "stage" => string(item.stage),
+                "baseline_seconds" => item.baseline_seconds,
+                "candidate_seconds" => item.candidate_seconds,
+                "seconds_ratio" => item.seconds_ratio,
+                "baseline_allocations" => item.baseline_allocations,
+                "candidate_allocations" => item.candidate_allocations,
+                "allocations_ratio" => item.allocations_ratio,
+            ) for item in comparison.stage_comparisons
+        ],
+        "finding_comparisons" => [
+            Dict(
+                "stage" => string(item.stage), "code" => string(item.code),
+                "baseline_fraction" => item.baseline_fraction,
+                "candidate_fraction" => item.candidate_fraction,
+            ) for item in comparison.finding_comparisons
+        ],
+        "numerical_comparisons" => [
+            Dict(
+                "metric" => string(item.metric),
+                "baseline_available_count" => item.baseline_available_count,
+                "baseline_run_count" => item.baseline_run_count,
+                "candidate_available_count" => item.candidate_available_count,
+                "candidate_run_count" => item.candidate_run_count,
+                "baseline_mean" => item.baseline_mean,
+                "candidate_mean" => item.candidate_mean,
+                "mean_difference" => item.mean_difference,
+                "mean_ratio" => item.mean_ratio,
+            ) for item in comparison.numerical_comparisons
+        ],
+    )
+end
+
+"""
+    markdown_profile_aggregate(aggregate)
+
+Render one repeated profile aggregate as concise CommonMark. It reports local
+timing/allocation observations and evidence recovery without assigning a
+performance score or declaring the modeled formulation valid.
+"""
+function markdown_profile_aggregate(aggregate::ProfileAggregate)
+    io = IOBuffer()
+    println(io, "# NLPDiagnostics profile: ", aggregate.case.name)
+    if !isempty(aggregate.case.description)
+        println(io)
+        println(io, aggregate.case.description)
+    end
+    println(io)
+    println(io, "- Retained runs: ", length(aggregate.runs))
+    println(io, "- Warm-up performed: ", aggregate.warmup_performed)
+    !isnothing(aggregate.case.task) && println(io, "- Declared task: ", aggregate.case.task)
+    println(io)
+    println(io, "## Expected evidence")
+    println(io)
+    println(io, "| Code | Occurrences | Fraction |")
+    println(io, "| --- | ---: | ---: |")
+    for item in aggregate.expected_evidence
+        println(io, "| `", item.code, "` | ", item.occurrence_count, "/", item.run_count,
+            " | ", item.fraction, " |")
+    end
+    println(io)
+    println(io, "## Stage observations")
+    println(io)
+    println(io, "| Stage | Mean seconds | Mean allocated bytes |")
+    println(io, "| --- | ---: | ---: |")
+    for stage in sort!(collect(keys(aggregate.stage_timing)); by = string)
+        timing = aggregate.stage_timing[stage]
+        allocations = aggregate.stage_allocations[stage]
+        println(io, "| `", stage, "` | ", timing.mean, " | ", allocations.mean, " |")
+    end
+    println(io)
+    println(io, "## Finding stability")
+    println(io)
+    println(io, "| Stage | Code | Fraction |")
+    println(io, "| --- | --- | ---: |")
+    for item in aggregate.finding_stability
+        println(io, "| `", item.stage, "` | `", item.code, "` | ", item.fraction, " |")
+    end
+    return String(take!(io))
+end
+
+"""
+    markdown_profile_comparison(comparison)
+
+Render a descriptive profile comparison as CommonMark. Ratios remain local
+observations and unavailable numerical metrics remain explicit rather than
+being replaced with zeroes or a formulation score.
+"""
+function markdown_profile_comparison(comparison::ProfileComparison)
+    io = IOBuffer()
+    println(io, "# NLPDiagnostics profile comparison")
+    println(io)
+    println(io, "- Baseline: `", comparison.baseline.case.name, "`")
+    println(io, "- Candidate: `", comparison.candidate.case.name, "`")
+    println(io, "- Task relation: `", comparison.task_relation, "`")
+    !isnothing(comparison.task) && println(io, "- Declared task: ", comparison.task)
+    println(io)
+    println(io, "## Stage observations")
+    println(io)
+    println(io, "| Stage | Baseline seconds | Candidate seconds | Ratio | Baseline bytes | Candidate bytes | Ratio |")
+    println(io, "| --- | ---: | ---: | ---: | ---: | ---: | ---: |")
+    for item in comparison.stage_comparisons
+        println(io, "| `", item.stage, "` | ", item.baseline_seconds, " | ",
+            item.candidate_seconds, " | ", something(item.seconds_ratio, "unavailable"),
+            " | ", item.baseline_allocations, " | ", item.candidate_allocations,
+            " | ", something(item.allocations_ratio, "unavailable"), " |")
+    end
+    println(io)
+    println(io, "## Finding occurrence comparison")
+    println(io)
+    println(io, "| Stage | Code | Baseline fraction | Candidate fraction |")
+    println(io, "| --- | --- | ---: | ---: |")
+    for item in comparison.finding_comparisons
+        println(io, "| `", item.stage, "` | `", item.code, "` | ",
+            item.baseline_fraction, " | ", item.candidate_fraction, " |")
+    end
+    println(io)
+    println(io, "## Numerical metric comparison")
+    println(io)
+    println(io, "| Metric | Baseline availability | Candidate availability | Baseline mean | Candidate mean | Difference | Ratio |")
+    println(io, "| --- | ---: | ---: | ---: | ---: | ---: | ---: |")
+    for item in comparison.numerical_comparisons
+        println(io, "| `", item.metric, "` | ", item.baseline_available_count, "/",
+            item.baseline_run_count, " | ", item.candidate_available_count, "/",
+            item.candidate_run_count, " | ", something(item.baseline_mean, "unavailable"),
+            " | ", something(item.candidate_mean, "unavailable"), " | ",
+            something(item.mean_difference, "unavailable"), " | ",
+            something(item.mean_ratio, "unavailable"), " |")
+    end
+    return String(take!(io))
+end
+
 function _count_symbols(values)
     counts = Dict{Symbol,Int}()
     for value in values
@@ -28,6 +269,7 @@ function profile_case(
     cache::EvaluationCache = EvaluationCache(),
     relative_step::Real = cbrt(eps(T)),
     scale_ratio_threshold::Real = 1.0e6,
+    unit_circle_radius_tolerance::Real = 1.0e-6,
     rank_relative_tolerance::Real =
         max(length(case.point.variables), 1) * eps(T),
     rank_max_dense_entries::Integer = 4_000_000,
@@ -48,7 +290,11 @@ function profile_case(
     _profile_stage!(timings, allocations, :structural_dm, () -> dulmage_mendelsohn(structural_graph; matching = structural_matching))
 
     static_report = _profile_stage!(timings, allocations, :static, () ->
-        analyze_static(structural_snapshot; graph = structural_graph),
+        analyze_static(
+            structural_snapshot;
+            graph = structural_graph,
+            unit_circle_radius_tolerance = unit_circle_radius_tolerance,
+        ),
     )
 
     expression_report = _profile_stage!(timings, allocations, :expressions, () ->
@@ -706,6 +952,242 @@ case in `synthetic_float32_derivative_overflow_profile_corpus`.
 """
 function profile_synthetic_float32_derivative_overflow_corpus(; kwargs...)
     models, cases = synthetic_float32_derivative_overflow_profile_corpus()
+    return profile_cases_repeated(models, cases; kwargs...)
+end
+
+"""
+    synthetic_quadratic_geometry_profile_corpus()
+
+Return solver-independent quadratic-geometry cases for static scaling and
+degeneracy diagnostics. The cases use only exact MOI quadratic functions and
+explicit evaluation points; no solver is invoked or model data modified.
+"""
+function synthetic_quadratic_geometry_profile_corpus()
+    models = MOI.Utilities.Model{Float64}[]
+    cases = ProfileCase{Float64}[]
+    Q = MOI.ScalarQuadraticFunction{Float64}
+    QT = MOI.ScalarQuadraticTerm{Float64}
+    AT = MOI.ScalarAffineTerm{Float64}
+
+    circle = MOI.Utilities.Model{Float64}()
+    x, y = MOI.add_variables(circle, 2)
+    MOI.add_constraint(
+        circle,
+        Q([QT(2.0, x, x), QT(2.0, y, y)], MOI.ScalarAffineTerm{Float64}[], 0.0),
+        MOI.EqualTo(4.0),
+    )
+    push!(models, circle)
+    push!(cases, ProfileCase(
+        "quadratic_nonunit_circle",
+        evaluation_point(circle, [2.0, 0.0]; label = "radius-two point");
+        description = "Exact unshifted circle with radius two for normalization evidence.",
+        task = "synthetic quadratic-geometry diagnostics",
+        formulation = "unshifted isotropic quadratic equality",
+        initialization = "feasible radius-two point",
+        scale = "radius=2",
+        expected_evidence = [:nonunit_circular_constraint_radius],
+        tags = [:synthetic, :quadratic, :geometry, :scaling],
+        metadata = Dict("geometry" => "circle", "radius" => 2.0),
+    ))
+
+    nonlinear_circle = MOI.Utilities.Model{Float64}()
+    nonlinear_x, nonlinear_y = MOI.add_variables(nonlinear_circle, 2)
+    MOI.add_constraint(
+        nonlinear_circle,
+        MOI.ScalarNonlinearFunction(
+            :+,
+            Any[
+                MOI.ScalarNonlinearFunction(:^, Any[nonlinear_x, 2]),
+                MOI.ScalarNonlinearFunction(:*, Any[nonlinear_y, nonlinear_y]),
+            ],
+        ),
+        MOI.EqualTo(4.0),
+    )
+    push!(models, nonlinear_circle)
+    push!(cases, ProfileCase(
+        "nonlinear_nonunit_circle",
+        evaluation_point(nonlinear_circle, [2.0, 0.0]; label = "radius-two point");
+        description = "The same radius-two circle encoded as a ScalarNonlinearFunction.",
+        task = "synthetic quadratic-geometry diagnostics",
+        formulation = "unshifted nonlinear sum of squares equality",
+        initialization = "feasible radius-two point",
+        scale = "radius=2",
+        expected_evidence = [:nonunit_circular_constraint_radius],
+        tags = [:synthetic, :quadratic, :geometry, :scaling, :nonlinear],
+        metadata = Dict(
+            "geometry" => "circle",
+            "radius" => 2.0,
+            "representation" => "ScalarNonlinearFunction",
+            "equivalent_case" => "quadratic_nonunit_circle",
+        ),
+    ))
+
+    ellipsoid = MOI.Utilities.Model{Float64}()
+    u, v = MOI.add_variables(ellipsoid, 2)
+    MOI.add_constraint(
+        ellipsoid,
+        Q(
+            [QT(2.0, u, u), QT(8.0, v, v)],
+            [AT(-4.0, u), AT(8.0, v)],
+            0.0,
+        ),
+        MOI.EqualTo(-4.0),
+    )
+    push!(models, ellipsoid)
+    push!(cases, ProfileCase(
+        "quadratic_shifted_ellipsoid",
+        evaluation_point(ellipsoid, [4.0, -1.0]; label = "major-axis point");
+        description = "Exact shifted diagonal ellipsoid with semiaxes two and one.",
+        task = "synthetic quadratic-geometry diagnostics",
+        formulation = "shifted positive diagonal quadratic equality",
+        initialization = "feasible major-axis point",
+        scale = "semiaxes=2,1",
+        expected_evidence = [:nonunit_ellipsoidal_constraint_axes],
+        tags = [:synthetic, :quadratic, :geometry, :scaling, :shifted],
+        metadata = Dict("geometry" => "ellipsoid", "semiaxes" => "2,1"),
+    ))
+
+    nonlinear_ellipsoid = MOI.Utilities.Model{Float64}()
+    nonlinear_u, nonlinear_v = MOI.add_variables(nonlinear_ellipsoid, 2)
+    MOI.add_constraint(
+        nonlinear_ellipsoid,
+        MOI.ScalarNonlinearFunction(
+            :+,
+            Any[
+                MOI.ScalarNonlinearFunction(:^, Any[nonlinear_u, 2]),
+                MOI.ScalarNonlinearFunction(
+                    :*,
+                    Any[4.0, MOI.ScalarNonlinearFunction(:^, Any[nonlinear_v, 2])],
+                ),
+                MOI.ScalarNonlinearFunction(:*, Any[-4.0, nonlinear_u]),
+                MOI.ScalarNonlinearFunction(:*, Any[8.0, nonlinear_v]),
+            ],
+        ),
+        MOI.EqualTo(-4.0),
+    )
+    push!(models, nonlinear_ellipsoid)
+    push!(cases, ProfileCase(
+        "nonlinear_shifted_ellipsoid",
+        evaluation_point(nonlinear_ellipsoid, [4.0, -1.0]; label = "major-axis point");
+        description = "The same shifted ellipsoid encoded as a ScalarNonlinearFunction.",
+        task = "synthetic quadratic-geometry diagnostics",
+        formulation = "shifted nonlinear positive diagonal equality",
+        initialization = "feasible major-axis point",
+        scale = "semiaxes=2,1",
+        expected_evidence = [:nonunit_ellipsoidal_constraint_axes],
+        tags = [:synthetic, :quadratic, :geometry, :scaling, :shifted, :nonlinear],
+        metadata = Dict(
+            "geometry" => "ellipsoid",
+            "semiaxes" => "2,1",
+            "representation" => "ScalarNonlinearFunction",
+            "equivalent_case" => "quadratic_shifted_ellipsoid",
+        ),
+    ))
+
+    zero_radius = MOI.Utilities.Model{Float64}()
+    p, q = MOI.add_variables(zero_radius, 2)
+    MOI.add_constraint(
+        zero_radius,
+        Q([QT(2.0, p, p), QT(2.0, q, q)], MOI.ScalarAffineTerm{Float64}[], 0.0),
+        MOI.EqualTo(0.0),
+    )
+    push!(models, zero_radius)
+    push!(cases, ProfileCase(
+        "quadratic_zero_radius",
+        evaluation_point(zero_radius, [0.0, 0.0]; label = "implicit fixed center");
+        description = "Exact zero-radius circle that implicitly fixes both coordinates.",
+        task = "synthetic quadratic-geometry diagnostics",
+        formulation = "zero-level isotropic quadratic equality",
+        initialization = "implied center",
+        scale = "radius=0",
+        expected_evidence = [
+            :zero_radius_circular_constraint,
+            :nonregular_zero_radius_quadratic_fixing,
+        ],
+        tags = [:synthetic, :quadratic, :geometry, :degeneracy],
+        metadata = Dict("geometry" => "zero_radius_circle", "radius" => 0.0),
+    ))
+
+    impossible_circle = MOI.Utilities.Model{Float64}()
+    r, s = MOI.add_variables(impossible_circle, 2)
+    MOI.add_constraint(
+        impossible_circle,
+        Q([QT(2.0, r, r), QT(2.0, s, s)], MOI.ScalarAffineTerm{Float64}[], 0.0),
+        MOI.EqualTo(-1.0),
+    )
+    push!(models, impossible_circle)
+    push!(cases, ProfileCase(
+        "quadratic_negative_radius_squared",
+        evaluation_point(impossible_circle, [0.0, 0.0]; label = "infeasible center probe");
+        description = "Exact circle equality with a negative radius squared, which is statically infeasible.",
+        task = "synthetic quadratic-geometry diagnostics",
+        formulation = "infeasible isotropic quadratic equality",
+        initialization = "center probe for static-infeasible model",
+        scale = "radius_squared=-1",
+        expected_evidence = [:infeasible_negative_radius_squared_circular_constraint],
+        tags = [:synthetic, :quadratic, :geometry, :infeasible],
+        metadata = Dict("geometry" => "circle", "radius_squared" => -1.0),
+    ))
+
+    conflicting_bounds = MOI.Utilities.Model{Float64}()
+    a, b = MOI.add_variables(conflicting_bounds, 2)
+    MOI.add_constraint(
+        conflicting_bounds,
+        Q(
+            [QT(2.0, a, a), QT(8.0, b, b)],
+            [AT(-4.0, a), AT(8.0, b)],
+            3.0,
+        ),
+        MOI.LessThan(-1.0),
+    )
+    MOI.add_constraint(conflicting_bounds, a, MOI.GreaterThan(5.0))
+    push!(models, conflicting_bounds)
+    push!(cases, ProfileCase(
+        "quadratic_implied_bound_conflict",
+        evaluation_point(conflicting_bounds, [5.0, -1.0]; label = "bound-conflict probe");
+        description = "Diagonal quadratic coordinate interval conflicting with a declared scalar lower bound.",
+        task = "synthetic quadratic-geometry diagnostics",
+        formulation = "positive diagonal quadratic upper level with scalar-bound conflict",
+        initialization = "declared-bound endpoint",
+        scale = "quadratic interval x=[0,4], declared x>=5",
+        expected_evidence = [:inconsistent_diagonal_quadratic_implied_variable_bound],
+        tags = [:synthetic, :quadratic, :geometry, :infeasible, :bounds],
+        metadata = Dict("geometry" => "ellipsoid", "conflicting_variable_lower" => 5.0),
+    ))
+
+    minimum_level = MOI.Utilities.Model{Float64}()
+    h, k = MOI.add_variables(minimum_level, 2)
+    MOI.add_constraint(
+        minimum_level,
+        Q(
+            [QT(2.0, h, h), QT(8.0, k, k)],
+            [AT(-4.0, h), AT(8.0, k)],
+            3.0,
+        ),
+        MOI.LessThan(-5.0),
+    )
+    push!(models, minimum_level)
+    push!(cases, ProfileCase(
+        "quadratic_minimum_level_inequality",
+        evaluation_point(minimum_level, [2.0, -1.0]; label = "minimum-level center");
+        description = "Positive diagonal quadratic upper level equal to its exact minimum.",
+        task = "synthetic quadratic-geometry diagnostics",
+        formulation = "minimum-level positive diagonal quadratic inequality",
+        initialization = "implied center",
+        scale = "minimum=-5",
+        expected_evidence = [
+            :minimum_level_diagonal_quadratic_constraint,
+            :nonregular_minimum_level_diagonal_quadratic_inequality,
+        ],
+        tags = [:synthetic, :quadratic, :geometry, :degeneracy, :active_set],
+        metadata = Dict("geometry" => "ellipsoid", "minimum_value" => -5.0),
+    ))
+    return models, cases
+end
+
+"""Run repeated solver-independent profiles for the quadratic-geometry corpus."""
+function profile_synthetic_quadratic_geometry_corpus(; kwargs...)
+    models, cases = synthetic_quadratic_geometry_profile_corpus()
     return profile_cases_repeated(models, cases; kwargs...)
 end
 
