@@ -608,6 +608,89 @@ function _active_matching_findings(
     )]
 end
 
+function _active_structural_numerical_tangent_findings(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T},
+    active_matching::ActiveSetStructuralMatching;
+    rank_relative_tolerance::Real,
+    rank_max_dense_entries::Integer,
+) where {T<:AbstractFloat}
+    active_matching.complete || return Finding[]
+    graph = incidence_graph(model)
+    free_variables = MOI.VariableIndex[
+        graph.variables[position].index for position in
+        active_matching.matching.eligible_variable_positions
+    ]
+    columns_by_variable = Dict(
+        variable => column for (column, variable) in enumerate(evaluation.point.variables)
+    )
+    columns = [get(columns_by_variable, variable, 0) for variable in free_variables]
+    any(iszero, columns) && return Finding[Finding(
+        :active_tangent_structural_numerical_comparison_unavailable;
+        severity = SeverityInfo, domain = RepresentationalIssue,
+        basis = NumericalObservation, confidence = ConfidenceHigh,
+        observation = "Active-set structural free variables cannot be aligned with every evaluation coordinate.",
+        why_it_matters = "No structural-versus-numerical tangent-nullity comparison is made for a mismatched coordinate scope.",
+        evidence = [Evidence("Active tangent coordinate alignment"; details = ["free_variable_count" => length(free_variables)])],
+        suggested_actions = ["Evaluate all free model variables in the active-set point."],
+    )]
+    selected = _selected_jacobian_submatrix_evaluation(
+        evaluation, active_matching.selected_rows, columns,
+    )
+    estimate = jacobian_rank_estimate(selected;
+        relative_tolerance = rank_relative_tolerance,
+        max_dense_entries = rank_max_dense_entries,
+        compute_vectors = false,
+    )
+    estimate.available || return Finding[Finding(
+        :active_tangent_structural_numerical_comparison_unavailable;
+        severity = SeverityInfo, domain = NumericalIssue,
+        basis = NumericalObservation, confidence = ConfidenceHigh,
+        observation = "Active-set structural/numerical tangent comparison is unavailable.",
+        why_it_matters = "Incomplete, non-finite, or guarded-out derivatives cannot establish local tangent nullity.",
+        evidence = [Evidence("Active tangent rank estimate"; details = ["reason" => estimate.reason])],
+        suggested_actions = ["Resolve derivative availability or adjust the documented rank guard before interpreting active tangent freedom."],
+    )]
+    structural_nullity = length(columns) - matching_cardinality(active_matching.matching)
+    observed_nullity = estimate.right_nullity
+    affected = EntityRef[
+        EntityRef(:variable, variable.value) for variable in free_variables
+    ]
+    evidence = [
+        _point_evidence(evaluation.point),
+        Evidence("Active structural/numerical tangent comparison"; details = [
+            "free_variable_count" => length(columns),
+            "structural_matching_rank" => matching_cardinality(active_matching.matching),
+            "structural_right_nullity" => structural_nullity,
+            "numerical_rank" => estimate.rank,
+            "numerical_right_nullity" => observed_nullity,
+        ]),
+    ]
+    findings = Finding[]
+    if structural_nullity > 0 && observed_nullity == structural_nullity
+        push!(findings, Finding(:active_structurally_expected_tangent_nullspace;
+            severity = SeverityInfo, domain = MathematicalIssue,
+            basis = LocalInference, confidence = ConfidenceHigh,
+            observation = "The active-set structural matching predicts $structural_nullity tangent degree(s) of freedom, matching the local numerical nullity.",
+            why_it_matters = "The observed active tangent freedom is structurally expected in this aligned scope; semantics are still needed to classify it as an intended gauge or missing equation.",
+            evidence = evidence,
+            affected = affected,
+            suggested_actions = ["Interpret the tangent directions using expected-mode declarations or domain metadata."],
+        ))
+    elseif observed_nullity > structural_nullity
+        push!(findings, Finding(:active_unexpected_local_tangent_rank_loss;
+            severity = SeverityWarning, domain = NumericalIssue,
+            basis = LocalInference, confidence = ConfidenceHigh,
+            observation = "The active-set numerical tangent nullity $observed_nullity exceeds the structural prediction $structural_nullity.",
+            why_it_matters = "Additional local rank loss can indicate dependent active gradients, derivative cancellation, poor coordinates, or a physical singularity.",
+            evidence = evidence,
+            affected = affected,
+            suggested_actions = ["Inspect active nullspace fingerprints, scaling, and nearby points before assigning a physical cause."],
+        ))
+    end
+    return findings
+end
+
 function _coupled_set_findings(summary::CoupledSetFeasibilitySummary)
     findings = Finding[]
     for activity in summary.activities
@@ -709,6 +792,11 @@ function analyze_active_set(
         residual_tolerance = expected_mode_residual_tolerance,
     ))
     append!(report.findings, _active_matching_findings(evaluation, active_matching))
+    append!(report.findings, _active_structural_numerical_tangent_findings(
+        model, evaluation, active_matching;
+        rank_relative_tolerance = rank_relative_tolerance,
+        rank_max_dense_entries = rank_max_dense_entries,
+    ))
     append!(report.findings, _coupled_set_findings(coupled_summary))
     report.metadata[:stage] = "active_set"
     report.metadata[:evaluation_point_label] = evaluation.point.label
@@ -774,6 +862,9 @@ function analyze_active_set_second_order(
     rank_max_dense_entries::Integer = 4_000_000,
     hessian_relative_step::Real = eps(T)^(one(T) / 4),
     hessian_max_finite_difference_variables::Integer = 100,
+    expected_modes::AbstractVector{<:ExpectedNullspaceMode} =
+        expected_nullspace_modes(model, evaluation),
+    expected_mode_residual_tolerance::Real = sqrt(eps(T)),
     kwargs...,
 ) where {T<:AbstractFloat}
     summary = constraint_feasibility_summary(
@@ -832,6 +923,8 @@ function analyze_active_set_second_order(
         evaluation,
         hessian;
         active_rows = active_rows,
+        expected_modes = expected_modes,
+        expected_mode_residual_tolerance = expected_mode_residual_tolerance,
         kwargs...,
     )
     append!(report.findings, reduced_report.findings)
@@ -840,6 +933,7 @@ function analyze_active_set_second_order(
     report.metadata[:second_order_hessian_methods] = join(hessian.methods, ",")
     report.metadata[:second_order_reduced_hessian_available] =
         get(reduced_report.metadata, :reduced_hessian_available, "false")
+    report.metadata[:second_order_expected_flat_mode_count] = string(length(expected_modes))
     if !recovery.unique
         push!(
             report,

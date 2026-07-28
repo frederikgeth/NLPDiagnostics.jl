@@ -256,6 +256,7 @@ struct ReducedHessianAnalysis{T<:AbstractFloat}
     zero_eigenvalues::Int
     condition_estimate::Union{Nothing,T}
     tangent_basis::Matrix{T}
+    reduced_eigenvectors::Matrix{T}
 end
 
 """

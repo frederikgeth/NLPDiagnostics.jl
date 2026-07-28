@@ -158,10 +158,10 @@ equation dependencies. Next classifications:
 
 - expected coordinate gauge declarations and observed-nullspace comparison
   (implemented, including declared-span dimension checks);
-- active-set nullspace classification beyond compact dependence, uniform
-  tangent shifts, and declared-mode span comparisons;
-- flat reduced-Hessian direction (available through active-set second-order
-  probing); and
+- active-set nullspace classification beyond structural/numerical tangent
+  comparisons, compact dependence, uniform shifts, and declared-mode spans;
+- richer flat reduced-Hessian direction fingerprints beyond uniform,
+  compact-support, and declared-mode consistency checks; and
 - unknown local equality-Jacobian mode (implemented).
 
 PowerModels and multiconductor semantics follow only after these generic

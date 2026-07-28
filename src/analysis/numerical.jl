@@ -863,6 +863,95 @@ function analyze_numerical(
     return report
 end
 
+function _reduced_hessian_expected_mode_findings(
+    evaluation::NumericalEvaluation{T},
+    analysis::ReducedHessianAnalysis{T},
+    modes::AbstractVector{<:ExpectedNullspaceMode};
+    residual_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    isempty(modes) && return Finding[]
+    tolerance = convert(T, residual_tolerance)
+    tolerance >= zero(T) || throw(ArgumentError(
+        "reduced-Hessian expected-mode residual_tolerance must be nonnegative",
+    ))
+    column_by_variable = Dict(
+        variable => column for (column, variable) in enumerate(evaluation.point.variables)
+    )
+    findings = Finding[]
+    for mode in modes
+        columns = [get(column_by_variable, variable, 0) for variable in mode.variables]
+        if any(iszero, columns)
+            push!(findings, Finding(
+                :reduced_hessian_expected_flat_mode_unaligned;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = "Declared expected mode $(mode.name) cannot be aligned with the reduced-Hessian evaluation coordinates.",
+                why_it_matters = "A second-order comparison is not meaningful when a declaration references variables absent from the evaluated point.",
+                evidence = [Evidence("Reduced-Hessian expected-mode declaration"; details = [
+                    "mode" => mode.name,
+                    "description" => mode.description,
+                ])],
+                suggested_actions = [
+                    "Declare the mode in the current evaluation-point variable coordinates.",
+                ],
+            ))
+            continue
+        end
+        direction = zeros(T, length(evaluation.point.variables))
+        for (column, value) in zip(columns, mode.direction)
+            direction[column] += convert(T, value)
+        end
+        tangent_coordinates = transpose(analysis.tangent_basis) * direction
+        tangent_projection = analysis.tangent_basis * tangent_coordinates
+        tangent_residual = norm(direction - tangent_projection)
+        direction_norm = norm(direction)
+        tangent = tangent_residual <= tolerance * max(one(T), direction_norm)
+        flat_residual = zero(T)
+        if tangent && !isempty(tangent_coordinates)
+            spectral_coordinates = transpose(analysis.reduced_eigenvectors) * tangent_coordinates
+            flat_residual = norm(
+                analysis.reduced_eigenvectors * (analysis.eigenvalues .* spectral_coordinates),
+            )
+        end
+        flat_threshold = analysis.eigenvalue_threshold *
+                         max(one(T), norm(tangent_coordinates))
+        observed = tangent && flat_residual <= flat_threshold
+        push!(findings, Finding(
+            observed ? :reduced_hessian_expected_flat_mode_observed :
+                       :reduced_hessian_expected_flat_mode_not_observed;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = observed ? PhysicalExpectation : LocalInference,
+            confidence = observed ? ConfidenceHigh : ConfidenceMedium,
+            observation = observed ?
+                          "Declared mode $(mode.name) is a near-flat tangent direction of the reduced Hessian at this point." :
+                          "Declared mode $(mode.name) is not a near-flat tangent direction of the reduced Hessian at this point.",
+            why_it_matters = observed ?
+                             "The local second-order geometry is consistent with the declared expected mode, without independently validating its physical semantics." :
+                             "Active constraints, curvature, or the operating point can remove an expected flat mode; this is point-local evidence rather than a plugin error.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Reduced-Hessian expected-mode comparison"; details = [
+                    "mode" => mode.name,
+                    "description" => mode.description,
+                    "tangent_residual" => tangent_residual,
+                    "flat_residual" => flat_residual,
+                    "flat_threshold" => flat_threshold,
+                ]),
+            ],
+            affected = EntityRef[
+                EntityRef(:variable, variable.value) for variable in mode.variables
+            ],
+            suggested_actions = observed ?
+                                ["Retain the declaration as expected-mode evidence and confirm its units and physical semantics."] :
+                                ["Inspect the active rows, reduced curvature, and operating point before changing the expected-mode declaration."],
+        ))
+    end
+    return findings
+end
+
 """
     analyze_reduced_hessian(evaluation, hessian; active_rows, ...)
 
@@ -871,14 +960,25 @@ Turn an explicit reduced-Hessian calculation into explainable local findings.
 set or a multiplier convention.
 """
 function analyze_reduced_hessian(
-    evaluation::NumericalEvaluation,
+    evaluation::NumericalEvaluation{T},
     hessian::HessianEvaluation;
     active_rows::AbstractVector{<:Integer},
     condition_threshold::Real = 1.0e10,
+    flat_direction_support_relative_tolerance::Real = 0.1,
+    flat_direction_compact_max_variables::Integer = 8,
+    expected_modes::AbstractVector{<:ExpectedNullspaceMode} = ExpectedNullspaceMode[],
+    expected_mode_residual_tolerance::Real = sqrt(eps(T)),
     kwargs...,
-)
+) where {T<:AbstractFloat}
     condition_threshold > 1 ||
         throw(ArgumentError("condition_threshold must be greater than one"))
+    zero(flat_direction_support_relative_tolerance) <
+    flat_direction_support_relative_tolerance <= one(flat_direction_support_relative_tolerance) ||
+        throw(ArgumentError(
+            "flat_direction_support_relative_tolerance must lie in (0, 1]",
+        ))
+    flat_direction_compact_max_variables > 0 ||
+        throw(ArgumentError("flat_direction_compact_max_variables must be positive"))
     analysis = reduced_hessian_analysis(
         evaluation,
         hessian;
@@ -971,6 +1071,68 @@ function analyze_reduced_hessian(
                 ],
             ),
         )
+        for index in eachindex(analysis.eigenvalues)
+            abs(analysis.eigenvalues[index]) <= analysis.eigenvalue_threshold || continue
+            direction = analysis.tangent_basis * analysis.reduced_eigenvectors[:, index]
+            length(direction) >= 2 || continue
+            direction_norm = norm(direction)
+            iszero(direction_norm) && continue
+            correlation = abs(sum(direction)) /
+                          (sqrt(eltype(direction)(length(direction))) * direction_norm)
+            if correlation >= eltype(direction)(0.98)
+                push!(report, Finding(
+                    :reduced_hessian_candidate_uniform_flat_direction;
+                    severity = SeverityInfo,
+                    domain = RepresentationalIssue,
+                    basis = HeuristicInterpretation,
+                    confidence = ConfidenceMedium,
+                    observation = "A near-flat reduced-Hessian direction is nearly uniform across all $(length(direction)) tangent coordinates.",
+                    why_it_matters = "This resembles a common-coordinate flat mode or symmetry, but coordinate units and model semantics are required before calling it an expected gauge.",
+                    evidence = vcat(evidence, [Evidence("Flat reduced-Hessian direction"; details = [
+                        "reduced_eigenvalue_index" => index,
+                        "eigenvalue" => analysis.eigenvalues[index],
+                        "uniform_shift_correlation" => correlation,
+                    ])]),
+                    affected = EntityRef[
+                        EntityRef(:variable, variable.value) for variable in evaluation.point.variables
+                    ],
+                    suggested_actions = [
+                        "Compare this direction with declared expected modes and active-set tangent fingerprints.",
+                        "Re-evaluate after a small operating-point perturbation before assigning a symmetry interpretation.",
+                    ],
+                ))
+            end
+            maximum_magnitude = maximum(abs, direction)
+            support = findall(abs(value) >=
+                              flat_direction_support_relative_tolerance * maximum_magnitude
+                              for value in direction)
+            1 <= length(support) < length(direction) &&
+                length(support) <= flat_direction_compact_max_variables || continue
+            push!(report, Finding(
+                :reduced_hessian_candidate_compact_flat_direction;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = HeuristicInterpretation,
+                confidence = ConfidenceMedium,
+                observation = "A near-flat reduced-Hessian direction has material support on $(length(support)) of $(length(direction)) evaluated coordinates.",
+                why_it_matters = "A localized flat mode can indicate weak identifiability or a small unconstrained subsystem, but coordinate scaling and model semantics are required before assigning a cause.",
+                evidence = vcat(evidence, [Evidence("Flat reduced-Hessian direction"; details = [
+                    "reduced_eigenvalue_index" => index,
+                    "eigenvalue" => analysis.eigenvalues[index],
+                    "support_relative_tolerance" => flat_direction_support_relative_tolerance,
+                    "support_coordinate_count" => length(support),
+                    "support_coordinates" => join(support, ","),
+                ])]),
+                affected = EntityRef[
+                    EntityRef(:variable, evaluation.point.variables[column].value)
+                    for column in support
+                ],
+                suggested_actions = [
+                    "Inspect the listed variables and their incident constraints for a localized missing equation or weakly identified subsystem.",
+                    "Repeat at nearby points and under documented coordinate scaling before assigning a physical interpretation.",
+                ],
+            ))
+        end
     elseif !isnothing(analysis.condition_estimate) &&
            analysis.condition_estimate >= condition_threshold
         push!(
@@ -993,6 +1155,12 @@ function analyze_reduced_hessian(
             ),
         )
     end
+    append!(report.findings, _reduced_hessian_expected_mode_findings(
+        evaluation,
+        analysis,
+        expected_modes;
+        residual_tolerance = expected_mode_residual_tolerance,
+    ))
     sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
 end

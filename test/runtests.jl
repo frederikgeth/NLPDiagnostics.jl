@@ -2945,6 +2945,25 @@ end
             extra_tangent_report,
             :active_undeclared_tangent_directions,
         )) == 1
+        @test length(findings(
+            extra_tangent_report,
+            :active_structurally_expected_tangent_nullspace,
+        )) == 1
+        active_stationary = new_model()
+        stationary_variable = MOI.add_variable(active_stationary)
+        MOI.add_constraint(
+            active_stationary,
+            MOI.ScalarNonlinearFunction(:^, Any[stationary_variable, 2]),
+            MOI.EqualTo(0.0),
+        )
+        stationary_active_report = NLPDiagnostics.analyze_active_set(
+            active_stationary,
+            [0.0],
+        )
+        @test length(findings(
+            stationary_active_report,
+            :active_unexpected_local_tangent_rank_loss,
+        )) == 1
         combined = NLPDiagnostics.analyze(
             model;
             point = evaluation.point,
@@ -3203,6 +3222,85 @@ end
         )
         @test flat_report.metadata[:second_order_reduced_hessian_available] == "true"
         @test length(findings(flat_report, :reduced_hessian_flat_directions)) == 1
+
+        flat_shift_model = new_model()
+        s1, s2 = MOI.add_variables(flat_shift_model, 2)
+        flat_shift_evaluation = NLPDiagnostics.evaluate_numerical(
+            flat_shift_model, [0.0, 0.0],
+        )
+        flat_shift_hessian = NLPDiagnostics.HessianEvaluation(
+            flat_shift_evaluation.point,
+            1.0,
+            [0.0, 0.0],
+            NLPDiagnostics.HessianEntry{Float64}[
+                NLPDiagnostics.HessianEntry(1, 1, 1.0),
+                NLPDiagnostics.HessianEntry(1, 2, -1.0),
+                NLPDiagnostics.HessianEntry(2, 2, 1.0),
+            ],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        flat_shift_report = NLPDiagnostics.analyze_reduced_hessian(
+            flat_shift_evaluation,
+            flat_shift_hessian;
+            active_rows = Int[],
+            expected_modes = [
+                NLPDiagnostics.ExpectedNullspaceMode(
+                    :common_shift,
+                    [s1, s2],
+                    [1.0, 1.0],
+                ),
+                NLPDiagnostics.ExpectedNullspaceMode(
+                    :differential_shift,
+                    [s1, s2],
+                    [1.0, -1.0],
+                ),
+            ],
+        )
+        @test length(findings(
+            flat_shift_report,
+            :reduced_hessian_candidate_uniform_flat_direction,
+        )) == 1
+        @test length(findings(
+            flat_shift_report,
+            :reduced_hessian_expected_flat_mode_observed,
+        )) == 1
+        @test length(findings(
+            flat_shift_report,
+            :reduced_hessian_expected_flat_mode_not_observed,
+        )) == 1
+
+        compact_model = new_model()
+        c1, c2, c3 = MOI.add_variables(compact_model, 3)
+        compact_evaluation = NLPDiagnostics.evaluate_numerical(
+            compact_model, [0.0, 0.0, 0.0],
+        )
+        compact_hessian = NLPDiagnostics.HessianEvaluation(
+            compact_evaluation.point,
+            1.0,
+            zeros(3),
+            NLPDiagnostics.HessianEntry{Float64}[
+                NLPDiagnostics.HessianEntry(1, 1, 1.0),
+                NLPDiagnostics.HessianEntry(1, 2, -1.0),
+                NLPDiagnostics.HessianEntry(2, 2, 1.0),
+                NLPDiagnostics.HessianEntry(3, 3, 2.0),
+            ],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        compact_report = NLPDiagnostics.analyze_reduced_hessian(
+            compact_evaluation,
+            compact_hessian;
+            active_rows = Int[],
+        )
+        compact_findings = findings(
+            compact_report,
+            :reduced_hessian_candidate_compact_flat_direction,
+        )
+        @test length(compact_findings) == 1
+        @test length(only(compact_findings).affected) == 2
     end
 
     @testset "non-unit circular equalities are explicit scaling hints" begin

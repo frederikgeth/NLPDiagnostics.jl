@@ -408,6 +408,28 @@ When declared modes are individually tangent, their independent span is also
 compared with the active right nullity. A larger observed nullity produces
 `active_undeclared_tangent_directions`; dependent declarations are separately
 reported as `active_expected_nullspace_mode_declarations_dependent`.
+For complete active-set incidence alignment, the diagnostic also compares the
+free-variable matching prediction with the numerical tangent nullity.
+`active_structurally_expected_tangent_nullspace` identifies matching expected
+freedom, while `active_unexpected_local_tangent_rank_loss` identifies extra
+point-local loss. Multiplier recovery uses a minimum-norm SVD solve so a zero
+active Jacobian remains diagnostic evidence instead of aborting the analysis.
+
+When second-order analysis finds a near-flat reduced-Hessian eigenvector, it
+also checks whether its full-coordinate tangent direction is nearly uniform.
+`reduced_hessian_candidate_uniform_flat_direction` is only a local numerical
+fingerprint for a possible common-coordinate flat mode: it does not establish
+a physical gauge, since coordinate units and domain semantics are not present
+in the generic core.
+It also records `reduced_hessian_candidate_compact_flat_direction` when a
+near-flat eigenvector has material support on a strict, small subset of the
+evaluated coordinates. This is a heuristic pointer to a localized weakly
+identified subsystem, not proof of a missing equation or a physical mode.
+Plugins can instead declare `ExpectedNullspaceMode` values for
+`analyze_reduced_hessian` (or the active-set second-order convenience path).
+The report then records whether each declaration is an observed near-flat
+tangent direction at that point. This is a consistency check—not a claim that
+the declared physical interpretation, model, or reference choice is correct.
 
 ## Current limits
 

@@ -398,6 +398,7 @@ function _unavailable_reduced_hessian(
         0,
         nothing,
         zeros(T, length(evaluation.point.variables), 0),
+        zeros(T, 0, 0),
     )
 end
 
@@ -491,13 +492,12 @@ function reduced_hessian_analysis(
             Matrix(factorization.V[:, (jacobian_rank + 1):variable_count])
     end
     tangent_dimension = size(tangent_basis, 2)
-    eigenvalues = tangent_dimension == 0 ?
-                  T[] :
-                  T.(eigvals(Symmetric(
-                      transpose(tangent_basis) *
-                      hessian_matrix *
-                      tangent_basis,
-                  )))
+    spectral = tangent_dimension == 0 ? nothing : eigen(Symmetric(
+        transpose(tangent_basis) * hessian_matrix * tangent_basis,
+    ))
+    eigenvalues = isnothing(spectral) ? T[] : T.(spectral.values)
+    reduced_eigenvectors = isnothing(spectral) ?
+                           zeros(T, 0, 0) : T.(spectral.vectors)
     maximum_eigenvalue =
         maximum(abs, eigenvalues; init = zero(T))
     eigenvalue_threshold =
@@ -527,5 +527,6 @@ function reduced_hessian_analysis(
         zero_count,
         condition_estimate,
         tangent_basis,
+        reduced_eigenvectors,
     )
 end

@@ -399,7 +399,13 @@ function recover_stationarity_multipliers(
     factorization = svd(gradient_matrix; full = false)
     threshold = convert(T, rank_relative_tolerance) * maximum(factorization.S; init = zero(T))
     rank = count(value -> value > threshold, factorization.S)
-    multipliers = isempty(rows) ? T[] : transpose(gradient_matrix) \ (-weight .* objective_gradient)
+    multipliers = zeros(T, length(rows))
+    if !isempty(rows) && rank > 0
+        right_coordinates = transpose(factorization.V[:, 1:rank]) *
+                            (-weight .* objective_gradient)
+        multipliers = factorization.U[:, 1:rank] *
+                      (right_coordinates ./ factorization.S[1:rank])
+    end
     residual = norm(weight .* objective_gradient + transpose(gradient_matrix) * multipliers)
     feasible = all(
         activity -> isnothing(activity.feasibility_violation) ||
