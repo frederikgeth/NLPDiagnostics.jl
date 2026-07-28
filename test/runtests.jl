@@ -4935,6 +4935,25 @@ end
               log1p(-exp(-1.0)) atol = 1.0e-12
         @test isempty(NLPDiagnostics.domain_issues(log1mexp_domain_model))
 
+        softplus_domain_model = new_model()
+        softplus_x = MOI.add_variable(softplus_domain_model)
+        MOI.add_constraint(
+            softplus_domain_model,
+            MOI.ScalarNonlinearFunction(:softplus, Any[softplus_x]),
+            MOI.GreaterThan(2.0),
+        )
+        MOI.add_constraint(
+            softplus_domain_model,
+            MOI.ScalarNonlinearFunction(:log, Any[softplus_x]),
+            MOI.LessThan(10.0),
+        )
+        softplus_domains = NLPDiagnostics._domain_variable_intervals(
+            NLPDiagnostics.snapshot(softplus_domain_model),
+        )
+        @test softplus_domains[softplus_x].lower ≈
+              2.0 + log1p(-exp(-2.0)) atol = 1.0e-12
+        @test isempty(NLPDiagnostics.domain_issues(softplus_domain_model))
+
         logistic_domain_model = new_model()
         logistic_x = MOI.add_variable(logistic_domain_model)
         MOI.add_constraint(
@@ -5054,6 +5073,34 @@ end
         @test occursin(
             "absolute_value_range:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.EqualTo{Float64}#1",
             Dict(absolute_domain_finding.evidence[1].details)[
+                "support_interval_origins"
+            ],
+        )
+
+        cosh_domain_model = new_model()
+        cosh_x = MOI.add_variable(cosh_domain_model)
+        MOI.add_constraint(
+            cosh_domain_model,
+            MOI.ScalarNonlinearFunction(:cosh, Any[cosh_x]),
+            MOI.EqualTo(1.0),
+        )
+        MOI.add_constraint(
+            cosh_domain_model,
+            MOI.ScalarNonlinearFunction(:log, Any[cosh_x]),
+            MOI.LessThan(10.0),
+        )
+        cosh_domains = NLPDiagnostics._domain_variable_intervals(
+            NLPDiagnostics.snapshot(cosh_domain_model),
+        )
+        @test cosh_domains[cosh_x].lower == 0.0
+        @test cosh_domains[cosh_x].upper == 0.0
+        cosh_domain_finding = only(findings(
+            NLPDiagnostics.analyze_domains(cosh_domain_model),
+            :proven_expression_domain_violation,
+        ))
+        @test occursin(
+            "cosh_range:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.EqualTo{Float64}#1",
+            Dict(cosh_domain_finding.evidence[1].details)[
                 "support_interval_origins"
             ],
         )

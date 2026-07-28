@@ -359,6 +359,8 @@ to arbitrary compositions or non-monotone expressions.
 One deliberately supported non-monotone case is a direct `abs(x)` row with a
 finite nonnegative upper set bound, which exactly implies the connected input
 interval `-u ≤ x ≤ u`; disjunctive lower-range implications remain explicit.
+The same connected-range treatment applies to `cosh(x) ≤ u` for `u ≥ 1`,
+giving `|x| ≤ acosh(u)` without choosing a sign branch.
 Independently, direct unary rows whose scalar set excludes a primitive's real
 output range are reported as mathematical infeasibility proofs. Open endpoints
 are retained—for example, logistic outputs never equal zero or one—so valid

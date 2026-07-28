@@ -299,6 +299,21 @@ function _monotone_unary_input_bounds(head::Symbol, lower, upper)
         input_lower <= input_upper || return nothing
         return input_lower, input_upper
     end
+    if head in (:softplus, :log1pexp, :log1exp)
+        # log(exp(y) - 1) = y + log(1 - exp(-y)); the latter form is
+        # stable at both small and large positive y values.
+        inverse = value -> value + _stable_log1mexp_value(-value)
+        input_lower = -Inf
+        input_upper = Inf
+        !isnothing(lower) && lower > 0 &&
+            (input_lower = inverse(lower))
+        !isnothing(upper) && upper > 0 &&
+            (input_upper = inverse(upper))
+        isfinite(input_lower) || (input_lower = -Inf)
+        isfinite(input_upper) || (input_upper = Inf)
+        input_lower <= input_upper || return nothing
+        return input_lower, input_upper
+    end
     if head == :logistic
         # logit(y) = log(y) - log1p(-y), evaluated only on the open range.
         inverse = value -> log(value) - log1p(-value)
@@ -452,6 +467,28 @@ function _propagate_absolute_value_intervals!(intervals, model; origins = nothin
     return
 end
 
+"""Propagate the connected input interval implied by direct `cosh(x)` upper rows."""
+function _propagate_cosh_intervals!(intervals, model; origins = nothing)
+    for constraint in model.constraints
+        function_value = constraint.function_value
+        function_value isa MOI.ScalarNonlinearFunction || continue
+        function_value.head == :cosh && length(function_value.args) == 1 || continue
+        variable = only(function_value.args)
+        variable isa MOI.VariableIndex || continue
+        row_interval = _domain_scalar_set_interval(constraint.set_value)
+        isnothing(row_interval) && continue
+        _, upper = row_interval
+        upper isa Real && isfinite(upper) && upper >= 1 || continue
+        radius = acosh(upper)
+        _tighten_domain_interval!(intervals, variable, -radius, radius) &&
+            _record_domain_interval_origin!(
+                origins, variable, :cosh_range,
+                _domain_constraint_origin_id(constraint),
+            )
+    end
+    return
+end
+
 """Propagate exact one-sided intervals from direct variable/constant min/max rows."""
 function _propagate_minmax_intervals!(intervals, model; origins = nothing)
     for constraint in model.constraints
@@ -540,6 +577,7 @@ function _domain_variable_interval_state(model::ModelSnapshot)
     _propagate_diagonal_quadratic_geometry_intervals!(intervals, model; origins = origins)
     _propagate_scalar_affine_intervals!(intervals, model; origins = origins)
     _propagate_absolute_value_intervals!(intervals, model; origins = origins)
+    _propagate_cosh_intervals!(intervals, model; origins = origins)
     _propagate_minmax_intervals!(intervals, model; origins = origins)
     _propagate_monotone_unary_intervals!(intervals, model; origins = origins)
     # A monotone row may have produced a new affine input bound. One final
