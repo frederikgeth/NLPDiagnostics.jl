@@ -345,10 +345,24 @@ The first implementation intentionally detects exact or canonical facts. It
 does not claim algebraic equivalence of arbitrary nonlinear expressions.
 Likewise, a disconnected variable means no incidence in the objective or a
 non-domain constraint; bounds and integrality alone do not count as incidence.
-Recognized exact positive-diagonal circle and ellipsoid geometry can contribute
-coordinate intervals to expression-domain propagation. These intervals are
-mathematical implications of the source rows, retained only in analysis state;
-the package never writes them back to the model.
+Recognized exact positive-diagonal circle and ellipsoid geometry, together
+with bounded scalar-affine row propagation, can contribute coordinate
+intervals to expression-domain propagation. These intervals are mathematical
+implications of the source rows, retained only in analysis state; the package
+never writes them back to the model. Affine propagation uses a bounded,
+order-independent fixed point rather than an unbounded presolver loop.
+Direct unary nonlinear rows for supported monotone `log`-, `exp`-, and
+`sqrt`-family primitives can likewise be inverted into input intervals,
+including the decreasing stable `log1mexp` primitive and open-range logistic
+logit/tanh inverse mappings. This does not extend to arbitrary compositions
+or non-monotone expressions.
+Independently, direct unary rows whose scalar set excludes a primitive's real
+output range are reported as mathematical infeasibility proofs. Open endpoints
+are retained—for example, logistic outputs never equal zero or one—so valid
+closed boundaries such as `cosh(x) = 1` are not misclassified.
+Expression-domain and initialization findings retain the corresponding
+interval-origin categories and source constraint indices in their evidence, so
+derived range conclusions remain inspectable rather than opaque.
 
 ## Next slices
 

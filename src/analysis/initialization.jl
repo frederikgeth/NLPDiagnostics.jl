@@ -32,7 +32,7 @@ function _initialization_bound_findings(
     point::EvaluationPoint,
 )
     findings = Finding[]
-    intervals = _domain_variable_intervals(model_snapshot)
+    intervals, interval_origins = _domain_variable_interval_state(model_snapshot)
     records = Dict(record.index => record for record in model_snapshot.variables)
     violations = MOI.VariableIndex[]
     boundary = MOI.VariableIndex[]
@@ -56,7 +56,7 @@ function _initialization_bound_findings(
             push!(
                 details,
                 "v$(variable.value)" =>
-                    "value=$value, bounds=[$(interval.lower), $(interval.upper)]",
+                    "value=$value, bounds=[$(interval.lower), $(interval.upper)], origins=$(_domain_interval_origin_summary(interval_origins, variable))",
             )
         elseif !(variable in disjunctive_variables) &&
                interval.lower != interval.upper &&
@@ -76,17 +76,17 @@ function _initialization_bound_findings(
                 domain = MathematicalIssue,
                 basis = MathematicalProof,
                 confidence = ConfidenceCertain,
-                observation = "$(length(violations)) initial variable values violate their declared bound intersections.",
-                why_it_matters = "The supplied initialization is not a point in the declared variable domain and may be rejected, projected, or cause invalid expression evaluations.",
+                observation = "$(length(violations)) initial variable values violate statically implied variable intervals.",
+                why_it_matters = "The supplied initialization is outside a mathematically proven coordinate interval derived from declared bounds and supported static rows, so it may be rejected, projected, or cause invalid expression evaluations.",
                 evidence = [
                     _point_evidence(point),
                     Evidence(
-                        "Initial values outside variable bounds";
+                        "Initial values outside statically implied variable intervals";
                         details = details,
                     ),
                 ],
                 suggested_actions = [
-                    "Correct the initial values or the declared bounds.",
+                    "Correct the initial values, declared bounds, or source rows that imply the interval.",
                     "Re-run exact-point domain and derivative checks after correction.",
                 ],
                 affected = EntityRef[
@@ -105,12 +105,12 @@ function _initialization_bound_findings(
                 domain = NumericalIssue,
                 basis = LocalInference,
                 confidence = ConfidenceHigh,
-                observation = "$(length(boundary)) non-fixed variables start exactly on a finite bound.",
-                why_it_matters = "Interior-point methods generally move bound-constrained variables into the interior, and boundary points can coincide with singular primitive derivatives such as sqrt at zero.",
+                observation = "$(length(boundary)) non-fixed variables start exactly on a finite statically implied interval boundary.",
+                why_it_matters = "Interior-point methods generally move constrained variables into the interior, and implied boundaries can coincide with singular primitive derivatives such as sqrt at zero.",
                 evidence = [
                     _point_evidence(point),
                     Evidence(
-                        "Variables initialized on finite bounds";
+                        "Variables initialized on finite statically implied interval boundaries";
                         details = [
                             "variables" =>
                                 join((variable.value for variable in boundary), ","),

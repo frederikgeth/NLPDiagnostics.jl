@@ -418,7 +418,9 @@ function _scan_derivative_expression!(
         argument_intervals,
     )
         requirement.assessment == DomainSafe && continue
-        support = variable_support(value)
+        argument_value = requirement.argument == 0 ? value :
+                         value.args[requirement.argument]
+        support = variable_support(argument_value)
         push!(
             issues,
             ExpressionDerivativeIssue(
@@ -505,6 +507,7 @@ function _derivative_issue_finding(
     issue::ExpressionDerivativeIssue,
     variable_records;
     point::Union{Nothing,EvaluationPoint} = nothing,
+    interval_origins = nothing,
 )
     proven = issue.assessment == DomainProvenViolation
     at_point = !isnothing(point)
@@ -522,6 +525,13 @@ function _derivative_issue_finding(
     context = at_point ?
               "at point \"$(point.label)\"" :
               "within the declared bound enclosure"
+    support_origins = isnothing(interval_origins) ? "" : join(
+        [
+            "v$(variable.value)=$(_domain_interval_origin_summary(interval_origins, variable))" for
+            variable in sort!(copy(issue.variables); by = variable -> variable.value)
+        ],
+        ";",
+    )
     evidence = Evidence[
         Evidence(
             "Primitive differentiability requirement";
@@ -534,6 +544,7 @@ function _derivative_issue_finding(
                 "argument_interval" =>
                     "[$(issue.enclosure.lower), $(issue.enclosure.upper)]",
                 "assessment" => issue.assessment,
+                "support_interval_origins" => support_origins,
             ],
         ),
     ]
@@ -570,12 +581,14 @@ function analyze_derivatives(
     model::ModelSnapshot;
     point::Union{Nothing,EvaluationPoint} = nothing,
 )
-    variable_intervals = isnothing(point) ?
-                         _domain_variable_intervals(model) :
-                         Dict(
-        variable => IntervalEnclosure(value, value, true, true) for
-        (variable, value) in zip(point.variables, point.values)
-    )
+    variable_intervals, interval_origins = if isnothing(point)
+        _domain_variable_interval_state(model)
+    else
+        Dict(
+            variable => IntervalEnclosure(value, value, true, true) for
+            (variable, value) in zip(point.variables, point.values)
+        ), nothing
+    end
     issues = _derivative_issues(model, variable_intervals)
     if !isnothing(point)
         issues = filter(
@@ -588,7 +601,12 @@ function analyze_derivatives(
     for issue in issues
         push!(
             report,
-            _derivative_issue_finding(issue, records; point = point),
+            _derivative_issue_finding(
+                issue,
+                records;
+                point = point,
+                interval_origins = interval_origins,
+            ),
         )
     end
     report.metadata[:derivative_issue_count] = string(length(issues))

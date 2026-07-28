@@ -1479,6 +1479,97 @@ function _analyze_exponential_range_constraints!(report::DiagnosticReport, model
     return
 end
 
+"""Return the real output range of supported unary primitives."""
+function _unary_operator_real_range(head::Symbol)
+    if head in (:exp2, :softplus, :log1pexp, :log1exp)
+        return 0.0, Inf, true, false
+    elseif head == :expm1
+        return -1.0, Inf, true, false
+    elseif head == :log1mexp
+        return -Inf, 0.0, false, true
+    elseif head in (:logistic, :tanh)
+        return head == :logistic ? (0.0, 1.0, true, true) : (-1.0, 1.0, true, true)
+    elseif head in (:abs, :sqrt, :acosh, :logcosh)
+        return 0.0, Inf, false, false
+    elseif head == :cosh
+        return 1.0, Inf, false, false
+    elseif head in (:sin, :cos)
+        return -1.0, 1.0, false, false
+    elseif head in (:asin, :acos)
+        return -pi / 2, pi / 2, false, false
+    elseif head == :atan
+        return -pi / 2, pi / 2, true, true
+    end
+    return nothing
+end
+
+"""Whether a scalar row set has a nonempty intersection with an output range."""
+function _scalar_set_intersects_operator_range(
+    set_value,
+    range_lower::Real,
+    range_upper::Real,
+    lower_open::Bool,
+    upper_open::Bool,
+)
+    set_interval = _scalar_set_interval(set_value)
+    isnothing(set_interval) && return true
+    set_lower, set_upper = set_interval
+    !isnothing(set_lower) && !(set_lower isa Real && isfinite(set_lower)) && return true
+    !isnothing(set_upper) && !(set_upper isa Real && isfinite(set_upper)) && return true
+    if !isnothing(set_upper)
+        set_upper < range_lower && return false
+        set_upper == range_lower && lower_open && return false
+    end
+    if !isnothing(set_lower)
+        set_lower > range_upper && return false
+        set_lower == range_upper && upper_open && return false
+    end
+    return true
+end
+
+"""Prove infeasibility when a unary primitive row excludes its whole real range."""
+function _analyze_unary_operator_range_constraints!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    records = Dict(record.index => record for record in model.variables)
+    for constraint in model.constraints
+        value = constraint.function_value
+        value isa MOI.ScalarNonlinearFunction && length(value.args) == 1 || continue
+        # `exp` and `sqrt` retain their established, more specific codes.
+        value.head in (:exp, :sqrt) && continue
+        range = _unary_operator_real_range(value.head)
+        isnothing(range) && continue
+        lower, upper, lower_open, upper_open = range
+        _scalar_set_intersects_operator_range(
+            constraint.set_value,
+            lower,
+            upper,
+            lower_open,
+            upper_open,
+        ) && continue
+        affected = [_constraint_ref(constraint)]
+        argument = only(value.args)
+        argument isa MOI.VariableIndex && push!(affected, _variable_ref(records[argument]))
+        lower_bracket = lower_open ? "(" : "["
+        upper_bracket = upper_open ? ")" : "]"
+        push!(report, Finding(:infeasible_unary_operator_range_constraint;
+            severity = SeverityError, domain = MathematicalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(constraint.index.value) excludes the real output range of $(value.head).",
+            why_it_matters = "No real evaluation of this primitive can satisfy the row set, so this constraint alone proves infeasibility.",
+            evidence = [Evidence("Unary real output range"; details = [
+                "operator" => value.head,
+                "operator_range" => "$lower_bracket$lower, $upper$upper_bracket",
+                "set" => constraint.set_value,
+            ])],
+            suggested_actions = ["Correct the row set or replace the primitive with the intended expression."],
+            affected = affected,
+        ))
+    end
+    return
+end
+
 _fingerprint(value::Real) = "number($(repr(value)))"
 _fingerprint(value::MOI.VariableIndex) = "variable($(value.value))"
 
@@ -3327,6 +3418,7 @@ function analyze_static(
     _analyze_bound_resolved_minmax!(report, model)
     _analyze_absolute_zero_constraints!(report, model)
     _analyze_exponential_range_constraints!(report, model)
+    _analyze_unary_operator_range_constraints!(report, model)
     _analyze_duplicate_constraints!(report, model)
     _analyze_proportional_affine_equalities!(report, model)
     _analyze_proportional_affine_inequalities!(report, model)

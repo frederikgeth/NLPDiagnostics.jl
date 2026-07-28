@@ -1167,6 +1167,7 @@ function _expression_risk_finding(
     risk::ExpressionNumericalRisk,
     variable_records;
     point::Union{Nothing,EvaluationPoint} = nothing,
+    interval_origins = nothing,
 )
     at_point = !isnothing(point)
     nonfinite_derivative_estimate =
@@ -1177,6 +1178,13 @@ function _expression_risk_finding(
         haskey(variable_records, variable) || continue
         push!(affected, _variable_ref(variable_records[variable]))
     end
+    support_origins = isnothing(interval_origins) ? "" : join(
+        [
+            "v$(variable.value)=$(_domain_interval_origin_summary(interval_origins, variable))" for
+            variable in sort!(copy(risk.variables); by = variable -> variable.value)
+        ],
+        ";",
+    )
     evidence = Evidence[
         Evidence(
             "Expression numerical fingerprint";
@@ -1184,6 +1192,7 @@ function _expression_risk_finding(
                 [
                     "path" => _path_string(risk.path),
                     "assessment" => risk.assessment,
+                    "support_interval_origins" => support_origins,
                 ],
                 risk.evidence,
             ),
@@ -1235,12 +1244,14 @@ function analyze_expressions(
     isfinite(threshold) && threshold > 0 || throw(ArgumentError(
         "strict_domain_proximity_threshold must be finite and positive",
     ))
-    intervals = isnothing(point) ?
-                _domain_variable_intervals(model) :
-                Dict(
-        variable => IntervalEnclosure(value, value, true, true) for
-        (variable, value) in zip(point.variables, point.values)
-    )
+    intervals, interval_origins = if isnothing(point)
+        _domain_variable_interval_state(model)
+    else
+        Dict(
+            variable => IntervalEnclosure(value, value, true, true) for
+            (variable, value) in zip(point.variables, point.values)
+        ), nothing
+    end
     risks = _expression_numerical_risks(
         model,
         intervals;
@@ -1267,7 +1278,12 @@ function analyze_expressions(
     for risk in risks
         push!(
             report,
-            _expression_risk_finding(risk, records; point = point),
+            _expression_risk_finding(
+                risk,
+                records;
+                point = point,
+                interval_origins = interval_origins,
+            ),
         )
     end
     report.metadata[:expression_numerical_risk_count] =

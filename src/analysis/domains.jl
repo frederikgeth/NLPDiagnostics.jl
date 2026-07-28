@@ -66,7 +66,7 @@ _path_string(path::ExpressionNodePath) = sprint(show, path)
 
 function _tighten_domain_interval!(intervals, variable, lower::Real, upper::Real)
     current = intervals[variable]
-    current.valid || return
+    current.valid || return false
     tightened_lower = max(current.lower, lower)
     tightened_upper = min(current.upper, upper)
     intervals[variable] = tightened_lower <= tightened_upper ?
@@ -76,11 +76,43 @@ function _tighten_domain_interval!(intervals, variable, lower::Real, upper::Real
         true,
         current.informative,
     ) : _invalid_interval()
+    updated = intervals[variable]
+    return updated.lower != current.lower || updated.upper != current.upper ||
+           updated.valid != current.valid
+end
+
+function _record_domain_interval_origin!(
+    origins,
+    variable,
+    origin::Symbol,
+    constraint_index::Union{Nothing,Integer} = nothing,
+)
+    isnothing(origins) && return
+    origin_rows = get!(origins, variable, Dict{Symbol,Set{Int}}())
+    rows = get!(origin_rows, origin, Set{Int}())
+    !isnothing(constraint_index) && push!(rows, Int(constraint_index))
     return
 end
 
+"""Render deterministic origin-category and source-row evidence for an interval."""
+function _domain_interval_origin_summary(origins, variable)
+    categories = get(origins, variable, Dict{Symbol,Set{Int}}())
+    isempty(categories) && return ""
+    return join(
+        [
+            "$(category):$(join(sort!(collect(rows)), ","))" for
+            (category, rows) in sort!(collect(categories); by = first)
+        ],
+        ";",
+    )
+end
+
 """Propagate exact coordinate intervals from recognized positive diagonal geometry."""
-function _propagate_diagonal_quadratic_geometry_intervals!(intervals, model)
+function _propagate_diagonal_quadratic_geometry_intervals!(
+    intervals,
+    model;
+    origins = nothing,
+)
     for constraint in model.constraints
         equality = _positive_diagonal_quadratic_equality(
             constraint.function_value,
@@ -90,12 +122,17 @@ function _propagate_diagonal_quadratic_geometry_intervals!(intervals, model)
             constraint.function_value,
             constraint.set_value,
         ))
-        if !isnothing(equality) && equality.effective_level > 0 &&
-           all(value -> value > 0 && isfinite(value), equality.axis_squared)
+        if !isnothing(equality) && equality.effective_level >= 0 &&
+           all(value -> value >= 0 && isfinite(value), equality.axis_squared)
             for (variable, center, axis_squared) in
                 zip(equality.variables, equality.centers, equality.axis_squared)
                 radius = sqrt(axis_squared)
-                _tighten_domain_interval!(intervals, variable, center - radius, center + radius)
+                _tighten_domain_interval!(
+                    intervals, variable, center - radius, center + radius,
+                ) && _record_domain_interval_origin!(
+                    origins, variable, :diagonal_quadratic_geometry,
+                    constraint.index.value,
+                )
             end
             continue
         end
@@ -114,24 +151,292 @@ function _propagate_diagonal_quadratic_geometry_intervals!(intervals, model)
         ))
         isnothing(minimum) && continue
         isfinite(upper) && isfinite(minimum.minimum_value) &&
-            upper > minimum.minimum_value || continue
+            upper >= minimum.minimum_value || continue
         for (variable, coefficient, center) in
             zip(minimum.variables, minimum.coefficients, minimum.centers)
             axis_squared = minimum.axis_squared_multiplier *
                            (upper - minimum.minimum_value) / coefficient
-            axis_squared > 0 && isfinite(axis_squared) || continue
+            axis_squared >= 0 && isfinite(axis_squared) || continue
             radius = sqrt(axis_squared)
-            _tighten_domain_interval!(intervals, variable, center - radius, center + radius)
+            _tighten_domain_interval!(
+                intervals, variable, center - radius, center + radius,
+            ) && _record_domain_interval_origin!(
+                origins, variable, :diagonal_quadratic_geometry,
+                constraint.index.value,
+            )
         end
     end
     return
 end
 
-function _domain_variable_intervals(model::ModelSnapshot)
+"""Return the finite or one-sided interval represented by a scalar row set."""
+function _domain_scalar_set_interval(set_value)
+    if set_value isa MOI.EqualTo
+        return set_value.value, set_value.value
+    elseif set_value isa MOI.LessThan
+        return nothing, set_value.upper
+    elseif set_value isa MOI.GreaterThan
+        return set_value.lower, nothing
+    elseif set_value isa MOI.Interval
+        return set_value.lower, set_value.upper
+    end
+    return nothing
+end
+
+"""Combine repeated affine terms and discard exact zero coefficients."""
+function _domain_affine_coefficients(function_value::MOI.ScalarAffineFunction)
+    coefficients = Dict{MOI.VariableIndex,Real}()
+    for term in function_value.terms
+        term.coefficient isa Real || return nothing
+        coefficient = get(coefficients, term.variable, zero(term.coefficient)) +
+                      term.coefficient
+        coefficients[term.variable] = coefficient
+    end
+    filter!(entry -> !iszero(last(entry)) && isfinite(last(entry)), coefficients)
+    return coefficients
+end
+
+"""Propagate bounded scalar-affine row implications into analysis-only intervals."""
+function _propagate_scalar_affine_intervals!(intervals, model; origins = nothing)
+    # A Jacobi-style bounded fixed point avoids order-dependent conclusions and
+    # cannot become an unbounded presolver loop. A chain can reach each of the
+    # model's variables in at most this many useful passes.
+    max_passes = max(length(model.variables), 1)
+    for _ in 1:max_passes
+        previous = copy(intervals)
+        candidates = Dict{MOI.VariableIndex,Vector{Tuple{Real,Real,Int}}}()
+        for constraint in model.constraints
+            function_value = constraint.function_value
+            function_value isa MOI.ScalarAffineFunction || continue
+            row_interval = _domain_scalar_set_interval(constraint.set_value)
+            isnothing(row_interval) && continue
+            row_lower, row_upper = row_interval
+            (isnothing(row_lower) || row_lower isa Real && isfinite(row_lower)) || continue
+            (isnothing(row_upper) || row_upper isa Real && isfinite(row_upper)) || continue
+            coefficients = _domain_affine_coefficients(function_value)
+            (isnothing(coefficients) || isempty(coefficients)) && continue
+            function_value.constant isa Real && isfinite(function_value.constant) || continue
+            for (target, coefficient) in coefficients
+                others = IntervalEnclosure(
+                    function_value.constant,
+                    function_value.constant,
+                    true,
+                    true,
+                )
+                for (variable, other_coefficient) in coefficients
+                    variable == target && continue
+                    other_interval = get(previous, variable, _full_interval())
+                    others = _interval_add(
+                        others,
+                        _interval_scale(other_interval, other_coefficient),
+                    )
+                end
+                others.valid && isfinite(others.lower) && isfinite(others.upper) || continue
+                lower = -Inf
+                upper = Inf
+                if !isnothing(row_lower)
+                    candidate = (row_lower - others.upper) / coefficient
+                    coefficient > 0 ? (lower = candidate) : (upper = candidate)
+                end
+                if !isnothing(row_upper)
+                    candidate = (row_upper - others.lower) / coefficient
+                    coefficient > 0 ? (upper = candidate) : (lower = candidate)
+                end
+                isfinite(lower) || (lower = -Inf)
+                isfinite(upper) || (upper = Inf)
+                (lower == -Inf && upper == Inf) && continue
+                push!(
+                    get!(candidates, target, Tuple{Real,Real,Int}[]),
+                    (lower, upper, constraint.index.value),
+                )
+            end
+        end
+        changed = false
+        for (variable, bounds) in candidates
+            lower = maximum(first.(bounds))
+            upper = minimum(bound -> bound[2], bounds)
+            current = intervals[variable]
+            prior_lower, prior_upper = current.lower, current.upper
+            tightened = _tighten_domain_interval!(intervals, variable, lower, upper)
+            updated = intervals[variable]
+            changed |= tightened
+            tightened && _record_domain_interval_origin!(
+                origins, variable, :scalar_affine_propagation,
+                # Every candidate contributing to this batch is retained: the
+                # final interval is their intersection.
+                first(bounds)[3],
+            )
+            if tightened
+                for (_, _, source_index) in bounds[2:end]
+                    _record_domain_interval_origin!(
+                        origins, variable, :scalar_affine_propagation, source_index,
+                    )
+                end
+            end
+        end
+        !changed && break
+    end
+    return
+end
+
+"""Return exact input bounds implied by a supported monotone unary range."""
+function _monotone_unary_input_bounds(head::Symbol, lower, upper)
+    # log1mexp(x) = log(1 - exp(x)) is strictly decreasing on x < 0.
+    # Its inverse is the same stable primitive applied to the output value.
+    if head == :log1mexp
+        input_lower = -Inf
+        input_upper = Inf
+        !isnothing(lower) && lower < 0 &&
+            (input_upper = _stable_log1mexp_value(lower))
+        !isnothing(upper) && upper < 0 &&
+            (input_lower = _stable_log1mexp_value(upper))
+        isfinite(input_lower) || (input_lower = -Inf)
+        isfinite(input_upper) || (input_upper = Inf)
+        input_lower <= input_upper || return nothing
+        return input_lower, input_upper
+    end
+    if head == :logistic
+        # logit(y) = log(y) - log1p(-y), evaluated only on the open range.
+        inverse = value -> log(value) - log1p(-value)
+        input_lower = -Inf
+        input_upper = Inf
+        !isnothing(lower) && 0 < lower < 1 &&
+            (input_lower = inverse(lower))
+        !isnothing(upper) && 0 < upper < 1 &&
+            (input_upper = inverse(upper))
+        isfinite(input_lower) || (input_lower = -Inf)
+        isfinite(input_upper) || (input_upper = Inf)
+        input_lower <= input_upper || return nothing
+        return input_lower, input_upper
+    end
+    if head == :tanh
+        # atanh(y) = (log1p(y) - log1p(-y)) / 2 on the open range.
+        inverse = value -> (log1p(value) - log1p(-value)) / 2
+        input_lower = -Inf
+        input_upper = Inf
+        !isnothing(lower) && -1 < lower < 1 &&
+            (input_lower = inverse(lower))
+        !isnothing(upper) && -1 < upper < 1 &&
+            (input_upper = inverse(upper))
+        isfinite(input_lower) || (input_lower = -Inf)
+        isfinite(input_upper) || (input_upper = Inf)
+        input_lower <= input_upper || return nothing
+        return input_lower, input_upper
+    end
+    inverse = if head == :log
+        exp
+    elseif head == :log10
+        value -> 10.0^value
+    elseif head == :log2
+        value -> 2.0^value
+    elseif head == :log1p
+        expm1
+    elseif head == :exp
+        log
+    elseif head == :exp2
+        log2
+    elseif head == :expm1
+        log1p
+    elseif head == :sqrt
+        value -> value^2
+    else
+        return nothing
+    end
+    input_lower = -Inf
+    input_upper = Inf
+    if head in (:exp, :exp2)
+        !isnothing(lower) && lower > 0 && (input_lower = inverse(lower))
+        !isnothing(upper) && upper > 0 && (input_upper = inverse(upper))
+    elseif head == :expm1
+        !isnothing(lower) && lower > -1 && (input_lower = inverse(lower))
+        !isnothing(upper) && upper > -1 && (input_upper = inverse(upper))
+    elseif head == :sqrt
+        !isnothing(lower) && lower > 0 && (input_lower = inverse(lower))
+        !isnothing(upper) && upper >= 0 && (input_upper = inverse(upper))
+    else
+        !isnothing(lower) && (input_lower = inverse(lower))
+        !isnothing(upper) && (input_upper = inverse(upper))
+    end
+    isfinite(input_lower) || (input_lower = -Inf)
+    isfinite(input_upper) || (input_upper = Inf)
+    input_lower <= input_upper || return nothing
+    return input_lower, input_upper
+end
+
+"""Propagate direct, supported monotone unary nonlinear rows to their input."""
+function _propagate_monotone_unary_intervals!(intervals, model; origins = nothing)
+    max_passes = max(length(model.variables), 1)
+    for _ in 1:max_passes
+        candidates = Dict{MOI.VariableIndex,Vector{Tuple{Real,Real,Int}}}()
+        for constraint in model.constraints
+            function_value = constraint.function_value
+            function_value isa MOI.ScalarNonlinearFunction || continue
+            length(function_value.args) == 1 || continue
+            variable = only(function_value.args)
+            variable isa MOI.VariableIndex || continue
+            row_interval = _domain_scalar_set_interval(constraint.set_value)
+            isnothing(row_interval) && continue
+            lower, upper = row_interval
+            (isnothing(lower) || lower isa Real && isfinite(lower)) || continue
+            (isnothing(upper) || upper isa Real && isfinite(upper)) || continue
+            bounds = _monotone_unary_input_bounds(function_value.head, lower, upper)
+            isnothing(bounds) && continue
+            push!(
+                get!(candidates, variable, Tuple{Real,Real,Int}[]),
+                (bounds[1], bounds[2], constraint.index.value),
+            )
+        end
+        changed = false
+        for (variable, bounds) in candidates
+            lower = maximum(first.(bounds))
+            upper = minimum(bound -> bound[2], bounds)
+            current = intervals[variable]
+            prior_lower, prior_upper = current.lower, current.upper
+            tightened = _tighten_domain_interval!(intervals, variable, lower, upper)
+            updated = intervals[variable]
+            changed |= tightened
+            tightened && _record_domain_interval_origin!(
+                origins, variable, :monotone_unary_inversion, first(bounds)[3],
+            )
+            if tightened
+                for (_, _, source_index) in bounds[2:end]
+                    _record_domain_interval_origin!(
+                        origins, variable, :monotone_unary_inversion, source_index,
+                    )
+                end
+            end
+        end
+        !changed && break
+    end
+    return
+end
+
+"""Propagate the exact connected interval implied by direct `abs(x)` upper rows."""
+function _propagate_absolute_value_intervals!(intervals, model; origins = nothing)
+    for constraint in model.constraints
+        function_value = constraint.function_value
+        function_value isa MOI.ScalarNonlinearFunction || continue
+        function_value.head == :abs && length(function_value.args) == 1 || continue
+        variable = only(function_value.args)
+        variable isa MOI.VariableIndex || continue
+        row_interval = _domain_scalar_set_interval(constraint.set_value)
+        isnothing(row_interval) && continue
+        _, upper = row_interval
+        upper isa Real && isfinite(upper) && upper >= 0 || continue
+        _tighten_domain_interval!(intervals, variable, -upper, upper) &&
+            _record_domain_interval_origin!(
+                origins, variable, :absolute_value_range, constraint.index.value,
+            )
+    end
+    return
+end
+
+function _domain_variable_interval_state(model::ModelSnapshot)
     intervals = Dict(
         record.index => _full_interval(informative = true) for
         record in model.variables
     )
+    origins = Dict{MOI.VariableIndex,Dict{Symbol,Set{Int}}}()
     for constraint in model.constraints
         variable = constraint.function_value
         variable isa MOI.VariableIndex || continue
@@ -161,15 +466,32 @@ function _domain_variable_intervals(model::ModelSnapshot)
         end
         lower = max(current.lower, candidate.lower)
         upper = min(current.upper, candidate.upper)
-        intervals[variable] = lower <= upper ?
+        updated = lower <= upper ?
                               IntervalEnclosure(
             lower,
             upper,
             true,
             current.informative && candidate.informative,
         ) : _invalid_interval()
+        intervals[variable] = updated
+        (updated.lower != current.lower || updated.upper != current.upper ||
+         updated.valid != current.valid) && _record_domain_interval_origin!(
+            origins, variable, :declared_variable_bounds,
+            constraint.index.value,
+        )
     end
-    _propagate_diagonal_quadratic_geometry_intervals!(intervals, model)
+    _propagate_diagonal_quadratic_geometry_intervals!(intervals, model; origins = origins)
+    _propagate_scalar_affine_intervals!(intervals, model; origins = origins)
+    _propagate_monotone_unary_intervals!(intervals, model; origins = origins)
+    _propagate_absolute_value_intervals!(intervals, model; origins = origins)
+    # A monotone row may have produced a new affine input bound. One final
+    # bounded affine closure exposes that implication to downstream scans.
+    _propagate_scalar_affine_intervals!(intervals, model; origins = origins)
+    return intervals, origins
+end
+
+function _domain_variable_intervals(model::ModelSnapshot)
+    intervals, _ = _domain_variable_interval_state(model)
     return intervals
 end
 
@@ -1123,6 +1445,7 @@ domain_issues(model::MOI.ModelLike) = domain_issues(snapshot(model))
 function _domain_issue_finding(
     issue::ExpressionDomainIssue,
     variable_records::Dict{MOI.VariableIndex,VariableRecord},
+    interval_origins = nothing,
 )
     proven = issue.assessment == DomainProvenViolation
     affected = EntityRef[issue.path.source]
@@ -1132,6 +1455,13 @@ function _domain_issue_finding(
     end
     interval = "[$(issue.enclosure.lower), $(issue.enclosure.upper)]"
     path = _path_string(issue.path)
+    support_origins = isnothing(interval_origins) ? "" : join(
+        [
+            "v$(variable.value)=$(_domain_interval_origin_summary(interval_origins, variable))" for
+            variable in sort!(copy(issue.variables); by = variable -> variable.value)
+        ],
+        ";",
+    )
     return Finding(
         proven ?
         :proven_expression_domain_violation :
@@ -1161,6 +1491,7 @@ function _domain_issue_finding(
                     "argument_interval" => interval,
                     "interval_informative" => issue.enclosure.informative,
                     "assessment" => issue.assessment,
+                    "support_interval_origins" => support_origins,
                 ],
             ),
         ],
@@ -1183,6 +1514,7 @@ Create evidence-first findings from static expression-domain analysis.
 """
 function analyze_domains(model::ModelSnapshot)
     issues = domain_issues(model)
+    _, interval_origins = _domain_variable_interval_state(model)
     report = DiagnosticReport()
     report.metadata[:domain_issue_count] = string(length(issues))
     report.metadata[:proven_domain_violation_count] = string(
@@ -1199,7 +1531,7 @@ function analyze_domains(model::ModelSnapshot)
     )
     records = Dict(record.index => record for record in model.variables)
     for issue in issues
-        push!(report, _domain_issue_finding(issue, records))
+        push!(report, _domain_issue_finding(issue, records, interval_origins))
     end
     return report
 end

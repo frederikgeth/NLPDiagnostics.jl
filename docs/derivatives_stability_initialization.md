@@ -162,8 +162,9 @@ report = analyze(model; check_initialization = true)
 
 A complete initialization is checked for:
 
-- variable-bound violations;
-- non-fixed variables exactly on finite bounds;
+- violations of statically implied variable intervals (declared bounds plus
+  supported affine, geometric, and monotone-row implications);
+- non-fixed variables exactly on finite implied interval boundaries;
 - value-domain violations;
 - derivative-domain violations;
 - strict-domain derivative-amplification warnings for stable `log1mexp` and
@@ -172,6 +173,17 @@ A complete initialization is checked for:
 - Jacobian zero sensitivities and scaling spread;
 - scalar-bound constraint feasibility violations and interior margins; and
 - active-row LICQ evidence plus a conservative MFCQ common-descent screen.
+
+When an initial value violates an inferred interval, its evidence records the
+static inference categories and source constraint indices that tightened that
+coordinate (for example `declared_variable_bounds:4`,
+`scalar_affine_propagation:7`, `diagonal_quadratic_geometry:9`, or
+`monotone_unary_inversion:12`).
+Static derivative-domain findings carry the same `support_interval_origins`
+evidence, attached to the primitive argument that requires differentiability.
+Static numerical-stability fingerprints use the same evidence field, linking
+overflow, underflow, and strict-domain amplification warnings to the rows that
+establish their argument intervals.
 
 This is an exact-point analysis. It does not imply that a solver will evaluate
 the unchanged start: solvers may project bound starts into the interior,
