@@ -95,7 +95,7 @@ end
     end
     boundary_models, boundary_cases =
         NLPDiagnostics.synthetic_derivative_boundary_profile_corpus()
-    @test length(boundary_models) == length(boundary_cases) == 4
+    @test length(boundary_models) == length(boundary_cases) == 8
     @test all(
         case -> case.expected_evidence == [:strict_domain_derivative_amplification],
         boundary_cases,
@@ -107,6 +107,25 @@ end
     @test all(
         aggregate -> only(aggregate.expected_evidence).fraction == 1.0,
         values(boundary_aggregates),
+    )
+    float32_models, float32_cases =
+        NLPDiagnostics.synthetic_float32_derivative_overflow_profile_corpus()
+    @test length(float32_models) == length(float32_cases) == 2
+    float32_aggregates =
+        NLPDiagnostics.profile_synthetic_float32_derivative_overflow_corpus(
+            repetitions = 1, warmup = false,
+        )
+    @test all(
+        aggregate -> only(aggregate.expected_evidence).fraction == 1.0,
+        values(float32_aggregates),
+    )
+    @test all(
+        aggregate -> any(
+            finding -> finding.code == :strict_domain_derivative_amplification &&
+                       finding.severity == NLPDiagnostics.SeverityError,
+            only(aggregate.runs).expression_report.findings,
+        ),
+        values(float32_aggregates),
     )
     duplicate = NLPDiagnostics.ProfileCase("first", point)
     @test_throws ArgumentError NLPDiagnostics.profile_cases_repeated(
@@ -4796,6 +4815,53 @@ end
         near_sqrt_evidence = Dict(only(near_sqrt_report.findings).evidence[end].details)
         @test parse(Float64, near_sqrt_evidence["estimated_first_derivative_magnitude"]) > 1e5
         @test parse(Float64, near_sqrt_evidence["estimated_second_derivative_magnitude"]) > 1e17
+
+        threshold_model = new_model()
+        threshold_variable = MOI.add_variable(threshold_model)
+        MOI.add_constraint(
+            threshold_model,
+            MOI.ScalarNonlinearFunction(:sqrt, Any[threshold_variable]),
+            MOI.LessThan(1.0),
+        )
+        threshold_point = NLPDiagnostics.EvaluationPoint([threshold_variable], [1e-4])
+        @test isempty(findings(
+            NLPDiagnostics.analyze_expressions(threshold_model; point = threshold_point),
+            :operating_point_strict_domain_derivative_amplification,
+        ))
+        threshold_report = NLPDiagnostics.analyze_expressions(
+            threshold_model;
+            point = threshold_point,
+            strict_domain_proximity_threshold = 1e-3,
+        )
+        @test length(findings(
+            threshold_report,
+            :operating_point_strict_domain_derivative_amplification,
+        )) == 1
+        @test threshold_report.metadata[:strict_domain_proximity_threshold] == "0.001"
+        @test_throws ArgumentError NLPDiagnostics.analyze_expressions(
+            threshold_model;
+            point = threshold_point,
+            strict_domain_proximity_threshold = 0.0,
+        )
+
+        float32_derivative_model = new_model()
+        float32_derivative = MOI.add_variable(float32_derivative_model)
+        MOI.add_constraint(
+            float32_derivative_model,
+            MOI.ScalarNonlinearFunction(:sqrt, Any[float32_derivative]),
+            MOI.LessThan(1.0),
+        )
+        float32_derivative_report = NLPDiagnostics.analyze_expressions(
+            float32_derivative_model;
+            point = NLPDiagnostics.EvaluationPoint([float32_derivative], [1e-30]),
+            numeric_type = Float32,
+        )
+        float32_derivative_finding = only(findings(
+            float32_derivative_report,
+            :operating_point_strict_domain_derivative_amplification,
+        ))
+        @test float32_derivative_finding.severity == NLPDiagnostics.SeverityError
+        @test float32_derivative_finding.basis == NLPDiagnostics.NumericalObservation
 
         near_reciprocal_model = new_model()
         near_denominator = MOI.add_variable(near_reciprocal_model)

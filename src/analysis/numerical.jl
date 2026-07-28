@@ -742,6 +742,7 @@ function analyze_numerical(
     scale_ratio_threshold::Real = 1.0e6,
     relative_step::Real = cbrt(eps(eltype(point.values))),
     numeric_type::Type{<:AbstractFloat} = eltype(point.values),
+    strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
     rank_relative_tolerance::Real =
         max(length(point.variables), 1) * eps(eltype(point.values)),
     rank_max_dense_entries::Integer = 4_000_000,
@@ -817,6 +818,7 @@ function analyze_numerical(
         model_snapshot;
         point = point,
         numeric_type = numeric_type,
+        strict_domain_proximity_threshold = strict_domain_proximity_threshold,
     )
     append!(report.findings, derivative_report.findings)
     append!(report.findings, expression_report.findings)

@@ -198,6 +198,14 @@ function _inverse_boundary_derivative_estimates(
     throw(ArgumentError("unsupported inverse-boundary derivative operator $operator"))
 end
 
+function _amplification_assessment(
+    exact_margin::Bool,
+    derivatives::Real...,
+)
+    return exact_margin && any(value -> !isfinite(value), derivatives) ?
+           DomainProvenViolation : DomainPossibleViolation
+end
+
 function _push_expression_risk!(
     risks,
     source,
@@ -237,6 +245,7 @@ function _primitive_range_risks!(
     path,
     intervals,
     ::Type{T},
+    strict_domain_proximity_threshold,
 ) where {T<:AbstractFloat}
     isempty(intervals) && return
     head = value.head
@@ -354,7 +363,7 @@ function _primitive_range_risks!(
             ["Rescale the argument or reformulate the expression."],
         )
     elseif head == :sqrt
-        proximity_threshold = sqrt(eps(T))
+        proximity_threshold = strict_domain_proximity_threshold
         if input.valid && input.lower > 0.0
             strict_margin = input.lower
             if strict_margin <= proximity_threshold
@@ -366,7 +375,10 @@ function _primitive_range_risks!(
                     path,
                     value,
                     :strict_domain_derivative_amplification,
-                    DomainPossibleViolation,
+                    _amplification_assessment(
+                        input.lower == input.upper,
+                        first_derivative, second_derivative,
+                    ),
                     "sqrt is evaluated very close to its derivative boundary at zero.",
                     "The value remains defined, but the first and second derivatives grow as inverse powers of sqrt(x) and can dominate local scaling.",
                     [
@@ -388,7 +400,7 @@ function _primitive_range_risks!(
     elseif head == :inv || (head == :/ && length(intervals) == 2)
         denominator = head == :inv ? input : intervals[2]
         strict_margin = _strict_nonzero_margin(denominator)
-        proximity_threshold = sqrt(eps(T))
+        proximity_threshold = strict_domain_proximity_threshold
         if !isnothing(strict_margin) && strict_margin <= proximity_threshold
             first_derivative, second_derivative =
                 _reciprocal_derivative_estimates(strict_margin, T)
@@ -398,7 +410,10 @@ function _primitive_range_risks!(
                 path,
                 value,
                 :strict_domain_derivative_amplification,
-                DomainPossibleViolation,
+                _amplification_assessment(
+                    denominator.lower == denominator.upper,
+                    first_derivative, second_derivative,
+                ),
                 "$(head == :inv ? "inv" : "division") is evaluated very close to a nonzero denominator boundary.",
                 "The value remains defined, but the reciprocal derivative factor grows as inverse powers of the denominator and can dominate local scaling.",
                 [
@@ -424,7 +439,7 @@ function _primitive_range_risks!(
         else
             argument > 1.0 ? argument - 1.0 : nothing
         end
-        proximity_threshold = sqrt(eps(T))
+        proximity_threshold = strict_domain_proximity_threshold
         if !isnothing(strict_margin) && strict_margin <= proximity_threshold
             first_derivative, second_derivative =
                 _inverse_boundary_derivative_estimates(head, argument, T)
@@ -435,7 +450,10 @@ function _primitive_range_risks!(
                 path,
                 value,
                 :strict_domain_derivative_amplification,
-                DomainPossibleViolation,
+                _amplification_assessment(
+                    input.lower == input.upper,
+                    first_derivative, second_derivative,
+                ),
                 "$(head) is evaluated very close to its finite derivative boundary.",
                 "The value remains defined, but the first and second derivatives grow rapidly near the $boundary boundary and can dominate local scaling.",
                 [
@@ -456,7 +474,7 @@ function _primitive_range_risks!(
         end
     elseif head in (:tan, :sec, :csc, :cot) && input.valid &&
            input.lower == input.upper && isfinite(input.lower)
-        proximity_threshold = sqrt(eps(T))
+        proximity_threshold = strict_domain_proximity_threshold
         first_derivative, second_derivative, denominator_magnitude =
             _periodic_derivative_estimates(head, input.lower, T)
         if denominator_magnitude <= proximity_threshold
@@ -467,7 +485,9 @@ function _primitive_range_risks!(
                 path,
                 value,
                 :strict_domain_derivative_amplification,
-                DomainPossibleViolation,
+                _amplification_assessment(
+                    true, first_derivative, second_derivative,
+                ),
                 "$(head) is evaluated close to a periodic singularity.",
                 "The value may still be finite at the floating-point argument, but reciprocal trigonometric derivative factors can dominate local scaling near a zero of $denominator_name.",
                 [
@@ -488,7 +508,7 @@ function _primitive_range_risks!(
         end
     elseif head == :^ && length(intervals) == 2 && value.args[2] isa Real
         exponent = Float64(value.args[2])
-        proximity_threshold = sqrt(eps(T))
+        proximity_threshold = strict_domain_proximity_threshold
         integer_exponent = isinteger(value.args[2])
         strict_margin = if integer_exponent && exponent < 0.0
             _strict_nonzero_margin(input)
@@ -507,7 +527,10 @@ function _primitive_range_risks!(
                 path,
                 value,
                 :strict_domain_derivative_amplification,
-                DomainPossibleViolation,
+                _amplification_assessment(
+                    input.lower == input.upper,
+                    first_derivative, second_derivative,
+                ),
                 "A power is evaluated close to its $base_requirement boundary.",
                 "Depending on the exponent, its first derivative, second derivative, or both grow as inverse powers of the base and can dominate local scaling.",
                 [
@@ -528,7 +551,7 @@ function _primitive_range_risks!(
             )
         end
     elseif head in (:log, :log2, :log10)
-        proximity_threshold = sqrt(eps(T))
+        proximity_threshold = strict_domain_proximity_threshold
         if input.valid && input.lower > 0.0
             strict_margin = input.lower
             if strict_margin <= proximity_threshold
@@ -543,7 +566,10 @@ function _primitive_range_risks!(
                     path,
                     value,
                     :strict_domain_derivative_amplification,
-                    DomainPossibleViolation,
+                    _amplification_assessment(
+                        input.lower == input.upper,
+                        first_derivative, second_derivative,
+                    ),
                     "$(head) is evaluated very close to its strict domain boundary.",
                     "The value remains defined, but its first and second derivatives grow as reciprocal powers of the positive argument and can dominate local scaling.",
                     [
@@ -563,7 +589,7 @@ function _primitive_range_risks!(
             end
         end
     elseif head == :log1p
-        proximity_threshold = sqrt(eps(T))
+        proximity_threshold = strict_domain_proximity_threshold
         if input.valid && input.lower > -1.0
             strict_margin = 1.0 + input.lower
             if strict_margin <= proximity_threshold
@@ -575,7 +601,10 @@ function _primitive_range_risks!(
                     path,
                     value,
                     :strict_domain_derivative_amplification,
-                    DomainPossibleViolation,
+                    _amplification_assessment(
+                        input.lower == input.upper,
+                        first_derivative, second_derivative,
+                    ),
                     "log1p is evaluated very close to its strict domain boundary.",
                     "The value remains defined, but its first and second derivatives grow as reciprocal powers of 1 + x and can dominate local scaling.",
                     [
@@ -597,7 +626,7 @@ function _primitive_range_risks!(
     elseif head == :log1mexp
         # The value domain is x < 0. Even strictly inside it, the derivative
         # grows like 1 / abs(x) as x approaches zero from below.
-        proximity_threshold = sqrt(eps(T))
+        proximity_threshold = strict_domain_proximity_threshold
         if input.valid && input.upper < 0.0
             strict_margin = -input.upper
             if strict_margin <= proximity_threshold
@@ -611,7 +640,10 @@ function _primitive_range_risks!(
                     path,
                     value,
                     :strict_domain_derivative_amplification,
-                    DomainPossibleViolation,
+                    _amplification_assessment(
+                        input.lower == input.upper,
+                        first_derivative, second_derivative,
+                    ),
                     "log1mexp is evaluated very close to its strict domain boundary.",
                     "The value remains defined, but its derivative grows rapidly as the argument approaches zero from below and can dominate local Jacobian scaling.",
                     [
@@ -632,7 +664,7 @@ function _primitive_range_risks!(
         end
     elseif head == :logdiffexp && length(intervals) == 2
         difference = _interval_add(intervals[1], _interval_scale(intervals[2], -1.0))
-        proximity_threshold = sqrt(eps(T))
+        proximity_threshold = strict_domain_proximity_threshold
         if difference.valid && difference.lower > 0.0
             strict_margin = difference.lower
             if strict_margin <= proximity_threshold
@@ -646,7 +678,10 @@ function _primitive_range_risks!(
                     path,
                     value,
                     :strict_domain_derivative_amplification,
-                    DomainPossibleViolation,
+                    _amplification_assessment(
+                        difference.lower == difference.upper,
+                        first_derivative, second_derivative,
+                    ),
                     "logdiffexp is evaluated very close to its strict a > b domain boundary.",
                     "The value remains defined, but derivatives with respect to a and b grow rapidly as a - b approaches zero from above and can dominate local Jacobian scaling.",
                     [
@@ -915,6 +950,7 @@ function _scan_expression_numerics!(
     path,
     variable_intervals,
     numeric_type,
+    strict_domain_proximity_threshold,
 )
     !(value isa MOI.ScalarNonlinearFunction) &&
         return _base_interval(value, variable_intervals)
@@ -929,6 +965,7 @@ function _scan_expression_numerics!(
                 vcat(path, argument_index),
                 variable_intervals,
                 numeric_type,
+                strict_domain_proximity_threshold,
             ),
         )
     end
@@ -939,6 +976,7 @@ function _scan_expression_numerics!(
         path,
         intervals,
         numeric_type,
+        strict_domain_proximity_threshold,
     )
     _composition_fingerprint_risks!(risks, value, source, path)
     return operator_interval(Val(value.head), intervals, value.args)
@@ -948,6 +986,7 @@ function _expression_numerical_risks(
     model::ModelSnapshot,
     variable_intervals;
     numeric_type::Type{<:AbstractFloat},
+    strict_domain_proximity_threshold::Real = sqrt(eps(numeric_type)),
 )
     risks = ExpressionNumericalRisk[]
     if !isnothing(model.objective)
@@ -959,6 +998,7 @@ function _expression_numerical_risks(
             Int[],
             variable_intervals,
             numeric_type,
+            strict_domain_proximity_threshold,
         )
     end
     for constraint in model.constraints
@@ -979,6 +1019,7 @@ function _expression_numerical_risks(
                 Int[],
                 variable_intervals,
                 numeric_type,
+                strict_domain_proximity_threshold,
             )
         end
     end
@@ -988,11 +1029,13 @@ end
 function expression_numerical_risks(
     model::ModelSnapshot;
     numeric_type::Type{<:AbstractFloat} = Float64,
+    strict_domain_proximity_threshold::Real = sqrt(eps(numeric_type)),
 )
     return _expression_numerical_risks(
         model,
         _domain_variable_intervals(model);
         numeric_type = numeric_type,
+        strict_domain_proximity_threshold = strict_domain_proximity_threshold,
     )
 end
 
@@ -1103,6 +1146,9 @@ function _expression_risk_finding(
     point::Union{Nothing,EvaluationPoint} = nothing,
 )
     at_point = !isnothing(point)
+    nonfinite_derivative_estimate =
+        risk.code == :strict_domain_derivative_amplification &&
+        risk.assessment == DomainProvenViolation
     affected = EntityRef[risk.path.source]
     for variable in risk.variables
         haskey(variable_records, variable) || continue
@@ -1123,15 +1169,20 @@ function _expression_risk_finding(
     isnothing(point) || pushfirst!(evidence, _point_evidence(point))
     return Finding(
         at_point ? Symbol("operating_point_", risk.code) : risk.code;
-        severity = risk.assessment == DomainProvenViolation &&
+        severity = nonfinite_derivative_estimate ? SeverityError :
+                   risk.assessment == DomainProvenViolation &&
                    risk.code != :exponential_underflow_risk ?
                    SeverityError :
                    SeverityWarning,
         domain = NumericalIssue,
-        basis = risk.assessment == DomainProvenViolation ?
+        basis = nonfinite_derivative_estimate ?
+                NumericalObservation :
+                risk.assessment == DomainProvenViolation ?
                 LocalInference :
                 HeuristicInterpretation,
-        confidence = risk.assessment == DomainProvenViolation ?
+        confidence = nonfinite_derivative_estimate ?
+                     ConfidenceHigh :
+                     risk.assessment == DomainProvenViolation ?
                      ConfidenceHigh :
                      ConfidenceMedium,
         observation = risk.observation,
@@ -1146,6 +1197,7 @@ function analyze_expressions(
     model::ModelSnapshot;
     point::Union{Nothing,EvaluationPoint} = nothing,
     numeric_type::Union{Nothing,Type{<:AbstractFloat}} = nothing,
+    strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
 )
     selected_numeric_type = if !isnothing(numeric_type)
         numeric_type
@@ -1154,6 +1206,12 @@ function analyze_expressions(
     else
         Float64
     end
+    threshold = isnothing(strict_domain_proximity_threshold) ?
+                sqrt(eps(selected_numeric_type)) :
+                strict_domain_proximity_threshold
+    isfinite(threshold) && threshold > 0 || throw(ArgumentError(
+        "strict_domain_proximity_threshold must be finite and positive",
+    ))
     intervals = isnothing(point) ?
                 _domain_variable_intervals(model) :
                 Dict(
@@ -1164,6 +1222,7 @@ function analyze_expressions(
         model,
         intervals;
         numeric_type = selected_numeric_type,
+        strict_domain_proximity_threshold = threshold,
     )
     if !isnothing(point)
         # Composition fingerprints do not depend on the point and are already
@@ -1192,6 +1251,7 @@ function analyze_expressions(
         string(length(risks))
     report.metadata[:expression_numeric_type] =
         string(selected_numeric_type)
+    report.metadata[:strict_domain_proximity_threshold] = string(threshold)
     return report
 end
 
@@ -1199,10 +1259,12 @@ function analyze_expressions(
     model::MOI.ModelLike;
     point::Union{Nothing,EvaluationPoint} = nothing,
     numeric_type::Union{Nothing,Type{<:AbstractFloat}} = nothing,
+    strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
 )
     return analyze_expressions(
         snapshot(model);
         point = point,
         numeric_type = numeric_type,
+        strict_domain_proximity_threshold = strict_domain_proximity_threshold,
     )
 end

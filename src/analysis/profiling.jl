@@ -33,6 +33,7 @@ function profile_case(
     rank_max_dense_entries::Integer = 4_000_000,
     feasibility_tolerance::Real = sqrt(eps(T)),
     active_tolerance::Real = sqrt(eps(T)),
+    strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
 ) where {T<:AbstractFloat}
     hits_before = cache.hits
     misses_before = cache.misses
@@ -51,7 +52,11 @@ function profile_case(
     )
 
     expression_report = _profile_stage!(timings, allocations, :expressions, () ->
-        analyze_expressions(model; numeric_type = T),
+        analyze_expressions(
+            model;
+            numeric_type = T,
+            strict_domain_proximity_threshold = strict_domain_proximity_threshold,
+        ),
     )
 
     reformulation_report = _profile_stage!(timings, allocations, :reformulation, () ->
@@ -73,6 +78,7 @@ function profile_case(
         cache = cache,
         relative_step = relative_step,
         scale_ratio_threshold = scale_ratio_threshold,
+        strict_domain_proximity_threshold = strict_domain_proximity_threshold,
         rank_relative_tolerance = rank_relative_tolerance,
         rank_max_dense_entries = rank_max_dense_entries,
     ))
@@ -583,10 +589,38 @@ function synthetic_derivative_boundary_profile_corpus()
             x -> MOI.ScalarNonlinearFunction(:^, Any[x, 1.5]),
         ),
         (
+            "boundary_negative_power",
+            "x^-1 near a negative nonzero base",
+            -1.0e-12,
+            x -> MOI.ScalarNonlinearFunction(:^, Any[x, -1]),
+        ),
+        (
             "boundary_atanh",
             "atanh(x) near one",
             1.0 - 1.0e-12,
             x -> MOI.ScalarNonlinearFunction(:atanh, Any[x]),
+        ),
+        (
+            "boundary_asin",
+            "asin(x) near one",
+            1.0 - 1.0e-12,
+            x -> MOI.ScalarNonlinearFunction(:asin, Any[x]),
+        ),
+        (
+            "boundary_tan",
+            "tan(x) near pi/2",
+            Float64(pi / 2),
+            x -> MOI.ScalarNonlinearFunction(:tan, Any[x]),
+        ),
+        (
+            "boundary_log_one_minus_exp",
+            "log(1 - exp(x)) near zero from below",
+            -1.0e-12,
+            x -> MOI.ScalarNonlinearFunction(:log, Any[
+                MOI.ScalarNonlinearFunction(:-, Any[
+                    1.0, MOI.ScalarNonlinearFunction(:exp, Any[x]),
+                ]),
+            ]),
         ),
     )
     for (name, description, value, expression_builder) in specifications
@@ -618,6 +652,60 @@ Run repeated solver-independent profiles for every case in
 """
 function profile_synthetic_derivative_boundary_corpus(; kwargs...)
     models, cases = synthetic_derivative_boundary_profile_corpus()
+    return profile_cases_repeated(models, cases; kwargs...)
+end
+
+"""
+    synthetic_float32_derivative_overflow_profile_corpus()
+
+Return finite Float32 points where a primitive value remains representable but
+an estimated derivative order is not. The cases calibrate numeric-type-specific
+error evidence, rather than treating Float64 behavior as universal.
+"""
+function synthetic_float32_derivative_overflow_profile_corpus()
+    models = MOI.Utilities.Model{Float32}[]
+    cases = ProfileCase{Float32}[]
+    for (name, description, expression_builder) in (
+        (
+            "float32_boundary_sqrt",
+            "sqrt(x) with an unrepresentable second derivative",
+            x -> MOI.ScalarNonlinearFunction(:sqrt, Any[x]),
+        ),
+        (
+            "float32_boundary_reciprocal",
+            "inv(x) with unrepresentable reciprocal derivatives",
+            x -> MOI.ScalarNonlinearFunction(:inv, Any[x]),
+        ),
+    )
+        model = MOI.Utilities.Model{Float32}()
+        variable = MOI.add_variable(model)
+        value = Float32(1.0e-30)
+        MOI.add_constraint(model, variable, MOI.EqualTo(value))
+        MOI.add_constraint(model, expression_builder(variable), MOI.LessThan(Float32(1.0e30)))
+        point = evaluation_point(model, Float32[value]; label = "Float32 derivative overflow point")
+        push!(models, model)
+        push!(cases, ProfileCase(name, point;
+            description = "Numeric-type-specific derivative-overflow profiling case: $description.",
+            task = "synthetic Float32 derivative representability",
+            formulation = "direct primitive at finite Float32 value",
+            initialization = "finite Float32 point",
+            scale = "Float32",
+            expected_evidence = [:strict_domain_derivative_amplification],
+            tags = [:synthetic, :derivatives, :float32, :overflow],
+            metadata = Dict("primitive" => description, "representative_value" => value),
+        ))
+    end
+    return models, cases
+end
+
+"""
+    profile_synthetic_float32_derivative_overflow_corpus(; kwargs...)
+
+Run repeated solver-independent profiles for every Float32 derivative-overflow
+case in `synthetic_float32_derivative_overflow_profile_corpus`.
+"""
+function profile_synthetic_float32_derivative_overflow_corpus(; kwargs...)
+    models, cases = synthetic_float32_derivative_overflow_profile_corpus()
     return profile_cases_repeated(models, cases; kwargs...)
 end
 

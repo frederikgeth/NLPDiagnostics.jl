@@ -96,11 +96,18 @@ the whole set and returns named repeated aggregates, including expression- and
 reformulation-stage timing, allocation, and expected-fingerprint recovery rates.
 
 `synthetic_derivative_boundary_profile_corpus()` supplies finite but deliberately
-near-boundary `sqrt`, reciprocal, fractional-power, and `atanh` cases. Its
+near-boundary logarithmic, `sqrt`, reciprocal, signed/integer-power,
+fractional-power, inverse-trigonometric/hyperbolic, and periodic cases. Its
 expected evidence is the generic `strict_domain_derivative_amplification`
 finding, so repeated profiles can measure whether valid-but-large derivative
 conditions remain visible across changes. Run it with
 `profile_synthetic_derivative_boundary_corpus(; repetitions = 3, warmup = true)`.
+
+`synthetic_float32_derivative_overflow_profile_corpus()` complements this with
+finite Float32 `sqrt` and reciprocal cases whose estimated derivative order is
+not representable. Its profile findings should be error-level numerical
+observations, preserving the distinction between Float64 mathematics and the
+chosen floating-point implementation.
 
 `compare_profiles(baseline, candidate)` provides a transparent comparison of
 two repeated aggregates. It retains per-stage time and allocated-byte means,

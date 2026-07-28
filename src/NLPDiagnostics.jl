@@ -190,6 +190,8 @@ export synthetic_stability_profile_corpus
 export profile_synthetic_stability_corpus
 export synthetic_derivative_boundary_profile_corpus
 export profile_synthetic_derivative_boundary_corpus
+export synthetic_float32_derivative_overflow_profile_corpus
+export profile_synthetic_float32_derivative_overflow_corpus
 export solver_postmortem
 export solver_log_observations
 export solver_iteration_records
@@ -3057,6 +3059,7 @@ function analyze(
     cache::EvaluationCache = EvaluationCache(),
     scale_ratio_threshold::Real = 1.0e6,
     numeric_type::Union{Nothing,Type{<:AbstractFloat}} = nothing,
+    strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
     check_initialization::Bool = false,
     check_active_set::Bool = false,
     check_degeneracy::Bool = false,
@@ -3156,6 +3159,7 @@ function analyze(
     expression_report = analyze_expressions(
         model_snapshot;
         numeric_type = selected_numeric_type,
+        strict_domain_proximity_threshold = strict_domain_proximity_threshold,
     )
     structural_report = analyze_structure(
         model_snapshot;
@@ -3177,6 +3181,7 @@ function analyze(
             cache = cache,
             scale_ratio_threshold = scale_ratio_threshold,
             numeric_type = selected_numeric_type,
+            strict_domain_proximity_threshold = strict_domain_proximity_threshold,
         )
         append!(report.findings, numerical_report.findings)
         merge!(report.metadata, numerical_report.metadata)
@@ -3206,6 +3211,7 @@ function analyze(
             model;
             cache = cache,
             numeric_type = numeric_type,
+            strict_domain_proximity_threshold = strict_domain_proximity_threshold,
             scale_ratio_threshold = scale_ratio_threshold,
         )
         append!(report.findings, initialization_report.findings)

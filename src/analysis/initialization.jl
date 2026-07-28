@@ -190,6 +190,7 @@ function analyze_initialization(
     model::MOI.ModelLike;
     cache::EvaluationCache = EvaluationCache(),
     numeric_type::Union{Nothing,Type{<:AbstractFloat}} = nothing,
+    strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
     scale_ratio_threshold::Real = 1.0e6,
     feasibility_tolerance::Real = sqrt(eps(Float64)),
     active_tolerance::Real = sqrt(eps(Float64)),
@@ -257,6 +258,7 @@ function analyze_initialization(
         cache = cache,
         scale_ratio_threshold = scale_ratio_threshold,
         numeric_type = selected_numeric_type,
+        strict_domain_proximity_threshold = strict_domain_proximity_threshold,
     )
     append!(report.findings, numerical.findings)
     merge!(report.metadata, numerical.metadata)

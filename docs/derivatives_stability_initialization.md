@@ -74,6 +74,16 @@ approximation of `π/2` is not treated as an exact symbolic pole.
 `asin`, `acos`, and `atanh` receive endpoint-margin evidence near `±1`, while
 `acosh` receives it just above `1`. These warnings complement the existing
 exact derivative-domain findings at their closed or strict boundaries.
+
+The default proximity threshold is `sqrt(eps(T))`, recorded in each finding.
+Pass a finite positive `strict_domain_proximity_threshold` to
+`analyze_expressions`, `analyze_numerical`, `analyze_initialization`, `analyze`,
+or a profile runner to make the heuristic match the problem's scale and stated
+tolerance semantics.
+If an exact-point estimate is non-finite in the selected numeric type, the
+finding becomes an error-level numerical observation. For a non-singleton
+interval it remains a warning, because only part of the declared range may be
+unrepresentable.
 The finding includes stable estimates of the local first- and second-derivative
 magnitudes (the maximum first derivative across `a` and `b` for
 `logdiffexp`); an infinite estimate is useful floating-point evidence, not a
