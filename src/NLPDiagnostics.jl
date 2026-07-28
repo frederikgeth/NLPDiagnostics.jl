@@ -156,6 +156,7 @@ export VariableDomain
 export DiscreteVariable, FixedVariable, FreeVariable, InfeasibleVariableDomain, InvalidVariableDomain, ParameterVariable
 export analyze
 export analyze_domains
+export domain_interval_data
 export analyze_derivatives
 export analyze_degeneracy
 export analyze_expressions

@@ -354,8 +354,11 @@ order-independent fixed point rather than an unbounded presolver loop.
 Direct unary nonlinear rows for supported monotone `log`-, `exp`-, and
 `sqrt`-family primitives can likewise be inverted into input intervals,
 including the decreasing stable `log1mexp` primitive and open-range logistic
-logit/tanh inverse mappings. This does not extend to arbitrary compositions
-or non-monotone expressions.
+logit/tanh inverse mappings and inverse-hyperbolic pairs. This does not extend
+to arbitrary compositions or non-monotone expressions.
+One deliberately supported non-monotone case is a direct `abs(x)` row with a
+finite nonnegative upper set bound, which exactly implies the connected input
+interval `-u ≤ x ≤ u`; disjunctive lower-range implications remain explicit.
 Independently, direct unary rows whose scalar set excludes a primitive's real
 output range are reported as mathematical infeasibility proofs. Open endpoints
 are retained—for example, logistic outputs never equal zero or one—so valid
@@ -363,6 +366,10 @@ closed boundaries such as `cosh(x) = 1` are not misclassified.
 Expression-domain and initialization findings retain the corresponding
 interval-origin categories and source constraint indices in their evidence, so
 derived range conclusions remain inspectable rather than opaque.
+`domain_interval_data(model)` exposes the complete renderer-neutral set of
+analysis-only coordinate intervals, including validity, informativeness, and
+the same provenance, when an application needs to inspect safe implications
+that did not themselves trigger a finding.
 
 ## Next slices
 

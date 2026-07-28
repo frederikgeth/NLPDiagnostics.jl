@@ -2557,8 +2557,10 @@ end
         @test proven.severity == NLPDiagnostics.SeverityError
         @test evidence_details(proven)["argument_interval"] ==
               "[-Inf, -1.0]"
-        @test evidence_details(proven)["support_interval_origins"] ==
-              "v$(x.value)=declared_variable_bounds:1"
+        @test occursin(
+            "v$(x.value)=declared_variable_bounds:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.LessThan{Float64}#1",
+            evidence_details(proven)["support_interval_origins"],
+        )
         @test proven_report.metadata[:proven_domain_violation_count] == "1"
 
         possible_model = new_model()
@@ -4971,6 +4973,63 @@ end
               (log1p(0.9) - log1p(-0.9)) / 2 atol = 1.0e-12
         @test isempty(NLPDiagnostics.domain_issues(tanh_domain_model))
 
+        atanh_domain_model = new_model()
+        atanh_x = MOI.add_variable(atanh_domain_model)
+        MOI.add_constraint(
+            atanh_domain_model,
+            MOI.ScalarNonlinearFunction(:atanh, Any[atanh_x]),
+            MOI.GreaterThan(0.9),
+        )
+        MOI.add_constraint(
+            atanh_domain_model,
+            MOI.ScalarNonlinearFunction(:log, Any[atanh_x]),
+            MOI.LessThan(10.0),
+        )
+        atanh_domains = NLPDiagnostics._domain_variable_intervals(
+            NLPDiagnostics.snapshot(atanh_domain_model),
+        )
+        @test atanh_domains[atanh_x].lower ≈ tanh(0.9) atol = 1.0e-12
+        @test isempty(filter(
+            issue -> issue.operator == :log,
+            NLPDiagnostics.domain_issues(atanh_domain_model),
+        ))
+
+        asinh_domain_model = new_model()
+        asinh_x = MOI.add_variable(asinh_domain_model)
+        MOI.add_constraint(
+            asinh_domain_model,
+            MOI.ScalarNonlinearFunction(:asinh, Any[asinh_x]),
+            MOI.GreaterThan(1.0),
+        )
+        MOI.add_constraint(
+            asinh_domain_model,
+            MOI.ScalarNonlinearFunction(:log, Any[asinh_x]),
+            MOI.LessThan(10.0),
+        )
+        asinh_domains = NLPDiagnostics._domain_variable_intervals(
+            NLPDiagnostics.snapshot(asinh_domain_model),
+        )
+        @test asinh_domains[asinh_x].lower ≈ sinh(1.0) atol = 1.0e-12
+        @test isempty(NLPDiagnostics.domain_issues(asinh_domain_model))
+
+        acosh_domain_model = new_model()
+        acosh_x = MOI.add_variable(acosh_domain_model)
+        MOI.add_constraint(
+            acosh_domain_model,
+            MOI.ScalarNonlinearFunction(:acosh, Any[acosh_x]),
+            MOI.GreaterThan(1.0),
+        )
+        MOI.add_constraint(
+            acosh_domain_model,
+            MOI.ScalarNonlinearFunction(:log, Any[acosh_x]),
+            MOI.LessThan(10.0),
+        )
+        acosh_domains = NLPDiagnostics._domain_variable_intervals(
+            NLPDiagnostics.snapshot(acosh_domain_model),
+        )
+        @test acosh_domains[acosh_x].lower ≈ cosh(1.0) atol = 1.0e-12
+        @test isempty(NLPDiagnostics.domain_issues(acosh_domain_model))
+
         absolute_domain_model = new_model()
         absolute_x = MOI.add_variable(absolute_domain_model)
         MOI.add_constraint(
@@ -4992,9 +5051,61 @@ end
             NLPDiagnostics.analyze_domains(absolute_domain_model),
             :proven_expression_domain_violation,
         ))
-        @test Dict(absolute_domain_finding.evidence[1].details)[
-            "support_interval_origins"
-        ] == "v$(absolute_x.value)=absolute_value_range:1"
+        @test occursin(
+            "absolute_value_range:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.EqualTo{Float64}#1",
+            Dict(absolute_domain_finding.evidence[1].details)[
+                "support_interval_origins"
+            ],
+        )
+
+        minmax_domain_model = new_model()
+        minmax_x, minmax_y = MOI.add_variables(minmax_domain_model, 2)
+        MOI.add_constraint(
+            minmax_domain_model,
+            MOI.ScalarNonlinearFunction(:min, Any[minmax_x, 2.0]),
+            MOI.GreaterThan(1.0),
+        )
+        MOI.add_constraint(
+            minmax_domain_model,
+            MOI.ScalarNonlinearFunction(:log, Any[minmax_x]),
+            MOI.LessThan(10.0),
+        )
+        MOI.add_constraint(
+            minmax_domain_model,
+            MOI.ScalarNonlinearFunction(:max, Any[minmax_y, 0.0]),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            minmax_domain_model,
+            MOI.ScalarNonlinearFunction(:log, Any[minmax_y]),
+            MOI.LessThan(10.0),
+        )
+        minmax_domains = NLPDiagnostics._domain_variable_intervals(
+            NLPDiagnostics.snapshot(minmax_domain_model),
+        )
+        @test minmax_domains[minmax_x].lower == 1.0
+        @test minmax_domains[minmax_y].upper == 0.0
+        minmax_interval_data = NLPDiagnostics.domain_interval_data(
+            minmax_domain_model,
+        )
+        minmax_x_data = only(filter(
+            item -> item["variable_index"] == minmax_x.value,
+            minmax_interval_data,
+        ))
+        @test minmax_x_data["lower"] == 1.0
+        @test occursin("minmax_branch_interval", minmax_x_data["origins"])
+        minmax_report = NLPDiagnostics.analyze_domains(minmax_domain_model)
+        @test isempty(findings(minmax_report, :possible_expression_domain_violation))
+        minmax_finding = only(findings(
+            minmax_report,
+            :proven_expression_domain_violation,
+        ))
+        @test occursin(
+            "minmax_branch_interval:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.EqualTo{Float64}#1",
+            Dict(minmax_finding.evidence[1].details)[
+                "support_interval_origins"
+            ],
+        )
 
         zero_domain_model = new_model()
         zero_x, zero_y = MOI.add_variables(zero_domain_model, 2)
@@ -5423,7 +5534,7 @@ end
         @test all(
             finding ->
                 Dict(finding.evidence[1].details)["support_interval_origins"] ==
-                "v$(x.value)=declared_variable_bounds:1",
+                "v$(x.value)=declared_variable_bounds:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.Interval{Float64}#1",
             possible,
         )
 
@@ -6019,7 +6130,7 @@ end
         @test Dict(finding.evidence[1].details)["numeric_type"] ==
               "Float32"
         @test Dict(finding.evidence[1].details)["support_interval_origins"] ==
-              "v$(x.value)=declared_variable_bounds:1"
+              "v$(x.value)=declared_variable_bounds:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.EqualTo{Float64}#1"
     end
 
     @testset "initialization analysis is explicit and complete" begin
@@ -6108,7 +6219,7 @@ end
             Dict(implied_violation.evidence[2].details)["v$(implied_x.value)"],
         )
         @test occursin(
-            "monotone_unary_inversion:1",
+            "monotone_unary_inversion:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.GreaterThan{Float64}#1",
             Dict(implied_violation.evidence[2].details)["v$(implied_x.value)"],
         )
         combined =

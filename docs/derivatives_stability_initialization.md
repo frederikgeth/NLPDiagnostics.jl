@@ -176,9 +176,9 @@ A complete initialization is checked for:
 
 When an initial value violates an inferred interval, its evidence records the
 static inference categories and source constraint indices that tightened that
-coordinate (for example `declared_variable_bounds:4`,
-`scalar_affine_propagation:7`, `diagonal_quadratic_geometry:9`, or
-`monotone_unary_inversion:12`).
+coordinate. Source IDs are type-qualified because MOI raw constraint indices
+are only unique within a function/set type; for example
+`declared_variable_bounds:MathOptInterface.VariableIndex/MathOptInterface.GreaterThan{Float64}#4`.
 Static derivative-domain findings carry the same `support_interval_origins`
 evidence, attached to the primitive argument that requires differentiability.
 Static numerical-stability fingerprints use the same evidence field, linking

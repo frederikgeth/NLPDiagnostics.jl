@@ -85,18 +85,22 @@ function _record_domain_interval_origin!(
     origins,
     variable,
     origin::Symbol,
-    constraint_index::Union{Nothing,Integer} = nothing,
+    constraint_id::Union{Nothing,AbstractString} = nothing,
 )
     isnothing(origins) && return
-    origin_rows = get!(origins, variable, Dict{Symbol,Set{Int}}())
-    rows = get!(origin_rows, origin, Set{Int}())
-    !isnothing(constraint_index) && push!(rows, Int(constraint_index))
+    origin_rows = get!(origins, variable, Dict{Symbol,Set{String}}())
+    rows = get!(origin_rows, origin, Set{String}())
+    !isnothing(constraint_id) && push!(rows, String(constraint_id))
     return
 end
 
+"""A type-qualified MOI constraint ID, avoiding raw-index ambiguity."""
+_domain_constraint_origin_id(constraint::ConstraintRecord) =
+    "$(typeof(constraint.function_value))/$(typeof(constraint.set_value))#$(constraint.index.value)"
+
 """Render deterministic origin-category and source-row evidence for an interval."""
 function _domain_interval_origin_summary(origins, variable)
-    categories = get(origins, variable, Dict{Symbol,Set{Int}}())
+    categories = get(origins, variable, Dict{Symbol,Set{String}}())
     isempty(categories) && return ""
     return join(
         [
@@ -131,7 +135,7 @@ function _propagate_diagonal_quadratic_geometry_intervals!(
                     intervals, variable, center - radius, center + radius,
                 ) && _record_domain_interval_origin!(
                     origins, variable, :diagonal_quadratic_geometry,
-                    constraint.index.value,
+                    _domain_constraint_origin_id(constraint),
                 )
             end
             continue
@@ -162,7 +166,7 @@ function _propagate_diagonal_quadratic_geometry_intervals!(
                 intervals, variable, center - radius, center + radius,
             ) && _record_domain_interval_origin!(
                 origins, variable, :diagonal_quadratic_geometry,
-                constraint.index.value,
+                _domain_constraint_origin_id(constraint),
             )
         end
     end
@@ -204,7 +208,7 @@ function _propagate_scalar_affine_intervals!(intervals, model; origins = nothing
     max_passes = max(length(model.variables), 1)
     for _ in 1:max_passes
         previous = copy(intervals)
-        candidates = Dict{MOI.VariableIndex,Vector{Tuple{Real,Real,Int}}}()
+        candidates = Dict{MOI.VariableIndex,Vector{Tuple{Real,Real,String}}}()
         for constraint in model.constraints
             function_value = constraint.function_value
             function_value isa MOI.ScalarAffineFunction || continue
@@ -246,8 +250,8 @@ function _propagate_scalar_affine_intervals!(intervals, model; origins = nothing
                 isfinite(upper) || (upper = Inf)
                 (lower == -Inf && upper == Inf) && continue
                 push!(
-                    get!(candidates, target, Tuple{Real,Real,Int}[]),
-                    (lower, upper, constraint.index.value),
+                    get!(candidates, target, Tuple{Real,Real,String}[]),
+                    (lower, upper, _domain_constraint_origin_id(constraint)),
                 )
             end
         end
@@ -323,6 +327,18 @@ function _monotone_unary_input_bounds(head::Symbol, lower, upper)
         input_lower <= input_upper || return nothing
         return input_lower, input_upper
     end
+    if head == :acosh
+        input_lower = -Inf
+        input_upper = Inf
+        !isnothing(lower) && lower > 0 &&
+            (input_lower = cosh(lower))
+        !isnothing(upper) && upper >= 0 &&
+            (input_upper = cosh(upper))
+        isfinite(input_lower) || (input_lower = -Inf)
+        isfinite(input_upper) || (input_upper = Inf)
+        input_lower <= input_upper || return nothing
+        return input_lower, input_upper
+    end
     inverse = if head == :log
         exp
     elseif head == :log10
@@ -339,6 +355,10 @@ function _monotone_unary_input_bounds(head::Symbol, lower, upper)
         log1p
     elseif head == :sqrt
         value -> value^2
+    elseif head == :asinh
+        sinh
+    elseif head == :atanh
+        tanh
     else
         return nothing
     end
@@ -367,7 +387,7 @@ end
 function _propagate_monotone_unary_intervals!(intervals, model; origins = nothing)
     max_passes = max(length(model.variables), 1)
     for _ in 1:max_passes
-        candidates = Dict{MOI.VariableIndex,Vector{Tuple{Real,Real,Int}}}()
+        candidates = Dict{MOI.VariableIndex,Vector{Tuple{Real,Real,String}}}()
         for constraint in model.constraints
             function_value = constraint.function_value
             function_value isa MOI.ScalarNonlinearFunction || continue
@@ -382,8 +402,8 @@ function _propagate_monotone_unary_intervals!(intervals, model; origins = nothin
             bounds = _monotone_unary_input_bounds(function_value.head, lower, upper)
             isnothing(bounds) && continue
             push!(
-                get!(candidates, variable, Tuple{Real,Real,Int}[]),
-                (bounds[1], bounds[2], constraint.index.value),
+                get!(candidates, variable, Tuple{Real,Real,String}[]),
+                (bounds[1], bounds[2], _domain_constraint_origin_id(constraint)),
             )
         end
         changed = false
@@ -425,8 +445,45 @@ function _propagate_absolute_value_intervals!(intervals, model; origins = nothin
         upper isa Real && isfinite(upper) && upper >= 0 || continue
         _tighten_domain_interval!(intervals, variable, -upper, upper) &&
             _record_domain_interval_origin!(
-                origins, variable, :absolute_value_range, constraint.index.value,
+                origins, variable, :absolute_value_range,
+                _domain_constraint_origin_id(constraint),
             )
+    end
+    return
+end
+
+"""Propagate exact one-sided intervals from direct variable/constant min/max rows."""
+function _propagate_minmax_intervals!(intervals, model; origins = nothing)
+    for constraint in model.constraints
+        function_value = constraint.function_value
+        function_value isa MOI.ScalarNonlinearFunction || continue
+        function_value.head in (:min, :max) && length(function_value.args) == 2 ||
+            continue
+        left, right = function_value.args
+        variable, constant = left isa MOI.VariableIndex && right isa Real ?
+                             (left, right) :
+                             right isa MOI.VariableIndex && left isa Real ?
+                             (right, left) : (nothing, nothing)
+        (isnothing(variable) || !(constant isa Real && isfinite(constant))) &&
+            continue
+        row_interval = _domain_scalar_set_interval(constraint.set_value)
+        isnothing(row_interval) && continue
+        lower, upper = row_interval
+        if function_value.head == :min && lower isa Real && isfinite(lower) &&
+           lower <= constant
+            _tighten_domain_interval!(intervals, variable, lower, Inf) &&
+                _record_domain_interval_origin!(
+                    origins, variable, :minmax_branch_interval,
+                    _domain_constraint_origin_id(constraint),
+                )
+        elseif function_value.head == :max && upper isa Real && isfinite(upper) &&
+               upper >= constant
+            _tighten_domain_interval!(intervals, variable, -Inf, upper) &&
+                _record_domain_interval_origin!(
+                    origins, variable, :minmax_branch_interval,
+                    _domain_constraint_origin_id(constraint),
+                )
+        end
     end
     return
 end
@@ -436,7 +493,7 @@ function _domain_variable_interval_state(model::ModelSnapshot)
         record.index => _full_interval(informative = true) for
         record in model.variables
     )
-    origins = Dict{MOI.VariableIndex,Dict{Symbol,Set{Int}}}()
+    origins = Dict{MOI.VariableIndex,Dict{Symbol,Set{String}}}()
     for constraint in model.constraints
         variable = constraint.function_value
         variable isa MOI.VariableIndex || continue
@@ -477,13 +534,14 @@ function _domain_variable_interval_state(model::ModelSnapshot)
         (updated.lower != current.lower || updated.upper != current.upper ||
          updated.valid != current.valid) && _record_domain_interval_origin!(
             origins, variable, :declared_variable_bounds,
-            constraint.index.value,
+            _domain_constraint_origin_id(constraint),
         )
     end
     _propagate_diagonal_quadratic_geometry_intervals!(intervals, model; origins = origins)
     _propagate_scalar_affine_intervals!(intervals, model; origins = origins)
-    _propagate_monotone_unary_intervals!(intervals, model; origins = origins)
     _propagate_absolute_value_intervals!(intervals, model; origins = origins)
+    _propagate_minmax_intervals!(intervals, model; origins = origins)
+    _propagate_monotone_unary_intervals!(intervals, model; origins = origins)
     # A monotone row may have produced a new affine input bound. One final
     # bounded affine closure exposes that implication to downstream scans.
     _propagate_scalar_affine_intervals!(intervals, model; origins = origins)
@@ -494,6 +552,31 @@ function _domain_variable_intervals(model::ModelSnapshot)
     intervals, _ = _domain_variable_interval_state(model)
     return intervals
 end
+
+"""
+    domain_interval_data(model)
+
+Return renderer-neutral, analysis-only variable intervals used by static domain,
+derivative, initialization, and numerical-fingerprint checks. Each entry
+retains the interval's validity and type-qualified source provenance; this
+function never adds bounds or otherwise modifies the model.
+"""
+function domain_interval_data(model::ModelSnapshot)
+    intervals, origins = _domain_variable_interval_state(model)
+    return [
+        Dict{String,Any}(
+            "variable_index" => record.index.value,
+            "variable_name" => isnothing(record.name) ? "" : record.name,
+            "lower" => intervals[record.index].lower,
+            "upper" => intervals[record.index].upper,
+            "valid" => intervals[record.index].valid,
+            "informative" => intervals[record.index].informative,
+            "origins" => _domain_interval_origin_summary(origins, record.index),
+        ) for record in model.variables
+    ]
+end
+
+domain_interval_data(model::MOI.ModelLike) = domain_interval_data(snapshot(model))
 
 function _interval_add(
     left::IntervalEnclosure,
