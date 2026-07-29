@@ -15,14 +15,15 @@ end
 """
 Structural matching after an explicitly evaluated active-set selection.
 
-Constraint positions refer to an `IncidenceGraph`; only ordinary scalar rows
-that align with selected activity rows can participate. `complete = false`
+Constraint positions refer to the active-set `IncidenceGraph`; aligned scalar
+rows, including active bounds on free variables, can participate. `complete = false`
 means the result must not be used as a structural proof for the whole selected
 active set.
 """
 struct ActiveSetStructuralMatching
     matching::StructuralMatching
     selected_rows::Vector{Int}
+    aligned_rows::Vector{Int}
     selected_constraint_positions::Vector{Int}
     unmapped_rows::Vector{Int}
     complete::Bool
@@ -135,6 +136,11 @@ function _entity_ref_key(ref::EntityRef)
     )
 end
 
+# A scalar `VariableIndex` constraint is an MOI variable-domain declaration,
+# rather than an ordinary equation node in the incidence graph.
+_is_variable_domain_source(ref::EntityRef) =
+    ref.kind == :constraint && ref.function_type == string(MOI.VariableIndex)
+
 """
     active_set_matching(model, evaluation, summary) -> ActiveSetStructuralMatching
 
@@ -151,20 +157,40 @@ function active_set_matching(
 )
     evaluation.point == summary.point ||
         throw(ArgumentError("evaluation and activity summary points differ"))
-    graph = incidence_graph(model)
+    # The ordinary structural graph intentionally omits variable domains.
+    # Here an active bound on a free variable is a local tangent restriction,
+    # so use the active-set graph that retains those one-variable rows.
+    graph = incidence_graph(model; include_variable_domains = true)
     selected_rows = active_constraint_rows(summary)
+    variable_positions = Dict(
+        record.index => position for (position, record) in enumerate(graph.variables)
+    )
     node_positions = Dict(
         _constraint_node_key(node) => position for
         (position, node) in enumerate(graph.constraint_nodes)
     )
     selected_constraint_positions = Int[]
+    aligned_rows = Int[]
     unmapped_rows = Int[]
     for row in selected_rows
         source = evaluation.constraint_sources[row]
+        if _is_variable_domain_source(source)
+            position = get(node_positions, _entity_ref_key(source), 0)
+            variable_position = iszero(position) ? 0 :
+                                only(graph.constraint_to_variables[position])
+            # A fixed, parameter, discrete, or otherwise non-free variable is
+            # outside this matching's unknown scope. An active one-sided bound
+            # on a free variable is retained as a native one-variable row.
+            if !iszero(variable_position) &&
+               graph.variable_roles[variable_position] != FreeVariable
+                continue
+            end
+        end
         position = get(node_positions, _entity_ref_key(source), 0)
         if iszero(position)
             push!(unmapped_rows, row)
         else
+            push!(aligned_rows, row)
             push!(selected_constraint_positions, position)
         end
     end
@@ -178,13 +204,14 @@ function active_set_matching(
     reason = if !graph.complete
         "incidence graph is incomplete"
     elseif !isempty(unmapped_rows)
-        "selected rows do not align with ordinary scalar incidence nodes"
+        "selected rows do not align with scalar active-set structural nodes"
     else
         nothing
     end
     return ActiveSetStructuralMatching(
         matching,
         selected_rows,
+        aligned_rows,
         selected_constraint_positions,
         unmapped_rows,
         complete,

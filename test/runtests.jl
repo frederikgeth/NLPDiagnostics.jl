@@ -3066,6 +3066,105 @@ end
             NLPDiagnostics.analyze_static(two_argument_model),
             :atan_ratio_may_need_atan2,
         ))
+        @test length(findings(
+            NLPDiagnostics.analyze_static(two_argument_model),
+            :atan2_branch_cut_may_be_crossed,
+        )) == 1
+
+        branch_cut_model = new_model()
+        branch_cut_y, branch_cut_x = MOI.add_variables(branch_cut_model, 2)
+        MOI.add_constraint(branch_cut_model, branch_cut_y, MOI.EqualTo(0.0))
+        MOI.add_constraint(branch_cut_model, branch_cut_x, MOI.LessThan(-0.1))
+        MOI.add_constraint(
+            branch_cut_model,
+            MOI.ScalarNonlinearFunction(:atan, Any[branch_cut_y, branch_cut_x]),
+            MOI.LessThan(Float64(pi)),
+        )
+        branch_cut = only(findings(
+            NLPDiagnostics.analyze_static(branch_cut_model),
+            :atan2_on_branch_cut,
+        ))
+        @test branch_cut.confidence == NLPDiagnostics.ConfidenceHigh
+
+        branch_safe_model = new_model()
+        branch_safe_y, branch_safe_x = MOI.add_variables(branch_safe_model, 2)
+        MOI.add_constraint(branch_safe_model, branch_safe_x, MOI.GreaterThan(0.1))
+        MOI.add_constraint(
+            branch_safe_model,
+            MOI.ScalarNonlinearFunction(:atan, Any[branch_safe_y, branch_safe_x]),
+            MOI.LessThan(Float64(pi)),
+        )
+        @test isempty(findings(
+            NLPDiagnostics.analyze_static(branch_safe_model),
+            :atan2_branch_cut_may_be_crossed,
+        ))
+
+        atan2_range_model = new_model()
+        atan2_y, atan2_x = MOI.add_variables(atan2_range_model, 2)
+        MOI.add_constraint(
+            atan2_range_model,
+            MOI.ScalarNonlinearFunction(:atan, Any[atan2_y, atan2_x]),
+            MOI.EqualTo(-Float64(pi)),
+        )
+        atan2_range = only(findings(
+            NLPDiagnostics.analyze_static(atan2_range_model),
+            :infeasible_atan2_principal_range_constraint,
+        ))
+        @test atan2_range.basis == NLPDiagnostics.MathematicalProof
+
+        atan2_upper_endpoint = new_model()
+        atan2_upper_y, atan2_upper_x = MOI.add_variables(atan2_upper_endpoint, 2)
+        MOI.add_constraint(
+            atan2_upper_endpoint,
+            MOI.ScalarNonlinearFunction(:atan, Any[atan2_upper_y, atan2_upper_x]),
+            MOI.EqualTo(Float64(pi)),
+        )
+        @test isempty(findings(
+            NLPDiagnostics.analyze_static(atan2_upper_endpoint),
+            :infeasible_atan2_principal_range_constraint,
+        ))
+
+        atan2_axis_model = new_model()
+        atan2_axis_y, atan2_axis_x = MOI.add_variables(atan2_axis_model, 2)
+        MOI.add_constraint(
+            atan2_axis_model,
+            MOI.ScalarNonlinearFunction(:atan, Any[atan2_axis_y, atan2_axis_x]),
+            MOI.EqualTo(Float64(pi / 2)),
+        )
+        axis_finding = only(findings(
+            NLPDiagnostics.analyze_static(atan2_axis_model),
+            :atan2_axis_angle_implies_fixed_variable,
+        ))
+        @test axis_finding.basis == NLPDiagnostics.MathematicalProof
+        axis_details = Dict(axis_finding.evidence[1].details)
+        @test axis_details["fixed_argument_position"] == "2"
+        @test axis_details["implied_value"] == "0.0"
+
+        atan2_axis_bound_conflict = new_model()
+        atan2_conflict_y, atan2_conflict_x = MOI.add_variables(atan2_axis_bound_conflict, 2)
+        MOI.add_constraint(atan2_axis_bound_conflict, atan2_conflict_x, MOI.GreaterThan(0.1))
+        MOI.add_constraint(
+            atan2_axis_bound_conflict,
+            MOI.ScalarNonlinearFunction(:atan, Any[atan2_conflict_y, atan2_conflict_x]),
+            MOI.EqualTo(Float64(pi / 2)),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_static(atan2_axis_bound_conflict),
+            :inconsistent_atan2_axis_angle_variable_bound,
+        )) == 1
+
+        atan2_axis_sign_conflict = new_model()
+        atan2_sign_y, atan2_sign_x = MOI.add_variables(atan2_axis_sign_conflict, 2)
+        MOI.add_constraint(atan2_axis_sign_conflict, atan2_sign_y, MOI.LessThan(0.0))
+        MOI.add_constraint(
+            atan2_axis_sign_conflict,
+            MOI.ScalarNonlinearFunction(:atan, Any[atan2_sign_y, atan2_sign_x]),
+            MOI.EqualTo(Float64(pi / 2)),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_static(atan2_axis_sign_conflict),
+            :inconsistent_atan2_axis_angle_sign_bound,
+        )) == 1
 
         # Preserve Julia's `atan(y, x)` semantics when a two-coordinate
         # expression becomes fixed, and do not apply the unary range rule to
@@ -4228,7 +4327,114 @@ end
         @test length(
             findings(dual_report, :active_set_structural_overdetermination),
         ) == 1
+        @test length(findings(dual_report, :active_set_dm_overdetermined_region)) == 1
         @test dual_report.metadata[:active_structural_matching_cardinality] == "1"
+        @test dual_report.metadata[:active_structural_aligned_row_count] == "2"
+
+        # A numerical rank above an asserted structural matching rank is not
+        # interpreted as removed mathematical freedom: it exposes an invalid
+        # structural/numerical alignment or derivative-pattern claim.
+        inconsistent_structural_matching = NLPDiagnostics.StructuralMatching(
+            [0], [0], [1], [1], true,
+        )
+        inconsistent_active_matching = NLPDiagnostics.ActiveSetStructuralMatching(
+            inconsistent_structural_matching, [1], [1], [1], Int[], true, nothing,
+        )
+        inconsistent_tangent = NLPDiagnostics._active_structural_numerical_tangent_findings(
+            dual_model, dual_evaluation, inconsistent_active_matching;
+            rank_relative_tolerance = 1e-12,
+            rank_max_dense_entries = 100,
+        )
+        @test only(inconsistent_tangent).code ==
+              :active_structural_numerical_pattern_inconsistency
+
+        unavailable_matching = NLPDiagnostics.ActiveSetStructuralMatching(
+            active_matching.matching,
+            active_matching.selected_rows,
+            active_matching.aligned_rows,
+            active_matching.selected_constraint_positions,
+            [2],
+            false,
+            "selected rows do not align with ordinary scalar incidence nodes",
+        )
+        unavailable = only(NLPDiagnostics._active_matching_findings(
+            dual_model,
+            dual_evaluation,
+            unavailable_matching,
+        ))
+        @test unavailable.code == :active_set_structural_matching_unavailable
+        @test unavailable.basis == NLPDiagnostics.LocalInference
+        @test Dict(unavailable.evidence[end].details)["unmapped_activity_rows"] == "2"
+
+        underdetermined_active = new_model()
+        underdetermined_x, underdetermined_y = MOI.add_variables(underdetermined_active, 2)
+        underdetermined_expression = MOI.ScalarAffineFunction(
+            [MOI.ScalarAffineTerm(1.0, underdetermined_x)], 0.0,
+        )
+        MOI.add_constraint(underdetermined_active, underdetermined_expression, MOI.EqualTo(0.0))
+        underdetermined_evaluation = NLPDiagnostics.evaluate_numerical(
+            underdetermined_active, [0.0, 0.0],
+        )
+        underdetermined_summary = NLPDiagnostics.constraint_feasibility_summary(
+            underdetermined_active, underdetermined_evaluation,
+        )
+        underdetermined_matching = NLPDiagnostics.active_set_matching(
+            underdetermined_active, underdetermined_evaluation, underdetermined_summary,
+        )
+        underdetermined = only(NLPDiagnostics._active_matching_findings(
+            underdetermined_active, underdetermined_evaluation, underdetermined_matching,
+        ))
+        @test underdetermined.code == :active_set_structural_underdetermination
+        @test underdetermined.confidence == NLPDiagnostics.ConfidenceHigh
+        @test length(findings(
+            NLPDiagnostics.analyze_active_set(
+                underdetermined_active, underdetermined_evaluation,
+            ),
+            :active_set_dm_underdetermined_region,
+        )) == 1
+
+        # A direct VariableIndex equality is an MOI variable-domain declaration.
+        # It fixes x, so it is outside the free-variable incidence matching
+        # scope rather than an unmapped ordinary equation row.
+        domain_active = new_model()
+        domain_x, domain_y = MOI.add_variables(domain_active, 2)
+        MOI.add_constraint(domain_active, domain_x, MOI.EqualTo(0.0))
+        domain_evaluation = NLPDiagnostics.evaluate_numerical(
+            domain_active, [0.0, 0.0],
+        )
+        domain_summary = NLPDiagnostics.constraint_feasibility_summary(
+            domain_active, domain_evaluation,
+        )
+        domain_matching = NLPDiagnostics.active_set_matching(
+            domain_active, domain_evaluation, domain_summary,
+        )
+        @test domain_matching.complete
+        @test domain_matching.selected_rows == [1]
+        @test isempty(domain_matching.aligned_rows)
+        @test isempty(domain_matching.selected_constraint_positions)
+        @test isempty(domain_matching.unmapped_rows)
+        domain_findings = NLPDiagnostics._active_matching_findings(
+            domain_active, domain_evaluation, domain_matching,
+        )
+        @test only(domain_findings).code == :active_set_structural_underdetermination
+        @test Dict(only(domain_findings).evidence[end].details)[
+            "excluded_nonfree_variable_domain_rows"
+        ] == "1"
+
+        bound_active = new_model()
+        bound_x = MOI.add_variable(bound_active)
+        MOI.add_constraint(bound_active, bound_x, MOI.GreaterThan(0.0))
+        bound_evaluation = NLPDiagnostics.evaluate_numerical(bound_active, [0.0])
+        bound_summary = NLPDiagnostics.constraint_feasibility_summary(
+            bound_active, bound_evaluation,
+        )
+        bound_matching = NLPDiagnostics.active_set_matching(
+            bound_active, bound_evaluation, bound_summary,
+        )
+        @test bound_matching.complete
+        @test bound_matching.aligned_rows == [1]
+        @test bound_matching.selected_constraint_positions == [1]
+        @test NLPDiagnostics.matching_cardinality(bound_matching.matching) == 1
 
         sign_model = new_model()
         sign_variable = MOI.add_variable(sign_model)
@@ -6541,6 +6747,30 @@ end
             :operating_point_logistic_derivative_underflow_risk,
         )) == 1
 
+        endpoint_logistic_model = new_model()
+        endpoint_logistic_x = MOI.add_variable(endpoint_logistic_model)
+        MOI.add_constraint(endpoint_logistic_model, endpoint_logistic_x, MOI.EqualTo(100.0))
+        MOI.add_constraint(
+            endpoint_logistic_model,
+            MOI.ScalarNonlinearFunction(:logistic, Any[endpoint_logistic_x]),
+            MOI.LessThan(1.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(endpoint_logistic_model),
+            :logistic_value_saturation_risk,
+        )) == 1
+        @test isempty(findings(
+            NLPDiagnostics.analyze_expressions(endpoint_logistic_model),
+            :logistic_derivative_underflow_risk,
+        ))
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                endpoint_logistic_model;
+                point = NLPDiagnostics.EvaluationPoint([endpoint_logistic_x], [100.0]),
+            ),
+            :operating_point_logistic_value_saturation_risk,
+        )) == 1
+
         saturated_tanh_model = new_model()
         saturated_tanh_x = MOI.add_variable(saturated_tanh_model)
         MOI.add_constraint(saturated_tanh_model, saturated_tanh_x, MOI.EqualTo(-1_000.0))
@@ -6559,6 +6789,70 @@ end
                 point = NLPDiagnostics.EvaluationPoint([saturated_tanh_x], [-1_000.0]),
             ),
             :operating_point_tanh_derivative_underflow_risk,
+        )) == 1
+
+        endpoint_tanh_model = new_model()
+        endpoint_tanh_x = MOI.add_variable(endpoint_tanh_model)
+        MOI.add_constraint(endpoint_tanh_model, endpoint_tanh_x, MOI.EqualTo(100.0))
+        MOI.add_constraint(
+            endpoint_tanh_model,
+            MOI.ScalarNonlinearFunction(:tanh, Any[endpoint_tanh_x]),
+            MOI.LessThan(1.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(endpoint_tanh_model),
+            :tanh_value_saturation_risk,
+        )) == 1
+        @test isempty(findings(
+            NLPDiagnostics.analyze_expressions(endpoint_tanh_model),
+            :tanh_derivative_underflow_risk,
+        ))
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                endpoint_tanh_model;
+                point = NLPDiagnostics.EvaluationPoint([endpoint_tanh_x], [100.0]),
+            ),
+            :operating_point_tanh_value_saturation_risk,
+        )) == 1
+
+        saturated_logcosh_model = new_model()
+        saturated_logcosh_x = MOI.add_variable(saturated_logcosh_model)
+        MOI.add_constraint(saturated_logcosh_model, saturated_logcosh_x, MOI.EqualTo(1_000.0))
+        MOI.add_constraint(
+            saturated_logcosh_model,
+            MOI.ScalarNonlinearFunction(:logcosh, Any[saturated_logcosh_x]),
+            MOI.GreaterThan(0.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(saturated_logcosh_model),
+            :logcosh_curvature_underflow_risk,
+        )) == 1
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                saturated_logcosh_model;
+                point = NLPDiagnostics.EvaluationPoint([saturated_logcosh_x], [1_000.0]),
+            ),
+            :operating_point_logcosh_curvature_underflow_risk,
+        )) == 1
+
+        underflow_sech_model = new_model()
+        underflow_sech_x = MOI.add_variable(underflow_sech_model)
+        MOI.add_constraint(underflow_sech_model, underflow_sech_x, MOI.EqualTo(1_000.0))
+        MOI.add_constraint(
+            underflow_sech_model,
+            MOI.ScalarNonlinearFunction(:sech, Any[underflow_sech_x]),
+            MOI.LessThan(1.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(underflow_sech_model),
+            :sech_value_underflow_risk,
+        )) == 1
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                underflow_sech_model;
+                point = NLPDiagnostics.EvaluationPoint([underflow_sech_x], [1_000.0]),
+            ),
+            :operating_point_sech_value_underflow_risk,
         )) == 1
 
         saturated_softplus_model = new_model()
@@ -6580,6 +6874,90 @@ end
             ),
             :operating_point_softplus_derivative_underflow_risk,
         )) == 1
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(saturated_softplus_model),
+            :softplus_value_underflow_risk,
+        )) == 1
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                saturated_softplus_model;
+                point = NLPDiagnostics.EvaluationPoint([saturated_softplus_x], [-1_000.0]),
+            ),
+            :operating_point_softplus_value_underflow_risk,
+        )) == 1
+
+        saturated_log1mexp_model = new_model()
+        saturated_log1mexp_x = MOI.add_variable(saturated_log1mexp_model)
+        MOI.add_constraint(saturated_log1mexp_model, saturated_log1mexp_x, MOI.EqualTo(-1_000.0))
+        MOI.add_constraint(
+            saturated_log1mexp_model,
+            MOI.ScalarNonlinearFunction(:log1mexp, Any[saturated_log1mexp_x]),
+            MOI.LessThan(0.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(saturated_log1mexp_model),
+            :log1mexp_value_saturation_risk,
+        )) == 1
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                saturated_log1mexp_model;
+                point = NLPDiagnostics.EvaluationPoint([saturated_log1mexp_x], [-1_000.0]),
+            ),
+            :operating_point_log1mexp_value_saturation_risk,
+        )) == 1
+
+        saturated_logdiffexp_model = new_model()
+        saturated_logdiffexp_a, saturated_logdiffexp_b =
+            MOI.add_variables(saturated_logdiffexp_model, 2)
+        MOI.add_constraint(saturated_logdiffexp_model, saturated_logdiffexp_a, MOI.EqualTo(1_000.0))
+        MOI.add_constraint(saturated_logdiffexp_model, saturated_logdiffexp_b, MOI.EqualTo(0.0))
+        MOI.add_constraint(
+            saturated_logdiffexp_model,
+            MOI.ScalarNonlinearFunction(
+                :logdiffexp, Any[saturated_logdiffexp_a, saturated_logdiffexp_b],
+            ),
+            MOI.GreaterThan(0.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(saturated_logdiffexp_model),
+            :logdiffexp_subtrahend_derivative_underflow_risk,
+        )) == 1
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                saturated_logdiffexp_model;
+                point = NLPDiagnostics.EvaluationPoint(
+                    [saturated_logdiffexp_a, saturated_logdiffexp_b], [1_000.0, 0.0],
+                ),
+            ),
+            :operating_point_logdiffexp_subtrahend_derivative_underflow_risk,
+        )) == 1
+
+        saturated_logsumexp_model = new_model()
+        saturated_logsumexp_a, saturated_logsumexp_b =
+            MOI.add_variables(saturated_logsumexp_model, 2)
+        MOI.add_constraint(saturated_logsumexp_model, saturated_logsumexp_a, MOI.EqualTo(1_000.0))
+        MOI.add_constraint(saturated_logsumexp_model, saturated_logsumexp_b, MOI.EqualTo(0.0))
+        MOI.add_constraint(
+            saturated_logsumexp_model,
+            MOI.ScalarNonlinearFunction(
+                :logsumexp, Any[saturated_logsumexp_a, saturated_logsumexp_b],
+            ),
+            MOI.GreaterThan(0.0),
+        )
+        logsumexp_risk = only(findings(
+            NLPDiagnostics.analyze_expressions(saturated_logsumexp_model),
+            :logsumexp_term_derivative_underflow_risk,
+        ))
+        @test Dict(logsumexp_risk.evidence[end].details)["subordinate_argument_index"] == "2"
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                saturated_logsumexp_model;
+                point = NLPDiagnostics.EvaluationPoint(
+                    [saturated_logsumexp_a, saturated_logsumexp_b], [1_000.0, 0.0],
+                ),
+            ),
+            :operating_point_logsumexp_term_derivative_underflow_risk,
+        )) == 1
 
         large_phase_model = new_model()
         large_phase_x = MOI.add_variable(large_phase_model)
@@ -6599,6 +6977,53 @@ end
                 point = NLPDiagnostics.EvaluationPoint([large_phase_x], [1.0e13]),
             ),
             :operating_point_periodic_argument_reduction_risk,
+        )) == 1
+
+        near_atan2_model = new_model()
+        near_atan2_y, near_atan2_x = MOI.add_variables(near_atan2_model, 2)
+        MOI.add_constraint(near_atan2_model, near_atan2_y, MOI.EqualTo(1.0e-10))
+        MOI.add_constraint(near_atan2_model, near_atan2_x, MOI.EqualTo(-1.0e-10))
+        MOI.add_constraint(
+            near_atan2_model,
+            MOI.ScalarNonlinearFunction(:atan, Any[near_atan2_y, near_atan2_x]),
+            MOI.LessThan(Float64(pi)),
+        )
+        near_atan2 = only(findings(
+            NLPDiagnostics.analyze_expressions(near_atan2_model),
+            :atan2_derivative_amplification,
+        ))
+        @test near_atan2.basis == NLPDiagnostics.HeuristicInterpretation
+        @test parse(Float64, Dict(near_atan2.evidence[end].details)[
+            "estimated_first_derivative_magnitude"
+        ]) > 1.0e9
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                near_atan2_model;
+                point = NLPDiagnostics.EvaluationPoint(
+                    [near_atan2_y, near_atan2_x], [1.0e-10, -1.0e-10],
+                ),
+            ),
+            :operating_point_atan2_derivative_amplification,
+        )) == 1
+
+        saturated_atan_model = new_model()
+        saturated_atan_x = MOI.add_variable(saturated_atan_model)
+        MOI.add_constraint(saturated_atan_model, saturated_atan_x, MOI.EqualTo(1.0e20))
+        MOI.add_constraint(
+            saturated_atan_model,
+            MOI.ScalarNonlinearFunction(:atan, Any[saturated_atan_x]),
+            MOI.LessThan(Float64(pi / 2)),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(saturated_atan_model),
+            :arctangent_endpoint_saturation_risk,
+        )) == 1
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                saturated_atan_model;
+                point = NLPDiagnostics.EvaluationPoint([saturated_atan_x], [1.0e20]),
+            ),
+            :operating_point_arctangent_endpoint_saturation_risk,
         )) == 1
 
         stable_domain_model = new_model()

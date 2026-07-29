@@ -1460,6 +1460,51 @@ function _analyze_atan_ratio_formulations!(
                     ))
                 end
             end
+        elseif value.head == :atan && length(value.args) == 2
+            y_argument, x_argument = value.args
+            y_interval = _scan_domain_expression!(
+                ExpressionDomainIssue[], y_argument, source, Int[], variable_intervals,
+            )
+            x_interval = _scan_domain_expression!(
+                ExpressionDomainIssue[], x_argument, source, Int[], variable_intervals,
+            )
+            on_or_crosses_branch_cut = y_interval.valid && x_interval.valid &&
+                                  _contains_zero(y_interval) && x_interval.lower < 0.0
+            if on_or_crosses_branch_cut
+                y_support = variable_support(y_argument)
+                x_support = variable_support(x_argument)
+                affected = EntityRef[source]
+                for variable in unique(vcat(y_support.variables, x_support.variables))
+                    haskey(records, variable) || continue
+                    push!(affected, _variable_ref(records[variable]))
+                end
+                path_label = isempty(path) ? "root" : join(path, "/")
+                exact_branch = y_interval.lower == y_interval.upper == 0.0 &&
+                               x_interval.upper < 0.0
+                push!(report, Finding(
+                    exact_branch ? :atan2_on_branch_cut : :atan2_branch_cut_may_be_crossed;
+                    severity = SeverityWarning,
+                    domain = RepresentationalIssue,
+                    basis = HeuristicInterpretation,
+                    confidence = exact_branch ? ConfidenceHigh : ConfidenceMedium,
+                    observation = exact_branch ?
+                                  "Two-argument atan at $path_label is constrained to its negative-x branch cut." :
+                                  "Two-argument atan at $path_label may cross its negative-x branch cut under the current static intervals.",
+                    why_it_matters = "atan(y, x) is quadrant-aware and avoids a ratio denominator, but its principal-angle coordinate jumps between ±π across y = 0 with x < 0. This can introduce a representational discontinuity into an otherwise smooth NLP model.",
+                    evidence = [Evidence("Two-argument arctangent branch-cut interval"; details = [
+                        "expression_path" => path_label,
+                        "y_interval" => "[$(y_interval.lower), $(y_interval.upper)]",
+                        "x_interval" => "[$(x_interval.lower), $(x_interval.upper)]",
+                        "branch_cut" => "y = 0, x < 0",
+                        "exact_branch_cut_configuration" => exact_branch,
+                    ])],
+                    suggested_actions = [
+                        "Keep the operating region away from the principal-angle branch cut when the angle is used in smooth equations.",
+                        "Use an unwrapped angle coordinate or a sine/cosine representation when phase continuity is required.",
+                    ],
+                    affected = affected,
+                ))
+            end
         end
         for (argument_index, argument) in enumerate(value.args)
             scan(argument, source, vcat(path, argument_index))
@@ -1718,6 +1763,158 @@ function _analyze_reciprocal_trigonometric_range_constraints!(
             ])],
             suggested_actions = ["Correct the row set or replace the primitive with the intended expression."],
             affected = affected,
+        ))
+    end
+    return
+end
+
+"""Prove principal-angle range contradictions for Julia's `atan(y, x)` form."""
+function _analyze_atan2_range_constraints!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    records = Dict(record.index => record for record in model.variables)
+    for constraint in model.constraints
+        value = constraint.function_value
+        value isa MOI.ScalarNonlinearFunction && value.head == :atan &&
+            length(value.args) == 2 || continue
+        _scalar_set_intersects_operator_range(
+            constraint.set_value,
+            -Float64(pi),
+            Float64(pi),
+            true,
+            false,
+        ) && continue
+        affected = [_constraint_ref(constraint)]
+        for argument in value.args
+            support = variable_support(argument)
+            for variable in support.variables
+                haskey(records, variable) && push!(affected, _variable_ref(records[variable]))
+            end
+        end
+        push!(report, Finding(:infeasible_atan2_principal_range_constraint;
+            severity = SeverityError, domain = MathematicalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(constraint.index.value) excludes Julia atan(y, x)'s principal output range.",
+            why_it_matters = "Julia's two-argument arctangent returns angles in (-π, π], so this row has no real solution independently of the coordinate values.",
+            evidence = [Evidence("Two-argument arctangent principal range"; details = [
+                "operator" => "atan(y, x)",
+                "operator_range" => "(-π, π]",
+                "set" => constraint.set_value,
+            ])],
+            suggested_actions = ["Correct the angle convention or use an explicitly unwrapped representation when values below -π are intended."],
+            affected = unique(affected),
+        ))
+    end
+    return
+end
+
+"""Expose coordinate-axis implications of exact Julia `atan(y, x)` angles."""
+function _analyze_atan2_axis_angle_implications!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    axis_angles = (
+        (0.0, 1, 0.0, 2, :nonnegative, "x ≥ 0"),
+        (Float64(pi), 1, 0.0, 2, :negative, "x < 0"),
+        (Float64(pi / 2), 2, 0.0, 1, :positive, "y > 0"),
+        (-Float64(pi / 2), 2, 0.0, 1, :negative, "y < 0"),
+    )
+    records = Dict(record.index => record for record in model.variables)
+    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    for constraint in model.constraints
+        value = constraint.function_value
+        value isa MOI.ScalarNonlinearFunction && value.head == :atan &&
+            length(value.args) == 2 || continue
+        set_value = constraint.set_value
+        level = if set_value isa MOI.EqualTo
+            set_value.value
+        elseif set_value isa MOI.Interval && set_value.lower == set_value.upper
+            set_value.lower
+        else
+            continue
+        end
+        implication = nothing
+        for candidate in axis_angles
+            level == candidate[1] || continue
+            implication = candidate
+            break
+        end
+        isnothing(implication) && continue
+        _, fixed_argument_index, implied_value, remaining_argument_index,
+            remaining_sign, remaining_axis = implication
+        fixed_argument = value.args[fixed_argument_index]
+        fixed_argument isa MOI.VariableIndex || continue
+        fixed_record = records[fixed_argument]
+        reference = _constraint_ref(constraint)
+        push!(report, Finding(:atan2_axis_angle_implies_fixed_variable;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(reference.index) requires atan(y, x) = $level, fixing $(_display_name(fixed_record)) to $implied_value on the principal-angle axis.",
+            why_it_matters = "This nonlinear angle equality removes one coordinate degree of freedom exactly; the remaining coordinate must satisfy $remaining_axis.",
+            evidence = [Evidence("Two-argument arctangent principal-axis preimage"; details = [
+                "angle" => level,
+                "fixed_argument_position" => fixed_argument_index,
+                "implied_value" => implied_value,
+                "remaining_axis_condition" => remaining_axis,
+            ])],
+            suggested_actions = ["Confirm the implicit coordinate fixing and axis sign convention; NLPDiagnostics does not rewrite the model."],
+            affected = [reference, _variable_ref(fixed_record)],
+        ))
+        declared = domains[fixed_argument]
+        lower_conflict = !isnothing(declared.lower) && declared.lower > implied_value
+        upper_conflict = !isnothing(declared.upper) && declared.upper < implied_value
+        if lower_conflict || upper_conflict
+            bound_sources = vcat(
+                lower_conflict ? declared.effective_lower_sources : EntityRef[],
+                upper_conflict ? declared.effective_upper_sources : EntityRef[],
+            )
+            push!(report, Finding(:inconsistent_atan2_axis_angle_variable_bound;
+                severity = SeverityError, domain = MathematicalIssue,
+                basis = MathematicalProof, confidence = ConfidenceCertain,
+                observation = "Constraint $(reference.index) fixes $(_display_name(fixed_record)) to $implied_value, conflicting with its declared scalar bound intersection.",
+                why_it_matters = "The exact principal-axis angle equation and effective variable bounds have no common real solution, proving infeasibility.",
+                evidence = [Evidence("Two-argument arctangent axis and scalar-bound intersection"; details = [
+                    "angle" => level,
+                    "fixed_argument_position" => fixed_argument_index,
+                    "implied_value" => implied_value,
+                    "declared_lower" => declared.lower,
+                    "declared_upper" => declared.upper,
+                ])],
+                suggested_actions = ["Correct the angle row or the effective bound source that excludes its implied axis coordinate."],
+                affected = vcat([reference, _variable_ref(fixed_record)], bound_sources),
+            ))
+        end
+
+        remaining_argument = value.args[remaining_argument_index]
+        remaining_argument isa MOI.VariableIndex || continue
+        remaining_record = records[remaining_argument]
+        remaining_domain = domains[remaining_argument]
+        sign_conflict = if remaining_sign == :positive
+            !isnothing(remaining_domain.upper) && remaining_domain.upper <= 0.0
+        elseif remaining_sign == :negative
+            !isnothing(remaining_domain.lower) && remaining_domain.lower >= 0.0
+        else
+            !isnothing(remaining_domain.upper) && remaining_domain.upper < 0.0
+        end
+        sign_conflict || continue
+        sign_sources = remaining_sign in (:positive, :nonnegative) ?
+                       remaining_domain.effective_upper_sources :
+                       remaining_domain.effective_lower_sources
+        push!(report, Finding(:inconsistent_atan2_axis_angle_sign_bound;
+            severity = SeverityError, domain = MathematicalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(reference.index) requires $(_display_name(remaining_record)) to satisfy $remaining_axis, conflicting with its declared scalar bound intersection.",
+            why_it_matters = "The exact principal-axis angle equation and effective sign bound on the remaining coordinate have no common real solution, proving infeasibility.",
+            evidence = [Evidence("Two-argument arctangent axis sign and scalar-bound intersection"; details = [
+                "angle" => level,
+                "remaining_argument_position" => remaining_argument_index,
+                "required_condition" => remaining_axis,
+                "declared_lower" => remaining_domain.lower,
+                "declared_upper" => remaining_domain.upper,
+            ])],
+            suggested_actions = ["Correct the angle row or the effective bound source that excludes its required axis sign."],
+            affected = vcat([reference, _variable_ref(remaining_record)], sign_sources),
         ))
     end
     return
@@ -3928,6 +4125,8 @@ function analyze_static(
     _analyze_exponential_range_constraints!(report, model)
     _analyze_unary_operator_range_constraints!(report, model)
     _analyze_reciprocal_trigonometric_range_constraints!(report, model)
+    _analyze_atan2_range_constraints!(report, model)
+    _analyze_atan2_axis_angle_implications!(report, model)
     _analyze_inverse_trigonometric_endpoint_implications!(report, model)
     _analyze_hyperbolic_endpoint_implications!(report, model)
     _analyze_elementary_reference_implications!(report, model)

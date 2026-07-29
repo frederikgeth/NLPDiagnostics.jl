@@ -571,6 +571,7 @@ function _active_set_findings(
 end
 
 function _active_matching_findings(
+    model::MOI.ModelLike,
     evaluation::NumericalEvaluation,
     active_matching::ActiveSetStructuralMatching,
 )
@@ -584,12 +585,13 @@ function _active_matching_findings(
             domain = RepresentationalIssue,
             basis = LocalInference,
             confidence = ConfidenceHigh,
-            observation = "The selected active-set rows cannot be fully aligned with ordinary scalar structural nodes$(isnothing(active_matching.reason) ? "." : ": $(active_matching.reason).")",
+            observation = "The selected active-set rows cannot be fully aligned with scalar active-set structural nodes$(isnothing(active_matching.reason) ? "." : ": $(active_matching.reason).")",
             why_it_matters = "No active-set matching, structural overdetermination, or structural-versus-numerical tangent conclusion is issued outside the aligned scope.",
             evidence = [
                 _point_evidence(evaluation.point),
                 Evidence("Active-set structural alignment"; details = [
                     "selected_activity_rows" => join(active_matching.selected_rows, ","),
+                    "aligned_activity_rows" => join(active_matching.aligned_rows, ","),
                     "aligned_constraint_nodes" => length(active_matching.selected_constraint_positions),
                     "unmapped_activity_rows" => join(active_matching.unmapped_rows, ","),
                     "reason" => something(active_matching.reason, "unknown alignment limitation"),
@@ -602,34 +604,132 @@ function _active_matching_findings(
     matching = active_matching.matching
     cardinality = matching_cardinality(matching)
     selected_count = length(active_matching.selected_constraint_positions)
-    cardinality == selected_count && return Finding[]
-    affected = EntityRef[
+    graph = incidence_graph(model; include_variable_domains = true)
+    partition = dulmage_mendelsohn(graph; matching = matching)
+    findings = Finding[]
+    affected_rows = EntityRef[
         evaluation.constraint_sources[row] for row in active_matching.selected_rows
     ]
-    return Finding[Finding(
-        :active_set_structural_overdetermination;
-        severity = SeverityWarning,
-        domain = MathematicalIssue,
-        basis = LocalInference,
-        confidence = ConfidenceHigh,
-        observation = "The selected active-set incidence pattern matches only $cardinality of $selected_count aligned scalar equation row(s) to free variables.",
-        why_it_matters = "After the point-local activity selection, this structural deficiency is consistent with redundant active equations and the LICQ or multiplier non-uniqueness diagnostics.",
-        evidence = [
-            _point_evidence(evaluation.point),
-            Evidence("Active-set structural matching"; details = [
-                "selected_activity_rows" => join(active_matching.selected_rows, ","),
-                "aligned_constraint_nodes" => selected_count,
-                "eligible_free_variables" => length(matching.eligible_variable_positions),
-                "matching_cardinality" => cardinality,
-                "scope" => "only selected ordinary scalar rows; activity is point-local",
-            ]),
-        ],
-        suggested_actions = [
-            "Inspect the selected rows for duplicate or dependent active equations.",
-            "Compare this structural screen with the local Jacobian-rank and multiplier-recovery evidence.",
-        ],
-        affected = affected,
-    )]
+    evidence = [
+        _point_evidence(evaluation.point),
+        Evidence("Active-set structural matching"; details = [
+            "selected_activity_rows" => join(active_matching.selected_rows, ","),
+            "aligned_activity_rows" => join(active_matching.aligned_rows, ","),
+            "aligned_constraint_nodes" => selected_count,
+            "excluded_nonfree_variable_domain_rows" =>
+                length(active_matching.selected_rows) - selected_count,
+            "eligible_free_variables" => length(matching.eligible_variable_positions),
+            "matching_cardinality" => cardinality,
+            "scope" => "only selected ordinary scalar rows; domain rows for non-free variables are excluded; activity is point-local",
+        ]),
+    ]
+    if cardinality < selected_count
+        push!(findings, Finding(
+            :active_set_structural_overdetermination;
+            severity = SeverityWarning,
+            domain = MathematicalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = "The selected active-set incidence pattern matches only $cardinality of $selected_count aligned scalar equation row(s) to free variables.",
+            why_it_matters = "After the point-local activity selection, this structural deficiency is consistent with redundant active equations and the LICQ or multiplier non-uniqueness diagnostics.",
+            evidence = evidence,
+            suggested_actions = [
+                "Inspect the selected rows for duplicate or dependent active equations.",
+                "Compare this structural screen with the local Jacobian-rank and multiplier-recovery evidence.",
+            ],
+            affected = affected_rows,
+        ))
+    end
+    if cardinality < length(matching.eligible_variable_positions)
+        unmatched = EntityRef[
+            _variable_ref(graph.variables[position]) for position in
+            matching.eligible_variable_positions if iszero(matching.variable_match[position])
+        ]
+        push!(findings, Finding(
+            :active_set_structural_underdetermination;
+            severity = SeverityInfo,
+            domain = MathematicalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = "The selected active-set incidence pattern leaves $(length(unmatched)) eligible free variable(s) unmatched after a maximum matching of cardinality $cardinality.",
+            why_it_matters = "This point-local structural freedom can be an intended gauge, an inactive constraint, or a missing equation; numerical tangent analysis is needed to determine whether it persists locally.",
+            evidence = evidence,
+            suggested_actions = [
+                "Inspect unmatched free variables and compare with declared expected modes.",
+                "Compare this screen with local Jacobian nullspace and active-set rank evidence.",
+            ],
+            affected = vcat(affected_rows, unmatched),
+        ))
+    end
+    if partition.complete &&
+       (!isempty(partition.underdetermined_constraints) ||
+        length(partition.underdetermined_variables) >
+        length([position for position in matching.eligible_variable_positions if
+                iszero(matching.variable_match[position])]))
+        region_variables = _variable_position_labels(
+            graph, partition.underdetermined_variables,
+        )
+        region_constraints = _constraint_position_labels(
+            graph, partition.underdetermined_constraints,
+        )
+        push!(findings, Finding(
+            :active_set_dm_underdetermined_region;
+            severity = SeverityInfo,
+            domain = MathematicalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = "The active-set matching identifies an underdetermined Dulmage–Mendelsohn region with $(length(partition.underdetermined_variables)) free variable(s) and $(length(partition.underdetermined_constraints)) selected row(s).",
+            why_it_matters = "The alternating region identifies the coupled scope of the point-local structural freedom; it is more informative than a single unmatched endpoint, but remains conditional on the numerically selected active set.",
+            evidence = vcat(evidence, [Evidence("Active-set underdetermined region"; details = [
+                "variables" => join(region_variables, ", "),
+                "selected_rows" => join(region_constraints, ", "),
+            ])]),
+            suggested_actions = [
+                "Inspect this coupled region for a missing equation, gauge declaration, or inactive constraint.",
+                "Compare its variables with the numerical active tangent nullspace.",
+            ],
+            affected = _structural_affected(
+                graph,
+                partition.underdetermined_variables,
+                partition.underdetermined_constraints,
+            ),
+        ))
+    end
+    if partition.complete &&
+       (!isempty(partition.overdetermined_variables) ||
+        length(partition.overdetermined_constraints) >
+        length([position for position in matching.eligible_constraint_positions if
+                iszero(matching.constraint_match[position])]))
+        region_variables = _variable_position_labels(
+            graph, partition.overdetermined_variables,
+        )
+        region_constraints = _constraint_position_labels(
+            graph, partition.overdetermined_constraints,
+        )
+        push!(findings, Finding(
+            :active_set_dm_overdetermined_region;
+            severity = SeverityWarning,
+            domain = MathematicalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = "The active-set matching identifies an overdetermined Dulmage–Mendelsohn region with $(length(partition.overdetermined_variables)) free variable(s) and $(length(partition.overdetermined_constraints)) selected row(s).",
+            why_it_matters = "The alternating region identifies the coupled scope of structurally competing active rows; numerical dependence and inconsistency still require Jacobian and feasibility evidence.",
+            evidence = vcat(evidence, [Evidence("Active-set overdetermined region"; details = [
+                "variables" => join(region_variables, ", "),
+                "selected_rows" => join(region_constraints, ", "),
+            ])]),
+            suggested_actions = [
+                "Inspect this coupled region for duplicate or redundant active rows.",
+                "Compare it with LICQ, multiplier-uniqueness, and feasibility diagnostics.",
+            ],
+            affected = _structural_affected(
+                graph,
+                partition.overdetermined_variables,
+                partition.overdetermined_constraints,
+            ),
+        ))
+    end
+    return findings
 end
 
 function _active_structural_numerical_tangent_findings(
@@ -659,7 +759,7 @@ function _active_structural_numerical_tangent_findings(
         suggested_actions = ["Evaluate all free model variables in the active-set point."],
     )]
     selected = _selected_jacobian_submatrix_evaluation(
-        evaluation, active_matching.selected_rows, columns,
+        evaluation, active_matching.aligned_rows, columns,
     )
     estimate = jacobian_rank_estimate(selected;
         relative_tolerance = rank_relative_tolerance,
@@ -684,6 +784,7 @@ function _active_structural_numerical_tangent_findings(
         _point_evidence(evaluation.point),
         Evidence("Active structural/numerical tangent comparison"; details = [
             "free_variable_count" => length(columns),
+            "aligned_activity_row_count" => length(active_matching.aligned_rows),
             "structural_matching_rank" => matching_cardinality(active_matching.matching),
             "structural_right_nullity" => structural_nullity,
             "numerical_rank" => estimate.rank,
@@ -700,6 +801,19 @@ function _active_structural_numerical_tangent_findings(
             evidence = evidence,
             affected = affected,
             suggested_actions = ["Interpret the tangent directions using expected-mode declarations or domain metadata."],
+        ))
+    elseif observed_nullity < structural_nullity
+        push!(findings, Finding(:active_structural_numerical_pattern_inconsistency;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The active-set numerical tangent nullity $observed_nullity is smaller than the structural prediction $structural_nullity.",
+            why_it_matters = "For the same aligned rows and free-variable columns, a Jacobian rank cannot exceed the maximum rank allowed by its structural incidence pattern. This indicates an extraction, alignment, or derivative-pattern inconsistency rather than a mathematical resolution of structural freedom.",
+            evidence = evidence,
+            affected = affected,
+            suggested_actions = [
+                "Inspect the row and variable alignment recorded in the evidence.",
+                "Check custom-function derivative sparsity and any model-to-MOI bridge transformations.",
+            ],
         ))
     elseif observed_nullity > structural_nullity
         push!(findings, Finding(:active_unexpected_local_tangent_rank_loss;
@@ -995,7 +1109,7 @@ function analyze_active_set(
         evaluation, selected_rows, estimate, all_expected_modes;
         residual_tolerance = expected_mode_residual_tolerance,
     ))
-    append!(report.findings, _active_matching_findings(evaluation, active_matching))
+    append!(report.findings, _active_matching_findings(model, evaluation, active_matching))
     append!(report.findings, _active_structural_numerical_tangent_findings(
         model, evaluation, active_matching;
         rank_relative_tolerance = rank_relative_tolerance,
@@ -1015,6 +1129,8 @@ function analyze_active_set(
     report.metadata[:active_structural_matching_available] = string(active_matching.complete)
     report.metadata[:active_structural_matching_cardinality] =
         string(matching_cardinality(active_matching.matching))
+    report.metadata[:active_structural_aligned_row_count] =
+        string(length(active_matching.aligned_rows))
     report.metadata[:active_expected_nullspace_mode_count] = string(length(expected_modes))
     report.metadata[:active_port_expected_nullspace_mode_count] =
         string(length(port_modes))

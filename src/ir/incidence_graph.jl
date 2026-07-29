@@ -74,11 +74,17 @@ function _constraint_scalar_rows(constraint::ConstraintRecord)
 end
 
 """
-    incidence_graph(snapshot::ModelSnapshot) -> IncidenceGraph
+    incidence_graph(snapshot::ModelSnapshot; include_variable_domains = false) -> IncidenceGraph
 
 Build the structural Jacobian pattern without evaluating model functions.
+Variable-domain declarations are excluded by default because they do not
+connect algebraic equations. Active-set matching can opt in so an active bound
+on a free variable has its correct one-variable structural row.
 """
-function incidence_graph(model::ModelSnapshot)
+function incidence_graph(
+    model::ModelSnapshot;
+    include_variable_domains::Bool = false,
+)
     variable_positions = Dict(
         record.index => position for
         (position, record) in enumerate(model.variables)
@@ -89,7 +95,8 @@ function incidence_graph(model::ModelSnapshot)
     complete = isempty(model.opaque_sources)
 
     for constraint in model.constraints
-        _is_variable_domain_constraint(constraint) && continue
+        _is_variable_domain_constraint(constraint) && !include_variable_domains &&
+            continue
         scalar_rows, unsupported = _constraint_scalar_rows(constraint)
         append!(unsupported_types, unsupported)
         complete &= isempty(unsupported)
@@ -145,7 +152,14 @@ function incidence_graph(model::ModelSnapshot)
     )
 end
 
-incidence_graph(model::MOI.ModelLike) = incidence_graph(snapshot(model))
+function incidence_graph(
+    model::MOI.ModelLike;
+    include_variable_domains::Bool = false,
+)
+    return incidence_graph(
+        snapshot(model); include_variable_domains = include_variable_domains,
+    )
+end
 
 function _component_from!(
     graph::IncidenceGraph,

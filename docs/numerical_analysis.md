@@ -168,13 +168,35 @@ local consistency screens for this representative, not KKT certificates.
 
 `active_set_matching` is a separate, explicitly point-local structural view.
 It matches free variables to only the aligned equality and selected near-active
-scalar inequality rows. Its activity selection is numerical evidence, whereas
-the matching conclusion is structural for that selected pattern. Callback and
-coupled-set rows that cannot be aligned remain visible as unmapped rows rather
-than being silently omitted. An incomplete alignment emits
+scalar inequality rows. Direct `VariableIndex` constraints are MOI
+variable-domain declarations. Rows for a fixed, parameter, discrete, or other
+non-free variable are intentionally excluded from this free-variable matching
+scope (and remain visible in report evidence). An active one-sided bound of a
+free variable instead contributes a native one-variable row in the
+active-set-only structural graph. Its activity selection is numerical evidence,
+whereas the matching conclusion is structural for that selected pattern.
+The structural-versus-numerical tangent comparison uses precisely those aligned
+rows and free-variable columns; it does not quietly reintroduce excluded domain
+declarations into its numerical rank estimate.
+If the numerical rank exceeds the maximum rank permitted by that aligned
+incidence pattern, the package reports
+`active_structural_numerical_pattern_inconsistency` as a representational
+warning. It is evidence of an extraction, alignment, or derivative-pattern
+problem—not evidence that a structural degree of freedom has disappeared.
+Callback and coupled-set rows that cannot be aligned remain visible as unmapped
+rows rather than being silently omitted. An incomplete alignment emits
 `active_set_structural_matching_unavailable`; the generic core then withholds
 matching-based overdetermination and structural-versus-numerical tangent
 claims rather than silently narrowing their scope.
+When alignment is complete, the same local matching reports both selected-row
+overdetermination and unmatched eligible free variables as active-set structural
+underdetermination. Neither result is a numerical-nullspace proof; the latter
+may represent an intended gauge, inactive equation, or missing equation.
+Where an alternating-path Dulmage–Mendelsohn region is larger than its unmatched
+endpoint, `active_set_dm_underdetermined_region` or
+`active_set_dm_overdetermined_region` reports its coupled variables and rows.
+These are local structural regions conditioned on activity selection, not
+global structural proofs or numerical dependence certificates.
 
 Second-order and rotated-second-order cones additionally receive generic
 vector-set feasibility and boundary reports through

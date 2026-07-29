@@ -147,14 +147,43 @@ Even a sign-aware stable `logistic` or `tanh` can have a derivative that
 underflows to zero in a saturated floating-point tail; the expression analysis
 reports this separately from value overflow because it can create artificial
 zero sensitivities.
+The logistic positive tail can also round to exactly one well before derivative
+underflow, despite the real open range `(0, 1)`; this endpoint-saturation risk
+is reported separately because it can falsely satisfy an endpoint equality.
+`tanh` receives the analogous open-range endpoint check for rounded `±1`
+values before its tail derivative underflows.
 The same negative-tail derivative-underflow check applies to stable softplus
 aliases (`softplus`, `log1pexp`, and `log1exp`), even though they avoid the
 positive-tail overflow of the naive `log(1 + exp(x))` spelling.
+Their real outputs are also strictly positive, so the same tail receives a
+separate value-underflow warning when floating-point evaluation can round it to
+zero.
+`log1mexp` has the complementary far-negative risk: its real output is
+strictly negative but can round to zero once `exp(x)` underflows, erasing both
+the small value and its tail derivative.
+For `logdiffexp(a, b)`, an extremely large positive `a - b` can underflow the
+derivative with respect to `b`; this is reported as a lost-sensitivity risk,
+not as structural disconnection.
+Stable `logsumexp` similarly preserves its aggregate value while a term that is
+guaranteed to be dominated by more than the floating-point tail threshold can
+lose its individual softmax derivative; this is reported per dominated term.
+`logcosh` receives a related tail-curvature check: its value and first
+derivative remain finite, while its second derivative can underflow to zero and
+make a numerically flat Hessian look like a mathematical flat direction.
+`sech` receives a tail value-underflow check because its real range excludes
+zero even though floating-point evaluation can eventually round it to zero.
 
 Periodic trigonometric and reciprocal-trigonometric primitives also receive a
 large-finite-argument phase-reduction warning. This is distinct from a pole or
 domain violation: the concern is loss of meaningful floating-point angular
 resolution in function and derivative evaluation.
+
+For Julia's two-argument `atan(y, x)`, the exact joint origin is a derivative
+domain singularity and nearby nonzero coordinate pairs receive an explicit
+inverse-radius derivative-amplification fingerprint.
+One-argument `atan` and `atand` also receive an endpoint-saturation warning at
+enormous finite ratios, because floating-point evaluation can round to their
+mathematically unattainable limiting angles.
 
 Fingerprints are warnings rather than algebraic rewrites. NLPDiagnostics never
 changes the model, and user-defined operator semantics may prevent an

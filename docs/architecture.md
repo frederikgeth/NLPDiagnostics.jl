@@ -446,6 +446,17 @@ When the ratio denominator's static enclosure contains zero, a separate
 high-confidence numerical-risk finding makes the undefined-ratio and
 unbounded-derivative hazard explicit; a nonzero denominator margin suppresses
 that risk finding without suppressing the representational `atan2` advice.
+The two-argument form is also checked for the principal-angle branch cut
+`y = 0, x < 0`: this is a representational continuity warning distinct from
+the joint-origin derivative singularity.
+Its Julia principal output range is additionally retained as `(-π, π]`, so a
+row requiring exactly `-π` receives a mathematical infeasibility proof while
+the valid `π` endpoint remains accepted.
+Exact principal-axis rows at `0`, `±π/2`, and `π` also expose their implied
+zero coordinate and remaining-axis sign condition as fixed-variable evidence;
+the implied zero is cross-checked against declared scalar bounds for an
+additional infeasibility proof, and the remaining coordinate's required axis
+sign is checked too.
 The two-argument Julia form is separately constant-folded and given the
 conservative full-angle range `[-π, π]`; its derivative check independently
 identifies the joint `(y, x) = (0, 0)` singularity.

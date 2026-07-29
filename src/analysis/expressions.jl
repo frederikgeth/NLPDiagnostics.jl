@@ -324,6 +324,43 @@ function _primitive_range_risks!(
             ],
         )
     elseif head == :logistic
+        # In the positive tail, 1 + exp(-x) can round to exactly one long
+        # before exp(-x) underflows. The resulting floating-point value is 1,
+        # although real logistic(x) remains strictly below one.
+        one_saturation_threshold = -log(eps(T) / T(2))
+        zero_saturation_threshold = log(nextfloat(zero(T)))
+        value_assessment = if input.valid &&
+                              (input.lower > one_saturation_threshold ||
+                               input.upper < zero_saturation_threshold)
+            DomainProvenViolation
+        elseif input.valid &&
+               (input.upper > one_saturation_threshold ||
+                input.lower < zero_saturation_threshold)
+            DomainPossibleViolation
+        else
+            DomainSafe
+        end
+        _push_expression_risk!(
+            risks,
+            source,
+            path,
+            value,
+            :logistic_value_saturation_risk,
+            value_assessment,
+            "logistic may round to an endpoint value for the declared argument range.",
+            "The real logistic range is the open interval (0, 1), but floating-point saturation can create an artificial zero or one and falsely satisfy an endpoint row.",
+            [
+                "operator" => head,
+                "argument_interval" => "[$(input.lower), $(input.upper)]",
+                "numeric_type" => T,
+                "one_saturation_threshold" => one_saturation_threshold,
+                "zero_saturation_threshold" => zero_saturation_threshold,
+            ],
+            [
+                "Avoid treating a rounded logistic endpoint as an exact real value.",
+                "Rescale the argument or use an interior tolerance that reflects the intended mathematical semantics.",
+            ],
+        )
         # A sign-aware value implementation prevents overflow, but the true
         # derivative σ(x)(1-σ(x)) still has an exp(-abs(x)) leading factor.
         # Beyond this threshold it can round to zero even while σ(x) is finite.
@@ -360,6 +397,41 @@ function _primitive_range_risks!(
             ],
         )
     elseif head == :tanh
+        # tanh(x) approaches ±1 exponentially. Floating-point arithmetic can
+        # round it to an endpoint even though the real range remains open.
+        endpoint_saturation_threshold =
+            (log(T(4)) - log(eps(T))) / T(2)
+        value_assessment = if input.valid &&
+                              (input.lower > endpoint_saturation_threshold ||
+                               input.upper < -endpoint_saturation_threshold)
+            DomainProvenViolation
+        elseif input.valid &&
+               (input.upper > endpoint_saturation_threshold ||
+                input.lower < -endpoint_saturation_threshold)
+            DomainPossibleViolation
+        else
+            DomainSafe
+        end
+        _push_expression_risk!(
+            risks,
+            source,
+            path,
+            value,
+            :tanh_value_saturation_risk,
+            value_assessment,
+            "tanh may round to an endpoint value for the declared argument range.",
+            "The real tanh range is the open interval (-1, 1), but floating-point saturation can create an artificial ±1 and falsely satisfy an endpoint row.",
+            [
+                "operator" => head,
+                "argument_interval" => "[$(input.lower), $(input.upper)]",
+                "numeric_type" => T,
+                "absolute_endpoint_saturation_threshold" => endpoint_saturation_threshold,
+            ],
+            [
+                "Avoid treating a rounded tanh endpoint as an exact real value.",
+                "Rescale the argument or use interior tolerance semantics that reflect the intended mathematical range.",
+            ],
+        )
         # tanh'(x) = sech(x)^2 ≈ 4exp(-2abs(x)) in either saturated tail.
         derivative_zero_threshold =
             (log(T(4)) - log(nextfloat(zero(T)))) / T(2)
@@ -394,10 +466,102 @@ function _primitive_range_risks!(
                 "Inspect derivative magnitudes at initialization and solution points before interpreting zero sensitivities structurally.",
             ],
         )
+    elseif head == :logcosh
+        # d²/dx² log(cosh(x)) = sech(x)^2 ≈ 4exp(-2abs(x)).
+        curvature_zero_threshold =
+            (log(T(4)) - log(nextfloat(zero(T)))) / T(2)
+        assessment = if input.valid &&
+                        (input.lower > curvature_zero_threshold ||
+                         input.upper < -curvature_zero_threshold)
+            DomainProvenViolation
+        elseif input.valid &&
+               (input.upper > curvature_zero_threshold ||
+                input.lower < -curvature_zero_threshold)
+            DomainPossibleViolation
+        else
+            DomainSafe
+        end
+        _push_expression_risk!(
+            risks,
+            source,
+            path,
+            value,
+            :logcosh_curvature_underflow_risk,
+            assessment,
+            "logcosh may have a second derivative rounded to zero for the declared argument range.",
+            "The stable value and first derivative remain finite in the tail, but a numerically flat Hessian can conceal curvature and distort second-order conditioning evidence.",
+            [
+                "operator" => head,
+                "argument_interval" => "[$(input.lower), $(input.upper)]",
+                "numeric_type" => T,
+                "absolute_curvature_underflow_threshold" => curvature_zero_threshold,
+            ],
+            [
+                "Rescale or reparameterize the logcosh argument when saturated tails are not intentional.",
+                "Compare reduced-Hessian evidence across appropriately scaled nearby points before classifying a flat direction.",
+            ],
+        )
+    elseif head == :sech
+        # sech(x) ≈ 2exp(-abs(x)) in either tail. A stable evaluation delays
+        # but cannot eliminate eventual underflow to an artificial zero.
+        value_zero_threshold = log(T(2)) - log(nextfloat(zero(T)))
+        assessment = if input.valid &&
+                        (input.lower > value_zero_threshold ||
+                         input.upper < -value_zero_threshold)
+            DomainProvenViolation
+        elseif input.valid &&
+               (input.upper > value_zero_threshold ||
+                input.lower < -value_zero_threshold)
+            DomainPossibleViolation
+        else
+            DomainSafe
+        end
+        _push_expression_risk!(
+            risks,
+            source,
+            path,
+            value,
+            :sech_value_underflow_risk,
+            assessment,
+            "sech may underflow to a floating-point zero for the declared argument range.",
+            "The real sech function is strictly positive, so a rounded zero can create a false apparent feasible value, flat derivatives, or misleading exact-range behavior.",
+            [
+                "operator" => head,
+                "argument_interval" => "[$(input.lower), $(input.upper)]",
+                "numeric_type" => T,
+                "absolute_underflow_threshold" => value_zero_threshold,
+            ],
+            [
+                "Rescale or reparameterize the sech argument when its tail is not intentional.",
+                "Avoid interpreting a floating-point zero as a real sech root; compare with exact range and derivative diagnostics.",
+            ],
+        )
     elseif head in (:softplus, :log1pexp, :log1exp)
         # The stable value formula avoids positive-tail overflow, while its
         # derivative is logistic(x) and hence has an exp(x) negative-tail
         # leading factor.
+        value_zero_threshold = log(nextfloat(zero(T)))
+        value_assessment = _risk_assessment_below(input, value_zero_threshold)
+        _push_expression_risk!(
+            risks,
+            source,
+            path,
+            value,
+            :softplus_value_underflow_risk,
+            value_assessment,
+            "$(head) may underflow to a floating-point zero for the declared argument range.",
+            "The real softplus range is strictly positive, but a rounded zero can falsely satisfy a nonpositive row or conceal a small but nonzero contribution.",
+            [
+                "operator" => head,
+                "argument_interval" => "[$(input.lower), $(input.upper)]",
+                "numeric_type" => T,
+                "value_underflow_threshold" => value_zero_threshold,
+            ],
+            [
+                "Avoid treating a rounded softplus zero as an exact real value.",
+                "Rescale the argument or use tolerance semantics that preserve the intended positive-output condition.",
+            ],
+        )
         derivative_zero_threshold = log(nextfloat(zero(T)))
         assessment = _risk_assessment_below(input, derivative_zero_threshold)
         _push_expression_risk!(
@@ -451,6 +615,75 @@ function _primitive_range_risks!(
             [
                 "Reduce periodic arguments using a well-scaled reference angle when the model semantics allow it.",
                 "Inspect units and phase conventions before interpreting derivative or residual changes at this magnitude.",
+            ],
+        )
+    elseif head == :atan && length(intervals) == 2 &&
+           all(interval -> interval.valid && interval.lower == interval.upper &&
+                           isfinite(interval.lower), intervals)
+        y, x = intervals
+        radius = hypot(T(y.lower), T(x.lower))
+        proximity_threshold = T(strict_domain_proximity_threshold)
+        if !iszero(radius) && radius <= proximity_threshold
+            first_derivative = inv(radius)
+            second_derivative = inv(radius^2)
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :atan2_derivative_amplification,
+                _amplification_assessment(true, first_derivative, second_derivative),
+                "atan(y, x) is evaluated very close to its joint derivative singularity at (0, 0).",
+                "The angle remains defined away from the exact origin, but its gradient and Hessian scale as inverse powers of the coordinate radius and can dominate local scaling.",
+                [
+                    "operator" => head,
+                    "y_argument" => y.lower,
+                    "x_argument" => x.lower,
+                    "coordinate_radius" => radius,
+                    "estimated_first_derivative_magnitude" => first_derivative,
+                    "estimated_second_derivative_magnitude" => second_derivative,
+                    "proximity_threshold" => proximity_threshold,
+                    "numeric_type" => T,
+                ],
+                [
+                    "Use coordinates with a meaningful nonzero magnitude margin when the angle is differentiated.",
+                    "Inspect initialization and active-set derivative scaling before attributing rank loss to a physical gauge.",
+                ],
+            )
+        end
+    elseif head in (:atan, :atand) && length(intervals) == 1 && input.valid &&
+           isfinite(input.lower) && isfinite(input.upper)
+        endpoint_saturation_threshold = if head == :atan
+            inv(eps(T))
+        else
+            T(180) / (T(pi) * (eps(T(90)) / T(2)))
+        end
+        absolute_magnitude = max(abs(input.lower), abs(input.upper))
+        assessment = absolute_magnitude > endpoint_saturation_threshold ?
+                     (input.lower == input.upper ?
+                      DomainProvenViolation : DomainPossibleViolation) :
+                     DomainSafe
+        endpoint_label = head == :atan ? "±π/2" : "±90°"
+        _push_expression_risk!(
+            risks,
+            source,
+            path,
+            value,
+            :arctangent_endpoint_saturation_risk,
+            assessment,
+            "$(head) may round to its $endpoint_label endpoint for the declared argument range.",
+            "The real one-argument arctangent range is open at its limiting angles, but a very large finite ratio can round to an endpoint and falsely satisfy an endpoint row.",
+            [
+                "operator" => head,
+                "argument_interval" => "[$(input.lower), $(input.upper)]",
+                "absolute_argument_magnitude" => absolute_magnitude,
+                "endpoint_saturation_threshold" => endpoint_saturation_threshold,
+                "endpoint" => endpoint_label,
+                "numeric_type" => T,
+            ],
+            [
+                "Avoid treating a rounded limiting angle as an exact real arctangent endpoint.",
+                "Use a quadrant-aware two-argument atan(y, x) formulation when the angle arises from coordinates.",
             ],
         )
     elseif head == :exp2
@@ -867,6 +1100,28 @@ function _primitive_range_risks!(
         # The value domain is x < 0. Even strictly inside it, the derivative
         # grows like 1 / abs(x) as x approaches zero from below.
         proximity_threshold = strict_domain_proximity_threshold
+        tail_zero_threshold = log(nextfloat(zero(T)))
+        tail_assessment = _risk_assessment_below(input, tail_zero_threshold)
+        _push_expression_risk!(
+            risks,
+            source,
+            path,
+            value,
+            :log1mexp_value_saturation_risk,
+            tail_assessment,
+            "log1mexp may round to a floating-point zero for the declared argument range.",
+            "The real log1mexp output is strictly negative, but an underflowed exp(x) can make the value and its derivative appear exactly zero and falsely satisfy an endpoint row.",
+            [
+                "operator" => head,
+                "argument_interval" => "[$(input.lower), $(input.upper)]",
+                "numeric_type" => T,
+                "tail_underflow_threshold" => tail_zero_threshold,
+            ],
+            [
+                "Avoid treating a rounded log1mexp zero as an exact real value.",
+                "Rescale the argument or preserve small-tail contributions explicitly when they are semantically important.",
+            ],
+        )
         if input.valid && input.upper < 0.0
             strict_margin = -input.upper
             if strict_margin <= proximity_threshold
@@ -904,6 +1159,28 @@ function _primitive_range_risks!(
         end
     elseif head == :logdiffexp && length(intervals) == 2
         difference = _interval_add(intervals[1], _interval_scale(intervals[2], -1.0))
+        tail_underflow_threshold = -log(nextfloat(zero(T)))
+        tail_assessment = _risk_assessment_above(difference, tail_underflow_threshold)
+        _push_expression_risk!(
+            risks,
+            source,
+            path,
+            value,
+            :logdiffexp_subtrahend_derivative_underflow_risk,
+            tail_assessment,
+            "logdiffexp may lose sensitivity to its second argument for the declared a - b range.",
+            "When a - b is extremely large, the derivative with respect to b behaves like exp(b - a) and can underflow to zero even though the real expression still depends on b.",
+            [
+                "operator" => head,
+                "difference_interval" => "[$(difference.lower), $(difference.upper)]",
+                "numeric_type" => T,
+                "subtrahend_derivative_underflow_threshold" => tail_underflow_threshold,
+            ],
+            [
+                "Rescale or reparameterize a - b when small sensitivity to b is not intentional.",
+                "Inspect Jacobian columns before treating the b coordinate as structurally disconnected.",
+            ],
+        )
         proximity_threshold = strict_domain_proximity_threshold
         if difference.valid && difference.lower > 0.0
             strict_margin = difference.lower
@@ -939,6 +1216,40 @@ function _primitive_range_risks!(
                     ],
                 )
             end
+        end
+    elseif head == :logsumexp && length(intervals) >= 2 &&
+           all(interval -> interval.valid && isfinite(interval.lower) &&
+                           isfinite(interval.upper), intervals)
+        derivative_underflow_threshold = -log(nextfloat(zero(T)))
+        for subordinate_index in eachindex(intervals)
+            dominant_lower = maximum(
+                intervals[index].lower for index in eachindex(intervals) if index != subordinate_index
+            )
+            guaranteed_gap = dominant_lower - intervals[subordinate_index].upper
+            guaranteed_gap > derivative_underflow_threshold || continue
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :logsumexp_term_derivative_underflow_risk,
+                DomainProvenViolation,
+                "logsumexp may lose sensitivity to argument $subordinate_index for the declared argument ranges.",
+                "A max-shifted logsumexp value remains stable, but this term's softmax derivative is bounded above by exp(-gap) and can underflow to zero when another term is guaranteed to dominate it.",
+                [
+                    "operator" => head,
+                    "subordinate_argument_index" => subordinate_index,
+                    "subordinate_interval" => "[$(intervals[subordinate_index].lower), $(intervals[subordinate_index].upper)]",
+                    "dominant_lower_bound" => dominant_lower,
+                    "guaranteed_dominance_gap" => guaranteed_gap,
+                    "derivative_underflow_threshold" => derivative_underflow_threshold,
+                    "numeric_type" => T,
+                ],
+                [
+                    "Rescale or center logsumexp arguments when the dominated term should retain numerical influence.",
+                    "Inspect Jacobian columns before treating the dominated coordinate as structurally disconnected.",
+                ],
+            )
         end
     end
     return
@@ -1485,12 +1796,25 @@ function analyze_expressions(
                     :exponential_overflow_risk,
                     :exponential_underflow_risk,
                     :hyperbolic_overflow_risk,
+                    :logistic_value_saturation_risk,
                     :logistic_derivative_underflow_risk,
+                    :tanh_value_saturation_risk,
                     :tanh_derivative_underflow_risk,
+                    :logcosh_curvature_underflow_risk,
+                    :sech_value_underflow_risk,
+                    :softplus_value_underflow_risk,
                     :softplus_derivative_underflow_risk,
+                    :log1mexp_value_saturation_risk,
+                    :logdiffexp_subtrahend_derivative_underflow_risk,
+                    :logsumexp_term_derivative_underflow_risk,
                     :periodic_argument_reduction_risk,
+                    :atan2_derivative_amplification,
+                    :arctangent_endpoint_saturation_risk,
                 ) && risk.assessment == DomainProvenViolation) ||
-                risk.code == :strict_domain_derivative_amplification,
+                risk.code in (
+                    :strict_domain_derivative_amplification,
+                    :atan2_derivative_amplification,
+                ),
             risks,
         )
     end
