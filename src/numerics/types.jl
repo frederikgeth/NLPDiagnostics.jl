@@ -301,6 +301,23 @@ struct CoupledSetActivity{T<:AbstractFloat}
     feasibility_violation::Union{Nothing,T}
     boundary_active::Bool
     classification::Symbol
+    reason::Union{Nothing,String}
+end
+
+"""Backward-compatible construction without an explicit availability reason."""
+function CoupledSetActivity{T}(
+    source,
+    set_kind,
+    values,
+    margin,
+    feasibility_violation,
+    boundary_active,
+    classification,
+) where {T<:AbstractFloat}
+    return CoupledSetActivity{T}(
+        source, set_kind, values, margin, feasibility_violation, boundary_active,
+        classification, nothing,
+    )
 end
 
 """A smooth coupled-set boundary normal supplied by the generic core or a plugin."""
@@ -311,18 +328,27 @@ struct CoupledSetTangentEvidence{T<:AbstractFloat}
     description::String
 end
 
-"""Reserved evidence container for a future cone-aware qualification screen.
+"""Local cone-aware Robinson-CQ evidence, separate from scalar LICQ/MFCQ.
 
-This intentionally does not imply scalar LICQ/MFCQ semantics. A future screen
-will populate it only after declaring the cone tangent and multiplier
-conventions used for the coupled set. `tangent_sources` lists the smooth
-coupled boundaries available at the recorded point.
+`tangent_sources` lists the smooth coupled boundaries used by the screen at
+the recorded point. `witness_direction` is meaningful only when
+`robinson_regular` is true. The normal-combination fields retain the
+minimum-norm convex-hull calculation used to reach the conclusion.
 """
 struct CoupledSetQualificationScreen{T<:AbstractFloat}
     available::Bool
     reason::Union{Nothing,String}
     point::EvaluationPoint{T}
     tangent_sources::Vector{EntityRef}
+    robinson_regular::Bool
+    witness_direction::Vector{T}
+    normal_weights::Vector{T}
+    normal_combination::Vector{T}
+    combination_residual::Union{Nothing,T}
+    tolerance::Union{Nothing,T}
+    iterations::Int
+    converged::Bool
+    derivative_methods::Vector{Symbol}
 end
 
 """A smooth coupled-set boundary normal mapped into model coordinates."""
@@ -341,6 +367,8 @@ struct CoupledSetFeasibilitySummary{T<:AbstractFloat}
     tangents::Vector{CoupledSetTangentEvidence{T}}
     feasibility_tolerance::T
     active_tolerance::T
+    complete::Bool
+    reason::Union{Nothing,String}
 end
 
 

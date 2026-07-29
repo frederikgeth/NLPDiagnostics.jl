@@ -208,9 +208,11 @@ export profile_synthetic_stability_corpus
 export synthetic_derivative_boundary_profile_corpus
 export profile_synthetic_derivative_boundary_corpus
 export synthetic_float32_derivative_overflow_profile_corpus
+export synthetic_coupled_cone_profile_corpus
 export synthetic_quadratic_geometry_profile_corpus
 export profile_synthetic_quadratic_geometry_corpus
 export profile_synthetic_float32_derivative_overflow_corpus
+export profile_synthetic_coupled_cone_corpus
 export solver_postmortem
 export solver_log_observations
 export solver_iteration_records
@@ -246,6 +248,7 @@ export coupled_set_activity
 export coupled_set_tangent_evidence
 export coupled_set_qualification_screen
 export coupled_set_mapped_tangents
+export analyze_coupled_set_qualification
 export active_constraint_rows
 export active_set_matching
 export active_set_structural_decomposition
@@ -3128,7 +3131,10 @@ function analyze(
     strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
     check_initialization::Bool = false,
     check_active_set::Bool = false,
+    check_coupled_set_qualification::Bool = false,
     check_degeneracy::Bool = false,
+    coupled_qualification_strict_tolerance::Union{Nothing,Real} = nothing,
+    coupled_qualification_max_iterations::Integer = 1_000,
     postmortem::Union{Nothing,SolverPostmortem} = nothing,
     solver_log::Union{Nothing,AbstractString} = nothing,
     solver_name::Union{Nothing,AbstractString} = nothing,
@@ -3293,10 +3299,29 @@ function analyze(
         merge!(report.metadata, component_rank_report.metadata)
         stages *= ",numerical"
         if check_active_set
-            active_report = analyze_active_set(model, numerical_evaluation)
+            coupled_strict = isnothing(coupled_qualification_strict_tolerance) ?
+                             sqrt(eps(eltype(numerical_evaluation.point.values))) :
+                             coupled_qualification_strict_tolerance
+            active_report = analyze_active_set(
+                model, numerical_evaluation;
+                coupled_qualification_strict_tolerance = coupled_strict,
+                coupled_qualification_max_iterations = coupled_qualification_max_iterations,
+            )
             append!(report.findings, active_report.findings)
             merge!(report.metadata, active_report.metadata)
             stages *= ",active_set"
+        elseif check_coupled_set_qualification
+            coupled_strict = isnothing(coupled_qualification_strict_tolerance) ?
+                             sqrt(eps(eltype(numerical_evaluation.point.values))) :
+                             coupled_qualification_strict_tolerance
+            coupled_report = analyze_coupled_set_qualification(
+                model, numerical_evaluation;
+                strict_tolerance = coupled_strict,
+                max_iterations = coupled_qualification_max_iterations,
+            )
+            append!(report.findings, coupled_report.findings)
+            merge!(report.metadata, coupled_report.metadata)
+            stages *= ",coupled_set_qualification"
         end
         if check_degeneracy
             degeneracy_report = analyze_degeneracy(model, numerical_evaluation)
@@ -3312,6 +3337,9 @@ function analyze(
             numeric_type = numeric_type,
             strict_domain_proximity_threshold = strict_domain_proximity_threshold,
             scale_ratio_threshold = scale_ratio_threshold,
+            coupled_qualification_strict_tolerance =
+                coupled_qualification_strict_tolerance,
+            coupled_qualification_max_iterations = coupled_qualification_max_iterations,
         )
         append!(report.findings, initialization_report.findings)
         merge!(report.metadata, initialization_report.metadata)

@@ -7,6 +7,12 @@ import NLPDiagnostics
 
 const MOIU = MOI.Utilities
 
+struct UnknownCoupledSet <: MOI.AbstractVectorSet end
+MOI.dimension(::UnknownCoupledSet) = 2
+
+struct PluginCoupledSet <: MOI.AbstractVectorSet end
+MOI.dimension(::PluginCoupledSet) = 2
+
 mutable struct TestNLPEvaluator <: MOI.AbstractNLPEvaluator
     initialize_count::Int
     requested::Vector{Symbol}
@@ -158,6 +164,18 @@ end
             only(aggregate.runs).expression_report.findings,
         ),
         values(float32_aggregates),
+    )
+    coupled_cone_models, coupled_cone_cases =
+        NLPDiagnostics.synthetic_coupled_cone_profile_corpus()
+    @test length(coupled_cone_models) == length(coupled_cone_cases) == 12
+    coupled_cone_aggregates = NLPDiagnostics.profile_synthetic_coupled_cone_corpus(
+        repetitions = 1, warmup = false,
+    )
+    @test Set(keys(coupled_cone_aggregates)) == Set(case.name for case in coupled_cone_cases)
+    @test all(
+        aggregate -> all(summary -> summary.fraction == 1.0,
+                         aggregate.expected_evidence),
+        values(coupled_cone_aggregates),
     )
     geometry_models, geometry_cases =
         NLPDiagnostics.synthetic_quadratic_geometry_profile_corpus()
@@ -1391,7 +1409,7 @@ function NLPDiagnostics.fixed_operator_value(
 end
 
 function NLPDiagnostics.coupled_set_activity(
-    ::MOI.ExponentialCone,
+    ::PluginCoupledSet,
     source::NLPDiagnostics.EntityRef,
     values::Vector{Union{Missing,T}},
     feasibility::T,
@@ -1399,7 +1417,7 @@ function NLPDiagnostics.coupled_set_activity(
 ) where {T<:AbstractFloat}
     return NLPDiagnostics.CoupledSetActivity{T}(
         source,
-        :test_exponential_cone,
+        :test_plugin_coupled_set,
         values,
         one(T),
         zero(T),
@@ -5116,12 +5134,88 @@ end
             cone_model,
             cone_evaluation,
         )
+        @test cone_summary.complete
         cone_qualification = NLPDiagnostics.coupled_set_qualification_screen(
             cone_evaluation, cone_summary,
         )
-        @test !cone_qualification.available
+        @test cone_qualification.available
+        @test cone_qualification.robinson_regular
         @test length(cone_qualification.tangent_sources) == 1
-        @test occursin("not implemented", cone_qualification.reason)
+        @test cone_qualification.witness_direction ≈ [-1 / sqrt(2), 1 / sqrt(2)]
+        @test cone_qualification.normal_weights ≈ [1.0]
+        @test cone_qualification.normal_combination ≈ [1.0, -1.0]
+        @test cone_qualification.converged
+        @test cone_qualification.derivative_methods == [:exact_symbolic]
+        @test NLPDiagnostics.coupled_set_qualification_screen(
+            cone_evaluation, cone_summary;
+            strict_tolerance = 1.0e-5,
+            max_iterations = 7,
+        ).tolerance ≈ 1.0e-5 * sqrt(2)
+        @test_throws ArgumentError NLPDiagnostics.coupled_set_qualification_screen(
+            cone_evaluation, cone_summary; strict_tolerance = 0.0,
+        )
+        @test length(findings(NLPDiagnostics.analyze_coupled_set_qualification(
+            cone_model, cone_evaluation,
+        ), :coupled_set_robinson_cq_regular)) == 1
+        @test length(findings(NLPDiagnostics.analyze_coupled_set_qualification(
+            cone_evaluation; summary = cone_summary,
+        ), :coupled_set_robinson_cq_regular)) == 1
+        standalone_cone_qualification = NLPDiagnostics.analyze_coupled_set_qualification(
+            cone_evaluation; summary = cone_summary,
+        )
+        @test length(findings(
+            standalone_cone_qualification, :coupled_set_boundary_active,
+        )) == 1
+        @test length(findings(
+            standalone_cone_qualification,
+            :coupled_set_smooth_boundary_tangent_gradient_available,
+        )) == 1
+        cone_qualification_report = NLPDiagnostics.analyze_coupled_set_qualification(
+            cone_model, cone_evaluation,
+        )
+        @test NLPDiagnostics.analyze_coupled_set_qualification(
+            cone_model, [1.0, 1.0]; label = "initialization",
+        ).metadata[:evaluation_point_label] == "initialization"
+        @test NLPDiagnostics.analyze(
+            cone_model;
+            evaluation = cone_evaluation,
+            check_active_set = true,
+            coupled_qualification_strict_tolerance = 1.0e-5,
+            coupled_qualification_max_iterations = 7,
+        ).metadata[:coupled_qualification_max_iterations] == "7"
+        standalone_coupled_report = NLPDiagnostics.analyze(
+            cone_model;
+            evaluation = cone_evaluation,
+            check_coupled_set_qualification = true,
+        )
+        @test occursin(
+            "coupled_set_qualification", standalone_coupled_report.metadata[:stages],
+        )
+        @test length(findings(
+            standalone_coupled_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        combined_active_and_coupled_report = NLPDiagnostics.analyze(
+            cone_model;
+            evaluation = cone_evaluation,
+            check_active_set = true,
+            check_coupled_set_qualification = true,
+        )
+        @test length(findings(
+            combined_active_and_coupled_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        @test !occursin(
+            "coupled_set_qualification",
+            combined_active_and_coupled_report.metadata[:stages],
+        )
+        cone_qualification_finding = only(findings(
+            cone_qualification_report, :coupled_set_robinson_cq_regular,
+        ))
+        @test Dict(cone_qualification_finding.evidence[end].details)[
+            "normal_combination_weights"
+        ] == "1.0"
+        @test cone_qualification_report.metadata[
+            :coupled_normal_combination_converged
+        ] == "true"
         @test NLPDiagnostics.coupled_set_qualification_screen(
             cone_model, cone_evaluation,
         ).tangent_sources == cone_qualification.tangent_sources
@@ -5145,12 +5239,21 @@ end
         @test isempty(NLPDiagnostics.coupled_set_mapped_tangents(
             partial_cone_evaluation, cone_summary,
         ))
+        @test_throws ArgumentError NLPDiagnostics.coupled_set_mapped_tangents(
+            NLPDiagnostics.evaluate_numerical(cone_model, [1.0, 0.0]), cone_summary,
+        )
         @test_throws ArgumentError NLPDiagnostics.coupled_set_qualification_screen(
             NLPDiagnostics.evaluate_numerical(cone_model, [1.0, 0.0]), cone_summary,
         )
         @test length(cone_summary.activities) == 1
         @test only(cone_summary.activities).classification == :boundary
         cone_report = NLPDiagnostics.analyze_active_set(cone_model, cone_evaluation)
+        @test length(findings(
+            cone_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        @test length(findings(
+            cone_report, :scalar_active_set_excludes_coupled_sets,
+        )) == 1
         @test length(findings(cone_report, :coupled_set_boundary_active)) == 1
         @test length(findings(
             cone_report,
@@ -5187,6 +5290,11 @@ end
         ))
         @test finite_difference_cone_gradient.basis == NLPDiagnostics.NumericalObservation
         @test finite_difference_cone_gradient.confidence == NLPDiagnostics.ConfidenceMedium
+        finite_difference_cone_qualification = only(findings(
+            finite_difference_cone_report, :coupled_set_robinson_cq_regular,
+        ))
+        @test finite_difference_cone_qualification.basis == NLPDiagnostics.NumericalObservation
+        @test finite_difference_cone_qualification.confidence == NLPDiagnostics.ConfidenceMedium
         cone_apex_report = NLPDiagnostics.analyze_active_set(cone_model, [0.0, 0.0])
         cone_apex_evaluation = NLPDiagnostics.evaluate_numerical(cone_model, [0.0, 0.0])
         cone_apex_summary = NLPDiagnostics.coupled_set_feasibility_summary(
@@ -5197,6 +5305,71 @@ end
         )
         @test isempty(cone_apex_qualification.tangent_sources)
         @test occursin("no smooth", cone_apex_qualification.reason)
+        two_cones = new_model()
+        t1, x1, t2, x2 = MOI.add_variables(two_cones, 4)
+        MOI.add_constraint(two_cones, MOI.VectorOfVariables([t1, x1]), MOI.SecondOrderCone(2))
+        MOI.add_constraint(two_cones, MOI.VectorOfVariables([t2, x2]), MOI.SecondOrderCone(2))
+        two_cone_evaluation = NLPDiagnostics.evaluate_numerical(
+            two_cones, [1.0, 1.0, 1.0, 1.0],
+        )
+        two_cone_qualification = NLPDiagnostics.coupled_set_qualification_screen(
+            two_cones, two_cone_evaluation,
+        )
+        @test two_cone_qualification.available
+        @test two_cone_qualification.robinson_regular
+        @test length(two_cone_qualification.tangent_sources) == 2
+        @test two_cone_qualification.witness_direction ≈ [-0.5, 0.5, -0.5, 0.5]
+        opposed_cones = new_model()
+        opposed_t, opposed_x = MOI.add_variables(opposed_cones, 2)
+        MOI.add_constraint(
+            opposed_cones,
+            MOI.VectorOfVariables([opposed_t, opposed_x]),
+            MOI.SecondOrderCone(2),
+        )
+        MOI.add_constraint(
+            opposed_cones,
+            MOI.VectorAffineFunction(
+                [
+                    MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(-1.0, opposed_t)),
+                    MOI.VectorAffineTerm(2, MOI.ScalarAffineTerm(1.0, opposed_x)),
+                ],
+                [2.0, -2.0],
+            ),
+            MOI.SecondOrderCone(2),
+        )
+        opposed_qualification = NLPDiagnostics.coupled_set_qualification_screen(
+            opposed_cones,
+            NLPDiagnostics.evaluate_numerical(opposed_cones, [1.0, 1.0]),
+        )
+        @test opposed_qualification.available
+        @test !opposed_qualification.robinson_regular
+        @test occursin("zero convex-hull", opposed_qualification.reason)
+        opposed_report = NLPDiagnostics.analyze_coupled_set_qualification(
+            opposed_cones, [1.0, 1.0],
+        )
+        opposed_dependence = only(findings(
+            opposed_report, :coupled_set_dependent_boundary_normals,
+        ))
+        @test length(opposed_dependence.affected) == 2
+        @test Dict(opposed_dependence.evidence[end].details)["support_positions"] == "1,2"
+        stationary_cone = new_model()
+        stationary_variable = MOI.add_variable(stationary_cone)
+        MOI.add_constraint(
+            stationary_cone,
+            MOI.VectorAffineFunction(
+                MOI.VectorAffineTerm{Float64}[], [1.0, 1.0],
+            ),
+            MOI.SecondOrderCone(2),
+        )
+        stationary_evaluation = NLPDiagnostics.evaluate_numerical(
+            stationary_cone, [0.0],
+        )
+        stationary_qualification = NLPDiagnostics.coupled_set_qualification_screen(
+            stationary_cone, stationary_evaluation,
+        )
+        @test stationary_qualification.available
+        @test !stationary_qualification.robinson_regular
+        @test occursin("zero", stationary_qualification.reason)
         @test length(findings(
             cone_apex_report,
             :coupled_set_nonsmooth_boundary_active,
@@ -5238,12 +5411,628 @@ end
             :coupled_set_nonsmooth_boundary_active,
         )) == 1
 
+        norm_one_model = new_model()
+        norm_one_t, norm_one_x, norm_one_y = MOI.add_variables(norm_one_model, 3)
+        MOI.add_constraint(
+            norm_one_model,
+            MOI.VectorOfVariables([norm_one_t, norm_one_x, norm_one_y]),
+            MOI.NormOneCone(3),
+        )
+        norm_one_report = NLPDiagnostics.analyze_active_set(
+            norm_one_model, [2.0, 1.0, -1.0],
+        )
+        @test length(findings(norm_one_report, :coupled_set_robinson_cq_regular)) == 1
+        @test only(NLPDiagnostics.coupled_set_feasibility_summary(
+            norm_one_model,
+            NLPDiagnostics.evaluate_numerical(norm_one_model, [2.0, 1.0, -1.0]),
+        ).tangents).set_kind == :norm_one_cone
+        norm_one_nonsmooth = NLPDiagnostics.analyze_active_set(
+            norm_one_model, [1.0, 1.0, 0.0],
+        )
+        @test length(findings(
+            norm_one_nonsmooth, :coupled_set_nonsmooth_boundary_active,
+        )) == 1
+
+        norm_infinity_model = new_model()
+        norm_inf_t, norm_inf_x, norm_inf_y = MOI.add_variables(norm_infinity_model, 3)
+        MOI.add_constraint(
+            norm_infinity_model,
+            MOI.VectorOfVariables([norm_inf_t, norm_inf_x, norm_inf_y]),
+            MOI.NormInfinityCone(3),
+        )
+        norm_infinity_report = NLPDiagnostics.analyze_active_set(
+            norm_infinity_model, [2.0, -2.0, 0.25],
+        )
+        @test length(findings(
+            norm_infinity_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        norm_infinity_tie = NLPDiagnostics.analyze_active_set(
+            norm_infinity_model, [2.0, 2.0, -2.0],
+        )
+        @test length(findings(
+            norm_infinity_tie, :coupled_set_nonsmooth_boundary_active,
+        )) == 1
+
+        generic_norm_model = new_model()
+        generic_norm_t, generic_norm_x, generic_norm_y = MOI.add_variables(
+            generic_norm_model, 3,
+        )
+        MOI.add_constraint(
+            generic_norm_model,
+            MOI.VectorOfVariables([generic_norm_t, generic_norm_x, generic_norm_y]),
+            MOI.NormCone(3.0, 3),
+        )
+        generic_norm_report = NLPDiagnostics.analyze_active_set(
+            generic_norm_model, [1.0, 1.0, 0.0],
+        )
+        @test length(findings(
+            generic_norm_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        generic_norm_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            generic_norm_model,
+            NLPDiagnostics.evaluate_numerical(generic_norm_model, [1.0, 1.0, 0.0]),
+        ).tangents)
+        @test generic_norm_tangent.set_kind == :norm_cone
+        @test generic_norm_tangent.normal ≈ [1.0, -1.0, 0.0]
+        generic_norm_apex = NLPDiagnostics.analyze_active_set(
+            generic_norm_model, [0.0, 0.0, 0.0],
+        )
+        @test length(findings(
+            generic_norm_apex, :coupled_set_nonsmooth_boundary_active,
+        )) == 1
+
+        spectral_cone_model = new_model()
+        spectral_variables = MOI.add_variables(spectral_cone_model, 5)
+        spectral_t = spectral_variables[1]
+        spectral_entries = spectral_variables[2:end]
+        MOI.add_constraint(
+            spectral_cone_model,
+            MOI.VectorOfVariables([spectral_t; spectral_entries]),
+            MOI.NormSpectralCone(2, 2),
+        )
+        spectral_report = NLPDiagnostics.analyze_active_set(
+            spectral_cone_model, [2.0, 2.0, 0.0, 0.0, 1.0],
+        )
+        @test length(findings(
+            spectral_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        spectral_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            spectral_cone_model,
+            NLPDiagnostics.evaluate_numerical(
+                spectral_cone_model, [2.0, 2.0, 0.0, 0.0, 1.0],
+            ),
+        ).tangents)
+        @test spectral_tangent.set_kind == :norm_spectral_cone
+        @test spectral_tangent.normal ≈ [1.0, -1.0, 0.0, 0.0, 0.0]
+        spectral_tied_report = NLPDiagnostics.analyze_active_set(
+            spectral_cone_model, [1.0, 1.0, 0.0, 0.0, 1.0],
+        )
+        @test length(findings(
+            spectral_tied_report, :coupled_set_nonsmooth_boundary_active,
+        )) == 1
+        @test isempty(findings(
+            spectral_tied_report, :coupled_set_smooth_boundary_tangent_available,
+        ))
+
+        nuclear_cone_model = new_model()
+        nuclear_variables = MOI.add_variables(nuclear_cone_model, 5)
+        nuclear_t = nuclear_variables[1]
+        nuclear_entries = nuclear_variables[2:end]
+        MOI.add_constraint(
+            nuclear_cone_model,
+            MOI.VectorOfVariables([nuclear_t; nuclear_entries]),
+            MOI.NormNuclearCone(2, 2),
+        )
+        nuclear_report = NLPDiagnostics.analyze_active_set(
+            nuclear_cone_model, [3.0, 2.0, 0.0, 0.0, 1.0],
+        )
+        @test length(findings(
+            nuclear_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        nuclear_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            nuclear_cone_model,
+            NLPDiagnostics.evaluate_numerical(
+                nuclear_cone_model, [3.0, 2.0, 0.0, 0.0, 1.0],
+            ),
+        ).tangents)
+        @test nuclear_tangent.set_kind == :norm_nuclear_cone
+        @test nuclear_tangent.normal ≈ [1.0, -1.0, 0.0, 0.0, -1.0]
+        nuclear_rank_deficient_report = NLPDiagnostics.analyze_active_set(
+            nuclear_cone_model, [2.0, 2.0, 0.0, 0.0, 0.0],
+        )
+        @test length(findings(
+            nuclear_rank_deficient_report, :coupled_set_nonsmooth_boundary_active,
+        )) == 1
+        @test isempty(findings(
+            nuclear_rank_deficient_report,
+            :coupled_set_smooth_boundary_tangent_available,
+        ))
+
+        psd_triangle_model = new_model()
+        psd_entries = MOI.add_variables(psd_triangle_model, 3)
+        MOI.add_constraint(
+            psd_triangle_model,
+            MOI.VectorOfVariables(psd_entries),
+            MOI.PositiveSemidefiniteConeTriangle(2),
+        )
+        psd_report = NLPDiagnostics.analyze_active_set(
+            psd_triangle_model, [0.0, 0.0, 1.0],
+        )
+        @test length(findings(
+            psd_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        psd_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            psd_triangle_model,
+            NLPDiagnostics.evaluate_numerical(psd_triangle_model, [0.0, 0.0, 1.0]),
+        ).tangents)
+        @test psd_tangent.set_kind == :positive_semidefinite_cone_triangle
+        @test psd_tangent.normal ≈ [1.0, 0.0, 0.0]
+        psd_repeated_zero_report = NLPDiagnostics.analyze_active_set(
+            psd_triangle_model, [0.0, 0.0, 0.0],
+        )
+        @test length(findings(
+            psd_repeated_zero_report, :coupled_set_nonsmooth_boundary_active,
+        )) == 1
+        @test isempty(findings(
+            psd_repeated_zero_report,
+            :coupled_set_smooth_boundary_tangent_available,
+        ))
+
+        scaled_psd_model = new_model()
+        scaled_psd_entries = MOI.add_variables(scaled_psd_model, 3)
+        MOI.add_constraint(
+            scaled_psd_model,
+            MOI.VectorOfVariables(scaled_psd_entries),
+            MOI.Scaled(MOI.PositiveSemidefiniteConeTriangle(2)),
+        )
+        scaled_psd_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            scaled_psd_model,
+            NLPDiagnostics.evaluate_numerical(scaled_psd_model, [0.0, 0.0, 1.0]),
+        ).tangents)
+        @test scaled_psd_tangent.set_kind == :scaled_positive_semidefinite_cone_triangle
+        @test scaled_psd_tangent.normal ≈ [1.0, 0.0, 0.0]
+        scaled_psd_offdiagonal_tangent = only(
+            NLPDiagnostics.coupled_set_feasibility_summary(
+                scaled_psd_model,
+                NLPDiagnostics.evaluate_numerical(
+                    scaled_psd_model, [1.0, sqrt(2.0), 1.0],
+                ),
+            ).tangents,
+        )
+        @test scaled_psd_offdiagonal_tangent.normal ≈ [0.5, -inv(sqrt(2.0)), 0.5]
+
+        psd_square_model = new_model()
+        psd_square_entries = MOI.add_variables(psd_square_model, 4)
+        MOI.add_constraint(
+            psd_square_model,
+            MOI.VectorOfVariables(psd_square_entries),
+            MOI.PositiveSemidefiniteConeSquare(2),
+        )
+        psd_square_report = NLPDiagnostics.analyze_active_set(
+            psd_square_model, [0.0, 0.0, 0.0, 1.0],
+        )
+        @test length(findings(
+            psd_square_report, :coupled_set_boundary_active,
+        )) == 1
+        @test length(findings(
+            psd_square_report, :coupled_set_boundary_tangent_semantics_unavailable,
+        )) == 1
+        @test isempty(NLPDiagnostics.coupled_set_feasibility_summary(
+            psd_square_model,
+            NLPDiagnostics.evaluate_numerical(psd_square_model, [0.0, 0.0, 0.0, 1.0]),
+        ).tangents)
+        psd_square_asymmetric_report = NLPDiagnostics.analyze_active_set(
+            psd_square_model, [1.0, 0.0, 0.5, 1.0],
+        )
+        @test length(findings(
+            psd_square_asymmetric_report, :coupled_set_feasibility_violation,
+        )) == 1
+
+        hermitian_psd_model = new_model()
+        hermitian_entries = MOI.add_variables(hermitian_psd_model, 4)
+        MOI.add_constraint(
+            hermitian_psd_model,
+            MOI.VectorOfVariables(hermitian_entries),
+            MOI.HermitianPositiveSemidefiniteConeTriangle(2),
+        )
+        hermitian_psd_report = NLPDiagnostics.analyze_active_set(
+            hermitian_psd_model, [0.0, 0.0, 1.0, 0.0],
+        )
+        @test length(findings(
+            hermitian_psd_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        hermitian_psd_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            hermitian_psd_model,
+            NLPDiagnostics.evaluate_numerical(
+                hermitian_psd_model, [0.0, 0.0, 1.0, 0.0],
+            ),
+        ).tangents)
+        @test hermitian_psd_tangent.set_kind ==
+              :hermitian_positive_semidefinite_cone_triangle
+        @test hermitian_psd_tangent.normal ≈ [1.0, 0.0, 0.0, 0.0]
+        hermitian_imaginary_tangent = only(
+            NLPDiagnostics.coupled_set_feasibility_summary(
+                hermitian_psd_model,
+                NLPDiagnostics.evaluate_numerical(
+                    hermitian_psd_model, [1.0, 0.0, 1.0, 1.0],
+                ),
+            ).tangents,
+        )
+        @test hermitian_imaginary_tangent.normal ≈ [0.5, 0.0, 0.5, -1.0]
+        scaled_hermitian_model = new_model()
+        scaled_hermitian_entries = MOI.add_variables(scaled_hermitian_model, 4)
+        MOI.add_constraint(
+            scaled_hermitian_model,
+            MOI.VectorOfVariables(scaled_hermitian_entries),
+            MOI.Scaled(MOI.HermitianPositiveSemidefiniteConeTriangle(2)),
+        )
+        scaled_hermitian_tangent = only(
+            NLPDiagnostics.coupled_set_feasibility_summary(
+                scaled_hermitian_model,
+                NLPDiagnostics.evaluate_numerical(
+                    scaled_hermitian_model, [1.0, 0.0, 1.0, sqrt(2.0)],
+                ),
+            ).tangents,
+        )
+        @test scaled_hermitian_tangent.set_kind ==
+              :scaled_hermitian_positive_semidefinite_cone_triangle
+        @test scaled_hermitian_tangent.normal ≈
+              [0.5, 0.0, 0.5, -inv(sqrt(2.0))]
+        hermitian_repeated_zero_report = NLPDiagnostics.analyze_active_set(
+            hermitian_psd_model, [0.0, 0.0, 0.0, 0.0],
+        )
+        @test length(findings(
+            hermitian_repeated_zero_report,
+            :coupled_set_nonsmooth_boundary_active,
+        )) == 1
+
+        logdet_model = new_model()
+        logdet_entries = MOI.add_variables(logdet_model, 5)
+        MOI.add_constraint(
+            logdet_model,
+            MOI.VectorOfVariables(logdet_entries),
+            MOI.LogDetConeTriangle(2),
+        )
+        logdet_report = NLPDiagnostics.analyze_active_set(
+            logdet_model, [0.0, 1.0, 1.0, 0.0, 1.0],
+        )
+        @test length(findings(
+            logdet_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        logdet_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            logdet_model,
+            NLPDiagnostics.evaluate_numerical(
+                logdet_model, [0.0, 1.0, 1.0, 0.0, 1.0],
+            ),
+        ).tangents)
+        @test logdet_tangent.set_kind == :logdet_cone_triangle
+        @test logdet_tangent.normal ≈ [-1.0, -2.0, 1.0, 0.0, 1.0]
+        logdet_domain_report = NLPDiagnostics.analyze_active_set(
+            logdet_model, [0.0, 1.0, 0.0, 0.0, 1.0],
+        )
+        @test length(findings(
+            logdet_domain_report, :coupled_set_activity_unavailable,
+        )) == 1
+        logdet_near_singular_report = NLPDiagnostics.analyze_active_set(
+            logdet_model, [log(1.0e-10), 1.0, 1.0e-10, 0.0, 1.0],
+        )
+        @test length(findings(
+            logdet_near_singular_report,
+            :coupled_set_boundary_tangent_semantics_unavailable,
+        )) == 1
+        @test isempty(NLPDiagnostics.coupled_set_feasibility_summary(
+            logdet_model,
+            NLPDiagnostics.evaluate_numerical(
+                logdet_model, [log(1.0e-10), 1.0, 1.0e-10, 0.0, 1.0],
+            ),
+        ).tangents)
+        for (variable, value) in zip(
+            logdet_entries, [log(1.0e-10), 1.0, 1.0e-10, 0.0, 1.0],
+        )
+            MOI.set(logdet_model, MOI.VariablePrimalStart(), variable, value)
+        end
+        logdet_initialization_report = NLPDiagnostics.analyze_initialization(logdet_model)
+        @test length(findings(
+            logdet_initialization_report,
+            :coupled_set_boundary_tangent_semantics_unavailable,
+        )) == 1
+
+        scaled_logdet_model = new_model()
+        scaled_logdet_entries = MOI.add_variables(scaled_logdet_model, 5)
+        MOI.add_constraint(
+            scaled_logdet_model,
+            MOI.VectorOfVariables(scaled_logdet_entries),
+            MOI.Scaled(MOI.LogDetConeTriangle(2)),
+        )
+        scaled_logdet_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            scaled_logdet_model,
+            NLPDiagnostics.evaluate_numerical(
+                scaled_logdet_model, [0.0, 1.0, 1.0, 0.0, 1.0],
+            ),
+        ).tangents)
+        @test scaled_logdet_tangent.set_kind == :scaled_logdet_cone_triangle
+        @test scaled_logdet_tangent.normal ≈ [-1.0, -2.0, 1.0, 0.0, 1.0]
+        scaled_logdet_offdiagonal_tangent = only(
+            NLPDiagnostics.coupled_set_feasibility_summary(
+                scaled_logdet_model,
+                NLPDiagnostics.evaluate_numerical(
+                    scaled_logdet_model, [0.0, 1.0, 1.0, sqrt(2.0), 2.0],
+                ),
+            ).tangents,
+        )
+        @test scaled_logdet_offdiagonal_tangent.normal ≈
+              [-1.0, -2.0, 2.0, -sqrt(2.0), 1.0]
+
+        rootdet_model = new_model()
+        rootdet_entries = MOI.add_variables(rootdet_model, 4)
+        MOI.add_constraint(
+            rootdet_model,
+            MOI.VectorOfVariables(rootdet_entries),
+            MOI.RootDetConeTriangle(2),
+        )
+        rootdet_report = NLPDiagnostics.analyze_active_set(
+            rootdet_model, [1.0, 1.0, 0.0, 1.0],
+        )
+        @test length(findings(
+            rootdet_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        rootdet_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            rootdet_model,
+            NLPDiagnostics.evaluate_numerical(
+                rootdet_model, [1.0, 1.0, 0.0, 1.0],
+            ),
+        ).tangents)
+        @test rootdet_tangent.set_kind == :rootdet_cone_triangle
+        @test rootdet_tangent.normal ≈ [-1.0, 0.5, 0.0, 0.5]
+        rootdet_rank_deficient_report = NLPDiagnostics.analyze_active_set(
+            rootdet_model, [0.0, 0.0, 0.0, 1.0],
+        )
+        @test length(findings(
+            rootdet_rank_deficient_report,
+            :coupled_set_nonsmooth_boundary_active,
+        )) == 1
+
+        scaled_rootdet_model = new_model()
+        scaled_rootdet_entries = MOI.add_variables(scaled_rootdet_model, 4)
+        MOI.add_constraint(
+            scaled_rootdet_model,
+            MOI.VectorOfVariables(scaled_rootdet_entries),
+            MOI.Scaled(MOI.RootDetConeTriangle(2)),
+        )
+        scaled_rootdet_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            scaled_rootdet_model,
+            NLPDiagnostics.evaluate_numerical(
+                scaled_rootdet_model, [1.0, 1.0, 0.0, 1.0],
+            ),
+        ).tangents)
+        @test scaled_rootdet_tangent.set_kind == :scaled_rootdet_cone_triangle
+        @test scaled_rootdet_tangent.normal ≈ [-1.0, 0.5, 0.0, 0.5]
+
+        logdet_square_model = new_model()
+        logdet_square_entries = MOI.add_variables(logdet_square_model, 6)
+        MOI.add_constraint(
+            logdet_square_model,
+            MOI.VectorOfVariables(logdet_square_entries),
+            MOI.LogDetConeSquare(2),
+        )
+        logdet_square_report = NLPDiagnostics.analyze_active_set(
+            logdet_square_model, [0.0, 1.0, 1.0, 0.0, 0.0, 1.0],
+        )
+        @test length(findings(
+            logdet_square_report,
+            :coupled_set_boundary_tangent_semantics_unavailable,
+        )) == 1
+        @test isempty(NLPDiagnostics.coupled_set_feasibility_summary(
+            logdet_square_model,
+            NLPDiagnostics.evaluate_numerical(
+                logdet_square_model, [0.0, 1.0, 1.0, 0.0, 0.0, 1.0],
+            ),
+        ).tangents)
+        logdet_square_asymmetric_report = NLPDiagnostics.analyze_active_set(
+            logdet_square_model, [0.0, 1.0, 1.0, 0.0, 0.5, 1.0],
+        )
+        @test length(findings(
+            logdet_square_asymmetric_report,
+            :coupled_set_feasibility_violation,
+        )) == 1
+
+        rootdet_square_model = new_model()
+        rootdet_square_entries = MOI.add_variables(rootdet_square_model, 5)
+        MOI.add_constraint(
+            rootdet_square_model,
+            MOI.VectorOfVariables(rootdet_square_entries),
+            MOI.RootDetConeSquare(2),
+        )
+        rootdet_square_report = NLPDiagnostics.analyze_active_set(
+            rootdet_square_model, [1.0, 1.0, 0.0, 0.0, 1.0],
+        )
+        @test length(findings(
+            rootdet_square_report,
+            :coupled_set_boundary_tangent_semantics_unavailable,
+        )) == 1
+        @test isempty(NLPDiagnostics.coupled_set_feasibility_summary(
+            rootdet_square_model,
+            NLPDiagnostics.evaluate_numerical(
+                rootdet_square_model, [1.0, 1.0, 0.0, 0.0, 1.0],
+            ),
+        ).tangents)
+        rootdet_square_asymmetric_report = NLPDiagnostics.analyze_active_set(
+            rootdet_square_model, [1.0, 1.0, 0.0, 0.5, 1.0],
+        )
+        @test length(findings(
+            rootdet_square_asymmetric_report,
+            :coupled_set_feasibility_violation,
+        )) == 1
+
+        power_cone_model = new_model()
+        power_x, power_y, power_z = MOI.add_variables(power_cone_model, 3)
+        MOI.add_constraint(
+            power_cone_model,
+            MOI.VectorOfVariables([power_x, power_y, power_z]),
+            MOI.PowerCone(0.5),
+        )
+        power_cone_report = NLPDiagnostics.analyze_active_set(
+            power_cone_model, [1.0, 4.0, 2.0],
+        )
+        @test length(findings(
+            power_cone_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        power_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            power_cone_model,
+            NLPDiagnostics.evaluate_numerical(power_cone_model, [1.0, 4.0, 2.0]),
+        ).tangents)
+        @test power_tangent.set_kind == :power_cone
+        @test power_tangent.normal ≈ [1.0, 0.25, -1.0]
+        power_axis = NLPDiagnostics.analyze_active_set(
+            power_cone_model, [0.0, 4.0, 0.0],
+        )
+        @test length(findings(
+            power_axis, :coupled_set_nonsmooth_boundary_active,
+        )) == 1
+
+        dual_power_model = new_model()
+        dual_power_u, dual_power_v, dual_power_w = MOI.add_variables(dual_power_model, 3)
+        MOI.add_constraint(
+            dual_power_model,
+            MOI.VectorOfVariables([dual_power_u, dual_power_v, dual_power_w]),
+            MOI.DualPowerCone(0.5),
+        )
+        dual_power_report = NLPDiagnostics.analyze_active_set(
+            dual_power_model, [0.5, 2.0, 2.0],
+        )
+        @test length(findings(
+            dual_power_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        dual_power_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            dual_power_model,
+            NLPDiagnostics.evaluate_numerical(dual_power_model, [0.5, 2.0, 2.0]),
+        ).tangents)
+        @test dual_power_tangent.set_kind == :dual_power_cone
+        @test dual_power_tangent.normal ≈ [2.0, 0.5, -1.0]
+        dual_power_axis = NLPDiagnostics.analyze_active_set(
+            dual_power_model, [0.0, 2.0, 0.0],
+        )
+        @test length(findings(
+            dual_power_axis, :coupled_set_nonsmooth_boundary_active,
+        )) == 1
+
+        exponential_cone_model = new_model()
+        exponential_x, exponential_y, exponential_z = MOI.add_variables(
+            exponential_cone_model, 3,
+        )
+        MOI.add_constraint(
+            exponential_cone_model,
+            MOI.VectorOfVariables([exponential_x, exponential_y, exponential_z]),
+            MOI.ExponentialCone(),
+        )
+        exponential_report = NLPDiagnostics.analyze_active_set(
+            exponential_cone_model, [0.0, 1.0, 1.0],
+        )
+        @test length(findings(
+            exponential_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        exponential_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            exponential_cone_model,
+            NLPDiagnostics.evaluate_numerical(exponential_cone_model, [0.0, 1.0, 1.0]),
+        ).tangents)
+        @test exponential_tangent.set_kind == :exponential_cone
+        @test exponential_tangent.normal ≈ [-1.0, -1.0, 1.0]
+        exponential_overflow_report = NLPDiagnostics.analyze_active_set(
+            exponential_cone_model, [800.0, 1.0, 0.0],
+        )
+        exponential_unavailable = only(findings(
+            exponential_overflow_report, :coupled_set_activity_unavailable,
+        ))
+        @test occursin(
+            "non-finite",
+            Dict(exponential_unavailable.evidence[end].details)["reason"],
+        )
+        exponential_qualification_unavailable = only(findings(
+            exponential_overflow_report, :coupled_set_robinson_cq_unavailable,
+        ))
+        @test occursin(
+            "non-finite",
+            Dict(exponential_qualification_unavailable.evidence[end].details)["reason"],
+        )
+
+        dual_exponential_model = new_model()
+        dual_exponential_u, dual_exponential_v, dual_exponential_w = MOI.add_variables(
+            dual_exponential_model, 3,
+        )
+        MOI.add_constraint(
+            dual_exponential_model,
+            MOI.VectorOfVariables([
+                dual_exponential_u, dual_exponential_v, dual_exponential_w,
+            ]),
+            MOI.DualExponentialCone(),
+        )
+        dual_exponential_report = NLPDiagnostics.analyze_active_set(
+            dual_exponential_model, [-1.0, 0.0, exp(-1.0)],
+        )
+        @test length(findings(
+            dual_exponential_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        dual_exponential_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            dual_exponential_model,
+            NLPDiagnostics.evaluate_numerical(
+                dual_exponential_model, [-1.0, 0.0, exp(-1.0)],
+            ),
+        ).tangents)
+        @test dual_exponential_tangent.set_kind == :dual_exponential_cone
+        @test dual_exponential_tangent.normal ≈ [1.0, 1.0, exp(1.0)]
+
+        geometric_mean_model = new_model()
+        geometric_t, geometric_x, geometric_y = MOI.add_variables(geometric_mean_model, 3)
+        MOI.add_constraint(
+            geometric_mean_model,
+            MOI.VectorOfVariables([geometric_t, geometric_x, geometric_y]),
+            MOI.GeometricMeanCone(3),
+        )
+        geometric_report = NLPDiagnostics.analyze_active_set(
+            geometric_mean_model, [2.0, 1.0, 4.0],
+        )
+        @test length(findings(
+            geometric_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        geometric_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            geometric_mean_model,
+            NLPDiagnostics.evaluate_numerical(geometric_mean_model, [2.0, 1.0, 4.0]),
+        ).tangents)
+        @test geometric_tangent.set_kind == :geometric_mean_cone
+        @test geometric_tangent.normal ≈ [-1.0, 1.0, 0.25]
+        geometric_axis = NLPDiagnostics.analyze_active_set(
+            geometric_mean_model, [0.0, 0.0, 4.0],
+        )
+        @test length(findings(
+            geometric_axis, :coupled_set_nonsmooth_boundary_active,
+        )) == 1
+
+        relative_entropy_model = new_model()
+        entropy_u, entropy_v, entropy_w = MOI.add_variables(relative_entropy_model, 3)
+        MOI.add_constraint(
+            relative_entropy_model,
+            MOI.VectorOfVariables([entropy_u, entropy_v, entropy_w]),
+            MOI.RelativeEntropyCone(3),
+        )
+        relative_entropy_report = NLPDiagnostics.analyze_active_set(
+            relative_entropy_model, [0.0, 1.0, 1.0],
+        )
+        @test length(findings(
+            relative_entropy_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+        relative_entropy_tangent = only(NLPDiagnostics.coupled_set_feasibility_summary(
+            relative_entropy_model,
+            NLPDiagnostics.evaluate_numerical(relative_entropy_model, [0.0, 1.0, 1.0]),
+        ).tangents)
+        @test relative_entropy_tangent.set_kind == :relative_entropy_cone
+        @test relative_entropy_tangent.normal ≈ [1.0, 1.0, -1.0]
+
         plugin_cone_model = new_model()
         e1, e2, e3 = MOI.add_variables(plugin_cone_model, 3)
         MOI.add_constraint(
             plugin_cone_model,
             MOI.VectorOfVariables([e1, e2, e3]),
-            MOI.ExponentialCone(),
+            PluginCoupledSet(),
         )
         plugin_cone_evaluation = NLPDiagnostics.evaluate_numerical(
             plugin_cone_model,
@@ -5253,7 +6042,27 @@ end
             plugin_cone_model,
             plugin_cone_evaluation,
         )
-        @test only(plugin_cone_summary.activities).set_kind == :test_exponential_cone
+        @test only(plugin_cone_summary.activities).set_kind == :test_plugin_coupled_set
+
+        unsupported_cone_model = new_model()
+        unknown_1, unknown_2 = MOI.add_variables(unsupported_cone_model, 2)
+        MOI.add_constraint(
+            unsupported_cone_model,
+            MOI.VectorOfVariables([unknown_1, unknown_2]),
+            UnknownCoupledSet(),
+        )
+        unsupported_cone_report = NLPDiagnostics.analyze_active_set(
+            unsupported_cone_model, [0.0, 0.0],
+        )
+        @test length(findings(
+            unsupported_cone_report, :coupled_set_semantics_unavailable,
+        )) == 1
+        unsupported_cone_summary = NLPDiagnostics.coupled_set_feasibility_summary(
+            unsupported_cone_model,
+            NLPDiagnostics.evaluate_numerical(unsupported_cone_model, [0.0, 0.0]),
+        )
+        @test !unsupported_cone_summary.complete
+        @test occursin("no generic", unsupported_cone_summary.reason)
     end
 
     @testset "finite-difference and reduced Hessian evidence" begin
@@ -8171,6 +8980,27 @@ end
         ) == 1
         @test boundary_report.metadata[:initialization_active_row_count] == "1"
 
+        initialized_cone = new_model()
+        initialized_t, initialized_x = MOI.add_variables(initialized_cone, 2)
+        MOI.add_constraint(
+            initialized_cone,
+            MOI.VectorOfVariables([initialized_t, initialized_x]),
+            MOI.SecondOrderCone(2),
+        )
+        MOI.set(initialized_cone, MOI.VariablePrimalStart(), initialized_t, 1.0)
+        MOI.set(initialized_cone, MOI.VariablePrimalStart(), initialized_x, 1.0)
+        initialized_cone_report = NLPDiagnostics.analyze_initialization(
+            initialized_cone;
+            coupled_qualification_strict_tolerance = 1.0e-5,
+            coupled_qualification_max_iterations = 7,
+        )
+        @test initialized_cone_report.metadata[
+            :coupled_qualification_max_iterations
+        ] == "7"
+        @test length(findings(
+            initialized_cone_report, :coupled_set_robinson_cq_regular,
+        )) == 1
+
         invalid = new_model()
         w = MOI.add_variable(invalid)
         MOI.add_constraint(invalid, w, MOI.GreaterThan(0.0))
@@ -8214,7 +9044,11 @@ end
             Dict(implied_violation.evidence[2].details)["v$(implied_x.value)"],
         )
         combined =
-            NLPDiagnostics.analyze(boundary; check_initialization = true)
+            NLPDiagnostics.analyze(
+                boundary;
+                check_initialization = true,
+                coupled_qualification_max_iterations = 7,
+            )
         @test endswith(combined.metadata[:stages], ",initialization")
     end
 

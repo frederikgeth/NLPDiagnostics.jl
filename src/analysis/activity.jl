@@ -2009,6 +2009,48 @@ function _coupled_set_boundary_is_nonsmooth(
                norm(numeric[2:end]) <= tolerance
     elseif activity.set_kind == :rotated_second_order_cone
         return abs(numeric[1]) <= tolerance || abs(numeric[2]) <= tolerance
+    elseif activity.set_kind == :norm_one_cone
+        return any(abs(value) <= tolerance for value in numeric[2:end])
+    elseif activity.set_kind == :norm_infinity_cone
+        magnitudes = abs.(numeric[2:end])
+        maximum_magnitude = maximum(magnitudes)
+        return maximum_magnitude <= tolerance ||
+               count(value -> abs(value - maximum_magnitude) <= tolerance, magnitudes) > 1
+    elseif activity.set_kind == :norm_cone_one
+        return any(abs(value) <= tolerance for value in numeric[2:end])
+    elseif activity.set_kind == :norm_cone_infinity
+        magnitudes = abs.(numeric[2:end])
+        maximum_magnitude = maximum(magnitudes)
+        return maximum_magnitude <= tolerance ||
+               count(value -> abs(value - maximum_magnitude) <= tolerance, magnitudes) > 1
+    elseif activity.set_kind == :norm_cone
+        return all(abs(value) <= tolerance for value in numeric[2:end])
+    elseif activity.set_kind == :norm_spectral_cone
+        return !isnothing(activity.reason)
+    elseif activity.set_kind == :norm_nuclear_cone
+        return !isnothing(activity.reason)
+    elseif activity.set_kind == :positive_semidefinite_cone_triangle
+        return !isnothing(activity.reason)
+    elseif activity.set_kind == :scaled_positive_semidefinite_cone_triangle
+        return !isnothing(activity.reason)
+    elseif activity.set_kind == :positive_semidefinite_cone_square
+        return false
+    elseif activity.set_kind == :hermitian_positive_semidefinite_cone_triangle
+        return !isnothing(activity.reason)
+    elseif activity.set_kind == :scaled_hermitian_positive_semidefinite_cone_triangle
+        return !isnothing(activity.reason)
+    elseif activity.set_kind == :rootdet_cone_triangle
+        return !isnothing(activity.reason)
+    elseif activity.set_kind == :scaled_rootdet_cone_triangle
+        return !isnothing(activity.reason)
+    elseif activity.set_kind in (:power_cone, :dual_power_cone)
+        return numeric[1] <= tolerance || numeric[2] <= tolerance ||
+               abs(numeric[3]) <= tolerance
+    elseif activity.set_kind == :geometric_mean_cone
+        return any(value -> value <= tolerance, numeric[2:end])
+    elseif activity.set_kind == :relative_entropy_cone
+        count = (length(numeric) - 1) ÷ 2
+        return any(value -> value <= tolerance, numeric[2:end]) || count < 1
     end
     return false
 end
@@ -2016,6 +2058,34 @@ end
 function _coupled_set_findings(summary::CoupledSetFeasibilitySummary)
     findings = Finding[]
     for activity in summary.activities
+        if activity.classification == :unavailable
+            unsupported = activity.set_kind == :unsupported_coupled_set
+            push!(findings, Finding(
+                unsupported ? :coupled_set_semantics_unavailable :
+                              :coupled_set_activity_unavailable;
+                severity = SeverityInfo,
+                domain = unsupported ? RepresentationalIssue : NumericalIssue,
+                basis = unsupported ? StructuralProof : NumericalObservation,
+                confidence = unsupported ? ConfidenceCertain : ConfidenceHigh,
+                observation = unsupported ?
+                              "The $(activity.source.set_type) coupled set has no generic feasibility or boundary semantics." :
+                              "Coupled-set feasibility or boundary activity is unavailable at this point for $(activity.set_kind).",
+                why_it_matters = unsupported ?
+                                 "The generic core will not silently scalarize or guess the geometry of an unsupported vector set." :
+                                 "No feasibility, smoothness, or qualification conclusion should be drawn from incomplete coupled-set numerical evidence.",
+                evidence = [Evidence("Coupled-set availability"; details = [
+                    "set_kind" => activity.set_kind,
+                    "set_type" => activity.source.set_type,
+                    "classification" => activity.classification,
+                    "reason" => activity.reason,
+                ])],
+                affected = [activity.source],
+                suggested_actions = unsupported ?
+                                    ["Provide a domain-plugin coupled-set activity and tangent hook for this set, or inspect it with a cone-aware solver."] :
+                                    ["Resolve missing, non-finite, or out-of-domain vector values before interpreting this coupled constraint."],
+            ))
+            continue
+        end
         activity.classification in (:violated, :boundary) || continue
         violated = activity.classification == :violated
         nonsmooth_boundary = !violated && _coupled_set_boundary_is_nonsmooth(
@@ -2035,12 +2105,16 @@ function _coupled_set_findings(summary::CoupledSetFeasibilitySummary)
                               "The $(activity.set_kind) constraint has feasibility residual $(activity.feasibility_violation)." :
                               (nonsmooth_boundary ?
                                "The $(activity.set_kind) constraint is on a nonsmooth cone boundary (margin $(activity.margin))." :
-                               "The $(activity.set_kind) constraint is on its smooth cone boundary (margin $(activity.margin))."),
+                               (!isnothing(activity.reason) ?
+                                "The $(activity.set_kind) constraint is on a boundary (margin $(activity.margin)) whose generic tangent semantics are unavailable." :
+                                "The $(activity.set_kind) constraint is on its smooth cone boundary (margin $(activity.margin)).")),
                 why_it_matters = violated ?
                                   "The evaluated point is outside this coupled set." :
                                   (nonsmooth_boundary ?
                                    "The cone has no unique scalar boundary normal at this point, so scalar active-row reductions are especially misleading." :
-                                   "Cone-boundary activity is vector-set geometry and is intentionally not converted into scalar active rows by the generic core."),
+                                   (!isnothing(activity.reason) ?
+                                    "The cone boundary includes representation-level geometry that the generic core intentionally does not collapse into one scalar normal." :
+                                    "Cone-boundary activity is vector-set geometry and is intentionally not converted into scalar active rows by the generic core.")),
                 evidence = [Evidence("Coupled-set feasibility"; details = [
                     "set_kind" => activity.set_kind,
                     "margin" => activity.margin,
@@ -2056,8 +2130,54 @@ function _coupled_set_findings(summary::CoupledSetFeasibilitySummary)
                 affected = [activity.source],
             ),
         )
+        if !violated && !nonsmooth_boundary && !isnothing(activity.reason)
+            push!(findings, Finding(
+                :coupled_set_boundary_tangent_semantics_unavailable;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = "The $(activity.set_kind) boundary has no generic single-normal tangent interpretation.",
+                why_it_matters = "Feasibility is known, but the square PSD representation also imposes symmetry equations. Collapsing its geometry to one normal would hide those coupled equalities.",
+                evidence = [Evidence("Coupled-set tangent availability"; details = [
+                    "set_kind" => activity.set_kind,
+                    "reason" => activity.reason,
+                ])],
+                affected = [activity.source],
+                suggested_actions = [
+                    "Use the packed-triangle PSD representation or a semidefinite-aware plugin when local qualification geometry is required.",
+                ],
+            ))
+        end
     end
     return findings
+end
+
+function _active_coupled_set_scope_findings(summary::CoupledSetFeasibilitySummary)
+    relevant = CoupledSetActivity[
+        activity for activity in summary.activities if
+        activity.classification in (:boundary, :violated, :unavailable)
+    ]
+    isempty(relevant) && return Finding[]
+    sources = EntityRef[activity.source for activity in relevant]
+    return [Finding(:scalar_active_set_excludes_coupled_sets;
+        severity = SeverityInfo,
+        domain = RepresentationalIssue,
+        basis = StructuralProof,
+        confidence = ConfidenceCertain,
+        observation = "Scalar LICQ, MFCQ, and multiplier recovery exclude $(length(relevant)) coupled-set constraint(s) at this point.",
+        why_it_matters = "The scalar active-set conclusions remain valid only for aligned ordinary scalar rows. Coupled constraints require the separate cone-aware feasibility and qualification evidence included in this report.",
+        evidence = [Evidence("Coupled-set exclusion from scalar active set"; details = [
+            "coupled_constraint_count" => length(relevant),
+            "sources" => join(("$(source.index):$(source.set_type)" for source in sources), ","),
+            "classifications" => join((activity.classification for activity in relevant), ","),
+        ])],
+        affected = sources,
+        suggested_actions = [
+            "Use the coupled-set Robinson-CQ findings for supported smooth boundaries.",
+            "Do not interpret scalar MFCQ or multiplier recovery as a full conic KKT certificate.",
+        ],
+    )]
 end
 
 function _coupled_set_tangent_findings(summary::CoupledSetFeasibilitySummary)
@@ -2082,6 +2202,14 @@ function _coupled_set_tangent_findings(summary::CoupledSetFeasibilitySummary)
     ) for tangent in summary.tangents]
 end
 
+"""Whether a vector-output row belongs to the referenced parent constraint."""
+function _is_coupled_set_output_row(source::EntityRef, parent::EntityRef)
+    return source.kind == parent.kind && source.index == parent.index &&
+           source.name == parent.name &&
+           source.function_type == parent.function_type &&
+           source.set_type == parent.set_type && !isnothing(source.subindex)
+end
+
 function _coupled_set_tangent_gradient_findings(
     evaluation::NumericalEvaluation{T},
     summary::CoupledSetFeasibilitySummary{T},
@@ -2090,8 +2218,7 @@ function _coupled_set_tangent_gradient_findings(
     for tangent in summary.tangents
         rows = [
             row for (row, source) in enumerate(evaluation.constraint_sources)
-            if source.kind == :constraint && source.index == tangent.source.index &&
-               !isnothing(source.subindex)
+            if _is_coupled_set_output_row(source, tangent.source)
         ]
         sort!(rows; by = row -> something(evaluation.constraint_sources[row].subindex))
         if length(rows) != length(tangent.normal)
@@ -2230,8 +2357,7 @@ function coupled_set_mapped_tangents(
     for tangent in summary.tangents
         rows = [
             row for (row, source) in enumerate(evaluation.constraint_sources)
-            if source.kind == :constraint && source.index == tangent.source.index &&
-               !isnothing(source.subindex)
+            if _is_coupled_set_output_row(source, tangent.source)
         ]
         sort!(rows; by = row -> something(evaluation.constraint_sources[row].subindex))
         length(rows) == length(tangent.normal) || continue
@@ -2259,6 +2385,254 @@ function coupled_set_mapped_tangents(
     return mapped
 end
 
+function coupled_set_qualification_screen(
+    evaluation::NumericalEvaluation{T},
+    summary::CoupledSetFeasibilitySummary{T},
+    ;
+    strict_tolerance::Real = sqrt(eps(T)),
+    max_iterations::Integer = 1_000,
+) where {T<:AbstractFloat}
+    evaluation.point == summary.point ||
+        throw(ArgumentError("evaluation and coupled-set summary points differ"))
+    strict = convert(T, strict_tolerance)
+    strict > zero(T) || throw(ArgumentError("strict_tolerance must be positive"))
+    max_iterations > 0 || throw(ArgumentError("max_iterations must be positive"))
+    sources = EntityRef[tangent.source for tangent in summary.tangents]
+    mapped = coupled_set_mapped_tangents(evaluation, summary)
+    isempty(sources) && return CoupledSetQualificationScreen{T}(
+        false,
+        let unavailable_reasons = unique(String[
+            activity.reason for activity in summary.activities if
+            activity.classification == :unavailable && !isnothing(activity.reason)
+        ])
+            isempty(unavailable_reasons) ?
+            "no smooth coupled-set boundary tangent is available at this point" :
+            "no smooth coupled-set boundary tangent is available; " *
+            join(unavailable_reasons, "; ")
+        end,
+        evaluation.point, sources, false,
+        zeros(T, length(evaluation.point.variables)),
+        T[], zeros(T, length(evaluation.point.variables)), nothing, nothing, 0, false, Symbol[],
+    )
+    length(mapped) == length(sources) || return CoupledSetQualificationScreen{T}(
+        false, "not every smooth coupled-set boundary tangent has a complete mapped gradient",
+        evaluation.point, sources, false,
+        zeros(T, length(evaluation.point.variables)),
+        T[], zeros(T, length(evaluation.point.variables)), nothing, nothing, 0, false,
+        unique(reduce(vcat, (tangent.derivative_methods for tangent in mapped); init = Symbol[])),
+    )
+    gradients = reduce(vcat, (permutedims(tangent.gradient) for tangent in mapped))
+    gradient_scale = maximum(
+        (norm(view(gradients, row, :)) for row in axes(gradients, 1));
+        init = zero(T),
+    )
+    tolerance = strict * max(one(T), gradient_scale)
+    methods = unique(reduce(
+        vcat, (tangent.derivative_methods for tangent in mapped); init = Symbol[],
+    ))
+    weights, residual, converged, iterations = _minimum_norm_convex_combination(
+        gradients;
+        max_iterations = max_iterations,
+        convergence_tolerance = tolerance,
+    )
+    normal_combination = transpose(gradients) * weights
+    converged || return CoupledSetQualificationScreen{T}(
+        false, "minimum-norm cone-normal screen did not converge within its iteration budget",
+        evaluation.point, sources, false,
+        zeros(T, length(evaluation.point.variables)),
+        weights, normal_combination, residual, tolerance, iterations, false, methods,
+    )
+    magnitude = norm(normal_combination)
+    if !isnothing(residual) && residual <= tolerance
+        return CoupledSetQualificationScreen{T}(
+            true, "mapped smooth-boundary normals have a numerical zero convex-hull combination", evaluation.point,
+            sources, false, zeros(T, length(evaluation.point.variables)),
+            weights, normal_combination, residual, tolerance, iterations, true, methods,
+        )
+    end
+    iszero(magnitude) && return CoupledSetQualificationScreen{T}(
+        false, "minimum-norm cone-normal screen produced a zero direction without a completed zero-combination witness",
+        evaluation.point, sources, false,
+        zeros(T, length(evaluation.point.variables)),
+        weights, normal_combination, residual, tolerance, iterations, true, methods,
+    )
+    direction = -normal_combination ./ magnitude
+    maximum(gradients * direction) < -tolerance || return CoupledSetQualificationScreen{T}(
+        false, "cone-normal convex-hull candidate did not pass the strict common-descent check",
+        evaluation.point, sources, false,
+        zeros(T, length(evaluation.point.variables)),
+        weights, normal_combination, residual, tolerance, iterations, true, methods,
+    )
+    return CoupledSetQualificationScreen{T}(
+        true, nothing, evaluation.point, sources, true, direction,
+        weights, normal_combination, residual, tolerance, iterations, true, methods,
+    )
+end
+
+function analyze_coupled_set_qualification(
+    evaluation::NumericalEvaluation{T};
+    summary::CoupledSetFeasibilitySummary{T},
+    strict_tolerance::Real = sqrt(eps(T)),
+    max_iterations::Integer = 1_000,
+) where {T<:AbstractFloat}
+    screen = coupled_set_qualification_screen(
+        evaluation, summary;
+        strict_tolerance = strict_tolerance,
+        max_iterations = max_iterations,
+    )
+    report = DiagnosticReport()
+    append!(report.findings, _coupled_set_findings(summary))
+    append!(report.findings, _coupled_set_tangent_findings(summary))
+    append!(report.findings, _coupled_set_tangent_gradient_findings(
+        evaluation, summary,
+    ))
+    report.metadata[:stage] = "coupled_set_qualification"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:coupled_activity_count] = string(length(summary.activities))
+    report.metadata[:coupled_activity_complete] = string(summary.complete)
+    report.metadata[:coupled_activity_reason] = string(summary.reason)
+    report.metadata[:coupled_unavailable_activity_count] = string(count(
+        activity -> activity.classification == :unavailable, summary.activities,
+    ))
+    report.metadata[:coupled_qualification_available] = string(screen.available)
+    report.metadata[:coupled_robinson_regular] = string(screen.robinson_regular)
+    report.metadata[:coupled_tangent_source_count] = string(length(screen.tangent_sources))
+    report.metadata[:coupled_normal_combination_residual] =
+        string(screen.combination_residual)
+    report.metadata[:coupled_normal_combination_tolerance] = string(screen.tolerance)
+    report.metadata[:coupled_normal_combination_iterations] = string(screen.iterations)
+    report.metadata[:coupled_normal_combination_converged] = string(screen.converged)
+    report.metadata[:coupled_derivative_methods] = join(screen.derivative_methods, ",")
+    finite_difference_geometry = :central_finite_difference in screen.derivative_methods
+    report.metadata[:coupled_qualification_uses_finite_differences] =
+        string(finite_difference_geometry)
+    report.metadata[:coupled_qualification_strict_tolerance] = string(strict_tolerance)
+    report.metadata[:coupled_qualification_max_iterations] = string(max_iterations)
+    code = screen.available && screen.robinson_regular ?
+           :coupled_set_robinson_cq_regular :
+           screen.available ? :coupled_set_robinson_cq_nonregular :
+           :coupled_set_robinson_cq_unavailable
+    push!(report, Finding(code;
+        # An unavailable conservative screen is an evidence limitation, not a
+        # model defect. A completed screen with a zero mapped normal is the
+        # case that warrants a warning.
+        severity = screen.robinson_regular || !screen.available ?
+                   SeverityInfo : SeverityWarning,
+        domain = NumericalIssue,
+        basis = screen.robinson_regular && !finite_difference_geometry ?
+                LocalInference : NumericalObservation,
+        confidence = finite_difference_geometry ? ConfidenceMedium : ConfidenceHigh,
+        observation = screen.robinson_regular ?
+                      (finite_difference_geometry ?
+                       "Finite-difference vector derivatives yield a nonzero minimum-norm normal combination and a numerical Robinson-CQ interior-direction witness." :
+                       "The smooth coupled boundaries have a nonzero minimum-norm normal combination and a local Robinson-CQ interior-direction witness.") :
+                      "Coupled-set Robinson-CQ is $(screen.available ? "nonregular" : "unavailable") at this point.",
+        why_it_matters = "This cone-aware result is local and does not alter scalar LICQ/MFCQ or multiplier recovery.",
+        evidence = [Evidence("Coupled-set Robinson-CQ screen"; details = [
+            "reason" => screen.reason,
+            "tangent_source_count" => length(screen.tangent_sources),
+            "normal_combination_weights" => join(screen.normal_weights, ","),
+            "normal_combination" => join(screen.normal_combination, ","),
+            "normal_combination_residual" => screen.combination_residual,
+            "normal_combination_tolerance" => screen.tolerance,
+            "normal_combination_iterations" => screen.iterations,
+            "normal_combination_converged" => screen.converged,
+            "derivative_methods" => join(screen.derivative_methods, ","),
+            "uses_finite_differences" => finite_difference_geometry,
+        ])],
+        affected = screen.tangent_sources,
+        suggested_actions = ["Inspect the mapped tangent gradients and the local witness direction before drawing KKT conclusions."],
+    ))
+    if screen.available && !screen.robinson_regular &&
+       length(screen.tangent_sources) > 1
+        weight_scale = maximum(abs, screen.normal_weights; init = zero(T))
+        support_threshold = sqrt(eps(T)) * weight_scale
+        support_positions = findall(weight -> abs(weight) > support_threshold,
+                                    screen.normal_weights)
+        support_sources = screen.tangent_sources[support_positions]
+        report.metadata[:coupled_dependent_normal_support_count] =
+            string(length(support_sources))
+        push!(report, Finding(:coupled_set_dependent_boundary_normals;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = finite_difference_geometry ? ConfidenceMedium : ConfidenceHigh,
+            observation = "$(length(support_sources)) smooth coupled-set boundary normal(s) have a positive numerical dependence at this point.",
+            why_it_matters = "A nonnegative combination of the mapped normals is numerically zero, so the screen cannot find a common strict interior direction. This is a cone-aware active-set degeneracy fingerprint, not scalar LICQ evidence.",
+            evidence = [Evidence("Dependent coupled boundary normals"; details = [
+                "support_positions" => join(support_positions, ","),
+                "support_weights" => join(screen.normal_weights[support_positions], ","),
+                "support_threshold" => support_threshold,
+                "normal_combination_residual" => screen.combination_residual,
+                "derivative_methods" => join(screen.derivative_methods, ","),
+            ])],
+            affected = support_sources,
+            suggested_actions = [
+                "Inspect the listed cone boundaries for duplicated, opposing, or otherwise dependent local geometry.",
+                "Check whether the dependence is an intended physical coupling or a redundant formulation.",
+            ],
+        ))
+    end
+    return report
+end
+
+"""Build the coupled-set summary, then produce its qualification report."""
+function analyze_coupled_set_qualification(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T};
+    feasibility_tolerance::Real = sqrt(eps(T)),
+    active_tolerance::Real = sqrt(eps(T)),
+    strict_tolerance::Real = sqrt(eps(T)),
+    max_iterations::Integer = 1_000,
+) where {T<:AbstractFloat}
+    summary = coupled_set_feasibility_summary(
+        model, evaluation;
+        feasibility_tolerance = feasibility_tolerance,
+        active_tolerance = active_tolerance,
+    )
+    return analyze_coupled_set_qualification(
+        evaluation;
+        summary = summary,
+        strict_tolerance = strict_tolerance,
+        max_iterations = max_iterations,
+    )
+end
+
+"""
+    analyze_coupled_set_qualification(model, point; cache, relative_step, ...)
+
+Evaluate a point and produce the separate cone-aware qualification report.
+This convenience path preserves the point label on every resulting finding.
+"""
+function analyze_coupled_set_qualification(
+    model::MOI.ModelLike,
+    point::EvaluationPoint;
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Real = cbrt(eps(eltype(point.values))),
+    kwargs...,
+)
+    evaluation = evaluate_numerical(
+        model, point;
+        cache = cache,
+        relative_step = relative_step,
+    )
+    return analyze_coupled_set_qualification(model, evaluation; kwargs...)
+end
+
+"""Evaluate `values` and produce the separate cone-aware qualification report."""
+function analyze_coupled_set_qualification(
+    model::MOI.ModelLike,
+    values::Union{AbstractVector{<:Real},AbstractDict{MOI.VariableIndex,<:Real}};
+    label::AbstractString = "user",
+    kwargs...,
+)
+    return analyze_coupled_set_qualification(
+        model,
+        evaluation_point(model, values; label = label);
+        kwargs...,
+    )
+end
+
 """
     analyze_active_set(model, evaluation; ...)
 
@@ -2279,6 +2653,8 @@ function analyze_active_set(
     mfcq_witness_tolerance::Real = sqrt(eps(T)),
     mfcq_witness_relative_tolerance::Real = 0.0,
     mfcq_witness_max_iterations::Integer = 1_000,
+    coupled_qualification_strict_tolerance::Real = sqrt(eps(T)),
+    coupled_qualification_max_iterations::Integer = 1_000,
     mfcq_support_relative::Real = 1.0e-3,
     multiplier_support_relative::Real = 1.0e-3,
     nullspace_support_relative::Real = 0.1,
@@ -2393,11 +2769,24 @@ function analyze_active_set(
         rank_relative_tolerance = rank_relative_tolerance,
         rank_max_dense_entries = rank_max_dense_entries,
     ))
-    append!(report.findings, _coupled_set_findings(coupled_summary))
-    append!(report.findings, _coupled_set_tangent_findings(coupled_summary))
-    append!(report.findings, _coupled_set_tangent_gradient_findings(
-        evaluation, coupled_summary,
-    ))
+    # Coupled-set qualification is deliberately separate from scalar LICQ and
+    # MFCQ. Include its conservative result only when the model actually has a
+    # coupled constraint, avoiding irrelevant evidence-limit findings for
+    # scalar-only NLPs.
+    if !isempty(coupled_summary.activities)
+        coupled_qualification_report = analyze_coupled_set_qualification(
+            evaluation;
+            summary = coupled_summary,
+            strict_tolerance = coupled_qualification_strict_tolerance,
+            max_iterations = coupled_qualification_max_iterations,
+        )
+        append!(report.findings, coupled_qualification_report.findings)
+        append!(report.findings, _active_coupled_set_scope_findings(coupled_summary))
+        report.metadata[:coupled_qualification_available] =
+            coupled_qualification_report.metadata[:coupled_qualification_available]
+        report.metadata[:coupled_robinson_regular] =
+            coupled_qualification_report.metadata[:coupled_robinson_regular]
+    end
     report.metadata[:stage] = "active_set"
     report.metadata[:evaluation_point_label] = evaluation.point.label
     report.metadata[:active_rows] = join(selected_rows, ",")

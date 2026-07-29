@@ -117,12 +117,14 @@ evaluation layers can expose its supporting evidence.
   candidate right-null-direction and block-subspace probes, plus an explicit
   heuristic spectral-spread probe. Production-scale sparse-conditioning
   estimates and independently certified nullity remain future work.
-- Generic SOC and rotated-SOC feasibility/boundary evidence, including
-  nonsmooth apex/axis labels and smooth-boundary tangent-evidence hooks;
+- Generic conic feasibility/boundary evidence for SOC, rotated SOC, vector
+  norm, spectral-norm, nuclear-norm, real/Hermitian/scaled packed and square PSD feasibility, including scaled Hermitian coordinates, plus packed/square and scaled packed log-/root-determinant, power, exponential, geometric-mean, and
+  relative-entropy cones, including explicit nonsmooth apex, axis, tie, and
+  repeated-leading-singular-value labels plus smooth-boundary tangent hooks;
   smooth normals can be mapped through complete vector-function Jacobians for
-  cone-aware local evidence. The next coupled-set step is a separately labeled
-  Robinson-style cone-aware qualification screen using explicit boundary
-  normals and mapped gradients; it must not silently change scalar LICQ/MFCQ or multiplier
+  cone-aware local evidence. A separately labeled Robinson-style qualification
+  screen now uses complete smooth mapped normals and a checked convex-hull
+  common-descent witness; it does not change scalar LICQ/MFCQ or multiplier
   semantics. General coupled-set and plugin-supplied active-set semantics
   remain future work.
 - Full MFCQ failure certificates; the generic core now has local recovered-

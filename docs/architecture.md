@@ -492,17 +492,24 @@ interfaces have tests and extension points.
 
 ## Cone-aware qualification boundary
 
-Scalar LICQ and MFCQ use selected scalar rows only. A smooth SOC or rotated-SOC
-boundary instead supplies an output-space normal which can be mapped through
-the vector-function Jacobian. That mapped gradient is useful local geometry,
-but it must not be silently inserted into scalar row selection, multiplier
-recovery, or MFCQ witnesses.
+Scalar LICQ and MFCQ use selected scalar rows only. A supported smooth coupled
+cone boundary (including SOC, vector-norm, simple-leading-mode spectral-norm,
+full-rank nuclear-norm, and simple-zero-mode packed PSD boundaries) instead
+supplies an output-space normal which can be mapped through the vector-function
+Jacobian. That mapped gradient is useful local geometry, but it must not be
+silently inserted into scalar row selection, multiplier recovery, or MFCQ
+witnesses.
 
-A future cone-aware qualification screen should first target a Robinson-style
-constraint qualification for smooth conic mappings. It should accept explicit
-`CoupledSetTangentEvidence` values and evaluate a separately labeled tangent
-system. Its report must retain: the coupled-set source, ordered vector rows,
-normal, mapped-gradient derivative provenance, cone multiplier convention, and
-the distinction between a smooth boundary, SOC apex, and rotated-SOC axis.
-Until that interface exists, the generic core reports coupled-set tangent
-geometry only and leaves scalar LICQ/MFCQ unchanged.
+A cone-aware qualification screen implements a Robinson-style constraint
+qualification for smooth conic mappings. It accepts explicit
+`CoupledSetTangentEvidence` values and evaluates a separately labeled tangent
+system. Its evidence retains the coupled-set source, ordered vector rows,
+normal, mapped-gradient derivative provenance, and the distinction between a
+smooth boundary, SOC apex, and rotated-SOC axis.
+The reusable `CoupledSetMappedTangent` boundary is implemented: it retains a
+smooth source, ordered vector rows, model-coordinate gradient, and derivative
+methods only when the mapping is complete and finite. The Robinson-CQ screen
+consumes these records rather than reconstructing Jacobian geometry from report
+text: it uses a minimum-norm convex-hull screen on smooth mapped normals and
+checks the resulting common descent direction. It remains a separately labeled
+local inference and leaves scalar LICQ/MFCQ unchanged.

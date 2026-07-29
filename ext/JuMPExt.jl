@@ -51,6 +51,9 @@ NLPDiagnostics.analyze_numerical(model::JuMP.Model, point; kwargs...) =
 NLPDiagnostics.analyze_active_set(model::JuMP.Model, point; kwargs...) =
     NLPDiagnostics.analyze_active_set(JuMP.backend(model), point; kwargs...)
 
+NLPDiagnostics.analyze_coupled_set_qualification(model::JuMP.Model, point; kwargs...) =
+    NLPDiagnostics.analyze_coupled_set_qualification(JuMP.backend(model), point; kwargs...)
+
 NLPDiagnostics.analyze_degeneracy(model::JuMP.Model, point; kwargs...) =
     NLPDiagnostics.analyze_degeneracy(JuMP.backend(model), point; kwargs...)
 
@@ -77,6 +80,12 @@ NLPDiagnostics.evaluate_numerical(model::JuMP.Model, point; kwargs...) =
 
 NLPDiagnostics.constraint_feasibility_summary(model::JuMP.Model, point; kwargs...) =
     NLPDiagnostics.constraint_feasibility_summary(JuMP.backend(model), point; kwargs...)
+
+NLPDiagnostics.coupled_set_feasibility_summary(model::JuMP.Model, point; kwargs...) =
+    NLPDiagnostics.coupled_set_feasibility_summary(JuMP.backend(model), point; kwargs...)
+
+NLPDiagnostics.coupled_set_qualification_screen(model::JuMP.Model, point; kwargs...) =
+    NLPDiagnostics.coupled_set_qualification_screen(JuMP.backend(model), point; kwargs...)
 
 NLPDiagnostics.evaluator_capabilities(model::JuMP.Model) =
     NLPDiagnostics.evaluator_capabilities(JuMP.backend(model))

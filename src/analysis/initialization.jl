@@ -331,6 +331,8 @@ function analyze_initialization(
     scale_ratio_threshold::Real = 1.0e6,
     feasibility_tolerance::Real = sqrt(eps(Float64)),
     active_tolerance::Real = sqrt(eps(Float64)),
+    coupled_qualification_strict_tolerance::Union{Nothing,Real} = nothing,
+    coupled_qualification_max_iterations::Integer = 1_000,
 )
     variables = MOI.get(model, MOI.ListOfVariableIndices())
     starts = [_variable_start(model, variable) for variable in variables]
@@ -412,6 +414,11 @@ function analyze_initialization(
         evaluation;
         feasibility_tolerance = feasibility_tolerance,
         active_tolerance = active_tolerance,
+        coupled_qualification_strict_tolerance =
+            isnothing(coupled_qualification_strict_tolerance) ?
+            sqrt(eps(eltype(evaluation.point.values))) :
+            coupled_qualification_strict_tolerance,
+        coupled_qualification_max_iterations = coupled_qualification_max_iterations,
     )
     append!(report.findings, active_report.findings)
     append!(report.findings, _initialization_constraint_margin_findings(summary))

@@ -64,6 +64,19 @@ thresholds.
 
 ## Synthetic sparse calibration corpus
 
+`synthetic_coupled_cone_profile_corpus()` also includes smooth 2-by-2
+spectral- and nuclear-norm cone boundaries, plus a packed-symmetric PSD
+boundary and a packed log-determinant boundary. The spectral case has a
+separated leading singular value, the nuclear case is full rank, the PSD case
+has a simple zero eigenvalue, and the log-determinant case uses `u = 1, X = I`.
+The root-determinant case uses `t = 1, X = I`. Together they exercise
+matrix-cone feasibility, normal extraction, mapped derivatives, and the
+cone-aware qualification screen without attaching any physical semantics.
+The scaled real PSD case additionally retains a nonzero off-diagonal
+coordinate, guarding the √2 coordinate transformation used by MOI. Scaled
+Hermitian coordinates are covered by focused MOI tests because the lightweight
+profiling model does not natively store that set without bridges.
+
 `synthetic_sparse_profile_corpus(; dimension = 32)` provides a deterministic
 generic-core corpus that does not depend on an OPF plugin. It returns models
 and aligned `ProfileCase`s for three affine sparse Jacobians:
@@ -94,6 +107,14 @@ available while the static fingerprint still records the formulation risk.
 `profile_synthetic_stability_corpus(; repetitions = 3, warmup = true)` runs
 the whole set and returns named repeated aggregates, including expression- and
 reformulation-stage timing, allocation, and expected-fingerprint recovery rates.
+
+`synthetic_coupled_cone_profile_corpus()` provides a compact companion corpus
+for the generic cone layer: smooth SOC, rotated-SOC, norm-one, and
+norm-infinity boundaries, an SOC apex, and two affine-mapped SOC boundaries
+with dependent mapped normals. Use
+`profile_synthetic_coupled_cone_corpus(; ...)` to retain active-set timing and
+expected-evidence recovery for cone feasibility, smoothness, qualification, and
+dependent-normal fingerprints without requiring an OPF plugin or solver.
 
 `synthetic_derivative_boundary_profile_corpus()` supplies finite but deliberately
 near-boundary logarithmic, `sqrt`, reciprocal, signed/integer-power,

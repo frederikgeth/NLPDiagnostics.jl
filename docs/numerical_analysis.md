@@ -373,37 +373,148 @@ applicable, before reduced-Hessian inertia is interpreted.
 columns in a selected structurally square block, separating stationary
 first-order behavior from a purely structural missing-equation diagnosis.
 
-Second-order and rotated-second-order cones additionally receive generic
-vector-set feasibility and boundary reports through
+Second-order, rotated-second-order, norm-one, norm-infinity, spectral-norm,
+nuclear-norm, real and Hermitian packed positive-semidefinite, power,
+dual-power, packed log-determinant, exponential, dual-exponential, geometric-mean, and
+packed root-determinant, and relative-entropy cones
+receive generic vector-set feasibility and boundary reports through
 `coupled_set_feasibility_summary`. A cone boundary remains coupled geometry:
 the generic core does not turn it into scalar active rows for LICQ, MFCQ, or
 multiplier recovery. Other coupled sets remain plugin extension points through
 `coupled_set_activity(set, source, values, feasibility_tolerance,
 active_tolerance)`, which may return a `CoupledSetActivity` or `nothing`.
-For SOC apex and rotated-SOC axis boundaries, the report additionally labels
-the boundary as nonsmooth. This is a geometric fact that strengthens the case
-against scalar active-row reductions; it does not supply a cone multiplier or
-a full conic constraint qualification screen.
-At smooth SOC and rotated-SOC boundaries, `coupled_set_tangent_evidence`
+An unrecognized coupled set now emits `coupled_set_semantics_unavailable`
+instead of disappearing from active-set evidence; a recognized set whose point
+activity cannot be evaluated emits `coupled_set_activity_unavailable`. Both
+findings retain an explicit reason, such as missing semantics, an unsupported
+closure branch, or a non-finite range calculation.
+`CoupledSetFeasibilitySummary.complete` and `reason` aggregate this status for
+the full coupled-set activity screen.
+When those conditions prevent a smooth tangent, the coupled-set
+Robinson-CQ unavailable finding retains the same reason instead of merely
+reporting an absent tangent.
+For SOC apex, rotated-SOC axis, norm-one zero-coordinate, norm-infinity
+maximum-tie, spectral-norm repeated-leading-singular-value boundary,
+nuclear-norm rank-deficient boundary, real or Hermitian PSD
+repeated-zero-eigenvalue boundary, rank-deficient root-determinant boundary,
+and power/dual-power-cone axis
+boundaries, the report additionally labels the boundary as
+nonsmooth. This is a geometric fact that strengthens the case against scalar
+active-row reductions; it does not supply a cone multiplier or a full conic
+constraint qualification screen.
+At smooth SOC, rotated-SOC, norm-one, unique-maximum norm-infinity,
+strictly-positive power/dual-power-cone, and positive-`y` exponential-cone
+or negative-`u` dual-exponential-cone, and positive-coordinate geometric-mean
+or strictly positive relative-entropy, differentiable finite-`p` generic
+norm-cone boundaries, spectral-norm boundaries with a simple nonzero leading
+singular value, nuclear-norm boundaries at a full-rank matrix, and real or
+Hermitian packed PSD boundaries with a simple zero minimum eigenvalue,
+and packed log-determinant boundaries with a positive scale and a
+well-separated positive-definite matrix, and packed root-determinant
+boundaries at a positive-definite matrix,
+`coupled_set_tangent_evidence`
 provides an output-coordinate boundary normal. Plugins may extend the same
 hook for other coupled sets. These normals remain coupled-set evidence and are
 never silently inserted into scalar LICQ, MFCQ, or multiplier calculations.
+The scaled packed PSD representation is also supported. Its √2 off-diagonal
+coordinate transformation is applied to both feasibility reconstruction and
+the returned tangent normal, so it is not silently treated as ordinary packed
+PSD coordinates.
+Scaled packed log- and root-determinant cones reuse the same coordinate map:
+their scalar entries remain unchanged and only packed off-diagonals are
+unscaled for feasibility, then rescaled by the chain rule for reported
+normals.
+Scaled packed Hermitian PSD cones apply this transformation to both real and
+imaginary off-diagonal coordinates. This keeps complex-coordinate feasibility
+and tangent evidence distinct from the real packed representation.
+Square-form PSD cones additionally receive feasibility checks for both matrix
+symmetry and the minimum eigenvalue of the symmetric part. Their boundary
+normal is deliberately withheld: the MOI square representation embeds
+symmetry equalities, so a single PSD-eigenvalue normal would omit essential
+coupled geometry. The report emits
+`coupled_set_boundary_tangent_semantics_unavailable` and recommends the
+packed-triangle form or a semidefinite-aware plugin for local qualification.
+The packed log-determinant cone is evaluated through an eigenvalue log-sum,
+avoiding a direct determinant calculation. A nonpositive scale or a matrix
+outside the positive-definite domain emits an availability finding rather than
+an invented residual or derivative; this deliberately carries through to
+initialization diagnostics.
+Even on the positive-definite slice, an active log-determinant boundary whose
+smallest eigenvalue is within the active tolerance of zero withholds the
+tangent and emits `coupled_set_boundary_tangent_semantics_unavailable`. This
+avoids presenting an arbitrarily amplified inverse-matrix derivative as robust
+local geometry.
+Square-form log-determinant cones additionally check their embedded symmetry
+equalities. On a feasible boundary they retain the same explicit
+single-normal-semantics limitation as square PSD cones, while an asymmetric
+matrix is a proven set violation.
+Square-form root-determinant cones follow the same symmetry-aware feasibility
+policy; positive-semidefiniteness and the root-determinant epigraph are checked
+together, without hiding the embedded symmetry equalities in a single tangent.
+The packed root-determinant cone accepts rank-deficient feasible matrices, but
+labels a rank-deficient active boundary as nonsmooth and withholds its tangent.
+The generic exponential and dual-exponential slices deliberately leave their
+respective nonpositive-`y` and nonnegative-`u` closure branches unavailable
+rather than inferring a tangent or feasibility semantics from a limiting
+representation.
+The relative-entropy slice likewise leaves zero `v` or `w` coordinates
+unavailable; its generic tangent is only claimed where every logarithmic ratio
+is finite and differentiable.
 For aligned vector outputs, the generic active-set report also maps a smooth
 boundary normal through the vector-function Jacobian and records its
 model-coordinate gradient together with the aligned derivative methods. A zero mapped gradient is reported as local
 stationarity evidence, not treated as a regular scalar cone tangent.
 When those vector rows use finite differences, the mapped gradient is retained
 as a numerical observation rather than a mathematical proof.
-`coupled_set_qualification_screen(evaluation, summary)` exposes the planned
-cone-aware qualification boundary today as an explicit unavailable result with
-the aligned operating point and smooth tangent sources. It never substitutes a
-scalar LICQ/MFCQ conclusion.
+`coupled_set_qualification_screen(evaluation, summary)` provides a deliberately
+separate, local Robinson-CQ screen for completely mapped smooth cone
+boundaries. It never substitutes a scalar LICQ/MFCQ conclusion.
 `coupled_set_qualification_screen(model, evaluation; ...)` is the convenience
-overload that first constructs the coupled-set feasibility summary.
+overload that first constructs the coupled-set feasibility summary. Both
+overloads expose `strict_tolerance` and `max_iterations`; the report retains
+the effective scale-aware tolerance and actual iteration/convergence result.
+`analyze_coupled_set_qualification(model, values; label = "initialization")`
+is the corresponding one-step diagnostic entry point; it evaluates the model
+at the labeled point before generating the report.
+When a caller has already built `coupled_set_feasibility_summary`, the
+summary-based `analyze_coupled_set_qualification(evaluation; summary = ...)`
+overload reuses exactly that activity evidence instead of rebuilding it. Both
+qualification report paths include coupled feasibility, smoothness, mapped
+gradient, and qualification findings; the standalone stage is not a bare
+Boolean CQ result.
+When an active-set report contains boundary, violated, or unavailable coupled
+sets, `scalar_active_set_excludes_coupled_sets` makes explicit that scalar
+LICQ/MFCQ and multiplier recovery did not include them. This is scope evidence,
+not a claim that the scalar screen diagnosed the full conic KKT system.
+Top-level `analyze(...; check_active_set = true)` also forwards
+`coupled_qualification_strict_tolerance` and
+`coupled_qualification_max_iterations` to this screen.
+Use `analyze(...; check_coupled_set_qualification = true)` to run this
+cone-aware stage without the broader scalar active-set analysis. When both
+flags are set, the active-set stage supplies the coupled findings once.
+The same controls apply to `analyze_initialization` and to top-level
+`analyze(...; check_initialization = true)`, so initialization-point cone
+geometry uses the same reproducible qualification settings.
+When the optional JuMP extension is loaded, these coupled-set summary, screen,
+and report entry points forward directly to `JuMP.backend(model)`; they do not
+depend on variable-name parsing or JuMP-specific cone interpretation.
 `coupled_set_mapped_tangents(evaluation, summary)` exposes only smooth
 boundaries whose ordered vector rows, derivative methods, and finite mapped
 normal gradients are complete. It is the reusable numerical input for the
-future Robinson-CQ screen; unavailable mappings are intentionally omitted.
+Robinson-CQ screen; unavailable mappings are intentionally omitted. For every
+complete smooth boundary, the screen maps its outward normal into model
+coordinates and finds the minimum-norm point in the convex hull of those
+gradients. A nonzero point with a checked common-descent direction is local
+regularity evidence; a numerical zero convex-hull combination is local
+nonregularity evidence. Incomplete mappings, nonconvergence, and nonsmooth
+apex/axis cases remain explicitly unavailable rather than being folded into
+scalar MFCQ. When any mapped normal uses finite-difference derivatives, even a
+successful common-descent result is labeled a numerical observation with
+reduced confidence rather than a local inference from exact geometry.
+For multiple smooth boundaries, a completed numerical zero convex-hull
+combination also produces a `coupled_set_dependent_boundary_normals` finding,
+with the materially weighted sources and weights retained as a cone-aware
+active-set degeneracy fingerprint.
 
 ## Structural versus numerical degeneracy
 

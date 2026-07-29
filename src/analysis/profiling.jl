@@ -956,6 +956,304 @@ function profile_synthetic_float32_derivative_overflow_corpus(; kwargs...)
 end
 
 """
+    synthetic_coupled_cone_profile_corpus()
+
+Return small, solver-independent coupled-cone cases for feasibility, smooth
+boundary geometry, Robinson-CQ, and dependent-normal evidence. The corpus does
+not scalarize cone constraints or invoke a solver.
+"""
+function synthetic_coupled_cone_profile_corpus()
+    models = MOI.Utilities.Model{Float64}[]
+    cases = ProfileCase{Float64}[]
+
+    smooth_soc = MOI.Utilities.Model{Float64}()
+    t, x = MOI.add_variables(smooth_soc, 2)
+    MOI.add_constraint(smooth_soc, MOI.VectorOfVariables([t, x]), MOI.SecondOrderCone(2))
+    push!(models, smooth_soc)
+    push!(cases, ProfileCase(
+        "coupled_smooth_soc_boundary",
+        evaluation_point(smooth_soc, [1.0, 1.0]; label = "smooth SOC boundary");
+        description = "A smooth second-order-cone boundary with a regular mapped normal.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single second-order cone",
+        initialization = "smooth feasible boundary point",
+        scale = "unit cone coordinates",
+        expected_evidence = [:coupled_set_robinson_cq_regular],
+        tags = [:synthetic, :cone, :soc, :qualification],
+        metadata = Dict("cone" => "SOC", "geometry" => "smooth boundary"),
+    ))
+
+    smooth_rotated = MOI.Utilities.Model{Float64}()
+    u, v, w = MOI.add_variables(smooth_rotated, 3)
+    MOI.add_constraint(
+        smooth_rotated, MOI.VectorOfVariables([u, v, w]), MOI.RotatedSecondOrderCone(3),
+    )
+    push!(models, smooth_rotated)
+    push!(cases, ProfileCase(
+        "coupled_smooth_rotated_soc_boundary",
+        evaluation_point(
+            smooth_rotated, [1.0, 1.0, sqrt(2.0)];
+            label = "smooth rotated-SOC boundary",
+        );
+        description = "A smooth rotated second-order-cone boundary with a regular mapped normal.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single rotated second-order cone",
+        initialization = "smooth feasible boundary point",
+        scale = "u=v=1, w=sqrt(2)",
+        expected_evidence = [:coupled_set_robinson_cq_regular],
+        tags = [:synthetic, :cone, :rotated_soc, :qualification],
+        metadata = Dict("cone" => "RSOC", "geometry" => "smooth boundary"),
+    ))
+
+    smooth_norm_one = MOI.Utilities.Model{Float64}()
+    norm_one_t, norm_one_x, norm_one_y = MOI.add_variables(smooth_norm_one, 3)
+    MOI.add_constraint(
+        smooth_norm_one,
+        MOI.VectorOfVariables([norm_one_t, norm_one_x, norm_one_y]),
+        MOI.NormOneCone(3),
+    )
+    push!(models, smooth_norm_one)
+    push!(cases, ProfileCase(
+        "coupled_smooth_norm_one_boundary",
+        evaluation_point(smooth_norm_one, [2.0, 1.0, -1.0]; label = "smooth norm-one boundary");
+        description = "A norm-one-cone boundary away from every absolute-value kink.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single norm-one cone",
+        initialization = "smooth feasible boundary point",
+        scale = "t=2, x=(1,-1)",
+        expected_evidence = [:coupled_set_robinson_cq_regular],
+        tags = [:synthetic, :cone, :norm_one, :qualification],
+        metadata = Dict("cone" => "NormOne", "geometry" => "smooth boundary"),
+    ))
+
+    smooth_norm_infinity = MOI.Utilities.Model{Float64}()
+    norm_inf_t, norm_inf_x, norm_inf_y = MOI.add_variables(smooth_norm_infinity, 3)
+    MOI.add_constraint(
+        smooth_norm_infinity,
+        MOI.VectorOfVariables([norm_inf_t, norm_inf_x, norm_inf_y]),
+        MOI.NormInfinityCone(3),
+    )
+    push!(models, smooth_norm_infinity)
+    push!(cases, ProfileCase(
+        "coupled_smooth_norm_infinity_boundary",
+        evaluation_point(
+            smooth_norm_infinity, [2.0, -2.0, 0.25];
+            label = "smooth norm-infinity boundary",
+        );
+        description = "A norm-infinity-cone boundary with one unique maximum component.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single norm-infinity cone",
+        initialization = "smooth feasible boundary point",
+        scale = "t=2, unique maximum magnitude=2",
+        expected_evidence = [:coupled_set_robinson_cq_regular],
+        tags = [:synthetic, :cone, :norm_infinity, :qualification],
+        metadata = Dict("cone" => "NormInfinity", "geometry" => "unique maximum"),
+    ))
+
+    smooth_spectral_norm = MOI.Utilities.Model{Float64}()
+    spectral_variables = MOI.add_variables(smooth_spectral_norm, 5)
+    MOI.add_constraint(
+        smooth_spectral_norm,
+        MOI.VectorOfVariables(spectral_variables),
+        MOI.NormSpectralCone(2, 2),
+    )
+    push!(models, smooth_spectral_norm)
+    push!(cases, ProfileCase(
+        "coupled_smooth_spectral_norm_boundary",
+        evaluation_point(
+            smooth_spectral_norm, [2.0, 2.0, 0.0, 0.0, 1.0];
+            label = "simple-leading-mode spectral-norm boundary",
+        );
+        description = "A spectral-norm cone boundary with a unique nonzero leading singular value.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single 2-by-2 spectral-norm cone",
+        initialization = "smooth feasible boundary point",
+        scale = "singular values 2 and 1",
+        expected_evidence = [:coupled_set_robinson_cq_regular],
+        tags = [:synthetic, :cone, :spectral_norm, :matrix, :qualification],
+        metadata = Dict("cone" => "NormSpectral", "geometry" => "simple leading singular value"),
+    ))
+
+    smooth_nuclear_norm = MOI.Utilities.Model{Float64}()
+    nuclear_variables = MOI.add_variables(smooth_nuclear_norm, 5)
+    MOI.add_constraint(
+        smooth_nuclear_norm,
+        MOI.VectorOfVariables(nuclear_variables),
+        MOI.NormNuclearCone(2, 2),
+    )
+    push!(models, smooth_nuclear_norm)
+    push!(cases, ProfileCase(
+        "coupled_smooth_nuclear_norm_boundary",
+        evaluation_point(
+            smooth_nuclear_norm, [3.0, 2.0, 0.0, 0.0, 1.0];
+            label = "full-rank nuclear-norm boundary",
+        );
+        description = "A nuclear-norm cone boundary at a full-rank matrix.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single 2-by-2 nuclear-norm cone",
+        initialization = "smooth feasible boundary point",
+        scale = "singular values 2 and 1",
+        expected_evidence = [:coupled_set_robinson_cq_regular],
+        tags = [:synthetic, :cone, :nuclear_norm, :matrix, :qualification],
+        metadata = Dict("cone" => "NormNuclear", "geometry" => "full rank"),
+    ))
+
+    smooth_psd_triangle = MOI.Utilities.Model{Float64}()
+    psd_entries = MOI.add_variables(smooth_psd_triangle, 3)
+    MOI.add_constraint(
+        smooth_psd_triangle,
+        MOI.VectorOfVariables(psd_entries),
+        MOI.PositiveSemidefiniteConeTriangle(2),
+    )
+    push!(models, smooth_psd_triangle)
+    push!(cases, ProfileCase(
+        "coupled_smooth_psd_triangle_boundary",
+        evaluation_point(
+            smooth_psd_triangle, [0.0, 0.0, 1.0];
+            label = "simple-zero-mode PSD boundary",
+        );
+        description = "A packed 2-by-2 PSD boundary with one simple zero eigenvalue.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single packed-symmetric PSD cone",
+        initialization = "smooth feasible boundary point",
+        scale = "eigenvalues 0 and 1",
+        expected_evidence = [:coupled_set_robinson_cq_regular],
+        tags = [:synthetic, :cone, :positive_semidefinite, :matrix, :qualification],
+        metadata = Dict("cone" => "PositiveSemidefiniteConeTriangle", "geometry" => "simple zero eigenvalue"),
+    ))
+
+    smooth_scaled_psd_triangle = MOI.Utilities.Model{Float64}()
+    scaled_psd_entries = MOI.add_variables(smooth_scaled_psd_triangle, 3)
+    MOI.add_constraint(
+        smooth_scaled_psd_triangle,
+        MOI.VectorOfVariables(scaled_psd_entries),
+        MOI.Scaled(MOI.PositiveSemidefiniteConeTriangle(2)),
+    )
+    push!(models, smooth_scaled_psd_triangle)
+    push!(cases, ProfileCase(
+        "coupled_smooth_scaled_psd_triangle_boundary",
+        evaluation_point(
+            smooth_scaled_psd_triangle, [1.0, sqrt(2.0), 1.0];
+            label = "scaled packed PSD boundary",
+        );
+        description = "A scaled packed 2-by-2 PSD boundary with a nonzero off-diagonal coordinate.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single scaled packed-symmetric PSD cone",
+        initialization = "smooth feasible boundary point",
+        scale = "unscaled matrix [1 1; 1 1]",
+        expected_evidence = [:coupled_set_robinson_cq_regular],
+        tags = [:synthetic, :cone, :positive_semidefinite, :scaled, :matrix, :qualification],
+        metadata = Dict("cone" => "ScaledPositiveSemidefiniteConeTriangle", "geometry" => "simple zero eigenvalue"),
+    ))
+
+    smooth_logdet = MOI.Utilities.Model{Float64}()
+    logdet_entries = MOI.add_variables(smooth_logdet, 5)
+    MOI.add_constraint(
+        smooth_logdet,
+        MOI.VectorOfVariables(logdet_entries),
+        MOI.LogDetConeTriangle(2),
+    )
+    push!(models, smooth_logdet)
+    push!(cases, ProfileCase(
+        "coupled_smooth_logdet_triangle_boundary",
+        evaluation_point(
+            smooth_logdet, [0.0, 1.0, 1.0, 0.0, 1.0];
+            label = "identity log-determinant boundary",
+        );
+        description = "A packed 2-by-2 log-determinant cone boundary on its positive-definite slice.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single packed-symmetric log-determinant cone",
+        initialization = "smooth feasible boundary point",
+        scale = "u=1, X=I",
+        expected_evidence = [:coupled_set_robinson_cq_regular],
+        tags = [:synthetic, :cone, :logdet, :matrix, :qualification],
+        metadata = Dict("cone" => "LogDetConeTriangle", "geometry" => "positive-definite boundary"),
+    ))
+
+    smooth_rootdet = MOI.Utilities.Model{Float64}()
+    rootdet_entries = MOI.add_variables(smooth_rootdet, 4)
+    MOI.add_constraint(
+        smooth_rootdet,
+        MOI.VectorOfVariables(rootdet_entries),
+        MOI.RootDetConeTriangle(2),
+    )
+    push!(models, smooth_rootdet)
+    push!(cases, ProfileCase(
+        "coupled_smooth_rootdet_triangle_boundary",
+        evaluation_point(
+            smooth_rootdet, [1.0, 1.0, 0.0, 1.0];
+            label = "identity root-determinant boundary",
+        );
+        description = "A packed 2-by-2 root-determinant boundary at a positive-definite matrix.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single packed-symmetric root-determinant cone",
+        initialization = "smooth feasible boundary point",
+        scale = "t=1, X=I",
+        expected_evidence = [:coupled_set_robinson_cq_regular],
+        tags = [:synthetic, :cone, :rootdet, :matrix, :qualification],
+        metadata = Dict("cone" => "RootDetConeTriangle", "geometry" => "positive-definite boundary"),
+    ))
+
+    soc_apex = MOI.Utilities.Model{Float64}()
+    apex_t, apex_x = MOI.add_variables(soc_apex, 2)
+    MOI.add_constraint(soc_apex, MOI.VectorOfVariables([apex_t, apex_x]), MOI.SecondOrderCone(2))
+    push!(models, soc_apex)
+    push!(cases, ProfileCase(
+        "coupled_soc_apex",
+        evaluation_point(soc_apex, [0.0, 0.0]; label = "SOC apex");
+        description = "A nonsmooth SOC apex, intentionally unavailable to the smooth qualification screen.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single second-order cone",
+        initialization = "nonsmooth feasible apex",
+        scale = "zero cone coordinates",
+        expected_evidence = [:coupled_set_nonsmooth_boundary_active],
+        tags = [:synthetic, :cone, :soc, :nonsmooth],
+        metadata = Dict("cone" => "SOC", "geometry" => "apex"),
+    ))
+
+    dependent_normals = MOI.Utilities.Model{Float64}()
+    dependent_t, dependent_x = MOI.add_variables(dependent_normals, 2)
+    MOI.add_constraint(
+        dependent_normals, MOI.VectorOfVariables([dependent_t, dependent_x]),
+        MOI.SecondOrderCone(2),
+    )
+    MOI.add_constraint(
+        dependent_normals,
+        MOI.VectorAffineFunction(
+            [
+                MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(-1.0, dependent_t)),
+                MOI.VectorAffineTerm(2, MOI.ScalarAffineTerm(1.0, dependent_x)),
+            ],
+            [2.0, -2.0],
+        ),
+        MOI.SecondOrderCone(2),
+    )
+    push!(models, dependent_normals)
+    push!(cases, ProfileCase(
+        "coupled_dependent_boundary_normals",
+        evaluation_point(dependent_normals, [1.0, 1.0]; label = "dependent normals");
+        description = "Two smooth SOC boundaries with opposing mapped normals and a local positive dependence.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "two affine-mapped second-order cones",
+        initialization = "shared smooth feasible boundary point",
+        scale = "unit cone coordinates",
+        expected_evidence = [
+            :coupled_set_robinson_cq_nonregular,
+            :coupled_set_dependent_boundary_normals,
+        ],
+        tags = [:synthetic, :cone, :soc, :degeneracy, :qualification],
+        metadata = Dict("cone" => "SOC", "geometry" => "dependent normals"),
+    ))
+    return models, cases
+end
+
+"""Run repeated solver-independent profiles for the coupled-cone corpus."""
+function profile_synthetic_coupled_cone_corpus(; kwargs...)
+    models, cases = synthetic_coupled_cone_profile_corpus()
+    return profile_cases_repeated(models, cases; kwargs...)
+end
+
+"""
     synthetic_quadratic_geometry_profile_corpus()
 
 Return solver-independent quadratic-geometry cases for static scaling and

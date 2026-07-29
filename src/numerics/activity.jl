@@ -226,18 +226,36 @@ function coupled_set_qualification_screen(
         "cone-aware qualification semantics are not implemented; scalar LICQ/MFCQ is intentionally unchanged",
         evaluation.point,
         sources,
+        false,
+        zeros(T, length(evaluation.point.variables)),
+        T[],
+        zeros(T, length(evaluation.point.variables)),
+        nothing,
+        nothing,
+        0,
+        false,
+        Symbol[],
     )
 end
 
 """Build the coupled-set summary first, then return its qualification screen."""
 function coupled_set_qualification_screen(
     model::MOI.ModelLike,
-    evaluation::NumericalEvaluation;
-    kwargs...,
-)
+    evaluation::NumericalEvaluation{T};
+    feasibility_tolerance::Real = sqrt(eps(T)),
+    active_tolerance::Real = sqrt(eps(T)),
+    strict_tolerance::Real = sqrt(eps(T)),
+    max_iterations::Integer = 1_000,
+) where {T<:AbstractFloat}
     return coupled_set_qualification_screen(
         evaluation,
-        coupled_set_feasibility_summary(model, evaluation; kwargs...),
+        coupled_set_feasibility_summary(
+            model, evaluation;
+            feasibility_tolerance = feasibility_tolerance,
+            active_tolerance = active_tolerance,
+        );
+        strict_tolerance = strict_tolerance,
+        max_iterations = max_iterations,
     )
 end
 
@@ -279,6 +297,1385 @@ function coupled_set_tangent_evidence(
         :second_order_cone,
         vcat(one(T), -numeric[2:end] ./ tail_norm),
         "gradient of t - norm(x) at a smooth SOC boundary",
+    )
+end
+
+function coupled_set_activity(
+    ::MOI.NormOneCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(source, :norm_one_cone, values, nothing, nothing, false, :unavailable)
+    end
+    numeric = T[value::T for value in values]
+    margin = numeric[1] - sum(abs, numeric[2:end])
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    return CoupledSetActivity{T}(
+        source, :norm_one_cone, values, margin, violation,
+        classification == :boundary, classification,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    ::MOI.NormOneCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    all(abs(value) > active for value in numeric[2:end]) || return nothing
+    return CoupledSetTangentEvidence{T}(
+        source, :norm_one_cone, vcat(one(T), -sign.(numeric[2:end])),
+        "gradient of t - sum(abs, x) at a smooth norm-one-cone boundary",
+    )
+end
+
+function coupled_set_activity(
+    ::MOI.NormInfinityCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(source, :norm_infinity_cone, values, nothing, nothing, false, :unavailable)
+    end
+    numeric = T[value::T for value in values]
+    margin = numeric[1] - maximum(abs, numeric[2:end])
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    return CoupledSetActivity{T}(
+        source, :norm_infinity_cone, values, margin, violation,
+        classification == :boundary, classification,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    ::MOI.NormInfinityCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    tail = numeric[2:end]
+    maximum_magnitude = maximum(abs, tail)
+    maximum_magnitude > active || return nothing
+    maximizers = findall(value -> abs(abs(value) - maximum_magnitude) <= active, tail)
+    length(maximizers) == 1 || return nothing
+    normal = zeros(T, length(numeric))
+    normal[1] = one(T)
+    normal[1 + only(maximizers)] = -sign(tail[only(maximizers)])
+    return CoupledSetTangentEvidence{T}(
+        source, :norm_infinity_cone, normal,
+        "gradient of t - norm(x, Inf) at a smooth norm-infinity-cone boundary",
+    )
+end
+
+function _norm_cone_kind(p::Float64)
+    p == 1.0 && return :norm_cone_one
+    isinf(p) && return :norm_cone_infinity
+    return :norm_cone
+end
+
+function coupled_set_activity(
+    set_value::MOI.NormCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(source, _norm_cone_kind(set_value.p), values, nothing, nothing, false, :unavailable)
+    end
+    numeric = T[value::T for value in values]
+    tail_norm = norm(numeric[2:end], set_value.p)
+    margin = numeric[1] - tail_norm
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    return CoupledSetActivity{T}(
+        source, _norm_cone_kind(set_value.p), values, margin, violation,
+        classification == :boundary, classification,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.NormCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    tail = numeric[2:end]
+    p = set_value.p
+    if p == 1.0
+        all(abs(value) > active for value in tail) || return nothing
+        normal = vcat(one(T), -sign.(tail))
+    elseif isinf(p)
+        maximum_magnitude = maximum(abs, tail)
+        maximum_magnitude > active || return nothing
+        maximizers = findall(value -> abs(abs(value) - maximum_magnitude) <= active, tail)
+        length(maximizers) == 1 || return nothing
+        normal = zeros(T, length(numeric))
+        normal[1] = one(T)
+        normal[1 + only(maximizers)] = -sign(tail[only(maximizers)])
+    else
+        tail_norm = norm(tail, p)
+        tail_norm > active || return nothing
+        normal = vcat(
+            one(T),
+            [-sign(value) * abs(value)^(p - 1) / tail_norm^(p - 1) for value in tail],
+        )
+    end
+    return CoupledSetTangentEvidence{T}(
+        source,
+        _norm_cone_kind(p),
+        normal,
+        "gradient of t - norm(x, p) at a smooth generic norm-cone boundary",
+    )
+end
+
+"""Return whether the leading spectral-norm mode is locally unique."""
+function _spectral_norm_is_smooth(singular_values::AbstractVector{T}, active::T) where {T<:AbstractFloat}
+    isempty(singular_values) && return false
+    singular_values[1] > active || return false
+    return length(singular_values) == 1 ||
+           singular_values[1] - singular_values[2] > active
+end
+
+function coupled_set_activity(
+    set_value::MOI.NormSpectralCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :norm_spectral_cone, values, nothing, nothing, false,
+            :unavailable, "matrix entries are missing or non-finite",
+        )
+    end
+    numeric = T[value::T for value in values]
+    matrix_value = reshape(numeric[2:end], set_value.row_dim, set_value.column_dim)
+    singular_values = svdvals(matrix_value)
+    spectral_norm = isempty(singular_values) ? zero(T) : singular_values[1]
+    margin = numeric[1] - spectral_norm
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    reason = classification == :boundary &&
+             !_spectral_norm_is_smooth(singular_values, active) ?
+             "the leading singular value is zero or not separated from the next singular value" :
+             nothing
+    return CoupledSetActivity{T}(
+        source, :norm_spectral_cone, values, margin, violation,
+        classification == :boundary, classification, reason,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.NormSpectralCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    matrix_value = reshape(numeric[2:end], set_value.row_dim, set_value.column_dim)
+    factorization = svd(matrix_value)
+    _spectral_norm_is_smooth(factorization.S, active) || return nothing
+    normal = vcat(one(T), -vec(factorization.U[:, 1] * factorization.Vt[1:1, :]))
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :norm_spectral_cone,
+        normal,
+        "gradient of t - sigma_max(X) at a simple nonzero leading singular value",
+    )
+end
+
+"""Return whether the nuclear norm has a unique local gradient at this matrix."""
+function _nuclear_norm_is_smooth(singular_values::AbstractVector{T}, active::T) where {T<:AbstractFloat}
+    return !isempty(singular_values) && all(value -> value > active, singular_values)
+end
+
+function coupled_set_activity(
+    set_value::MOI.NormNuclearCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :norm_nuclear_cone, values, nothing, nothing, false,
+            :unavailable, "matrix entries are missing or non-finite",
+        )
+    end
+    numeric = T[value::T for value in values]
+    matrix_value = reshape(numeric[2:end], set_value.row_dim, set_value.column_dim)
+    singular_values = svdvals(matrix_value)
+    margin = numeric[1] - sum(singular_values)
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    reason = classification == :boundary &&
+             !_nuclear_norm_is_smooth(singular_values, active) ?
+             "the matrix is rank deficient, so the nuclear norm has no unique boundary normal" :
+             nothing
+    return CoupledSetActivity{T}(
+        source, :norm_nuclear_cone, values, margin, violation,
+        classification == :boundary, classification, reason,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.NormNuclearCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    matrix_value = reshape(numeric[2:end], set_value.row_dim, set_value.column_dim)
+    factorization = svd(matrix_value)
+    _nuclear_norm_is_smooth(factorization.S, active) || return nothing
+    rank_dimension = length(factorization.S)
+    normal = vcat(
+        one(T),
+        -vec(factorization.U[:, 1:rank_dimension] * factorization.Vt[1:rank_dimension, :]),
+    )
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :norm_nuclear_cone,
+        normal,
+        "gradient of t - nuclear_norm(X) at a full-rank matrix",
+    )
+end
+
+"""Expand MOI's upper-triangle, column-major symmetric packing into a matrix."""
+function _symmetric_triangle_matrix(values::AbstractVector{T}, side_dimension::Integer) where {T<:AbstractFloat}
+    matrix_value = zeros(T, side_dimension, side_dimension)
+    position = 1
+    for column in 1:side_dimension, row in 1:column
+        matrix_value[row, column] = values[position]
+        matrix_value[column, row] = values[position]
+        position += 1
+    end
+    return matrix_value
+end
+
+"""Pack the symmetric directional derivative `v * v'` in MOI triangle order."""
+function _symmetric_triangle_outer_gradient(vector::AbstractVector{T}) where {T<:AbstractFloat}
+    side_dimension = length(vector)
+    gradient = Vector{T}(undef, div(side_dimension * (side_dimension + 1), 2))
+    position = 1
+    for column in 1:side_dimension, row in 1:column
+        gradient[position] = row == column ? vector[row]^2 :
+                             2 * vector[row] * vector[column]
+        position += 1
+    end
+    return gradient
+end
+
+"""Pack a symmetric matrix derivative in MOI's upper-triangle coordinates."""
+function _symmetric_triangle_matrix_gradient(matrix_value::AbstractMatrix{T}) where {T<:AbstractFloat}
+    side_dimension = size(matrix_value, 1)
+    gradient = Vector{T}(undef, div(side_dimension * (side_dimension + 1), 2))
+    position = 1
+    for column in 1:side_dimension, row in 1:column
+        gradient[position] = row == column ? matrix_value[row, column] :
+                             2 * matrix_value[row, column]
+        position += 1
+    end
+    return gradient
+end
+
+"""Undo the √2 off-diagonal coordinate scaling of a scaled packed PSD cone."""
+function _unscale_symmetric_triangle_coordinates(values::AbstractVector{T}, side_dimension::Integer) where {T<:AbstractFloat}
+    unscaled = copy(values)
+    position = 1
+    off_diagonal_scale = sqrt(T(2))
+    for column in 1:side_dimension, row in 1:column
+        row == column || (unscaled[position] /= off_diagonal_scale)
+        position += 1
+    end
+    return unscaled
+end
+
+"""Map an unscaled packed-symmetric gradient into scaled PSD coordinates."""
+function _scale_symmetric_triangle_gradient(gradient::AbstractVector{T}, side_dimension::Integer) where {T<:AbstractFloat}
+    scaled = copy(gradient)
+    position = 1
+    off_diagonal_scale = sqrt(T(2))
+    for column in 1:side_dimension, row in 1:column
+        row == column || (scaled[position] /= off_diagonal_scale)
+        position += 1
+    end
+    return scaled
+end
+
+"""Undo √2 scaling on real and imaginary off-diagonals of packed Hermitian data."""
+function _unscale_hermitian_triangle_coordinates(values::AbstractVector{T}, side_dimension::Integer) where {T<:AbstractFloat}
+    unscaled = copy(values)
+    real_count = div(side_dimension * (side_dimension + 1), 2)
+    position = 1
+    off_diagonal_scale = sqrt(T(2))
+    for column in 1:side_dimension, row in 1:column
+        row == column || (unscaled[position] /= off_diagonal_scale)
+        position += 1
+    end
+    real_count < length(unscaled) && (unscaled[(real_count + 1):end] ./= off_diagonal_scale)
+    return unscaled
+end
+
+"""Map a packed Hermitian gradient into MOI scaled coordinates."""
+function _scale_hermitian_triangle_gradient(gradient::AbstractVector{T}, side_dimension::Integer) where {T<:AbstractFloat}
+    scaled = copy(gradient)
+    real_count = div(side_dimension * (side_dimension + 1), 2)
+    position = 1
+    off_diagonal_scale = sqrt(T(2))
+    for column in 1:side_dimension, row in 1:column
+        row == column || (scaled[position] /= off_diagonal_scale)
+        position += 1
+    end
+    real_count < length(scaled) && (scaled[(real_count + 1):end] ./= off_diagonal_scale)
+    return scaled
+end
+
+"""Return whether the minimum PSD eigenvalue is a locally simple boundary mode."""
+function _psd_minimum_mode_is_smooth(eigenvalues::AbstractVector{T}, active::T) where {T<:AbstractFloat}
+    isempty(eigenvalues) && return false
+    return length(eigenvalues) == 1 || eigenvalues[2] - eigenvalues[1] > active
+end
+
+function coupled_set_activity(
+    set_value::MOI.PositiveSemidefiniteConeTriangle,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :positive_semidefinite_cone_triangle, values,
+            nothing, nothing, false, :unavailable,
+            "packed symmetric-matrix entries are missing or non-finite",
+        )
+    end
+    set_value.side_dimension > 0 || return CoupledSetActivity{T}(
+        source, :positive_semidefinite_cone_triangle, values,
+        nothing, nothing, false, :unavailable,
+        "zero-dimensional PSD cone has no boundary mode to classify",
+    )
+    numeric = T[value::T for value in values]
+    eigenvalues = eigen(Symmetric(_symmetric_triangle_matrix(
+        numeric, set_value.side_dimension,
+    ))).values
+    margin = eigenvalues[1]
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    reason = classification == :boundary &&
+             !_psd_minimum_mode_is_smooth(eigenvalues, active) ?
+             "the zero minimum eigenvalue is repeated, so the PSD boundary has no unique normal" :
+             nothing
+    return CoupledSetActivity{T}(
+        source, :positive_semidefinite_cone_triangle, values, margin, violation,
+        classification == :boundary, classification, reason,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.PositiveSemidefiniteConeTriangle,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    factorization = eigen(Symmetric(_symmetric_triangle_matrix(
+        numeric, set_value.side_dimension,
+    )))
+    _psd_minimum_mode_is_smooth(factorization.values, active) || return nothing
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :positive_semidefinite_cone_triangle,
+        _symmetric_triangle_outer_gradient(factorization.vectors[:, 1]),
+        "gradient of the simple minimum eigenvalue in MOI packed-symmetric coordinates",
+    )
+end
+
+function coupled_set_activity(
+    set_value::MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :scaled_positive_semidefinite_cone_triangle, values,
+            nothing, nothing, false, :unavailable,
+            "scaled packed symmetric-matrix entries are missing or non-finite",
+        )
+    end
+    side_dimension = set_value.set.side_dimension
+    side_dimension > 0 || return CoupledSetActivity{T}(
+        source, :scaled_positive_semidefinite_cone_triangle, values,
+        nothing, nothing, false, :unavailable,
+        "zero-dimensional scaled PSD cone has no boundary mode to classify",
+    )
+    numeric = T[value::T for value in values]
+    unscaled = _unscale_symmetric_triangle_coordinates(numeric, side_dimension)
+    eigenvalues = eigen(Symmetric(_symmetric_triangle_matrix(unscaled, side_dimension))).values
+    margin = eigenvalues[1]
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    reason = classification == :boundary &&
+             !_psd_minimum_mode_is_smooth(eigenvalues, active) ?
+             "the zero minimum eigenvalue is repeated, so the scaled PSD boundary has no unique normal" :
+             nothing
+    return CoupledSetActivity{T}(
+        source, :scaled_positive_semidefinite_cone_triangle, values,
+        margin, violation, classification == :boundary, classification, reason,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    side_dimension = set_value.set.side_dimension
+    numeric = T[value::T for value in values]
+    unscaled = _unscale_symmetric_triangle_coordinates(numeric, side_dimension)
+    factorization = eigen(Symmetric(_symmetric_triangle_matrix(unscaled, side_dimension)))
+    _psd_minimum_mode_is_smooth(factorization.values, active) || return nothing
+    normal = _scale_symmetric_triangle_gradient(
+        _symmetric_triangle_outer_gradient(factorization.vectors[:, 1]),
+        side_dimension,
+    )
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :scaled_positive_semidefinite_cone_triangle,
+        normal,
+        "gradient of the simple minimum eigenvalue in scaled MOI packed-symmetric coordinates",
+    )
+end
+
+function coupled_set_activity(
+    set_value::MOI.PositiveSemidefiniteConeSquare,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :positive_semidefinite_cone_square, values,
+            nothing, nothing, false, :unavailable,
+            "square-matrix entries are missing or non-finite",
+        )
+    end
+    set_value.side_dimension > 0 || return CoupledSetActivity{T}(
+        source, :positive_semidefinite_cone_square, values,
+        nothing, nothing, false, :unavailable,
+        "zero-dimensional PSD cone has no boundary mode to classify",
+    )
+    numeric = T[value::T for value in values]
+    matrix_value = reshape(numeric, set_value.side_dimension, set_value.side_dimension)
+    symmetry_violation = maximum(abs, matrix_value .- transpose(matrix_value))
+    eigenvalues = eigen(Symmetric((matrix_value .+ transpose(matrix_value)) ./ 2)).values
+    margin = eigenvalues[1]
+    violation = max(symmetry_violation, -margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    reason = classification == :boundary ?
+             "square PSD form embeds symmetry equalities; feasibility is available but no single boundary normal is claimed" :
+             nothing
+    return CoupledSetActivity{T}(
+        source, :positive_semidefinite_cone_square, values, margin, violation,
+        classification == :boundary, classification, reason,
+    )
+end
+
+"""Expand MOI's real-packed Hermitian upper triangle into a complex matrix."""
+function _hermitian_triangle_matrix(values::AbstractVector{T}, side_dimension::Integer) where {T<:AbstractFloat}
+    real_count = div(side_dimension * (side_dimension + 1), 2)
+    matrix_value = zeros(Complex{T}, side_dimension, side_dimension)
+    position = 1
+    for column in 1:side_dimension, row in 1:column
+        matrix_value[row, column] = values[position]
+        matrix_value[column, row] = values[position]
+        position += 1
+    end
+    position = real_count + 1
+    for column in 2:side_dimension, row in 1:(column - 1)
+        imaginary_part = values[position]
+        matrix_value[row, column] += im * imaginary_part
+        matrix_value[column, row] -= im * imaginary_part
+        position += 1
+    end
+    return matrix_value
+end
+
+"""Pack the Hermitian directional derivative `v * v'` in MOI real coordinates."""
+function _hermitian_triangle_outer_gradient(vector::AbstractVector{Complex{T}}) where {T<:AbstractFloat}
+    side_dimension = length(vector)
+    real_count = div(side_dimension * (side_dimension + 1), 2)
+    gradient = Vector{T}(undef, real_count + div(side_dimension * (side_dimension - 1), 2))
+    position = 1
+    for column in 1:side_dimension, row in 1:column
+        product = conj(vector[row]) * vector[column]
+        gradient[position] = row == column ? real(product) : 2 * real(product)
+        position += 1
+    end
+    for column in 2:side_dimension, row in 1:(column - 1)
+        gradient[position] = -2 * imag(conj(vector[row]) * vector[column])
+        position += 1
+    end
+    return gradient
+end
+
+function coupled_set_activity(
+    set_value::MOI.HermitianPositiveSemidefiniteConeTriangle,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :hermitian_positive_semidefinite_cone_triangle, values,
+            nothing, nothing, false, :unavailable,
+            "packed Hermitian-matrix entries are missing or non-finite",
+        )
+    end
+    set_value.side_dimension > 0 || return CoupledSetActivity{T}(
+        source, :hermitian_positive_semidefinite_cone_triangle, values,
+        nothing, nothing, false, :unavailable,
+        "zero-dimensional Hermitian PSD cone has no boundary mode to classify",
+    )
+    numeric = T[value::T for value in values]
+    eigenvalues = eigen(Hermitian(_hermitian_triangle_matrix(
+        numeric, set_value.side_dimension,
+    ))).values
+    margin = eigenvalues[1]
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    reason = classification == :boundary &&
+             !_psd_minimum_mode_is_smooth(eigenvalues, active) ?
+             "the zero minimum eigenvalue is repeated, so the Hermitian PSD boundary has no unique normal" :
+             nothing
+    return CoupledSetActivity{T}(
+        source, :hermitian_positive_semidefinite_cone_triangle, values,
+        margin, violation, classification == :boundary, classification, reason,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.HermitianPositiveSemidefiniteConeTriangle,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    factorization = eigen(Hermitian(_hermitian_triangle_matrix(
+        numeric, set_value.side_dimension,
+    )))
+    _psd_minimum_mode_is_smooth(factorization.values, active) || return nothing
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :hermitian_positive_semidefinite_cone_triangle,
+        _hermitian_triangle_outer_gradient(factorization.vectors[:, 1]),
+        "gradient of the simple minimum Hermitian eigenvalue in MOI packed coordinates",
+    )
+end
+
+function coupled_set_activity(
+    set_value::MOI.Scaled{MOI.HermitianPositiveSemidefiniteConeTriangle},
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :scaled_hermitian_positive_semidefinite_cone_triangle,
+            values, nothing, nothing, false, :unavailable,
+            "scaled packed Hermitian-matrix entries are missing or non-finite",
+        )
+    end
+    numeric = T[value::T for value in values]
+    unscaled_numeric = _unscale_hermitian_triangle_coordinates(
+        numeric, set_value.set.side_dimension,
+    )
+    unscaled = Union{Missing,T}[unscaled_numeric...]
+    raw = coupled_set_activity(set_value.set, source, unscaled, feasibility, active)
+    return CoupledSetActivity{T}(
+        source, :scaled_hermitian_positive_semidefinite_cone_triangle,
+        values, raw.margin, raw.feasibility_violation, raw.boundary_active,
+        raw.classification, raw.reason,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.Scaled{MOI.HermitianPositiveSemidefiniteConeTriangle},
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    side_dimension = set_value.set.side_dimension
+    unscaled_numeric = _unscale_hermitian_triangle_coordinates(numeric, side_dimension)
+    unscaled = Union{Missing,T}[unscaled_numeric...]
+    raw_activity = coupled_set_activity(set_value.set, source, unscaled, zero(T), active)
+    raw = coupled_set_tangent_evidence(set_value.set, source, unscaled, raw_activity, active)
+    isnothing(raw) && return nothing
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :scaled_hermitian_positive_semidefinite_cone_triangle,
+        _scale_hermitian_triangle_gradient(raw.normal, side_dimension),
+        "gradient of the simple minimum Hermitian eigenvalue in scaled MOI packed coordinates",
+    )
+end
+
+function coupled_set_activity(
+    set_value::MOI.LogDetConeTriangle,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :logdet_cone_triangle, values, nothing, nothing, false,
+            :unavailable, "log-determinant inputs are missing or non-finite",
+        )
+    end
+    set_value.side_dimension > 0 || return CoupledSetActivity{T}(
+        source, :logdet_cone_triangle, values, nothing, nothing, false,
+        :unavailable, "zero-dimensional log-determinant cone has no generic boundary semantics",
+    )
+    numeric = T[value::T for value in values]
+    scale = numeric[2]
+    matrix_value = _symmetric_triangle_matrix(numeric[3:end], set_value.side_dimension)
+    eigenvalues = eigen(Symmetric(matrix_value)).values
+    if scale <= zero(T) || any(value -> value <= zero(T), eigenvalues)
+        return CoupledSetActivity{T}(
+            source, :logdet_cone_triangle, values, nothing, nothing, false,
+            :unavailable,
+            "log-determinant feasibility requires a positive scale and a positive-definite matrix",
+        )
+    end
+    log_determinant = sum(log, eigenvalues) - set_value.side_dimension * log(scale)
+    margin = scale * log_determinant - numeric[1]
+    isfinite(margin) || return CoupledSetActivity{T}(
+        source, :logdet_cone_triangle, values, nothing, nothing, false,
+        :unavailable, "log-determinant range calculation is non-finite",
+    )
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    reason = classification == :boundary &&
+             any(value -> value <= active, eigenvalues) ?
+             "the matrix is positive definite but within the active tolerance of singularity, so the log-determinant tangent is withheld" :
+             nothing
+    return CoupledSetActivity{T}(
+        source, :logdet_cone_triangle, values, margin, violation,
+        classification == :boundary, classification, reason,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.LogDetConeTriangle,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    scale = numeric[2]
+    matrix_value = _symmetric_triangle_matrix(numeric[3:end], set_value.side_dimension)
+    eigenvalues = eigen(Symmetric(matrix_value)).values
+    scale > active && all(value -> value > active, eigenvalues) || return nothing
+    log_determinant = sum(log, eigenvalues) - set_value.side_dimension * log(scale)
+    inverse_matrix = inv(matrix_value)
+    normal = vcat(
+        -one(T),
+        log_determinant - set_value.side_dimension,
+        scale .* _symmetric_triangle_matrix_gradient(inverse_matrix),
+    )
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :logdet_cone_triangle,
+        normal,
+        "gradient of u*log(det(X/u)) - t on the positive-definite log-determinant slice",
+    )
+end
+
+function coupled_set_activity(
+    set_value::MOI.LogDetConeSquare,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :logdet_cone_square, values, nothing, nothing, false,
+            :unavailable, "square log-determinant inputs are missing or non-finite",
+        )
+    end
+    set_value.side_dimension > 0 || return CoupledSetActivity{T}(
+        source, :logdet_cone_square, values, nothing, nothing, false,
+        :unavailable, "zero-dimensional square log-determinant cone has no generic boundary semantics",
+    )
+    numeric = T[value::T for value in values]
+    scale = numeric[2]
+    matrix_value = reshape(numeric[3:end], set_value.side_dimension, set_value.side_dimension)
+    symmetry_violation = maximum(abs, matrix_value .- transpose(matrix_value))
+    if symmetry_violation > feasibility
+        return CoupledSetActivity{T}(
+            source, :logdet_cone_square, values, nothing, symmetry_violation,
+            false, :violated, "square log-determinant cone requires a symmetric matrix",
+        )
+    end
+    eigenvalues = eigen(Symmetric((matrix_value .+ transpose(matrix_value)) ./ 2)).values
+    if scale <= zero(T) || any(value -> value <= zero(T), eigenvalues)
+        return CoupledSetActivity{T}(
+            source, :logdet_cone_square, values, nothing, nothing, false,
+            :unavailable,
+            "log-determinant feasibility requires a positive scale and a positive-definite symmetric matrix",
+        )
+    end
+    log_determinant = sum(log, eigenvalues) - set_value.side_dimension * log(scale)
+    margin = scale * log_determinant - numeric[1]
+    isfinite(margin) || return CoupledSetActivity{T}(
+        source, :logdet_cone_square, values, nothing, nothing, false,
+        :unavailable, "log-determinant range calculation is non-finite",
+    )
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    reason = classification == :boundary &&
+             any(value -> value <= active, eigenvalues) ?
+             "the matrix is positive definite but within the active tolerance of singularity, so the log-determinant tangent is withheld" :
+             classification == :boundary ?
+             "square log-determinant form embeds symmetry equalities; feasibility is available but no single boundary normal is claimed" :
+             nothing
+    return CoupledSetActivity{T}(
+        source, :logdet_cone_square, values, margin, violation,
+        classification == :boundary, classification, reason,
+    )
+end
+
+function coupled_set_activity(
+    set_value::MOI.Scaled{MOI.LogDetConeTriangle},
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :scaled_logdet_cone_triangle, values, nothing, nothing, false,
+            :unavailable, "scaled log-determinant inputs are missing or non-finite",
+        )
+    end
+    numeric = T[value::T for value in values]
+    side_dimension = set_value.set.side_dimension
+    unscaled_numeric = vcat(
+        numeric[1:2],
+        _unscale_symmetric_triangle_coordinates(numeric[3:end], side_dimension),
+    )
+    unscaled = Union{Missing,T}[unscaled_numeric...]
+    raw = coupled_set_activity(set_value.set, source, unscaled, feasibility, active)
+    return CoupledSetActivity{T}(
+        source, :scaled_logdet_cone_triangle, values, raw.margin,
+        raw.feasibility_violation, raw.boundary_active, raw.classification, raw.reason,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.Scaled{MOI.LogDetConeTriangle},
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    side_dimension = set_value.set.side_dimension
+    unscaled_numeric = vcat(
+        numeric[1:2],
+        _unscale_symmetric_triangle_coordinates(numeric[3:end], side_dimension),
+    )
+    unscaled = Union{Missing,T}[unscaled_numeric...]
+    raw_activity = coupled_set_activity(set_value.set, source, unscaled, zero(T), active)
+    raw = coupled_set_tangent_evidence(set_value.set, source, unscaled, raw_activity, active)
+    isnothing(raw) && return nothing
+    normal = vcat(
+        raw.normal[1:2],
+        _scale_symmetric_triangle_gradient(raw.normal[3:end], side_dimension),
+    )
+    return CoupledSetTangentEvidence{T}(
+        source, :scaled_logdet_cone_triangle, normal,
+        "gradient of scaled packed log-determinant coordinates on the positive-definite slice",
+    )
+end
+
+function coupled_set_activity(
+    set_value::MOI.RootDetConeTriangle,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :rootdet_cone_triangle, values, nothing, nothing, false,
+            :unavailable, "root-determinant inputs are missing or non-finite",
+        )
+    end
+    set_value.side_dimension > 0 || return CoupledSetActivity{T}(
+        source, :rootdet_cone_triangle, values, nothing, nothing, false,
+        :unavailable, "zero-dimensional root-determinant cone has no generic boundary semantics",
+    )
+    numeric = T[value::T for value in values]
+    eigenvalues = eigen(Symmetric(_symmetric_triangle_matrix(
+        numeric[2:end], set_value.side_dimension,
+    ))).values
+    minimum_eigenvalue = eigenvalues[1]
+    if minimum_eigenvalue < -feasibility
+        return CoupledSetActivity{T}(
+            source, :rootdet_cone_triangle, values, minimum_eigenvalue,
+            -minimum_eigenvalue, false, :violated,
+            "root-determinant cone requires a positive-semidefinite matrix",
+        )
+    end
+    root_determinant = any(value -> value <= zero(T), eigenvalues) ? zero(T) :
+                       exp(sum(log, eigenvalues) / set_value.side_dimension)
+    isfinite(root_determinant) || return CoupledSetActivity{T}(
+        source, :rootdet_cone_triangle, values, nothing, nothing, false,
+        :unavailable, "root-determinant range calculation is non-finite",
+    )
+    margin = root_determinant - numeric[1]
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    reason = classification == :boundary &&
+             any(value -> value <= active, eigenvalues) ?
+             "the matrix is rank deficient, so the root-determinant boundary has no unique normal" :
+             nothing
+    return CoupledSetActivity{T}(
+        source, :rootdet_cone_triangle, values, margin, violation,
+        classification == :boundary, classification, reason,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.RootDetConeTriangle,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    matrix_value = _symmetric_triangle_matrix(numeric[2:end], set_value.side_dimension)
+    eigenvalues = eigen(Symmetric(matrix_value)).values
+    all(value -> value > active, eigenvalues) || return nothing
+    root_determinant = exp(sum(log, eigenvalues) / set_value.side_dimension)
+    normal = vcat(
+        -one(T),
+        (root_determinant / set_value.side_dimension) .*
+        _symmetric_triangle_matrix_gradient(inv(matrix_value)),
+    )
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :rootdet_cone_triangle,
+        normal,
+        "gradient of det(X)^(1/d) - t at a positive-definite root-determinant boundary",
+    )
+end
+
+function coupled_set_activity(
+    set_value::MOI.RootDetConeSquare,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :rootdet_cone_square, values, nothing, nothing, false,
+            :unavailable, "square root-determinant inputs are missing or non-finite",
+        )
+    end
+    set_value.side_dimension > 0 || return CoupledSetActivity{T}(
+        source, :rootdet_cone_square, values, nothing, nothing, false,
+        :unavailable, "zero-dimensional square root-determinant cone has no generic boundary semantics",
+    )
+    numeric = T[value::T for value in values]
+    matrix_value = reshape(numeric[2:end], set_value.side_dimension, set_value.side_dimension)
+    symmetry_violation = maximum(abs, matrix_value .- transpose(matrix_value))
+    if symmetry_violation > feasibility
+        return CoupledSetActivity{T}(
+            source, :rootdet_cone_square, values, nothing, symmetry_violation,
+            false, :violated, "square root-determinant cone requires a symmetric matrix",
+        )
+    end
+    eigenvalues = eigen(Symmetric((matrix_value .+ transpose(matrix_value)) ./ 2)).values
+    minimum_eigenvalue = eigenvalues[1]
+    if minimum_eigenvalue < -feasibility
+        return CoupledSetActivity{T}(
+            source, :rootdet_cone_square, values, minimum_eigenvalue,
+            -minimum_eigenvalue, false, :violated,
+            "root-determinant cone requires a positive-semidefinite matrix",
+        )
+    end
+    root_determinant = any(value -> value <= zero(T), eigenvalues) ? zero(T) :
+                       exp(sum(log, eigenvalues) / set_value.side_dimension)
+    isfinite(root_determinant) || return CoupledSetActivity{T}(
+        source, :rootdet_cone_square, values, nothing, nothing, false,
+        :unavailable, "root-determinant range calculation is non-finite",
+    )
+    margin = root_determinant - numeric[1]
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    reason = classification == :boundary ?
+             "square root-determinant form embeds symmetry equalities; feasibility is available but no single boundary normal is claimed" :
+             nothing
+    return CoupledSetActivity{T}(
+        source, :rootdet_cone_square, values, margin, violation,
+        classification == :boundary, classification, reason,
+    )
+end
+
+function coupled_set_activity(
+    set_value::MOI.Scaled{MOI.RootDetConeTriangle},
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(
+            source, :scaled_rootdet_cone_triangle, values, nothing, nothing, false,
+            :unavailable, "scaled root-determinant inputs are missing or non-finite",
+        )
+    end
+    numeric = T[value::T for value in values]
+    side_dimension = set_value.set.side_dimension
+    unscaled_numeric = vcat(
+        numeric[1:1],
+        _unscale_symmetric_triangle_coordinates(numeric[2:end], side_dimension),
+    )
+    unscaled = Union{Missing,T}[unscaled_numeric...]
+    raw = coupled_set_activity(set_value.set, source, unscaled, feasibility, active)
+    return CoupledSetActivity{T}(
+        source, :scaled_rootdet_cone_triangle, values, raw.margin,
+        raw.feasibility_violation, raw.boundary_active, raw.classification, raw.reason,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.Scaled{MOI.RootDetConeTriangle},
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    side_dimension = set_value.set.side_dimension
+    unscaled_numeric = vcat(
+        numeric[1:1],
+        _unscale_symmetric_triangle_coordinates(numeric[2:end], side_dimension),
+    )
+    unscaled = Union{Missing,T}[unscaled_numeric...]
+    raw_activity = coupled_set_activity(set_value.set, source, unscaled, zero(T), active)
+    raw = coupled_set_tangent_evidence(set_value.set, source, unscaled, raw_activity, active)
+    isnothing(raw) && return nothing
+    normal = vcat(
+        raw.normal[1:1],
+        _scale_symmetric_triangle_gradient(raw.normal[2:end], side_dimension),
+    )
+    return CoupledSetTangentEvidence{T}(
+        source, :scaled_rootdet_cone_triangle, normal,
+        "gradient of scaled packed root-determinant coordinates at a positive-definite boundary",
+    )
+end
+
+function coupled_set_activity(
+    set_value::MOI.PowerCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(source, :power_cone, values, nothing, nothing, false, :unavailable)
+    end
+    numeric = T[value::T for value in values]
+    exponent = convert(T, set_value.exponent)
+    if numeric[1] < zero(T) || numeric[2] < zero(T)
+        violation = max(-numeric[1], -numeric[2], zero(T))
+        return CoupledSetActivity{T}(
+            source, :power_cone, values, nothing, violation, false, :violated,
+        )
+    end
+    product = numeric[1]^exponent * numeric[2]^(one(T) - exponent)
+    margin = product - abs(numeric[3])
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    return CoupledSetActivity{T}(
+        source, :power_cone, values, margin, violation,
+        classification == :boundary, classification,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.PowerCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    numeric[1] > active && numeric[2] > active && abs(numeric[3]) > active ||
+        return nothing
+    exponent = convert(T, set_value.exponent)
+    product = numeric[1]^exponent * numeric[2]^(one(T) - exponent)
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :power_cone,
+        T[
+            exponent * product / numeric[1],
+            (one(T) - exponent) * product / numeric[2],
+            -sign(numeric[3]),
+        ],
+        "gradient of x^a y^(1-a) - abs(z) at a smooth power-cone boundary",
+    )
+end
+
+function coupled_set_activity(
+    set_value::MOI.DualPowerCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(source, :dual_power_cone, values, nothing, nothing, false, :unavailable)
+    end
+    numeric = T[value::T for value in values]
+    exponent = convert(T, set_value.exponent)
+    complement = one(T) - exponent
+    if numeric[1] < zero(T) || numeric[2] < zero(T)
+        violation = max(-numeric[1], -numeric[2], zero(T))
+        return CoupledSetActivity{T}(
+            source, :dual_power_cone, values, nothing, violation, false, :violated,
+        )
+    end
+    product = (numeric[1] / exponent)^exponent *
+              (numeric[2] / complement)^complement
+    margin = product - abs(numeric[3])
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    return CoupledSetActivity{T}(
+        source, :dual_power_cone, values, margin, violation,
+        classification == :boundary, classification,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    set_value::MOI.DualPowerCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    numeric[1] > active && numeric[2] > active && abs(numeric[3]) > active ||
+        return nothing
+    exponent = convert(T, set_value.exponent)
+    complement = one(T) - exponent
+    product = (numeric[1] / exponent)^exponent *
+              (numeric[2] / complement)^complement
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :dual_power_cone,
+        T[
+            exponent * product / numeric[1],
+            complement * product / numeric[2],
+            -sign(numeric[3]),
+        ],
+        "gradient of (u/a)^a (v/(1-a))^(1-a) - abs(w) at a smooth dual-power-cone boundary",
+    )
+end
+
+function coupled_set_activity(
+    ::MOI.ExponentialCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(source, :exponential_cone, values, nothing, nothing, false, :unavailable)
+    end
+    numeric = T[value::T for value in values]
+    numeric[2] > zero(T) || return CoupledSetActivity{T}(
+        source, :exponential_cone, values, nothing, nothing, false, :unavailable,
+        "the generic exponential-cone slice requires y > 0",
+    )
+    exponential = exp(numeric[1] / numeric[2])
+    isfinite(exponential) || return CoupledSetActivity{T}(
+        source, :exponential_cone, values, nothing, nothing, false, :unavailable,
+        "exp(x / y) is non-finite at the evaluation point",
+    )
+    margin = numeric[3] - numeric[2] * exponential
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    return CoupledSetActivity{T}(
+        source, :exponential_cone, values, margin, violation,
+        classification == :boundary, classification,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    ::MOI.ExponentialCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    numeric[2] > active || return nothing
+    ratio = numeric[1] / numeric[2]
+    exponential = exp(ratio)
+    isfinite(exponential) || return nothing
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :exponential_cone,
+        T[-exponential, exponential * (ratio - one(T)), one(T)],
+        "gradient of z - y * exp(x / y) at a smooth exponential-cone boundary",
+    )
+end
+
+function coupled_set_activity(
+    ::MOI.DualExponentialCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(source, :dual_exponential_cone, values, nothing, nothing, false, :unavailable)
+    end
+    numeric = T[value::T for value in values]
+    numeric[1] < zero(T) || return CoupledSetActivity{T}(
+        source, :dual_exponential_cone, values, nothing, nothing, false, :unavailable,
+        "the generic dual-exponential-cone slice requires u < 0",
+    )
+    exponential = exp(numeric[2] / numeric[1])
+    isfinite(exponential) || return CoupledSetActivity{T}(
+        source, :dual_exponential_cone, values, nothing, nothing, false, :unavailable,
+        "exp(v / u) is non-finite at the evaluation point",
+    )
+    margin = exp(one(T)) * numeric[3] + numeric[1] * exponential
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    return CoupledSetActivity{T}(
+        source, :dual_exponential_cone, values, margin, violation,
+        classification == :boundary, classification,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    ::MOI.DualExponentialCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    numeric[1] < -active || return nothing
+    ratio = numeric[2] / numeric[1]
+    exponential = exp(ratio)
+    isfinite(exponential) || return nothing
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :dual_exponential_cone,
+        T[exponential * (one(T) - ratio), exponential, exp(one(T))],
+        "gradient of exp(1) * w + u * exp(v / u) at a smooth dual-exponential-cone boundary",
+    )
+end
+
+function coupled_set_activity(
+    ::MOI.GeometricMeanCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(source, :geometric_mean_cone, values, nothing, nothing, false, :unavailable)
+    end
+    numeric = T[value::T for value in values]
+    tail = numeric[2:end]
+    if any(value -> value < zero(T), tail)
+        violation = maximum((-value for value in tail if value < zero(T)); init = zero(T))
+        return CoupledSetActivity{T}(
+            source, :geometric_mean_cone, values, nothing, violation, false, :violated,
+        )
+    end
+    exponent = inv(T(length(tail)))
+    mean_value = prod(tail)^exponent
+    margin = mean_value - numeric[1]
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    return CoupledSetActivity{T}(
+        source, :geometric_mean_cone, values, margin, violation,
+        classification == :boundary, classification,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    ::MOI.GeometricMeanCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    tail = numeric[2:end]
+    all(value -> value > active, tail) || return nothing
+    exponent = inv(T(length(tail)))
+    mean_value = prod(tail)^exponent
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :geometric_mean_cone,
+        vcat(-one(T), [mean_value * exponent / value for value in tail]),
+        "gradient of geometric_mean(x) - t at a smooth geometric-mean-cone boundary",
+    )
+end
+
+function coupled_set_activity(
+    ::MOI.RelativeEntropyCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    feasibility::T,
+    active::T,
+) where {T<:AbstractFloat}
+    if any(ismissing, values) || any(value -> !ismissing(value) && !isfinite(value), values)
+        return CoupledSetActivity{T}(source, :relative_entropy_cone, values, nothing, nothing, false, :unavailable)
+    end
+    numeric = T[value::T for value in values]
+    count = (length(numeric) - 1) ÷ 2
+    v = numeric[2:(count + 1)]
+    w = numeric[(count + 2):end]
+    all(value -> value > zero(T), v) && all(value -> value > zero(T), w) ||
+        return CoupledSetActivity{T}(
+            source, :relative_entropy_cone, values, nothing, nothing, false, :unavailable,
+            "the generic relative-entropy slice requires every v and w coordinate to be positive",
+        )
+    entropy = sum(weight * log(weight / reference) for (reference, weight) in zip(v, w))
+    isfinite(entropy) || return CoupledSetActivity{T}(
+        source, :relative_entropy_cone, values, nothing, nothing, false, :unavailable,
+        "the relative-entropy sum is non-finite at the evaluation point",
+    )
+    margin = numeric[1] - entropy
+    violation = max(-margin, zero(T))
+    classification = violation > feasibility ? :violated :
+                     abs(margin) <= active ? :boundary : :interior
+    return CoupledSetActivity{T}(
+        source, :relative_entropy_cone, values, margin, violation,
+        classification == :boundary, classification,
+    )
+end
+
+function coupled_set_tangent_evidence(
+    ::MOI.RelativeEntropyCone,
+    source::EntityRef,
+    values::Vector{Union{Missing,T}},
+    activity::CoupledSetActivity{T},
+    active::T,
+) where {T<:AbstractFloat}
+    activity.classification == :boundary || return nothing
+    any(ismissing, values) && return nothing
+    numeric = T[value::T for value in values]
+    count = (length(numeric) - 1) ÷ 2
+    v = numeric[2:(count + 1)]
+    w = numeric[(count + 2):end]
+    all(value -> value > active, v) && all(value -> value > active, w) ||
+        return nothing
+    return CoupledSetTangentEvidence{T}(
+        source,
+        :relative_entropy_cone,
+        vcat(
+            one(T),
+            w ./ v,
+            [-(log(weight / reference) + one(T)) for (reference, weight) in zip(v, w)],
+        ),
+        "gradient of u - sum(w .* log.(w ./ v)) at a smooth relative-entropy-cone boundary",
     )
 end
 
@@ -325,10 +1722,9 @@ end
 """
     coupled_set_feasibility_summary(model, evaluation; ...)
 
-Evaluate generic vector-set feasibility without scalarizing its activity
-semantics. The current core supports second-order and rotated second-order
-cones. Domain packages may extend `coupled_set_activity` for other coupled
-MOI set types.
+Evaluate supported generic vector-set feasibility without scalarizing its
+activity semantics. Domain packages may extend `coupled_set_activity` for
+other coupled MOI set types.
 """
 function coupled_set_feasibility_summary(
     model::MOI.ModelLike,
@@ -370,15 +1766,38 @@ function coupled_set_feasibility_summary(
             feasibility,
             active,
         )
-        isnothing(activity) && continue
+        if isnothing(activity)
+            activity = CoupledSetActivity{T}(
+                source,
+                :unsupported_coupled_set,
+                source_values,
+                nothing,
+                nothing,
+                false,
+                :unavailable,
+                "no generic coupled-set activity semantics are registered for this set",
+            )
+        end
         push!(activities, activity)
         tangent = coupled_set_tangent_evidence(
             set_value, source, source_values, activity, active,
         )
         isnothing(tangent) || push!(tangents, tangent)
     end
+    unavailable = CoupledSetActivity{T}[
+        activity for activity in activities if activity.classification == :unavailable
+    ]
+    reasons = unique(String[
+        activity.reason for activity in unavailable if !isnothing(activity.reason)
+    ])
     return CoupledSetFeasibilitySummary{T}(
-        evaluation.point, activities, tangents, feasibility, active,
+        evaluation.point,
+        activities,
+        tangents,
+        feasibility,
+        active,
+        isempty(unavailable),
+        isempty(reasons) ? nothing : join(reasons, "; "),
     )
 end
 
