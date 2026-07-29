@@ -344,6 +344,7 @@ struct MFCQScreen{T<:AbstractFloat}
     failure_witness_projected_gradient_scale::Union{Nothing,T}
     failure_witness_effective_tolerance::Union{Nothing,T}
     failure_witness_iterations::Int
+    failure_witness_converged::Bool
     equality_jacobian_rank::Union{Nothing,Int}
     equality_jacobian_threshold::Union{Nothing,T}
 end
@@ -365,7 +366,7 @@ function MFCQScreen{T}(
         available, reason, equality_rows, inequality_rows, direction_found,
         direction, largest_active_inequality_directional_derivative,
         failure_witness_found, failure_witness_weights, failure_witness_residual,
-        nothing, nothing, 0, nothing, nothing,
+        nothing, nothing, 0, false, nothing, nothing,
     )
 end
 
@@ -390,7 +391,7 @@ function MFCQScreen{T}(
         direction, largest_active_inequality_directional_derivative,
         failure_witness_found, failure_witness_weights, failure_witness_residual,
         failure_witness_projected_gradient_scale,
-        failure_witness_effective_tolerance, failure_witness_iterations,
+        failure_witness_effective_tolerance, failure_witness_iterations, false,
         nothing, nothing,
     )
 end

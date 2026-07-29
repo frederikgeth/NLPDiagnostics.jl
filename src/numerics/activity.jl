@@ -582,17 +582,17 @@ function mfcq_screen(
     equality_estimate.available || return MFCQScreen{T}(
         false, equality_estimate.reason, equalities, inequality_rows, false,
         zeros(T, length(evaluation.point.variables)), nothing, false, T[], nothing,
-        nothing, nothing, 0, nothing, nothing,
+        nothing, nothing, 0, false, nothing, nothing,
     )
     equality_estimate.rank == length(equalities) || return MFCQScreen{T}(
         true, "equality Jacobian is rank deficient", equalities, inequality_rows,
         false, zeros(T, length(evaluation.point.variables)), nothing, false, T[], nothing,
-        nothing, nothing, 0, equality_estimate.rank, equality_estimate.threshold,
+        nothing, nothing, 0, false, equality_estimate.rank, equality_estimate.threshold,
     )
     isempty(inequality_rows) && return MFCQScreen{T}(
         true, nothing, equalities, inequality_rows, true,
         zeros(T, length(evaluation.point.variables)), nothing, false, T[], nothing,
-        nothing, nothing, 0, equality_estimate.rank, equality_estimate.threshold,
+        nothing, nothing, 0, false, equality_estimate.rank, equality_estimate.threshold,
     )
     tangent = equality_estimate.right_nullspace
     jacobian = _combined_jacobian_matrix(evaluation)
@@ -647,6 +647,7 @@ function mfcq_screen(
         projected_row_scale,
         effective_witness_tolerance,
         witness_iterations,
+        witness_converged,
         equality_estimate.rank,
         equality_estimate.threshold,
     )

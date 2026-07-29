@@ -489,3 +489,19 @@ identifies the joint `(y, x) = (0, 0)` singularity.
 
 PowerModels and multiconductor semantics should begin only after these generic
 interfaces have tests and extension points.
+
+## Cone-aware qualification boundary
+
+Scalar LICQ and MFCQ use selected scalar rows only. A smooth SOC or rotated-SOC
+boundary instead supplies an output-space normal which can be mapped through
+the vector-function Jacobian. That mapped gradient is useful local geometry,
+but it must not be silently inserted into scalar row selection, multiplier
+recovery, or MFCQ witnesses.
+
+A future cone-aware qualification screen should accept explicit
+`CoupledSetTangentEvidence` values and evaluate a separately labeled tangent
+system. Its report must retain: the coupled-set source, ordered vector rows,
+normal, mapped-gradient derivative provenance, cone multiplier convention, and
+the distinction between a smooth boundary, SOC apex, and rotated-SOC axis.
+Until that interface exists, the generic core reports coupled-set tangent
+geometry only and leaves scalar LICQ/MFCQ unchanged.

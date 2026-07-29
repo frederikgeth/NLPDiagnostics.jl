@@ -699,6 +699,8 @@ function _active_set_findings(
                             "relative_support_threshold" => mfcq_support_relative,
                             "convex_hull_weights" =>
                                 join(mfcq.failure_witness_weights, ","),
+                            "convex_hull_weight_sum" =>
+                                sum(mfcq.failure_witness_weights),
                             "material_witness_rows" => join(witness_rows, ","),
                             "material_witness_weights" => join(witness_weights, ","),
                             "projected_gradient_scale" =>
@@ -706,6 +708,7 @@ function _active_set_findings(
                             "effective_witness_tolerance" =>
                                 mfcq.failure_witness_effective_tolerance,
                             "witness_iterations" => mfcq.failure_witness_iterations,
+                            "witness_converged" => mfcq.failure_witness_converged,
                         ],
                     ),
                 ],
@@ -760,6 +763,7 @@ function _active_set_findings(
                                 ",",
                             ),
                             "witness_weights" => join(mfcq.failure_witness_weights, ","),
+                            "witness_weight_sum" => sum(mfcq.failure_witness_weights),
                             "material_support_rows" => join(support_rows, ","),
                             "material_support_weights" => join(support_weights, ","),
                             "relative_support_threshold" => mfcq_support_relative,
@@ -769,6 +773,7 @@ function _active_set_findings(
                             "effective_witness_tolerance" =>
                                 mfcq.failure_witness_effective_tolerance,
                             "witness_iterations" => mfcq.failure_witness_iterations,
+                            "witness_converged" => mfcq.failure_witness_converged,
                         ],
                     ),
                 ],
@@ -860,6 +865,7 @@ function _active_set_findings(
                     "effective_witness_tolerance" =>
                         mfcq.failure_witness_effective_tolerance,
                     "witness_iterations" => mfcq.failure_witness_iterations,
+                    "witness_converged" => mfcq.failure_witness_converged,
                 ]),
             ],
             affected = affected,
@@ -2168,13 +2174,20 @@ function _coupled_set_tangent_gradient_findings(
         gradient_norm = norm(gradient)
         support = findall(value -> !iszero(value), gradient)
         zero_gradient = iszero(gradient_norm)
+        derivative_methods = sort(unique(string.(evaluation.jacobian_row_methods[rows])))
+        finite_difference_gradient = any(
+            method in ("central_finite_difference", "partial_central_finite_difference")
+            for method in derivative_methods
+        )
         push!(findings, Finding(
             zero_gradient ? :coupled_set_smooth_boundary_tangent_gradient_zero :
                             :coupled_set_smooth_boundary_tangent_gradient_available;
             severity = zero_gradient ? SeverityWarning : SeverityInfo,
-            domain = zero_gradient ? NumericalIssue : RepresentationalIssue,
-            basis = zero_gradient ? LocalInference : MathematicalProof,
-            confidence = ConfidenceHigh,
+            domain = zero_gradient || finite_difference_gradient ? NumericalIssue :
+                     RepresentationalIssue,
+            basis = zero_gradient ? LocalInference :
+                    (finite_difference_gradient ? NumericalObservation : MathematicalProof),
+            confidence = finite_difference_gradient ? ConfidenceMedium : ConfidenceHigh,
             observation = zero_gradient ?
                           "The smooth $(tangent.set_kind) boundary normal maps to a zero model-coordinate gradient at this point." :
                           "The smooth $(tangent.set_kind) boundary normal maps to a nonzero model-coordinate gradient at this point.",
@@ -2183,6 +2196,8 @@ function _coupled_set_tangent_gradient_findings(
                              "The gradient is usable as cone-aware local geometry, but it is intentionally not folded into generic scalar LICQ, MFCQ, or multiplier recovery.",
             evidence = [Evidence("Coupled-set tangent gradient"; details = [
                 "set_kind" => tangent.set_kind,
+                "vector_rows" => join(rows, ","),
+                "derivative_methods" => join(derivative_methods, ","),
                 "gradient_norm" => gradient_norm,
                 "support_coordinate_count" => length(support),
             ])],
@@ -2413,6 +2428,8 @@ function analyze_active_set(
         string(mfcq.failure_witness_effective_tolerance)
     report.metadata[:mfcq_witness_iterations] =
         string(mfcq.failure_witness_iterations)
+    report.metadata[:mfcq_witness_converged] =
+        string(mfcq.failure_witness_converged)
     report.metadata[:mfcq_strict_tolerance] = string(mfcq_strict_tolerance)
     report.metadata[:mfcq_witness_tolerance] = string(mfcq_witness_tolerance)
     report.metadata[:mfcq_witness_relative_tolerance] =

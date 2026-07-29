@@ -4324,6 +4324,9 @@ end
         @test opposing_screen.failure_witness_iterations > 0
         opposing_report = NLPDiagnostics.analyze_active_set(opposing, [0.0])
         @test length(findings(opposing_report, :mfcq_no_common_descent_witness)) == 1
+        @test parse(Float64, Dict(only(findings(
+            opposing_report, :mfcq_no_common_descent_witness,
+        )).evidence[end].details)["witness_weight_sum"]) ≈ 1.0
         opposing_witness = only(findings(
             opposing_report, :mfcq_no_common_descent_witness,
         ))
@@ -4382,6 +4385,7 @@ end
         @test limited_mfcq_report.metadata[
             :mfcq_witness_max_iterations
         ] == "1"
+        @test haskey(limited_mfcq_report.metadata, :mfcq_witness_converged)
         scaled_witness_report = NLPDiagnostics.analyze_active_set(
             unbalanced_descent,
             unbalanced_evaluation;
@@ -5124,6 +5128,33 @@ end
             cone_report,
             :coupled_set_smooth_boundary_tangent_gradient_available,
         )) == 1
+        cone_gradient_finding = only(findings(
+            cone_report, :coupled_set_smooth_boundary_tangent_gradient_available,
+        ))
+        @test cone_gradient_finding.basis == NLPDiagnostics.MathematicalProof
+        @test Dict(cone_gradient_finding.evidence[end].details)["derivative_methods"] ==
+              "exact_symbolic"
+        finite_difference_cone_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+            cone_evaluation.point,
+            cone_evaluation.objective_value,
+            cone_evaluation.objective_source,
+            cone_evaluation.objective_gradient,
+            cone_evaluation.constraint_values,
+            cone_evaluation.constraint_sources,
+            cone_evaluation.jacobian_entries,
+            fill(:central_finite_difference, length(cone_evaluation.jacobian_row_methods)),
+            cone_evaluation.capabilities,
+            cone_evaluation.failures,
+        )
+        finite_difference_cone_report = NLPDiagnostics.analyze_active_set(
+            cone_model, finite_difference_cone_evaluation,
+        )
+        finite_difference_cone_gradient = only(findings(
+            finite_difference_cone_report,
+            :coupled_set_smooth_boundary_tangent_gradient_available,
+        ))
+        @test finite_difference_cone_gradient.basis == NLPDiagnostics.NumericalObservation
+        @test finite_difference_cone_gradient.confidence == NLPDiagnostics.ConfidenceMedium
         cone_apex_report = NLPDiagnostics.analyze_active_set(cone_model, [0.0, 0.0])
         @test length(findings(
             cone_apex_report,

@@ -186,7 +186,8 @@ Successful common-descent findings retain the convex-hull weights, their
 materially weighted active rows, and the witness scale/tolerance/iteration
 provenance, so the direction is inspectable rather than a bare boolean.
 Both common-descent and no-common-descent findings also retain the derivative
-methods for their equality and inequality rows.
+methods for their equality and inequality rows, together with the convex-hull
+weight sum for direct witness-normalization checks.
 If neither result can be obtained, `mfcq_screen_inconclusive` records that the
 screen made no MFCQ claim; derivative unavailability instead produces
 `mfcq_screen_unavailable`. The active-set API exposes
@@ -203,6 +204,8 @@ is itself part of MFCQ. The result remains a local numerical observation under
 the recorded rank tolerance. Both the equality rank and threshold are also
 available as `mfcq_equality_jacobian_rank` and
 `mfcq_equality_jacobian_threshold` metadata.
+The separate `mfcq_witness_converged` metadata distinguishes completion of the
+convex-hull iteration from the stronger no-common-descent witness conclusion.
 For every attempted inequality witness, report metadata retains the observed
 projected-gradient scale, effective witness tolerance, and iteration count;
 the corresponding witness or inconclusive finding carries the same evidence.
@@ -387,8 +390,10 @@ hook for other coupled sets. These normals remain coupled-set evidence and are
 never silently inserted into scalar LICQ, MFCQ, or multiplier calculations.
 For aligned vector outputs, the generic active-set report also maps a smooth
 boundary normal through the vector-function Jacobian and records its
-model-coordinate gradient. A zero mapped gradient is reported as local
+model-coordinate gradient together with the aligned derivative methods. A zero mapped gradient is reported as local
 stationarity evidence, not treated as a regular scalar cone tangent.
+When those vector rows use finite differences, the mapped gradient is retained
+as a numerical observation rather than a mathematical proof.
 
 ## Structural versus numerical degeneracy
 
