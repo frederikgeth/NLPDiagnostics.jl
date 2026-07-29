@@ -248,6 +248,34 @@ function operator_derivative_requirements(
                 ),
             )
         end
+    elseif head in (:csch, :coth)
+        assessment = _nonzero_domain_assessment(value)
+        for order in 1:2
+            push!(
+                requirements,
+                _derivative_requirement(
+                    order,
+                    1,
+                    assessment,
+                    "argument ≠ 0 for a finite derivative",
+                    value,
+                ),
+            )
+        end
+    elseif head == :acoth
+        assessment = _endpoint_assessment(value, (-1.0, 1.0))
+        for order in 1:2
+            push!(
+                requirements,
+                _derivative_requirement(
+                    order,
+                    1,
+                    assessment,
+                    "|argument| > 1 for a finite derivative",
+                    value,
+                ),
+            )
+        end
     elseif head in (:tan, :sec)
         assessment =
             _periodic_singularity_assessment(value, pi / 2, pi)

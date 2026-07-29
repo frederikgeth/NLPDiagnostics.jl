@@ -171,7 +171,10 @@ It matches free variables to only the aligned equality and selected near-active
 scalar inequality rows. Its activity selection is numerical evidence, whereas
 the matching conclusion is structural for that selected pattern. Callback and
 coupled-set rows that cannot be aligned remain visible as unmapped rows rather
-than being silently omitted.
+than being silently omitted. An incomplete alignment emits
+`active_set_structural_matching_unavailable`; the generic core then withholds
+matching-based overdetermination and structural-versus-numerical tangent
+claims rather than silently narrowing their scope.
 
 Second-order and rotated-second-order cones additionally receive generic
 vector-set feasibility and boundary reports through
@@ -343,6 +346,8 @@ count; it returns no summary for an empty trace.
 the printed iteration number decreases. The final-residual regression heuristic
 uses only the final segment, avoiding comparisons against an earlier logged
 solve; a segment boundary is not attributed to a specific solver event.
+Final-segment findings retain their start/end log lines and printed iteration
+range in report metadata and evidence for trace provenance.
 `analyze_solver_iterations(solver, log)` reports a final recorded residual,
 an optional residual-regression heuristic, and an optional final-segment tail
 stagnation heuristic. The latter requires at least three final-segment rows
@@ -353,8 +358,24 @@ When the same final window stays above tolerance and every parsed primal-step
 column is below `small_primal_step_threshold`, it separately reports a stalled-
 step heuristic. This does not assign a line-search or restoration cause to the
 trace.
+When one printed residual persistently dominates the other by an explicit
+factor, the report records that primal-versus-dual imbalance as an observation
+to guide follow-up diagnostics; it does not treat the column ratio as a
+solver-independent KKT conclusion.
 Rows with a solver-specific iteration suffix are also surfaced as annotation
 evidence. Their meaning is intentionally not generalized across solvers.
+The separate raw-log scanner preserves explicit solver text about reported
+unboundedness and diverging iterates. Both are numerical observations of a run,
+not proofs of a global objective ray, physical instability, or model failure.
+Normalized solver postmortems carry the same distinction for native
+`diverging_iterates` and `slow_progress` statuses, so solver extensions retain
+their provenance without converting them into mathematical certificates.
+Invalid-model/option and memory-limit statuses are separately retained as
+representation and resource outcomes, preventing solver configuration or
+capacity failures from being mislabeled as mathematical diagnoses.
+Acceptable-solution, feasible-point, and interrupted statuses likewise retain
+their native non-final semantics rather than being silently collapsed into
+successful convergence.
 
 ## Bound iteration points
 

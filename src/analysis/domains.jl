@@ -1705,6 +1705,15 @@ function operator_domain_requirements(
                 "argument ≠ 0",
             ),
         )
+    elseif head in (:csch, :coth)
+        push!(
+            requirements,
+            OperatorDomainRequirement(
+                1,
+                _nonzero_domain_assessment(argument_intervals[1]),
+                "argument ≠ 0",
+            ),
+        )
     elseif head == :acoth
         push!(
             requirements,

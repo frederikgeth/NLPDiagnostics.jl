@@ -1217,6 +1217,58 @@ end
     @test length(crossing_plan.guards) == 1
     @test !only(crossing_plan.guards).materializable
 
+    asech_guard_model = MOIU.Model{Float64}()
+    asech_argument = MOI.add_variable(asech_guard_model)
+    MOI.add_constraint(asech_guard_model, asech_argument, MOI.Interval(0.0, 1.0))
+    MOI.add_constraint(
+        asech_guard_model,
+        MOI.ScalarNonlinearFunction(:asech, Any[asech_argument]),
+        MOI.LessThan(10.0),
+    )
+    asech_plan = NLPDiagnostics.elastic_domain_guard_plan(asech_guard_model)
+    @test only(asech_plan.guards).materializable
+    asech_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        asech_guard_model;
+        domain_guard_margin = 1e-5,
+    )
+    mapped_asech = asech_auxiliary.source_variable_map[asech_argument]
+    asech_lower_guards = MOI.get(
+        asech_auxiliary.model,
+        MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}}(),
+    )
+    @test any(
+        index ->
+            only(MOI.get(asech_auxiliary.model, MOI.ConstraintFunction(), index).terms).variable == mapped_asech &&
+            MOI.get(asech_auxiliary.model, MOI.ConstraintSet(), index).lower == 1e-5,
+        asech_lower_guards,
+    )
+
+    acoth_guard_model = MOIU.Model{Float64}()
+    acoth_argument = MOI.add_variable(acoth_guard_model)
+    MOI.add_constraint(acoth_guard_model, acoth_argument, MOI.Interval(1.0, 2.0))
+    MOI.add_constraint(
+        acoth_guard_model,
+        MOI.ScalarNonlinearFunction(:acoth, Any[acoth_argument]),
+        MOI.LessThan(10.0),
+    )
+    acoth_plan = NLPDiagnostics.elastic_domain_guard_plan(acoth_guard_model)
+    @test only(acoth_plan.guards).materializable
+    acoth_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        acoth_guard_model;
+        domain_guard_margin = 1e-5,
+    )
+    mapped_acoth = acoth_auxiliary.source_variable_map[acoth_argument]
+    acoth_lower_guards = MOI.get(
+        acoth_auxiliary.model,
+        MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}}(),
+    )
+    @test any(
+        index ->
+            only(MOI.get(acoth_auxiliary.model, MOI.ConstraintFunction(), index).terms).variable == mapped_acoth &&
+            MOI.get(acoth_auxiliary.model, MOI.ConstraintSet(), index).lower == 1.00001,
+        acoth_lower_guards,
+    )
+
     bound_model = MOIU.Model{Float64}()
     b = MOI.add_variable(bound_model)
     bound = MOI.add_constraint(bound_model, b, MOI.GreaterThan(1.0))
@@ -1622,6 +1674,8 @@ end
             (:sind, MOI.GreaterThan(1.1)),
             (:cosd, MOI.LessThan(-1.1)),
             (:tanh, MOI.GreaterThan(1.0)),
+            (:sech, MOI.EqualTo(0.0)),
+            (:sech, MOI.GreaterThan(1.1)),
             (:asin, MOI.GreaterThan(pi / 2 + 0.1)),
             (:acos, MOI.LessThan(-0.1)),
             (:acos, MOI.GreaterThan(pi + 0.1)),
@@ -1630,6 +1684,10 @@ end
             (:acosd, MOI.LessThan(-0.1)),
             (:acosd, MOI.GreaterThan(180.1)),
             (:atand, MOI.EqualTo(90.0)),
+            (:asec, MOI.LessThan(-0.1)),
+            (:asecd, MOI.GreaterThan(180.1)),
+            (:acsc, MOI.GreaterThan(pi / 2 + 0.1)),
+            (:acscd, MOI.LessThan(-90.1)),
         ]
             range_model = new_model()
             range_x = MOI.add_variable(range_model)
@@ -1658,6 +1716,159 @@ end
             NLPDiagnostics.analyze_static(boundary_cosh),
             :infeasible_unary_operator_range_constraint,
         ))
+
+        boundary_sech = new_model()
+        boundary_sech_x = MOI.add_variable(boundary_sech)
+        MOI.add_constraint(
+            boundary_sech,
+            MOI.ScalarNonlinearFunction(:sech, Any[boundary_sech_x]),
+            MOI.EqualTo(1.0),
+        )
+        @test isempty(findings(
+            NLPDiagnostics.analyze_static(boundary_sech),
+            :infeasible_unary_operator_range_constraint,
+        ))
+
+        for (operator, endpoint, implied) in [
+            (:asin, pi / 2, 1.0),
+            (:acos, Float64(pi), -1.0),
+            (:asec, 0.0, 1.0),
+            (:acsc, -pi / 2, -1.0),
+            (:asind, 90.0, 1.0),
+            (:acosd, 180.0, -1.0),
+            (:asecd, 0.0, 1.0),
+            (:acscd, -90.0, -1.0),
+        ]
+            endpoint_model = new_model()
+            endpoint_x = MOI.add_variable(endpoint_model)
+            MOI.add_constraint(
+                endpoint_model,
+                MOI.ScalarNonlinearFunction(operator, Any[endpoint_x]),
+                MOI.EqualTo(endpoint),
+            )
+            endpoint_finding = only(findings(
+                NLPDiagnostics.analyze_static(endpoint_model),
+                :inverse_trigonometric_endpoint_implies_fixed_variable,
+            ))
+            @test endpoint_finding.basis == NLPDiagnostics.MathematicalProof
+            @test evidence_details(endpoint_finding)["implied_value"] == string(implied)
+        end
+
+        endpoint_bound_conflict = new_model()
+        endpoint_bound_x = MOI.add_variable(endpoint_bound_conflict)
+        MOI.add_constraint(endpoint_bound_conflict, endpoint_bound_x, MOI.LessThan(0.9))
+        MOI.add_constraint(
+            endpoint_bound_conflict,
+            MOI.ScalarNonlinearFunction(:asin, Any[endpoint_bound_x]),
+            MOI.EqualTo(pi / 2),
+        )
+        conflict = only(findings(
+            NLPDiagnostics.analyze_static(endpoint_bound_conflict),
+            :inconsistent_inverse_trigonometric_endpoint_variable_bound,
+        ))
+        @test conflict.basis == NLPDiagnostics.MathematicalProof
+        @test evidence_details(conflict)["implied_value"] == "1.0"
+
+        for (operator, endpoint, implied) in [
+            (:sinh, 0.0, 0.0),
+            (:tanh, 0.0, 0.0),
+            (:cosh, 1.0, 0.0),
+            (:sech, 1.0, 0.0),
+            (:logcosh, 0.0, 0.0),
+            (:acosh, 0.0, 1.0),
+            (:asech, 0.0, 1.0),
+        ]
+            endpoint_model = new_model()
+            endpoint_x = MOI.add_variable(endpoint_model)
+            MOI.add_constraint(
+                endpoint_model,
+                MOI.ScalarNonlinearFunction(operator, Any[endpoint_x]),
+                MOI.EqualTo(endpoint),
+            )
+            endpoint_finding = only(findings(
+                NLPDiagnostics.analyze_static(endpoint_model),
+                :hyperbolic_endpoint_implies_fixed_variable,
+            ))
+            @test endpoint_finding.basis == NLPDiagnostics.MathematicalProof
+            @test evidence_details(endpoint_finding)["implied_value"] == string(implied)
+        end
+
+        hyperbolic_bound_conflict = new_model()
+        hyperbolic_bound_x = MOI.add_variable(hyperbolic_bound_conflict)
+        MOI.add_constraint(hyperbolic_bound_conflict, hyperbolic_bound_x, MOI.GreaterThan(0.1))
+        MOI.add_constraint(
+            hyperbolic_bound_conflict,
+            MOI.ScalarNonlinearFunction(:cosh, Any[hyperbolic_bound_x]),
+            MOI.EqualTo(1.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_static(hyperbolic_bound_conflict),
+            :inconsistent_hyperbolic_endpoint_variable_bound,
+        )) == 1
+
+        for (operator, level, implied) in [
+            (:exp, 1.0, 0.0),
+            (:expm1, 0.0, 0.0),
+            (:log, 0.0, 1.0),
+            (:log1p, 0.0, 0.0),
+            (:logistic, 0.5, 0.0),
+            (:cbrt, 0.0, 0.0),
+            (:softplus, log(2.0), 0.0),
+            (:log1pexp, log(2.0), 0.0),
+            (:log1exp, log(2.0), 0.0),
+            (:log1mexp, -log(2.0), -log(2.0)),
+        ]
+            reference_model = new_model()
+            reference_x = MOI.add_variable(reference_model)
+            MOI.add_constraint(
+                reference_model,
+                MOI.ScalarNonlinearFunction(operator, Any[reference_x]),
+                MOI.EqualTo(level),
+            )
+            reference_finding = only(findings(
+                NLPDiagnostics.analyze_static(reference_model),
+                :elementary_reference_level_implies_fixed_variable,
+            ))
+            @test reference_finding.basis == NLPDiagnostics.MathematicalProof
+            @test evidence_details(reference_finding)["implied_value"] == string(implied)
+        end
+
+        elementary_bound_conflict = new_model()
+        elementary_bound_x = MOI.add_variable(elementary_bound_conflict)
+        MOI.add_constraint(elementary_bound_conflict, elementary_bound_x, MOI.GreaterThan(0.1))
+        MOI.add_constraint(
+            elementary_bound_conflict,
+            MOI.ScalarNonlinearFunction(:exp, Any[elementary_bound_x]),
+            MOI.EqualTo(1.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_static(elementary_bound_conflict),
+            :inconsistent_elementary_reference_level_variable_bound,
+        )) == 1
+
+        for (operator, set_value) in [
+            (:sec, MOI.EqualTo(0.0)),
+            (:csc, MOI.Interval(-0.5, 0.5)),
+            (:secd, MOI.EqualTo(0.0)),
+            (:cscd, MOI.Interval(-0.5, 0.5)),
+            (:acsc, MOI.EqualTo(0.0)),
+            (:acscd, MOI.Interval(0.0, 0.0)),
+        ]
+            range_model = new_model()
+            range_x = MOI.add_variable(range_model)
+            MOI.add_constraint(
+                range_model,
+                MOI.ScalarNonlinearFunction(operator, Any[range_x]),
+                set_value,
+            )
+            range_finding = only(findings(
+                NLPDiagnostics.analyze_static(range_model),
+                :infeasible_reciprocal_trigonometric_range_constraint,
+            ))
+            @test range_finding.basis == NLPDiagnostics.MathematicalProof
+            @test range_finding.confidence == NLPDiagnostics.ConfidenceCertain
+            @test evidence_details(range_finding)["operator"] == string(operator)
+        end
 
         boundary_acos = new_model()
         boundary_acos_x = MOI.add_variable(boundary_acos)
@@ -1867,6 +2078,29 @@ end
         @test length(
             findings(objective_report, :constant_bound_resolved_minmax_objective),
         ) == 1
+    end
+
+    @testset "reciprocal-hyperbolic output ranges" begin
+        for (operator, set_value, expected_range) in [
+            (:csch, MOI.EqualTo(0.0), "(-∞, 0) ∪ (0, ∞)"),
+            (:acsch, MOI.EqualTo(0.0), "(-∞, 0) ∪ (0, ∞)"),
+            (:acoth, MOI.Interval(0.0, 0.0), "(-∞, 0) ∪ (0, ∞)"),
+            (:coth, MOI.Interval(-1.0, 1.0), "(-∞, -1) ∪ (1, ∞)"),
+        ]
+            range_model = new_model()
+            x = MOI.add_variable(range_model)
+            MOI.add_constraint(
+                range_model,
+                MOI.ScalarNonlinearFunction(operator, Any[x]),
+                set_value,
+            )
+            finding = only(findings(
+                NLPDiagnostics.analyze_static(range_model),
+                :infeasible_reciprocal_hyperbolic_range_constraint,
+            ))
+            @test finding.basis == NLPDiagnostics.MathematicalProof
+            @test Dict(finding.evidence[1].details)["operator_range"] == expected_range
+        end
     end
 
     @testset "discrete sign-function rows" begin
@@ -2798,6 +3032,28 @@ end
         @test Dict(ratio_finding.evidence[1].details)[
             "quadrant_aware_julia_convention"
         ] == "atan(y, x)"
+        zero_risk = only(findings(
+            NLPDiagnostics.analyze_static(ratio_model),
+            :atan_ratio_denominator_may_be_zero,
+        ))
+        @test zero_risk.domain == NLPDiagnostics.NumericalIssue
+        @test Dict(zero_risk.evidence[1].details)["zero_contained"] == "true"
+
+        protected_ratio_model = new_model()
+        protected_denominator, protected_numerator = MOI.add_variables(protected_ratio_model, 2)
+        MOI.add_constraint(protected_ratio_model, protected_denominator, MOI.GreaterThan(0.1))
+        protected_ratio = MOI.ScalarNonlinearFunction(
+            :/, Any[protected_numerator, protected_denominator],
+        )
+        MOI.add_constraint(
+            protected_ratio_model,
+            MOI.ScalarNonlinearFunction(:atan, Any[protected_ratio]),
+            MOI.LessThan(2.0),
+        )
+        @test isempty(findings(
+            NLPDiagnostics.analyze_static(protected_ratio_model),
+            :atan_ratio_denominator_may_be_zero,
+        ))
 
         two_argument_model = new_model()
         x, y = MOI.add_variables(two_argument_model, 2)
@@ -2933,6 +3189,35 @@ end
         square = MOI.ScalarNonlinearFunction(:^, Any[x, 2])
         MOI.add_constraint(integer_model, square, MOI.LessThan(4.0))
         @test isempty(NLPDiagnostics.domain_issues(integer_model))
+    end
+
+    @testset "reciprocal-hyperbolic value and derivative domains" begin
+        value_model = new_model()
+        x = MOI.add_variable(value_model)
+        MOI.add_constraint(value_model, x, MOI.EqualTo(0.0))
+        MOI.add_constraint(
+            value_model,
+            MOI.ScalarNonlinearFunction(:csch, Any[x]),
+            MOI.LessThan(1.0),
+        )
+        value_issue = only(NLPDiagnostics.domain_issues(value_model))
+        @test value_issue.assessment == NLPDiagnostics.DomainProvenViolation
+        @test value_issue.requirement == "argument ≠ 0"
+
+        derivative_model = new_model()
+        y = MOI.add_variable(derivative_model)
+        MOI.add_constraint(derivative_model, y, MOI.Interval(0.0, 1.0))
+        MOI.add_constraint(
+            derivative_model,
+            MOI.ScalarNonlinearFunction(:coth, Any[y]),
+            MOI.LessThan(10.0),
+        )
+        derivative_issues = NLPDiagnostics.derivative_issues(derivative_model)
+        @test count(
+            issue -> issue.operator == :coth &&
+                     issue.assessment == NLPDiagnostics.DomainPossibleViolation,
+            derivative_issues,
+        ) == 2
     end
 
     @testset "expression paths and vector-row provenance" begin
@@ -6234,6 +6519,88 @@ end
             ),
         )
 
+        saturated_logistic_model = new_model()
+        saturated_logistic_x = MOI.add_variable(saturated_logistic_model)
+        MOI.add_constraint(saturated_logistic_model, saturated_logistic_x, MOI.EqualTo(1_000.0))
+        MOI.add_constraint(
+            saturated_logistic_model,
+            MOI.ScalarNonlinearFunction(:logistic, Any[saturated_logistic_x]),
+            MOI.LessThan(1.0),
+        )
+        saturated_logistic = only(findings(
+            NLPDiagnostics.analyze_expressions(saturated_logistic_model),
+            :logistic_derivative_underflow_risk,
+        ))
+        @test saturated_logistic.basis == NLPDiagnostics.MathematicalProof
+        @test saturated_logistic.domain == NLPDiagnostics.NumericalIssue
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                saturated_logistic_model;
+                point = NLPDiagnostics.EvaluationPoint([saturated_logistic_x], [1_000.0]),
+            ),
+            :operating_point_logistic_derivative_underflow_risk,
+        )) == 1
+
+        saturated_tanh_model = new_model()
+        saturated_tanh_x = MOI.add_variable(saturated_tanh_model)
+        MOI.add_constraint(saturated_tanh_model, saturated_tanh_x, MOI.EqualTo(-1_000.0))
+        MOI.add_constraint(
+            saturated_tanh_model,
+            MOI.ScalarNonlinearFunction(:tanh, Any[saturated_tanh_x]),
+            MOI.GreaterThan(-1.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(saturated_tanh_model),
+            :tanh_derivative_underflow_risk,
+        )) == 1
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                saturated_tanh_model;
+                point = NLPDiagnostics.EvaluationPoint([saturated_tanh_x], [-1_000.0]),
+            ),
+            :operating_point_tanh_derivative_underflow_risk,
+        )) == 1
+
+        saturated_softplus_model = new_model()
+        saturated_softplus_x = MOI.add_variable(saturated_softplus_model)
+        MOI.add_constraint(saturated_softplus_model, saturated_softplus_x, MOI.EqualTo(-1_000.0))
+        MOI.add_constraint(
+            saturated_softplus_model,
+            MOI.ScalarNonlinearFunction(:log1pexp, Any[saturated_softplus_x]),
+            MOI.GreaterThan(0.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(saturated_softplus_model),
+            :softplus_derivative_underflow_risk,
+        )) == 1
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                saturated_softplus_model;
+                point = NLPDiagnostics.EvaluationPoint([saturated_softplus_x], [-1_000.0]),
+            ),
+            :operating_point_softplus_derivative_underflow_risk,
+        )) == 1
+
+        large_phase_model = new_model()
+        large_phase_x = MOI.add_variable(large_phase_model)
+        MOI.add_constraint(large_phase_model, large_phase_x, MOI.EqualTo(1.0e13))
+        MOI.add_constraint(
+            large_phase_model,
+            MOI.ScalarNonlinearFunction(:sin, Any[large_phase_x]),
+            MOI.LessThan(1.0),
+        )
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(large_phase_model),
+            :periodic_argument_reduction_risk,
+        )) == 1
+        @test length(findings(
+            NLPDiagnostics.analyze_expressions(
+                large_phase_model;
+                point = NLPDiagnostics.EvaluationPoint([large_phase_x], [1.0e13]),
+            ),
+            :operating_point_periodic_argument_reduction_risk,
+        )) == 1
+
         stable_domain_model = new_model()
         stable_domain_argument = MOI.add_variable(stable_domain_model)
         MOI.add_constraint(stable_domain_model, stable_domain_argument, MOI.GreaterThan(0.0))
@@ -6440,6 +6807,42 @@ end
         @test parse(Float64, near_reciprocal_evidence["estimated_reciprocal_first_derivative_magnitude"]) > 1e23
         @test parse(Float64, near_reciprocal_evidence["estimated_reciprocal_second_derivative_magnitude"]) > 1e35
 
+        near_csch_model = new_model()
+        near_csch = MOI.add_variable(near_csch_model)
+        MOI.add_constraint(
+            near_csch_model,
+            MOI.ScalarNonlinearFunction(:csch, Any[near_csch]),
+            MOI.LessThan(1e20),
+        )
+        near_csch_report = NLPDiagnostics.analyze_expressions(
+            near_csch_model;
+            point = NLPDiagnostics.EvaluationPoint([near_csch], [1e-12]),
+        )
+        near_csch_evidence = Dict(
+            only(near_csch_report.findings).evidence[end].details,
+        )
+        @test near_csch_evidence["operator"] == "csch"
+        @test parse(Float64, near_csch_evidence["estimated_first_derivative_magnitude"]) > 1e23
+        @test parse(Float64, near_csch_evidence["estimated_second_derivative_magnitude"]) > 1e35
+
+        near_acsch_model = new_model()
+        near_acsch = MOI.add_variable(near_acsch_model)
+        MOI.add_constraint(
+            near_acsch_model,
+            MOI.ScalarNonlinearFunction(:acsch, Any[near_acsch]),
+            MOI.LessThan(1e20),
+        )
+        near_acsch_report = NLPDiagnostics.analyze_expressions(
+            near_acsch_model;
+            point = NLPDiagnostics.EvaluationPoint([near_acsch], [1e-12]),
+        )
+        near_acsch_evidence = Dict(
+            only(near_acsch_report.findings).evidence[end].details,
+        )
+        @test near_acsch_evidence["operator"] == "acsch"
+        @test parse(Float64, near_acsch_evidence["estimated_first_derivative_magnitude"]) > 1e11
+        @test parse(Float64, near_acsch_evidence["estimated_second_derivative_magnitude"]) > 1e23
+
         near_power_model = new_model()
         near_power = MOI.add_variable(near_power_model)
         MOI.add_constraint(
@@ -6559,6 +6962,21 @@ end
         )
         near_atanh_evidence = Dict(only(near_atanh_report.findings).evidence[end].details)
         @test parse(Float64, near_atanh_evidence["estimated_second_derivative_magnitude"]) > 1e23
+
+        near_acoth_model = new_model()
+        near_acoth = MOI.add_variable(near_acoth_model)
+        MOI.add_constraint(
+            near_acoth_model,
+            MOI.ScalarNonlinearFunction(:acoth, Any[near_acoth]),
+            MOI.LessThan(20.0),
+        )
+        near_acoth_report = NLPDiagnostics.analyze_expressions(
+            near_acoth_model;
+            point = NLPDiagnostics.EvaluationPoint([near_acoth], [1.0 + 1e-12]),
+        )
+        near_acoth_evidence = Dict(only(near_acoth_report.findings).evidence[end].details)
+        @test near_acoth_evidence["operator"] == "acoth"
+        @test parse(Float64, near_acoth_evidence["estimated_second_derivative_magnitude"]) > 1e23
     end
 
     @testset "numeric type controls overflow fingerprints" begin
@@ -6717,6 +7135,31 @@ end
         )
         @test length(findings(limit_report, :solver_termination_limit)) == 1
 
+        diverging_report = NLPDiagnostics.analyze_postmortem(
+            NLPDiagnostics.SolverPostmortem("TestSolver", :diverging_iterates),
+        )
+        @test length(findings(diverging_report, :solver_diverging_iterates)) == 1
+        slow_progress_report = NLPDiagnostics.analyze_postmortem(
+            NLPDiagnostics.SolverPostmortem("TestSolver", :slow_progress),
+        )
+        @test length(findings(slow_progress_report, :solver_slow_progress)) == 1
+        rejected_report = NLPDiagnostics.analyze_postmortem(
+            NLPDiagnostics.SolverPostmortem("TestSolver", :invalid_model),
+        )
+        @test length(findings(rejected_report, :solver_model_or_option_rejected)) == 1
+        memory_report = NLPDiagnostics.analyze_postmortem(
+            NLPDiagnostics.SolverPostmortem("TestSolver", :memory_limit),
+        )
+        @test length(findings(memory_report, :solver_memory_limit)) == 1
+        acceptable_report = NLPDiagnostics.analyze_postmortem(
+            NLPDiagnostics.SolverPostmortem("TestSolver", :acceptable_solution),
+        )
+        @test length(findings(acceptable_report, :solver_nonfinal_feasible_termination)) == 1
+        interrupted_report = NLPDiagnostics.analyze_postmortem(
+            NLPDiagnostics.SolverPostmortem("TestSolver", :interrupted),
+        )
+        @test length(findings(interrupted_report, :solver_interrupted)) == 1
+
         unconfigured_jump_model = JuMP.Model()
         @test_throws ArgumentError NLPDiagnostics.solver_postmortem(
             unconfigured_jump_model,
@@ -6733,6 +7176,8 @@ end
         Floating point underflow occurred.
         Singular matrix encountered.
         Converged to a point of local infeasibility.
+        Problem appears unbounded.
+        Iterates are diverging.
         Maximum Number of Iterations Exceeded.
         """
         observations = NLPDiagnostics.solver_log_observations(log)
@@ -6744,6 +7189,8 @@ end
             :underflow_marker,
             :linear_system_singularity,
             :reported_infeasibility,
+            :reported_unboundedness,
+            :diverging_iterates,
             :termination_limit,
         ]
         report = NLPDiagnostics.analyze_solver_log(
@@ -6759,8 +7206,10 @@ end
         singularity = only(findings(report, :solver_log_linear_system_singularity))
         @test singularity.basis == NLPDiagnostics.NumericalObservation
         @test length(findings(report, :solver_log_reported_infeasibility)) == 1
+        @test length(findings(report, :solver_log_reported_unboundedness)) == 1
+        @test length(findings(report, :solver_log_diverging_iterates)) == 1
         @test length(findings(report, :solver_log_termination_limit)) == 1
-        @test report.metadata[:recognized_log_observation_count] == "8"
+        @test report.metadata[:recognized_log_observation_count] == "10"
         @test evidence_details(
             only(findings(report, :solver_log_restoration_failure)),
         )["line"] == "2"
@@ -6815,6 +7264,9 @@ end
         @test report.metadata[:minimum_logged_primal_infeasibility] == "0.01"
         @test report.metadata[:annotated_iteration_row_count] == "1"
         @test report.metadata[:iteration_segment_count] == "1"
+        @test report.metadata[:final_segment_start_line] == "2"
+        @test report.metadata[:final_segment_end_line] == "3"
+        @test report.metadata[:final_segment_record_count] == "2"
         @test report.metadata[:final_segment_annotated_iteration_row_count] == "1"
         annotation = only(findings(report, :solver_iteration_annotated_rows))
         @test annotation.basis == NLPDiagnostics.NumericalObservation
@@ -6827,6 +7279,8 @@ end
             residual_tolerance = 1e-3,
         )
         @test appended_report.metadata[:iteration_segment_count] == "2"
+        @test appended_report.metadata[:final_segment_first_iteration] == "0"
+        @test appended_report.metadata[:final_segment_record_count] == "1"
         @test isempty(findings(appended_report, :solver_iteration_residual_regression))
 
         stagnant_log = """
@@ -6874,6 +7328,29 @@ end
         @test small_steps.confidence == NLPDiagnostics.ConfidenceMedium
         @test_throws ArgumentError NLPDiagnostics.analyze_solver_iterations(
             "Ipopt", stalled_step_log; small_primal_step_threshold = -1,
+        )
+
+        imbalanced_log = """
+        iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+           0  1.0e+00 1.0e+00 1.0e-04  -1.0 0.0e+00    -  0.0e+00 1.0e+00   0
+           1  1.0e+00 9.0e-01 1.0e-04  -1.0 0.0e+00    -  0.0e+00 1.0e+00   0
+           2  1.0e+00 8.0e-01 1.0e-04  -1.0 0.0e+00    -  0.0e+00 1.0e+00   0
+        """
+        imbalance_report = NLPDiagnostics.analyze_solver_iterations(
+            "Ipopt", imbalanced_log;
+            residual_tolerance = 1e-3,
+            stagnation_window = 3,
+            residual_imbalance_factor = 100,
+        )
+        imbalance = only(findings(
+            imbalance_report,
+            :solver_iteration_residual_imbalance,
+        ))
+        @test imbalance.basis == NLPDiagnostics.NumericalObservation
+        @test Dict(imbalance.evidence[end].details)["dominant_residual"] == "primal"
+        @test imbalance_report.metadata[:residual_imbalance_factor] == "100"
+        @test_throws ArgumentError NLPDiagnostics.analyze_solver_iterations(
+            "Ipopt", imbalanced_log; residual_imbalance_factor = 1,
         )
 
         model = new_model()

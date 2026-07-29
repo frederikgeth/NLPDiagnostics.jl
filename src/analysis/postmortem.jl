@@ -92,6 +92,30 @@ function analyze_postmortem(
             evidence = evidence,
             suggested_actions = ["Run elastic feasibility and initialization diagnostics before concluding the model is infeasible."],
         ))
+    elseif postmortem.termination in (:acceptable_solution, :feasible_point)
+        push!(report, Finding(
+            :solver_nonfinal_feasible_termination;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "$(postmortem.solver) reported termination $(postmortem.termination).",
+            why_it_matters = "The solver reported a feasible or acceptable point, but this native status does not establish the requested optimality or tolerance criterion.",
+            evidence = evidence,
+            suggested_actions = ["Inspect recorded residuals, objective value, and solver tolerances before accepting the point as a final solution."],
+        ))
+    elseif postmortem.termination == :interrupted
+        push!(report, Finding(
+            :solver_interrupted;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceCertain,
+            observation = "$(postmortem.solver) reported an interrupted run.",
+            why_it_matters = "The solver did not select this as a mathematical or numerical termination; any final iterate must be interpreted as partial-run evidence.",
+            evidence = evidence,
+            suggested_actions = ["Inspect the stop source and retained final-point diagnostics before rerunning or changing the model."],
+        ))
     elseif postmortem.termination in (:iteration_limit, :time_limit)
         push!(report, Finding(
             :solver_termination_limit;
@@ -103,6 +127,54 @@ function analyze_postmortem(
             why_it_matters = "The final iterate may still contain useful diagnostic evidence, but termination did not establish the requested convergence criterion.",
             evidence = evidence,
             suggested_actions = ["Inspect residual trends, scaling, and the final active set before increasing limits."],
+        ))
+    elseif postmortem.termination == :diverging_iterates
+        push!(report, Finding(
+            :solver_diverging_iterates;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "$(postmortem.solver) reported diverging iterates.",
+            why_it_matters = "This native termination records the solver's local trajectory interpretation; it does not prove an objective ray, physical instability, or global model failure.",
+            evidence = evidence,
+            suggested_actions = ["Inspect bounds, domain margins, scaling, and iteration residuals at captured points before classifying the divergence."],
+        ))
+    elseif postmortem.termination == :slow_progress
+        push!(report, Finding(
+            :solver_slow_progress;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "$(postmortem.solver) reported slow progress.",
+            why_it_matters = "Slow progress is a local algorithmic outcome that can arise from scaling, flat directions, active-set degeneracy, or conservative step control.",
+            evidence = evidence,
+            suggested_actions = ["Compare row and column scaling, active-set rank, and reduced-Hessian evidence before changing solver tolerances."],
+        ))
+    elseif postmortem.termination in (:invalid_model, :invalid_option)
+        push!(report, Finding(
+            :solver_model_or_option_rejected;
+            severity = SeverityError,
+            domain = RepresentationalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "$(postmortem.solver) reported termination $(postmortem.termination).",
+            why_it_matters = "The solver rejected the supplied representation or an option before establishing an optimization conclusion. Its status does not by itself identify the offending model component.",
+            evidence = evidence,
+            suggested_actions = ["Inspect the retained raw status, solver option configuration, and MOI/JuMP model support before diagnosing mathematical feasibility."],
+        ))
+    elseif postmortem.termination == :memory_limit
+        push!(report, Finding(
+            :solver_memory_limit;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "$(postmortem.solver) stopped at a memory limit.",
+            why_it_matters = "This is a resource termination, not evidence that the formulation is infeasible, degenerate, or mathematically ill-conditioned.",
+            evidence = evidence,
+            suggested_actions = ["Inspect model size, sparsity, derivative representation, and solver linear-algebra settings before changing the mathematical formulation."],
         ))
     elseif postmortem.termination in (:numerical_failure, :invalid_number, :restoration_failed)
         push!(report, Finding(
@@ -156,9 +228,10 @@ end
 
 Extract deliberately conservative line-level markers from raw solver log text.
 The generic scanner recognizes explicit restoration attempts and failures,
-reported infeasibility, termination limits, invalid-number markers, and a
-small set of numerical-failure phrases. Solver extensions may later add richer
-structured parsers without changing this raw-evidence boundary.
+reported infeasibility or unboundedness, diverging-iterate markers, termination
+limits, invalid-number markers, and a small set of numerical-failure phrases.
+Solver extensions may later add richer structured parsers without changing
+this raw-evidence boundary.
 """
 function solver_log_observations(log::AbstractString)
     observations = SolverLogObservation[]
@@ -178,6 +251,10 @@ function solver_log_observations(log::AbstractString)
                occursin("nan", normalized) ||
                occursin("not a number", normalized)
             :invalid_number
+        elseif occursin("unbounded", normalized)
+            :reported_unboundedness
+        elseif occursin("diverging", normalized) || occursin("diverged", normalized)
+            :diverging_iterates
         elseif occursin("infeasib", normalized)
             :reported_infeasibility
         elseif occursin("maximum iterations", normalized) ||
@@ -299,6 +376,30 @@ function analyze_solver_log(
                 why_it_matters = "A solver log message records its local search outcome; it does not prove global model infeasibility.",
                 evidence = evidence,
                 suggested_actions = ["Compare with initialization, domain, and elastic feasibility diagnostics."],
+            ))
+        elseif category == :reported_unboundedness
+            push!(report, Finding(
+                :solver_log_reported_unboundedness;
+                severity = SeverityWarning,
+                domain = MathematicalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "$(solver) log contains $count_text mentioning unboundedness.",
+                why_it_matters = "A solver message records its local termination interpretation; it does not prove a global objective ray or exclude a numerical or scaling failure.",
+                evidence = evidence,
+                suggested_actions = ["Compare with static objective-ray diagnostics, declared bounds, and final-point domain evidence."],
+            ))
+        elseif category == :diverging_iterates
+            push!(report, Finding(
+                :solver_log_diverging_iterates;
+                severity = SeverityWarning,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceMedium,
+                observation = "$(solver) log contains $count_text reporting diverging iterates.",
+                why_it_matters = "The raw marker establishes neither an objective ray nor a physical instability; it motivates checking bounds, domain margins, scaling, and residual traces.",
+                evidence = evidence,
+                suggested_actions = ["Inspect iteration residual trends, variable bound margins, and expression-domain fingerprints at captured iterates."],
             ))
         elseif category == :termination_limit
             push!(report, Finding(
@@ -520,6 +621,7 @@ function analyze_solver_iterations(
     stagnation_window::Integer = 5,
     stagnation_improvement_factor::Real = 2,
     small_primal_step_threshold::Real = 1e-8,
+    residual_imbalance_factor::Real = 100,
 )
     tolerance = Float64(residual_tolerance)
     tolerance >= 0 || throw(ArgumentError("residual_tolerance must be nonnegative"))
@@ -529,6 +631,8 @@ function analyze_solver_iterations(
         throw(ArgumentError("stagnation_improvement_factor must exceed one"))
     small_primal_step_threshold >= 0 ||
         throw(ArgumentError("small_primal_step_threshold must be nonnegative"))
+    residual_imbalance_factor > 1 ||
+        throw(ArgumentError("residual_imbalance_factor must exceed one"))
     records = solver_iteration_records(log)
     report = DiagnosticReport()
     report.metadata[:stage] = "solver_iterations"
@@ -550,11 +654,17 @@ function analyze_solver_iterations(
         string(stagnation_improvement_factor)
     report.metadata[:small_primal_step_threshold] =
         string(small_primal_step_threshold)
+    report.metadata[:residual_imbalance_factor] = string(residual_imbalance_factor)
     final = last(records)
     final_segment = last(solver_iteration_segments(records))
     final_segment_records = records[
         findfirst(record -> record.line == final_segment.start_line, records):end
     ]
+    report.metadata[:final_segment_start_line] = string(final_segment.start_line)
+    report.metadata[:final_segment_end_line] = string(final_segment.end_line)
+    report.metadata[:final_segment_record_count] = string(length(final_segment_records))
+    report.metadata[:final_segment_first_iteration] = string(final_segment.first_iteration)
+    report.metadata[:final_segment_final_iteration] = string(final_segment.final_iteration)
     residuals = [
         max(record.primal_infeasibility, record.dual_infeasibility) for
         record in final_segment_records
@@ -570,7 +680,9 @@ function analyze_solver_iterations(
         details = ["solver" => solver, "format" => final.format, "iteration" => final.iteration,
                    "line" => final.line, "text" => final.text,
                    "primal_infeasibility" => final.primal_infeasibility,
-                   "dual_infeasibility" => final.dual_infeasibility],
+                   "dual_infeasibility" => final.dual_infeasibility,
+                   "final_segment_start_line" => final_segment.start_line,
+                   "final_segment_end_line" => final_segment.end_line],
     )]
     if residuals[end] > tolerance
         push!(report, Finding(:solver_iteration_large_final_residual;
@@ -651,6 +763,43 @@ function analyze_solver_iterations(
             suggested_actions = [
                 "Inspect line-search, restoration, and regularization messages around these rows.",
                 "Compare domain margins, derivative magnitudes, and scaling at explicitly captured iterates.",
+            ],
+        ))
+    end
+    tail_primal = [record.primal_infeasibility for record in
+                   final_segment_records[window_start:end]]
+    tail_dual = [record.dual_infeasibility for record in
+                 final_segment_records[window_start:end]]
+    primal_dominant = length(tail_primal) >= 3 &&
+                      all(primal > tolerance &&
+                          primal / max(dual, eps(Float64)) >= residual_imbalance_factor
+                          for (primal, dual) in zip(tail_primal, tail_dual))
+    dual_dominant = length(tail_dual) >= 3 &&
+                    all(dual > tolerance &&
+                        dual / max(primal, eps(Float64)) >= residual_imbalance_factor
+                        for (primal, dual) in zip(tail_primal, tail_dual))
+    if primal_dominant || dual_dominant
+        dominant = primal_dominant ? :primal : :dual
+        dominant_values = primal_dominant ? tail_primal : tail_dual
+        subordinate_values = primal_dominant ? tail_dual : tail_primal
+        push!(report, Finding(:solver_iteration_residual_imbalance;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The final parsed $(solver) trace segment has $(length(dominant_values)) consecutive rows where logged $(dominant) infeasibility exceeds the other printed residual by at least a factor of $residual_imbalance_factor.",
+            why_it_matters = "This is a trace observation that can help prioritize feasibility versus stationarity diagnostics, but log-column scaling and solver semantics prevent a generic causal interpretation.",
+            evidence = vcat(evidence, [Evidence("Final trace-segment residual imbalance"; details = [
+                "dominant_residual" => dominant,
+                "window_row_count" => length(dominant_values),
+                "minimum_dominant_residual" => minimum(dominant_values),
+                "maximum_subordinate_residual" => maximum(subordinate_values),
+                "imbalance_factor_threshold" => residual_imbalance_factor,
+                "residual_tolerance" => tolerance,
+            ])]),
+            suggested_actions = [
+                dominant == :primal ?
+                "Inspect constraint feasibility, domain margins, and restoration evidence at captured iterates." :
+                "Inspect derivative domains, stationarity scaling, and active-set rank evidence at captured iterates.",
+                "Compare the printed columns with recomputed point diagnostics only after checking their scaling semantics.",
             ],
         ))
     end

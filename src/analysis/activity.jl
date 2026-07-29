@@ -574,7 +574,31 @@ function _active_matching_findings(
     evaluation::NumericalEvaluation,
     active_matching::ActiveSetStructuralMatching,
 )
-    active_matching.complete || return Finding[]
+    if !active_matching.complete
+        affected = EntityRef[
+            evaluation.constraint_sources[row] for row in active_matching.unmapped_rows
+        ]
+        return Finding[Finding(
+            :active_set_structural_matching_unavailable;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = "The selected active-set rows cannot be fully aligned with ordinary scalar structural nodes$(isnothing(active_matching.reason) ? "." : ": $(active_matching.reason).")",
+            why_it_matters = "No active-set matching, structural overdetermination, or structural-versus-numerical tangent conclusion is issued outside the aligned scope.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set structural alignment"; details = [
+                    "selected_activity_rows" => join(active_matching.selected_rows, ","),
+                    "aligned_constraint_nodes" => length(active_matching.selected_constraint_positions),
+                    "unmapped_activity_rows" => join(active_matching.unmapped_rows, ","),
+                    "reason" => something(active_matching.reason, "unknown alignment limitation"),
+                ]),
+            ],
+            suggested_actions = ["Inspect the unmapped activity rows or provide a plugin-specific structural mapping before interpreting active-set matching."],
+            affected = affected,
+        )]
+    end
     matching = active_matching.matching
     cardinality = matching_cardinality(matching)
     selected_count = length(active_matching.selected_constraint_positions)

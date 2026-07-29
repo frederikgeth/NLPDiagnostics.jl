@@ -139,9 +139,22 @@ max(x, zero(x)) + log1p(exp(-abs(x)))
 recognized as stable custom-operator heads for interval propagation. Fixed-value
 static evaluation additionally recognizes `log1mexp`, `logdiffexp`, `logcosh`,
 and `logsumexp` with stable formulas. These operators are not necessarily built
-into MOI and may need to be registered by the modeling package. In particular,
-registration must supply correct values and derivatives; a static fixed-value
-evaluator does not make a custom head available to a solver's AD pipeline.
+into MOI and may need to be registered by the modeling package; registration
+must supply correct values and derivatives, and a static fixed-value evaluator
+does not make a custom head available to a solver's AD pipeline.
+
+Even a sign-aware stable `logistic` or `tanh` can have a derivative that
+underflows to zero in a saturated floating-point tail; the expression analysis
+reports this separately from value overflow because it can create artificial
+zero sensitivities.
+The same negative-tail derivative-underflow check applies to stable softplus
+aliases (`softplus`, `log1pexp`, and `log1exp`), even though they avoid the
+positive-tail overflow of the naive `log(1 + exp(x))` spelling.
+
+Periodic trigonometric and reciprocal-trigonometric primitives also receive a
+large-finite-argument phase-reduction warning. This is distinct from a pole or
+domain violation: the concern is loss of meaningful floating-point angular
+resolution in function and derivative evaluation.
 
 Fingerprints are warnings rather than algebraic rewrites. NLPDiagnostics never
 changes the model, and user-defined operator semantics may prevent an

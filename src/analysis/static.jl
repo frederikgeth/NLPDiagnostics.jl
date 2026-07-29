@@ -1392,6 +1392,7 @@ function _analyze_atan_ratio_formulations!(
     model::ModelSnapshot,
 )
     records = Dict(record.index => record for record in model.variables)
+    variable_intervals = _domain_variable_intervals(model)
     function scan(value, source, path)
         value isa MOI.ScalarNonlinearFunction || return
         if value.head == :atan && length(value.args) == 1
@@ -1430,6 +1431,34 @@ function _analyze_atan_ratio_formulations!(
                     ],
                     affected = affected,
                 ))
+                denominator_interval = _scan_domain_expression!(
+                    ExpressionDomainIssue[],
+                    denominator,
+                    source,
+                    Int[],
+                    variable_intervals,
+                )
+                if denominator_interval.valid && _contains_zero(denominator_interval)
+                    push!(report, Finding(:atan_ratio_denominator_may_be_zero;
+                        severity = SeverityWarning,
+                        domain = NumericalIssue,
+                        basis = HeuristicInterpretation,
+                        confidence = ConfidenceHigh,
+                        observation = "The denominator of atan(numerator / denominator) at $path_label may be zero under the current static interval enclosure.",
+                        why_it_matters = "A zero denominator makes the ratio undefined and can also make its first and second derivatives unbounded before the outer arctangent is evaluated.",
+                        evidence = [Evidence("Arctangent ratio denominator interval"; details = [
+                            "expression_path" => path_label,
+                            "denominator_interval" => "[$(denominator_interval.lower), $(denominator_interval.upper)]",
+                            "denominator_interval_informative" => denominator_interval.informative,
+                            "zero_contained" => true,
+                        ])],
+                        suggested_actions = [
+                            "Use atan(y, x) when a quadrant-aware coordinate angle is intended.",
+                            "Otherwise establish a nonzero denominator margin and inspect initialization points before solving.",
+                        ],
+                        affected = affected,
+                    ))
+                end
             end
         end
         for (argument_index, argument) in enumerate(value.args)
@@ -1614,7 +1643,9 @@ function _unary_operator_real_range(head::Symbol)
         return -Inf, 0.0, false, true
     elseif head in (:logistic, :tanh)
         return head == :logistic ? (0.0, 1.0, true, true) : (-1.0, 1.0, true, true)
-    elseif head in (:abs, :sqrt, :acosh, :logcosh)
+    elseif head == :sech
+        return 0.0, 1.0, true, false
+    elseif head in (:abs, :sqrt, :acosh, :asech, :logcosh)
         return 0.0, Inf, false, false
     elseif head == :cosh
         return 1.0, Inf, false, false
@@ -1624,16 +1655,358 @@ function _unary_operator_real_range(head::Symbol)
         return -pi / 2, pi / 2, false, false
     elseif head == :acos
         return 0.0, pi, false, false
+    elseif head == :asec
+        return 0.0, pi, false, false
+    elseif head == :acsc
+        return -pi / 2, pi / 2, false, false
     elseif head == :atan
         return -pi / 2, pi / 2, true, true
     elseif head == :asind
         return -90.0, 90.0, false, false
     elseif head == :acosd
         return 0.0, 180.0, false, false
+    elseif head == :asecd
+        return 0.0, 180.0, false, false
+    elseif head == :acscd
+        return -90.0, 90.0, false, false
     elseif head == :atand
         return -90.0, 90.0, true, true
     end
     return nothing
+end
+
+"""Prove output-range contradictions for reciprocal-trigonometric primitives."""
+function _analyze_reciprocal_trigonometric_range_constraints!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    records = Dict(record.index => record for record in model.variables)
+    for constraint in model.constraints
+        value = constraint.function_value
+        value isa MOI.ScalarNonlinearFunction && length(value.args) == 1 || continue
+        output_range = if value.head in (:sec, :csc, :secd, :cscd)
+            "(-∞, -1] ∪ [1, ∞)"
+        elseif value.head in (:acsc, :acscd)
+            value.head == :acsc ? "[-π/2, 0) ∪ (0, π/2]" : "[-90, 0) ∪ (0, 90]"
+        else
+            continue
+        end
+        set_value = constraint.set_value
+        interval = _scalar_set_interval(set_value)
+        impossible = if value.head in (:sec, :csc, :secd, :cscd)
+            !isnothing(interval) && begin
+                lower, upper = interval
+                !isnothing(lower) && !isnothing(upper) && lower > -1 && upper < 1
+            end
+        else
+            (set_value isa MOI.EqualTo && set_value.value == 0) ||
+            (set_value isa MOI.Interval && set_value.lower == 0 == set_value.upper)
+        end
+        impossible || continue
+        affected = [_constraint_ref(constraint)]
+        argument = only(value.args)
+        argument isa MOI.VariableIndex && push!(affected, _variable_ref(records[argument]))
+        push!(report, Finding(:infeasible_reciprocal_trigonometric_range_constraint;
+            severity = SeverityError, domain = MathematicalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(constraint.index.value) excludes the real output range of $(value.head).",
+            why_it_matters = "No real evaluation of this reciprocal-trigonometric primitive can satisfy the row set, so this constraint alone proves infeasibility.",
+            evidence = [Evidence("Reciprocal-trigonometric real output range"; details = [
+                "operator" => value.head,
+                "operator_range" => output_range,
+                "set" => set_value,
+            ])],
+            suggested_actions = ["Correct the row set or replace the primitive with the intended expression."],
+            affected = affected,
+        ))
+    end
+    return
+end
+
+"""Report exact variable values implied by inverse-trigonometric endpoint rows."""
+function _analyze_inverse_trigonometric_endpoint_implications!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    endpoint_preimages = Dict{Symbol,Vector{Tuple{Float64,Float64}}}(
+        :asin => [(-pi / 2, -1.0), (pi / 2, 1.0)],
+        :acos => [(0.0, 1.0), (pi, -1.0)],
+        :asec => [(0.0, 1.0), (pi, -1.0)],
+        :acsc => [(-pi / 2, -1.0), (pi / 2, 1.0)],
+        :asind => [(-90.0, -1.0), (90.0, 1.0)],
+        :acosd => [(0.0, 1.0), (180.0, -1.0)],
+        :asecd => [(0.0, 1.0), (180.0, -1.0)],
+        :acscd => [(-90.0, -1.0), (90.0, 1.0)],
+    )
+    records = Dict(record.index => record for record in model.variables)
+    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    for constraint in model.constraints
+        value = constraint.function_value
+        value isa MOI.ScalarNonlinearFunction && length(value.args) == 1 || continue
+        endpoints = get(endpoint_preimages, value.head, nothing)
+        isnothing(endpoints) && continue
+        set_value = constraint.set_value
+        level = if set_value isa MOI.EqualTo
+            set_value.value
+        elseif set_value isa MOI.Interval && set_value.lower == set_value.upper
+            set_value.lower
+        else
+            continue
+        end
+        implied = nothing
+        for (endpoint, preimage) in endpoints
+            level == endpoint || continue
+            implied = preimage
+            break
+        end
+        isnothing(implied) && continue
+        argument = only(value.args)
+        argument isa MOI.VariableIndex || continue
+        record = records[argument]
+        reference = _constraint_ref(constraint)
+        push!(report, Finding(:inverse_trigonometric_endpoint_implies_fixed_variable;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(reference.index) requires $(value.head)($(_display_name(record))) = $level, fixing $(_display_name(record)) to $implied.",
+            why_it_matters = "This endpoint equation removes a degree of freedom exactly; making that implicit fixing explicit can clarify structural rank and initialization behavior.",
+            evidence = [Evidence("Inverse-trigonometric endpoint preimage"; details = [
+                "operator" => value.head,
+                "endpoint" => level,
+                "implied_value" => implied,
+            ])],
+            suggested_actions = ["Confirm the endpoint fixing is intended; NLPDiagnostics does not substitute it into the model."],
+            affected = [reference, _variable_ref(record)],
+        ))
+        declared = domains[argument]
+        lower_conflict = !isnothing(declared.lower) && declared.lower > implied
+        upper_conflict = !isnothing(declared.upper) && declared.upper < implied
+        (lower_conflict || upper_conflict) || continue
+        bound_sources = vcat(
+            lower_conflict ? declared.effective_lower_sources : EntityRef[],
+            upper_conflict ? declared.effective_upper_sources : EntityRef[],
+        )
+        push!(report, Finding(:inconsistent_inverse_trigonometric_endpoint_variable_bound;
+            severity = SeverityError, domain = MathematicalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(reference.index) fixes $(_display_name(record)) to $implied, conflicting with its declared scalar bound intersection.",
+            why_it_matters = "The inverse-trigonometric endpoint equation and the effective variable bounds have no common real solution, proving infeasibility.",
+            evidence = [Evidence("Inverse-trigonometric endpoint and scalar-bound intersection"; details = [
+                "operator" => value.head,
+                "endpoint" => level,
+                "implied_value" => implied,
+                "declared_lower" => declared.lower,
+                "declared_upper" => declared.upper,
+            ])],
+            suggested_actions = ["Correct the endpoint row or the effective bound source that excludes its unique preimage."],
+            affected = vcat([reference, _variable_ref(record)], bound_sources),
+        ))
+    end
+    return
+end
+
+"""Report unique zero/minimum preimages of supported hyperbolic primitives."""
+function _analyze_hyperbolic_endpoint_implications!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    endpoint_preimages = Dict{Symbol,Tuple{Float64,Float64}}(
+        :sinh => (0.0, 0.0),
+        :asinh => (0.0, 0.0),
+        :tanh => (0.0, 0.0),
+        :atanh => (0.0, 0.0),
+        :cosh => (1.0, 0.0),
+        :sech => (1.0, 0.0),
+        :logcosh => (0.0, 0.0),
+        :acosh => (0.0, 1.0),
+        :asech => (0.0, 1.0),
+    )
+    records = Dict(record.index => record for record in model.variables)
+    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    for constraint in model.constraints
+        value = constraint.function_value
+        value isa MOI.ScalarNonlinearFunction && length(value.args) == 1 || continue
+        endpoint_preimage = get(endpoint_preimages, value.head, nothing)
+        isnothing(endpoint_preimage) && continue
+        endpoint, implied = endpoint_preimage
+        set_value = constraint.set_value
+        level = if set_value isa MOI.EqualTo
+            set_value.value
+        elseif set_value isa MOI.Interval && set_value.lower == set_value.upper
+            set_value.lower
+        else
+            continue
+        end
+        level == endpoint || continue
+        argument = only(value.args)
+        argument isa MOI.VariableIndex || continue
+        record = records[argument]
+        reference = _constraint_ref(constraint)
+        push!(report, Finding(:hyperbolic_endpoint_implies_fixed_variable;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(reference.index) requires $(value.head)($(_display_name(record))) = $level, fixing $(_display_name(record)) to $implied.",
+            why_it_matters = "This unique zero or extremal-value preimage removes a degree of freedom exactly and can explain unexpected rank loss or a fragile initialization.",
+            evidence = [Evidence("Hyperbolic endpoint preimage"; details = [
+                "operator" => value.head,
+                "endpoint" => level,
+                "implied_value" => implied,
+            ])],
+            suggested_actions = ["Confirm the implied fixing is intended; NLPDiagnostics does not substitute it into the model."],
+            affected = [reference, _variable_ref(record)],
+        ))
+        declared = domains[argument]
+        lower_conflict = !isnothing(declared.lower) && declared.lower > implied
+        upper_conflict = !isnothing(declared.upper) && declared.upper < implied
+        (lower_conflict || upper_conflict) || continue
+        bound_sources = vcat(
+            lower_conflict ? declared.effective_lower_sources : EntityRef[],
+            upper_conflict ? declared.effective_upper_sources : EntityRef[],
+        )
+        push!(report, Finding(:inconsistent_hyperbolic_endpoint_variable_bound;
+            severity = SeverityError, domain = MathematicalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(reference.index) fixes $(_display_name(record)) to $implied, conflicting with its declared scalar bound intersection.",
+            why_it_matters = "The unique hyperbolic endpoint preimage and effective variable bounds have no common real solution, proving infeasibility.",
+            evidence = [Evidence("Hyperbolic endpoint and scalar-bound intersection"; details = [
+                "operator" => value.head,
+                "endpoint" => level,
+                "implied_value" => implied,
+                "declared_lower" => declared.lower,
+                "declared_upper" => declared.upper,
+            ])],
+            suggested_actions = ["Correct the endpoint row or the effective bound source that excludes its unique preimage."],
+            affected = vcat([reference, _variable_ref(record)], bound_sources),
+        ))
+    end
+    return
+end
+
+"""Report unique zero/reference-level preimages of elementary primitives."""
+function _analyze_elementary_reference_implications!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    log_two = log(2.0)
+    reference_preimages = Dict{Symbol,Tuple{Float64,Float64}}(
+        :exp => (1.0, 0.0),
+        :expm1 => (0.0, 0.0),
+        :log => (0.0, 1.0),
+        :log1p => (0.0, 0.0),
+        :logistic => (0.5, 0.0),
+        :cbrt => (0.0, 0.0),
+        :softplus => (log_two, 0.0),
+        :log1pexp => (log_two, 0.0),
+        :log1exp => (log_two, 0.0),
+        :log1mexp => (-log_two, -log_two),
+    )
+    records = Dict(record.index => record for record in model.variables)
+    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    for constraint in model.constraints
+        value = constraint.function_value
+        value isa MOI.ScalarNonlinearFunction && length(value.args) == 1 || continue
+        reference_preimage = get(reference_preimages, value.head, nothing)
+        isnothing(reference_preimage) && continue
+        level, implied = reference_preimage
+        set_value = constraint.set_value
+        row_level = if set_value isa MOI.EqualTo
+            set_value.value
+        elseif set_value isa MOI.Interval && set_value.lower == set_value.upper
+            set_value.lower
+        else
+            continue
+        end
+        row_level == level || continue
+        argument = only(value.args)
+        argument isa MOI.VariableIndex || continue
+        record = records[argument]
+        reference = _constraint_ref(constraint)
+        push!(report, Finding(:elementary_reference_level_implies_fixed_variable;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(reference.index) requires $(value.head)($(_display_name(record))) = $row_level, fixing $(_display_name(record)) to $implied.",
+            why_it_matters = "This one-to-one elementary reference level removes a degree of freedom exactly and can reveal an implicit presolve opportunity or unintended over-fixing.",
+            evidence = [Evidence("Elementary primitive reference-level preimage"; details = [
+                "operator" => value.head,
+                "reference_level" => row_level,
+                "implied_value" => implied,
+            ])],
+            suggested_actions = ["Confirm the implied fixing is intended; NLPDiagnostics does not substitute it into the model."],
+            affected = [reference, _variable_ref(record)],
+        ))
+        declared = domains[argument]
+        lower_conflict = !isnothing(declared.lower) && declared.lower > implied
+        upper_conflict = !isnothing(declared.upper) && declared.upper < implied
+        (lower_conflict || upper_conflict) || continue
+        bound_sources = vcat(
+            lower_conflict ? declared.effective_lower_sources : EntityRef[],
+            upper_conflict ? declared.effective_upper_sources : EntityRef[],
+        )
+        push!(report, Finding(:inconsistent_elementary_reference_level_variable_bound;
+            severity = SeverityError, domain = MathematicalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(reference.index) fixes $(_display_name(record)) to $implied, conflicting with its declared scalar bound intersection.",
+            why_it_matters = "The elementary reference-level equation and effective variable bounds have no common real solution, proving infeasibility.",
+            evidence = [Evidence("Elementary reference-level and scalar-bound intersection"; details = [
+                "operator" => value.head,
+                "reference_level" => row_level,
+                "implied_value" => implied,
+                "declared_lower" => declared.lower,
+                "declared_upper" => declared.upper,
+            ])],
+            suggested_actions = ["Correct the reference-level row or the effective bound source that excludes its unique preimage."],
+            affected = vcat([reference, _variable_ref(record)], bound_sources),
+        ))
+    end
+    return
+end
+
+"""Prove output-range contradictions for reciprocal-hyperbolic primitives."""
+function _analyze_reciprocal_hyperbolic_range_constraints!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    records = Dict(record.index => record for record in model.variables)
+    for constraint in model.constraints
+        value = constraint.function_value
+        value isa MOI.ScalarNonlinearFunction && length(value.args) == 1 || continue
+        output_range = if value.head in (:csch, :acsch, :acoth)
+            "(-∞, 0) ∪ (0, ∞)"
+        elseif value.head == :coth
+            "(-∞, -1) ∪ (1, ∞)"
+        else
+            continue
+        end
+        set_value = constraint.set_value
+        impossible = if value.head in (:csch, :acsch, :acoth)
+            (set_value isa MOI.EqualTo && set_value.value == 0) ||
+            (set_value isa MOI.Interval && set_value.lower == 0 == set_value.upper)
+        else
+            interval = _scalar_set_interval(set_value)
+            !isnothing(interval) && begin
+                lower, upper = interval
+                !isnothing(lower) && !isnothing(upper) &&
+                    lower >= -1 && upper <= 1
+            end
+        end
+        impossible || continue
+        affected = [_constraint_ref(constraint)]
+        argument = only(value.args)
+        argument isa MOI.VariableIndex && push!(affected, _variable_ref(records[argument]))
+        push!(report, Finding(:infeasible_reciprocal_hyperbolic_range_constraint;
+            severity = SeverityError, domain = MathematicalIssue,
+            basis = MathematicalProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(constraint.index.value) excludes the real output range of $(value.head).",
+            why_it_matters = "No real evaluation of this reciprocal-hyperbolic primitive can satisfy the row set, so this constraint alone proves infeasibility.",
+            evidence = [Evidence("Reciprocal-hyperbolic real output range"; details = [
+                "operator" => value.head,
+                "operator_range" => output_range,
+                "set" => set_value,
+            ])],
+            suggested_actions = ["Correct the row set or replace the primitive with the intended expression."],
+            affected = affected,
+        ))
+    end
+    return
 end
 
 """Whether a scalar row set has a nonempty intersection with an output range."""
@@ -3554,6 +3927,11 @@ function analyze_static(
     _analyze_sign_constraints!(report, model)
     _analyze_exponential_range_constraints!(report, model)
     _analyze_unary_operator_range_constraints!(report, model)
+    _analyze_reciprocal_trigonometric_range_constraints!(report, model)
+    _analyze_inverse_trigonometric_endpoint_implications!(report, model)
+    _analyze_hyperbolic_endpoint_implications!(report, model)
+    _analyze_elementary_reference_implications!(report, model)
+    _analyze_reciprocal_hyperbolic_range_constraints!(report, model)
     _analyze_duplicate_constraints!(report, model)
     _analyze_proportional_affine_equalities!(report, model)
     _analyze_proportional_affine_inequalities!(report, model)

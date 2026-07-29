@@ -1711,6 +1711,29 @@ function _elastic_domain_guard_materialization(
         return true, "the scalar affine lower domain for acosh can be materialized explicitly"
     elseif issue.operator == :atanh
         return true, "both strict scalar affine atanh domain boundaries can be materialized explicitly"
+    elseif issue.operator == :asech
+        return true, "both scalar affine asech domain boundaries can be materialized explicitly"
+    elseif issue.operator in (:acsch, :csch, :coth)
+        if issue.enclosure.lower >= 0
+            return true, "the declared interval admits only the nonnegative acsch branch, so a positive margin is explicit"
+        elseif issue.enclosure.upper <= 0
+            return true, "the declared interval admits only the nonpositive acsch branch, so a negative margin is explicit"
+        end
+        return false, "the declared interval can cross zero, so a one-branch reciprocal-hyperbolic guard would change the model"
+    elseif issue.operator == :acoth
+        if issue.enclosure.lower >= 1
+            return true, "the declared interval admits only the positive acoth branch, so a strict lower margin is explicit"
+        elseif issue.enclosure.upper <= -1
+            return true, "the declared interval admits only the negative acoth branch, so a strict upper margin is explicit"
+        end
+        return false, "the declared interval crosses acoth domain branches, so a generic guard would choose a branch"
+    elseif issue.operator in (:asec, :acsc, :asecd, :acscd)
+        if issue.enclosure.lower >= 1
+            return true, "the declared interval admits only the positive inverse-reciprocal branch"
+        elseif issue.enclosure.upper <= -1
+            return true, "the declared interval admits only the negative inverse-reciprocal branch"
+        end
+        return false, "the declared interval crosses inverse-reciprocal domain branches, so a generic guard would choose a branch"
     elseif issue.operator in (:tan, :sec, :csc, :cot, :tand, :secd, :cscd, :cotd)
         boundary = _elastic_periodic_endpoint_boundary(
             issue.operator,
@@ -1939,6 +1962,20 @@ function _elastic_domain_guard_sets(guard::ElasticDomainGuard, margin::Float64)
         return Any[MOI.GreaterThan(1.0)]
     elseif guard.operator == :atanh
         return Any[MOI.GreaterThan(-1.0 + margin), MOI.LessThan(1.0 - margin)]
+    elseif guard.operator == :asech
+        return Any[MOI.GreaterThan(margin), MOI.LessThan(1.0)]
+    elseif guard.operator in (:acsch, :csch, :coth) && guard.lower >= 0
+        return Any[MOI.GreaterThan(margin)]
+    elseif guard.operator in (:acsch, :csch, :coth) && guard.upper <= 0
+        return Any[MOI.LessThan(-margin)]
+    elseif guard.operator == :acoth && guard.lower >= 1
+        return Any[MOI.GreaterThan(1.0 + margin)]
+    elseif guard.operator == :acoth && guard.upper <= -1
+        return Any[MOI.LessThan(-1.0 - margin)]
+    elseif guard.operator in (:asec, :acsc, :asecd, :acscd) && guard.lower >= 1
+        return Any[MOI.GreaterThan(1.0)]
+    elseif guard.operator in (:asec, :acsc, :asecd, :acscd) && guard.upper <= -1
+        return Any[MOI.LessThan(-1.0)]
     elseif guard.operator in (:tan, :sec, :csc, :cot, :tand, :secd, :cscd, :cotd)
         boundary = _elastic_periodic_endpoint_boundary(
             guard.operator, guard.lower, guard.upper,

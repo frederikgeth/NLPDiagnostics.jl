@@ -250,6 +250,10 @@ except for endpoint-safe intervals: when a finite declared interval ends at one
 identified `tan`/`sec`/`cot`/`csc` singularity (including degree variants), an
 explicit margin moves only that endpoint inward. Intervals crossing a
 singularity or containing multiple branches remain visible but unmaterialized.
+Branch-confined `asech`, `acsch`, `acoth`, `asec`, and `acsc` domains are also
+materialized when the declared interval already identifies the admissible
+branch; the generic builder never splits or selects a branch for a crossing
+interval.
 `stable_reformulation_plan` is a separate, non-mutating companion to numerical
 fingerprinting. It turns exact-real-semantics composition fingerprints into
 inspectable candidates: `log(1+x)` or `log(1-x)` to `log1p`, `exp(x)-1` to `expm1`,
@@ -384,6 +388,36 @@ an unjustified monotonicity claim across the excluded central interval.
 The same one-branch principle applies to reciprocal hyperbolic aliases
 (`sech`/`csch`/`coth` and `asech`/`acsch`/`acoth`), preserving singular-domain
 evidence rather than guessing across zero or the inverse-hyperbolic boundaries.
+In particular, `csch` and `coth` now declare zero as both a value-domain and
+finite-derivative singularity, rather than relying on an opaque fallback.
+Their disconnected real output ranges also support exact static infeasibility
+proofs when a scalar row excludes every attainable value.
+The bounded `sech` range `(0, 1]` is retained with its open lower endpoint, so
+the static layer distinguishes unattainable zero from the valid maximum one.
+The reciprocal trigonometric layer similarly distinguishes the split
+`sec`/`csc` output range `(-∞, -1] ∪ [1, ∞)` and the excluded zero in the
+`acsc` output range; its findings are mathematical proofs rather than sampled
+domain warnings.
+Exact endpoint equalities for `asin`/`acos`, `asec`/`acsc`, and their degree
+variants also expose the unique implied argument value as an explicit
+fixed-variable finding, without rewriting the source model. That implied value
+is cross-checked against effective scalar bounds, producing a separate
+infeasibility proof when an endpoint preimage is excluded.
+The same evidence-first treatment covers unique hyperbolic zero and extremal
+preimages, including `sinh`/`tanh` zero, `cosh`/`sech` extrema, and the zero
+endpoints of `acosh` and `asech`.
+Exact elementary reference-level equations likewise expose hidden fixed values:
+`exp(x)=1`, `log(x)=0`, `log1p(x)=0`, `expm1(x)=0`, `logistic(x)=0.5`, and
+`cbrt(x)=0` all receive bound-aware mathematical-proof findings.
+The numerically stable softplus spellings `softplus`, `log1pexp`, and
+`log1exp` receive the same exact `log(2)` reference-level inference, while
+`log1mexp(x)=-log(2)` identifies `x=-log(2)`.
+Their near-zero numerical fingerprints use the reciprocal leading behavior to
+make derivative-amplification risk visible before an exact domain failure.
+`acoth` receives the same finite-derivative boundary fingerprint as `atanh`,
+but on the exterior branches approaching ±1.
+`asech` and `acsch` also expose their near-zero inverse-power derivative
+amplification while remaining value-domain valid at small nonzero arguments.
 One deliberately supported non-monotone case is a direct `abs(x)` row with a
 finite nonnegative upper set bound, which exactly implies the connected input
 interval `-u ≤ x ≤ u`; disjunctive lower-range implications remain explicit.
@@ -408,6 +442,10 @@ that did not themselves trigger a finding.
 The static expression layer also flags `atan(y / x)` as a heuristic
 representation fingerprint when a quadrant-aware angle may have been intended;
 it recommends inspecting `atan(y, x)` support and never rewrites the model.
+When the ratio denominator's static enclosure contains zero, a separate
+high-confidence numerical-risk finding makes the undefined-ratio and
+unbounded-derivative hazard explicit; a nonzero denominator margin suppresses
+that risk finding without suppressing the representational `atan2` advice.
 The two-argument Julia form is separately constant-folded and given the
 conservative full-angle range `[-π, π]`; its derivative check independently
 identifies the joint `(y, x) = (0, 0)` singularity.

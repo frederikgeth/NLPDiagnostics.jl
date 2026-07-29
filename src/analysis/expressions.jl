@@ -132,6 +132,16 @@ function _reciprocal_derivative_estimates(
     return reciprocal^2, 2 * reciprocal^3
 end
 
+function _inverse_reciprocal_hyperbolic_derivative_estimates(
+    margin::Real,
+    ::Type{T},
+) where {T<:AbstractFloat}
+    reciprocal = inv(T(margin))
+    # asech(x) and acsch(x) have leading derivative magnitude 1 / |x|
+    # and second-derivative magnitude 1 / |x|^2 near zero.
+    return reciprocal, reciprocal^2
+end
+
 function _sqrt_derivative_estimates(
     margin::Real,
     ::Type{T},
@@ -198,8 +208,8 @@ function _inverse_boundary_derivative_estimates(
         degree_scale = operator in (:asind, :acosd) ? T(180 / pi) : one(T)
         return degree_scale * inv(sqrt(denominator_squared)),
                degree_scale * abs(value) / denominator_squared^(T(3) / T(2))
-    elseif operator == :atanh
-        denominator = one(T) - value^2
+    elseif operator in (:atanh, :acoth)
+        denominator = operator == :atanh ? one(T) - value^2 : value^2 - one(T)
         return inv(denominator), 2 * abs(value) / denominator^2
     elseif operator == :acosh
         denominator = value^2 - one(T)
@@ -311,6 +321,136 @@ function _primitive_range_risks!(
             [
                 "Rescale the argument or use a stable composite primitive.",
                 "Probe derivatives at representative initial and solution points.",
+            ],
+        )
+    elseif head == :logistic
+        # A sign-aware value implementation prevents overflow, but the true
+        # derivative σ(x)(1-σ(x)) still has an exp(-abs(x)) leading factor.
+        # Beyond this threshold it can round to zero even while σ(x) is finite.
+        derivative_zero_threshold = -log(nextfloat(zero(T)))
+        assessment = if input.valid &&
+                        (input.lower > derivative_zero_threshold ||
+                         input.upper < -derivative_zero_threshold)
+            DomainProvenViolation
+        elseif input.valid &&
+               (input.upper > derivative_zero_threshold ||
+                input.lower < -derivative_zero_threshold)
+            DomainPossibleViolation
+        else
+            DomainSafe
+        end
+        _push_expression_risk!(
+            risks,
+            source,
+            path,
+            value,
+            :logistic_derivative_underflow_risk,
+            assessment,
+            "logistic may have a derivative rounded to zero for the declared argument range.",
+            "A bounded, finite logistic value can still become numerically flat, creating artificial zero Jacobian entries and misleading local rank or scaling evidence.",
+            [
+                "operator" => head,
+                "argument_interval" => "[$(input.lower), $(input.upper)]",
+                "numeric_type" => T,
+                "absolute_derivative_underflow_threshold" => derivative_zero_threshold,
+            ],
+            [
+                "Rescale or reparameterize the logistic argument when its saturated tail is not intentional.",
+                "Inspect derivative magnitudes at initialization and solution points before interpreting zero sensitivities structurally.",
+            ],
+        )
+    elseif head == :tanh
+        # tanh'(x) = sech(x)^2 ≈ 4exp(-2abs(x)) in either saturated tail.
+        derivative_zero_threshold =
+            (log(T(4)) - log(nextfloat(zero(T)))) / T(2)
+        assessment = if input.valid &&
+                        (input.lower > derivative_zero_threshold ||
+                         input.upper < -derivative_zero_threshold)
+            DomainProvenViolation
+        elseif input.valid &&
+               (input.upper > derivative_zero_threshold ||
+                input.lower < -derivative_zero_threshold)
+            DomainPossibleViolation
+        else
+            DomainSafe
+        end
+        _push_expression_risk!(
+            risks,
+            source,
+            path,
+            value,
+            :tanh_derivative_underflow_risk,
+            assessment,
+            "tanh may have a derivative rounded to zero for the declared argument range.",
+            "A bounded, finite tanh value can still become numerically flat, creating artificial zero Jacobian entries and misleading local rank or scaling evidence.",
+            [
+                "operator" => head,
+                "argument_interval" => "[$(input.lower), $(input.upper)]",
+                "numeric_type" => T,
+                "absolute_derivative_underflow_threshold" => derivative_zero_threshold,
+            ],
+            [
+                "Rescale or reparameterize the tanh argument when saturated tails are not intentional.",
+                "Inspect derivative magnitudes at initialization and solution points before interpreting zero sensitivities structurally.",
+            ],
+        )
+    elseif head in (:softplus, :log1pexp, :log1exp)
+        # The stable value formula avoids positive-tail overflow, while its
+        # derivative is logistic(x) and hence has an exp(x) negative-tail
+        # leading factor.
+        derivative_zero_threshold = log(nextfloat(zero(T)))
+        assessment = _risk_assessment_below(input, derivative_zero_threshold)
+        _push_expression_risk!(
+            risks,
+            source,
+            path,
+            value,
+            :softplus_derivative_underflow_risk,
+            assessment,
+            "$(head) may have a derivative rounded to zero for the declared argument range.",
+            "A stable softplus value can remain finite while its negative-tail derivative underflows, creating artificial flat Jacobian entries and misleading local rank or scaling evidence.",
+            [
+                "operator" => head,
+                "argument_interval" => "[$(input.lower), $(input.upper)]",
+                "numeric_type" => T,
+                "derivative_underflow_threshold" => derivative_zero_threshold,
+            ],
+            [
+                "Rescale or reparameterize the softplus argument when saturated negative tails are not intentional.",
+                "Inspect derivative magnitudes at initialization and solution points before interpreting zero sensitivities structurally.",
+            ],
+        )
+    elseif head in (:sin, :cos, :tan, :sec, :csc, :cot,
+                    :sind, :cosd, :tand, :secd, :cscd, :cotd) &&
+           input.valid && isfinite(input.lower) && isfinite(input.upper)
+        # Match the conservative periodic interval guard: beyond this scale
+        # the floating-point coordinate can lose enough phase resolution that
+        # an enclosure or derivative should not imply precise periodic phase.
+        phase_resolution_threshold = T(1.0e12)
+        absolute_magnitude = max(abs(input.lower), abs(input.upper))
+        assessment = absolute_magnitude > phase_resolution_threshold ?
+                     (input.lower == input.upper ?
+                      DomainProvenViolation : DomainPossibleViolation) :
+                     DomainSafe
+        _push_expression_risk!(
+            risks,
+            source,
+            path,
+            value,
+            :periodic_argument_reduction_risk,
+            assessment,
+            "$(head) is evaluated at a very large finite periodic argument.",
+            "Floating-point phase reduction can lose meaningful angular resolution at this scale, so function and derivative values may be dominated by representation rather than the intended physical phase.",
+            [
+                "operator" => head,
+                "argument_interval" => "[$(input.lower), $(input.upper)]",
+                "absolute_argument_magnitude" => absolute_magnitude,
+                "phase_resolution_threshold" => phase_resolution_threshold,
+                "numeric_type" => T,
+            ],
+            [
+                "Reduce periodic arguments using a well-scaled reference angle when the model semantics allow it.",
+                "Inspect units and phase conventions before interpreting derivative or residual changes at this magnitude.",
             ],
         )
     elseif head == :exp2
@@ -449,12 +589,89 @@ function _primitive_range_risks!(
                 ],
             )
         end
-    elseif head in (:asin, :acos, :asind, :acosd, :atanh, :acosh,
+    elseif head in (:csch, :coth)
+        strict_margin = _strict_nonzero_margin(input)
+        proximity_threshold = strict_domain_proximity_threshold
+        if !isnothing(strict_margin) && strict_margin <= proximity_threshold
+            # Both primitives have the reciprocal leading term 1/x near zero.
+            # These estimates intentionally describe the singular scaling, not
+            # an exact derivative formula away from zero.
+            first_derivative, second_derivative =
+                _reciprocal_derivative_estimates(strict_margin, T)
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :strict_domain_derivative_amplification,
+                _amplification_assessment(
+                    input.lower == input.upper,
+                    first_derivative,
+                    second_derivative,
+                ),
+                "$(head) is evaluated very close to its zero singularity.",
+                "The value remains defined, but csch and coth have reciprocal leading behavior near zero, so their derivatives can dominate local scaling.",
+                [
+                    "operator" => head,
+                    "argument_interval" => "[$(input.lower), $(input.upper)]",
+                    "strict_margin" => strict_margin,
+                    "estimated_first_derivative_magnitude" => first_derivative,
+                    "estimated_second_derivative_magnitude" => second_derivative,
+                    "numeric_type" => T,
+                    "proximity_threshold" => proximity_threshold,
+                ],
+                [
+                    "Choose an initialization farther from zero when the model semantics allow it.",
+                    "Inspect derivative-domain and Jacobian scaling findings at the same point.",
+                ],
+            )
+        end
+    elseif head in (:asech, :acsch)
+        strict_margin = head == :asech ?
+                        (input.valid && input.lower > 0.0 ? input.lower : nothing) :
+                        _strict_nonzero_margin(input)
+        proximity_threshold = strict_domain_proximity_threshold
+        if !isnothing(strict_margin) && strict_margin <= proximity_threshold
+            first_derivative, second_derivative =
+                _inverse_reciprocal_hyperbolic_derivative_estimates(
+                    strict_margin, T,
+                )
+            _push_expression_risk!(
+                risks,
+                source,
+                path,
+                value,
+                :strict_domain_derivative_amplification,
+                _amplification_assessment(
+                    input.lower == input.upper,
+                    first_derivative,
+                    second_derivative,
+                ),
+                "$(head) is evaluated very close to its zero boundary.",
+                "The value remains defined, but inverse reciprocal-hyperbolic derivatives have inverse-power leading behavior near zero and can dominate local scaling.",
+                [
+                    "operator" => head,
+                    "argument_interval" => "[$(input.lower), $(input.upper)]",
+                    "strict_margin" => strict_margin,
+                    "estimated_first_derivative_magnitude" => first_derivative,
+                    "estimated_second_derivative_magnitude" => second_derivative,
+                    "numeric_type" => T,
+                    "proximity_threshold" => proximity_threshold,
+                ],
+                [
+                    "Choose an initialization farther from zero when the model semantics allow it.",
+                    "Inspect derivative-domain and Jacobian scaling findings at the same point.",
+                ],
+            )
+        end
+    elseif head in (:asin, :acos, :asind, :acosd, :atanh, :acoth, :acosh,
                     :asec, :acsc, :asecd, :acscd) && input.valid &&
            input.lower == input.upper && isfinite(input.lower)
         argument = input.lower
         strict_margin = if head in (:asin, :acos, :asind, :acosd, :atanh)
             abs(argument) < 1.0 ? 1.0 - abs(argument) : nothing
+        elseif head == :acoth
+            abs(argument) > 1.0 ? abs(argument) - 1.0 : nothing
         elseif head in (:asec, :acsc, :asecd, :acscd)
             abs(argument) > 1.0 ? abs(argument) - 1.0 : nothing
         else
@@ -1268,6 +1485,10 @@ function analyze_expressions(
                     :exponential_overflow_risk,
                     :exponential_underflow_risk,
                     :hyperbolic_overflow_risk,
+                    :logistic_derivative_underflow_risk,
+                    :tanh_derivative_underflow_risk,
+                    :softplus_derivative_underflow_risk,
+                    :periodic_argument_reduction_risk,
                 ) && risk.assessment == DomainProvenViolation) ||
                 risk.code == :strict_domain_derivative_amplification,
             risks,
