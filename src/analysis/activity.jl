@@ -2214,6 +2214,52 @@ function _coupled_set_tangent_gradient_findings(
 end
 
 """
+    coupled_set_mapped_tangents(evaluation, summary)
+
+Map each smooth coupled-set output normal through fully available vector-row
+derivatives. Omitted tangents are deliberately not interpreted: callers that
+need unavailable-reason findings should use `analyze_active_set`.
+"""
+function coupled_set_mapped_tangents(
+    evaluation::NumericalEvaluation{T},
+    summary::CoupledSetFeasibilitySummary{T},
+) where {T<:AbstractFloat}
+    evaluation.point == summary.point ||
+        throw(ArgumentError("evaluation and coupled-set summary points differ"))
+    mapped = CoupledSetMappedTangent{T}[]
+    for tangent in summary.tangents
+        rows = [
+            row for (row, source) in enumerate(evaluation.constraint_sources)
+            if source.kind == :constraint && source.index == tangent.source.index &&
+               !isnothing(source.subindex)
+        ]
+        sort!(rows; by = row -> something(evaluation.constraint_sources[row].subindex))
+        length(rows) == length(tangent.normal) || continue
+        any(row > length(evaluation.jacobian_row_methods) ||
+            evaluation.jacobian_row_methods[row] in
+            (:unavailable, :partial_central_finite_difference) for row in rows) && continue
+        position_by_row = Dict(row => position for (position, row) in enumerate(rows))
+        gradient = zeros(T, length(evaluation.point.variables))
+        complete = true
+        for entry in evaluation.jacobian_entries
+            position = get(position_by_row, entry.row, 0)
+            iszero(position) && continue
+            if !isfinite(entry.value)
+                complete = false
+                break
+            end
+            gradient[entry.column] += tangent.normal[position] * entry.value
+        end
+        complete || continue
+        push!(mapped, CoupledSetMappedTangent(
+            tangent.source, tangent.set_kind, rows, gradient,
+            evaluation.jacobian_row_methods[rows],
+        ))
+    end
+    return mapped
+end
+
+"""
     analyze_active_set(model, evaluation; ...)
 
 Evaluate bound residuals, select equality and near-active inequality rows with

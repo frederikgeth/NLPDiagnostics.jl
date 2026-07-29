@@ -5125,6 +5125,26 @@ end
         @test NLPDiagnostics.coupled_set_qualification_screen(
             cone_model, cone_evaluation,
         ).tangent_sources == cone_qualification.tangent_sources
+        cone_mapped_tangents = NLPDiagnostics.coupled_set_mapped_tangents(
+            cone_evaluation, cone_summary,
+        )
+        @test length(cone_mapped_tangents) == 1
+        @test only(cone_mapped_tangents).gradient ≈ [1.0, -1.0]
+        partial_cone_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+            cone_evaluation.point,
+            cone_evaluation.objective_value,
+            cone_evaluation.objective_source,
+            cone_evaluation.objective_gradient,
+            cone_evaluation.constraint_values,
+            cone_evaluation.constraint_sources,
+            cone_evaluation.jacobian_entries,
+            [:partial_central_finite_difference, :exact_symbolic],
+            cone_evaluation.capabilities,
+            cone_evaluation.failures,
+        )
+        @test isempty(NLPDiagnostics.coupled_set_mapped_tangents(
+            partial_cone_evaluation, cone_summary,
+        ))
         @test_throws ArgumentError NLPDiagnostics.coupled_set_qualification_screen(
             NLPDiagnostics.evaluate_numerical(cone_model, [1.0, 0.0]), cone_summary,
         )

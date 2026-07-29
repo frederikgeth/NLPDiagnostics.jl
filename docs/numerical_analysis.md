@@ -400,6 +400,10 @@ the aligned operating point and smooth tangent sources. It never substitutes a
 scalar LICQ/MFCQ conclusion.
 `coupled_set_qualification_screen(model, evaluation; ...)` is the convenience
 overload that first constructs the coupled-set feasibility summary.
+`coupled_set_mapped_tangents(evaluation, summary)` exposes only smooth
+boundaries whose ordered vector rows, derivative methods, and finite mapped
+normal gradients are complete. It is the reusable numerical input for the
+future Robinson-CQ screen; unavailable mappings are intentionally omitted.
 
 ## Structural versus numerical degeneracy
 

@@ -245,6 +245,7 @@ export coupled_set_feasibility_summary
 export coupled_set_activity
 export coupled_set_tangent_evidence
 export coupled_set_qualification_screen
+export coupled_set_mapped_tangents
 export active_constraint_rows
 export active_set_matching
 export active_set_structural_decomposition
