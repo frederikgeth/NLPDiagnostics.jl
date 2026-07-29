@@ -185,6 +185,8 @@ when otherwise compatible inequality gradients have very different scales.
 Successful common-descent findings retain the convex-hull weights, their
 materially weighted active rows, and the witness scale/tolerance/iteration
 provenance, so the direction is inspectable rather than a bare boolean.
+Both common-descent and no-common-descent findings also retain the derivative
+methods for their equality and inequality rows.
 If neither result can be obtained, `mfcq_screen_inconclusive` records that the
 screen made no MFCQ claim; derivative unavailability instead produces
 `mfcq_screen_unavailable`. The active-set API exposes
@@ -195,9 +197,18 @@ be reproduced or deliberately refined. The witness tolerance is
 `absolute + relative * largest projected-gradient norm`; the relative term
 defaults to zero to preserve the existing absolute-tolerance behavior and must
 be selected explicitly when row units or scales warrant it.
+An equality-Jacobian rank loss is not treated as inconclusive: it produces
+`mfcq_equality_jacobian_rank_deficient`, because equality-gradient independence
+is itself part of MFCQ. The result remains a local numerical observation under
+the recorded rank tolerance. Both the equality rank and threshold are also
+available as `mfcq_equality_jacobian_rank` and
+`mfcq_equality_jacobian_threshold` metadata.
 For every attempted inequality witness, report metadata retains the observed
 projected-gradient scale, effective witness tolerance, and iteration count;
 the corresponding witness or inconclusive finding carries the same evidence.
+An inconclusive screen separately records whether the deterministic
+minimum-norm convex-hull iteration budget was exhausted or it converged without
+meeting either directional threshold.
 Before interpreting those numerical conclusions, the report records
 `active_set_mixed_derivative_provenance` when selected rows combine derivative
 methods and `active_set_finite_difference_derivatives` when any selected row

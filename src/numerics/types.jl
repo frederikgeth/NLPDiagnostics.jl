@@ -344,6 +344,8 @@ struct MFCQScreen{T<:AbstractFloat}
     failure_witness_projected_gradient_scale::Union{Nothing,T}
     failure_witness_effective_tolerance::Union{Nothing,T}
     failure_witness_iterations::Int
+    equality_jacobian_rank::Union{Nothing,Int}
+    equality_jacobian_threshold::Union{Nothing,T}
 end
 
 """Backward-compatible construction without witness scale/progress evidence."""
@@ -363,7 +365,33 @@ function MFCQScreen{T}(
         available, reason, equality_rows, inequality_rows, direction_found,
         direction, largest_active_inequality_directional_derivative,
         failure_witness_found, failure_witness_weights, failure_witness_residual,
-        nothing, nothing, 0,
+        nothing, nothing, 0, nothing, nothing,
+    )
+end
+
+"""Backward-compatible construction without equality-rank evidence."""
+function MFCQScreen{T}(
+    available::Bool,
+    reason::Union{Nothing,String},
+    equality_rows::Vector{Int},
+    inequality_rows::Vector{Int},
+    direction_found::Bool,
+    direction::Vector{T},
+    largest_active_inequality_directional_derivative::Union{Nothing,T},
+    failure_witness_found::Bool,
+    failure_witness_weights::Vector{T},
+    failure_witness_residual::Union{Nothing,T},
+    failure_witness_projected_gradient_scale::Union{Nothing,T},
+    failure_witness_effective_tolerance::Union{Nothing,T},
+    failure_witness_iterations::Int,
+) where {T<:AbstractFloat}
+    return MFCQScreen{T}(
+        available, reason, equality_rows, inequality_rows, direction_found,
+        direction, largest_active_inequality_directional_derivative,
+        failure_witness_found, failure_witness_weights, failure_witness_residual,
+        failure_witness_projected_gradient_scale,
+        failure_witness_effective_tolerance, failure_witness_iterations,
+        nothing, nothing,
     )
 end
 

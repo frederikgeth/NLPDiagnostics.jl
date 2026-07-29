@@ -679,6 +679,18 @@ function _active_set_findings(
                         details = [
                             "equality_rows" => join(mfcq.equality_rows, ","),
                             "inequality_rows" => join(mfcq.inequality_rows, ","),
+                            "equality_derivative_methods" => join(
+                                sort(unique(string.(evaluation.jacobian_row_methods[
+                                    mfcq.equality_rows,
+                                ]))),
+                                ",",
+                            ),
+                            "inequality_derivative_methods" => join(
+                                sort(unique(string.(evaluation.jacobian_row_methods[
+                                    unique(mfcq.inequality_rows),
+                                ]))),
+                                ",",
+                            ),
                             "largest_directional_derivative" => mfcq.largest_active_inequality_directional_derivative,
                             "material_direction_variables" =>
                                 join((variable.value for variable in support_variables), ","),
@@ -735,6 +747,18 @@ function _active_set_findings(
                         details = [
                             "equality_rows" => join(mfcq.equality_rows, ","),
                             "inequality_rows" => join(mfcq.inequality_rows, ","),
+                            "equality_derivative_methods" => join(
+                                sort(unique(string.(evaluation.jacobian_row_methods[
+                                    mfcq.equality_rows,
+                                ]))),
+                                ",",
+                            ),
+                            "inequality_derivative_methods" => join(
+                                sort(unique(string.(evaluation.jacobian_row_methods[
+                                    unique(mfcq.inequality_rows),
+                                ]))),
+                                ",",
+                            ),
                             "witness_weights" => join(mfcq.failure_witness_weights, ","),
                             "material_support_rows" => join(support_rows, ","),
                             "material_support_weights" => join(support_weights, ","),
@@ -772,12 +796,45 @@ function _active_set_findings(
                 Evidence("MFCQ screen availability"; details = [
                     "equality_rows" => join(mfcq.equality_rows, ","),
                     "inequality_rows" => join(mfcq.inequality_rows, ","),
+                    "equality_jacobian_rank" => mfcq.equality_jacobian_rank,
+                    "equality_jacobian_threshold" => mfcq.equality_jacobian_threshold,
                     "reason" => mfcq.reason,
                 ]),
             ],
             affected = affected,
             suggested_actions = [
                 "Resolve the equality-Jacobian derivative failure before interpreting constraint qualification.",
+            ],
+        ))
+    elseif mfcq.reason == "equality Jacobian is rank deficient"
+        push!(findings, Finding(
+            :mfcq_equality_jacobian_rank_deficient;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The selected equality Jacobian is rank deficient, so the equality-independence condition of MFCQ fails at this point under the recorded rank tolerance.",
+            why_it_matters = "MFCQ requires linearly independent equality gradients before any common-descent inequality test is relevant. This is local derivative evidence, not an exact symbolic certificate.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("MFCQ equality-gradient rank"; details = [
+                    "equality_rows" => join(mfcq.equality_rows, ","),
+                    "inequality_rows" => join(mfcq.inequality_rows, ","),
+                    "equality_derivative_methods" => join(
+                        sort(unique(string.(evaluation.jacobian_row_methods[
+                            mfcq.equality_rows,
+                        ]))),
+                        ",",
+                    ),
+                    "reason" => mfcq.reason,
+                ]),
+            ],
+            affected = EntityRef[
+                evaluation.constraint_sources[row] for row in mfcq.equality_rows
+            ],
+            suggested_actions = [
+                "Inspect dependent equality gradients and compare the selected rows with structural matching and duplicate-expression findings.",
+                "Vary the documented rank tolerance and repeat with exact derivatives before treating the local rank loss as formulation-level degeneracy.",
             ],
         ))
     elseif !mfcq.direction_found && !mfcq.failure_witness_found
@@ -2341,6 +2398,10 @@ function analyze_active_set(
     report.metadata[:supported_coupled_set_count] = string(length(coupled_summary.activities))
     report.metadata[:mfcq_screen_available] = string(mfcq.available)
     report.metadata[:mfcq_screen_reason] = string(mfcq.reason)
+    report.metadata[:mfcq_equality_jacobian_rank] =
+        string(mfcq.equality_jacobian_rank)
+    report.metadata[:mfcq_equality_jacobian_threshold] =
+        string(mfcq.equality_jacobian_threshold)
     report.metadata[:mfcq_common_descent_direction_found] = string(mfcq.direction_found)
     report.metadata[:mfcq_no_common_descent_witness_found] =
         string(mfcq.failure_witness_found)

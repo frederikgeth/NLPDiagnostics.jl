@@ -582,14 +582,17 @@ function mfcq_screen(
     equality_estimate.available || return MFCQScreen{T}(
         false, equality_estimate.reason, equalities, inequality_rows, false,
         zeros(T, length(evaluation.point.variables)), nothing, false, T[], nothing,
+        nothing, nothing, 0, nothing, nothing,
     )
     equality_estimate.rank == length(equalities) || return MFCQScreen{T}(
         true, "equality Jacobian is rank deficient", equalities, inequality_rows,
         false, zeros(T, length(evaluation.point.variables)), nothing, false, T[], nothing,
+        nothing, nothing, 0, equality_estimate.rank, equality_estimate.threshold,
     )
     isempty(inequality_rows) && return MFCQScreen{T}(
         true, nothing, equalities, inequality_rows, true,
         zeros(T, length(evaluation.point.variables)), nothing, false, T[], nothing,
+        nothing, nothing, 0, equality_estimate.rank, equality_estimate.threshold,
     )
     tangent = equality_estimate.right_nullspace
     jacobian = _combined_jacobian_matrix(evaluation)
@@ -621,11 +624,18 @@ function mfcq_screen(
     iszero(direction_norm) || (direction ./= direction_norm)
     directional_values = gradients * direction
     largest = maximum(directional_values)
+    reason = if largest < -strict
+        nothing
+    elseif witness_found
+        "a numerical no-common-descent witness was found"
+    elseif !witness_converged
+        "minimum-norm convex-hull witness did not converge within the iteration budget"
+    else
+        "converged convex-hull screen found neither a strict common-descent direction nor a no-common-descent witness"
+    end
     return MFCQScreen{T}(
         true,
-        largest < -strict ? nothing :
-        (witness_found ? "a numerical no-common-descent witness was found" :
-         "simple common-descent direction was not found"),
+        reason,
         equalities,
         inequality_rows,
         largest < -strict,
@@ -637,5 +647,7 @@ function mfcq_screen(
         projected_row_scale,
         effective_witness_tolerance,
         witness_iterations,
+        equality_estimate.rank,
+        equality_estimate.threshold,
     )
 end

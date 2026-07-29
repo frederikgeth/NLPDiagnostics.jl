@@ -4408,15 +4408,27 @@ end
             rank_deficient_variable,
             MOI.GreaterThan(0.0),
         )
-        inconclusive_mfcq_report = NLPDiagnostics.analyze_active_set(
+        rank_deficient_mfcq_report = NLPDiagnostics.analyze_active_set(
             rank_deficient_mfcq, [0.0],
         )
+        @test isempty(findings(
+            rank_deficient_mfcq_report, :mfcq_screen_inconclusive,
+        ))
         @test length(findings(
-            inconclusive_mfcq_report, :mfcq_screen_inconclusive,
+            rank_deficient_mfcq_report, :mfcq_equality_jacobian_rank_deficient,
         )) == 1
+        @test Dict(only(findings(
+            rank_deficient_mfcq_report, :mfcq_equality_jacobian_rank_deficient,
+        )).evidence[end].details)["equality_jacobian_rank"] == "0"
+        @test Dict(only(findings(
+            rank_deficient_mfcq_report, :mfcq_equality_jacobian_rank_deficient,
+        )).evidence[end].details)["equality_derivative_methods"] ==
+              "exact_constructed_nonlinear_ad"
         @test occursin(
-            "rank deficient", inconclusive_mfcq_report.metadata[:mfcq_screen_reason],
+            "rank deficient", rank_deficient_mfcq_report.metadata[:mfcq_screen_reason],
         )
+        @test rank_deficient_mfcq_report.metadata[:mfcq_equality_jacobian_rank] ==
+              "0"
 
         dependent = new_model()
         z = MOI.add_variable(dependent)
