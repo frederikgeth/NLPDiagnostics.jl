@@ -158,6 +158,37 @@ end
 structural_graph_data(model::MOI.ModelLike) =
     structural_graph_data(incidence_graph(model))
 
+"""
+    structural_graph_data(model, decomposition::ActiveSetStructuralDecomposition)
+        -> StructuralGraphData
+
+Render the active-set incidence graph underlying an inspectable active-set
+structural decomposition. Active bounds on free variables are present as native
+one-variable rows. Incomplete activity alignment remains visible through an
+incomplete export rather than falling back to an unrelated global partition.
+"""
+function structural_graph_data(
+    model::MOI.ModelLike,
+    decomposition::ActiveSetStructuralDecomposition,
+)
+    graph = incidence_graph(model; include_variable_domains = true)
+    partition = if isnothing(decomposition.partition)
+        DulmageMendelsohnPartition(
+            Int[], Int[], Int[], Int[], Int[], Int[],
+            decomposition.matching.matching,
+            false,
+        )
+    else
+        decomposition.partition
+    end
+    return structural_graph_data(
+        graph;
+        matching = decomposition.matching.matching,
+        partition = partition,
+        blocks = decomposition.well_determined_blocks,
+    )
+end
+
 _export_variable_label(node::StructuralVariableNode) =
     isnothing(node.name) ? "v$(node.model_index)" : node.name
 
@@ -218,6 +249,11 @@ structural_graph_text(graph::IncidenceGraph) =
 
 structural_graph_text(model::MOI.ModelLike) =
     structural_graph_text(incidence_graph(model))
+
+structural_graph_text(
+    model::MOI.ModelLike,
+    decomposition::ActiveSetStructuralDecomposition,
+) = structural_graph_text(structural_graph_data(model, decomposition))
 
 function _dot_escape(value)
     return replace(
@@ -283,3 +319,8 @@ structural_graph_dot(graph::IncidenceGraph) =
 
 structural_graph_dot(model::MOI.ModelLike) =
     structural_graph_dot(incidence_graph(model))
+
+structural_graph_dot(
+    model::MOI.ModelLike,
+    decomposition::ActiveSetStructuralDecomposition,
+) = structural_graph_dot(structural_graph_data(model, decomposition))

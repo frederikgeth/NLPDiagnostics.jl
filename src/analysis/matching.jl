@@ -547,3 +547,99 @@ end
 
 well_determined_blocks(model::MOI.ModelLike) =
     well_determined_blocks(incidence_graph(model))
+
+"""
+The inspectable structural decomposition of one numerically selected active set.
+
+`partition` is `nothing` when selected activity rows cannot be aligned with
+the active-set incidence graph. In that case `matching` retains the explicit
+unmapped rows and reason; no partial DM conclusion is silently returned.
+"""
+struct ActiveSetStructuralDecomposition
+    matching::ActiveSetStructuralMatching
+    partition::Union{Nothing,DulmageMendelsohnPartition}
+    well_determined_blocks::Vector{DulmageMendelsohnBlock}
+end
+
+"""
+    active_set_structural_decomposition(model, matching)
+        -> ActiveSetStructuralDecomposition
+
+Build the Dulmage–Mendelsohn partition and irreducible well-determined blocks
+for an already selected active set. Active bounds on free variables are retained
+as one-variable rows, while rows for non-free variable-domain declarations stay
+outside the free-variable matching scope.
+"""
+function active_set_structural_decomposition(
+    model::MOI.ModelLike,
+    matching::ActiveSetStructuralMatching,
+)
+    matching.complete || return ActiveSetStructuralDecomposition(
+        matching, nothing, DulmageMendelsohnBlock[],
+    )
+    graph = incidence_graph(model; include_variable_domains = true)
+    partition = dulmage_mendelsohn(graph; matching = matching.matching)
+    blocks = well_determined_blocks(graph; partition = partition)
+    return ActiveSetStructuralDecomposition(matching, partition, blocks)
+end
+
+"""
+    active_set_structural_decomposition(model, evaluation, summary)
+        -> ActiveSetStructuralDecomposition
+
+Select activity from `summary`, then return its inspectable structural
+decomposition without modifying the model.
+"""
+function active_set_structural_decomposition(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation,
+    summary::ConstraintFeasibilitySummary,
+)
+    matching = active_set_matching(model, evaluation, summary)
+    return active_set_structural_decomposition(model, matching)
+end
+
+"""
+    active_set_structural_decomposition(model, evaluation; ...)
+        -> ActiveSetStructuralDecomposition
+
+Construct the scalar feasibility/activity summary with explicit tolerances,
+then return the active-set structural decomposition.
+"""
+function active_set_structural_decomposition(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T};
+    feasibility_tolerance::Real = sqrt(eps(T)),
+    active_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    summary = constraint_feasibility_summary(
+        model, evaluation;
+        feasibility_tolerance = feasibility_tolerance,
+        active_tolerance = active_tolerance,
+    )
+    return active_set_structural_decomposition(model, evaluation, summary)
+end
+
+function active_set_structural_decomposition(
+    model::MOI.ModelLike,
+    point::EvaluationPoint;
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Real = cbrt(eps(eltype(point.values))),
+    kwargs...,
+)
+    evaluation = evaluate_numerical(
+        model, point; cache = cache, relative_step = relative_step,
+    )
+    return active_set_structural_decomposition(model, evaluation; kwargs...)
+end
+
+function active_set_structural_decomposition(
+    model::MOI.ModelLike,
+    values::Union{AbstractVector{<:Real},AbstractDict{MOI.VariableIndex,<:Real}};
+    label::AbstractString = "user",
+    kwargs...,
+)
+    return active_set_structural_decomposition(
+        model, evaluation_point(model, values; label = label); kwargs...,
+    )
+end

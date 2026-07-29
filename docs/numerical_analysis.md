@@ -156,6 +156,16 @@ an exact constraint-qualification proof. A failed screen without either result
 remains inconclusive. Coupled and plugin-defined sets remain visible as
 activity-semantics-unavailable evidence until a plugin provides the correct
 interpretation.
+The no-common-descent finding additionally identifies the materially weighted
+inequality rows (relative weight at least `1e-3` of the largest witness
+weight), so the numerical witness can be inspected without treating tiny
+iterative weights as explanatory support.
+Likewise, a found common-descent direction identifies its materially supported
+model coordinates at the same relative threshold; this remains a local
+numerical construction rather than an exact MFCQ certificate.
+The cutoff is configurable through `mfcq_support_relative` (default `1e-3`)
+and is recorded in active-set metadata; it changes only displayed explanatory
+support, never the underlying witness or MFCQ screen.
 
 `recover_stationarity_multipliers` additionally computes a minimum-norm
 least-squares multiplier representative for those explicit active sides,
@@ -165,6 +175,19 @@ the representative non-unique. This is diagnostic evidence, not a solver dual
 solution or an economic interpretation. It also reports the recovered
 inequality-sign violation and bound-margin complementarity residual; these are
 local consistency screens for this representative, not KKT certificates.
+For a non-unique system, the finding records the complete minimum-norm
+representative plus materially supported rows/sides (relative magnitude at
+least `multiplier_support_relative` of the largest multiplier), while retaining the fact that other
+representatives exist.
+If an inequality-sign screen fails, the finding also identifies the violating
+rows, lower/upper sides, and recovered multiplier values, plus the materially
+large violation subset rather than assigning the failure to every active side.
+The complementarity screen likewise identifies materially contributing rows,
+sides, multipliers, active margins, and products, retaining the selected
+activity tolerance rather than treating a near-active side as exactly active.
+`multiplier_support_relative` defaults to `1e-3` and is recorded in active-set
+metadata. It controls only these explanatory support subsets, never multiplier
+recovery, dual-feasibility screening, or complementarity residuals.
 
 `active_set_matching` is a separate, explicitly point-local structural view.
 It matches free variables to only the aligned equality and selected near-active
@@ -188,6 +211,19 @@ rows rather than being silently omitted. An incomplete alignment emits
 `active_set_structural_matching_unavailable`; the generic core then withholds
 matching-based overdetermination and structural-versus-numerical tangent
 claims rather than silently narrowing their scope.
+`active_set_structural_decomposition(model, evaluation, summary)` exposes the
+same matching together with its DM partition and irreducible well-determined
+blocks for plugins and advanced inspection. If alignment is incomplete, its
+partition is explicitly `nothing` while the matching retains the reason and
+unmapped rows. Point, value-vector/dictionary, and evaluation overloads build
+the activity summary with explicit feasibility and activity tolerances.
+Pass the decomposition to `structural_graph_data(model, decomposition)` to
+obtain the renderer-neutral active-set graph with matching, DM-region, and
+block annotations; `structural_graph_text` and `structural_graph_dot` accept
+the same `(model, decomposition)` pair for direct inspection and visualization.
+`analyze_active_set` also records availability plus active DM-region and block
+counts in report metadata, giving profiling code a stable aggregate interface
+without parsing rendered graphs or finding prose.
 When alignment is complete, the same local matching reports both selected-row
 overdetermination and unmatched eligible free variables as active-set structural
 underdetermination. Neither result is a numerical-nullspace proof; the latter
@@ -197,6 +233,66 @@ endpoint, `active_set_dm_underdetermined_region` or
 `active_set_dm_overdetermined_region` reports its coupled variables and rows.
 These are local structural regions conditioned on activity selection, not
 global structural proofs or numerical dependence certificates.
+`active_set_dm_underdetermined_region_right_nullspace_support` analogously
+identifies the materially participating coordinates of observed tangent freedom
+within an underdetermined region. It does not decide whether that freedom is a
+gauge, a missing equation, or a point-specific effect.
+If numerical nullity exceeds the structural prediction in that same region,
+`active_set_dm_underdetermined_region_additional_rank_loss` localizes the
+additional point-local derivative loss without reclassifying the baseline
+structural freedom.
+When the selected Jacobian is numerically dependent within such an overdetermined
+region, `active_set_dm_overdetermined_region_left_nullspace_support` identifies
+the materially participating active rows. This is local numerical evidence of
+dependent gradients, not an infeasibility certificate.
+`active_set_dm_overdetermined_region_additional_left_nullity` separately flags
+left nullity beyond the structural competition already implied by that region.
+It localizes extra derivative dependence without treating the baseline
+overdetermination itself as a numerical failure.
+When the well-determined selected pattern decomposes into several irreducible
+blocks, `active_set_dm_well_determined_blocks` exposes that local coupling
+decomposition. It is useful for inspection and profiling, but does not claim
+that objective curvature or future active sets stay block-separable.
+For a multi-block active set, each square block is also checked against its
+own numerical Jacobian. `active_set_well_determined_block_rank_loss` localizes
+derivative rank loss to a structurally well-determined block; it is a numerical
+observation, not by itself a proof of a physical singularity.
+If that rank loss disappears under row/column scaling, the package instead
+reports `active_set_well_determined_block_rank_scaling_sensitive`: the rank
+classification depends on scaling and tolerance semantics and must not be
+treated as robust degeneracy evidence.
+For rank loss that persists, `active_set_well_determined_block_nullspace_support`
+lists the materially supported coordinates of each local right-null direction.
+This is a numerical localization aid, not an automatic gauge or physical-mode
+classification. The same relative cutoff governs displayed support for global
+active left/right-nullspace fingerprints and the active DM under/overdetermined
+region findings. It is configurable through `nullspace_support_relative`
+(default `0.1`) and recorded in active-set metadata. Changing it changes only
+the explanatory support labels, not ranks, nullities, or the nullspace vectors.
+Even when the block remains full rank,
+`active_set_well_determined_block_ill_conditioned` reports an excessive
+unscaled dense-SVD condition estimate. The configurable
+`block_condition_threshold` (default `1e10`) preserves the distinction between
+scaling-sensitive numerical evidence and a structural rank claim.
+When row/column scaling reduces the condition estimate below that threshold,
+the finding is instead
+`active_set_well_determined_block_conditioning_scaling_sensitive`: the evidence
+points to coordinate or unit semantics, not an intrinsic local singularity.
+`active_set_well_determined_block_scale_spread` separately records excessive
+row and/or column infinity-norm spread within one coupled active block, using
+the configurable `block_scale_ratio_threshold` (default `1e6`). This pinpoints
+the constraint and coordinate scope of a scaling problem without calling it
+rank loss. Its evidence identifies the smallest and largest positive row and
+column norms within the block, so the reported ratio remains actionable.
+If a block's otherwise complete derivatives use central finite differences,
+`active_set_well_determined_block_finite_difference_derivatives` records that
+provenance before its rank or conditioning conclusions are interpreted.
+`active_set_well_determined_block_mixed_derivative_provenance` similarly makes
+mixed exact, AD, callback, or finite-difference row methods explicit without
+claiming that the combination is invalid.
+`active_set_well_determined_block_zero_sensitivities` identifies zero rows or
+columns in a selected structurally square block, separating stationary
+first-order behavior from a purely structural missing-equation diagnosis.
 
 Second-order and rotated-second-order cones additionally receive generic
 vector-set feasibility and boundary reports through

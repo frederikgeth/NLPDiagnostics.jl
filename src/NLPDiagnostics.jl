@@ -64,6 +64,7 @@ export SolverConflictResult
 export ElasticDomainGuard
 export ElasticDomainGuardPlan
 export ActiveSetStructuralMatching
+export ActiveSetStructuralDecomposition
 export CoupledConstraint, EqualityConstraint, FreeConstraint
 export InequalityConstraint, OpaqueConstraint
 export DiagnosticReport
@@ -242,6 +243,7 @@ export coupled_set_activity
 export coupled_set_tangent_evidence
 export active_constraint_rows
 export active_set_matching
+export active_set_structural_decomposition
 export mfcq_screen
 export recover_stationarity_multipliers
 export nullspace_fingerprints

@@ -301,7 +301,15 @@ function _active_set_findings(
     estimate::JacobianRankEstimate,
     mfcq::MFCQScreen,
     recovery::MultiplierRecovery,
+    mfcq_support_relative::Real,
+    multiplier_support_relative::Real,
 )
+    0 < mfcq_support_relative <= 1 || throw(ArgumentError(
+        "mfcq_support_relative must lie in (0, 1]",
+    ))
+    0 < multiplier_support_relative <= 1 || throw(ArgumentError(
+        "multiplier_support_relative must lie in (0, 1]",
+    ))
     findings = Finding[]
     for activity in summary.activities
         activity.classification == :violated || continue
@@ -410,6 +418,17 @@ function _active_set_findings(
         )
     end
     if mfcq.available && mfcq.direction_found && !isempty(mfcq.inequality_rows)
+        direction_magnitude = maximum(abs, mfcq.direction; init = zero(eltype(
+            mfcq.direction,
+        )))
+        direction_support = iszero(direction_magnitude) ? Int[] :
+                            findall(value -> abs(value) >=
+                mfcq_support_relative * direction_magnitude,
+                mfcq.direction)
+        support_variables = evaluation.point.variables[direction_support]
+        normalized_direction = iszero(direction_magnitude) ?
+                               eltype(mfcq.direction)[] :
+                               abs.(mfcq.direction[direction_support]) ./ direction_magnitude
         push!(
             findings,
             Finding(
@@ -428,17 +447,35 @@ function _active_set_findings(
                             "equality_rows" => join(mfcq.equality_rows, ","),
                             "inequality_rows" => join(mfcq.inequality_rows, ","),
                             "largest_directional_derivative" => mfcq.largest_active_inequality_directional_derivative,
+                            "material_direction_variables" =>
+                                join((variable.value for variable in support_variables), ","),
+                            "normalized_direction_magnitudes" =>
+                                join(normalized_direction, ","),
+                            "relative_support_threshold" => mfcq_support_relative,
                         ],
                     ),
                 ],
                 suggested_actions = [
                     "Treat this as point-local evidence and verify it with a solver or domain-specific feasibility analysis when consequential.",
                 ],
-                affected = affected,
+                affected = vcat(
+                    affected,
+                    EntityRef[EntityRef(:variable, variable.value) for
+                              variable in support_variables],
+                ),
             ),
         )
     end
     if mfcq.available && mfcq.failure_witness_found
+        maximum_weight = maximum(mfcq.failure_witness_weights; init = zero(eltype(
+            mfcq.failure_witness_weights,
+        )))
+        support = findall(
+            weight -> weight >= mfcq_support_relative * maximum_weight,
+            mfcq.failure_witness_weights,
+        )
+        support_rows = mfcq.inequality_rows[support]
+        support_weights = mfcq.failure_witness_weights[support]
         push!(
             findings,
             Finding(
@@ -457,6 +494,9 @@ function _active_set_findings(
                             "equality_rows" => join(mfcq.equality_rows, ","),
                             "inequality_rows" => join(mfcq.inequality_rows, ","),
                             "witness_weights" => join(mfcq.failure_witness_weights, ","),
+                            "material_support_rows" => join(support_rows, ","),
+                            "material_support_weights" => join(support_weights, ","),
+                            "relative_support_threshold" => mfcq_support_relative,
                             "witness_residual" => mfcq.failure_witness_residual,
                         ],
                     ),
@@ -465,11 +505,24 @@ function _active_set_findings(
                     "Inspect opposing or dependent active inequality gradients and vary the documented activity tolerance.",
                     "Repeat with exact derivatives or a solver-specific constraint qualification check before treating this as conclusive.",
                 ],
-                affected = affected,
+                affected = EntityRef[
+                    evaluation.constraint_sources[row] for row in unique(support_rows)
+                ],
             ),
         )
     end
     if recovery.available && !recovery.unique
+        multiplier_magnitude = maximum(abs, recovery.multipliers; init = zero(eltype(
+            recovery.multipliers,
+        )))
+        multiplier_support = iszero(multiplier_magnitude) ? Int[] :
+                             findall(
+            value -> abs(value) >= multiplier_support_relative * multiplier_magnitude,
+            recovery.multipliers,
+        )
+        support_rows = recovery.rows[multiplier_support]
+        support_sides = recovery.sides[multiplier_support]
+        support_multipliers = recovery.multipliers[multiplier_support]
         push!(
             findings,
             Finding(
@@ -485,6 +538,11 @@ function _active_set_findings(
                     Evidence("Local multiplier recovery"; details = [
                         "rows" => join(recovery.rows, ","),
                         "sides" => join(recovery.sides, ","),
+                        "minimum_norm_multipliers" => join(recovery.multipliers, ","),
+                        "material_support_rows" => join(support_rows, ","),
+                        "material_support_sides" => join(support_sides, ","),
+                        "material_support_multipliers" => join(support_multipliers, ","),
+                        "relative_support_threshold" => multiplier_support_relative,
                         "stationarity_residual_norm" => recovery.stationarity_residual_norm,
                         "feasible_point" => recovery.feasible_point,
                     ]),
@@ -493,7 +551,9 @@ function _active_set_findings(
                     "Inspect dependent active gradients and compare with the LICQ result.",
                     "Treat returned multiplier values as one minimum-norm representative only.",
                 ],
-                affected = EntityRef[evaluation.constraint_sources[row] for row in unique(recovery.rows)],
+                affected = EntityRef[
+                    evaluation.constraint_sources[row] for row in unique(support_rows)
+                ],
             ),
         )
     elseif recovery.available && !isnothing(recovery.stationarity_residual_norm) &&
@@ -519,6 +579,24 @@ function _active_set_findings(
     if recovery.available &&
        !isnothing(recovery.inequality_dual_violation) &&
        recovery.inequality_dual_violation > dual_tolerance
+        violating = findall(
+            index -> recovery.sides[index] != :equality &&
+                     recovery.multipliers[index] < -dual_tolerance,
+            eachindex(recovery.multipliers),
+        )
+        violating_rows = recovery.rows[violating]
+        violating_sides = recovery.sides[violating]
+        violating_multipliers = recovery.multipliers[violating]
+        material_violation = recovery.inequality_dual_violation
+        material_violating = findall(
+            index -> recovery.sides[index] != :equality &&
+                     recovery.multipliers[index] <
+                     -multiplier_support_relative * material_violation,
+            eachindex(recovery.multipliers),
+        )
+        material_violating_rows = recovery.rows[material_violating]
+        material_violating_sides = recovery.sides[material_violating]
+        material_violating_multipliers = recovery.multipliers[material_violating]
         push!(
             findings,
             Finding(
@@ -534,6 +612,14 @@ function _active_set_findings(
                     Evidence("Local multiplier sign screen"; details = [
                         "dual_violation" => recovery.inequality_dual_violation,
                         "tolerance" => dual_tolerance,
+                        "violating_rows" => join(violating_rows, ","),
+                        "violating_sides" => join(violating_sides, ","),
+                        "violating_multipliers" => join(violating_multipliers, ","),
+                        "material_violating_rows" => join(material_violating_rows, ","),
+                        "material_violating_sides" => join(material_violating_sides, ","),
+                        "material_violating_multipliers" =>
+                            join(material_violating_multipliers, ","),
+                        "relative_support_threshold" => multiplier_support_relative,
                         "stationarity_residual_norm" => recovery.stationarity_residual_norm,
                     ]),
                 ],
@@ -541,7 +627,9 @@ function _active_set_findings(
                     "Check whether the point is stationary and whether the selected active sides use the intended sign convention.",
                     "Treat the least-squares multipliers as diagnostics, not solver dual values.",
                 ],
-                affected = EntityRef[evaluation.constraint_sources[row] for row in unique(recovery.rows)],
+                affected = EntityRef[
+                    evaluation.constraint_sources[row] for row in unique(violating_rows)
+                ],
             ),
         )
     end
@@ -549,6 +637,28 @@ function _active_set_findings(
        !isnothing(recovery.complementarity_residual) &&
        recovery.complementarity_residual >
        dual_tolerance * summary.active_tolerance
+        activities_by_row = Dict(activity.row => activity for activity in summary.activities)
+        complementarity_rows = Int[]
+        complementarity_sides = Symbol[]
+        complementarity_multipliers = eltype(recovery.multipliers)[]
+        complementarity_margins = eltype(recovery.multipliers)[]
+        complementarity_products = eltype(recovery.multipliers)[]
+        for (row, side, multiplier) in zip(
+            recovery.rows, recovery.sides, recovery.multipliers,
+        )
+            side == :equality && continue
+            activity = activities_by_row[row]
+            margin = side == :lower ? activity.lower_margin : activity.upper_margin
+            isnothing(margin) && continue
+            product = abs(multiplier * margin)
+            product >= multiplier_support_relative *
+                       recovery.complementarity_residual || continue
+            push!(complementarity_rows, row)
+            push!(complementarity_sides, side)
+            push!(complementarity_multipliers, multiplier)
+            push!(complementarity_margins, margin)
+            push!(complementarity_products, product)
+        end
         push!(
             findings,
             Finding(
@@ -559,11 +669,23 @@ function _active_set_findings(
                 confidence = ConfidenceHigh,
                 observation = "The recovered active multipliers have complementarity residual $(recovery.complementarity_residual).",
                 why_it_matters = "The activity tolerance and multiplier scale leave a non-negligible local complementarity mismatch.",
-                evidence = [_point_evidence(evaluation.point)],
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence("Local multiplier complementarity screen"; details = [
+                        "rows" => join(complementarity_rows, ","),
+                        "sides" => join(complementarity_sides, ","),
+                        "multipliers" => join(complementarity_multipliers, ","),
+                        "margins" => join(complementarity_margins, ","),
+                        "products" => join(complementarity_products, ","),
+                        "relative_support_threshold" => multiplier_support_relative,
+                    ]),
+                ],
                 suggested_actions = [
                     "Tighten or vary the active-set tolerance and inspect the corresponding bound margins.",
                 ],
-                affected = EntityRef[evaluation.constraint_sources[row] for row in unique(recovery.rows)],
+                affected = EntityRef[
+                    evaluation.constraint_sources[row] for row in unique(complementarity_rows)
+                ],
             ),
         )
     end
@@ -606,6 +728,9 @@ function _active_matching_findings(
     selected_count = length(active_matching.selected_constraint_positions)
     graph = incidence_graph(model; include_variable_domains = true)
     partition = dulmage_mendelsohn(graph; matching = matching)
+    blocks = partition.complete ?
+             well_determined_blocks(graph; partition = partition) :
+             DulmageMendelsohnBlock[]
     findings = Finding[]
     affected_rows = EntityRef[
         evaluation.constraint_sources[row] for row in active_matching.selected_rows
@@ -729,6 +854,39 @@ function _active_matching_findings(
             ),
         ))
     end
+    if length(blocks) > 1
+        descriptions = String[]
+        affected = EntityRef[]
+        for (number, block) in enumerate(blocks)
+            variables = _variable_position_labels(graph, block.variable_positions)
+            constraints = _constraint_position_labels(graph, block.constraint_positions)
+            push!(descriptions,
+                "block $number: variables={$(join(variables, ", "))}; selected_rows={$(join(constraints, ", "))}",
+            )
+            append!(affected, _structural_affected(
+                graph, block.variable_positions, block.constraint_positions,
+            ))
+        end
+        unique!(affected)
+        push!(findings, Finding(
+            :active_set_dm_well_determined_blocks;
+            severity = SeverityInfo,
+            domain = MathematicalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = "The selected active-set pattern decomposes into $(length(blocks)) irreducible well-determined blocks.",
+            why_it_matters = "Within this activity selection, the blocks provide an inspectable local coupling decomposition for debugging and scaling. It does not prove that objective curvature, inactive rows, or future active-set changes remain block-separable.",
+            evidence = vcat(evidence, [Evidence("Active-set well-determined blocks"; details = [
+                "block_count" => length(blocks),
+                "blocks" => join(descriptions, " | "),
+            ])]),
+            suggested_actions = [
+                "Inspect the smallest or poorly scaled block first when diagnosing local solver behavior.",
+                "Compare the block decomposition across nearby active sets before using it for reformulation.",
+            ],
+            affected = affected,
+        ))
+    end
     return findings
 end
 
@@ -824,6 +982,639 @@ function _active_structural_numerical_tangent_findings(
             evidence = evidence,
             affected = affected,
             suggested_actions = ["Inspect active nullspace fingerprints, scaling, and nearby points before assigning a physical cause."],
+        ))
+    end
+    return findings
+end
+
+function _active_well_determined_block_rank_findings(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T},
+    active_matching::ActiveSetStructuralMatching;
+    rank_relative_tolerance::Real,
+    rank_max_dense_entries::Integer,
+    condition_threshold::Real,
+    scale_ratio_threshold::Real,
+    nullspace_support_relative::Real,
+) where {T<:AbstractFloat}
+    active_matching.complete || return Finding[]
+    graph = incidence_graph(model; include_variable_domains = true)
+    partition = dulmage_mendelsohn(
+        graph; matching = active_matching.matching,
+    )
+    blocks = well_determined_blocks(graph; partition = partition)
+    length(blocks) > 1 || return Finding[]
+
+    node_positions = Dict(
+        _constraint_node_key(node) => position for
+        (position, node) in enumerate(graph.constraint_nodes)
+    )
+    row_by_node = Dict{Int,Int}()
+    for row in active_matching.aligned_rows
+        position = get(
+            node_positions, _entity_ref_key(evaluation.constraint_sources[row]), 0,
+        )
+        iszero(position) || (row_by_node[position] = row)
+    end
+    column_by_variable = Dict(
+        variable => column for (column, variable) in enumerate(evaluation.point.variables)
+    )
+    findings = Finding[]
+    for (number, block) in enumerate(blocks)
+        rows = [get(row_by_node, position, 0) for position in block.constraint_positions]
+        variables = MOI.VariableIndex[
+            graph.variables[position].index for position in block.variable_positions
+        ]
+        columns = [get(column_by_variable, variable, 0) for variable in variables]
+        if any(iszero, rows) || any(iszero, columns)
+            push!(findings, Finding(
+                :active_set_block_rank_unavailable;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "Active-set block $number cannot be fully aligned with numerical Jacobian rows and columns.",
+                why_it_matters = "No block-local numerical rank conclusion is made without exactly the structural rows and variables that define the block.",
+                evidence = [_point_evidence(evaluation.point)],
+                affected = _structural_affected(
+                    graph, block.variable_positions, block.constraint_positions,
+                ),
+                suggested_actions = [
+                    "Evaluate every block variable and inspect the selected-row alignment.",
+                ],
+            ))
+            continue
+        end
+        block_evaluation = _selected_jacobian_submatrix_evaluation(
+            evaluation, rows, columns,
+        )
+        derivative_methods = sort!(unique!(copy(block_evaluation.jacobian_row_methods));
+            by = string,
+        )
+        if length(derivative_methods) > 1
+            push!(findings, Finding(
+                :active_set_well_determined_block_mixed_derivative_provenance;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "Active-set block $number combines $(length(derivative_methods)) derivative methods across its selected rows.",
+                why_it_matters = "The methods may have different accuracy, sparsity, and failure semantics. This is not an error, but it should remain explicit when interpreting a marginal local rank or conditioning result.",
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence("Active-set block derivative provenance"; details = [
+                        "block" => number,
+                        "methods" => join(derivative_methods, ","),
+                    ]),
+                ],
+                affected = _structural_affected(
+                    graph, block.variable_positions, block.constraint_positions,
+                ),
+                suggested_actions = [
+                    "Inspect derivative-method provenance before comparing close rank thresholds across blocks.",
+                    "Prefer one verified derivative path when reproducing a marginal diagnostic.",
+                ],
+            ))
+        end
+        finite_difference_rows = findall(
+            ==(:central_finite_difference), block_evaluation.jacobian_row_methods,
+        )
+        if !isempty(finite_difference_rows)
+            push!(findings, Finding(
+                :active_set_well_determined_block_finite_difference_derivatives;
+                severity = SeverityInfo,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "Active-set block $number uses complete central finite-difference derivatives for $(length(finite_difference_rows)) selected row(s).",
+                why_it_matters = "Local rank, conditioning, and scaling observations for those rows depend on the finite-difference step and evaluation stability. They should be checked against exact or AD derivatives before diagnosing a subtle degeneracy.",
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence("Active-set block derivative provenance"; details = [
+                        "block" => number,
+                        "finite_difference_rows" => join(finite_difference_rows, ","),
+                        "methods" => join(block_evaluation.jacobian_row_methods, ","),
+                    ]),
+                ],
+                affected = _structural_affected(
+                    graph, block.variable_positions, block.constraint_positions,
+                ),
+                suggested_actions = [
+                    "Vary the finite-difference step and compare the local rank conclusion.",
+                    "Provide exact or automatic-differentiation derivatives when possible.",
+                ],
+            ))
+        end
+        scale_summary = jacobian_scale_summary(block_evaluation)
+        if !isempty(scale_summary.zero_rows) || !isempty(scale_summary.zero_columns)
+            zero_row_labels = String[
+                _constraint_member_label(
+                    graph.constraint_nodes[block.constraint_positions[position]],
+                ) for position in scale_summary.zero_rows
+            ]
+            zero_column_labels = String[
+                _variable_member_label(
+                    graph.variables[block.variable_positions[position]],
+                ) for position in scale_summary.zero_columns
+            ]
+            push!(findings, Finding(
+                :active_set_well_determined_block_zero_sensitivities;
+                severity = SeverityWarning,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "Active-set block $number has $(length(scale_summary.zero_rows)) zero Jacobian row(s) and $(length(scale_summary.zero_columns)) zero Jacobian column(s).",
+                why_it_matters = "A structurally present active equation or coordinate is locally invisible to first-order linearization. This can arise at stationary nonlinear expressions, derivative cancellation, or an incomplete derivative source.",
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence("Active-set block zero sensitivities"; details = [
+                        "block" => number,
+                        "zero_rows" => join(zero_row_labels, ", "),
+                        "zero_columns" => join(zero_column_labels, ", "),
+                        "derivative_methods" =>
+                            join(block_evaluation.jacobian_row_methods, ","),
+                    ]),
+                ],
+                affected = _structural_affected(
+                    graph, block.variable_positions, block.constraint_positions,
+                ),
+                suggested_actions = [
+                    "Inspect the expression and derivative at this operating point.",
+                    "Compare nearby points and second-order evidence before calling the row redundant.",
+                ],
+            ))
+        end
+        if (!isnothing(scale_summary.row_scale_ratio) &&
+            scale_summary.row_scale_ratio >= scale_ratio_threshold) ||
+           (!isnothing(scale_summary.column_scale_ratio) &&
+            scale_summary.column_scale_ratio >= scale_ratio_threshold)
+            row_labels = String[
+                _constraint_member_label(graph.constraint_nodes[position]) for
+                position in block.constraint_positions
+            ]
+            column_labels = String[
+                _variable_member_label(graph.variables[position]) for
+                position in block.variable_positions
+            ]
+            row_positive = findall(norm -> isfinite(norm) && norm > zero(norm),
+                scale_summary.row_norms)
+            column_positive = findall(norm -> isfinite(norm) && norm > zero(norm),
+                scale_summary.column_norms)
+            row_smallest = isempty(row_positive) ? nothing :
+                           row_positive[argmin(scale_summary.row_norms[row_positive])]
+            row_largest = isempty(row_positive) ? nothing :
+                          row_positive[argmax(scale_summary.row_norms[row_positive])]
+            column_smallest = isempty(column_positive) ? nothing :
+                              column_positive[argmin(scale_summary.column_norms[column_positive])]
+            column_largest = isempty(column_positive) ? nothing :
+                             column_positive[argmax(scale_summary.column_norms[column_positive])]
+            push!(findings, Finding(
+                :active_set_well_determined_block_scale_spread;
+                severity = SeverityWarning,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "Active-set block $number has large local Jacobian $(scale_summary.norm)-norm scale spread.",
+                why_it_matters = "Constraint-row and variable-column derivative scales inside one coupled block can distort local step computation and feasibility/tolerance semantics even when global averages hide the issue.",
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence("Active-set block scale summary"; details = [
+                        "block" => number,
+                        "row_scale_ratio" => scale_summary.row_scale_ratio,
+                        "column_scale_ratio" => scale_summary.column_scale_ratio,
+                        "smallest_positive_row" =>
+                            isnothing(row_smallest) ? "unavailable" : row_labels[row_smallest],
+                        "largest_finite_row" =>
+                            isnothing(row_largest) ? "unavailable" : row_labels[row_largest],
+                        "smallest_positive_column" =>
+                            isnothing(column_smallest) ? "unavailable" : column_labels[column_smallest],
+                        "largest_finite_column" =>
+                            isnothing(column_largest) ? "unavailable" : column_labels[column_largest],
+                        "threshold" => scale_ratio_threshold,
+                    ]),
+                ],
+                affected = _structural_affected(
+                    graph, block.variable_positions, block.constraint_positions,
+                ),
+                suggested_actions = [
+                    "Inspect constraint units and characteristic residual magnitudes within this block.",
+                    "Inspect coordinate units and choose explicit scaling with documented tolerance semantics.",
+                ],
+            ))
+        end
+        estimate = jacobian_rank_estimate(
+            block_evaluation;
+            relative_tolerance = rank_relative_tolerance,
+            max_dense_entries = rank_max_dense_entries,
+            compute_vectors = false,
+        )
+        estimate.available || begin
+            push!(findings, Finding(
+                :active_set_block_rank_unavailable;
+                severity = SeverityInfo,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = "Numerical rank estimation is unavailable for active-set block $number.",
+                why_it_matters = "The structurally well-determined block cannot yet be checked for local derivative rank loss.",
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence("Active-set block rank"; details = [
+                        "block" => number,
+                        "reason" => estimate.reason,
+                    ]),
+                ],
+                affected = _structural_affected(
+                    graph, block.variable_positions, block.constraint_positions,
+                ),
+                suggested_actions = [
+                    "Resolve derivative availability or adjust the documented rank guard.",
+                ],
+            ))
+            continue
+        end
+        if estimate.rank < length(columns)
+            scaled = jacobian_rank_estimate(
+                _selected_jacobian_submatrix_evaluation(evaluation, rows, columns);
+                scaling = :row_column,
+                relative_tolerance = rank_relative_tolerance,
+                max_dense_entries = rank_max_dense_entries,
+                compute_vectors = false,
+            )
+            scaling_resolves_rank = scaled.available &&
+                                    scaled.rank == length(columns)
+            push!(findings, Finding(
+                scaling_resolves_rank ?
+                :active_set_well_determined_block_rank_scaling_sensitive :
+                :active_set_well_determined_block_rank_loss;
+                severity = SeverityWarning,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
+                observation = scaling_resolves_rank ?
+                              "Structurally well-determined active-set block $number has unscaled numerical Jacobian rank $(estimate.rank), but row/column scaling gives full rank $(scaled.rank)." :
+                              "Structurally well-determined active-set block $number has numerical Jacobian rank $(estimate.rank) for $(length(columns)) variables.",
+                why_it_matters = scaling_resolves_rank ?
+                                 "The local rank conclusion depends on scaling and tolerance semantics. This is not robust evidence of a mathematical degree of freedom or physical singularity." :
+                                 "This localizes active rank loss to an otherwise square structural block, consistent with derivative cancellation, a singular operating point, poor coordinates, or a physical bifurcation.",
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence("Active-set block rank"; details = [
+                        "block" => number,
+                        "row_count" => length(rows),
+                        "variable_count" => length(columns),
+                        "numerical_rank" => estimate.rank,
+                        "numerical_right_nullity" => estimate.right_nullity,
+                        "row_column_scaled_rank" =>
+                            scaled.available ? scaled.rank : "unavailable",
+                    ]),
+                ],
+                affected = _structural_affected(
+                    graph, block.variable_positions, block.constraint_positions,
+                ),
+                suggested_actions = [
+                    scaling_resolves_rank ?
+                    "Record explicit scaling and tolerance semantics before interpreting this rank loss." :
+                    "Inspect this block's derivative scale and nullspace directions at nearby points.",
+                    scaling_resolves_rank ?
+                    "Compare unscaled and scaled singular spectra before treating the direction as a gauge." :
+                    "Compare with primitive-domain and expected-mode diagnostics before assigning a physical cause.",
+                ],
+            ))
+            if !scaling_resolves_rank
+                vector_estimate = jacobian_rank_estimate(
+                    block_evaluation;
+                    relative_tolerance = rank_relative_tolerance,
+                    max_dense_entries = rank_max_dense_entries,
+                    compute_vectors = true,
+                )
+                for vector_index in axes(vector_estimate.right_nullspace, 2)
+                    vector = view(vector_estimate.right_nullspace, :, vector_index)
+                    magnitude = maximum(abs, vector; init = zero(T))
+                    iszero(magnitude) && continue
+                    support = findall(value -> abs(value) >=
+                        T(nullspace_support_relative) * magnitude, vector)
+                    support_variables = variables[support]
+                    support_weights = abs.(vector[support]) ./ magnitude
+                    push!(findings, Finding(
+                        :active_set_well_determined_block_nullspace_support;
+                        severity = SeverityInfo,
+                        domain = NumericalIssue,
+                        basis = NumericalObservation,
+                        confidence = ConfidenceHigh,
+                        observation = "A locally rank-deficient active-set block $number has right-null direction $vector_index supported on $(length(support_variables)) coordinate(s).",
+                        why_it_matters = "The support localizes the observed loss of derivative rank within a structurally square block. It may reflect cancellation, poor coordinates, a singular operating point, or an expected mode; it is not classified automatically.",
+                        evidence = [
+                            _point_evidence(evaluation.point),
+                            Evidence("Active-set block right-nullspace support"; details = [
+                                "block" => number,
+                                "vector_index" => vector_index,
+                                "support_variables" => join(
+                                    (_variable_member_label(graph.variables[
+                                        block.variable_positions[position]
+                                    ]) for position in support), ", ",
+                                ),
+                                "normalized_support_magnitudes" =>
+                                    join(support_weights, ","),
+                                "relative_support_threshold" => nullspace_support_relative,
+                            ]),
+                        ],
+                        affected = vcat(
+                            _structural_affected(
+                                graph, Int[], block.constraint_positions,
+                            ),
+                            EntityRef[EntityRef(:variable, variable.value) for
+                                      variable in support_variables],
+                        ),
+                        suggested_actions = [
+                            "Compare this support with expected modes and primitive-domain diagnostics.",
+                            "Re-evaluate nearby points before assigning a physical interpretation.",
+                        ],
+                    ))
+                end
+            end
+            continue
+        end
+        isnothing(estimate.condition_estimate) && continue
+        estimate.condition_estimate < condition_threshold && continue
+        scaled = jacobian_rank_estimate(
+            _selected_jacobian_submatrix_evaluation(evaluation, rows, columns);
+            scaling = :row_column,
+            relative_tolerance = rank_relative_tolerance,
+            max_dense_entries = rank_max_dense_entries,
+            compute_vectors = false,
+        )
+        scaled_condition = scaled.available ? scaled.condition_estimate : nothing
+        scaling_resolves = !isnothing(scaled_condition) &&
+                           scaled.rank == length(columns) &&
+                           scaled_condition < condition_threshold
+        push!(findings, Finding(
+            scaling_resolves ?
+            :active_set_well_determined_block_conditioning_scaling_sensitive :
+            :active_set_well_determined_block_ill_conditioned;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = scaling_resolves ?
+                          "Full-rank active-set block $number has unscaled Jacobian condition estimate $(estimate.condition_estimate), but row/column scaling reduces it to $scaled_condition." :
+                          "Full-rank active-set block $number has unscaled Jacobian condition estimate $(estimate.condition_estimate), exceeding $condition_threshold.",
+            why_it_matters = scaling_resolves ?
+                             "The block's conditioning is strongly scale-sensitive. This is numerical evidence about coordinates or units, not intrinsic rank loss or a physical singularity." :
+                             "This local block is structurally determined but remains poorly conditioned after the available scaling comparison. It may produce fragile Newton/KKT steps; this still does not establish a modeling error or physical singularity.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set block conditioning"; details = [
+                    "block" => number,
+                    "unscaled_condition_estimate" => estimate.condition_estimate,
+                    "row_column_scaled_condition_estimate" => scaled_condition,
+                    "row_column_scaled_rank" => scaled.available ? scaled.rank : "unavailable",
+                    "threshold" => condition_threshold,
+                    "row_count" => length(rows),
+                    "variable_count" => length(columns),
+                ]),
+            ],
+            affected = _structural_affected(
+                graph, block.variable_positions, block.constraint_positions,
+            ),
+            suggested_actions = [
+                "Inspect units, coordinate scaling, and coefficient magnitudes in this block.",
+                scaling_resolves ?
+                "Use explicit, documented scaling and preserve the corresponding tolerance semantics." :
+                "Compare nearby points and formulation alternatives before attributing the issue to intrinsic physics.",
+            ],
+        ))
+    end
+    return findings
+end
+
+function _active_overdetermined_region_left_nullspace_findings(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T},
+    active_matching::ActiveSetStructuralMatching;
+    rank_relative_tolerance::Real,
+    rank_max_dense_entries::Integer,
+    nullspace_support_relative::Real,
+) where {T<:AbstractFloat}
+    active_matching.complete || return Finding[]
+    graph = incidence_graph(model; include_variable_domains = true)
+    partition = dulmage_mendelsohn(graph; matching = active_matching.matching)
+    partition.complete && !isempty(partition.overdetermined_constraints) ||
+        return Finding[]
+    node_positions = Dict(
+        _constraint_node_key(node) => position for
+        (position, node) in enumerate(graph.constraint_nodes)
+    )
+    row_by_node = Dict{Int,Int}()
+    for row in active_matching.aligned_rows
+        position = get(
+            node_positions, _entity_ref_key(evaluation.constraint_sources[row]), 0,
+        )
+        iszero(position) || (row_by_node[position] = row)
+    end
+    rows = [get(row_by_node, position, 0) for position in
+            partition.overdetermined_constraints]
+    variables = MOI.VariableIndex[
+        graph.variables[position].index for position in
+        partition.overdetermined_variables
+    ]
+    column_by_variable = Dict(
+        variable => column for (column, variable) in enumerate(evaluation.point.variables)
+    )
+    columns = [get(column_by_variable, variable, 0) for variable in variables]
+    (any(iszero, rows) || any(iszero, columns)) && return Finding[]
+    estimate = jacobian_rank_estimate(
+        _selected_jacobian_submatrix_evaluation(evaluation, rows, columns);
+        relative_tolerance = rank_relative_tolerance,
+        max_dense_entries = rank_max_dense_entries,
+        compute_vectors = true,
+    )
+    estimate.available && estimate.left_nullity > 0 || return Finding[]
+    findings = Finding[]
+    structural_rank = count(
+        !iszero,
+        active_matching.matching.constraint_match[
+            partition.overdetermined_constraints
+        ],
+    )
+    structural_left_nullity = length(rows) - structural_rank
+    if estimate.left_nullity > structural_left_nullity
+        push!(findings, Finding(
+            :active_set_dm_overdetermined_region_additional_left_nullity;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "Active-set overdetermined region has numerical left nullity $(estimate.left_nullity), exceeding structural left nullity $structural_left_nullity.",
+            why_it_matters = "The selected pattern already contains structurally competing rows, but the local Jacobian has additional dependence within the same region. This can be caused by derivative cancellation, a singular operating point, or scale-sensitive rank classification.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set overdetermined-region rank comparison"; details = [
+                    "structural_matching_rank" => structural_rank,
+                    "structural_left_nullity" => structural_left_nullity,
+                    "numerical_rank" => estimate.rank,
+                    "numerical_left_nullity" => estimate.left_nullity,
+                ]),
+            ],
+            affected = _structural_affected(
+                graph,
+                partition.overdetermined_variables,
+                partition.overdetermined_constraints,
+            ),
+            suggested_actions = [
+                "Inspect derivative values and left-nullspace support in this region.",
+                "Compare nearby points and scaling before treating all rows as redundant.",
+            ],
+        ))
+    end
+    for vector_index in axes(estimate.left_nullspace, 2)
+        vector = view(estimate.left_nullspace, :, vector_index)
+        magnitude = maximum(abs, vector; init = zero(T))
+        iszero(magnitude) && continue
+        support = findall(value -> abs(value) >=
+            T(nullspace_support_relative) * magnitude, vector)
+        support_rows = rows[support]
+        weights = abs.(vector[support]) ./ magnitude
+        push!(findings, Finding(
+            :active_set_dm_overdetermined_region_left_nullspace_support;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "Active-set overdetermined region has left-null direction $vector_index supported on $(length(support_rows)) selected row(s).",
+            why_it_matters = "This localizes numerically dependent active gradients inside the structurally overdetermined region. It can reflect redundancy, derivative cancellation, or the chosen active-set tolerance; it is not an infeasibility proof.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set overdetermined-region left-nullspace support"; details = [
+                    "vector_index" => vector_index,
+                    "active_rows" => join(support_rows, ","),
+                    "normalized_support_magnitudes" => join(weights, ","),
+                    "relative_support_threshold" => nullspace_support_relative,
+                ]),
+            ],
+            affected = EntityRef[
+                evaluation.constraint_sources[row] for row in support_rows
+            ],
+            suggested_actions = [
+                "Compare this row cluster with duplicate-expression and multiplier-uniqueness evidence.",
+                "Vary the active tolerance and re-evaluate nearby points before treating the rows as redundant.",
+            ],
+        ))
+    end
+    return findings
+end
+
+function _active_underdetermined_region_right_nullspace_findings(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T},
+    active_matching::ActiveSetStructuralMatching;
+    rank_relative_tolerance::Real,
+    rank_max_dense_entries::Integer,
+    nullspace_support_relative::Real,
+) where {T<:AbstractFloat}
+    active_matching.complete || return Finding[]
+    graph = incidence_graph(model; include_variable_domains = true)
+    partition = dulmage_mendelsohn(graph; matching = active_matching.matching)
+    partition.complete && !isempty(partition.underdetermined_variables) ||
+        return Finding[]
+    node_positions = Dict(
+        _constraint_node_key(node) => position for
+        (position, node) in enumerate(graph.constraint_nodes)
+    )
+    row_by_node = Dict{Int,Int}()
+    for row in active_matching.aligned_rows
+        position = get(
+            node_positions, _entity_ref_key(evaluation.constraint_sources[row]), 0,
+        )
+        iszero(position) || (row_by_node[position] = row)
+    end
+    rows = [get(row_by_node, position, 0) for position in
+            partition.underdetermined_constraints]
+    variables = MOI.VariableIndex[
+        graph.variables[position].index for position in
+        partition.underdetermined_variables
+    ]
+    column_by_variable = Dict(
+        variable => column for (column, variable) in enumerate(evaluation.point.variables)
+    )
+    columns = [get(column_by_variable, variable, 0) for variable in variables]
+    (any(iszero, rows) || any(iszero, columns)) && return Finding[]
+    estimate = jacobian_rank_estimate(
+        _selected_jacobian_submatrix_evaluation(evaluation, rows, columns);
+        relative_tolerance = rank_relative_tolerance,
+        max_dense_entries = rank_max_dense_entries,
+        compute_vectors = true,
+    )
+    estimate.available && estimate.right_nullity > 0 || return Finding[]
+    findings = Finding[]
+    structural_rank = count(
+        !iszero,
+        active_matching.matching.constraint_match[
+            partition.underdetermined_constraints
+        ],
+    )
+    structural_nullity = length(variables) - structural_rank
+    if estimate.right_nullity > structural_nullity
+        push!(findings, Finding(
+            :active_set_dm_underdetermined_region_additional_rank_loss;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "Active-set underdetermined region has numerical right nullity $(estimate.right_nullity), exceeding structural nullity $structural_nullity.",
+            why_it_matters = "The selected incidence pattern already predicts structural freedom, but the local Jacobian loses additional rank within the same region. This can indicate derivative cancellation, a singular operating point, poor coordinates, or a physical singularity.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set underdetermined-region rank comparison"; details = [
+                    "structural_matching_rank" => structural_rank,
+                    "structural_right_nullity" => structural_nullity,
+                    "numerical_rank" => estimate.rank,
+                    "numerical_right_nullity" => estimate.right_nullity,
+                ]),
+            ],
+            affected = _structural_affected(
+                graph,
+                partition.underdetermined_variables,
+                partition.underdetermined_constraints,
+            ),
+            suggested_actions = [
+                "Inspect local nullspace support and derivative values in this region.",
+                "Compare nearby points and scaling before assigning a physical cause.",
+            ],
+        ))
+    end
+    for vector_index in axes(estimate.right_nullspace, 2)
+        vector = view(estimate.right_nullspace, :, vector_index)
+        magnitude = maximum(abs, vector; init = zero(T))
+        iszero(magnitude) && continue
+        support = findall(value -> abs(value) >=
+            T(nullspace_support_relative) * magnitude, vector)
+        support_variables = variables[support]
+        weights = abs.(vector[support]) ./ magnitude
+        push!(findings, Finding(
+            :active_set_dm_underdetermined_region_right_nullspace_support;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "Active-set underdetermined region has right-null direction $vector_index supported on $(length(support_variables)) coordinate(s).",
+            why_it_matters = "This localizes the observed tangent freedom within the structurally underdetermined region. It can be an intended gauge, inactive equation, missing equation, or a point-specific derivative effect; semantics are required to classify it.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set underdetermined-region right-nullspace support"; details = [
+                    "vector_index" => vector_index,
+                    "variables" => join((variable.value for variable in support_variables), ","),
+                    "normalized_support_magnitudes" => join(weights, ","),
+                    "relative_support_threshold" => nullspace_support_relative,
+                ]),
+            ],
+            affected = EntityRef[
+                EntityRef(:variable, variable.value) for variable in support_variables
+            ],
+            suggested_actions = [
+                "Compare this support with declared expected modes and domain metadata.",
+                "Inspect whether a local inactive or missing equation should constrain these coordinates.",
+            ],
         ))
     end
     return findings
@@ -1051,12 +1842,27 @@ function analyze_active_set(
     rank_relative_tolerance::Real =
         max(length(evaluation.point.variables), 1) * eps(T),
     rank_max_dense_entries::Integer = 4_000_000,
+    block_condition_threshold::Real = 1.0e10,
+    block_scale_ratio_threshold::Real = 1.0e6,
     mfcq_strict_tolerance::Real = sqrt(eps(T)),
+    mfcq_support_relative::Real = 1.0e-3,
+    multiplier_support_relative::Real = 1.0e-3,
+    nullspace_support_relative::Real = 0.1,
     expected_modes::AbstractVector{<:ExpectedNullspaceMode} =
         expected_nullspace_modes(model, evaluation),
     include_port_topology_modes::Bool = true,
     expected_mode_residual_tolerance::Real = sqrt(eps(T)),
 ) where {T<:AbstractFloat}
+    block_condition_threshold > 1 ||
+        throw(ArgumentError("block_condition_threshold must be greater than one"))
+    block_scale_ratio_threshold > 1 ||
+        throw(ArgumentError("block_scale_ratio_threshold must be greater than one"))
+    0 < mfcq_support_relative <= 1 ||
+        throw(ArgumentError("mfcq_support_relative must lie in (0, 1]"))
+    0 < multiplier_support_relative <= 1 ||
+        throw(ArgumentError("multiplier_support_relative must lie in (0, 1]"))
+    0 < nullspace_support_relative <= 1 ||
+        throw(ArgumentError("nullspace_support_relative must lie in (0, 1]"))
     port_modes = include_port_topology_modes ? port_expected_nullspace_modes(
         component_port_metadata(model),
         component_port_nullspace_modes(model),
@@ -1091,6 +1897,9 @@ function analyze_active_set(
         max_dense_entries = rank_max_dense_entries,
     )
     active_matching = active_set_matching(model, evaluation, summary)
+    active_decomposition = active_set_structural_decomposition(
+        model, active_matching,
+    )
     coupled_summary = coupled_set_feasibility_summary(
         model,
         evaluation;
@@ -1098,9 +1907,17 @@ function analyze_active_set(
         active_tolerance = active_tolerance,
     )
     report = DiagnosticReport()
-    append!(report.findings, _active_set_findings(evaluation, summary, selected_rows, estimate, mfcq, recovery))
-    append!(report.findings, _active_left_nullspace_fingerprints(evaluation, selected_rows, estimate))
-    append!(report.findings, _active_right_nullspace_fingerprints(evaluation, estimate))
+    append!(report.findings, _active_set_findings(
+        evaluation, summary, selected_rows, estimate, mfcq, recovery,
+        mfcq_support_relative, multiplier_support_relative,
+    ))
+    append!(report.findings, _active_left_nullspace_fingerprints(
+        evaluation, selected_rows, estimate;
+        support_relative = nullspace_support_relative,
+    ))
+    append!(report.findings, _active_right_nullspace_fingerprints(
+        evaluation, estimate; support_relative = nullspace_support_relative,
+    ))
     append!(report.findings, _active_expected_nullspace_mode_findings(
         evaluation, selected_rows, all_expected_modes;
         residual_tolerance = expected_mode_residual_tolerance,
@@ -1110,6 +1927,26 @@ function analyze_active_set(
         residual_tolerance = expected_mode_residual_tolerance,
     ))
     append!(report.findings, _active_matching_findings(model, evaluation, active_matching))
+    append!(report.findings, _active_well_determined_block_rank_findings(
+        model, evaluation, active_matching;
+        rank_relative_tolerance = rank_relative_tolerance,
+        rank_max_dense_entries = rank_max_dense_entries,
+        condition_threshold = block_condition_threshold,
+        scale_ratio_threshold = block_scale_ratio_threshold,
+        nullspace_support_relative = nullspace_support_relative,
+    ))
+    append!(report.findings, _active_overdetermined_region_left_nullspace_findings(
+        model, evaluation, active_matching;
+        rank_relative_tolerance = rank_relative_tolerance,
+        rank_max_dense_entries = rank_max_dense_entries,
+        nullspace_support_relative = nullspace_support_relative,
+    ))
+    append!(report.findings, _active_underdetermined_region_right_nullspace_findings(
+        model, evaluation, active_matching;
+        rank_relative_tolerance = rank_relative_tolerance,
+        rank_max_dense_entries = rank_max_dense_entries,
+        nullspace_support_relative = nullspace_support_relative,
+    ))
     append!(report.findings, _active_structural_numerical_tangent_findings(
         model, evaluation, active_matching;
         rank_relative_tolerance = rank_relative_tolerance,
@@ -1131,6 +1968,25 @@ function analyze_active_set(
         string(matching_cardinality(active_matching.matching))
     report.metadata[:active_structural_aligned_row_count] =
         string(length(active_matching.aligned_rows))
+    report.metadata[:active_dm_partition_available] =
+        string(!isnothing(active_decomposition.partition))
+    report.metadata[:active_dm_well_determined_block_count] =
+        string(length(active_decomposition.well_determined_blocks))
+    if !isnothing(active_decomposition.partition)
+        partition = active_decomposition.partition
+        report.metadata[:active_dm_underdetermined_variable_count] =
+            string(length(partition.underdetermined_variables))
+        report.metadata[:active_dm_underdetermined_row_count] =
+            string(length(partition.underdetermined_constraints))
+        report.metadata[:active_dm_well_determined_variable_count] =
+            string(length(partition.well_determined_variables))
+        report.metadata[:active_dm_well_determined_row_count] =
+            string(length(partition.well_determined_constraints))
+        report.metadata[:active_dm_overdetermined_variable_count] =
+            string(length(partition.overdetermined_variables))
+        report.metadata[:active_dm_overdetermined_row_count] =
+            string(length(partition.overdetermined_constraints))
+    end
     report.metadata[:active_expected_nullspace_mode_count] = string(length(expected_modes))
     report.metadata[:active_port_expected_nullspace_mode_count] =
         string(length(port_modes))
@@ -1149,6 +2005,10 @@ function analyze_active_set(
         string(mfcq.failure_witness_found)
     report.metadata[:mfcq_no_common_descent_witness_residual] =
         string(mfcq.failure_witness_residual)
+    report.metadata[:mfcq_support_relative] = string(mfcq_support_relative)
+    report.metadata[:multiplier_support_relative] =
+        string(multiplier_support_relative)
+    report.metadata[:nullspace_support_relative] = string(nullspace_support_relative)
     report.metadata[:multiplier_recovery_available] = string(recovery.available)
     report.metadata[:active_multiplier_unique] = string(recovery.unique)
     report.metadata[:active_multiplier_inequality_dual_violation] =

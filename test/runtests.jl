@@ -4149,6 +4149,12 @@ end
         )
         @test isempty(findings(report, :active_constraint_licq_failure))
         @test length(findings(report, :mfcq_common_descent_direction_found)) == 1
+        descent_finding = only(findings(
+            report, :mfcq_common_descent_direction_found,
+        ))
+        @test Dict(descent_finding.evidence[end].details)[
+            "material_direction_variables"
+        ] == string(y.value)
 
         tangent_shift = new_model()
         t1, t2 = MOI.add_variables(tangent_shift, 2)
@@ -4258,6 +4264,18 @@ end
         @test opposing_screen.failure_witness_residual < 1.0e-10
         opposing_report = NLPDiagnostics.analyze_active_set(opposing, [0.0])
         @test length(findings(opposing_report, :mfcq_no_common_descent_witness)) == 1
+        opposing_witness = only(findings(
+            opposing_report, :mfcq_no_common_descent_witness,
+        ))
+        @test Dict(opposing_witness.evidence[end].details)[
+            "material_support_rows"
+        ] == "1,2"
+        @test NLPDiagnostics.analyze_active_set(
+            opposing, [0.0]; mfcq_support_relative = 0.5,
+        ).metadata[:mfcq_support_relative] == "0.5"
+        @test_throws ArgumentError NLPDiagnostics.analyze_active_set(
+            opposing, [0.0]; mfcq_support_relative = 0,
+        )
 
         dependent = new_model()
         z = MOI.add_variable(dependent)
@@ -4322,14 +4340,67 @@ end
         @test active_matching.complete
         @test active_matching.selected_rows == [1, 2]
         @test NLPDiagnostics.matching_cardinality(active_matching.matching) == 1
+        active_decomposition = NLPDiagnostics.active_set_structural_decomposition(
+            dual_model, dual_evaluation, dual_summary,
+        )
+        @test active_decomposition.matching == active_matching
+        @test active_decomposition.partition isa NLPDiagnostics.DulmageMendelsohnPartition
         dual_report = NLPDiagnostics.analyze_active_set(dual_model, dual_evaluation)
         @test length(findings(dual_report, :nonunique_active_multipliers)) == 1
+        dual_multiplier_finding = only(findings(
+            dual_report, :nonunique_active_multipliers,
+        ))
+        @test haskey(
+            Dict(dual_multiplier_finding.evidence[end].details),
+            "minimum_norm_multipliers",
+        )
+        @test Dict(dual_multiplier_finding.evidence[end].details)[
+            "relative_support_threshold"
+        ] == "0.001"
+        custom_multiplier_report = NLPDiagnostics.analyze_active_set(
+            dual_model, dual_evaluation; multiplier_support_relative = 0.5,
+        )
+        custom_multiplier_finding = only(findings(
+            custom_multiplier_report, :nonunique_active_multipliers,
+        ))
+        @test Dict(custom_multiplier_finding.evidence[end].details)[
+            "relative_support_threshold"
+        ] == "0.5"
+        @test custom_multiplier_report.metadata[
+            :multiplier_support_relative
+        ] == "0.5"
+        @test_throws ArgumentError NLPDiagnostics.analyze_active_set(
+            dual_model, dual_evaluation; multiplier_support_relative = 0.0,
+        )
         @test length(
             findings(dual_report, :active_set_structural_overdetermination),
         ) == 1
         @test length(findings(dual_report, :active_set_dm_overdetermined_region)) == 1
+        @test length(findings(
+            dual_report,
+            :active_set_dm_overdetermined_region_left_nullspace_support,
+        )) == 1
+
+        overdetermined_rank_loss = new_model()
+        over_rank_x = MOI.add_variable(overdetermined_rank_loss)
+        over_rank_expression = MOI.ScalarNonlinearFunction(:^, Any[over_rank_x, 2])
+        MOI.add_constraint(
+            overdetermined_rank_loss, over_rank_expression, MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            overdetermined_rank_loss, over_rank_expression, MOI.GreaterThan(0.0),
+        )
+        overdetermined_rank_loss_report = NLPDiagnostics.analyze_active_set(
+            overdetermined_rank_loss, [0.0],
+        )
+        @test length(findings(
+            overdetermined_rank_loss_report,
+            :active_set_dm_overdetermined_region_additional_left_nullity,
+        )) == 1
         @test dual_report.metadata[:active_structural_matching_cardinality] == "1"
         @test dual_report.metadata[:active_structural_aligned_row_count] == "2"
+        @test dual_report.metadata[:active_dm_partition_available] == "true"
+        @test dual_report.metadata[:active_dm_overdetermined_row_count] == "2"
 
         # A numerical rank above an asserted structural matching rank is not
         # interpreted as removed mathematical freedom: it exposes an invalid
@@ -4392,6 +4463,35 @@ end
             ),
             :active_set_dm_underdetermined_region,
         )) == 1
+        @test length(findings(
+            NLPDiagnostics.analyze_active_set(
+                underdetermined_active, underdetermined_evaluation,
+            ),
+            :active_set_dm_underdetermined_region_right_nullspace_support,
+        )) == 1
+
+        underdetermined_rank_loss = new_model()
+        under_rank_x, under_rank_y = MOI.add_variables(
+            underdetermined_rank_loss, 2,
+        )
+        MOI.add_constraint(
+            underdetermined_rank_loss,
+            MOI.ScalarNonlinearFunction(
+                :-,
+                Any[
+                    MOI.ScalarNonlinearFunction(:^, Any[under_rank_x, 2]),
+                    MOI.ScalarNonlinearFunction(:^, Any[under_rank_y, 2]),
+                ],
+            ),
+            MOI.EqualTo(0.0),
+        )
+        underdetermined_rank_loss_report = NLPDiagnostics.analyze_active_set(
+            underdetermined_rank_loss, [0.0, 0.0],
+        )
+        @test length(findings(
+            underdetermined_rank_loss_report,
+            :active_set_dm_underdetermined_region_additional_rank_loss,
+        )) == 1
 
         # A direct VariableIndex equality is an MOI variable-domain declaration.
         # It fixes x, so it is outside the free-variable incidence matching
@@ -4436,6 +4536,247 @@ end
         @test bound_matching.selected_constraint_positions == [1]
         @test NLPDiagnostics.matching_cardinality(bound_matching.matching) == 1
 
+        block_active = new_model()
+        block_x, block_y = MOI.add_variables(block_active, 2)
+        block_x_row = MOI.ScalarAffineFunction(
+            [MOI.ScalarAffineTerm(1.0, block_x)], 0.0,
+        )
+        block_y_row = MOI.ScalarAffineFunction(
+            [MOI.ScalarAffineTerm(1.0, block_y)], 0.0,
+        )
+        MOI.add_constraint(block_active, block_x_row, MOI.EqualTo(0.0))
+        MOI.add_constraint(block_active, block_y_row, MOI.EqualTo(0.0))
+        block_report = NLPDiagnostics.analyze_active_set(block_active, [0.0, 0.0])
+        @test length(findings(
+            block_report, :active_set_dm_well_determined_blocks,
+        )) == 1
+        @test block_report.metadata[:active_dm_well_determined_block_count] == "2"
+        block_evaluation_for_decomposition = NLPDiagnostics.evaluate_numerical(
+            block_active, [0.0, 0.0],
+        )
+        block_summary_for_decomposition = NLPDiagnostics.constraint_feasibility_summary(
+            block_active, block_evaluation_for_decomposition,
+        )
+        block_decomposition = NLPDiagnostics.active_set_structural_decomposition(
+            block_active,
+            block_evaluation_for_decomposition,
+            block_summary_for_decomposition,
+        )
+        @test length(block_decomposition.well_determined_blocks) == 2
+        active_graph_data = NLPDiagnostics.structural_graph_data(
+            block_active, block_decomposition,
+        )
+        @test active_graph_data.complete
+        @test count(node -> node.block == 1, active_graph_data.variables) == 1
+        @test count(node -> node.block == 2, active_graph_data.variables) == 1
+        @test occursin(
+            "DM=well",
+            NLPDiagnostics.structural_graph_text(block_active, block_decomposition),
+        )
+        @test occursin(
+            "NLPDiagnostics structural graph",
+            NLPDiagnostics.structural_graph_dot(block_active, block_decomposition),
+        )
+        @test length(
+            NLPDiagnostics.active_set_structural_decomposition(
+                block_active, [0.0, 0.0],
+            ).well_determined_blocks,
+        ) == 2
+        block_evaluation = NLPDiagnostics.evaluate_numerical(
+            block_active, [0.0, 0.0],
+        )
+        finite_difference_block_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+            block_evaluation.point,
+            block_evaluation.objective_value,
+            block_evaluation.objective_source,
+            block_evaluation.objective_gradient,
+            block_evaluation.constraint_values,
+            block_evaluation.constraint_sources,
+            block_evaluation.jacobian_entries,
+            [:central_finite_difference, :exact_symbolic],
+            block_evaluation.capabilities,
+            block_evaluation.failures,
+        )
+        finite_difference_block_report = NLPDiagnostics.analyze_active_set(
+            block_active, finite_difference_block_evaluation,
+        )
+        @test length(findings(
+            finite_difference_block_report,
+            :active_set_well_determined_block_finite_difference_derivatives,
+        )) == 1
+        @test length(findings(
+            finite_difference_block_report,
+            :active_set_well_determined_block_mixed_derivative_provenance,
+        )) == 1
+
+        block_rank_loss = new_model()
+        block_rank_x, block_rank_y = MOI.add_variables(block_rank_loss, 2)
+        MOI.add_constraint(
+            block_rank_loss,
+            MOI.ScalarAffineFunction(
+                [MOI.ScalarAffineTerm(1.0, block_rank_x)], 0.0,
+            ),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            block_rank_loss,
+            MOI.ScalarNonlinearFunction(:^, Any[block_rank_y, 2]),
+            MOI.EqualTo(0.0),
+        )
+        block_rank_report = NLPDiagnostics.analyze_active_set(
+            block_rank_loss, [0.0, 0.0],
+        )
+        @test length(findings(
+            block_rank_report, :active_set_well_determined_block_rank_loss,
+        )) == 1
+        @test length(findings(
+            block_rank_report,
+            :active_set_well_determined_block_nullspace_support,
+        )) == 1
+        block_nullspace_support = only(findings(
+            block_rank_report,
+            :active_set_well_determined_block_nullspace_support,
+        ))
+        @test Dict(block_nullspace_support.evidence[end].details)[
+            "relative_support_threshold"
+        ] == "0.1"
+        custom_nullspace_support_report = NLPDiagnostics.analyze_active_set(
+            block_rank_loss, [0.0, 0.0]; nullspace_support_relative = 0.5,
+        )
+        custom_block_nullspace_support = only(findings(
+            custom_nullspace_support_report,
+            :active_set_well_determined_block_nullspace_support,
+        ))
+        @test Dict(custom_block_nullspace_support.evidence[end].details)[
+            "relative_support_threshold"
+        ] == "0.5"
+        @test custom_nullspace_support_report.metadata[
+            :nullspace_support_relative
+        ] == "0.5"
+        @test_throws ArgumentError NLPDiagnostics.analyze_active_set(
+            block_rank_loss, [0.0, 0.0]; nullspace_support_relative = 0.0,
+        )
+        @test length(findings(
+            block_rank_report,
+            :active_set_well_determined_block_zero_sensitivities,
+        )) == 1
+
+        block_rank_scaling_sensitive = new_model()
+        rank_scale_x, rank_scale_y, rank_scale_z = MOI.add_variables(
+            block_rank_scaling_sensitive, 3,
+        )
+        MOI.add_constraint(
+            block_rank_scaling_sensitive,
+            MOI.ScalarAffineFunction(
+                [MOI.ScalarAffineTerm(1.0, rank_scale_x)], 0.0,
+            ),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            block_rank_scaling_sensitive,
+            MOI.ScalarAffineFunction([
+                MOI.ScalarAffineTerm(1.0e8, rank_scale_y),
+                MOI.ScalarAffineTerm(1.0, rank_scale_z),
+            ], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            block_rank_scaling_sensitive,
+            MOI.ScalarAffineFunction([
+                MOI.ScalarAffineTerm(1.0, rank_scale_y),
+                MOI.ScalarAffineTerm(1.0e-8 + 1.0e-16, rank_scale_z),
+            ], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        block_rank_scaling_report = NLPDiagnostics.analyze_active_set(
+            block_rank_scaling_sensitive, [0.0, 0.0, 0.0],
+        )
+        @test length(findings(
+            block_rank_scaling_report,
+            :active_set_well_determined_block_rank_scaling_sensitive,
+        )) == 1
+
+        block_ill_conditioned = new_model()
+        block_condition_x, block_condition_y, block_condition_z = MOI.add_variables(
+            block_ill_conditioned, 3,
+        )
+        MOI.add_constraint(
+            block_ill_conditioned,
+            MOI.ScalarAffineFunction(
+                [MOI.ScalarAffineTerm(1.0, block_condition_x)], 0.0,
+            ),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            block_ill_conditioned,
+            MOI.ScalarAffineFunction([
+                MOI.ScalarAffineTerm(1.0, block_condition_y),
+                MOI.ScalarAffineTerm(1.0, block_condition_z),
+            ], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            block_ill_conditioned,
+            MOI.ScalarAffineFunction([
+                MOI.ScalarAffineTerm(1.0, block_condition_y),
+                MOI.ScalarAffineTerm(1.0 + 1.0e-12, block_condition_z),
+            ], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        block_condition_report = NLPDiagnostics.analyze_active_set(
+            block_ill_conditioned, [0.0, 0.0, 0.0],
+        )
+        @test length(findings(
+            block_condition_report,
+            :active_set_well_determined_block_ill_conditioned,
+        )) == 1
+
+        block_scaling_sensitive = new_model()
+        scale_x, scale_y, scale_z = MOI.add_variables(block_scaling_sensitive, 3)
+        MOI.add_constraint(
+            block_scaling_sensitive,
+            MOI.ScalarAffineFunction(
+                [MOI.ScalarAffineTerm(1.0, scale_x)], 0.0,
+            ),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            block_scaling_sensitive,
+            MOI.ScalarAffineFunction([
+                MOI.ScalarAffineTerm(1.0e8, scale_y),
+                MOI.ScalarAffineTerm(1.0, scale_z),
+            ], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            block_scaling_sensitive,
+            MOI.ScalarAffineFunction([
+                MOI.ScalarAffineTerm(1.0, scale_y),
+                MOI.ScalarAffineTerm(1.0e-4, scale_z),
+            ], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        block_scaling_report = NLPDiagnostics.analyze_active_set(
+            block_scaling_sensitive, [0.0, 0.0, 0.0];
+            block_condition_threshold = 1.0e6,
+        )
+        @test length(findings(
+            block_scaling_report,
+            :active_set_well_determined_block_conditioning_scaling_sensitive,
+        )) == 1
+        @test length(findings(
+            block_scaling_report,
+            :active_set_well_determined_block_scale_spread,
+        )) == 1
+        block_scale_finding = only(findings(
+            block_scaling_report,
+            :active_set_well_determined_block_scale_spread,
+        ))
+        @test haskey(
+            Dict(block_scale_finding.evidence[end].details),
+            "smallest_positive_row",
+        )
+
         sign_model = new_model()
         sign_variable = MOI.add_variable(sign_model)
         sign_expression = F([T(-1.0, sign_variable)], 0.0)
@@ -4458,6 +4799,36 @@ end
         @test length(
             findings(sign_report, :recovered_active_multiplier_sign_violation),
         ) == 1
+        sign_violation = only(findings(
+            sign_report, :recovered_active_multiplier_sign_violation,
+        ))
+        @test Dict(sign_violation.evidence[end].details)["violating_rows"] == "1"
+
+        complementarity_model = new_model()
+        complementarity_variable = MOI.add_variable(complementarity_model)
+        complementarity_objective = F(
+            [T(1.0, complementarity_variable)], 0.0,
+        )
+        MOI.set(complementarity_model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(
+            complementarity_model, MOI.ObjectiveFunction{F}(), complementarity_objective,
+        )
+        MOI.add_constraint(
+            complementarity_model,
+            complementarity_variable,
+            MOI.GreaterThan(0.0),
+        )
+        complementarity_report = NLPDiagnostics.analyze_active_set(
+            complementarity_model, [1.0e-9],
+        )
+        complementarity_finding = only(findings(
+            complementarity_report,
+            :recovered_active_multiplier_complementarity_residual,
+        ))
+        @test Dict(complementarity_finding.evidence[end].details)["rows"] == "1"
+        @test Dict(complementarity_finding.evidence[end].details)[
+            "relative_support_threshold"
+        ] == "0.001"
 
         rectangle_model = new_model()
         r1, r2 = MOI.add_variables(rectangle_model, 2)
