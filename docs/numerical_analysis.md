@@ -394,6 +394,12 @@ model-coordinate gradient together with the aligned derivative methods. A zero m
 stationarity evidence, not treated as a regular scalar cone tangent.
 When those vector rows use finite differences, the mapped gradient is retained
 as a numerical observation rather than a mathematical proof.
+`coupled_set_qualification_screen(evaluation, summary)` exposes the planned
+cone-aware qualification boundary today as an explicit unavailable result with
+the aligned operating point and smooth tangent sources. It never substitutes a
+scalar LICQ/MFCQ conclusion.
+`coupled_set_qualification_screen(model, evaluation; ...)` is the convenience
+overload that first constructs the coupled-set feasibility summary.
 
 ## Structural versus numerical degeneracy
 

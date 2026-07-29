@@ -211,6 +211,36 @@ does not authorize scalar active-row conversion.
 """
 coupled_set_tangent_evidence(args...) = nothing
 
+"""Return the explicit current availability state of cone-aware qualification."""
+function coupled_set_qualification_screen(
+    evaluation::NumericalEvaluation{T},
+    summary::CoupledSetFeasibilitySummary{T},
+) where {T<:AbstractFloat}
+    evaluation.point == summary.point ||
+        throw(ArgumentError("evaluation and coupled-set summary points differ"))
+    sources = EntityRef[tangent.source for tangent in summary.tangents]
+    return CoupledSetQualificationScreen{T}(
+        false,
+        isempty(sources) ?
+        "no smooth coupled-set boundary tangent is available at this point" :
+        "cone-aware qualification semantics are not implemented; scalar LICQ/MFCQ is intentionally unchanged",
+        evaluation.point,
+        sources,
+    )
+end
+
+"""Build the coupled-set summary first, then return its qualification screen."""
+function coupled_set_qualification_screen(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation;
+    kwargs...,
+)
+    return coupled_set_qualification_screen(
+        evaluation,
+        coupled_set_feasibility_summary(model, evaluation; kwargs...),
+    )
+end
+
 function coupled_set_activity(
     set_value::MOI.SecondOrderCone,
     source::EntityRef,

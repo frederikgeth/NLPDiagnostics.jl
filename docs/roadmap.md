@@ -121,8 +121,8 @@ evaluation layers can expose its supporting evidence.
   nonsmooth apex/axis labels and smooth-boundary tangent-evidence hooks;
   smooth normals can be mapped through complete vector-function Jacobians for
   cone-aware local evidence. The next coupled-set step is a separately labeled
-  cone-aware qualification screen using explicit boundary normals and mapped
-  gradients; it must not silently change scalar LICQ/MFCQ or multiplier
+  Robinson-style cone-aware qualification screen using explicit boundary
+  normals and mapped gradients; it must not silently change scalar LICQ/MFCQ or multiplier
   semantics. General coupled-set and plugin-supplied active-set semantics
   remain future work.
 - Full MFCQ failure certificates; the generic core now has local recovered-

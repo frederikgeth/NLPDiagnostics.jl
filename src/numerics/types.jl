@@ -311,6 +311,29 @@ struct CoupledSetTangentEvidence{T<:AbstractFloat}
     description::String
 end
 
+"""Reserved evidence container for a future cone-aware qualification screen.
+
+This intentionally does not imply scalar LICQ/MFCQ semantics. A future screen
+will populate it only after declaring the cone tangent and multiplier
+conventions used for the coupled set. `tangent_sources` lists the smooth
+coupled boundaries available at the recorded point.
+"""
+struct CoupledSetQualificationScreen{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    tangent_sources::Vector{EntityRef}
+end
+
+"""A smooth coupled-set boundary normal mapped into model coordinates."""
+struct CoupledSetMappedTangent{T<:AbstractFloat}
+    source::EntityRef
+    set_kind::Symbol
+    rows::Vector{Int}
+    gradient::Vector{T}
+    derivative_methods::Vector{Symbol}
+end
+
 """Coupled-set activity evidence tied to one numerical evaluation point."""
 struct CoupledSetFeasibilitySummary{T<:AbstractFloat}
     point::EvaluationPoint{T}

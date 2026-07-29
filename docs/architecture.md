@@ -498,7 +498,8 @@ the vector-function Jacobian. That mapped gradient is useful local geometry,
 but it must not be silently inserted into scalar row selection, multiplier
 recovery, or MFCQ witnesses.
 
-A future cone-aware qualification screen should accept explicit
+A future cone-aware qualification screen should first target a Robinson-style
+constraint qualification for smooth conic mappings. It should accept explicit
 `CoupledSetTangentEvidence` values and evaluate a separately labeled tangent
 system. Its report must retain: the coupled-set source, ordered vector rows,
 normal, mapped-gradient derivative provenance, cone multiplier convention, and

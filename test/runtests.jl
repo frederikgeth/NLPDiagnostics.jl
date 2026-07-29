@@ -5116,6 +5116,18 @@ end
             cone_model,
             cone_evaluation,
         )
+        cone_qualification = NLPDiagnostics.coupled_set_qualification_screen(
+            cone_evaluation, cone_summary,
+        )
+        @test !cone_qualification.available
+        @test length(cone_qualification.tangent_sources) == 1
+        @test occursin("not implemented", cone_qualification.reason)
+        @test NLPDiagnostics.coupled_set_qualification_screen(
+            cone_model, cone_evaluation,
+        ).tangent_sources == cone_qualification.tangent_sources
+        @test_throws ArgumentError NLPDiagnostics.coupled_set_qualification_screen(
+            NLPDiagnostics.evaluate_numerical(cone_model, [1.0, 0.0]), cone_summary,
+        )
         @test length(cone_summary.activities) == 1
         @test only(cone_summary.activities).classification == :boundary
         cone_report = NLPDiagnostics.analyze_active_set(cone_model, cone_evaluation)
@@ -5156,6 +5168,15 @@ end
         @test finite_difference_cone_gradient.basis == NLPDiagnostics.NumericalObservation
         @test finite_difference_cone_gradient.confidence == NLPDiagnostics.ConfidenceMedium
         cone_apex_report = NLPDiagnostics.analyze_active_set(cone_model, [0.0, 0.0])
+        cone_apex_evaluation = NLPDiagnostics.evaluate_numerical(cone_model, [0.0, 0.0])
+        cone_apex_summary = NLPDiagnostics.coupled_set_feasibility_summary(
+            cone_model, cone_apex_evaluation,
+        )
+        cone_apex_qualification = NLPDiagnostics.coupled_set_qualification_screen(
+            cone_apex_evaluation, cone_apex_summary,
+        )
+        @test isempty(cone_apex_qualification.tangent_sources)
+        @test occursin("no smooth", cone_apex_qualification.reason)
         @test length(findings(
             cone_apex_report,
             :coupled_set_nonsmooth_boundary_active,
