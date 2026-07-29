@@ -751,6 +751,7 @@ function analyze_degeneracy(
         sqrt(eps(eltype(evaluation.point.values))),
     kwargs...,
 )
+    _validate_evaluation_variable_order(model, evaluation)
     port_modes = include_port_topology_modes ? port_expected_nullspace_modes(
         component_port_metadata(model),
         component_port_nullspace_modes(model),

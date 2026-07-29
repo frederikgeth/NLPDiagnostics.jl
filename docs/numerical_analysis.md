@@ -23,6 +23,11 @@ summary = jacobian_scale_summary(evaluation)
 report = analyze(model; point = point)
 ```
 
+When a point has already been evaluated—such as a captured solver iterate or a
+deliberately constructed derivative-provenance probe—use
+`analyze_numerical(model, evaluation)`. This overload never re-evaluates the
+model; all numerical findings are tied to the supplied evaluation object.
+
 A dictionary keyed by `MOI.VariableIndex` may be used instead of an ordered
 vector. Missing variables are rejected.
 
@@ -46,6 +51,23 @@ Ordinary symbolic derivatives are labeled
 `central_finite_difference`. If one side is outside the function domain, the
 adapter attempts a one-sided difference. A row is marked partial when no
 difference can be formed for an incident variable.
+
+`analyze_numerical` keeps this provenance explicit for the entire evaluated
+Jacobian: `mixed_jacobian_derivative_provenance` identifies mixed row methods,
+`finite_difference_jacobian_derivatives` identifies complete finite-difference
+rows, and `partial_finite_difference_jacobian_derivatives` warns that some
+finite-difference coordinates are unavailable. Its metadata provides stable
+aggregate method counts for profiling (`jacobian_derivative_method_count`,
+`jacobian_derivative_row_method_counts`, and complete/partial
+finite-difference row counts). These findings are separate from active-set
+provenance because global numerical rank and scaling can use rows that are not
+currently active.
+`NumericalEvaluation.objective_gradient_method` independently records the
+objective derivative path (`:exact_symbolic`, constructed nonlinear AD,
+evaluator callback, finite difference, partial finite difference, or
+unavailable). Numerical reports retain it in `objective_gradient_method` and
+flag complete or partial finite-difference objective gradients before their
+stationarity implications are interpreted.
 
 ## Failures and non-finite values
 
@@ -156,6 +178,39 @@ an exact constraint-qualification proof. A failed screen without either result
 remains inconclusive. Coupled and plugin-defined sets remain visible as
 activity-semantics-unavailable evidence until a plugin provides the correct
 interpretation.
+The common-descent candidate is the negative minimum-norm convex-hull point of
+the projected active inequality gradients, followed by an explicit strict
+directional check. This avoids treating an unweighted gradient sum as decisive
+when otherwise compatible inequality gradients have very different scales.
+Successful common-descent findings retain the convex-hull weights, their
+materially weighted active rows, and the witness scale/tolerance/iteration
+provenance, so the direction is inspectable rather than a bare boolean.
+If neither result can be obtained, `mfcq_screen_inconclusive` records that the
+screen made no MFCQ claim; derivative unavailability instead produces
+`mfcq_screen_unavailable`. The active-set API exposes
+`mfcq_strict_tolerance`, `mfcq_witness_tolerance`, and
+`mfcq_witness_relative_tolerance`, and `mfcq_witness_max_iterations`, recording
+each in report metadata alongside the screen reason so a numerical witness can
+be reproduced or deliberately refined. The witness tolerance is
+`absolute + relative * largest projected-gradient norm`; the relative term
+defaults to zero to preserve the existing absolute-tolerance behavior and must
+be selected explicitly when row units or scales warrant it.
+For every attempted inequality witness, report metadata retains the observed
+projected-gradient scale, effective witness tolerance, and iteration count;
+the corresponding witness or inconclusive finding carries the same evidence.
+Before interpreting those numerical conclusions, the report records
+`active_set_mixed_derivative_provenance` when selected rows combine derivative
+methods and `active_set_finite_difference_derivatives` when any selected row
+uses complete central finite differences. An incomplete finite-difference row
+is separately reported as `active_set_partial_finite_difference_derivatives`.
+These findings cover the complete selected active Jacobian—not only a
+well-determined DM block—so LICQ, MFCQ, multiplier, and nullspace evidence all
+retain the derivative path that produced them.
+The active-set metadata also exposes deterministic aggregate method counts:
+`active_derivative_method_count`, `active_derivative_row_method_counts`,
+`active_central_finite_difference_row_count`, and
+`active_partial_finite_difference_row_count`. These are intended for profiling
+and regression comparison; row-level provenance remains in the findings.
 The no-common-descent finding additionally identifies the materially weighted
 inequality rows (relative weight at least `1e-3` of the largest witness
 weight), so the numerical witness can be inspected without treating tiny
@@ -188,6 +243,10 @@ activity tolerance rather than treating a near-active side as exactly active.
 `multiplier_support_relative` defaults to `1e-3` and is recorded in active-set
 metadata. It controls only these explanatory support subsets, never multiplier
 recovery, dual-feasibility screening, or complementarity residuals.
+Multiplier uniqueness, stationarity-residual, sign, and complementarity
+findings also record the objective-gradient derivative method that supplied
+their objective term, so finite-difference objective evidence is not mistaken
+for an exact KKT-style probe.
 
 `active_set_matching` is a separate, explicitly point-local structural view.
 It matches free variables to only the aligned equality and selected near-active
@@ -574,6 +633,16 @@ A right-null vector that is nearly uniform across all evaluated coordinates
 produces `active_candidate_uniform_tangent_shift`. This is a candidate
 common-coordinate tangent freedom, not a physical gauge classification; units
 and domain semantics remain necessary.
+A right-null vector with material support on a strict, small subset of the
+evaluated coordinates produces `active_candidate_compact_tangent_direction`.
+It localizes a local degree of freedom or weakly identified subsystem, but does
+not itself distinguish a missing equation, an expected gauge, or derivative
+cancellation at the sampled point.
+When the material support is one coordinate,
+`active_candidate_single_coordinate_tangent_direction` instead names that
+variable directly. It is a higher-priority debugging cue, but still only a
+heuristic: structural freedom, a stationary nonlinear derivative, and an
+incomplete derivative path can have the same local fingerprint.
 `analyze_active_set(...; expected_modes = ...)` also checks each declared
 `ExpectedNullspaceMode` directly against the selected active Jacobian. An
 observed result is consistency with a plugin declaration at one point, while a
@@ -583,6 +652,16 @@ When declared modes are individually tangent, their independent span is also
 compared with the active right nullity. A larger observed nullity produces
 `active_undeclared_tangent_directions`; dependent declarations are separately
 reported as `active_expected_nullspace_mode_declarations_dependent`.
+The same comparison also projects every observed active null vector onto the
+declared independent span. `active_expected_nullspace_span_does_not_cover_observed`
+is emitted when tangent declarations fail to cover one or more observed
+directions, including equal-dimensional but differently oriented spans. It is
+local numerical evidence about the selected active set, not a rejection of the
+plugin's physical interpretation.
+Conversely, `active_expected_nullspace_span_exceeds_observed` records a
+declared independent span larger than the observed numerical nullity. Since
+the declaration and rank checks can use different tolerances, this is a prompt
+to inspect tolerance and derivative semantics—not a physical contradiction.
 For complete active-set incidence alignment, the diagnostic also compares the
 free-variable matching prediction with the numerical tangent nullity.
 `active_structurally_expected_tangent_nullspace` identifies matching expected

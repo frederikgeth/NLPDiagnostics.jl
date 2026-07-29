@@ -3601,6 +3601,7 @@ end
         @test evaluation.objective_gradient ≈ [4.0, 1.0] rtol = 1.0e-5
         @test evaluation.constraint_values ≈ [2.0e-6, 3.0e6]
         @test evaluation.jacobian_row_methods == fill(:exact_symbolic, 2)
+        @test evaluation.objective_gradient_method == :exact_constructed_nonlinear_ad
         summary = NLPDiagnostics.jacobian_scale_summary(evaluation)
         @test summary.row_norms ≈ [1.0e-6, 1.0e6] rtol = 1.0e-5
         @test summary.column_norms ≈ [1.0e-6, 1.0e6] rtol = 1.0e-5
@@ -3626,6 +3627,11 @@ end
         @test length(findings(report, :large_jacobian_column_scale_spread)) ==
               1
         @test report.metadata[:evaluation_point_label] == "scaling probe"
+        @test report.metadata[:jacobian_derivative_method_count] == "1"
+        @test report.metadata[:jacobian_derivative_row_method_counts] ==
+              "exact_symbolic=2"
+        @test report.metadata[:objective_gradient_method] ==
+              "exact_constructed_nonlinear_ad"
         combined = NLPDiagnostics.analyze(model; point = point, cache = cache)
         @test combined.metadata[:stages] ==
               "static,domains,derivatives,expressions,structural,numerical"
@@ -4155,6 +4161,9 @@ end
         @test Dict(descent_finding.evidence[end].details)[
             "material_direction_variables"
         ] == string(y.value)
+        @test Dict(descent_finding.evidence[end].details)[
+            "material_witness_rows"
+        ] == "2"
 
         tangent_shift = new_model()
         t1, t2 = MOI.add_variables(tangent_shift, 2)
@@ -4208,7 +4217,44 @@ end
         )
         @test length(findings(
             extra_tangent_report,
+            :active_candidate_compact_tangent_direction,
+        )) == 1
+        @test length(findings(
+            extra_tangent_report,
             :active_undeclared_tangent_directions,
+        )) == 1
+        @test length(findings(
+            extra_tangent_report,
+            :active_expected_nullspace_span_does_not_cover_observed,
+        )) == 1
+        overdeclared_model = new_model()
+        overdeclared_x, overdeclared_y = MOI.add_variables(overdeclared_model, 2)
+        MOI.add_constraint(
+            overdeclared_model,
+            MOI.ScalarAffineFunction([
+                MOI.ScalarAffineTerm(1.0e-9, overdeclared_x),
+                MOI.ScalarAffineTerm(-1.0e-9, overdeclared_y),
+            ], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        overdeclared_tangent = NLPDiagnostics.ExpectedNullspaceMode(
+            :overdeclared_tangent,
+            [overdeclared_x, overdeclared_y],
+            [1.0, -1.0],
+        )
+        scaled_declared_tangent = NLPDiagnostics.ExpectedNullspaceMode(
+            :scaled_declared_tangent,
+            [overdeclared_x, overdeclared_y],
+            [1.0, 1.0],
+        )
+        overdeclared_tangent_report = NLPDiagnostics.analyze_active_set(
+            overdeclared_model,
+            [0.0, 0.0];
+            expected_modes = [scaled_declared_tangent, overdeclared_tangent],
+        )
+        @test length(findings(
+            overdeclared_tangent_report,
+            :active_expected_nullspace_span_exceeds_observed,
         )) == 1
         @test length(findings(
             extra_tangent_report,
@@ -4229,6 +4275,17 @@ end
             stationary_active_report,
             :active_unexpected_local_tangent_rank_loss,
         )) == 1
+        @test length(findings(
+            stationary_active_report,
+            :active_candidate_single_coordinate_tangent_direction,
+        )) == 1
+        stationary_coordinate_fingerprint = only(findings(
+            stationary_active_report,
+            :active_candidate_single_coordinate_tangent_direction,
+        ))
+        @test parse(Float64, Dict(
+            stationary_coordinate_fingerprint.evidence[end].details,
+        )["variable"]) == stationary_variable.value
         combined = NLPDiagnostics.analyze(
             model;
             point = evaluation.point,
@@ -4262,6 +4319,9 @@ end
         @test !opposing_screen.direction_found
         @test opposing_screen.failure_witness_found
         @test opposing_screen.failure_witness_residual < 1.0e-10
+        @test opposing_screen.failure_witness_projected_gradient_scale ≈ 1.0
+        @test opposing_screen.failure_witness_effective_tolerance ≈ sqrt(eps())
+        @test opposing_screen.failure_witness_iterations > 0
         opposing_report = NLPDiagnostics.analyze_active_set(opposing, [0.0])
         @test length(findings(opposing_report, :mfcq_no_common_descent_witness)) == 1
         opposing_witness = only(findings(
@@ -4270,11 +4330,92 @@ end
         @test Dict(opposing_witness.evidence[end].details)[
             "material_support_rows"
         ] == "1,2"
+        @test haskey(
+            Dict(opposing_witness.evidence[end].details),
+            "effective_witness_tolerance",
+        )
         @test NLPDiagnostics.analyze_active_set(
             opposing, [0.0]; mfcq_support_relative = 0.5,
         ).metadata[:mfcq_support_relative] == "0.5"
         @test_throws ArgumentError NLPDiagnostics.analyze_active_set(
             opposing, [0.0]; mfcq_support_relative = 0,
+        )
+
+        unbalanced_descent = new_model()
+        ux, uy = MOI.add_variables(unbalanced_descent, 2)
+        MOI.add_constraint(
+            unbalanced_descent,
+            MOI.ScalarAffineFunction([
+                MOI.ScalarAffineTerm(-1.0, ux),
+                MOI.ScalarAffineTerm(1000.0, uy),
+            ], 0.0),
+            MOI.LessThan(0.0),
+        )
+        MOI.add_constraint(
+            unbalanced_descent,
+            MOI.ScalarAffineFunction([
+                MOI.ScalarAffineTerm(-1.0, ux),
+                MOI.ScalarAffineTerm(-999.0, uy),
+            ], 0.0),
+            MOI.LessThan(0.0),
+        )
+        unbalanced_evaluation = NLPDiagnostics.evaluate_numerical(
+            unbalanced_descent, [0.0, 0.0],
+        )
+        unbalanced_summary = NLPDiagnostics.constraint_feasibility_summary(
+            unbalanced_descent, unbalanced_evaluation,
+        )
+        unbalanced_screen = NLPDiagnostics.mfcq_screen(
+            unbalanced_evaluation,
+            unbalanced_summary;
+            strict_tolerance = 1.0e-10,
+        )
+        @test unbalanced_screen.available
+        @test unbalanced_screen.direction_found
+        @test unbalanced_screen.largest_active_inequality_directional_derivative < 0
+        limited_mfcq_report = NLPDiagnostics.analyze_active_set(
+            unbalanced_descent,
+            unbalanced_evaluation;
+            mfcq_witness_max_iterations = 1,
+            mfcq_strict_tolerance = 1.0e-10,
+        )
+        @test limited_mfcq_report.metadata[
+            :mfcq_witness_max_iterations
+        ] == "1"
+        scaled_witness_report = NLPDiagnostics.analyze_active_set(
+            unbalanced_descent,
+            unbalanced_evaluation;
+            mfcq_witness_relative_tolerance = 1.0e-6,
+        )
+        @test scaled_witness_report.metadata[
+            :mfcq_witness_relative_tolerance
+        ] == "1.0e-6"
+        @test_throws ArgumentError NLPDiagnostics.mfcq_screen(
+            unbalanced_evaluation,
+            unbalanced_summary;
+            witness_relative_tolerance = -1.0,
+        )
+
+        rank_deficient_mfcq = new_model()
+        rank_deficient_variable = MOI.add_variable(rank_deficient_mfcq)
+        MOI.add_constraint(
+            rank_deficient_mfcq,
+            MOI.ScalarNonlinearFunction(:^, Any[rank_deficient_variable, 2]),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            rank_deficient_mfcq,
+            rank_deficient_variable,
+            MOI.GreaterThan(0.0),
+        )
+        inconclusive_mfcq_report = NLPDiagnostics.analyze_active_set(
+            rank_deficient_mfcq, [0.0],
+        )
+        @test length(findings(
+            inconclusive_mfcq_report, :mfcq_screen_inconclusive,
+        )) == 1
+        @test occursin(
+            "rank deficient", inconclusive_mfcq_report.metadata[:mfcq_screen_reason],
         )
 
         dependent = new_model()
@@ -4357,6 +4498,9 @@ end
         @test Dict(dual_multiplier_finding.evidence[end].details)[
             "relative_support_threshold"
         ] == "0.001"
+        @test Dict(dual_multiplier_finding.evidence[end].details)[
+            "objective_gradient_method"
+        ] == "exact_symbolic"
         custom_multiplier_report = NLPDiagnostics.analyze_active_set(
             dual_model, dual_evaluation; multiplier_support_relative = 0.5,
         )
@@ -4600,6 +4744,77 @@ end
         finite_difference_block_report = NLPDiagnostics.analyze_active_set(
             block_active, finite_difference_block_evaluation,
         )
+        numerical_provenance = NLPDiagnostics._jacobian_derivative_provenance_findings(
+            finite_difference_block_evaluation,
+        )
+        @test length(filter(
+            finding -> finding.code == :mixed_jacobian_derivative_provenance,
+            numerical_provenance,
+        )) == 1
+        @test length(filter(
+            finding -> finding.code == :finite_difference_jacobian_derivatives,
+            numerical_provenance,
+        )) == 1
+        finite_difference_objective_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+            block_evaluation.point,
+            block_evaluation.objective_value,
+            block_evaluation.objective_source,
+            block_evaluation.objective_gradient,
+            block_evaluation.constraint_values,
+            block_evaluation.constraint_sources,
+            block_evaluation.jacobian_entries,
+            block_evaluation.jacobian_row_methods,
+            block_evaluation.capabilities,
+            block_evaluation.failures,
+            block_evaluation.call_statistics,
+            :central_finite_difference,
+        )
+        objective_provenance = NLPDiagnostics._jacobian_derivative_provenance_findings(
+            finite_difference_objective_evaluation,
+        )
+        @test length(filter(
+            finding -> finding.code == :finite_difference_objective_gradient,
+            objective_provenance,
+        )) == 1
+        supplied_evaluation_report = NLPDiagnostics.analyze_numerical(
+            block_active, finite_difference_objective_evaluation,
+        )
+        @test length(findings(
+            supplied_evaluation_report, :finite_difference_objective_gradient,
+        )) == 1
+        @test supplied_evaluation_report.metadata[:objective_gradient_method] ==
+              "central_finite_difference"
+        supplied_combined_report = NLPDiagnostics.analyze(
+            block_active;
+            evaluation = finite_difference_objective_evaluation,
+            check_active_set = true,
+        )
+        @test occursin("numerical,active_set", supplied_combined_report.metadata[:stages])
+        @test length(findings(
+            supplied_combined_report, :finite_difference_objective_gradient,
+        )) == 1
+        @test_throws ArgumentError NLPDiagnostics.analyze(
+            block_active;
+            point = block_evaluation.point,
+            evaluation = finite_difference_objective_evaluation,
+        )
+        @test length(findings(
+            finite_difference_block_report,
+            :active_set_finite_difference_derivatives,
+        )) == 1
+        @test length(findings(
+            finite_difference_block_report,
+            :active_set_mixed_derivative_provenance,
+        )) == 1
+        @test finite_difference_block_report.metadata[
+            :active_derivative_method_count
+        ] == "2"
+        @test finite_difference_block_report.metadata[
+            :active_derivative_row_method_counts
+        ] == "central_finite_difference=1,exact_symbolic=1"
+        @test finite_difference_block_report.metadata[
+            :active_central_finite_difference_row_count
+        ] == "1"
         @test length(findings(
             finite_difference_block_report,
             :active_set_well_determined_block_finite_difference_derivatives,
@@ -4608,6 +4823,28 @@ end
             finite_difference_block_report,
             :active_set_well_determined_block_mixed_derivative_provenance,
         )) == 1
+        partial_finite_difference_block_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+            block_evaluation.point,
+            block_evaluation.objective_value,
+            block_evaluation.objective_source,
+            block_evaluation.objective_gradient,
+            block_evaluation.constraint_values,
+            block_evaluation.constraint_sources,
+            block_evaluation.jacobian_entries,
+            [:partial_central_finite_difference, :exact_symbolic],
+            block_evaluation.capabilities,
+            block_evaluation.failures,
+        )
+        partial_finite_difference_block_report = NLPDiagnostics.analyze_active_set(
+            block_active, partial_finite_difference_block_evaluation,
+        )
+        @test length(findings(
+            partial_finite_difference_block_report,
+            :active_set_partial_finite_difference_derivatives,
+        )) == 1
+        @test partial_finite_difference_block_report.metadata[
+            :active_partial_finite_difference_row_count
+        ] == "1"
 
         block_rank_loss = new_model()
         block_rank_x, block_rank_y = MOI.add_variables(block_rank_loss, 2)

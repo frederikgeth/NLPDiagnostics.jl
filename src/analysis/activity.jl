@@ -16,6 +16,96 @@ function _activity_evidence(summary::ConstraintFeasibilitySummary, activity::Con
     )
 end
 
+function _active_derivative_provenance_findings(
+    evaluation::NumericalEvaluation,
+    selected_rows::Vector{Int},
+)
+    isempty(selected_rows) && return Finding[]
+    methods = evaluation.jacobian_row_methods[selected_rows]
+    unique_methods = sort!(unique!(copy(methods)); by = string)
+    sources = evaluation.constraint_sources[selected_rows]
+    findings = Finding[]
+    if length(unique_methods) > 1
+        push!(findings, Finding(
+            :active_set_mixed_derivative_provenance;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The selected active Jacobian combines $(length(unique_methods)) derivative methods across $(length(selected_rows)) row(s).",
+            why_it_matters = "LICQ, MFCQ, multiplier recovery, and nullspace conclusions are all point-local numerical results. Mixed derivative paths can have different accuracy, sparsity, and failure semantics, particularly near close rank thresholds.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set derivative provenance"; details = [
+                    "active_rows" => join(selected_rows, ","),
+                    "methods" => join(unique_methods, ","),
+                    "row_methods" => join(methods, ","),
+                ]),
+            ],
+            affected = copy(sources),
+            suggested_actions = [
+                "Compare the conclusion using one verified derivative path when it is consequential.",
+                "Inspect derivative provenance before interpreting marginal rank or multiplier evidence.",
+            ],
+        ))
+    end
+    finite_difference_positions = findall(==(:central_finite_difference), methods)
+    if !isempty(finite_difference_positions)
+        rows = selected_rows[finite_difference_positions]
+        push!(findings, Finding(
+            :active_set_finite_difference_derivatives;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The selected active Jacobian uses complete central finite-difference derivatives for $(length(rows)) row(s).",
+            why_it_matters = "Active-set rank, qualification, multiplier, and nullspace observations for these rows depend on the finite-difference step and evaluation stability. This is derivative provenance, not a model defect.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set derivative provenance"; details = [
+                    "finite_difference_rows" => join(rows, ","),
+                    "methods" => join(methods, ","),
+                ]),
+            ],
+            affected = EntityRef[
+                evaluation.constraint_sources[row] for row in rows
+            ],
+            suggested_actions = [
+                "Vary the finite-difference step and compare the active-set conclusion.",
+                "Provide exact or automatic-differentiation derivatives when possible.",
+            ],
+        ))
+    end
+    partial_positions = findall(==(:partial_central_finite_difference), methods)
+    if !isempty(partial_positions)
+        rows = selected_rows[partial_positions]
+        push!(findings, Finding(
+            :active_set_partial_finite_difference_derivatives;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The selected active Jacobian has incomplete central finite-difference derivatives for $(length(rows)) row(s).",
+            why_it_matters = "Missing derivative coordinates must not be treated as zeros; active-set rank and KKT-style conclusions can be unavailable or incomplete for this point.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set derivative provenance"; details = [
+                    "partial_finite_difference_rows" => join(rows, ","),
+                    "methods" => join(methods, ","),
+                ]),
+            ],
+            affected = EntityRef[
+                evaluation.constraint_sources[row] for row in rows
+            ],
+            suggested_actions = [
+                "Resolve the derivative-domain or finite-difference step failure before interpreting active-set geometry.",
+                "Provide exact or automatic-differentiation derivatives when possible.",
+            ],
+        ))
+    end
+    return findings
+end
+
 function _active_left_nullspace_fingerprints(
     evaluation::NumericalEvaluation{T},
     selected_rows::Vector{Int},
@@ -140,6 +230,71 @@ function _active_right_nullspace_fingerprints(
             suggested_actions = [
                 "Confirm that the affected coordinates share units and admit a meaningful common reference direction.",
                 "Declare an expected gauge through a domain plugin before treating this mode as benign.",
+            ],
+        ))
+    end
+    for vector_index in axes(estimate.right_nullspace, 2)
+        vector = view(estimate.right_nullspace, :, vector_index)
+        magnitude = maximum(abs, vector; init = zero(T))
+        iszero(magnitude) && continue
+        local_support = findall(value -> abs(value) >= relative * magnitude, vector)
+        length(local_support) == 1 || continue
+        variable = only(evaluation.point.variables[local_support])
+        push!(findings, Finding(
+            :active_candidate_single_coordinate_tangent_direction;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = HeuristicInterpretation,
+            confidence = ConfidenceMedium,
+            observation = "A right-null vector of the selected active Jacobian is concentrated on variable $(variable.value).",
+            why_it_matters = "This coordinate is locally free to first order under the selected active rows. It can indicate an unmatched structural degree of freedom, a stationary nonlinear derivative, or a derivative-evaluation artifact; it is not a proof of any one cause.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set right-nullspace fingerprint"; details = [
+                    "vector_index" => vector_index,
+                    "variable" => variable.value,
+                    "relative_support_threshold" => relative,
+                    "normalized_support_magnitude" => one(T),
+                ]),
+            ],
+            affected = [EntityRef(:variable, variable.value)],
+            suggested_actions = [
+                "Compare this coordinate with active structural matching and zero-sensitivity evidence.",
+                "Inspect the derivative at nearby points before classifying it as a missing equation or expected gauge.",
+            ],
+        ))
+    end
+    for vector_index in axes(estimate.right_nullspace, 2)
+        vector = view(estimate.right_nullspace, :, vector_index)
+        magnitude = maximum(abs, vector; init = zero(T))
+        iszero(magnitude) && continue
+        local_support = findall(value -> abs(value) >= relative * magnitude, vector)
+        2 <= length(local_support) <= min(8, length(vector) - 1) || continue
+        support_variables = evaluation.point.variables[local_support]
+        weights = abs.(vector[local_support]) ./ magnitude
+        push!(findings, Finding(
+            :active_candidate_compact_tangent_direction;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = HeuristicInterpretation,
+            confidence = ConfidenceMedium,
+            observation = "A right-null vector of the selected active Jacobian is concentrated on $(length(support_variables)) of $(length(vector)) evaluated coordinates.",
+            why_it_matters = "This compact local tangent direction can help localize an unexpected degree of freedom, weakly identified subsystem, or point-specific derivative cancellation. It is not proof of a missing equation or a physical gauge.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set right-nullspace fingerprint"; details = [
+                    "vector_index" => vector_index,
+                    "variables" => join((variable.value for variable in support_variables), ","),
+                    "normalized_support_magnitudes" => join(weights, ","),
+                    "relative_support_threshold" => relative,
+                ]),
+            ],
+            affected = EntityRef[
+                EntityRef(:variable, variable.value) for variable in support_variables
+            ],
+            suggested_actions = [
+                "Inspect the supported variables together with active-row and structural matching evidence.",
+                "Compare nearby points and declared expected modes before assigning a physical interpretation.",
             ],
         ))
     end
@@ -273,6 +428,75 @@ function _active_expected_nullspace_span_findings(
             why_it_matters = "Dependent declarations can overstate the expected active tangent dimension and obscure additional observed freedom.",
             evidence = [Evidence("Active expected-nullspace span"; details = ["modes" => join(names, ","), "declared_count" => length(directions), "declared_rank" => declared_rank, "tolerance" => tolerance])],
             suggested_actions = ["Remove duplicate mode declarations or combine them into an independent basis."],
+        ))
+    end
+    if all_tangent && declared_rank > 0 && estimate.right_nullity > 0
+        declared_basis = factorization.U[:, 1:declared_rank]
+        residuals = T[]
+        for vector_index in axes(estimate.right_nullspace, 2)
+            vector = view(estimate.right_nullspace, :, vector_index)
+            projection = declared_basis * (transpose(declared_basis) * vector)
+            push!(residuals, norm(vector - projection))
+        end
+        residual_threshold = tolerance
+        uncovered = findall(residual -> residual > residual_threshold, residuals)
+        if !isempty(uncovered)
+            push!(findings, Finding(
+                :active_expected_nullspace_span_does_not_cover_observed;
+                severity = SeverityWarning,
+                domain = NumericalIssue,
+                basis = LocalInference,
+                confidence = ConfidenceHigh,
+                observation = "The declared active expected-mode span does not cover $(length(uncovered)) of $(estimate.right_nullity) observed active nullspace direction(s).",
+                why_it_matters = "Individually tangent declarations can still omit observed tangent freedom or span a different subspace. This is point-local numerical evidence, not a refutation of the declarations' physical meaning.",
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence("Active expected-versus-observed nullspace span"; details = [
+                        "modes" => join(names, ","),
+                        "declared_span_rank" => declared_rank,
+                        "observed_right_nullity" => estimate.right_nullity,
+                        "uncovered_vector_indices" => join(uncovered, ","),
+                        "projection_residuals" => join(residuals, ","),
+                        "residual_tolerance" => residual_threshold,
+                    ]),
+                ],
+                affected = EntityRef[
+                    EntityRef(:variable, variable.value) for variable in
+                    evaluation.point.variables
+                ],
+                suggested_actions = [
+                    "Inspect compact and single-coordinate active tangent fingerprints for the uncovered directions.",
+                    "Add only independently justified expected modes after checking active constraints and nearby points.",
+                ],
+            ))
+        end
+    end
+    if all_tangent && declared_rank > estimate.right_nullity
+        push!(findings, Finding(
+            :active_expected_nullspace_span_exceeds_observed;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceMedium,
+            observation = "The declared active expected-mode span has rank $declared_rank, exceeding observed active right nullity $(estimate.right_nullity).",
+            why_it_matters = "The declared directions passed the mode-residual check but are not compatible with the numerical nullity under the rank threshold. This usually reflects tolerance semantics, derivative accuracy, or an overbroad declaration rather than a physical conclusion.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active expected-versus-observed nullspace span"; details = [
+                    "modes" => join(names, ","),
+                    "declared_span_rank" => declared_rank,
+                    "observed_right_nullity" => estimate.right_nullity,
+                    "residual_tolerance" => tolerance,
+                ]),
+            ],
+            affected = EntityRef[
+                EntityRef(:variable, variable.value) for variable in
+                evaluation.point.variables
+            ],
+            suggested_actions = [
+                "Compare expected-mode and numerical-rank tolerances before changing the declaration.",
+                "Inspect derivative provenance and active constraints at nearby points.",
+            ],
         ))
     end
     if all_tangent && estimate.right_nullity > declared_rank
@@ -429,6 +653,15 @@ function _active_set_findings(
         normalized_direction = iszero(direction_magnitude) ?
                                eltype(mfcq.direction)[] :
                                abs.(mfcq.direction[direction_support]) ./ direction_magnitude
+        maximum_weight = maximum(mfcq.failure_witness_weights; init = zero(eltype(
+            mfcq.failure_witness_weights,
+        )))
+        witness_support = iszero(maximum_weight) ? Int[] : findall(
+            weight -> weight >= mfcq_support_relative * maximum_weight,
+            mfcq.failure_witness_weights,
+        )
+        witness_rows = mfcq.inequality_rows[witness_support]
+        witness_weights = mfcq.failure_witness_weights[witness_support]
         push!(
             findings,
             Finding(
@@ -452,6 +685,15 @@ function _active_set_findings(
                             "normalized_direction_magnitudes" =>
                                 join(normalized_direction, ","),
                             "relative_support_threshold" => mfcq_support_relative,
+                            "convex_hull_weights" =>
+                                join(mfcq.failure_witness_weights, ","),
+                            "material_witness_rows" => join(witness_rows, ","),
+                            "material_witness_weights" => join(witness_weights, ","),
+                            "projected_gradient_scale" =>
+                                mfcq.failure_witness_projected_gradient_scale,
+                            "effective_witness_tolerance" =>
+                                mfcq.failure_witness_effective_tolerance,
+                            "witness_iterations" => mfcq.failure_witness_iterations,
                         ],
                     ),
                 ],
@@ -498,6 +740,11 @@ function _active_set_findings(
                             "material_support_weights" => join(support_weights, ","),
                             "relative_support_threshold" => mfcq_support_relative,
                             "witness_residual" => mfcq.failure_witness_residual,
+                            "projected_gradient_scale" =>
+                                mfcq.failure_witness_projected_gradient_scale,
+                            "effective_witness_tolerance" =>
+                                mfcq.failure_witness_effective_tolerance,
+                            "witness_iterations" => mfcq.failure_witness_iterations,
                         ],
                     ),
                 ],
@@ -510,6 +757,60 @@ function _active_set_findings(
                 ],
             ),
         )
+    end
+    if !mfcq.available
+        push!(findings, Finding(
+            :mfcq_screen_unavailable;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The MFCQ screen is unavailable for the selected active rows.",
+            why_it_matters = "No common-descent or no-descent conclusion is made when the equality-tangent calculation lacks complete finite derivative evidence.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("MFCQ screen availability"; details = [
+                    "equality_rows" => join(mfcq.equality_rows, ","),
+                    "inequality_rows" => join(mfcq.inequality_rows, ","),
+                    "reason" => mfcq.reason,
+                ]),
+            ],
+            affected = affected,
+            suggested_actions = [
+                "Resolve the equality-Jacobian derivative failure before interpreting constraint qualification.",
+            ],
+        ))
+    elseif !mfcq.direction_found && !mfcq.failure_witness_found
+        push!(findings, Finding(
+            :mfcq_screen_inconclusive;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The MFCQ screen found neither a strict common-descent direction nor a numerical no-common-descent witness.",
+            why_it_matters = "The selected active geometry is unresolved under the recorded numerical tolerance and iteration budget. This is not evidence either for or against MFCQ.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("MFCQ inconclusive screen"; details = [
+                    "equality_rows" => join(mfcq.equality_rows, ","),
+                    "inequality_rows" => join(mfcq.inequality_rows, ","),
+                    "reason" => mfcq.reason,
+                    "largest_directional_derivative" =>
+                        mfcq.largest_active_inequality_directional_derivative,
+                    "witness_residual" => mfcq.failure_witness_residual,
+                    "projected_gradient_scale" =>
+                        mfcq.failure_witness_projected_gradient_scale,
+                    "effective_witness_tolerance" =>
+                        mfcq.failure_witness_effective_tolerance,
+                    "witness_iterations" => mfcq.failure_witness_iterations,
+                ]),
+            ],
+            affected = affected,
+            suggested_actions = [
+                "Increase the explicit MFCQ witness iteration budget and compare the result.",
+                "Check derivative scaling and repeat at nearby points before assigning a constraint-qualification cause.",
+            ],
+        ))
     end
     if recovery.available && !recovery.unique
         multiplier_magnitude = maximum(abs, recovery.multipliers; init = zero(eltype(
@@ -543,6 +844,8 @@ function _active_set_findings(
                         "material_support_sides" => join(support_sides, ","),
                         "material_support_multipliers" => join(support_multipliers, ","),
                         "relative_support_threshold" => multiplier_support_relative,
+                        "objective_gradient_method" =>
+                            evaluation.objective_gradient_method,
                         "stationarity_residual_norm" => recovery.stationarity_residual_norm,
                         "feasible_point" => recovery.feasible_point,
                     ]),
@@ -568,7 +871,13 @@ function _active_set_findings(
                 confidence = ConfidenceHigh,
                 observation = "Least-squares active-set multiplier recovery leaves stationarity residual norm $(recovery.stationarity_residual_norm).",
                 why_it_matters = "The selected sides and objective gradient do not satisfy local first-order stationarity to the default numerical scale.",
-                evidence = [_point_evidence(evaluation.point)],
+                evidence = [
+                    _point_evidence(evaluation.point),
+                    Evidence("Local stationarity derivative provenance"; details = [
+                        "objective_gradient_method" =>
+                            evaluation.objective_gradient_method,
+                    ]),
+                ],
                 suggested_actions = [
                     "Check whether this is an infeasible or nonstationary probe point before interpreting multipliers.",
                 ],
@@ -620,6 +929,8 @@ function _active_set_findings(
                         "material_violating_multipliers" =>
                             join(material_violating_multipliers, ","),
                         "relative_support_threshold" => multiplier_support_relative,
+                        "objective_gradient_method" =>
+                            evaluation.objective_gradient_method,
                         "stationarity_residual_norm" => recovery.stationarity_residual_norm,
                     ]),
                 ],
@@ -678,6 +989,8 @@ function _active_set_findings(
                         "margins" => join(complementarity_margins, ","),
                         "products" => join(complementarity_products, ","),
                         "relative_support_threshold" => multiplier_support_relative,
+                        "objective_gradient_method" =>
+                            evaluation.objective_gradient_method,
                     ]),
                 ],
                 suggested_actions = [
@@ -1845,6 +2158,9 @@ function analyze_active_set(
     block_condition_threshold::Real = 1.0e10,
     block_scale_ratio_threshold::Real = 1.0e6,
     mfcq_strict_tolerance::Real = sqrt(eps(T)),
+    mfcq_witness_tolerance::Real = sqrt(eps(T)),
+    mfcq_witness_relative_tolerance::Real = 0.0,
+    mfcq_witness_max_iterations::Integer = 1_000,
     mfcq_support_relative::Real = 1.0e-3,
     multiplier_support_relative::Real = 1.0e-3,
     nullspace_support_relative::Real = 0.1,
@@ -1853,6 +2169,7 @@ function analyze_active_set(
     include_port_topology_modes::Bool = true,
     expected_mode_residual_tolerance::Real = sqrt(eps(T)),
 ) where {T<:AbstractFloat}
+    _validate_evaluation_variable_order(model, evaluation)
     block_condition_threshold > 1 ||
         throw(ArgumentError("block_condition_threshold must be greater than one"))
     block_scale_ratio_threshold > 1 ||
@@ -1886,6 +2203,9 @@ function analyze_active_set(
         evaluation,
         summary;
         strict_tolerance = mfcq_strict_tolerance,
+        witness_tolerance = mfcq_witness_tolerance,
+        witness_relative_tolerance = mfcq_witness_relative_tolerance,
+        witness_max_iterations = mfcq_witness_max_iterations,
         rank_relative_tolerance = rank_relative_tolerance,
         max_dense_entries = rank_max_dense_entries,
     )
@@ -1907,6 +2227,9 @@ function analyze_active_set(
         active_tolerance = active_tolerance,
     )
     report = DiagnosticReport()
+    append!(report.findings, _active_derivative_provenance_findings(
+        evaluation, selected_rows,
+    ))
     append!(report.findings, _active_set_findings(
         evaluation, summary, selected_rows, estimate, mfcq, recovery,
         mfcq_support_relative, multiplier_support_relative,
@@ -1961,6 +2284,23 @@ function analyze_active_set(
     report.metadata[:evaluation_point_label] = evaluation.point.label
     report.metadata[:active_rows] = join(selected_rows, ",")
     report.metadata[:active_row_count] = string(length(selected_rows))
+    active_methods = evaluation.jacobian_row_methods[selected_rows]
+    active_method_counts = Dict{Symbol,Int}()
+    for method in active_methods
+        active_method_counts[method] = get(active_method_counts, method, 0) + 1
+    end
+    active_method_pairs = sort!(collect(active_method_counts); by = pair -> string(pair[1]))
+    report.metadata[:active_derivative_method_count] =
+        string(length(active_method_counts))
+    report.metadata[:active_derivative_row_method_counts] = join(
+        ("$(method)=$(count)" for (method, count) in active_method_pairs), ",",
+    )
+    report.metadata[:active_central_finite_difference_row_count] = string(get(
+        active_method_counts, :central_finite_difference, 0,
+    ))
+    report.metadata[:active_partial_finite_difference_row_count] = string(get(
+        active_method_counts, :partial_central_finite_difference, 0,
+    ))
     report.metadata[:active_jacobian_rank] = string(estimate.rank)
     report.metadata[:active_jacobian_rank_available] = string(estimate.available)
     report.metadata[:active_structural_matching_available] = string(active_matching.complete)
@@ -2000,11 +2340,24 @@ function analyze_active_set(
         string(length(active_matching.unmapped_rows))
     report.metadata[:supported_coupled_set_count] = string(length(coupled_summary.activities))
     report.metadata[:mfcq_screen_available] = string(mfcq.available)
+    report.metadata[:mfcq_screen_reason] = string(mfcq.reason)
     report.metadata[:mfcq_common_descent_direction_found] = string(mfcq.direction_found)
     report.metadata[:mfcq_no_common_descent_witness_found] =
         string(mfcq.failure_witness_found)
     report.metadata[:mfcq_no_common_descent_witness_residual] =
         string(mfcq.failure_witness_residual)
+    report.metadata[:mfcq_witness_projected_gradient_scale] =
+        string(mfcq.failure_witness_projected_gradient_scale)
+    report.metadata[:mfcq_witness_effective_tolerance] =
+        string(mfcq.failure_witness_effective_tolerance)
+    report.metadata[:mfcq_witness_iterations] =
+        string(mfcq.failure_witness_iterations)
+    report.metadata[:mfcq_strict_tolerance] = string(mfcq_strict_tolerance)
+    report.metadata[:mfcq_witness_tolerance] = string(mfcq_witness_tolerance)
+    report.metadata[:mfcq_witness_relative_tolerance] =
+        string(mfcq_witness_relative_tolerance)
+    report.metadata[:mfcq_witness_max_iterations] =
+        string(mfcq_witness_max_iterations)
     report.metadata[:mfcq_support_relative] = string(mfcq_support_relative)
     report.metadata[:multiplier_support_relative] =
         string(multiplier_support_relative)
@@ -2015,6 +2368,8 @@ function analyze_active_set(
         string(recovery.inequality_dual_violation)
     report.metadata[:active_multiplier_complementarity_residual] =
         string(recovery.complementarity_residual)
+    report.metadata[:objective_gradient_method] =
+        string(evaluation.objective_gradient_method)
     sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
 end
@@ -2111,6 +2466,53 @@ function analyze_active_set_second_order(
         relative_step = hessian_relative_step,
         max_finite_difference_variables = hessian_max_finite_difference_variables,
     )
+    hessian_methods = sort!(unique!(copy(hessian.methods)); by = string)
+    if :finite_difference_function_values in hessian_methods
+        push!(report, Finding(
+            :active_set_second_order_finite_difference_hessian;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The active-set Lagrangian Hessian uses finite differences of function values.",
+            why_it_matters = "Reduced-Hessian inertia and flat-direction observations depend on the second-difference step and function-evaluation stability. This is provenance, not a curvature conclusion.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set second-order derivative provenance"; details = [
+                    "hessian_methods" => join(hessian.methods, ","),
+                    "hessian_relative_step" => hessian_relative_step,
+                    "objective_gradient_method" =>
+                        evaluation.objective_gradient_method,
+                ]),
+            ],
+            suggested_actions = [
+                "Vary the Hessian finite-difference step and compare reduced-curvature conclusions.",
+                "Use an exact or automatic-differentiation Hessian callback when available.",
+            ],
+        ))
+    end
+    if length(hessian_methods) > 1
+        push!(report, Finding(
+            :active_set_second_order_mixed_hessian_provenance;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The active-set Lagrangian Hessian combines $(length(hessian_methods)) derivative methods.",
+            why_it_matters = "Mixed Hessian paths can have different accuracy and failure semantics. Marginal reduced-Hessian inertia should retain that provenance.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Active-set second-order derivative provenance"; details = [
+                    "hessian_methods" => join(hessian_methods, ","),
+                    "objective_gradient_method" =>
+                        evaluation.objective_gradient_method,
+                ]),
+            ],
+            suggested_actions = [
+                "Compare consequential curvature conclusions with one verified Hessian path.",
+            ],
+        ))
+    end
     reduced_report = analyze_reduced_hessian(
         evaluation,
         hessian;

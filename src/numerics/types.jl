@@ -341,6 +341,30 @@ struct MFCQScreen{T<:AbstractFloat}
     failure_witness_found::Bool
     failure_witness_weights::Vector{T}
     failure_witness_residual::Union{Nothing,T}
+    failure_witness_projected_gradient_scale::Union{Nothing,T}
+    failure_witness_effective_tolerance::Union{Nothing,T}
+    failure_witness_iterations::Int
+end
+
+"""Backward-compatible construction without witness scale/progress evidence."""
+function MFCQScreen{T}(
+    available::Bool,
+    reason::Union{Nothing,String},
+    equality_rows::Vector{Int},
+    inequality_rows::Vector{Int},
+    direction_found::Bool,
+    direction::Vector{T},
+    largest_active_inequality_directional_derivative::Union{Nothing,T},
+    failure_witness_found::Bool,
+    failure_witness_weights::Vector{T},
+    failure_witness_residual::Union{Nothing,T},
+) where {T<:AbstractFloat}
+    return MFCQScreen{T}(
+        available, reason, equality_rows, inequality_rows, direction_found,
+        direction, largest_active_inequality_directional_derivative,
+        failure_witness_found, failure_witness_weights, failure_witness_residual,
+        nothing, nothing, 0,
+    )
 end
 
 """
@@ -934,6 +958,7 @@ struct NumericalEvaluation{T<:AbstractFloat}
     capabilities::Vector{EvaluatorCapabilities}
     failures::Vector{EvaluationFailure}
     call_statistics::Dict{Symbol,Tuple{Int,Float64}}
+    objective_gradient_method::Symbol
 end
 
 function NumericalEvaluation{T}(
@@ -952,8 +977,20 @@ function NumericalEvaluation{T}(
         point, objective_value, objective_source, objective_gradient,
         constraint_values, constraint_sources, jacobian_entries,
         jacobian_row_methods, capabilities, failures,
-        Dict{Symbol,Tuple{Int,Float64}}(),
+        Dict{Symbol,Tuple{Int,Float64}}(), :unavailable,
     )
+end
+
+"""Require supplied numerical coordinates to match the model's public MOI order."""
+function _validate_evaluation_variable_order(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation,
+)
+    evaluation.point.variables == MOI.get(model, MOI.ListOfVariableIndices()) ||
+        throw(ArgumentError(
+            "evaluation-point variable order does not match ListOfVariableIndices",
+        ))
+    return nothing
 end
 
 """

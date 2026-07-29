@@ -514,7 +514,7 @@ function _minimum_norm_convex_combination(
     convergence_tolerance::T,
 ) where {T<:AbstractFloat}
     count = size(rows, 1)
-    count > 0 || return T[], nothing, false
+    count > 0 || return T[], nothing, false, 0
     weights = fill(inv(T(count)), count)
     point = transpose(rows) * weights
     for iteration in 1:max_iterations
@@ -523,17 +523,17 @@ function _minimum_norm_convex_combination(
         displacement = view(rows, target, :) - point
         denominator = sum(abs2, displacement)
         if iszero(denominator)
-            return weights, norm(point), true
+            return weights, norm(point), true, iteration
         end
         step = clamp(-dot(point, displacement) / denominator, zero(T), one(T))
         weights .*= one(T) - step
         weights[target] += step
         point .+= step .* displacement
         if step * sqrt(denominator) <= convergence_tolerance
-            return weights, norm(point), true
+            return weights, norm(point), true, iteration
         end
     end
-    return weights, norm(point), false
+    return weights, norm(point), false, Int(max_iterations)
 end
 
 function mfcq_screen(
@@ -541,6 +541,7 @@ function mfcq_screen(
     summary::ConstraintFeasibilitySummary{T};
     strict_tolerance::Real = sqrt(eps(T)),
     witness_tolerance::Real = sqrt(eps(T)),
+    witness_relative_tolerance::Real = 0,
     witness_max_iterations::Integer = 1_000,
     rank_relative_tolerance::Real =
         max(length(evaluation.point.variables), 1) * eps(T),
@@ -552,6 +553,9 @@ function mfcq_screen(
     strict > zero(T) || throw(ArgumentError("strict_tolerance must be positive"))
     witness = convert(T, witness_tolerance)
     witness >= zero(T) || throw(ArgumentError("witness_tolerance must be nonnegative"))
+    witness_relative = convert(T, witness_relative_tolerance)
+    witness_relative >= zero(T) ||
+        throw(ArgumentError("witness_relative_tolerance must be nonnegative"))
     witness_max_iterations > 0 ||
         throw(ArgumentError("witness_max_iterations must be positive"))
     equalities = Int[
@@ -591,14 +595,28 @@ function mfcq_screen(
     jacobian = _combined_jacobian_matrix(evaluation)
     gradients = jacobian[inequality_rows, :] .* signs
     projected = gradients * tangent
-    weights, witness_residual, witness_converged = _minimum_norm_convex_combination(
+    projected_row_scale = maximum(
+        (norm(view(projected, row, :)) for row in axes(projected, 1));
+        init = zero(T),
+    )
+    effective_witness_tolerance = witness +
+                                  witness_relative * projected_row_scale
+    weights, witness_residual, witness_converged, witness_iterations =
+        _minimum_norm_convex_combination(
         projected;
         max_iterations = witness_max_iterations,
-        convergence_tolerance = witness,
+        convergence_tolerance = effective_witness_tolerance,
     )
     witness_found = witness_converged && !isnothing(witness_residual) &&
-                    witness_residual <= witness
-    direction = -tangent * transpose(projected) * ones(T, length(inequality_rows))
+                    witness_residual <= effective_witness_tolerance
+    # The negative minimum-norm point in the convex hull is a much more
+    # reliable common-descent candidate than the negative unweighted sum of
+    # gradients. At an exact nonzero convex-hull minimizer p, every projected
+    # gradient has inner product at least ||p||² with p, so -p decreases every
+    # selected inequality. The subsequent explicit directional check retains
+    # conservative numerical semantics for the iterative approximation.
+    projected_witness = transpose(projected) * weights
+    direction = -tangent * projected_witness
     direction_norm = norm(direction)
     iszero(direction_norm) || (direction ./= direction_norm)
     directional_values = gradients * direction
@@ -616,5 +634,8 @@ function mfcq_screen(
         witness_found,
         weights,
         witness_residual,
+        projected_row_scale,
+        effective_witness_tolerance,
+        witness_iterations,
     )
 end

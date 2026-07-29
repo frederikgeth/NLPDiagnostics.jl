@@ -356,6 +356,7 @@ function _evaluate_symbolic!(
     objective_value,
     objective_source,
     objective_gradient,
+    objective_gradient_method::Base.RefValue{Symbol},
     constraint_values,
     constraint_sources,
     jacobian_entries,
@@ -386,6 +387,7 @@ function _evaluate_symbolic!(
                 point,
                 statistics,
             )
+            objective_gradient_method[] = :exact_constructed_nonlinear_ad
         end
         if isnothing(exact_gradient)
             value_function = values -> begin
@@ -410,6 +412,7 @@ function _evaluate_symbolic!(
                 push!(objective_gradient, _convert_value(T, derivative))
             end
             if any(ismissing, objective_gradient)
+                objective_gradient_method[] = :partial_central_finite_difference
                 push!(
                     failures,
                     EvaluationFailure(
@@ -420,8 +423,13 @@ function _evaluate_symbolic!(
                         "central and one-sided finite differences failed",
                     ),
                 )
+            else
+                objective_gradient_method[] = :central_finite_difference
             end
         else
+            objective_gradient_method[] = isnothing(
+                _exact_symbolic_gradient(function_value, lookup, T),
+            ) ? :exact_constructed_nonlinear_ad : :exact_symbolic
             append!(
                 objective_gradient,
                 [
@@ -539,6 +547,7 @@ function _evaluate_nlp_block!(
     objective_value,
     objective_source,
     objective_gradient,
+    objective_gradient_method::Base.RefValue{Symbol},
     constraint_values,
     constraint_sources,
     jacobian_entries,
@@ -600,8 +609,10 @@ function _evaluate_nlp_block!(
                     )
                 end
                 append!(objective_gradient, gradient)
+                objective_gradient_method[] = :exact_nlp_evaluator
             catch exception
                 append!(objective_gradient, fill(missing, length(point.variables)))
+                objective_gradient_method[] = :unavailable
                 push!(
                     failures,
                     EvaluationFailure(
@@ -615,6 +626,7 @@ function _evaluate_nlp_block!(
             end
         else
             append!(objective_gradient, fill(missing, length(point.variables)))
+            objective_gradient_method[] = :unavailable
         end
     end
 
@@ -867,6 +879,7 @@ function evaluate_numerical(
     objective_value::Union{Nothing,Missing,T} = nothing
     objective_source::Union{Nothing,EntityRef} = nothing
     objective_gradient = Union{Missing,T}[]
+    objective_gradient_method = Ref{Symbol}(:unavailable)
     constraint_values = Union{Missing,T}[]
     constraint_sources = EntityRef[]
     jacobian_entries = JacobianEntry{T}[]
@@ -880,7 +893,7 @@ function evaluate_numerical(
     ) do
         _evaluate_symbolic!(
             model, model_snapshot, point, objective_value, objective_source,
-            objective_gradient, constraint_values, constraint_sources,
+            objective_gradient, objective_gradient_method, constraint_values, constraint_sources,
             jacobian_entries, jacobian_row_methods, failures;
             statistics = call_statistics,
             relative_step = converted_step,
@@ -894,6 +907,7 @@ function evaluate_numerical(
             objective_value,
             objective_source,
             objective_gradient,
+            objective_gradient_method,
             constraint_values,
             constraint_sources,
             jacobian_entries,
@@ -925,6 +939,7 @@ function evaluate_numerical(
         capabilities,
         failures,
         call_statistics,
+        objective_gradient_method[],
     )
     cache.entries[key] = result
     return result

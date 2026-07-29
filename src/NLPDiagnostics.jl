@@ -3105,11 +3105,12 @@ end
     analyze(model::MOI.ModelLike)
 
 Run all implemented solver-independent analysis stages. Numerical analysis is
-included only when an explicit `point` is provided.
+included only when an explicit `point` or supplied `evaluation` is provided.
 """
 function analyze(
     model::MOI.ModelLike;
     point::Union{Nothing,EvaluationPoint} = nothing,
+    evaluation::Union{Nothing,NumericalEvaluation} = nothing,
     cache::EvaluationCache = EvaluationCache(),
     scale_ratio_threshold::Real = 1.0e6,
     unit_circle_radius_tolerance::Real = 1.0e-6,
@@ -3119,6 +3120,9 @@ function analyze(
     check_active_set::Bool = false,
     check_degeneracy::Bool = false,
 )
+    !isnothing(point) && !isnothing(evaluation) && throw(ArgumentError(
+        "provide either point or evaluation, not both",
+    ))
     declared_components = component_metadata(model)
     declared_component_coordinate_semantics = component_coordinate_semantics(model)
     declared_ports = component_port_metadata(model)
@@ -3130,6 +3134,8 @@ function analyze(
         numeric_type
     elseif !isnothing(point)
         eltype(point.values)
+    elseif !isnothing(evaluation)
+        eltype(evaluation.point.values)
     else
         Float64
     end
@@ -3233,11 +3239,17 @@ function analyze(
     merge!(report.metadata, expression_report.metadata)
     merge!(report.metadata, structural_report.metadata)
     stages = "static,domains,derivatives,expressions,structural"
-    if !isnothing(point)
+    numerical_evaluation = if !isnothing(evaluation)
+        evaluation
+    elseif !isnothing(point)
+        evaluate_numerical(model, point; cache = cache)
+    else
+        nothing
+    end
+    if !isnothing(numerical_evaluation)
         numerical_report = analyze_numerical(
             model,
-            point;
-            cache = cache,
+            numerical_evaluation;
             scale_ratio_threshold = scale_ratio_threshold,
             numeric_type = selected_numeric_type,
             strict_domain_proximity_threshold = strict_domain_proximity_threshold,
@@ -3246,20 +3258,20 @@ function analyze(
         merge!(report.metadata, numerical_report.metadata)
         component_rank_report = analyze_component_ranks(
             model,
-            evaluate_numerical(model, point; cache = cache);
+            numerical_evaluation;
             components = declared_components,
         )
         append!(report.findings, component_rank_report.findings)
         merge!(report.metadata, component_rank_report.metadata)
         stages *= ",numerical"
         if check_active_set
-            active_report = analyze_active_set(model, point; cache = cache)
+            active_report = analyze_active_set(model, numerical_evaluation)
             append!(report.findings, active_report.findings)
             merge!(report.metadata, active_report.metadata)
             stages *= ",active_set"
         end
         if check_degeneracy
-            degeneracy_report = analyze_degeneracy(model, point; cache = cache)
+            degeneracy_report = analyze_degeneracy(model, numerical_evaluation)
             append!(report.findings, degeneracy_report.findings)
             merge!(report.metadata, degeneracy_report.metadata)
             stages *= ",degeneracy"

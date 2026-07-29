@@ -331,6 +331,122 @@ function _nonfinite_value_findings(evaluation::NumericalEvaluation)
     return findings
 end
 
+function _jacobian_derivative_provenance_findings(
+    evaluation::NumericalEvaluation,
+)
+    methods = evaluation.jacobian_row_methods
+    unique_methods = sort!(unique!(copy(methods)); by = string)
+    findings = Finding[]
+    if length(unique_methods) > 1
+        push!(findings, Finding(
+            :mixed_jacobian_derivative_provenance;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The evaluated Jacobian combines $(length(unique_methods)) derivative methods across $(length(methods)) row(s).",
+            why_it_matters = "Rank, nullspace, conditioning, and scaling findings use all evaluated rows. Mixed derivative paths can have different accuracy, sparsity, and failure semantics, especially near numerical thresholds.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Jacobian derivative provenance"; details = [
+                    "methods" => join(unique_methods, ","),
+                    "row_methods" => join(methods, ","),
+                ]),
+            ],
+            affected = copy(evaluation.constraint_sources),
+            suggested_actions = [
+                "Compare consequential rank or conditioning conclusions using one verified derivative path.",
+                "Inspect row-level derivative provenance before interpreting marginal numerical findings.",
+            ],
+        ))
+    end
+    finite_difference_rows = findall(==(:central_finite_difference), methods)
+    if !isempty(finite_difference_rows)
+        push!(findings, Finding(
+            :finite_difference_jacobian_derivatives;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The evaluated Jacobian uses complete central finite-difference derivatives for $(length(finite_difference_rows)) row(s).",
+            why_it_matters = "Numerical rank, nullspace, conditioning, and scaling observations for these rows depend on the finite-difference step and evaluation stability. This is provenance, not a model defect.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Jacobian derivative provenance"; details = [
+                    "finite_difference_rows" => join(finite_difference_rows, ","),
+                    "methods" => join(methods, ","),
+                ]),
+            ],
+            affected = evaluation.constraint_sources[finite_difference_rows],
+            suggested_actions = [
+                "Vary the finite-difference step and compare the numerical conclusion.",
+                "Provide exact or automatic-differentiation derivatives when possible.",
+            ],
+        ))
+    end
+    partial_rows = findall(==(:partial_central_finite_difference), methods)
+    if !isempty(partial_rows)
+        push!(findings, Finding(
+            :partial_finite_difference_jacobian_derivatives;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The evaluated Jacobian has incomplete central finite-difference derivatives for $(length(partial_rows)) row(s).",
+            why_it_matters = "Missing derivative coordinates must not be treated as zeros. Rank and scaling conclusions may be unavailable or incomplete at this point.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Jacobian derivative provenance"; details = [
+                    "partial_finite_difference_rows" => join(partial_rows, ","),
+                    "methods" => join(methods, ","),
+                ]),
+            ],
+            affected = evaluation.constraint_sources[partial_rows],
+            suggested_actions = [
+                "Resolve the derivative-domain or finite-difference step failure before interpreting numerical geometry.",
+                "Provide exact or automatic-differentiation derivatives when possible.",
+            ],
+        ))
+    end
+    objective_method = evaluation.objective_gradient_method
+    if objective_method == :central_finite_difference ||
+       objective_method == :partial_central_finite_difference
+        partial = objective_method == :partial_central_finite_difference
+        push!(findings, Finding(
+            partial ? :partial_finite_difference_objective_gradient :
+                      :finite_difference_objective_gradient;
+            severity = partial ? SeverityWarning : SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = partial ?
+                          "The objective gradient has incomplete central finite-difference entries." :
+                          "The objective gradient uses complete central finite differences.",
+            why_it_matters = partial ?
+                             "Missing objective derivative coordinates must not be treated as zeros; stationarity and multiplier evidence can be unavailable or incomplete." :
+                             "Objective-gradient and stationarity observations depend on the finite-difference step and evaluation stability. This is derivative provenance, not a model defect.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Objective-gradient derivative provenance"; details = [
+                    "method" => objective_method,
+                ]),
+            ],
+            affected = isnothing(evaluation.objective_source) ?
+                       EntityRef[] : [evaluation.objective_source],
+            suggested_actions = partial ?
+                                [
+                "Resolve the derivative-domain or finite-difference step failure before interpreting stationarity.",
+                "Provide exact or automatic-differentiation objective derivatives when possible.",
+            ] :
+                                [
+                "Vary the finite-difference step and compare stationarity conclusions.",
+                "Provide exact or automatic-differentiation objective derivatives when possible.",
+            ],
+        ))
+    end
+    return findings
+end
+
 function _evaluation_failure_findings(evaluation::NumericalEvaluation)
     findings = Finding[]
     for failure in evaluation.failures
@@ -735,30 +851,24 @@ end
 Evaluate values and first derivatives, then produce point-local numerical
 findings. No model data is modified.
 """
-function analyze_numerical(
+function _analyze_numerical_evaluation(
     model::MOI.ModelLike,
-    point::EvaluationPoint;
-    cache::EvaluationCache = EvaluationCache(),
+    evaluation::NumericalEvaluation{T};
     scale_ratio_threshold::Real = 1.0e6,
-    relative_step::Real = cbrt(eps(eltype(point.values))),
-    numeric_type::Type{<:AbstractFloat} = eltype(point.values),
+    numeric_type::Type{<:AbstractFloat} = T,
     strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
     rank_relative_tolerance::Real =
-        max(length(point.variables), 1) * eps(eltype(point.values)),
+        max(length(evaluation.point.variables), 1) * eps(T),
     rank_max_dense_entries::Integer = 4_000_000,
     jacobian_condition_threshold::Real = 1.0e10,
-)
+) where {T<:AbstractFloat}
+    _validate_evaluation_variable_order(model, evaluation)
     scale_ratio_threshold > 1 ||
         throw(ArgumentError("scale_ratio_threshold must be greater than one"))
     jacobian_condition_threshold > 1 || throw(
         ArgumentError("jacobian_condition_threshold must be greater than one"),
     )
-    evaluation = evaluate_numerical(
-        model,
-        point;
-        cache = cache,
-        relative_step = relative_step,
-    )
+    point = evaluation.point
     summary = jacobian_scale_summary(evaluation)
     unscaled_rank = jacobian_rank_estimate(
         evaluation;
@@ -811,6 +921,7 @@ function analyze_numerical(
         ),
     )
     append!(report.findings, _nonfinite_value_findings(evaluation))
+    append!(report.findings, _jacobian_derivative_provenance_findings(evaluation))
     append!(report.findings, _evaluation_failure_findings(evaluation))
     derivative_report =
         analyze_derivatives(model_snapshot; point = point)
@@ -840,6 +951,23 @@ function analyze_numerical(
         string(length(evaluation.jacobian_entries))
     report.metadata[:evaluation_failure_count] =
         string(length(evaluation.failures))
+    method_counts = Dict{Symbol,Int}()
+    for method in evaluation.jacobian_row_methods
+        method_counts[method] = get(method_counts, method, 0) + 1
+    end
+    method_pairs = sort!(collect(method_counts); by = pair -> string(pair[1]))
+    report.metadata[:jacobian_derivative_method_count] = string(length(method_counts))
+    report.metadata[:jacobian_derivative_row_method_counts] = join(
+        ("$(method)=$(count)" for (method, count) in method_pairs), ",",
+    )
+    report.metadata[:jacobian_central_finite_difference_row_count] = string(get(
+        method_counts, :central_finite_difference, 0,
+    ))
+    report.metadata[:jacobian_partial_finite_difference_row_count] = string(get(
+        method_counts, :partial_central_finite_difference, 0,
+    ))
+    report.metadata[:objective_gradient_method] =
+        string(evaluation.objective_gradient_method)
     report.metadata[:jacobian_rank] = string(unscaled_rank.rank)
     report.metadata[:jacobian_rank_scaling] = string(unscaled_rank.scaling)
     report.metadata[:jacobian_rank_available] = string(unscaled_rank.available)
@@ -863,6 +991,43 @@ function analyze_numerical(
         by = finding -> (-Int(finding.severity), string(finding.code)),
     )
     return report
+end
+
+"""
+    analyze_numerical(model, point; cache, relative_step, ...)
+
+Evaluate values and first derivatives, then produce point-local numerical
+findings. No model data is modified.
+"""
+function analyze_numerical(
+    model::MOI.ModelLike,
+    point::EvaluationPoint{T};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Real = cbrt(eps(T)),
+    kwargs...,
+) where {T<:AbstractFloat}
+    evaluation = evaluate_numerical(
+        model,
+        point;
+        cache = cache,
+        relative_step = relative_step,
+    )
+    return _analyze_numerical_evaluation(model, evaluation; kwargs...)
+end
+
+"""
+    analyze_numerical(model, evaluation; ...)
+
+Analyze a caller-supplied `NumericalEvaluation` without re-evaluating the
+model. The evaluation's recorded point, derivatives, failures, and provenance
+remain the sole numerical evidence used by this overload.
+"""
+function analyze_numerical(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation;
+    kwargs...,
+)
+    return _analyze_numerical_evaluation(model, evaluation; kwargs...)
 end
 
 function _reduced_hessian_expected_mode_findings(

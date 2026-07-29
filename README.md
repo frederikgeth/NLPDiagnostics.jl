@@ -66,6 +66,9 @@ point:
 point = evaluation_point(model, [0.5]; label = "initialization")
 report = analyze(model; point = point)
 
+# Reuse a captured evaluation without probing the model again:
+report = analyze(model; evaluation = evaluation)
+
 # Or inspect complete MOI/JuMP start values:
 initial_report = analyze(model; check_initialization = true)
 ```
