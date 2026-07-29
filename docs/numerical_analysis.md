@@ -349,6 +349,12 @@ provenance before its rank or conditioning conclusions are interpreted.
 `active_set_well_determined_block_mixed_derivative_provenance` similarly makes
 mixed exact, AD, callback, or finite-difference row methods explicit without
 claiming that the combination is invalid.
+For the active-set second-order probe,
+`active_set_second_order_finite_difference_hessian` records when the
+Lagrangian Hessian comes from finite differences of function values;
+`active_set_second_order_mixed_hessian_provenance` records mixed Hessian
+sources. Both retain the Hessian step and objective-gradient method where
+applicable, before reduced-Hessian inertia is interpreted.
 `active_set_well_determined_block_zero_sensitivities` identifies zero rows or
 columns in a selected structurally square block, separating stationary
 first-order behavior from a purely structural missing-equation diagnosis.
@@ -466,6 +472,44 @@ particular, a reported infeasibility or numerical failure is a solver-reported
 outcome, rather than a mathematical proof about the model. Solver extensions
 should map native result information into this schema without discarding the
 raw status.
+An unknown or adapter-specific normalized termination is retained as
+`solver_unclassified_termination`; it is never silently treated as a successful
+or mathematical outcome.
+
+For a single combined handoff report, pass an explicitly captured
+`SolverPostmortem` as `analyze(model; postmortem = record)`. This only appends
+the normalized postmortem findings; it does not query a solver or alter the
+model. Postmortem metadata is namespaced with `postmortem_` so it cannot
+overwrite model-analysis metadata.
+
+The same combined entry point accepts `solver_log` plus `solver_name` and
+appends both raw log markers and structured iteration-trace evidence. If a
+postmortem is supplied, its solver name may be used instead; an explicitly
+different `solver_name` is rejected rather than mixing evidence from two
+solver runs. Log and iteration metadata use `solver_log_` and
+`solver_iterations_` namespaces. `solver_log_residual_tolerance` controls the
+structured trace screen only.
+
+When both a postmortem and log are supplied, the combined report also runs
+`analyze_postmortem_log_consistency`. A strongly successful normalized status
+(`:optimal`, `:locally_solved`, or `:success`) paired with explicit raw failure
+markers receives a medium-confidence representational warning. This catches
+potentially mixed runs while preserving the possibility that a solver recovered
+from an earlier phase or the supplied text is appended.
+When both sources expose iterations, it also accepts either an exact final
+printed iteration match or the common zero-based offset; any other discrepancy
+is separately reported as a convention-or-provenance warning.
+When both sources expose an objective, a large factor-based difference between
+the postmortem value and final parsed row is also recorded as a scaling/timing
+warning. `solver_log_objective_agreement_factor` controls that deliberately
+conservative combined-report screen.
+
+Explicit iteration-point bindings can also be appended with
+`analyze(model; iteration_bindings = bindings)`. The combined report delegates
+to `analyze_iteration_points`, retains its metadata under the
+`iteration_points_` namespace, and does not create points from log text.
+`iteration_point_relative_step` controls only evaluation of those supplied
+points.
 
 ### Ipopt extension
 
@@ -558,6 +602,14 @@ successful convergence.
 
 `bind_iteration_points(records, points)` connects a parsed row to a caller-
 supplied `EvaluationPoint`; it never reconstructs an iterate from log text.
+An ordinary integer key selects matching printed iteration numbers. For an
+appended or restarted trace, `(segment, iteration)` keys select one row within
+the monotone segments returned by `solver_iteration_segments(records)`, so a
+reused printed iteration number cannot silently refer to the wrong run.
+When a legacy integer key actually selects the same printed number in multiple
+segments, `analyze_iteration_points` emits
+`solver_iteration_restart_binding_ambiguous`; it preserves the bindings but
+makes the representational ambiguity explicit.
 `analyze_iteration_points(model, bindings)` runs numerical diagnostics at each
 bound point and compares the log's primal-infeasibility column against three
 recomputed quantities: scalar-bound violation, coupled-set violation, and
@@ -567,18 +619,23 @@ claim. When an objective is available, it also compares the logged objective
 with the model objective at the supplied point. Potential barrier, penalty,
 scaling, and point-alignment differences remain evidence rather than an
 assumption that the log column is the unmodified model objective.
+Its optional `relative_step` is passed directly to the point evaluator and is
+recorded in report metadata; all remaining keyword arguments configure the
+numerical analysis of that captured evaluation.
 
-Across two or more bound points, `analyze_iteration_points` additionally emits
-a heuristic trace-disagreement finding only when logged primal infeasibility
-falls by more than the configured factor while recomputed feasibility rises by
-more than that factor. This can reveal misaligned point capture, scaling, or
-semantics, but does not attribute the cause.
+Within any one monotone iteration segment containing two or more bound points,
+`analyze_iteration_points` additionally emits a heuristic trace-disagreement
+finding only when logged primal infeasibility falls by more than the configured
+factor while recomputed feasibility rises by more than that factor. It never
+compares trend endpoints across a restart boundary. This can reveal misaligned
+point capture, scaling, or semantics, but does not attribute the cause.
 
-For non-feasibility objective senses, it also reports a trace disagreement when
-the logged objective improves in the declared optimization direction while the
-recomputed model objective moves meaningfully in the opposite direction. This
-is a point-alignment and objective-semantics heuristic, not a statement about
-solver correctness or objective quality.
+For non-feasibility objective senses, it applies the same within-segment rule
+to objective trends, reporting disagreement when the logged objective improves
+in the declared optimization direction while the recomputed model objective
+moves meaningfully in the opposite direction. This is a point-alignment and
+objective-semantics heuristic, not a statement about solver correctness or
+objective quality.
 
 ## Sparse QR rank estimate
 

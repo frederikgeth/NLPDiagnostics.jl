@@ -5243,6 +5243,9 @@ end
         )
         @test flat_report.metadata[:second_order_reduced_hessian_available] == "true"
         @test length(findings(flat_report, :reduced_hessian_flat_directions)) == 1
+        @test length(findings(
+            flat_report, :active_set_second_order_finite_difference_hessian,
+        )) == 1
 
         flat_shift_model = new_model()
         s1, s2 = MOI.add_variables(flat_shift_model, 2)
@@ -8163,6 +8166,126 @@ end
         @test report.metadata[:solver] == "TestSolver"
         @test report.metadata[:termination] == "locally_infeasible"
 
+        combined_model = new_model()
+        combined_variable = MOI.add_variable(combined_model)
+        combined_report = NLPDiagnostics.analyze(
+            combined_model;
+            postmortem = postmortem,
+        )
+        @test occursin("postmortem", combined_report.metadata[:stages])
+        @test combined_report.metadata[:stage] == "combined"
+        @test combined_report.metadata[:postmortem_solver] == "TestSolver"
+        @test combined_report.metadata[:postmortem_termination] ==
+              "locally_infeasible"
+        @test length(findings(
+            combined_report, :solver_reported_infeasibility,
+        )) == 1
+        combined_log = """
+        iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+           0  1.0e+00 1.0e+00 2.0e+00  -1.0 0.0e+00    -  0.0e+00 0.0e+00   0
+        Restoration Failed
+        """
+        combined_log_report = NLPDiagnostics.analyze(
+            combined_model;
+            postmortem = postmortem,
+            solver_log = combined_log,
+            solver_log_residual_tolerance = 1.0e-3,
+        )
+        @test occursin("solver_log,solver_iterations", combined_log_report.metadata[:stages])
+        @test combined_log_report.metadata[:solver_log_solver] == "TestSolver"
+        @test combined_log_report.metadata[:solver_iterations_parsed_iteration_count] == "1"
+        @test length(findings(
+            combined_log_report, :solver_log_restoration_failure,
+        )) == 1
+        @test_throws ArgumentError NLPDiagnostics.analyze(
+            combined_model; solver_log = combined_log,
+        )
+        @test_throws ArgumentError NLPDiagnostics.analyze(
+            combined_model;
+            solver_log = combined_log,
+            solver_name = "TestSolver",
+            solver_log_objective_agreement_factor = 1,
+        )
+        @test_throws ArgumentError NLPDiagnostics.analyze(
+            combined_model;
+            postmortem = postmortem,
+            solver_log = combined_log,
+            solver_name = "OtherSolver",
+        )
+        optimistic_postmortem = NLPDiagnostics.SolverPostmortem(
+            "TestSolver", :optimal,
+        )
+        consistency_report = NLPDiagnostics.analyze_postmortem_log_consistency(
+            optimistic_postmortem, combined_log,
+        )
+        @test length(findings(
+            consistency_report, :solver_postmortem_log_failure_marker_mismatch,
+        )) == 1
+        count_postmortem = NLPDiagnostics.SolverPostmortem(
+            "TestSolver", :optimal; iterations = 5,
+        )
+        count_consistency_report = NLPDiagnostics.analyze_postmortem_log_consistency(
+            count_postmortem,
+            """
+            iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+               0  1.0e+00 1.0e+00 2.0e+00  -1.0 0.0e+00    -  0.0e+00 0.0e+00   0
+            """,
+        )
+        @test length(findings(
+            count_consistency_report, :solver_postmortem_log_iteration_count_mismatch,
+        )) == 1
+        @test count_consistency_report.metadata[
+            :postmortem_log_iteration_count_compatible
+        ] == "false"
+        objective_postmortem = NLPDiagnostics.SolverPostmortem(
+            "TestSolver", :optimal; objective_value = 1.0e4,
+        )
+        objective_consistency_report = NLPDiagnostics.analyze_postmortem_log_consistency(
+            objective_postmortem,
+            """
+            iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+               0  1.0e+00 1.0e+00 2.0e+00  -1.0 0.0e+00    -  0.0e+00 0.0e+00   0
+            """,
+        )
+        @test length(findings(
+            objective_consistency_report, :solver_postmortem_log_objective_mismatch,
+        )) == 1
+        @test objective_consistency_report.metadata[
+            :postmortem_log_objective_compatible
+        ] == "false"
+        @test_throws ArgumentError NLPDiagnostics.analyze_postmortem_log_consistency(
+            objective_postmortem, combined_log; objective_agreement_factor = 1,
+        )
+        combined_consistency_report = NLPDiagnostics.analyze(
+            combined_model;
+            postmortem = optimistic_postmortem,
+            solver_log = combined_log,
+        )
+        @test occursin(
+            "postmortem_log_consistency", combined_consistency_report.metadata[:stages],
+        )
+        @test combined_consistency_report.metadata[
+            :postmortem_log_consistency_postmortem_log_conflicting_marker_count
+        ] == "1"
+        combined_binding = NLPDiagnostics.IterationPointBinding(
+            NLPDiagnostics.SolverIterationRecord(
+                :ipopt, 1, 1, :regular, 0.0, 0.0, 0.0, nothing, 0.0, "captured",
+            ),
+            NLPDiagnostics.EvaluationPoint([combined_variable], [0.0]; label = "captured"),
+        )
+        combined_binding_report = NLPDiagnostics.analyze(
+            combined_model;
+            iteration_bindings = [combined_binding],
+            iteration_point_relative_step = 1.0e-5,
+        )
+        @test occursin("iteration_points", combined_binding_report.metadata[:stages])
+        @test combined_binding_report.metadata[
+            :iteration_points_bound_iteration_count
+        ] == "1"
+        @test combined_binding_report.metadata[
+            :iteration_points_bound_iteration_relative_step
+        ] == "1.0e-5"
+
         limit_report = NLPDiagnostics.analyze_postmortem(
             NLPDiagnostics.SolverPostmortem("TestSolver", :iteration_limit),
         )
@@ -8192,6 +8315,12 @@ end
             NLPDiagnostics.SolverPostmortem("TestSolver", :interrupted),
         )
         @test length(findings(interrupted_report, :solver_interrupted)) == 1
+        unclassified_report = NLPDiagnostics.analyze_postmortem(
+            NLPDiagnostics.SolverPostmortem("TestSolver", :unknown),
+        )
+        @test length(findings(
+            unclassified_report, :solver_unclassified_termination,
+        )) == 1
 
         unconfigured_jump_model = JuMP.Model()
         @test_throws ArgumentError NLPDiagnostics.solver_postmortem(
@@ -8411,6 +8540,52 @@ end
         @test length(
             findings(point_report, :solver_iteration_objective_mismatch),
         ) == 1
+        stepped_point_report = NLPDiagnostics.analyze_iteration_points(
+            model, bindings; relative_step = 1.0e-5,
+        )
+        @test stepped_point_report.metadata[:bound_iteration_relative_step] ==
+              "1.0e-5"
+        @test_throws ArgumentError NLPDiagnostics.analyze_iteration_points(
+            model, bindings; relative_step = 0,
+        )
+
+        restarted_bindings = NLPDiagnostics.bind_iteration_points(
+            appended_records,
+            Dict((2, 0) => NLPDiagnostics.EvaluationPoint(
+                [x], [3.0]; label = "restarted-0",
+            )),
+        )
+        @test length(restarted_bindings) == 1
+        @test only(restarted_bindings).segment == 2
+        restarted_report = NLPDiagnostics.analyze_iteration_points(
+            model, restarted_bindings,
+        )
+        @test restarted_report.metadata[:segment_2_iteration_0_point_label] ==
+              "restarted-0"
+        @test restarted_report.metadata[:segment_2_iteration_0_segment] == "2"
+        legacy_restart_bindings = NLPDiagnostics.bind_iteration_points(
+            appended_records,
+            Dict(0 => NLPDiagnostics.EvaluationPoint(
+                [x], [3.0]; label = "ambiguous-restart-0",
+            )),
+        )
+        @test length(legacy_restart_bindings) == 2
+        @test all(binding -> binding.selector == :iteration, legacy_restart_bindings)
+        legacy_restart_report = NLPDiagnostics.analyze_iteration_points(
+            model, legacy_restart_bindings,
+        )
+        @test length(findings(
+            legacy_restart_report, :solver_iteration_restart_binding_ambiguous,
+        )) == 1
+        @test legacy_restart_report.metadata[
+            :bound_iteration_legacy_selector_count
+        ] == "2"
+        @test_throws ArgumentError NLPDiagnostics.bind_iteration_points(
+            records, Dict("one" => NLPDiagnostics.EvaluationPoint([x], [1.0])),
+        )
+        @test_throws ArgumentError NLPDiagnostics.bind_iteration_points(
+            records, Dict(1 => [1.0]),
+        )
 
         cone_model = new_model()
         t, z = MOI.add_variables(cone_model, 2)
@@ -8447,6 +8622,31 @@ end
         @test length(
             findings(trend_report, :solver_iteration_trace_objective_disagreement),
         ) == 1
+
+        restarted_trend_bindings = NLPDiagnostics.bind_iteration_points(
+            appended_records,
+            Dict(
+                (1, 0) => NLPDiagnostics.EvaluationPoint(
+                    [q], [0.0]; label = "first-run-0",
+                ),
+                (1, 1) => NLPDiagnostics.EvaluationPoint(
+                    [q], [0.0]; label = "first-run-1",
+                ),
+                (2, 0) => NLPDiagnostics.EvaluationPoint(
+                    [q], [10.0]; label = "second-run-0",
+                ),
+            ),
+        )
+        restarted_trend_report = NLPDiagnostics.analyze_iteration_points(
+            trend_model, restarted_trend_bindings,
+        )
+        @test restarted_trend_report.metadata[:bound_iteration_segment_count] == "2"
+        @test restarted_trend_report.metadata[
+            :bound_iteration_multi_point_segment_count
+        ] == "1"
+        @test isempty(findings(
+            restarted_trend_report, :solver_iteration_trace_objective_disagreement,
+        ))
     end
 
     @testset "profile includes structural-stage timings" begin

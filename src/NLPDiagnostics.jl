@@ -191,6 +191,7 @@ export analyze_elastic_domain_guard_plan
 export analyze_static
 export analyze_structure
 export analyze_postmortem
+export analyze_postmortem_log_consistency
 export analyze_solver_log
 export analyze_solver_iterations
 export analyze_iteration_points
@@ -3106,6 +3107,11 @@ end
 
 Run all implemented solver-independent analysis stages. Numerical analysis is
 included only when an explicit `point` or supplied `evaluation` is provided.
+An explicitly supplied solver-neutral `postmortem` is appended as a separate
+evidence stage; no solver state is queried or inferred. An explicitly supplied
+`solver_log` is likewise analyzed as raw and structured trace evidence.
+Caller-captured `iteration_bindings` can append point-local evidence without
+reconstructing solver iterates.
 """
 function analyze(
     model::MOI.ModelLike;
@@ -3119,9 +3125,27 @@ function analyze(
     check_initialization::Bool = false,
     check_active_set::Bool = false,
     check_degeneracy::Bool = false,
+    postmortem::Union{Nothing,SolverPostmortem} = nothing,
+    solver_log::Union{Nothing,AbstractString} = nothing,
+    solver_name::Union{Nothing,AbstractString} = nothing,
+    solver_log_residual_tolerance::Real = 1.0e-6,
+    solver_log_objective_agreement_factor::Real = 100,
+    iteration_bindings::Union{Nothing,AbstractVector{<:IterationPointBinding}} = nothing,
+    iteration_point_relative_step::Union{Nothing,Real} = nothing,
 )
     !isnothing(point) && !isnothing(evaluation) && throw(ArgumentError(
         "provide either point or evaluation, not both",
+    ))
+    !isnothing(solver_log) && isnothing(solver_name) && isnothing(postmortem) &&
+        throw(ArgumentError(
+            "solver_log requires solver_name or a supplied postmortem",
+        ))
+    !isnothing(solver_name) && !isnothing(postmortem) &&
+        String(solver_name) != postmortem.solver && throw(ArgumentError(
+            "solver_name and postmortem solver must agree when both are supplied",
+        ))
+    solver_log_objective_agreement_factor > 1 || throw(ArgumentError(
+        "solver_log_objective_agreement_factor must be greater than one",
     ))
     declared_components = component_metadata(model)
     declared_component_coordinate_semantics = component_coordinate_semantics(model)
@@ -3288,6 +3312,58 @@ function analyze(
         append!(report.findings, initialization_report.findings)
         merge!(report.metadata, initialization_report.metadata)
         stages *= ",initialization"
+    end
+    if !isnothing(postmortem)
+        postmortem_report = analyze_postmortem(postmortem)
+        append!(report.findings, postmortem_report.findings)
+        for (key, value) in postmortem_report.metadata
+            report.metadata[Symbol("postmortem_", key)] = value
+        end
+        stages *= ",postmortem"
+    end
+    if !isnothing(solver_log)
+        resolved_solver_name = isnothing(solver_name) ? postmortem.solver :
+                               String(solver_name)
+        log_report = analyze_solver_log(resolved_solver_name, solver_log)
+        iteration_report = analyze_solver_iterations(
+            resolved_solver_name,
+            solver_log;
+            residual_tolerance = solver_log_residual_tolerance,
+        )
+        append!(report.findings, log_report.findings)
+        append!(report.findings, iteration_report.findings)
+        if !isnothing(postmortem)
+            consistency_report = analyze_postmortem_log_consistency(
+                postmortem,
+                solver_log;
+                objective_agreement_factor = solver_log_objective_agreement_factor,
+            )
+            append!(report.findings, consistency_report.findings)
+            for (key, value) in consistency_report.metadata
+                report.metadata[Symbol("postmortem_log_consistency_", key)] = value
+            end
+            stages *= ",postmortem_log_consistency"
+        end
+        for (key, value) in log_report.metadata
+            report.metadata[Symbol("solver_log_", key)] = value
+        end
+        for (key, value) in iteration_report.metadata
+            report.metadata[Symbol("solver_iterations_", key)] = value
+        end
+        stages *= ",solver_log,solver_iterations"
+    end
+    if !isnothing(iteration_bindings)
+        iteration_point_report = analyze_iteration_points(
+            model,
+            iteration_bindings;
+            cache = cache,
+            relative_step = iteration_point_relative_step,
+        )
+        append!(report.findings, iteration_point_report.findings)
+        for (key, value) in iteration_point_report.metadata
+            report.metadata[Symbol("iteration_points_", key)] = value
+        end
+        stages *= ",iteration_points"
     end
     report.metadata[:stage] = "combined"
     report.metadata[:stages] = stages

@@ -188,6 +188,23 @@ function analyze_postmortem(
             evidence = evidence,
             suggested_actions = ["Compare the final point with domain, derivative, scaling, and degeneracy diagnostics."],
         ))
+    elseif postmortem.termination in (:optimal, :locally_optimal)
+        # A recognized successful status needs no generic warning. Its raw
+        # status and residual evidence remain available in the report.
+    else
+        push!(report, Finding(
+            :solver_unclassified_termination;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "$(postmortem.solver) reported unclassified termination $(postmortem.termination).",
+            why_it_matters = "The normalized status is retained, but the generic core has no solver-independent interpretation for it. It must not be silently treated as success, infeasibility, or a numerical failure.",
+            evidence = evidence,
+            suggested_actions = [
+                "Inspect the raw status and solver-specific documentation, then extend the optional adapter if this status has stable semantics.",
+            ],
+        ))
     end
     if postmortem.restoration_attempted && postmortem.restoration_succeeded === false
         push!(report, Finding(
@@ -302,6 +319,130 @@ function _solver_log_evidence(
             ],
         ) for observation in retained
     ]
+end
+
+"""
+    analyze_postmortem_log_consistency(postmortem, log;
+                                       max_evidence_lines = 20,
+                                       objective_agreement_factor = 100)
+
+Compare a normalized final solver outcome with explicit raw-log failure markers.
+This is a provenance screen, not a reconstruction of solver state: appended
+logs and solver-specific status semantics can legitimately differ.
+"""
+function analyze_postmortem_log_consistency(
+    postmortem::SolverPostmortem,
+    log::AbstractString;
+    max_evidence_lines::Integer = 20,
+    objective_agreement_factor::Real = 100,
+)
+    max_evidence_lines > 0 || throw(ArgumentError("max_evidence_lines must be positive"))
+    objective_agreement_factor > 1 || throw(
+        ArgumentError("objective_agreement_factor must be greater than one"),
+    )
+    report = DiagnosticReport()
+    report.metadata[:stage] = "postmortem_log_consistency"
+    report.metadata[:solver] = postmortem.solver
+    report.metadata[:termination] = string(postmortem.termination)
+    observations = solver_log_observations(log)
+    report.metadata[:recognized_log_observation_count] = string(length(observations))
+    successful_terminations = (:optimal, :locally_solved, :success)
+    failure_categories = (
+        :restoration_failed,
+        :invalid_number,
+        :numerical_failure,
+        :reported_infeasibility,
+        :reported_unboundedness,
+        :diverging_iterates,
+    )
+    conflicting = [
+        observation for observation in observations if observation.category in failure_categories
+    ]
+    report.metadata[:postmortem_log_conflicting_marker_count] = string(length(conflicting))
+    if postmortem.termination in successful_terminations && !isempty(conflicting)
+        categories = join(sort(unique(string(observation.category) for observation in conflicting)), ",")
+        push!(report, Finding(:solver_postmortem_log_failure_marker_mismatch;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = HeuristicInterpretation, confidence = ConfidenceMedium,
+            observation = "$(postmortem.solver) reports terminal status $(postmortem.termination), while the supplied log contains explicit failure marker(s): $categories.",
+            why_it_matters = "The log may include an earlier restart, a recoverable phase, or solver-specific wording. The disagreement should be resolved before treating the final status and trace as one unambiguous run record.",
+            evidence = vcat(
+                [_postmortem_evidence(postmortem)],
+                _solver_log_evidence(
+                    postmortem.solver,
+                    :postmortem_log_conflict,
+                    conflicting,
+                    Int(max_evidence_lines),
+                ),
+            ),
+            suggested_actions = [
+                "Verify log/run boundaries and solver status provenance before correlating final-point diagnostics with this trace.",
+            ],
+        ))
+    end
+    records = solver_iteration_records(log)
+    report.metadata[:parsed_iteration_count] = string(length(records))
+    if !isnothing(postmortem.iterations) && !isempty(records)
+        final_segment = last(solver_iteration_segments(records))
+        final_iteration = final_segment.final_iteration
+        compatible = postmortem.iterations in (final_iteration, final_iteration + 1)
+        report.metadata[:postmortem_iterations] = string(postmortem.iterations)
+        report.metadata[:final_segment_iteration] = string(final_iteration)
+        report.metadata[:postmortem_log_iteration_count_compatible] = string(compatible)
+        if !compatible
+            push!(report, Finding(:solver_postmortem_log_iteration_count_mismatch;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = HeuristicInterpretation, confidence = ConfidenceMedium,
+                observation = "$(postmortem.solver) reports $(postmortem.iterations) iterations, while the final parsed log segment ends at printed iteration $final_iteration.",
+                why_it_matters = "Solver counters can have different conventions, but neither the same count nor the common zero-based offset matches. The records may come from different runs or use different iteration semantics.",
+                evidence = [
+                    _postmortem_evidence(postmortem),
+                    Evidence("Final parsed solver-log segment"; details = [
+                        "final_segment_iteration" => final_iteration,
+                        "parsed_iteration_count" => length(records),
+                        "final_segment_start_line" => final_segment.start_line,
+                        "final_segment_end_line" => final_segment.end_line,
+                    ]),
+                ],
+                suggested_actions = [
+                    "Verify whether the postmortem counter and printed iteration table describe the same solve and counting convention.",
+                ],
+            ))
+        end
+    end
+    if !isnothing(postmortem.objective_value) && !isempty(records)
+        final_logged_objective = last(records).objective
+        reported_objective = postmortem.objective_value
+        smaller = min(abs(reported_objective), abs(final_logged_objective))
+        larger = max(abs(reported_objective), abs(final_logged_objective))
+        compatible = !(larger > 0 &&
+                       (smaller == 0 || larger / smaller > objective_agreement_factor))
+        report.metadata[:postmortem_objective_value] = string(reported_objective)
+        report.metadata[:final_logged_objective] = string(final_logged_objective)
+        report.metadata[:postmortem_log_objective_compatible] = string(compatible)
+        report.metadata[:objective_agreement_factor] = string(objective_agreement_factor)
+        if !compatible
+            push!(report, Finding(:solver_postmortem_log_objective_mismatch;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = HeuristicInterpretation, confidence = ConfidenceMedium,
+                observation = "$(postmortem.solver) reports final objective $reported_objective, while the final parsed log row reports $final_logged_objective.",
+                why_it_matters = "The printed value may be scaled, barrier-augmented, rounded, or from a differently timed point. A large discrepancy should be resolved before relating the postmortem to this trace.",
+                evidence = [
+                    _postmortem_evidence(postmortem),
+                    Evidence("Final parsed solver-log row"; details = [
+                        "line" => last(records).line,
+                        "iteration" => last(records).iteration,
+                        "logged_objective" => final_logged_objective,
+                        "objective_agreement_factor" => objective_agreement_factor,
+                    ]),
+                ],
+                suggested_actions = [
+                    "Verify objective scaling, barrier or penalty conventions, and final-point timing before comparing these values.",
+                ],
+            ))
+        end
+    end
+    return report
 end
 
 """
@@ -806,15 +947,46 @@ function analyze_solver_iterations(
     return report
 end
 
-"""Bind caller-provided points to parsed iterations; logs never create points."""
+"""
+    bind_iteration_points(records, points)
+
+Bind caller-provided points to parsed iterations; logs never create points.
+Ordinary integer keys select every row with that printed iteration number. For
+appended or restarted logs, use `(segment, iteration)` keys instead, where
+segments are numbered by `solver_iteration_segments(records)`.
+"""
 function bind_iteration_points(
     records::AbstractVector{SolverIterationRecord},
-    points::AbstractDict{<:Integer,<:EvaluationPoint},
+    points::AbstractDict,
 )
+    all(key -> key isa Integer ||
+               (key isa Tuple && length(key) == 2 &&
+                key[1] isa Integer && key[2] isa Integer), keys(points)) ||
+        throw(ArgumentError(
+            "iteration-point keys must be integers or (segment, iteration) integer tuples",
+        ))
+    all(value -> value isa EvaluationPoint, values(points)) ||
+        throw(ArgumentError("iteration-point values must be EvaluationPoint values"))
+    segments = solver_iteration_segments(records)
+    segment_by_line = Dict{Int,Int}()
+    for (segment, range) in enumerate(segments)
+        for line in range.start_line:range.end_line
+            segment_by_line[line] = segment
+        end
+    end
     bindings = IterationPointBinding[]
     for record in records
-        haskey(points, record.iteration) || continue
-        push!(bindings, IterationPointBinding(record, points[record.iteration]))
+        segment = get(segment_by_line, record.line, 1)
+        key = (segment, record.iteration)
+        if haskey(points, key)
+            push!(bindings, IterationPointBinding(
+                record, points[key], segment, :segment_iteration,
+            ))
+        elseif haskey(points, record.iteration)
+            push!(bindings, IterationPointBinding(
+                record, points[record.iteration], segment, :iteration,
+            ))
+        end
     end
     return bindings
 end
@@ -828,6 +1000,7 @@ function analyze_iteration_points(
     objective_agreement_factor::Real = 100,
     trace_trend_factor::Real = 10,
     objective_trace_tolerance::Real = sqrt(eps(Float64)),
+    relative_step::Union{Nothing,Real} = nothing,
     kwargs...,
 )
     residual_agreement_factor > 1 || throw(
@@ -839,15 +1012,55 @@ function analyze_iteration_points(
     trace_trend_factor > 1 || throw(ArgumentError("trace_trend_factor must be greater than one"))
     objective_trace_tolerance >= 0 ||
         throw(ArgumentError("objective_trace_tolerance must be nonnegative"))
+    !isnothing(relative_step) && relative_step <= 0 &&
+        throw(ArgumentError("relative_step must be positive when supplied"))
     report = DiagnosticReport()
     report.metadata[:stage] = "iteration_points"
     report.metadata[:bound_iteration_count] = string(length(bindings))
+    report.metadata[:bound_iteration_relative_step] = isnothing(relative_step) ?
+                                                     "type_default" : string(relative_step)
+    report.metadata[:bound_iteration_segment_selector_count] = string(count(
+        binding -> binding.selector == :segment_iteration, bindings,
+    ))
+    report.metadata[:bound_iteration_legacy_selector_count] = string(count(
+        binding -> binding.selector == :iteration, bindings,
+    ))
+    legacy_segments_by_iteration = Dict{Int,Set{Int}}()
+    for binding in bindings
+        binding.selector == :iteration || continue
+        push!(get!(legacy_segments_by_iteration, binding.record.iteration, Set{Int}()),
+              binding.segment)
+    end
+    for (iteration, segments) in sort(collect(legacy_segments_by_iteration); by = first)
+        length(segments) > 1 || continue
+        push!(report, Finding(:solver_iteration_restart_binding_ambiguous;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "A legacy iteration-number point binding selects printed iteration $iteration in $(length(segments)) restarted log segments.",
+            why_it_matters = "Repeated printed iteration numbers do not identify one solver run, so the same supplied point may be compared with unrelated log rows.",
+            evidence = [Evidence("Ambiguous legacy iteration-point binding"; details = [
+                "iteration" => iteration,
+                "segments" => join(sort(collect(segments)), ","),
+                "selector" => :iteration,
+            ])],
+            suggested_actions = [
+                "Use (segment, iteration) keys with bind_iteration_points for restarted or appended logs.",
+            ],
+        ))
+    end
     trace = Tuple{IterationPointBinding,Float64}[]
     objective_trace = Tuple{IterationPointBinding,Float64}[]
+    segment_qualified_metadata = length(unique([
+        (binding.segment, binding.record.iteration) for binding in bindings
+    ])) < length(bindings) || any(binding -> binding.segment != 1, bindings)
     for binding in bindings
-        point_report = analyze_numerical(model, binding.point; cache = cache, kwargs...)
+        evaluation = isnothing(relative_step) ?
+                     evaluate_numerical(model, binding.point; cache = cache) :
+                     evaluate_numerical(
+            model, binding.point; cache = cache, relative_step = relative_step,
+        )
+        point_report = analyze_numerical(model, evaluation; kwargs...)
         append!(report.findings, point_report.findings)
-        evaluation = evaluate_numerical(model, binding.point; cache = cache)
         feasibility = constraint_feasibility_summary(model, evaluation)
         violations = [
             activity.feasibility_violation for activity in feasibility.activities if
@@ -869,7 +1082,10 @@ function analyze_iteration_points(
         logged_primal = binding.record.primal_infeasibility
         smaller = min(logged_primal, recomputed_primal)
         larger = max(logged_primal, recomputed_primal)
-        prefix = "iteration_$(binding.record.iteration)"
+        prefix = segment_qualified_metadata ?
+                 "segment_$(binding.segment)_iteration_$(binding.record.iteration)" :
+                 "iteration_$(binding.record.iteration)"
+        report.metadata[Symbol(prefix * "_segment")] = string(binding.segment)
         report.metadata[Symbol(prefix * "_log_line")] = string(binding.record.line)
         report.metadata[Symbol(prefix * "_point_label")] = binding.point.label
         report.metadata[Symbol(prefix * "_logged_primal_infeasibility")] = string(logged_primal)
@@ -892,7 +1108,9 @@ function analyze_iteration_points(
                 evidence = [Evidence("Bound iteration and recomputed feasibility";
                     details = ["iteration" => binding.record.iteration, "log_line" => binding.record.line,
                                "logged_primal_infeasibility" => logged_primal,
-                               "recomputed_scalar_violation" => recomputed_primal,
+                               "recomputed_scalar_violation" => scalar_violation,
+                               "recomputed_coupled_violation" => coupled_violation,
+                               "recomputed_total_violation" => recomputed_primal,
                                "point_label" => binding.point.label],
                 )],
                 suggested_actions = ["Check solver scaling and coupled-set semantics before comparing residual magnitudes directly."],
@@ -924,11 +1142,24 @@ function analyze_iteration_points(
             end
         end
     end
-    sort!(trace; by = item -> item[1].record.iteration)
-    sort!(objective_trace; by = item -> item[1].record.iteration)
-    if length(trace) >= 2
-        first_binding, first_recomputed = first(trace)
-        final_binding, final_recomputed = last(trace)
+    sort!(trace; by = item -> (
+        item[1].segment, item[1].record.iteration, item[1].record.line,
+    ))
+    sort!(objective_trace; by = item -> (
+        item[1].segment, item[1].record.iteration, item[1].record.line,
+    ))
+    trace_segments = sort(unique(item[1].segment for item in trace))
+    objective_trace_segments = sort(unique(item[1].segment for item in objective_trace))
+    report.metadata[:bound_iteration_segment_count] = string(length(trace_segments))
+    report.metadata[:bound_iteration_multi_point_segment_count] = string(count(
+        segment -> count(item -> item[1].segment == segment, trace) >= 2,
+        trace_segments,
+    ))
+    for segment in trace_segments
+        segment_trace = filter(item -> item[1].segment == segment, trace)
+        length(segment_trace) >= 2 || continue
+        first_binding, first_recomputed = first(segment_trace)
+        final_binding, final_recomputed = last(segment_trace)
         first_logged = first_binding.record.primal_infeasibility
         final_logged = final_binding.record.primal_infeasibility
         log_improved = final_logged * trace_trend_factor < first_logged
@@ -938,10 +1169,11 @@ function analyze_iteration_points(
             push!(report, Finding(:solver_iteration_trace_feasibility_disagreement;
                 severity = SeverityWarning, domain = RepresentationalIssue,
                 basis = HeuristicInterpretation, confidence = ConfidenceMedium,
-                observation = "Logged primal infeasibility decreases from $first_logged to $final_logged, while recomputed feasibility increases from $first_recomputed to $final_recomputed across bound iterations.",
+                observation = "Within bound trace segment $segment, logged primal infeasibility decreases from $first_logged to $final_logged, while recomputed feasibility increases from $first_recomputed to $final_recomputed.",
                 why_it_matters = "The supplied points and solver log may use different scaling, timing, or feasibility semantics; this trend disagreement needs inspection rather than attribution.",
                 evidence = [Evidence("Bound iteration trace endpoints";
-                    details = ["first_iteration" => first_binding.record.iteration,
+                    details = ["segment" => segment,
+                               "first_iteration" => first_binding.record.iteration,
                                "final_iteration" => final_binding.record.iteration,
                                "first_logged_primal" => first_logged,
                                "final_logged_primal" => final_logged,
@@ -952,35 +1184,42 @@ function analyze_iteration_points(
             ))
         end
     end
-    if length(objective_trace) >= 2
+    if !isempty(objective_trace_segments)
         sense = MOI.get(model, MOI.ObjectiveSense())
         if sense != MOI.FEASIBILITY_SENSE
-            first_binding, first_objective = first(objective_trace)
-            final_binding, final_objective = last(objective_trace)
-            orientation = sense == MOI.MAX_SENSE ? 1.0 : -1.0
-            logged_progress = orientation * (
-                final_binding.record.objective - first_binding.record.objective
-            )
-            recomputed_progress = orientation * (final_objective - first_objective)
-            if logged_progress > objective_trace_tolerance &&
-               recomputed_progress < -objective_trace_tolerance
-                push!(report, Finding(:solver_iteration_trace_objective_disagreement;
-                    severity = SeverityWarning, domain = RepresentationalIssue,
-                    basis = HeuristicInterpretation, confidence = ConfidenceMedium,
-                    observation = "Logged objective moves in the $(sense == MOI.MAX_SENSE ? "maximizing" : "minimizing") direction from $(first_binding.record.objective) to $(final_binding.record.objective), while the recomputed model objective moves oppositely from $first_objective to $final_objective across bound iterations.",
-                    why_it_matters = "The log may report a scaled, barrier, penalty, or differently timed objective. This trace disagreement needs alignment inspection rather than solver attribution.",
-                    evidence = [Evidence("Bound iteration objective trace endpoints";
-                        details = ["objective_sense" => sense,
-                                   "first_iteration" => first_binding.record.iteration,
-                                   "final_iteration" => final_binding.record.iteration,
-                                   "first_logged_objective" => first_binding.record.objective,
-                                   "final_logged_objective" => final_binding.record.objective,
-                                   "first_recomputed_objective" => first_objective,
-                                   "final_recomputed_objective" => final_objective,
-                                   "objective_trace_tolerance" => objective_trace_tolerance],
-                    )],
-                    suggested_actions = ["Verify objective reporting semantics and iteration-point alignment before comparing objective trends."],
-                ))
+            for segment in objective_trace_segments
+                segment_objective_trace = filter(
+                    item -> item[1].segment == segment, objective_trace,
+                )
+                length(segment_objective_trace) >= 2 || continue
+                first_binding, first_objective = first(segment_objective_trace)
+                final_binding, final_objective = last(segment_objective_trace)
+                orientation = sense == MOI.MAX_SENSE ? 1.0 : -1.0
+                logged_progress = orientation * (
+                    final_binding.record.objective - first_binding.record.objective
+                )
+                recomputed_progress = orientation * (final_objective - first_objective)
+                if logged_progress > objective_trace_tolerance &&
+                   recomputed_progress < -objective_trace_tolerance
+                    push!(report, Finding(:solver_iteration_trace_objective_disagreement;
+                        severity = SeverityWarning, domain = RepresentationalIssue,
+                        basis = HeuristicInterpretation, confidence = ConfidenceMedium,
+                        observation = "Within bound trace segment $segment, logged objective moves in the $(sense == MOI.MAX_SENSE ? "maximizing" : "minimizing") direction from $(first_binding.record.objective) to $(final_binding.record.objective), while the recomputed model objective moves oppositely from $first_objective to $final_objective.",
+                        why_it_matters = "The log may report a scaled, barrier, penalty, or differently timed objective. This trace disagreement needs alignment inspection rather than solver attribution.",
+                        evidence = [Evidence("Bound iteration objective trace endpoints";
+                            details = ["segment" => segment,
+                                       "objective_sense" => sense,
+                                       "first_iteration" => first_binding.record.iteration,
+                                       "final_iteration" => final_binding.record.iteration,
+                                       "first_logged_objective" => first_binding.record.objective,
+                                       "final_logged_objective" => final_binding.record.objective,
+                                       "first_recomputed_objective" => first_objective,
+                                       "final_recomputed_objective" => final_objective,
+                                       "objective_trace_tolerance" => objective_trace_tolerance],
+                        )],
+                        suggested_actions = ["Verify objective reporting semantics and iteration-point alignment before comparing objective trends."],
+                    ))
+                end
             end
         end
     end

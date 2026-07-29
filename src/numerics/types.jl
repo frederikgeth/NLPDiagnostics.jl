@@ -1292,11 +1292,29 @@ struct SolverIterationSummary
     segment_count::Int
 end
 
-"""A caller-supplied numerical point explicitly associated with one log row."""
+"""A caller-supplied numerical point explicitly associated with one log row.
+
+`segment` identifies the monotone iteration segment within an appended or
+restarted log. `selector` records whether a binding was supplied directly, by
+a legacy iteration number, or by an unambiguous `(segment, iteration)` key.
+"""
 struct IterationPointBinding{T<:AbstractFloat}
     record::SolverIterationRecord
     point::EvaluationPoint{T}
+    segment::Int
+    selector::Symbol
 end
+
+IterationPointBinding(
+    record::SolverIterationRecord,
+    point::EvaluationPoint{T},
+) where {T<:AbstractFloat} = IterationPointBinding(record, point, 1, :direct)
+
+IterationPointBinding(
+    record::SolverIterationRecord,
+    point::EvaluationPoint{T},
+    segment::Integer,
+) where {T<:AbstractFloat} = IterationPointBinding(record, point, Int(segment), :direct)
 
 function SolverPostmortem(
     solver::AbstractString,

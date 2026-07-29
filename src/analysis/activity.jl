@@ -2414,6 +2414,7 @@ function analyze_active_set_second_order(
     expected_mode_residual_tolerance::Real = sqrt(eps(T)),
     kwargs...,
 ) where {T<:AbstractFloat}
+    _validate_evaluation_variable_order(model, evaluation)
     summary = constraint_feasibility_summary(
         model,
         evaluation;
