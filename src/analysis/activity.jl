@@ -2121,6 +2121,7 @@ function _coupled_set_findings(summary::CoupledSetFeasibilitySummary)
                     "feasibility_violation" => activity.feasibility_violation,
                     "feasibility_tolerance" => summary.feasibility_tolerance,
                     "active_tolerance" => summary.active_tolerance,
+                    "reason" => activity.reason,
                 ])],
                 suggested_actions = violated ?
                                     ["Inspect the vector components and use a cone-aware feasibility restoration diagnostic."] :

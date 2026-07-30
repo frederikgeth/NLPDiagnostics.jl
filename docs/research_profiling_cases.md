@@ -76,6 +76,13 @@ The scaled real PSD case additionally retains a nonzero off-diagonal
 coordinate, guarding the √2 coordinate transformation used by MOI. Scaled
 Hermitian coordinates are covered by focused MOI tests because the lightweight
 profiling model does not natively store that set without bridges.
+The corpus also includes nonsmooth matrix boundaries: tied spectral modes,
+rank-deficient nuclear norm, and repeated-zero PSD eigenmodes. These provide
+regression cases for degeneracy labels rather than solver convergence claims.
+A near-singular logdet boundary separately profiles derivative-geometry
+withholding at a mathematically feasible point.
+An indefinite PSD point supplies a corresponding proven matrix-feasibility
+violation case.
 
 `synthetic_sparse_profile_corpus(; dimension = 32)` provides a deterministic
 generic-core corpus that does not depend on an OPF plugin. It returns models

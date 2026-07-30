@@ -167,7 +167,7 @@ end
     )
     coupled_cone_models, coupled_cone_cases =
         NLPDiagnostics.synthetic_coupled_cone_profile_corpus()
-    @test length(coupled_cone_models) == length(coupled_cone_cases) == 12
+    @test length(coupled_cone_models) == length(coupled_cone_cases) == 17
     coupled_cone_aggregates = NLPDiagnostics.profile_synthetic_coupled_cone_corpus(
         repetitions = 1, warmup = false,
     )
@@ -765,6 +765,7 @@ end
     @test length(MOI.get(model, MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}())) == before
     auxiliary = NLPDiagnostics.build_elastic_feasibility_model(model)
     @test auxiliary.plan.relaxation_count == plan.relaxation_count
+    @test auxiliary.model isa MOIU.UniversalFallback
     @test length(auxiliary.relaxations) == 1
     @test length(only(auxiliary.relaxations).slacks) == 1
     @test auxiliary.source_variable_map[x] isa MOI.VariableIndex
@@ -880,6 +881,277 @@ end
     @test only(cone_auxiliary.relaxations).source.index == cone.value
     @test length(only(cone_auxiliary.relaxations).slacks) == 1
     @test only(cone_auxiliary.relaxations).kind == :second_order_cone
+
+    spectral_elastic_model = MOIU.Model{Float64}()
+    spectral_elastic_entries = MOI.add_variables(spectral_elastic_model, 5)
+    MOI.add_constraint(
+        spectral_elastic_model,
+        MOI.VectorOfVariables(spectral_elastic_entries),
+        MOI.NormSpectralCone(2, 2),
+    )
+    spectral_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        spectral_elastic_model,
+    )
+    @test only(spectral_elastic_auxiliary.relaxations).kind == :norm_spectral_cone
+    @test length(only(spectral_elastic_auxiliary.relaxations).slacks) == 1
+
+    nuclear_elastic_model = MOIU.Model{Float64}()
+    nuclear_elastic_entries = MOI.add_variables(nuclear_elastic_model, 5)
+    MOI.add_constraint(
+        nuclear_elastic_model,
+        MOI.VectorOfVariables(nuclear_elastic_entries),
+        MOI.NormNuclearCone(2, 2),
+    )
+    nuclear_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        nuclear_elastic_model,
+    )
+    @test only(nuclear_elastic_auxiliary.relaxations).kind == :norm_nuclear_cone
+
+    exponential_elastic_model = MOIU.Model{Float64}()
+    exponential_elastic_entries = MOI.add_variables(exponential_elastic_model, 3)
+    exponential_elastic = MOI.add_constraint(
+        exponential_elastic_model,
+        MOI.VectorOfVariables(exponential_elastic_entries),
+        MOI.ExponentialCone(),
+    )
+    exponential_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        exponential_elastic_model,
+    )
+    exponential_elastic_relaxation = only(exponential_elastic_auxiliary.relaxations)
+    @test exponential_elastic_relaxation.kind == :exponential_cone
+    exponential_relaxed_function = MOI.get(
+        exponential_elastic_auxiliary.model,
+        MOI.ConstraintFunction(),
+        exponential_elastic_auxiliary.relaxed_constraint_map[
+            NLPDiagnostics.EntityRef(:constraint, exponential_elastic.value)
+        ],
+    )
+    @test only([term.scalar_term.coefficient for term in exponential_relaxed_function.terms if
+                term.output_index == 3 &&
+                term.scalar_term.variable == only(exponential_elastic_relaxation.slacks)]) == 1.0
+
+    dual_exponential_elastic_model = MOIU.Model{Float64}()
+    dual_exponential_elastic_entries = MOI.add_variables(dual_exponential_elastic_model, 3)
+    MOI.add_constraint(
+        dual_exponential_elastic_model,
+        MOI.VectorOfVariables(dual_exponential_elastic_entries),
+        MOI.DualExponentialCone(),
+    )
+    dual_exponential_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        dual_exponential_elastic_model,
+    )
+    @test only(dual_exponential_elastic_auxiliary.relaxations).kind ==
+          :dual_exponential_cone
+
+    geometric_elastic_model = MOIU.Model{Float64}()
+    geometric_elastic_entries = MOI.add_variables(geometric_elastic_model, 3)
+    MOI.add_constraint(
+        geometric_elastic_model,
+        MOI.VectorOfVariables(geometric_elastic_entries),
+        MOI.GeometricMeanCone(3),
+    )
+    geometric_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        geometric_elastic_model,
+    )
+    geometric_elastic_relaxation = only(geometric_elastic_auxiliary.relaxations)
+    @test geometric_elastic_relaxation.kind == :geometric_mean_cone
+    geometric_relaxed_function = MOI.get(
+        geometric_elastic_auxiliary.model,
+        MOI.ConstraintFunction(),
+        only(values(geometric_elastic_auxiliary.relaxed_constraint_map)),
+    )
+    @test only([term.scalar_term.coefficient for term in geometric_relaxed_function.terms if
+                term.output_index == 1 &&
+                term.scalar_term.variable == only(geometric_elastic_relaxation.slacks)]) == -1.0
+
+    entropy_elastic_model = MOIU.Model{Float64}()
+    entropy_elastic_entries = MOI.add_variables(entropy_elastic_model, 3)
+    MOI.add_constraint(
+        entropy_elastic_model,
+        MOI.VectorOfVariables(entropy_elastic_entries),
+        MOI.RelativeEntropyCone(3),
+    )
+    entropy_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        entropy_elastic_model,
+    )
+    @test only(entropy_elastic_auxiliary.relaxations).kind == :relative_entropy_cone
+
+    logdet_elastic_model = MOIU.Model{Float64}()
+    logdet_elastic_entries = MOI.add_variables(logdet_elastic_model, 5)
+    MOI.add_constraint(
+        logdet_elastic_model,
+        MOI.VectorOfVariables(logdet_elastic_entries),
+        MOI.LogDetConeTriangle(2),
+    )
+    logdet_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        logdet_elastic_model,
+    )
+    logdet_elastic_relaxation = only(logdet_elastic_auxiliary.relaxations)
+    @test logdet_elastic_relaxation.kind == :logdet_cone_triangle
+    logdet_relaxed_function = MOI.get(
+        logdet_elastic_auxiliary.model,
+        MOI.ConstraintFunction(),
+        logdet_elastic_auxiliary.relaxed_constraint_map[
+            only(logdet_elastic_auxiliary.plan.relaxable_constraints)
+        ],
+    )
+    logdet_slack = only(logdet_elastic_relaxation.slacks)
+    @test only([term.scalar_term.coefficient for term in
+                logdet_relaxed_function.terms if
+                term.output_index == 1 && term.scalar_term.variable == logdet_slack]) == -1.0
+
+    logdet_square_elastic_model = MOIU.Model{Float64}()
+    logdet_square_elastic_entries = MOI.add_variables(logdet_square_elastic_model, 6)
+    MOI.add_constraint(
+        logdet_square_elastic_model,
+        MOI.VectorOfVariables(logdet_square_elastic_entries),
+        MOI.LogDetConeSquare(2),
+    )
+    logdet_square_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        logdet_square_elastic_model,
+    )
+    logdet_square_elastic_relaxation = only(logdet_square_elastic_auxiliary.relaxations)
+    @test logdet_square_elastic_relaxation.kind == :logdet_cone_square
+
+    rootdet_square_elastic_model = MOIU.Model{Float64}()
+    rootdet_square_elastic_entries = MOI.add_variables(rootdet_square_elastic_model, 5)
+    MOI.add_constraint(
+        rootdet_square_elastic_model,
+        MOI.VectorOfVariables(rootdet_square_elastic_entries),
+        MOI.RootDetConeSquare(2),
+    )
+    rootdet_square_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        rootdet_square_elastic_model,
+    )
+    @test only(rootdet_square_elastic_auxiliary.relaxations).kind ==
+          :rootdet_cone_square
+
+    scaled_logdet_elastic_model = MOIU.UniversalFallback(MOIU.Model{Float64}())
+    scaled_logdet_elastic_entries = MOI.add_variables(scaled_logdet_elastic_model, 5)
+    MOI.add_constraint(
+        scaled_logdet_elastic_model,
+        MOI.VectorOfVariables(scaled_logdet_elastic_entries),
+        MOI.Scaled(MOI.LogDetConeTriangle(2)),
+    )
+    scaled_logdet_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        scaled_logdet_elastic_model,
+    )
+    @test only(scaled_logdet_elastic_auxiliary.relaxations).kind ==
+          :scaled_logdet_cone_triangle
+
+    scaled_rootdet_elastic_model = MOIU.UniversalFallback(MOIU.Model{Float64}())
+    scaled_rootdet_elastic_entries = MOI.add_variables(scaled_rootdet_elastic_model, 4)
+    MOI.add_constraint(
+        scaled_rootdet_elastic_model,
+        MOI.VectorOfVariables(scaled_rootdet_elastic_entries),
+        MOI.Scaled(MOI.RootDetConeTriangle(2)),
+    )
+    scaled_rootdet_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        scaled_rootdet_elastic_model,
+    )
+    @test only(scaled_rootdet_elastic_auxiliary.relaxations).kind ==
+          :scaled_rootdet_cone_triangle
+
+    psd_elastic_model = MOIU.Model{Float64}()
+    psd_a, psd_b, psd_c = MOI.add_variables(psd_elastic_model, 3)
+    psd_elastic = MOI.add_constraint(
+        psd_elastic_model,
+        MOI.VectorOfVariables([psd_a, psd_b, psd_c]),
+        MOI.PositiveSemidefiniteConeTriangle(2),
+    )
+    psd_elastic_plan = NLPDiagnostics.elastic_feasibility_plan(psd_elastic_model)
+    @test psd_elastic_plan.relaxation_count == 1
+    @test psd_elastic_plan.slack_count == 1
+    psd_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        psd_elastic_model,
+    )
+    psd_elastic_relaxation = only(psd_elastic_auxiliary.relaxations)
+    @test psd_elastic_relaxation.source.index == psd_elastic.value
+    @test psd_elastic_relaxation.kind == :positive_semidefinite_cone_triangle
+    @test length(psd_elastic_relaxation.slacks) == 1
+    psd_relaxed_function = MOI.get(
+        psd_elastic_auxiliary.model,
+        MOI.ConstraintFunction(),
+        psd_elastic_auxiliary.relaxed_constraint_map[
+            only(psd_elastic_plan.relaxable_constraints)
+        ],
+    )
+    psd_slack = only(psd_elastic_relaxation.slacks)
+    @test sort([term.output_index for term in psd_relaxed_function.terms if
+                term.scalar_term.variable == psd_slack]) == [1, 3]
+
+    scaled_psd_elastic_model = MOIU.Model{Float64}()
+    scaled_psd_elastic_entries = MOI.add_variables(scaled_psd_elastic_model, 3)
+    MOI.add_constraint(
+        scaled_psd_elastic_model,
+        MOI.VectorOfVariables(scaled_psd_elastic_entries),
+        MOI.Scaled(MOI.PositiveSemidefiniteConeTriangle(2)),
+    )
+    scaled_psd_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        scaled_psd_elastic_model,
+    )
+    @test only(scaled_psd_elastic_auxiliary.relaxations).kind ==
+          :scaled_positive_semidefinite_cone_triangle
+
+    hermitian_psd_elastic_model = MOIU.UniversalFallback(MOIU.Model{Float64}())
+    hermitian_psd_elastic_entries = MOI.add_variables(hermitian_psd_elastic_model, 4)
+    MOI.add_constraint(
+        hermitian_psd_elastic_model,
+        MOI.VectorOfVariables(hermitian_psd_elastic_entries),
+        MOI.HermitianPositiveSemidefiniteConeTriangle(2),
+    )
+    hermitian_psd_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        hermitian_psd_elastic_model,
+    )
+    hermitian_psd_elastic_relaxation = only(hermitian_psd_elastic_auxiliary.relaxations)
+    @test hermitian_psd_elastic_relaxation.kind ==
+          :hermitian_positive_semidefinite_cone_triangle
+    hermitian_psd_relaxed_function = MOI.get(
+        hermitian_psd_elastic_auxiliary.model,
+        MOI.ConstraintFunction(),
+        only(values(hermitian_psd_elastic_auxiliary.relaxed_constraint_map)),
+    )
+    hermitian_psd_slack = only(hermitian_psd_elastic_relaxation.slacks)
+    @test sort([term.output_index for term in hermitian_psd_relaxed_function.terms if
+                term.scalar_term.variable == hermitian_psd_slack]) == [1, 3]
+
+    scaled_hermitian_psd_elastic_model = MOIU.UniversalFallback(MOIU.Model{Float64}())
+    scaled_hermitian_psd_elastic_entries = MOI.add_variables(
+        scaled_hermitian_psd_elastic_model, 4,
+    )
+    MOI.add_constraint(
+        scaled_hermitian_psd_elastic_model,
+        MOI.VectorOfVariables(scaled_hermitian_psd_elastic_entries),
+        MOI.Scaled(MOI.HermitianPositiveSemidefiniteConeTriangle(2)),
+    )
+    scaled_hermitian_psd_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        scaled_hermitian_psd_elastic_model,
+    )
+    @test only(scaled_hermitian_psd_elastic_auxiliary.relaxations).kind ==
+          :scaled_hermitian_positive_semidefinite_cone_triangle
+
+    psd_square_elastic_model = MOIU.Model{Float64}()
+    psd_square_elastic_entries = MOI.add_variables(psd_square_elastic_model, 4)
+    MOI.add_constraint(
+        psd_square_elastic_model,
+        MOI.VectorOfVariables(psd_square_elastic_entries),
+        MOI.PositiveSemidefiniteConeSquare(2),
+    )
+    psd_square_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        psd_square_elastic_model,
+    )
+    psd_square_elastic_relaxation = only(psd_square_elastic_auxiliary.relaxations)
+    @test psd_square_elastic_relaxation.kind == :positive_semidefinite_cone_square
+    psd_square_relaxed_function = MOI.get(
+        psd_square_elastic_auxiliary.model,
+        MOI.ConstraintFunction(),
+        psd_square_elastic_auxiliary.relaxed_constraint_map[
+            only(psd_square_elastic_auxiliary.plan.relaxable_constraints)
+        ],
+    )
+    psd_square_slack = only(psd_square_elastic_relaxation.slacks)
+    @test sort([term.output_index for term in psd_square_relaxed_function.terms if
+                term.scalar_term.variable == psd_square_slack]) == [1, 4]
 
     affine_cone_model = MOIU.Model{Float64}()
     a, b = MOI.add_variables(affine_cone_model, 2)
@@ -5863,6 +6135,13 @@ end
             rootdet_square_asymmetric_report,
             :coupled_set_feasibility_violation,
         )) == 1
+        @test occursin(
+            "symmetric matrix",
+            string(Dict(only(findings(
+                rootdet_square_asymmetric_report,
+                :coupled_set_feasibility_violation,
+            )).evidence[end].details)["reason"]),
+        )
 
         power_cone_model = new_model()
         power_x, power_y, power_z = MOI.add_variables(power_cone_model, 3)

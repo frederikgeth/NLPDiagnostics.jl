@@ -144,9 +144,24 @@ mapped slack values, without requiring a solver result; it also accepts a
 solved auxiliary record and selected result index.
 `VectorOfVariables` and vector-affine second-order and rotated-second-order
 cones are also supported by adding one nonnegative slack to the leading cone
-coordinate. For rotated cones this is a conservative relaxation construction,
-not a canonical cone-distance measure. Other coupled/vector sets remain
-explicitly unsupported.
+coordinate. The same leading-coordinate construction supports norm-one,
+norm-infinity, generic norm, spectral-norm, and nuclear-norm epigraph cones.
+Packed log- and root-determinant cones receive a hypograph shift instead:
+the slack is subtracted from their leading `t` coordinate. This repairs only
+the scalar determinant inequality; strict positive-definite domain failures
+remain explicit and unrelaxed. Their scaled packed variants are supported by
+the same construction. The auxiliary model uses MOI's solver-free
+`UniversalFallback` container so supported public scaled representations are
+preserved during copying. Square-form log- and root-determinant cones use the
+same `t - s` hypograph shift, preserving their embedded symmetry equations.
+For rotated cones this is a conservative relaxation construction, not a
+canonical cone-distance measure. Packed real PSD cones are supported by
+one nonnegative spectral-shift slack added to every diagonal coordinate,
+corresponding to `X + sI ⪰ 0`. This is an interpretable uniform eigenvalue
+repair, not a canonical cone-distance measure. The same construction supports
+scaled packed real PSD coordinates because their diagonal entries are not
+scaled, and square PSD coordinates by shifting only matrix diagonal entries.
+Other coupled/vector sets remain explicitly unsupported.
 `Nonnegatives` and `Nonpositives` vector rows are relaxed coordinatewise with
 one nonnegative auxiliary slack per output coordinate and the appropriate
 inequality direction.
@@ -215,6 +230,17 @@ relaxation supports. It reports overlap as stronger prioritization evidence and
 different memberships as diagnostic context. It deliberately does not choose a
 winner: the mechanisms use different auxiliary constructions and neither
 becomes ground truth by disagreement alone.
+For supported vector cones, the auxiliary uses only monotone coordinate shifts
+whose effect is explicit in the native cone representation: SOC and norm cones
+receive an epigraph shift; exponential and dual-exponential cones receive a
+shift in their third (epigraph) coordinate; relative entropy receives a shift
+in its leading upper-bound coordinate; and geometric mean receives a negative
+shift in its leading hypograph coordinate. These shifts do not relax the
+strict positive coordinates required by exponential or relative-entropy
+semantics. Packed real and Hermitian PSD cones (including their scaled packed
+representations) receive the spectral shift `X + sI`; imaginary coordinates
+remain unchanged. Power, dual-power, and other cones whose safe generic relaxation
+would require a branch or a non-coordinate reformulation remain unsupported.
 `elastic_domain_guard_plan` is the corresponding pre-solve boundary for
 nonlinear operator domains. It reuses the static domain analysis, restricted to
 the selected elastic rows, and makes each condition inspectable before any

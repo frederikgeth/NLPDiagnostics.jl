@@ -1098,6 +1098,54 @@ function synthetic_coupled_cone_profile_corpus()
         metadata = Dict("cone" => "NormNuclear", "geometry" => "full rank"),
     ))
 
+    tied_spectral_norm = MOI.Utilities.Model{Float64}()
+    tied_spectral_variables = MOI.add_variables(tied_spectral_norm, 5)
+    MOI.add_constraint(
+        tied_spectral_norm,
+        MOI.VectorOfVariables(tied_spectral_variables),
+        MOI.NormSpectralCone(2, 2),
+    )
+    push!(models, tied_spectral_norm)
+    push!(cases, ProfileCase(
+        "coupled_spectral_norm_tied_leading_modes",
+        evaluation_point(
+            tied_spectral_norm, [1.0, 1.0, 0.0, 0.0, 1.0];
+            label = "tied-leading-mode spectral-norm boundary",
+        );
+        description = "A spectral-norm boundary with two equal leading singular values.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single 2-by-2 spectral-norm cone",
+        initialization = "nonsmooth feasible boundary point",
+        scale = "two unit singular values",
+        expected_evidence = [:coupled_set_nonsmooth_boundary_active],
+        tags = [:synthetic, :cone, :spectral_norm, :matrix, :nonsmooth],
+        metadata = Dict("cone" => "NormSpectral", "geometry" => "tied leading singular values"),
+    ))
+
+    rank_deficient_nuclear_norm = MOI.Utilities.Model{Float64}()
+    rank_deficient_nuclear_variables = MOI.add_variables(rank_deficient_nuclear_norm, 5)
+    MOI.add_constraint(
+        rank_deficient_nuclear_norm,
+        MOI.VectorOfVariables(rank_deficient_nuclear_variables),
+        MOI.NormNuclearCone(2, 2),
+    )
+    push!(models, rank_deficient_nuclear_norm)
+    push!(cases, ProfileCase(
+        "coupled_nuclear_norm_rank_deficient_boundary",
+        evaluation_point(
+            rank_deficient_nuclear_norm, [2.0, 2.0, 0.0, 0.0, 0.0];
+            label = "rank-deficient nuclear-norm boundary",
+        );
+        description = "A nuclear-norm boundary whose matrix has a zero singular value.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single 2-by-2 nuclear-norm cone",
+        initialization = "nonsmooth feasible boundary point",
+        scale = "singular values 2 and 0",
+        expected_evidence = [:coupled_set_nonsmooth_boundary_active],
+        tags = [:synthetic, :cone, :nuclear_norm, :matrix, :nonsmooth],
+        metadata = Dict("cone" => "NormNuclear", "geometry" => "rank deficient"),
+    ))
+
     smooth_psd_triangle = MOI.Utilities.Model{Float64}()
     psd_entries = MOI.add_variables(smooth_psd_triangle, 3)
     MOI.add_constraint(
@@ -1120,6 +1168,48 @@ function synthetic_coupled_cone_profile_corpus()
         expected_evidence = [:coupled_set_robinson_cq_regular],
         tags = [:synthetic, :cone, :positive_semidefinite, :matrix, :qualification],
         metadata = Dict("cone" => "PositiveSemidefiniteConeTriangle", "geometry" => "simple zero eigenvalue"),
+    ))
+
+    repeated_zero_psd = MOI.Utilities.Model{Float64}()
+    repeated_zero_psd_entries = MOI.add_variables(repeated_zero_psd, 3)
+    MOI.add_constraint(
+        repeated_zero_psd,
+        MOI.VectorOfVariables(repeated_zero_psd_entries),
+        MOI.PositiveSemidefiniteConeTriangle(2),
+    )
+    push!(models, repeated_zero_psd)
+    push!(cases, ProfileCase(
+        "coupled_psd_repeated_zero_mode",
+        evaluation_point(repeated_zero_psd, [0.0, 0.0, 0.0]; label = "repeated-zero PSD boundary");
+        description = "A PSD boundary with two zero eigenvalues and no unique boundary normal.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single packed-symmetric PSD cone",
+        initialization = "nonsmooth feasible boundary point",
+        scale = "zero matrix",
+        expected_evidence = [:coupled_set_nonsmooth_boundary_active],
+        tags = [:synthetic, :cone, :positive_semidefinite, :matrix, :nonsmooth],
+        metadata = Dict("cone" => "PositiveSemidefiniteConeTriangle", "geometry" => "repeated zero eigenvalue"),
+    ))
+
+    indefinite_psd = MOI.Utilities.Model{Float64}()
+    indefinite_psd_entries = MOI.add_variables(indefinite_psd, 3)
+    MOI.add_constraint(
+        indefinite_psd,
+        MOI.VectorOfVariables(indefinite_psd_entries),
+        MOI.PositiveSemidefiniteConeTriangle(2),
+    )
+    push!(models, indefinite_psd)
+    push!(cases, ProfileCase(
+        "coupled_psd_negative_eigenvalue",
+        evaluation_point(indefinite_psd, [-1.0, 0.0, 1.0]; label = "indefinite PSD input");
+        description = "A packed PSD input with one negative eigenvalue and a proven coupled-set violation.",
+        task = "synthetic coupled-cone feasibility diagnostics",
+        formulation = "single packed-symmetric PSD cone",
+        initialization = "infeasible matrix point",
+        scale = "eigenvalues -1 and 1",
+        expected_evidence = [:coupled_set_feasibility_violation],
+        tags = [:synthetic, :cone, :positive_semidefinite, :matrix, :feasibility],
+        metadata = Dict("cone" => "PositiveSemidefiniteConeTriangle", "geometry" => "negative eigenvalue"),
     ))
 
     smooth_scaled_psd_triangle = MOI.Utilities.Model{Float64}()
@@ -1168,6 +1258,30 @@ function synthetic_coupled_cone_profile_corpus()
         expected_evidence = [:coupled_set_robinson_cq_regular],
         tags = [:synthetic, :cone, :logdet, :matrix, :qualification],
         metadata = Dict("cone" => "LogDetConeTriangle", "geometry" => "positive-definite boundary"),
+    ))
+
+    near_singular_logdet = MOI.Utilities.Model{Float64}()
+    near_singular_logdet_entries = MOI.add_variables(near_singular_logdet, 5)
+    MOI.add_constraint(
+        near_singular_logdet,
+        MOI.VectorOfVariables(near_singular_logdet_entries),
+        MOI.LogDetConeTriangle(2),
+    )
+    push!(models, near_singular_logdet)
+    push!(cases, ProfileCase(
+        "coupled_logdet_near_singular_boundary",
+        evaluation_point(
+            near_singular_logdet, [log(1.0e-10), 1.0, 1.0e-10, 0.0, 1.0];
+            label = "near-singular log-determinant boundary",
+        );
+        description = "A feasible log-determinant boundary whose inverse-matrix derivative is intentionally withheld near singularity.",
+        task = "synthetic coupled-cone qualification diagnostics",
+        formulation = "single packed-symmetric log-determinant cone",
+        initialization = "positive-definite but near-singular boundary point",
+        scale = "u=1, eigenvalues 1e-10 and 1",
+        expected_evidence = [:coupled_set_boundary_tangent_semantics_unavailable],
+        tags = [:synthetic, :cone, :logdet, :matrix, :initialization, :derivative_domain],
+        metadata = Dict("cone" => "LogDetConeTriangle", "geometry" => "near singular"),
     ))
 
     smooth_rootdet = MOI.Utilities.Model{Float64}()

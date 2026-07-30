@@ -1602,7 +1602,7 @@ function elastic_feasibility_plan(
         scalar_row = function_value isa Union{MOI.ScalarAffineFunction{Float64},MOI.ScalarQuadraticFunction{Float64},MOI.ScalarNonlinearFunction} &&
                      set_value isa Union{MOI.LessThan{Float64},MOI.GreaterThan{Float64},MOI.EqualTo{Float64}}
         vector_row = function_value isa Union{MOI.VectorOfVariables,MOI.VectorAffineFunction{Float64}} &&
-                     set_value isa Union{MOI.SecondOrderCone,MOI.RotatedSecondOrderCone,MOI.Nonnegatives,MOI.Nonpositives,MOI.Zeros}
+                     set_value isa Union{MOI.SecondOrderCone,MOI.RotatedSecondOrderCone,MOI.NormOneCone,MOI.NormInfinityCone,MOI.NormCone,MOI.NormSpectralCone,MOI.NormNuclearCone,MOI.ExponentialCone,MOI.DualExponentialCone,MOI.GeometricMeanCone,MOI.RelativeEntropyCone,MOI.LogDetConeTriangle,MOI.LogDetConeSquare,MOI.RootDetConeTriangle,MOI.RootDetConeSquare,MOI.Scaled{MOI.LogDetConeTriangle},MOI.Scaled{MOI.RootDetConeTriangle},MOI.PositiveSemidefiniteConeTriangle,MOI.PositiveSemidefiniteConeSquare,MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},MOI.HermitianPositiveSemidefiniteConeTriangle,MOI.Scaled{MOI.HermitianPositiveSemidefiniteConeTriangle},MOI.Nonnegatives,MOI.Nonpositives,MOI.Zeros}
         if variable_bound || scalar_row || vector_row
             if isnothing(selected_constraints) || any(==(reference), selected_constraints)
                 push!(relaxable, reference)
@@ -2042,7 +2042,10 @@ function build_elastic_feasibility_model(
     isempty(unknown_weight_sources) || throw(ArgumentError(
         "elastic weights reference $(length(unknown_weight_sources)) constraint(s) outside the selected relaxation plan",
     ))
-    auxiliary = MOI.Utilities.Model{Float64}()
+    # UniversalFallback preserves public MOI constraint representations that
+    # the lightweight utility model does not store natively (for example,
+    # scaled matrix cones). This remains a solver-free auxiliary container.
+    auxiliary = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
     index_map = MOI.copy_to(auxiliary, model)
     model_snapshot = snapshot(model)
     guard_margin = isnothing(domain_guard_margin) ? nothing : Float64(domain_guard_margin)
@@ -2064,7 +2067,7 @@ function build_elastic_feasibility_model(
         isfinite(weight) && weight > 0 ||
             throw(ArgumentError("elastic relaxation weights must be finite and positive"))
         if function_value isa Union{MOI.VectorOfVariables,MOI.VectorAffineFunction{Float64}} &&
-           set_value isa Union{MOI.SecondOrderCone,MOI.RotatedSecondOrderCone,MOI.Nonnegatives,MOI.Nonpositives,MOI.Zeros}
+           set_value isa Union{MOI.SecondOrderCone,MOI.RotatedSecondOrderCone,MOI.NormOneCone,MOI.NormInfinityCone,MOI.NormCone,MOI.NormSpectralCone,MOI.NormNuclearCone,MOI.ExponentialCone,MOI.DualExponentialCone,MOI.GeometricMeanCone,MOI.RelativeEntropyCone,MOI.LogDetConeTriangle,MOI.LogDetConeSquare,MOI.RootDetConeTriangle,MOI.RootDetConeSquare,MOI.Scaled{MOI.LogDetConeTriangle},MOI.Scaled{MOI.RootDetConeTriangle},MOI.PositiveSemidefiniteConeTriangle,MOI.PositiveSemidefiniteConeSquare,MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},MOI.HermitianPositiveSemidefiniteConeTriangle,MOI.Scaled{MOI.HermitianPositiveSemidefiniteConeTriangle},MOI.Nonnegatives,MOI.Nonpositives,MOI.Zeros}
             target = index_map[record.index]
             MOI.delete(auxiliary, target)
             terms = if function_value isa MOI.VectorOfVariables
@@ -2090,10 +2093,30 @@ function build_elastic_feasibility_model(
                     row = cld(position, 2)
                     coefficient = isodd(position) ? 1.0 : -1.0
                     push!(terms, MOI.VectorAffineTerm(row, MOI.ScalarAffineTerm(coefficient, slack)))
+                elseif set_value isa Union{MOI.PositiveSemidefiniteConeTriangle,MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},MOI.HermitianPositiveSemidefiniteConeTriangle,MOI.Scaled{MOI.HermitianPositiveSemidefiniteConeTriangle}}
+                    row = 1
+                    side_dimension = set_value isa MOI.Scaled ? set_value.set.side_dimension :
+                                     set_value.side_dimension
+                    for column in 1:side_dimension, coordinate in 1:column
+                        if coordinate == column
+                            push!(terms, MOI.VectorAffineTerm(
+                                row, MOI.ScalarAffineTerm(1.0, slack),
+                            ))
+                        end
+                        row += 1
+                    end
+                elseif set_value isa MOI.PositiveSemidefiniteConeSquare
+                    for diagonal in 1:set_value.side_dimension
+                        row = diagonal + (diagonal - 1) * set_value.side_dimension
+                        push!(terms, MOI.VectorAffineTerm(
+                            row, MOI.ScalarAffineTerm(1.0, slack),
+                        ))
+                    end
                 else
                     coordinatewise = set_value isa Union{MOI.Nonnegatives,MOI.Nonpositives}
-                    target_row = coordinatewise ? position : 1
-                    coefficient = set_value isa MOI.Nonpositives ? -1.0 : 1.0
+                    target_row = coordinatewise ? position :
+                                 set_value isa Union{MOI.ExponentialCone,MOI.DualExponentialCone} ? 3 : 1
+                    coefficient = set_value isa Union{MOI.Nonpositives,MOI.GeometricMeanCone,MOI.LogDetConeTriangle,MOI.LogDetConeSquare,MOI.RootDetConeTriangle,MOI.RootDetConeSquare,MOI.Scaled{MOI.LogDetConeTriangle},MOI.Scaled{MOI.RootDetConeTriangle}} ? -1.0 : 1.0
                     push!(terms, MOI.VectorAffineTerm(target_row, MOI.ScalarAffineTerm(coefficient, slack)))
                 end
             end
@@ -2106,6 +2129,26 @@ function build_elastic_feasibility_model(
             end
             kind = set_value isa MOI.SecondOrderCone ? :second_order_cone :
                    set_value isa MOI.RotatedSecondOrderCone ? :rotated_second_order_cone :
+                   set_value isa MOI.NormOneCone ? :norm_one_cone :
+                   set_value isa MOI.NormInfinityCone ? :norm_infinity_cone :
+                   set_value isa MOI.NormCone ? :norm_cone :
+                   set_value isa MOI.NormSpectralCone ? :norm_spectral_cone :
+                   set_value isa MOI.NormNuclearCone ? :norm_nuclear_cone :
+                   set_value isa MOI.ExponentialCone ? :exponential_cone :
+                   set_value isa MOI.DualExponentialCone ? :dual_exponential_cone :
+                   set_value isa MOI.GeometricMeanCone ? :geometric_mean_cone :
+                   set_value isa MOI.RelativeEntropyCone ? :relative_entropy_cone :
+                   set_value isa MOI.LogDetConeTriangle ? :logdet_cone_triangle :
+                   set_value isa MOI.LogDetConeSquare ? :logdet_cone_square :
+                   set_value isa MOI.RootDetConeTriangle ? :rootdet_cone_triangle :
+                   set_value isa MOI.RootDetConeSquare ? :rootdet_cone_square :
+                   set_value isa MOI.Scaled{MOI.LogDetConeTriangle} ? :scaled_logdet_cone_triangle :
+                   set_value isa MOI.Scaled{MOI.RootDetConeTriangle} ? :scaled_rootdet_cone_triangle :
+                   set_value isa MOI.PositiveSemidefiniteConeTriangle ? :positive_semidefinite_cone_triangle :
+                   set_value isa MOI.PositiveSemidefiniteConeSquare ? :positive_semidefinite_cone_square :
+                   set_value isa MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle} ? :scaled_positive_semidefinite_cone_triangle :
+                   set_value isa MOI.HermitianPositiveSemidefiniteConeTriangle ? :hermitian_positive_semidefinite_cone_triangle :
+                   set_value isa MOI.Scaled{MOI.HermitianPositiveSemidefiniteConeTriangle} ? :scaled_hermitian_positive_semidefinite_cone_triangle :
                    set_value isa MOI.Nonnegatives ? :nonnegatives :
                    set_value isa MOI.Nonpositives ? :nonpositives : :zeros
             push!(relaxations, ElasticRelaxation(source, slacks, weight, kind))

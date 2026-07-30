@@ -143,7 +143,12 @@ evaluation layers can expose its supporting evidence.
 The first elastic-feasibility slice is implemented. It creates a separate,
 never-solved-by-default auxiliary MOI model that relaxes selected `Float64`
 scalar affine, quadratic, and nonlinear rows with explicit nonnegative slacks;
-scalar variable bounds are opt-in. Plans retain supported, unsupported, and
+scalar variable bounds are opt-in. It also has conservative SOC/rotated-SOC
+and norm-epigraph, exponential/relative-entropy epigraph, and geometric-mean
+hypograph leading-coordinate shifts plus packed real/Hermitian-PSD spectral
+shifts (including scaled packed and square real PSD), together with packed
+log-/root-determinant hypograph shifts that do
+not relax their strict matrix domain. Plans retain supported, unsupported, and
 excluded rows plus exact slack counts, while auxiliary results map slack values
 back to source constraints and distinguish raw from weighted relaxation.
 
