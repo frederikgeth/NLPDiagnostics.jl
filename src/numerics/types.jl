@@ -620,6 +620,17 @@ struct ComponentCoordinateSemantics
     description::String
 end
 
+"""Plugin-declared nominal scale for set-relative scalar constraint violations."""
+struct ComponentConstraintScaleSemantics
+    component_type::Symbol
+    component_id::String
+    constraints::Vector{EntityRef}
+    quantity::Symbol
+    units::Dict{String,String}
+    nominal_scale::Float64
+    description::String
+end
+
 """Compatibility construction for component semantics without a nominal scale."""
 function ComponentCoordinateSemantics(
     component_type::Symbol,
@@ -633,6 +644,29 @@ function ComponentCoordinateSemantics(
     return ComponentCoordinateSemantics(
         component_type, component_id, variables, quantity, representation,
         units, nothing, description,
+    )
+end
+
+function ComponentConstraintScaleSemantics(
+    component_type::Symbol,
+    component_id,
+    constraints::AbstractVector{<:EntityRef};
+    quantity::Symbol = :generic,
+    units::AbstractDict = Dict{String,String}(),
+    nominal_scale::Real,
+    description::AbstractString = "",
+)
+    isempty(String(component_type)) && throw(ArgumentError("component_type must be nonempty"))
+    isempty(strip(string(component_id))) && throw(ArgumentError("component_id must be nonempty"))
+    isempty(constraints) && throw(ArgumentError("constraint scale semantics requires at least one constraint"))
+    length(unique(constraints)) == length(constraints) ||
+        throw(ArgumentError("constraint scale semantics constraint references must be unique"))
+    isfinite(nominal_scale) && nominal_scale > 0 ||
+        throw(ArgumentError("constraint nominal_scale must be finite and positive"))
+    return ComponentConstraintScaleSemantics(
+        component_type, string(component_id), collect(constraints), quantity,
+        Dict(string(key) => string(value) for (key, value) in units),
+        Float64(nominal_scale), String(description),
     )
 end
 

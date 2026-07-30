@@ -930,6 +930,11 @@ function _analyze_numerical_evaluation(
         mismatch_factor = component_scale_mismatch_factor,
     )
     append!(report.findings, component_scale_report.findings)
+    component_constraint_scale_report = analyze_component_constraint_scales(
+        component_constraint_scale_semantics(model), summary;
+        mismatch_factor = component_scale_mismatch_factor,
+    )
+    append!(report.findings, component_constraint_scale_report.findings)
     derivative_report =
         analyze_derivatives(model_snapshot; point = point)
     expression_report = analyze_expressions(
@@ -994,6 +999,10 @@ function _analyze_numerical_evaluation(
     merge!(report.metadata, derivative_report.metadata)
     merge!(report.metadata, expression_report.metadata)
     for (key, value) in component_scale_report.metadata
+        key == :stage && continue
+        report.metadata[key] = value
+    end
+    for (key, value) in component_constraint_scale_report.metadata
         key == :stage && continue
         report.metadata[key] = value
     end

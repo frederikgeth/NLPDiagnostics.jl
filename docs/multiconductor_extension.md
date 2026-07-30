@@ -55,6 +55,9 @@ For the same direct rows, the map-adjusted port scale must agree with any
 component-coordinate nominal scale on the mapped MOI variable. Supplying a
 scale on only one side is likewise reported as an incomplete shared-coordinate
 scaling convention.
+At an evaluation point, compatible declarations that imply the same effective
+model-coordinate scale are consolidated into one scale finding with all port
+identities retained as evidence.
 
 The scalar PowerModels `:va` bridge is intentionally not a multiconductor port
 adapter: it exposes angle coordinates, not terminal voltage phasors. A future

@@ -131,11 +131,35 @@ The prior positional `ComponentCoordinateSemantics` construction remains
 compatible and leaves `nominal_scale` unset.
 `analyze_numerical` includes this check automatically whenever a plugin has
 declared nominal scales, with an explicit configurable mismatch factor.
+Compatible overlapping declarations at one model coordinate are consolidated
+into one point-local scale finding, with every contributing component retained
+as evidence; conflicting scales remain separately visible as metadata issues.
 If several declarations share a model coordinate but disagree on quantity,
 representation, units, or nominal scale, combined analysis reports a representational conflict
 before any physical scaling interpretation is attempted. Identical declarations
 may intentionally share a coordinate; differing declarations require an
 explicit transformed-coordinate model or a plugin-level explanation.
+
+## Planned constraint-residual scale boundary
+
+Variable-coordinate scales alone cannot give solver-tolerance semantics: a
+constraint function value is not generally its feasibility residual. The
+`ComponentConstraintScaleSemantics` API therefore declares a positive nominal *residual* scale
+against explicit scalar constraint-row references, rather than infer one from
+the constraint's units or function expression. The generic core must first
+compute the signed/equality residual with respect to the MOI set, then compare
+that residual with the declared scale through
+`analyze_component_constraint_scales`.
+
+The initial slice supports only rows whose scalar residual semantics are
+already explicit in MOI (`EqualTo`, `LessThan`, `GreaterThan`, and interval
+rows). Coupled cone residuals and transformed multi-row norms must remain
+unavailable until their geometry-specific residual convention is declared. It
+is exposed through `component_constraint_scale_semantics(model)` and included
+automatically by numerical analysis. Scope validation beyond evaluation-row
+alignment remains future work.
+This preserves the distinction between a numerical observation, a plugin's
+physical scaling convention, and a solver's own tolerance semantics.
 
 ## Auxiliary-feasibility boundary
 

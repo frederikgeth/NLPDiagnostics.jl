@@ -415,6 +415,28 @@ end
     @test length(findings(
         port_scale_report, :component_port_nominal_scale_mismatch,
     )) == 1
+    equivalent_port_scale = NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "low";
+        quantity = :voltage, representation = :polar,
+        units = Dict("voltage" => "p.u."), nominal_scale = 2.0,
+    )
+    equivalent_port_scale_map = NLPDiagnostics.PortCoordinateMap(
+        :transformer, "tx_1", "low", MOI.VariableIndex[MOI.VariableIndex(1)];
+        terminal_to_variable = reshape([0.5, 0.0], 1, 2),
+    )
+    deduplicated_port_scale_report = NLPDiagnostics._port_coordinate_scale_findings(
+        [scaled_port_semantics, equivalent_port_scale],
+        [coordinate_map, equivalent_port_scale_map],
+        NLPDiagnostics.EvaluationPoint(MOI.VariableIndex[MOI.VariableIndex(1)], [1.0e4]);
+        mismatch_factor = 1.0e3,
+    )
+    @test length(findings(
+        deduplicated_port_scale_report, :component_port_nominal_scale_mismatch,
+    )) == 1
+    @test occursin("transformer:tx_1:high", Dict(
+        only(findings(deduplicated_port_scale_report,
+                      :component_port_nominal_scale_mismatch)).evidence[1].details,
+    )["ports"])
     unmapped_port_scale_report = NLPDiagnostics._port_coordinate_scale_findings(
         [scaled_port_semantics], NLPDiagnostics.PortCoordinateMap[],
         NLPDiagnostics.EvaluationPoint(MOI.VariableIndex[], Float64[]),
@@ -605,6 +627,46 @@ end
         :angle, :polar, Dict("angle" => "rad"), "legacy positional record",
     )
     @test isnothing(legacy_component_semantics.nominal_scale)
+    constraint_scale_reference = NLPDiagnostics.EntityRef(:constraint, 1)
+    constraint_scale_semantics = NLPDiagnostics.ComponentConstraintScaleSemantics(
+        :bus, "bus_1", [constraint_scale_reference];
+        quantity = :power_balance, units = Dict("power" => "p.u."), nominal_scale = 1.0,
+    )
+    @test constraint_scale_semantics.nominal_scale == 1.0
+    @test_throws ArgumentError NLPDiagnostics.ComponentConstraintScaleSemantics(
+        :bus, "bus_1", [constraint_scale_reference, constraint_scale_reference];
+        nominal_scale = 1.0,
+    )
+    constraint_scale_point = NLPDiagnostics.EvaluationPoint(
+        MOI.VariableIndex[], Float64[]; label = "constraint-scale fixture",
+    )
+    constraint_scale_activity = NLPDiagnostics.ConstraintActivity{Float64}(
+        1, constraint_scale_reference, 10.0, 0.0, 0.0, 10.0, -10.0, 10.0,
+        false, false, :violated,
+    )
+    constraint_scale_summary = NLPDiagnostics.ConstraintFeasibilitySummary{Float64}(
+        constraint_scale_point, [constraint_scale_activity], 1.0e-8, 1.0e-8,
+        true, nothing,
+    )
+    constraint_scale_report = NLPDiagnostics.analyze_component_constraint_scales(
+        [constraint_scale_semantics], constraint_scale_summary;
+        mismatch_factor = 2.0,
+    )
+    @test length(findings(
+        constraint_scale_report, :component_constraint_nominal_scale_mismatch,
+    )) == 1
+    conflicting_constraint_scale = NLPDiagnostics.ComponentConstraintScaleSemantics(
+        :controller, "ctl_1", [constraint_scale_reference]; nominal_scale = 2.0,
+    )
+    conflicting_constraint_scale_report =
+        NLPDiagnostics.analyze_component_constraint_scales(
+            [constraint_scale_semantics, conflicting_constraint_scale],
+            constraint_scale_summary; mismatch_factor = 2.0,
+        )
+    @test length(findings(
+        conflicting_constraint_scale_report,
+        :component_constraint_nominal_scale_conflict,
+    )) == 1
     scale_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
         :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
         quantity = :voltage, representation = :rectangular,
@@ -619,6 +681,23 @@ end
     @test length(findings(
         scale_report, :component_coordinate_nominal_scale_mismatch,
     )) == 1
+    duplicate_scale_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
+        :controller, "ctl_1", MOI.VariableIndex[MOI.VariableIndex(1)];
+        quantity = :voltage, representation = :rectangular,
+        units = Dict("voltage" => "p.u."), nominal_scale = 1.0,
+    )
+    deduplicated_scale_report = NLPDiagnostics.analyze_component_coordinate_scales(
+        [scale_semantics, duplicate_scale_semantics],
+        NLPDiagnostics.EvaluationPoint(MOI.VariableIndex[MOI.VariableIndex(1)], [1.0e4]);
+        mismatch_factor = 1.0e3,
+    )
+    @test length(findings(
+        deduplicated_scale_report, :component_coordinate_nominal_scale_mismatch,
+    )) == 1
+    @test occursin("bus:bus_1", Dict(
+        only(findings(deduplicated_scale_report,
+                      :component_coordinate_nominal_scale_mismatch)).evidence[1].details,
+    )["components"])
     unscaled_component_numerical_report = NLPDiagnostics.analyze_numerical(
         MOIU.Model{Float64}(),
         NLPDiagnostics.EvaluationPoint(MOI.VariableIndex[], Float64[]),

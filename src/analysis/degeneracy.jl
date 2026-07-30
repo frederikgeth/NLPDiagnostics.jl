@@ -17,6 +17,8 @@ component_metadata(model::ModelSnapshot) = ComponentMetadata[]
 """Optional plugin declarations of component model-coordinate semantics."""
 component_coordinate_semantics(model::MOI.ModelLike) = ComponentCoordinateSemantics[]
 component_coordinate_semantics(model::ModelSnapshot) = ComponentCoordinateSemantics[]
+component_constraint_scale_semantics(model::MOI.ModelLike) = ComponentConstraintScaleSemantics[]
+component_constraint_scale_semantics(model::ModelSnapshot) = ComponentConstraintScaleSemantics[]
 """Optional PowerModels adapter hook; extended only when PowerModels is loaded."""
 powermodels_component_metadata(model) = ComponentMetadata[]
 """Optional PowerModels public-API capability report hook."""

@@ -112,6 +112,12 @@ evaluation layers can expose its supporting evidence.
 
 ## Next: numerical rank and derivative refinement
 
+The next physical-scaling foundation is explicit constraint-residual semantics:
+plugins can now declare nominal scales on scalar MOI residual rows, which the
+core compares with set-relative residuals rather than raw function values.
+Coupled-set residual conventions cannot be inferred from units or vector-
+function spelling and remain future work.
+
 - Sparse nonzero-pattern rank upper bounds and sparse-QR diagonal-pivot rank
   estimates alongside guarded dense SVD, plus explicit iterative sparse
   candidate right-null-direction and block-subspace probes, plus an explicit

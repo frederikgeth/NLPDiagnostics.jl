@@ -259,6 +259,9 @@ export expected_nullspace_modes
 export component_metadata
 export component_coordinate_semantics
 export analyze_component_coordinate_scales
+export ComponentConstraintScaleSemantics
+export analyze_component_constraint_scales
+export component_constraint_scale_semantics
 export powermodels_component_metadata
 export powermodels_capability_report
 export powermodels_reference_bus_report
@@ -559,35 +562,174 @@ function analyze_component_coordinate_scales(
     report.metadata[:component_coordinate_nominal_scale_declaration_count] = string(length(declared))
     values = Dict(zip(point.variables, point.values))
     checked = 0
+    direct_checks = Dict{MOI.VariableIndex,Vector{ComponentCoordinateSemantics}}()
     for item in declared, variable in item.variables
         haskey(values, variable) || continue
         checked += 1
-        value = values[variable]
-        nominal = something(item.nominal_scale)
-        ratio = abs(value) / nominal
-        (ratio > mismatch_factor || (!iszero(value) && ratio < inv(mismatch_factor))) || continue
-        direction = ratio > mismatch_factor ? "larger" : "smaller"
-        push!(report, Finding(:component_coordinate_nominal_scale_mismatch;
-            severity = SeverityWarning, domain = NumericalIssue,
-            basis = LocalInference, confidence = ConfidenceHigh,
-            observation = "Component coordinate v$(variable.value) is $(direction) than its declared nominal scale by a factor of $(ratio).",
-            why_it_matters = "A large value-to-nominal-scale separation can make derivative magnitudes, solver tolerances, and physical-unit interpretation sensitive to coordinate scaling; zero is intentionally not classified because it can be a valid operating value.",
-            evidence = [Evidence("Declared component coordinate scale"; details = [
-                "component_type" => item.component_type,
-                "component_id" => item.component_id,
-                "quantity" => item.quantity,
-                "representation" => item.representation,
-                "units" => isempty(item.units) ? "unspecified" : join(("$(key)=$(value)" for (key, value) in sort!(collect(item.units); by = first)), ","),
-                "value" => value,
-                "nominal_scale" => nominal,
-                "absolute_value_to_nominal_scale_ratio" => ratio,
-                "mismatch_factor" => mismatch_factor,
-            ])],
-            affected = [EntityRef(:variable, variable.value)],
-            suggested_actions = ["Check the declared nominal scale and coordinate units, then compare Jacobian column scaling at the same point before rescaling the formulation."],
-        ))
+        push!(get!(direct_checks, variable, ComponentCoordinateSemantics[]), item)
+    end
+    for variable in sort!(collect(Base.keys(direct_checks)); by = index -> index.value)
+        groups = Vector{Vector{ComponentCoordinateSemantics}}()
+        for item in direct_checks[variable]
+            group_index = findfirst(group -> isapprox(
+                something(item.nominal_scale), something(first(group).nominal_scale);
+                rtol = sqrt(eps(Float64)), atol = 0.0,
+            ), groups)
+            isnothing(group_index) ? push!(groups, [item]) : push!(groups[group_index], item)
+        end
+        sort!(groups; by = group -> something(first(group).nominal_scale))
+        for group in groups
+            nominal = something(first(group).nominal_scale)
+            value = values[variable]
+            ratio = abs(value) / nominal
+            (ratio > mismatch_factor || (!iszero(value) && ratio < inv(mismatch_factor))) || continue
+            direction = ratio > mismatch_factor ? "larger" : "smaller"
+            components = join(sort!(unique([
+                "$(item.component_type):$(item.component_id)" for item in group
+            ])), ", ")
+            quantities = join(sort!(unique(string(item.quantity) for item in group)), ", ")
+            representations = join(sort!(unique(string(item.representation) for item in group)), ", ")
+            push!(report, Finding(:component_coordinate_nominal_scale_mismatch;
+                severity = SeverityWarning, domain = NumericalIssue,
+                basis = LocalInference, confidence = ConfidenceHigh,
+                observation = "Component coordinate v$(variable.value) is $(direction) than its declared nominal scale by a factor of $(ratio).",
+                why_it_matters = "A large value-to-nominal-scale separation can make derivative magnitudes, solver tolerances, and physical-unit interpretation sensitive to coordinate scaling; zero is intentionally not classified because it can be a valid operating value.",
+                evidence = [Evidence("Declared component coordinate scale"; details = [
+                    "components" => components,
+                    "quantities" => quantities,
+                    "representations" => representations,
+                    "value" => value,
+                    "nominal_scale" => nominal,
+                    "absolute_value_to_nominal_scale_ratio" => ratio,
+                    "mismatch_factor" => mismatch_factor,
+                ])],
+                affected = [EntityRef(:variable, variable.value)],
+                suggested_actions = ["Check the declared nominal scale and coordinate units, then compare Jacobian column scaling at the same point before rescaling the formulation."],
+            ))
+        end
     end
     report.metadata[:component_coordinate_nominal_scale_checked_variable_count] = string(checked)
+    return report
+end
+
+"""Compare declared nominal scales with public-MOI set-relative scalar violations."""
+function analyze_component_constraint_scales(
+    semantics::AbstractVector{<:ComponentConstraintScaleSemantics},
+    summary::ConstraintFeasibilitySummary{T};
+    mismatch_factor::Real = 1.0e3,
+) where {T<:AbstractFloat}
+    mismatch_factor > 1 && isfinite(mismatch_factor) || throw(ArgumentError(
+        "mismatch_factor must be finite and greater than one",
+    ))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "component_constraint_scales"
+    report.metadata[:component_constraint_scale_declaration_count] = string(length(semantics))
+    declarations_by_source = Dict{Tuple{Symbol,Int,Union{Nothing,Int}},Vector{ComponentConstraintScaleSemantics}}()
+    for item in semantics, source in item.constraints
+        push!(get!(declarations_by_source, _entity_row_key(source),
+                   ComponentConstraintScaleSemantics[]), item)
+    end
+    for key in sort!(collect(Base.keys(declarations_by_source));
+                     by = key -> (string(key[1]), key[2], something(key[3], 0)))
+        declarations = declarations_by_source[key]
+        length(declarations) <= 1 && continue
+        reference = first(declarations).nominal_scale
+        all(item -> isapprox(item.nominal_scale, reference;
+                              rtol = sqrt(eps(Float64)), atol = 0.0),
+            declarations) && continue
+        components = join(sort!(unique([
+            "$(item.component_type):$(item.component_id)=$(item.nominal_scale)"
+            for item in declarations
+        ])), ", ")
+        push!(report, Finding(:component_constraint_nominal_scale_conflict;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Constraint $(key[2]) has incompatible component residual-scale declarations.",
+            why_it_matters = "One scalar set-relative residual cannot receive a single physical tolerance interpretation when component declarations use different nominal scales.",
+            evidence = [Evidence("Component constraint-scale declarations";
+                details = ["constraint" => key[2], "declarations" => components])],
+            affected = [EntityRef(key[1], key[2]; subindex = key[3])],
+            suggested_actions = ["Align nominal residual scales or split the shared constraint into explicitly transformed component rows."],
+        ))
+    end
+    activities = Dict(_entity_row_key(item.source) => item for item in summary.activities)
+    checked = 0
+    unavailable = 0
+    for item in semantics, source in item.constraints
+        activity = get(activities, _entity_row_key(source), nothing)
+        if isnothing(activity) || isnothing(activity.feasibility_violation)
+            unavailable += 1
+            continue
+        end
+        checked += 1
+        violation = activity.feasibility_violation
+        ratio = violation / item.nominal_scale
+        ratio > mismatch_factor || continue
+        push!(report, Finding(:component_constraint_nominal_scale_mismatch;
+            severity = SeverityWarning, domain = NumericalIssue,
+            basis = LocalInference, confidence = ConfidenceHigh,
+            observation = "Constraint $(source.index) violation exceeds its declared nominal residual scale by a factor of $(ratio).",
+            why_it_matters = "This is a set-relative scalar violation, not a raw constraint-function value or a solver feasibility certificate.",
+            evidence = [Evidence("Declared constraint residual scale"; details = [
+                "component_type" => item.component_type, "component_id" => item.component_id,
+                "quantity" => item.quantity, "violation" => violation,
+                "nominal_scale" => item.nominal_scale, "ratio" => ratio,
+            ])], affected = [source],
+            suggested_actions = ["Check the declared residual scale and compare it with the solver's feasibility tolerance."],
+        ))
+    end
+    report.metadata[:component_constraint_scale_checked_count] = string(checked)
+    report.metadata[:component_constraint_scale_unavailable_count] = string(unavailable)
+    unavailable == 0 || push!(report, Finding(:component_constraint_scale_alignment_unavailable;
+        severity = SeverityInfo, domain = RepresentationalIssue,
+        basis = StructuralProof, confidence = ConfidenceCertain,
+        observation = "$(unavailable) declared component constraint scale(s) could not be aligned with a scalar set-relative evaluation row.",
+        why_it_matters = "The generic core withholds residual-scale interpretation for stale references, failed evaluations, and coupled or opaque sets rather than comparing a nominal scale with a raw function value.",
+        evidence = [Evidence("Constraint-scale row alignment"; details = [
+            "unavailable_count" => unavailable,
+            "evaluated_scalar_row_count" => length(summary.activities),
+        ])],
+        suggested_actions = ["Use evaluated scalar constraint-row references, or provide a geometry-specific residual convention in a domain plugin."],
+    ))
+    return report
+end
+
+"""Compare declared scales with supported SOC-family feasibility violations."""
+function analyze_component_constraint_scales(
+    semantics::AbstractVector{<:ComponentConstraintScaleSemantics},
+    summary::CoupledSetFeasibilitySummary{T};
+    mismatch_factor::Real = 1.0e3,
+) where {T<:AbstractFloat}
+    mismatch_factor > 1 && isfinite(mismatch_factor) || throw(ArgumentError(
+        "mismatch_factor must be finite and greater than one",
+    ))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "component_constraint_scales"
+    activities = Dict(_entity_row_key(item.source) => item for item in summary.activities)
+    checked = 0
+    unavailable = 0
+    for item in semantics, source in item.constraints
+        activity = get(activities, _entity_row_key(source), nothing)
+        if isnothing(activity) || !(activity.set_kind in (:second_order_cone, :rotated_second_order_cone)) ||
+           isnothing(activity.feasibility_violation)
+            unavailable += 1
+            continue
+        end
+        checked += 1
+        ratio = activity.feasibility_violation / item.nominal_scale
+        ratio > mismatch_factor || continue
+        push!(report, Finding(:component_coupled_constraint_nominal_scale_mismatch;
+            severity = SeverityWarning, domain = NumericalIssue,
+            basis = LocalInference, confidence = ConfidenceHigh,
+            observation = "$(activity.set_kind) constraint $(source.index) violation exceeds its declared nominal residual scale by a factor of $(ratio).",
+            why_it_matters = "This uses the generic cone feasibility margin, not a raw vector-function value.",
+            evidence = [Evidence("Declared coupled constraint residual scale"; details = ["violation" => activity.feasibility_violation, "nominal_scale" => item.nominal_scale, "ratio" => ratio])],
+            affected = [source],
+            suggested_actions = ["Check the declared cone residual scale and compare it with solver feasibility tolerances."],
+        ))
+    end
+    report.metadata[:component_coupled_constraint_scale_checked_count] = string(checked)
+    report.metadata[:component_coupled_constraint_scale_unavailable_count] = string(unavailable)
     return report
 end
 
@@ -636,6 +778,7 @@ function _port_coordinate_scale_findings(
     end
     checked = 0
     unavailable = 0
+    direct_checks = Dict{MOI.VariableIndex,Vector{Tuple{PortCoordinateSemantics,Int,Float64,Float64}}}()
     for item in semantics
         isnothing(item.nominal_scale) && continue
         key = (item.component_type, item.component_id, item.port_id)
@@ -656,31 +799,53 @@ function _port_coordinate_scale_findings(
                           something(item.nominal_scale)
                 isfinite(nominal) && nominal > 0 || (unavailable += 1; continue)
                 checked += 1
-                value = values[variable]
-                ratio = abs(value) / nominal
-                (ratio > mismatch_factor || (!iszero(value) && ratio < inv(mismatch_factor))) || continue
-                direction = ratio > mismatch_factor ? "larger" : "smaller"
-                push!(report, Finding(:component_port_nominal_scale_mismatch;
-                    severity = SeverityWarning, domain = NumericalIssue,
-                    basis = LocalInference, confidence = ConfidenceHigh,
-                    observation = "Mapped port coordinate v$(variable.value) is $(direction) than its declared nominal scale by a factor of $(ratio).",
-                    why_it_matters = "This comparison uses an explicit one-terminal-coordinate map and is local numerical scale evidence, not a physical-limit claim.",
-                    evidence = [Evidence("Declared port coordinate scale"; details = [
-                        "component_type" => item.component_type,
-                        "component_id" => item.component_id,
-                        "port_id" => item.port_id,
-                        "quantity" => item.quantity,
-                        "terminal_coordinate" => only(nonzero),
-                        "terminal_to_variable_coefficient" => map.terminal_to_variable[row, only(nonzero)],
-                        "value" => value,
-                        "nominal_scale" => nominal,
-                        "absolute_value_to_nominal_scale_ratio" => ratio,
-                        "mismatch_factor" => mismatch_factor,
-                    ])],
-                    affected = [EntityRef(:variable, variable.value)],
-                    suggested_actions = ["Check the declared terminal scale and map coefficient, then inspect Jacobian scaling at this point before rescaling."],
-                ))
+                push!(get!(direct_checks, variable,
+                          Tuple{PortCoordinateSemantics,Int,Float64,Float64}[]),
+                      (item, only(nonzero),
+                       Float64(map.terminal_to_variable[row, only(nonzero)]), Float64(nominal)))
             end
+        end
+    end
+    for variable in sort!(collect(Base.keys(direct_checks)); by = index -> index.value)
+        groups = Vector{Vector{Tuple{PortCoordinateSemantics,Int,Float64,Float64}}}()
+        for check in direct_checks[variable]
+            group_index = findfirst(group -> isapprox(
+                check[4], first(group)[4]; rtol = sqrt(eps(Float64)), atol = 0.0,
+            ), groups)
+            isnothing(group_index) ? push!(groups, [check]) : push!(groups[group_index], check)
+        end
+        sort!(groups; by = group -> first(group)[4])
+        for group in groups
+            nominal = first(group)[4]
+            value = values[variable]
+            ratio = abs(value) / nominal
+            (ratio > mismatch_factor || (!iszero(value) && ratio < inv(mismatch_factor))) || continue
+            direction = ratio > mismatch_factor ? "larger" : "smaller"
+            declarations = join(sort!(unique([
+                "$(item.component_type):$(item.component_id):$(item.port_id)" for
+                (item, _, _, _) in group
+            ])), ", ")
+            terminal_coordinates = join(sort!(unique(string(terminal) for
+                (_, terminal, _, _) in group)), ", ")
+            coefficients = join(sort!(unique(string(coefficient) for
+                (_, _, coefficient, _) in group)), ", ")
+            push!(report, Finding(:component_port_nominal_scale_mismatch;
+                severity = SeverityWarning, domain = NumericalIssue,
+                basis = LocalInference, confidence = ConfidenceHigh,
+                observation = "Mapped port coordinate v$(variable.value) is $(direction) than its declared nominal scale by a factor of $(ratio).",
+                why_it_matters = "This comparison uses explicit one-terminal-coordinate maps and is local numerical scale evidence, not a physical-limit claim.",
+                evidence = [Evidence("Declared port coordinate scale"; details = [
+                    "ports" => declarations,
+                    "terminal_coordinates" => terminal_coordinates,
+                    "terminal_to_variable_coefficients" => coefficients,
+                    "value" => value,
+                    "nominal_scale" => nominal,
+                    "absolute_value_to_nominal_scale_ratio" => ratio,
+                    "mismatch_factor" => mismatch_factor,
+                ])],
+                affected = [EntityRef(:variable, variable.value)],
+                suggested_actions = ["Check the declared terminal scale and map coefficient, then inspect Jacobian scaling at this point before rescaling."],
+            ))
         end
     end
     report.metadata[:component_port_nominal_scale_checked_variable_count] = string(checked)
