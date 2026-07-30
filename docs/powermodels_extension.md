@@ -80,6 +80,9 @@ and inspect formulation-owned JuMP variables through `var`; it must not reach
 into `pm` fields or parse rendered variable names. The adapter must first
 establish a tested mapping from those JuMP variables to MOI indices before
 returning `ComponentMetadata` or expected modes to the generic core.
+Network and component IDs are treated as opaque public values: report ordering
+and dynamic metadata keys use their string representation, rather than
+assuming integer identifiers.
 Formulation coverage (ACP, ACR, DC, and relaxations) remains an explicit
 capability decision rather than a best-effort common implementation.
 
@@ -94,6 +97,9 @@ single MOI variable scope and `scalar_angle_coordinate=va`; other coordinate
 families remain deliberately unscoped.
 The extension additionally returns matching `component_coordinate_semantics(pm)`
 records with quantity `:angle`, polar representation, and radians units.
+Those public `:va` coordinates also declare a nominal scale of one radian, so
+the generic numerical stage can report unusually large nonzero angle
+coordinates without inferring a scale from their unit label.
 When the extension is loaded, `component_metadata(pm)` delegates to this
 adapter for a `PowerModels.AbstractPowerModel`.
 Bus records additionally preserve `declared_reference_bus=true` when the

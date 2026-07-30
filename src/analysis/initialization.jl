@@ -329,6 +329,7 @@ function analyze_initialization(
     numeric_type::Union{Nothing,Type{<:AbstractFloat}} = nothing,
     strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
     scale_ratio_threshold::Real = 1.0e6,
+    component_scale_mismatch_factor::Real = 1.0e3,
     feasibility_tolerance::Real = sqrt(eps(Float64)),
     active_tolerance::Real = sqrt(eps(Float64)),
     coupled_qualification_strict_tolerance::Union{Nothing,Real} = nothing,
@@ -396,6 +397,7 @@ function analyze_initialization(
         point;
         cache = cache,
         scale_ratio_threshold = scale_ratio_threshold,
+        component_scale_mismatch_factor = component_scale_mismatch_factor,
         numeric_type = selected_numeric_type,
         strict_domain_proximity_threshold = strict_domain_proximity_threshold,
     )

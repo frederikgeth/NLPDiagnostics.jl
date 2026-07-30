@@ -78,6 +78,11 @@ Component-coordinate and mapped port-coordinate declarations are checked across
 the same bridge as well. This prevents a plugin from labelling a model variable
 as, for example, an angle at component level and a voltage at terminal level
 without an explicit transformed-coordinate convention.
+Where a map row contains exactly one terminal coordinate, a port nominal scale
+is adjusted by that map coefficient and compared with component-coordinate
+nominal scales on the same model variable. A scale omitted on either side, or
+an incompatible explicit scale, is a representational scale conflict; mixed
+coordinate maps remain explicitly outside this generic scalar comparison.
 Only ports incident to at least one declared connection contribute topology
 candidates: an isolated port is reported structurally, but its unconstrained
 terminal coordinates are not silently treated as an expected model gauge.
@@ -117,8 +122,17 @@ variable scope, that one such scope covers the semantics declaration. This is a
 representational consistency check—not evidence that the coordinates have the
 claimed physical meaning. Missing units for non-generic quantities are reported
 as insufficient evidence for physical scaling and tolerance interpretation.
+Plugins may additionally declare a positive `nominal_scale` on
+`ComponentCoordinateSemantics`. `analyze_component_coordinate_scales` compares
+that declaration with an explicit point and reports a large nonzero
+value-to-scale mismatch as local numerical evidence; it never infers a scale
+from a unit label or classifies a zero coordinate as physically anomalous.
+The prior positional `ComponentCoordinateSemantics` construction remains
+compatible and leaves `nominal_scale` unset.
+`analyze_numerical` includes this check automatically whenever a plugin has
+declared nominal scales, with an explicit configurable mismatch factor.
 If several declarations share a model coordinate but disagree on quantity,
-representation, or units, combined analysis reports a representational conflict
+representation, units, or nominal scale, combined analysis reports a representational conflict
 before any physical scaling interpretation is attempted. Identical declarations
 may intentionally share a coordinate; differing declarations require an
 explicit transformed-coordinate model or a plugin-level explanation.
@@ -197,6 +211,9 @@ numerical evidence, never an IIS certificate or a single-row causal proof.
 They retain both raw slack and weighted slack magnitude so a large penalty is
 not mistaken for a large underlying relaxation; for L∞ the magnitude is not an
 additive per-row objective contribution.
+`analyze_elastic_feasibility_plan(model)` is a non-mutating convenience entry
+point for the coverage report; callers that need to retain or edit the exact
+scope can still create `elastic_feasibility_plan(model)` explicitly.
 `local_elastic_subset_search` is an opt-in, greedy deletion filter over an
 explicitly supplied relaxation scope and an explicitly supplied optimizer
 factory. It rebuilds and solves separate auxiliary models only; it never
@@ -224,6 +241,9 @@ constraints. Conflict status, definite memberships, and `MAYBE_IN_CONFLICT`
 memberships are retained separately. This is solver-provided evidence for the
 copied model, not an independently verified IIS, infeasibility proof, or
 physical diagnosis; unsupported conflict interfaces are reported explicitly.
+The result also records the copied source variable and constraint counts, so
+conflict findings retain their model-scope provenance without depending on
+copied solver indices.
 `analyze_solver_conflict_crosscheck` compares definite solver memberships with
 one local elastic reduction, an order-consensus set, or bounded minimum
 relaxation supports. It reports overlap as stronger prioritization evidence and
@@ -239,8 +259,15 @@ shift in its leading hypograph coordinate. These shifts do not relax the
 strict positive coordinates required by exponential or relative-entropy
 semantics. Packed real and Hermitian PSD cones (including their scaled packed
 representations) receive the spectral shift `X + sI`; imaginary coordinates
-remain unchanged. Power, dual-power, and other cones whose safe generic relaxation
-would require a branch or a non-coordinate reformulation remain unsupported.
+remain unchanged. A power cone receives `x+s, y+s, z`; its dual receives
+`u+αs, v+(1-α)s, w`, so the two normalized positive coordinates grow by the
+same slack. These are explicit auxiliary geometries, not a scale-invariant
+distance to the cone. Other cones whose safe generic relaxation would require
+a branch or a non-coordinate reformulation remain unsupported.
+Whenever a solved or caller-populated elastic auxiliary has positive slack,
+`analyze_elastic_relaxations` records this geometry alongside the raw and
+weighted slack. This keeps “which row moved” separate from “which coordinate
+or matrix direction was expanded.”
 `elastic_domain_guard_plan` is the corresponding pre-solve boundary for
 nonlinear operator domains. It reuses the static domain analysis, restricted to
 the selected elastic rows, and makes each condition inspectable before any
@@ -249,6 +276,9 @@ scalar-affine argument to `log`, `log1p`, `log2`, `log10`, `log1mexp`, or
 `sqrt` could be given an explicit one-sided domain guard. Other operators and
 non-affine arguments remain visible as nonmaterializable rather than being
 silently approximated.
+`analyze_elastic_domain_guard_plan(model)` provides the same pre-solve report
+in one non-mutating call; the explicit plan remains available for callers that
+need to inspect or retain individual guard records.
 An elastic residual relaxation never, by itself, makes an undefined nonlinear
 operator evaluable.
 `build_elastic_feasibility_model(...; domain_guard_margin = ε)` is the

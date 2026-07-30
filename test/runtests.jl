@@ -402,6 +402,30 @@ end
         quantity = :voltage, representation = :polar,
         units = Dict("voltage" => "p.u."),
     )
+    scaled_port_semantics = NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "high";
+        quantity = :voltage, representation = :polar,
+        units = Dict("voltage" => "p.u."), nominal_scale = 1.0,
+    )
+    port_scale_report = NLPDiagnostics._port_coordinate_scale_findings(
+        [scaled_port_semantics], [coordinate_map],
+        NLPDiagnostics.EvaluationPoint(MOI.VariableIndex[MOI.VariableIndex(1)], [1.0e4]);
+        mismatch_factor = 1.0e3,
+    )
+    @test length(findings(
+        port_scale_report, :component_port_nominal_scale_mismatch,
+    )) == 1
+    unmapped_port_scale_report = NLPDiagnostics._port_coordinate_scale_findings(
+        [scaled_port_semantics], NLPDiagnostics.PortCoordinateMap[],
+        NLPDiagnostics.EvaluationPoint(MOI.VariableIndex[], Float64[]),
+    )
+    @test length(findings(
+        unmapped_port_scale_report,
+        :component_port_nominal_scale_projection_unavailable,
+    )) == 1
+    @test_throws ArgumentError NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "high"; quantity = :voltage, nominal_scale = 0.0,
+    )
     @test NLPDiagnostics.PortCoordinateSemantics(
         :transformer, "tx_1", "angle";
         quantity = :angle, representation = :polar,
@@ -439,6 +463,47 @@ end
         conflicting_port_semantics_report,
         :component_port_coordinate_semantics_variable_conflict,
     )) == 1
+    conflicting_port_scale_semantics = NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "low";
+        quantity = :voltage, representation = :polar,
+        units = Dict("voltage" => "p.u."), nominal_scale = 2.0,
+    )
+    conflicting_port_scale_report =
+        NLPDiagnostics._component_port_coordinate_semantics_findings(
+            [rank_deficient_port, second_port],
+            [scaled_port_semantics, conflicting_port_scale_semantics],
+            [coordinate_map, second_coordinate_map],
+        )
+    @test length(findings(
+        conflicting_port_scale_report,
+        :component_port_coordinate_nominal_scale_conflict,
+    )) == 1
+    map_adjusted_second_coordinate_map = NLPDiagnostics.PortCoordinateMap(
+        :transformer, "tx_1", "low", MOI.VariableIndex[MOI.VariableIndex(1)];
+        terminal_to_variable = reshape([0.5, 0.0], 1, 2),
+    )
+    map_adjusted_port_scale_report =
+        NLPDiagnostics._component_port_coordinate_semantics_findings(
+            [rank_deficient_port, second_port],
+            [scaled_port_semantics, conflicting_port_scale_semantics],
+            [coordinate_map, map_adjusted_second_coordinate_map],
+        )
+    @test isempty(findings(
+        map_adjusted_port_scale_report,
+        :component_port_coordinate_nominal_scale_conflict,
+    ))
+    mixed_scale_coordinate_map = NLPDiagnostics.PortCoordinateMap(
+        :transformer, "tx_1", "high", MOI.VariableIndex[MOI.VariableIndex(2)];
+        terminal_to_variable = reshape([1.0, -1.0], 1, 2),
+    )
+    mixed_port_scale_report =
+        NLPDiagnostics._component_port_coordinate_semantics_findings(
+            [rank_deficient_port], [scaled_port_semantics], [mixed_scale_coordinate_map],
+        )
+    @test length(findings(
+        mixed_port_scale_report,
+        :component_port_coordinate_nominal_scale_mixed_projection,
+    )) == 1
     cross_layer_component_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
         :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
         quantity = :angle, representation = :polar,
@@ -460,6 +525,58 @@ end
     @test isempty(NLPDiagnostics._component_port_coordinate_semantics_cross_layer_findings(
         [aligned_component_port_semantics], [port_semantics], [coordinate_map],
     ).findings)
+    component_port_scale_conflict = NLPDiagnostics.ComponentCoordinateSemantics(
+        :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
+        quantity = :voltage, representation = :polar,
+        units = Dict("voltage" => "p.u."), nominal_scale = 2.0,
+    )
+    cross_layer_scale_report =
+        NLPDiagnostics._component_port_coordinate_semantics_cross_layer_findings(
+            [component_port_scale_conflict], [scaled_port_semantics], [coordinate_map],
+        )
+    @test length(findings(
+        cross_layer_scale_report,
+        :component_port_coordinate_nominal_scale_cross_layer_conflict,
+    )) == 1
+    aligned_component_port_scale = NLPDiagnostics.ComponentCoordinateSemantics(
+        :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
+        quantity = :voltage, representation = :polar,
+        units = Dict("voltage" => "p.u."), nominal_scale = 1.0,
+    )
+    @test isempty(NLPDiagnostics._component_port_coordinate_semantics_cross_layer_findings(
+        [aligned_component_port_scale], [scaled_port_semantics], [coordinate_map],
+    ).findings)
+    scaled_coordinate_map = NLPDiagnostics.PortCoordinateMap(
+        :transformer, "tx_1", "high", MOI.VariableIndex[MOI.VariableIndex(1)];
+        terminal_to_variable = reshape([2.0, 0.0], 1, 2),
+    )
+    map_adjusted_component_scale = NLPDiagnostics.ComponentCoordinateSemantics(
+        :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
+        quantity = :voltage, representation = :polar,
+        units = Dict("voltage" => "p.u."), nominal_scale = 2.0,
+    )
+    @test isempty(NLPDiagnostics._component_port_coordinate_semantics_cross_layer_findings(
+        [map_adjusted_component_scale], [scaled_port_semantics], [scaled_coordinate_map],
+    ).findings)
+    unadjusted_component_scale = NLPDiagnostics.ComponentCoordinateSemantics(
+        :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
+        quantity = :voltage, representation = :polar,
+        units = Dict("voltage" => "p.u."), nominal_scale = 1.0,
+    )
+    @test length(findings(
+        NLPDiagnostics._component_port_coordinate_semantics_cross_layer_findings(
+            [unadjusted_component_scale], [scaled_port_semantics], [scaled_coordinate_map],
+        ),
+        :component_port_coordinate_nominal_scale_cross_layer_conflict,
+    )) == 1
+    missing_port_scale_report =
+        NLPDiagnostics._component_port_coordinate_semantics_cross_layer_findings(
+            [aligned_component_port_scale], [port_semantics], [coordinate_map],
+        )
+    @test length(findings(
+        missing_port_scale_report,
+        :component_port_coordinate_nominal_scale_cross_layer_conflict,
+    )) == 1
     unitless_semantics = NLPDiagnostics.PortCoordinateSemantics(
         :transformer, "tx_1", "high"; quantity = :current,
     )
@@ -482,6 +599,36 @@ end
         :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
         quantity = :angle, representation = :polar,
         units = Dict("angle" => "rad"),
+    )
+    legacy_component_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
+        :bus, "bus_legacy", MOI.VariableIndex[MOI.VariableIndex(1)],
+        :angle, :polar, Dict("angle" => "rad"), "legacy positional record",
+    )
+    @test isnothing(legacy_component_semantics.nominal_scale)
+    scale_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
+        :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
+        quantity = :voltage, representation = :rectangular,
+        units = Dict("voltage" => "p.u."), nominal_scale = 1.0,
+    )
+    scale_report = NLPDiagnostics.analyze_component_coordinate_scales(
+        [scale_semantics],
+        NLPDiagnostics.EvaluationPoint(MOI.VariableIndex[MOI.VariableIndex(1)], [1.0e4]);
+        mismatch_factor = 1.0e3,
+    )
+    @test scale_report.metadata[:component_coordinate_nominal_scale_checked_variable_count] == "1"
+    @test length(findings(
+        scale_report, :component_coordinate_nominal_scale_mismatch,
+    )) == 1
+    unscaled_component_numerical_report = NLPDiagnostics.analyze_numerical(
+        MOIU.Model{Float64}(),
+        NLPDiagnostics.EvaluationPoint(MOI.VariableIndex[], Float64[]),
+    )
+    @test unscaled_component_numerical_report.metadata[
+        :component_coordinate_nominal_scale_declaration_count
+    ] == "0"
+    @test_throws ArgumentError NLPDiagnostics.ComponentCoordinateSemantics(
+        :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
+        quantity = :voltage, nominal_scale = 0.0,
     )
     @test isempty(NLPDiagnostics._component_coordinate_semantics_findings(
         [component_angle_semantics], MOI.VariableIndex[MOI.VariableIndex(1)],
@@ -513,6 +660,20 @@ end
         )
     @test length(findings(
         conflicting_component_semantics_report,
+        :component_coordinate_semantics_variable_conflict,
+    )) == 1
+    conflicting_component_scale = NLPDiagnostics.ComponentCoordinateSemantics(
+        :controller, "ctl_2", MOI.VariableIndex[MOI.VariableIndex(1)];
+        quantity = :voltage, representation = :rectangular,
+        units = Dict("voltage" => "p.u."), nominal_scale = 2.0,
+    )
+    conflicting_component_scale_report =
+        NLPDiagnostics._component_coordinate_semantics_findings(
+            [scale_semantics, conflicting_component_scale],
+            MOI.VariableIndex[MOI.VariableIndex(1)],
+        )
+    @test length(findings(
+        conflicting_component_scale_report,
         :component_coordinate_semantics_variable_conflict,
     )) == 1
     out_of_scope_component_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
@@ -724,6 +885,9 @@ end
     plan_report = NLPDiagnostics.analyze_elastic_feasibility_plan(plan)
     @test plan_report.metadata[:unsupported_constraint_count] == "1"
     @test length(findings(plan_report, :elastic_unsupported_constraints)) == 1
+    direct_plan_report = NLPDiagnostics.analyze_elastic_feasibility_plan(model)
+    @test direct_plan_report.metadata[:relaxation_count] == "1"
+    @test direct_plan_report.metadata[:unsupported_constraint_count] == "1"
     selected_plan = NLPDiagnostics.elastic_feasibility_plan(
         model;
         selected_constraints = [only(plan.relaxable_constraints)],
@@ -784,6 +948,7 @@ end
     @test report.metadata[:positive_elastic_relaxation_count] == "1"
     relaxation_finding = only(findings(report, :elastic_constraint_relaxed))
     @test evidence_details(relaxation_finding)["weighted_slack_magnitude"] == "0.25"
+    @test evidence_details(relaxation_finding)["geometry"] == "scalar residual relaxation"
     @test_throws ArgumentError NLPDiagnostics.elastic_relaxation_values(auxiliary, Dict{MOI.VariableIndex,Float64}())
     @test_throws ArgumentError NLPDiagnostics.elastic_relaxation_values(auxiliary)
     weighted = NLPDiagnostics.build_elastic_feasibility_model(
@@ -906,6 +1071,55 @@ end
         nuclear_elastic_model,
     )
     @test only(nuclear_elastic_auxiliary.relaxations).kind == :norm_nuclear_cone
+
+    power_elastic_model = MOIU.Model{Float64}()
+    power_elastic_entries = MOI.add_variables(power_elastic_model, 3)
+    MOI.add_constraint(
+        power_elastic_model,
+        MOI.VectorOfVariables(power_elastic_entries),
+        MOI.PowerCone(0.25),
+    )
+    power_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        power_elastic_model,
+    )
+    power_elastic_relaxation = only(power_elastic_auxiliary.relaxations)
+    @test power_elastic_relaxation.kind == :power_cone
+    power_relaxed_function = MOI.get(
+        power_elastic_auxiliary.model,
+        MOI.ConstraintFunction(),
+        only(values(power_elastic_auxiliary.relaxed_constraint_map)),
+    )
+    power_slack = only(power_elastic_relaxation.slacks)
+    @test sort([(term.output_index, term.scalar_term.coefficient) for
+                term in power_relaxed_function.terms if
+                term.scalar_term.variable == power_slack]) == [(1, 1.0), (2, 1.0)]
+    power_report = NLPDiagnostics.analyze_elastic_relaxations(
+        power_elastic_auxiliary, Dict(power_slack => 0.1),
+    )
+    @test evidence_details(only(findings(power_report, :elastic_constraint_relaxed)))["geometry"] ==
+          "both positive power-cone coordinates increased by the same slack"
+
+    dual_power_elastic_model = MOIU.Model{Float64}()
+    dual_power_elastic_entries = MOI.add_variables(dual_power_elastic_model, 3)
+    MOI.add_constraint(
+        dual_power_elastic_model,
+        MOI.VectorOfVariables(dual_power_elastic_entries),
+        MOI.DualPowerCone(0.25),
+    )
+    dual_power_elastic_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
+        dual_power_elastic_model,
+    )
+    dual_power_elastic_relaxation = only(dual_power_elastic_auxiliary.relaxations)
+    @test dual_power_elastic_relaxation.kind == :dual_power_cone
+    dual_power_relaxed_function = MOI.get(
+        dual_power_elastic_auxiliary.model,
+        MOI.ConstraintFunction(),
+        only(values(dual_power_elastic_auxiliary.relaxed_constraint_map)),
+    )
+    dual_power_slack = only(dual_power_elastic_relaxation.slacks)
+    @test sort([(term.output_index, term.scalar_term.coefficient) for
+                term in dual_power_relaxed_function.terms if
+                term.scalar_term.variable == dual_power_slack]) == [(1, 0.25), (2, 0.75)]
 
     exponential_elastic_model = MOIU.Model{Float64}()
     exponential_elastic_entries = MOI.add_variables(exponential_elastic_model, 3)
@@ -1274,9 +1488,14 @@ end
         conflict_optimizer, conflict_model,
     )
     @test conflict_result.error === nothing
+    @test conflict_result.source_variable_count == 1
+    @test conflict_result.source_constraint_count == 1
     @test only(only(conflict_result.conflicts)).index == conflict_constraint.value
+    conflict_report = NLPDiagnostics.analyze_solver_conflict(conflict_result)
+    @test conflict_report.metadata[:solver_conflict_source_variable_count] == "1"
+    @test conflict_report.metadata[:solver_conflict_source_constraint_count] == "1"
     @test length(findings(
-        NLPDiagnostics.analyze_solver_conflict(conflict_result),
+        conflict_report,
         :solver_conflict_membership,
     )) == 1
     conflict_reference = NLPDiagnostics.EntityRef(:constraint, conflict_constraint.value)
@@ -1325,6 +1544,13 @@ end
     @test only(guard_plan.guards).materializable
     guard_report = NLPDiagnostics.analyze_elastic_domain_guard_plan(guard_plan)
     @test length(findings(guard_report, :elastic_proven_domain_guard_violation)) == 1
+    direct_guard_report = NLPDiagnostics.analyze_elastic_domain_guard_plan(
+        domain_guard_model,
+    )
+    @test direct_guard_report.metadata[:elastic_domain_guard_count] == "1"
+    @test length(findings(
+        direct_guard_report, :elastic_proven_domain_guard_violation,
+    )) == 1
     guarded_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
         domain_guard_model;
         domain_guard_margin = 1e-6,

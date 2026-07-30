@@ -43,7 +43,7 @@ function NLPDiagnostics.powermodels_component_metadata(
     pm::PowerModels.AbstractPowerModel,
 )
     records = NLPDiagnostics.ComponentMetadata[]
-    for network in sort!(collect(PowerModels.nw_ids(pm)))
+    for network in sort!(collect(PowerModels.nw_ids(pm)); by = string)
         reference_entries = _pm_component_entries(pm, network, :ref_buses)
         reference_ids = isnothing(reference_entries) ? Set{Any}() :
                         Set(keys(reference_entries))
@@ -92,7 +92,7 @@ function NLPDiagnostics.powermodels_capability_report(
     pm::PowerModels.AbstractPowerModel,
 )
     report = NLPDiagnostics.DiagnosticReport()
-    networks = sort!(collect(PowerModels.nw_ids(pm)))
+    networks = sort!(collect(PowerModels.nw_ids(pm)); by = string)
     angle_indices = NLPDiagnostics.powermodels_variable_indices(pm, :va)
     report.metadata[:stage] = "powermodels_capabilities"
     report.metadata[:powermodels_network_count] = string(length(networks))
@@ -101,7 +101,7 @@ function NLPDiagnostics.powermodels_capability_report(
     missing_networks = Any[]
     for network in networks
         angle_count = count(key -> key[1] == network, Base.keys(angle_indices))
-        report.metadata[Symbol("powermodels_network_", network, "_scalar_angle_coordinate_count")] =
+        report.metadata[Symbol("powermodels_network_", string(network), "_scalar_angle_coordinate_count")] =
             string(angle_count)
         angle_count == 0 && push!(missing_networks, network)
     end
@@ -130,12 +130,13 @@ function NLPDiagnostics.component_coordinate_semantics(pm::PowerModels.AbstractP
     semantics = NLPDiagnostics.ComponentCoordinateSemantics[]
     for ((network, bus_id), index) in sort!(
         collect(NLPDiagnostics.powermodels_variable_indices(pm, :va));
-        by = first,
+        by = entry -> (string(first(first(entry))), string(last(first(entry)))),
     )
         push!(semantics, NLPDiagnostics.ComponentCoordinateSemantics(
             :bus, "nw$(network):$(bus_id)", MOI.VariableIndex[index];
             quantity = :angle, representation = :polar,
             units = Dict("angle" => "rad"),
+            nominal_scale = 1.0,
             description = "Public PowerModels scalar :va bus coordinate.",
         ))
     end
@@ -153,7 +154,7 @@ function NLPDiagnostics.powermodels_reference_bus_report(
     pm::PowerModels.AbstractPowerModel,
 )
     report = NLPDiagnostics.DiagnosticReport()
-    for network in sort!(collect(PowerModels.nw_ids(pm)))
+    for network in sort!(collect(PowerModels.nw_ids(pm)); by = string)
         entries = _pm_component_entries(pm, network, :ref_buses)
         reference_ids = isnothing(entries) ? Any[] : sort!(collect(keys(entries)); by = string)
         count = length(reference_ids)
@@ -206,7 +207,7 @@ function NLPDiagnostics.powermodels_reference_bus_report(
             suggested_actions = actions,
         ))
         isnothing(components) && continue
-        for (component_id, bus_ids) in sort!(collect(components); by = first)
+        for (component_id, bus_ids) in sort!(collect(components); by = pair -> string(first(pair)))
             component_references = sort!(
                 collect(intersect(reference_set, Set(bus_ids))); by = string,
             )
@@ -289,7 +290,7 @@ function NLPDiagnostics.powermodels_variable_indices(
 )
     networks = isnothing(network) ? collect(PowerModels.nw_ids(pm)) : [network]
     result = Dict{Tuple{Any,Any},MOI.VariableIndex}()
-    for network_id in sort!(networks)
+    for network_id in sort!(networks; by = string)
         entries = try
             PowerModels.var(pm, network_id, key)
         catch error
@@ -318,7 +319,7 @@ function NLPDiagnostics.powermodels_jump_model(
     key::Symbol = :va,
 )
     owners = JuMP.Model[]
-    for network in sort!(collect(PowerModels.nw_ids(pm)))
+    for network in sort!(collect(PowerModels.nw_ids(pm)); by = string)
         entries = try
             PowerModels.var(pm, network, key)
         catch error
@@ -526,12 +527,12 @@ function NLPDiagnostics.powermodels_angle_gauge_modes(
 )
     indices = NLPDiagnostics.powermodels_variable_indices(pm, angle_key)
     modes = NLPDiagnostics.ExpectedNullspaceMode[]
-    for network in sort!(collect(PowerModels.nw_ids(pm)))
+    for network in sort!(collect(PowerModels.nw_ids(pm)); by = string)
         references = _pm_component_entries(pm, network, :ref_buses)
         reference_ids = isnothing(references) ? Set{Any}() : Set(keys(references))
         components = _pm_component_entries(pm, network, :components)
         scopes = isnothing(components) ? [(nothing, nothing)] :
-                 sort!(collect(components); by = first)
+                 sort!(collect(components); by = pair -> string(first(pair)))
         for (component_id, bus_ids) in scopes
             scope_bus_ids = isnothing(bus_ids) ? nothing : Set(bus_ids)
             !isnothing(scope_bus_ids) && !isempty(intersect(reference_ids, scope_bus_ids)) &&
@@ -540,7 +541,7 @@ function NLPDiagnostics.powermodels_angle_gauge_modes(
                 [(bus_id, index) for ((network_id, bus_id), index) in indices
                  if network_id == network &&
                     (isnothing(scope_bus_ids) || bus_id in scope_bus_ids)];
-                by = first,
+                by = pair -> string(first(pair)),
             )
             isempty(pairs) && continue
             variables = MOI.VariableIndex[last(pair) for pair in pairs]

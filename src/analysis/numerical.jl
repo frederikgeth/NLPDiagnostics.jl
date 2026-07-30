@@ -861,6 +861,7 @@ function _analyze_numerical_evaluation(
         max(length(evaluation.point.variables), 1) * eps(T),
     rank_max_dense_entries::Integer = 4_000_000,
     jacobian_condition_threshold::Real = 1.0e10,
+    component_scale_mismatch_factor::Real = 1.0e3,
 ) where {T<:AbstractFloat}
     _validate_evaluation_variable_order(model, evaluation)
     scale_ratio_threshold > 1 ||
@@ -923,6 +924,12 @@ function _analyze_numerical_evaluation(
     append!(report.findings, _nonfinite_value_findings(evaluation))
     append!(report.findings, _jacobian_derivative_provenance_findings(evaluation))
     append!(report.findings, _evaluation_failure_findings(evaluation))
+    component_scale_report = analyze_component_coordinate_scales(
+        model,
+        point;
+        mismatch_factor = component_scale_mismatch_factor,
+    )
+    append!(report.findings, component_scale_report.findings)
     derivative_report =
         analyze_derivatives(model_snapshot; point = point)
     expression_report = analyze_expressions(
@@ -986,6 +993,10 @@ function _analyze_numerical_evaluation(
     )
     merge!(report.metadata, derivative_report.metadata)
     merge!(report.metadata, expression_report.metadata)
+    for (key, value) in component_scale_report.metadata
+        key == :stage && continue
+        report.metadata[key] = value
+    end
     sort!(
         report.findings;
         by = finding -> (-Int(finding.severity), string(finding.code)),

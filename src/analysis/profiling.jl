@@ -269,6 +269,7 @@ function profile_case(
     cache::EvaluationCache = EvaluationCache(),
     relative_step::Real = cbrt(eps(T)),
     scale_ratio_threshold::Real = 1.0e6,
+    component_scale_mismatch_factor::Real = 1.0e3,
     unit_circle_radius_tolerance::Real = 1.0e-6,
     rank_relative_tolerance::Real =
         max(length(case.point.variables), 1) * eps(T),
@@ -324,6 +325,7 @@ function profile_case(
         cache = cache,
         relative_step = relative_step,
         scale_ratio_threshold = scale_ratio_threshold,
+        component_scale_mismatch_factor = component_scale_mismatch_factor,
         strict_domain_proximity_threshold = strict_domain_proximity_threshold,
         rank_relative_tolerance = rank_relative_tolerance,
         rank_max_dense_entries = rank_max_dense_entries,

@@ -22,6 +22,9 @@ The same rule applies across terminal maps: if `PortCoordinateMap` records
 connect multiple port declarations to one MOI variable, their
 `PortCoordinateSemantics` must agree. A mismatch is a metadata conflict, not a
 claim that either electrical convention is incorrect.
+For simple explicit maps, the generic core also compares the map-adjusted
+nominal scales of shared model coordinates; incompatible effective scales are
+reported before point-local scale evidence is used.
 
 Mapped terminal semantics must also agree with any
 `ComponentCoordinateSemantics` on the same MOI variable. If a terminal and a
@@ -33,7 +36,7 @@ For each port, the plugin should specify:
 - terminal labels and mode labels;
 - connection matrix and any expected hidden terminal or mode directions;
 - quantity (`:voltage`, `:current`, `:power`, `:angle`, or `:generic`),
-  representation, and unit convention; and
+  representation, unit convention, and optional positive nominal scale; and
 - terminal-to-MOI-variable coordinates where numerical comparison is intended.
 
 Network links are declared by `PortConnectionMetadata` maps. The generic core
@@ -42,6 +45,16 @@ into MOI coordinates, and compare explicit candidates with local Jacobian,
 active-set, and persistent reduced-Hessian evidence. It does not label a mode
 as a neutral, common mode, delta circulation, or voltage-collapse mechanism.
 Those are plugin-level physical classifications.
+When a port declares `nominal_scale`, the generic numerical stage compares it
+only through an explicit map row containing one terminal coordinate. Mixed
+terminal-coordinate maps or absent maps remain an unavailable generic scale projection and
+require a plugin-supplied transformed-scale rule rather than a guessed scalar
+scale. Mixed maps are also flagged during static metadata validation, before a
+numerical point is available.
+For the same direct rows, the map-adjusted port scale must agree with any
+component-coordinate nominal scale on the mapped MOI variable. Supplying a
+scale on only one side is likewise reported as an incomplete shared-coordinate
+scaling convention.
 
 The scalar PowerModels `:va` bridge is intentionally not a multiconductor port
 adapter: it exposes angle coordinates, not terminal voltage phasors. A future

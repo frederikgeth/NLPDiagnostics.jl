@@ -588,7 +588,24 @@ struct PortCoordinateSemantics
     quantity::Symbol
     representation::Symbol
     units::Dict{String,String}
+    nominal_scale::Union{Nothing,Float64}
     description::String
+end
+
+"""Compatibility construction for port semantics without a nominal scale."""
+function PortCoordinateSemantics(
+    component_type::Symbol,
+    component_id::String,
+    port_id::String,
+    quantity::Symbol,
+    representation::Symbol,
+    units::Dict{String,String},
+    description::String,
+)
+    return PortCoordinateSemantics(
+        component_type, component_id, port_id, quantity, representation,
+        units, nothing, description,
+    )
 end
 
 """Plugin-declared physical interpretation of selected component model coordinates."""
@@ -599,7 +616,24 @@ struct ComponentCoordinateSemantics
     quantity::Symbol
     representation::Symbol
     units::Dict{String,String}
+    nominal_scale::Union{Nothing,Float64}
     description::String
+end
+
+"""Compatibility construction for component semantics without a nominal scale."""
+function ComponentCoordinateSemantics(
+    component_type::Symbol,
+    component_id::String,
+    variables::Vector{MOI.VariableIndex},
+    quantity::Symbol,
+    representation::Symbol,
+    units::Dict{String,String},
+    description::String,
+)
+    return ComponentCoordinateSemantics(
+        component_type, component_id, variables, quantity, representation,
+        units, nothing, description,
+    )
 end
 
 """A topology-nullspace basis projected through plugin-declared port coordinate maps."""
@@ -744,9 +778,28 @@ struct SolverConflictResult
     optimize_before_conflict::Bool
     termination_status::String
     conflict_status::String
+    source_variable_count::Int
+    source_constraint_count::Int
     conflicts::Vector{Vector{EntityRef}}
     maybe_conflicts::Vector{Vector{EntityRef}}
     error::Union{Nothing,String}
+end
+
+"""Compatibility construction for conflict evidence without recorded source scope."""
+function SolverConflictResult(
+    optimizer_type::AbstractString,
+    optimize_before_conflict::Bool,
+    termination_status::AbstractString,
+    conflict_status::AbstractString,
+    conflicts::Vector{Vector{EntityRef}},
+    maybe_conflicts::Vector{Vector{EntityRef}},
+    error::Union{Nothing,AbstractString},
+)
+    return SolverConflictResult(
+        String(optimizer_type), optimize_before_conflict, String(termination_status),
+        String(conflict_status), 0, 0, conflicts, maybe_conflicts,
+        isnothing(error) ? nothing : String(error),
+    )
 end
 
 function ComponentMetadata(
@@ -897,6 +950,7 @@ function PortCoordinateSemantics(
     quantity::Symbol,
     representation::Symbol = :generic,
     units::AbstractDict = Dict{String,String}(),
+    nominal_scale::Union{Nothing,Real} = nothing,
     description::AbstractString = "",
 )
     all(!isempty(strip(string(value))) for value in (component_type, component_id, port_id)) ||
@@ -907,16 +961,22 @@ function PortCoordinateSemantics(
         throw(ArgumentError("port coordinate representation must be nonempty"))
     any(isempty(strip(string(key))) || isempty(strip(string(value))) for (key, value) in units) &&
         throw(ArgumentError("port coordinate semantics unit names and labels must be nonempty"))
+    !isnothing(nominal_scale) &&
+        (!isfinite(nominal_scale) || nominal_scale <= 0) &&
+        throw(ArgumentError("port coordinate nominal_scale must be finite and positive"))
     return PortCoordinateSemantics(
         component_type, string(component_id), string(port_id), quantity, representation,
-        Dict(string(key) => string(value) for (key, value) in units), String(description),
+        Dict(string(key) => string(value) for (key, value) in units),
+        isnothing(nominal_scale) ? nothing : Float64(nominal_scale), String(description),
     )
 end
 
 function ComponentCoordinateSemantics(
     component_type::Symbol, component_id, variables::AbstractVector{MOI.VariableIndex};
     quantity::Symbol, representation::Symbol = :generic,
-    units::AbstractDict = Dict{String,String}(), description::AbstractString = "",
+    units::AbstractDict = Dict{String,String}(),
+    nominal_scale::Union{Nothing,Real} = nothing,
+    description::AbstractString = "",
 )
     all(!isempty(strip(string(value))) for value in (component_type, component_id)) ||
         throw(ArgumentError("component coordinate-semantics identities must be nonempty"))
@@ -928,8 +988,12 @@ function ComponentCoordinateSemantics(
     isempty(String(representation)) && throw(ArgumentError("component coordinate representation must be nonempty"))
     any(isempty(strip(string(key))) || isempty(strip(string(value))) for (key, value) in units) &&
         throw(ArgumentError("component coordinate semantics unit names and labels must be nonempty"))
+    !isnothing(nominal_scale) &&
+        (!isfinite(nominal_scale) || nominal_scale <= 0) &&
+        throw(ArgumentError("component coordinate nominal_scale must be finite and positive"))
     return ComponentCoordinateSemantics(component_type, string(component_id), collect(variables),
-        quantity, representation, Dict(string(key) => string(value) for (key, value) in units), String(description))
+        quantity, representation, Dict(string(key) => string(value) for (key, value) in units),
+        isnothing(nominal_scale) ? nothing : Float64(nominal_scale), String(description))
 end
 
 """

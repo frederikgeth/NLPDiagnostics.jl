@@ -258,6 +258,7 @@ export nullspace_fingerprints
 export expected_nullspace_modes
 export component_metadata
 export component_coordinate_semantics
+export analyze_component_coordinate_scales
 export powermodels_component_metadata
 export powermodels_capability_report
 export powermodels_reference_bus_report
@@ -458,7 +459,12 @@ function _component_coordinate_semantics_findings(
     for variable in sort!(collect(keys(variables_to_items)); by = index -> index.value)
         declarations = variables_to_items[variable]
         signatures = unique([
-            (item.quantity, item.representation, Tuple(sort!(collect(item.units); by = first)))
+            (
+                item.quantity,
+                item.representation,
+                Tuple(sort!(collect(item.units); by = first)),
+                item.nominal_scale,
+            )
             for item in declarations
         ])
         length(signatures) <= 1 && continue
@@ -467,7 +473,8 @@ function _component_coordinate_semantics_findings(
         ]))
         descriptions = sort!(unique([
             "$(signature[1])/$(signature[2])" *
-            (isempty(signature[3]) ? "" : " [" * join(("$(first(unit))=$(last(unit))" for unit in signature[3]), ", ") * "]")
+            (isempty(signature[3]) ? "" : " [" * join(("$(first(unit))=$(last(unit))" for unit in signature[3]), ", ") * "]") *
+            (isnothing(signature[4]) ? "" : " nominal_scale=$(signature[4])")
             for signature in signatures
         ]))
         push!(report, Finding(:component_coordinate_semantics_variable_conflict;
@@ -527,6 +534,165 @@ function _component_coordinate_semantics_findings(
             ))
         end
     end
+    return report
+end
+
+"""
+    analyze_component_coordinate_scales(model, point; mismatch_factor = 1e3)
+
+Compare an explicit evaluation point with optional plugin-declared nominal
+coordinate scales. A reported mismatch is local numerical evidence about the
+declared coordinate convention, not a physical-limit or feasibility claim.
+"""
+function analyze_component_coordinate_scales(
+    semantics::AbstractVector{<:ComponentCoordinateSemantics},
+    point::EvaluationPoint;
+    mismatch_factor::Real = 1.0e3,
+)
+    mismatch_factor > 1 && isfinite(mismatch_factor) || throw(ArgumentError(
+        "mismatch_factor must be finite and greater than one",
+    ))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "component_coordinate_scales"
+    report.metadata[:component_coordinate_scale_mismatch_factor] = string(mismatch_factor)
+    declared = [item for item in semantics if !isnothing(item.nominal_scale)]
+    report.metadata[:component_coordinate_nominal_scale_declaration_count] = string(length(declared))
+    values = Dict(zip(point.variables, point.values))
+    checked = 0
+    for item in declared, variable in item.variables
+        haskey(values, variable) || continue
+        checked += 1
+        value = values[variable]
+        nominal = something(item.nominal_scale)
+        ratio = abs(value) / nominal
+        (ratio > mismatch_factor || (!iszero(value) && ratio < inv(mismatch_factor))) || continue
+        direction = ratio > mismatch_factor ? "larger" : "smaller"
+        push!(report, Finding(:component_coordinate_nominal_scale_mismatch;
+            severity = SeverityWarning, domain = NumericalIssue,
+            basis = LocalInference, confidence = ConfidenceHigh,
+            observation = "Component coordinate v$(variable.value) is $(direction) than its declared nominal scale by a factor of $(ratio).",
+            why_it_matters = "A large value-to-nominal-scale separation can make derivative magnitudes, solver tolerances, and physical-unit interpretation sensitive to coordinate scaling; zero is intentionally not classified because it can be a valid operating value.",
+            evidence = [Evidence("Declared component coordinate scale"; details = [
+                "component_type" => item.component_type,
+                "component_id" => item.component_id,
+                "quantity" => item.quantity,
+                "representation" => item.representation,
+                "units" => isempty(item.units) ? "unspecified" : join(("$(key)=$(value)" for (key, value) in sort!(collect(item.units); by = first)), ","),
+                "value" => value,
+                "nominal_scale" => nominal,
+                "absolute_value_to_nominal_scale_ratio" => ratio,
+                "mismatch_factor" => mismatch_factor,
+            ])],
+            affected = [EntityRef(:variable, variable.value)],
+            suggested_actions = ["Check the declared nominal scale and coordinate units, then compare Jacobian column scaling at the same point before rescaling the formulation."],
+        ))
+    end
+    report.metadata[:component_coordinate_nominal_scale_checked_variable_count] = string(checked)
+    return report
+end
+
+function analyze_component_coordinate_scales(
+    model::MOI.ModelLike,
+    point::EvaluationPoint;
+    kwargs...,
+)
+    report = analyze_component_coordinate_scales(
+        component_coordinate_semantics(model), point; kwargs...,
+    )
+    port_report = _port_coordinate_scale_findings(
+        component_port_coordinate_semantics(model),
+        component_port_coordinate_maps(model),
+        point;
+        kwargs...,
+    )
+    append!(report.findings, port_report.findings)
+    for (key, value) in port_report.metadata
+        key == :stage && continue
+        report.metadata[key] = value
+    end
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return report
+end
+
+"""Compare declared port nominal scales only through simple explicit coordinate maps."""
+function _port_coordinate_scale_findings(
+    semantics::AbstractVector{<:PortCoordinateSemantics},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap},
+    point::EvaluationPoint;
+    mismatch_factor::Real = 1.0e3,
+)
+    mismatch_factor > 1 && isfinite(mismatch_factor) || throw(ArgumentError(
+        "mismatch_factor must be finite and greater than one",
+    ))
+    report = DiagnosticReport()
+    report.metadata[:component_port_nominal_scale_declaration_count] = string(count(
+        item -> !isnothing(item.nominal_scale), semantics,
+    ))
+    values = Dict(zip(point.variables, point.values))
+    maps_by_key = Dict{Tuple{Symbol,String,String},Vector{PortCoordinateMap}}()
+    for map in coordinate_maps
+        key = (map.component_type, map.component_id, map.port_id)
+        push!(get!(maps_by_key, key, PortCoordinateMap[]), map)
+    end
+    checked = 0
+    unavailable = 0
+    for item in semantics
+        isnothing(item.nominal_scale) && continue
+        key = (item.component_type, item.component_id, item.port_id)
+        maps = get(maps_by_key, key, PortCoordinateMap[])
+        if isempty(maps)
+            unavailable += 1
+            continue
+        end
+        for map in maps
+            for (row, variable) in enumerate(map.variables)
+                haskey(values, variable) || continue
+                nonzero = findall(value -> !iszero(value), view(map.terminal_to_variable, row, :))
+                if length(nonzero) != 1
+                    unavailable += 1
+                    continue
+                end
+                nominal = abs(map.terminal_to_variable[row, only(nonzero)]) *
+                          something(item.nominal_scale)
+                isfinite(nominal) && nominal > 0 || (unavailable += 1; continue)
+                checked += 1
+                value = values[variable]
+                ratio = abs(value) / nominal
+                (ratio > mismatch_factor || (!iszero(value) && ratio < inv(mismatch_factor))) || continue
+                direction = ratio > mismatch_factor ? "larger" : "smaller"
+                push!(report, Finding(:component_port_nominal_scale_mismatch;
+                    severity = SeverityWarning, domain = NumericalIssue,
+                    basis = LocalInference, confidence = ConfidenceHigh,
+                    observation = "Mapped port coordinate v$(variable.value) is $(direction) than its declared nominal scale by a factor of $(ratio).",
+                    why_it_matters = "This comparison uses an explicit one-terminal-coordinate map and is local numerical scale evidence, not a physical-limit claim.",
+                    evidence = [Evidence("Declared port coordinate scale"; details = [
+                        "component_type" => item.component_type,
+                        "component_id" => item.component_id,
+                        "port_id" => item.port_id,
+                        "quantity" => item.quantity,
+                        "terminal_coordinate" => only(nonzero),
+                        "terminal_to_variable_coefficient" => map.terminal_to_variable[row, only(nonzero)],
+                        "value" => value,
+                        "nominal_scale" => nominal,
+                        "absolute_value_to_nominal_scale_ratio" => ratio,
+                        "mismatch_factor" => mismatch_factor,
+                    ])],
+                    affected = [EntityRef(:variable, variable.value)],
+                    suggested_actions = ["Check the declared terminal scale and map coefficient, then inspect Jacobian scaling at this point before rescaling."],
+                ))
+            end
+        end
+    end
+    report.metadata[:component_port_nominal_scale_checked_variable_count] = string(checked)
+    report.metadata[:component_port_nominal_scale_projection_unavailable_count] = string(unavailable)
+    unavailable == 0 || push!(report, Finding(:component_port_nominal_scale_projection_unavailable;
+        severity = SeverityInfo, domain = RepresentationalIssue,
+        basis = StructuralProof, confidence = ConfidenceCertain,
+        observation = "$(unavailable) nominal-scale port declaration(s) lack a directly usable one-terminal-coordinate map.",
+        why_it_matters = "The generic core will not assign a scalar physical scale without an explicit map, or after a mixed terminal-coordinate transformation.",
+        evidence = [Evidence("Port nominal-scale mapping"; details = ["unavailable_coordinate_count" => unavailable])],
+        suggested_actions = ["Declare a one-coordinate map for direct scale comparison, or implement a domain-specific transformed-scale rule."],
+    ))
     return report
 end
 
@@ -965,6 +1131,70 @@ function _component_port_coordinate_semantics_findings(
             suggested_actions = ["Use one quantity, representation, and unit convention for this shared coordinate, or introduce an explicit transformation between terminal and model coordinates."],
         ))
     end
+    effective_scales = Dict{MOI.VariableIndex,Vector{Tuple{PortCoordinateSemantics,Float64}}}()
+    for item in semantics
+        isnothing(item.nominal_scale) && continue
+        key = (item.component_type, item.component_id, item.port_id)
+        for map in get(maps_by_key, key, PortCoordinateMap[]), (row, variable) in enumerate(map.variables)
+            nonzero = findall(value -> !iszero(value), view(map.terminal_to_variable, row, :))
+            length(nonzero) == 1 || continue
+            scale = abs(map.terminal_to_variable[row, only(nonzero)]) *
+                    something(item.nominal_scale)
+            isfinite(scale) && scale > 0 || continue
+            push!(get!(effective_scales, variable, Tuple{PortCoordinateSemantics,Float64}[]),
+                  (item, Float64(scale)))
+        end
+    end
+    for variable in sort!(collect(Base.keys(effective_scales)); by = index -> index.value)
+        declarations = effective_scales[variable]
+        length(declarations) > 1 || continue
+        reference = first(declarations)[2]
+        all(item -> isapprox(item[2], reference; rtol = sqrt(eps(Float64)), atol = 0.0), declarations) && continue
+        labels = join(sort!(unique([
+            "$(item.component_type):$(item.component_id):$(item.port_id)=$(scale)" for
+            (item, scale) in declarations
+        ])), ", ")
+        push!(report, Finding(:component_port_coordinate_nominal_scale_conflict;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Model variable $(variable.value) receives incompatible effective nominal scales from mapped port declarations.",
+            why_it_matters = "A shared model coordinate cannot have one physical scaling or tolerance interpretation when explicit port maps imply different coordinate scales.",
+            evidence = [Evidence("Mapped port nominal scales"; details = [
+                "variable" => variable.value,
+                "effective_scales" => labels,
+            ])],
+            affected = [EntityRef(:variable, variable.value)],
+            suggested_actions = ["Align port nominal scales after map coefficients, or split the shared model coordinate with an explicit transformation."],
+        ))
+    end
+    for item in semantics
+        isnothing(item.nominal_scale) && continue
+        key = (item.component_type, item.component_id, item.port_id)
+        mixed_rows = Tuple{PortCoordinateMap,Int}[]
+        for map in get(maps_by_key, key, PortCoordinateMap[]), row in axes(map.terminal_to_variable, 1)
+            nonzero = findall(value -> !iszero(value), view(map.terminal_to_variable, row, :))
+            length(nonzero) == 1 || push!(mixed_rows, (map, row))
+        end
+        isempty(mixed_rows) && continue
+        rows = join(sort!(unique([
+            "v$(map.variables[row].value)" for (map, row) in mixed_rows
+        ])), ", ")
+        push!(report, Finding(:component_port_coordinate_nominal_scale_mixed_projection;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Port nominal scale for $(item.component_type) '$(item.component_id)' port '$(item.port_id)' cannot be generically projected onto $(length(mixed_rows)) mixed terminal-to-model coordinate row(s).",
+            why_it_matters = "A scalar terminal scale does not determine a scalar scale for a mixed-coordinate transformation without a domain-specific norm or coordinate convention.",
+            evidence = [Evidence("Port nominal-scale map projection"; details = [
+                "component_type" => item.component_type,
+                "component_id" => item.component_id,
+                "port_id" => item.port_id,
+                "nominal_scale" => something(item.nominal_scale),
+                "model_variables" => rows,
+            ])],
+            affected = [EntityRef(:variable, map.variables[row].value) for (map, row) in mixed_rows],
+            suggested_actions = ["Declare direct terminal-coordinate maps for generic scale checks, or implement a domain-specific transformed-scale rule."],
+        ))
+    end
     for item in semantics
         key = (item.component_type, item.component_id, item.port_id)
         key in port_keys || push!(report, Finding(:component_port_coordinate_semantics_unaligned;
@@ -1015,10 +1245,20 @@ function _component_port_coordinate_semantics_cross_layer_findings(
         push!(get!(maps_by_key, key, PortCoordinateMap[]), map)
     end
     ports_by_variable = Dict{MOI.VariableIndex,Vector{PortCoordinateSemantics}}()
+    port_scales_by_variable = Dict{MOI.VariableIndex,Vector{Tuple{PortCoordinateSemantics,Union{Nothing,Float64}}}}()
     for item in port_semantics
         key = (item.component_type, item.component_id, item.port_id)
-        for map in get(maps_by_key, key, PortCoordinateMap[]), variable in map.variables
+        for map in get(maps_by_key, key, PortCoordinateMap[]), (row, variable) in enumerate(map.variables)
             push!(get!(ports_by_variable, variable, PortCoordinateSemantics[]), item)
+            nonzero = findall(value -> !iszero(value), view(map.terminal_to_variable, row, :))
+            length(nonzero) == 1 || continue
+            scale = isnothing(item.nominal_scale) ? nothing :
+                    abs(map.terminal_to_variable[row, only(nonzero)]) *
+                    something(item.nominal_scale)
+            !isnothing(scale) && (!isfinite(scale) || scale <= 0) && continue
+            push!(get!(port_scales_by_variable, variable,
+                      Tuple{PortCoordinateSemantics,Union{Nothing,Float64}}[]),
+                  (item, isnothing(scale) ? nothing : Float64(scale)))
         end
     end
     shared_variables = sort!(collect(intersect(
@@ -1058,6 +1298,41 @@ function _component_port_coordinate_semantics_cross_layer_findings(
             ])],
             affected = [EntityRef(:variable, variable.value)],
             suggested_actions = ["Align the component and port quantity, representation, and unit declarations, or introduce an explicit transformed coordinate."],
+        ))
+    end
+    scale_shared_variables = sort!(collect(intersect(
+        Set(Base.keys(component_by_variable)), Set(Base.keys(port_scales_by_variable)),
+    )); by = index -> index.value)
+    for variable in scale_shared_variables
+        component_declarations = component_by_variable[variable]
+        port_declarations = port_scales_by_variable[variable]
+        scales = Union{Nothing,Float64}[item.nominal_scale for item in component_declarations]
+        append!(scales, Union{Nothing,Float64}[scale for (_, scale) in port_declarations])
+        reference = first(scales)
+        compatible = !isnothing(reference) && all(scale ->
+            !isnothing(scale) && isapprox(scale, reference; rtol = sqrt(eps(Float64)), atol = 0.0),
+            scales,
+        )
+        compatible && continue
+        labels = String[
+            "component $(item.component_type):$(item.component_id)=$(something(item.nominal_scale, "unspecified"))"
+            for item in component_declarations
+        ]
+        append!(labels, [
+            "port $(item.component_type):$(item.component_id):$(item.port_id)=$(something(scale, "unspecified"))"
+            for (item, scale) in port_declarations
+        ])
+        push!(report, Finding(:component_port_coordinate_nominal_scale_cross_layer_conflict;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Model variable $(variable.value) has incompatible component and map-adjusted port nominal-scale declarations.",
+            why_it_matters = "A direct terminal map bridges these declarations to one model coordinate, so incompatible or omitted nominal scales leave its physical scaling and tolerance interpretation ambiguous.",
+            evidence = [Evidence("Cross-layer nominal-scale conflict"; details = [
+                "variable" => variable.value,
+                "nominal_scales" => join(sort!(unique(labels)), " | "),
+            ])],
+            affected = [EntityRef(:variable, variable.value)],
+            suggested_actions = ["Align the component nominal scale with the map-adjusted port scale, or declare an explicit transformed-coordinate convention."],
         ))
     end
     return report
@@ -1602,7 +1877,7 @@ function elastic_feasibility_plan(
         scalar_row = function_value isa Union{MOI.ScalarAffineFunction{Float64},MOI.ScalarQuadraticFunction{Float64},MOI.ScalarNonlinearFunction} &&
                      set_value isa Union{MOI.LessThan{Float64},MOI.GreaterThan{Float64},MOI.EqualTo{Float64}}
         vector_row = function_value isa Union{MOI.VectorOfVariables,MOI.VectorAffineFunction{Float64}} &&
-                     set_value isa Union{MOI.SecondOrderCone,MOI.RotatedSecondOrderCone,MOI.NormOneCone,MOI.NormInfinityCone,MOI.NormCone,MOI.NormSpectralCone,MOI.NormNuclearCone,MOI.ExponentialCone,MOI.DualExponentialCone,MOI.GeometricMeanCone,MOI.RelativeEntropyCone,MOI.LogDetConeTriangle,MOI.LogDetConeSquare,MOI.RootDetConeTriangle,MOI.RootDetConeSquare,MOI.Scaled{MOI.LogDetConeTriangle},MOI.Scaled{MOI.RootDetConeTriangle},MOI.PositiveSemidefiniteConeTriangle,MOI.PositiveSemidefiniteConeSquare,MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},MOI.HermitianPositiveSemidefiniteConeTriangle,MOI.Scaled{MOI.HermitianPositiveSemidefiniteConeTriangle},MOI.Nonnegatives,MOI.Nonpositives,MOI.Zeros}
+                     set_value isa Union{MOI.SecondOrderCone,MOI.RotatedSecondOrderCone,MOI.NormOneCone,MOI.NormInfinityCone,MOI.NormCone,MOI.NormSpectralCone,MOI.NormNuclearCone,MOI.PowerCone,MOI.DualPowerCone,MOI.ExponentialCone,MOI.DualExponentialCone,MOI.GeometricMeanCone,MOI.RelativeEntropyCone,MOI.LogDetConeTriangle,MOI.LogDetConeSquare,MOI.RootDetConeTriangle,MOI.RootDetConeSquare,MOI.Scaled{MOI.LogDetConeTriangle},MOI.Scaled{MOI.RootDetConeTriangle},MOI.PositiveSemidefiniteConeTriangle,MOI.PositiveSemidefiniteConeSquare,MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},MOI.HermitianPositiveSemidefiniteConeTriangle,MOI.Scaled{MOI.HermitianPositiveSemidefiniteConeTriangle},MOI.Nonnegatives,MOI.Nonpositives,MOI.Zeros}
         if variable_bound || scalar_row || vector_row
             if isnothing(selected_constraints) || any(==(reference), selected_constraints)
                 push!(relaxable, reference)
@@ -1668,6 +1943,25 @@ function analyze_elastic_feasibility_plan(plan::ElasticFeasibilityPlan)
         ))
     end
     return report
+end
+
+"""
+    analyze_elastic_feasibility_plan(model; relax_variable_bounds = false, selected_constraints = nothing)
+
+Build and report the non-mutating elastic-feasibility coverage plan in one
+step. Use `elastic_feasibility_plan` first when the exact eligible, excluded,
+and unsupported source scopes must be retained separately by the caller.
+"""
+function analyze_elastic_feasibility_plan(
+    model::MOI.ModelLike;
+    relax_variable_bounds::Bool = false,
+    selected_constraints::Union{Nothing,AbstractVector{EntityRef}} = nothing,
+)
+    return analyze_elastic_feasibility_plan(elastic_feasibility_plan(
+        model;
+        relax_variable_bounds = relax_variable_bounds,
+        selected_constraints = selected_constraints,
+    ))
 end
 
 function _elastic_domain_argument(
@@ -1880,6 +2174,25 @@ function analyze_elastic_domain_guard_plan(plan::ElasticDomainGuardPlan)
     return report
 end
 
+"""
+    analyze_elastic_domain_guard_plan(model; relax_variable_bounds = false, selected_constraints = nothing)
+
+Build and report the non-mutating nonlinear domain-guard plan for the selected
+elastic scope. Use `elastic_domain_guard_plan` first when callers need to
+retain the materializable and nonmaterializable guard records themselves.
+"""
+function analyze_elastic_domain_guard_plan(
+    model::MOI.ModelLike;
+    relax_variable_bounds::Bool = false,
+    selected_constraints::Union{Nothing,AbstractVector{EntityRef}} = nothing,
+)
+    return analyze_elastic_domain_guard_plan(elastic_domain_guard_plan(
+        model;
+        relax_variable_bounds = relax_variable_bounds,
+        selected_constraints = selected_constraints,
+    ))
+end
+
 function _elastic_function(function_value::MOI.ScalarAffineFunction{Float64}, additions)
     return MOI.ScalarAffineFunction(vcat(copy(function_value.terms), additions), function_value.constant)
 end
@@ -2067,7 +2380,7 @@ function build_elastic_feasibility_model(
         isfinite(weight) && weight > 0 ||
             throw(ArgumentError("elastic relaxation weights must be finite and positive"))
         if function_value isa Union{MOI.VectorOfVariables,MOI.VectorAffineFunction{Float64}} &&
-           set_value isa Union{MOI.SecondOrderCone,MOI.RotatedSecondOrderCone,MOI.NormOneCone,MOI.NormInfinityCone,MOI.NormCone,MOI.NormSpectralCone,MOI.NormNuclearCone,MOI.ExponentialCone,MOI.DualExponentialCone,MOI.GeometricMeanCone,MOI.RelativeEntropyCone,MOI.LogDetConeTriangle,MOI.LogDetConeSquare,MOI.RootDetConeTriangle,MOI.RootDetConeSquare,MOI.Scaled{MOI.LogDetConeTriangle},MOI.Scaled{MOI.RootDetConeTriangle},MOI.PositiveSemidefiniteConeTriangle,MOI.PositiveSemidefiniteConeSquare,MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},MOI.HermitianPositiveSemidefiniteConeTriangle,MOI.Scaled{MOI.HermitianPositiveSemidefiniteConeTriangle},MOI.Nonnegatives,MOI.Nonpositives,MOI.Zeros}
+           set_value isa Union{MOI.SecondOrderCone,MOI.RotatedSecondOrderCone,MOI.NormOneCone,MOI.NormInfinityCone,MOI.NormCone,MOI.NormSpectralCone,MOI.NormNuclearCone,MOI.PowerCone,MOI.DualPowerCone,MOI.ExponentialCone,MOI.DualExponentialCone,MOI.GeometricMeanCone,MOI.RelativeEntropyCone,MOI.LogDetConeTriangle,MOI.LogDetConeSquare,MOI.RootDetConeTriangle,MOI.RootDetConeSquare,MOI.Scaled{MOI.LogDetConeTriangle},MOI.Scaled{MOI.RootDetConeTriangle},MOI.PositiveSemidefiniteConeTriangle,MOI.PositiveSemidefiniteConeSquare,MOI.Scaled{MOI.PositiveSemidefiniteConeTriangle},MOI.HermitianPositiveSemidefiniteConeTriangle,MOI.Scaled{MOI.HermitianPositiveSemidefiniteConeTriangle},MOI.Nonnegatives,MOI.Nonpositives,MOI.Zeros}
             target = index_map[record.index]
             MOI.delete(auxiliary, target)
             terms = if function_value isa MOI.VectorOfVariables
@@ -2112,6 +2425,13 @@ function build_elastic_feasibility_model(
                             row, MOI.ScalarAffineTerm(1.0, slack),
                         ))
                     end
+                elseif set_value isa MOI.PowerCone
+                    push!(terms, MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(1.0, slack)))
+                    push!(terms, MOI.VectorAffineTerm(2, MOI.ScalarAffineTerm(1.0, slack)))
+                elseif set_value isa MOI.DualPowerCone
+                    exponent = Float64(set_value.exponent)
+                    push!(terms, MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(exponent, slack)))
+                    push!(terms, MOI.VectorAffineTerm(2, MOI.ScalarAffineTerm(1.0 - exponent, slack)))
                 else
                     coordinatewise = set_value isa Union{MOI.Nonnegatives,MOI.Nonpositives}
                     target_row = coordinatewise ? position :
@@ -2134,6 +2454,8 @@ function build_elastic_feasibility_model(
                    set_value isa MOI.NormCone ? :norm_cone :
                    set_value isa MOI.NormSpectralCone ? :norm_spectral_cone :
                    set_value isa MOI.NormNuclearCone ? :norm_nuclear_cone :
+                   set_value isa MOI.PowerCone ? :power_cone :
+                   set_value isa MOI.DualPowerCone ? :dual_power_cone :
                    set_value isa MOI.ExponentialCone ? :exponential_cone :
                    set_value isa MOI.DualExponentialCone ? :dual_exponential_cone :
                    set_value isa MOI.GeometricMeanCone ? :geometric_mean_cone :
@@ -2384,6 +2706,38 @@ function elastic_relaxation_values(
     return elastic_relaxation_values(solved.auxiliary, values)
 end
 
+"""Describe the exact source-coordinate change made by an elastic auxiliary slack."""
+function _elastic_relaxation_geometry(kind::Symbol)
+    kind in (:upper_bound, :lower_bound, :equality, :variable_bound) &&
+        return "scalar residual relaxation"
+    kind in (:second_order_cone, :rotated_second_order_cone, :norm_one_cone,
+             :norm_infinity_cone, :norm_cone, :norm_spectral_cone,
+             :norm_nuclear_cone) &&
+        return "leading epigraph coordinate increased by slack"
+    kind in (:exponential_cone, :dual_exponential_cone) &&
+        return "third exponential-cone epigraph coordinate increased by slack"
+    kind == :relative_entropy_cone &&
+        return "leading relative-entropy upper-bound coordinate increased by slack"
+    kind in (:geometric_mean_cone, :logdet_cone_triangle, :logdet_cone_square,
+             :rootdet_cone_triangle, :rootdet_cone_square,
+             :scaled_logdet_cone_triangle, :scaled_rootdet_cone_triangle) &&
+        return "leading hypograph coordinate decreased by slack"
+    kind == :power_cone &&
+        return "both positive power-cone coordinates increased by the same slack"
+    kind == :dual_power_cone &&
+        return "dual-power coordinates increased by α times slack and (1-α) times slack"
+    kind in (:positive_semidefinite_cone_triangle,
+             :scaled_positive_semidefinite_cone_triangle,
+             :positive_semidefinite_cone_square,
+             :hermitian_positive_semidefinite_cone_triangle,
+             :scaled_hermitian_positive_semidefinite_cone_triangle) &&
+        return "matrix diagonal shifted by slack (X + sI)"
+    kind == :nonnegatives && return "each nonnegative coordinate increased by its slack"
+    kind == :nonpositives && return "each nonpositive coordinate decreased by its slack"
+    kind == :zeros && return "each zero coordinate receives signed positive/negative slacks"
+    return "auxiliary relaxation geometry is not classified"
+end
+
 """Report original rows that needed positive caller-supplied elastic slack."""
 function analyze_elastic_relaxations(auxiliary::ElasticFeasibilityModel, values::AbstractDict{MOI.VariableIndex,<:Real}; tolerance::Real = sqrt(eps(Float64)))
     tolerance >= 0 || throw(ArgumentError("tolerance must be nonnegative"))
@@ -2399,12 +2753,13 @@ function analyze_elastic_relaxations(auxiliary::ElasticFeasibilityModel, values:
     for item in observed
         item.total <= tolerance && continue
         positive += 1
+        geometry = _elastic_relaxation_geometry(item.kind)
         push!(report, Finding(:elastic_constraint_relaxed;
             severity = SeverityWarning, domain = MathematicalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
             observation = "Elastic auxiliary values apply $(item.kind) relaxation to constraint $(item.source.index) with total slack $(item.total) and weighted slack magnitude $(item.weighted_total).",
             why_it_matters = "This identifies a row requiring relaxation in the supplied auxiliary point; it is not an IIS or a proof that this row alone causes infeasibility.",
-            evidence = [Evidence("Elastic relaxation values"; details = ["kind" => item.kind, "slacks" => join(item.values, ","), "total" => item.total, "weighted_slack_magnitude" => item.weighted_total, "objective_norm" => auxiliary.objective_norm, "tolerance" => tolerance])],
+            evidence = [Evidence("Elastic relaxation values"; details = ["kind" => item.kind, "geometry" => geometry, "slacks" => join(item.values, ","), "total" => item.total, "weighted_slack_magnitude" => item.weighted_total, "objective_norm" => auxiliary.objective_norm, "tolerance" => tolerance])],
             affected = [item.source],
             suggested_actions = ["Inspect this row with related bounds and constraints; compare alternative elastic objectives before assigning causality."],
         ))
@@ -2866,6 +3221,9 @@ function compute_solver_conflict!(
     MOI.is_empty(optimizer) || throw(ArgumentError(
         "conflict optimizer must be empty before copying the source model",
     ))
+    model_snapshot = snapshot(model)
+    source_variable_count = length(model_snapshot.variables)
+    source_constraint_count = length(model_snapshot.constraints)
     index_map = MOI.copy_to(optimizer, model)
     optimize_before_conflict && MOI.optimize!(optimizer)
     termination = try
@@ -2878,7 +3236,8 @@ function compute_solver_conflict!(
     catch error
         return SolverConflictResult(
             string(typeof(optimizer)), optimize_before_conflict, termination,
-            "unavailable", Vector{Vector{EntityRef}}(), Vector{Vector{EntityRef}}(),
+            "unavailable", source_variable_count, source_constraint_count,
+            Vector{Vector{EntityRef}}(), Vector{Vector{EntityRef}}(),
             sprint(showerror, error),
         )
     end
@@ -2887,7 +3246,8 @@ function compute_solver_conflict!(
     catch error
         return SolverConflictResult(
             string(typeof(optimizer)), optimize_before_conflict, termination,
-            "unavailable", Vector{Vector{EntityRef}}(), Vector{Vector{EntityRef}}(),
+            "unavailable", source_variable_count, source_constraint_count,
+            Vector{Vector{EntityRef}}(), Vector{Vector{EntityRef}}(),
             "could not read MOI.ConflictStatus: $(sprint(showerror, error))",
         )
     end
@@ -2896,7 +3256,6 @@ function compute_solver_conflict!(
     catch
         0
     end
-    model_snapshot = snapshot(model)
     conflicts = Vector{Vector{EntityRef}}()
     maybe_conflicts = Vector{Vector{EntityRef}}()
     for conflict_index in 1:conflict_count
@@ -2919,7 +3278,8 @@ function compute_solver_conflict!(
     end
     return SolverConflictResult(
         string(typeof(optimizer)), optimize_before_conflict, termination,
-        string(status), conflicts, maybe_conflicts, nothing,
+        string(status), source_variable_count, source_constraint_count,
+        conflicts, maybe_conflicts, nothing,
     )
 end
 
@@ -2931,6 +3291,8 @@ function analyze_solver_conflict(result::SolverConflictResult)
     report.metadata[:solver_conflict_optimized_copy] = string(result.optimize_before_conflict)
     report.metadata[:solver_conflict_termination] = result.termination_status
     report.metadata[:solver_conflict_status] = result.conflict_status
+    report.metadata[:solver_conflict_source_variable_count] = string(result.source_variable_count)
+    report.metadata[:solver_conflict_source_constraint_count] = string(result.source_constraint_count)
     report.metadata[:solver_conflict_count] = string(length(result.conflicts))
     if !isnothing(result.error)
         push!(report, Finding(:solver_conflict_unavailable;
@@ -2938,7 +3300,7 @@ function analyze_solver_conflict(result::SolverConflictResult)
             basis = NumericalObservation, confidence = ConfidenceHigh,
             observation = "The selected optimizer did not provide a readable MOI conflict result.",
             why_it_matters = "No conflict-based conclusion is made when the solver interface is unavailable or rejects the request.",
-            evidence = [Evidence("MOI conflict interface"; details = ["optimizer_type" => result.optimizer_type, "error" => result.error])],
+            evidence = [Evidence("MOI conflict interface"; details = ["optimizer_type" => result.optimizer_type, "source_variable_count" => result.source_variable_count, "source_constraint_count" => result.source_constraint_count, "error" => result.error])],
             suggested_actions = ["Use an optimizer with MOI conflict support or rely on the elastic subset analyses."],
         ))
         return report
@@ -2960,7 +3322,7 @@ function analyze_solver_conflict(result::SolverConflictResult)
                 basis = NumericalObservation, confidence = ConfidenceHigh,
                 observation = "The solver marked $(length(members)) source constraint(s) as participating in conflict $index.",
                 why_it_matters = "This is solver-provided conflict evidence for the copied model, not an independently verified IIS or a physical-cause diagnosis.",
-                evidence = [Evidence("MOI conflict membership"; details = ["conflict_index" => index, "optimizer_type" => result.optimizer_type, "termination_status" => result.termination_status])],
+                evidence = [Evidence("MOI conflict membership"; details = ["conflict_index" => index, "optimizer_type" => result.optimizer_type, "termination_status" => result.termination_status, "source_variable_count" => result.source_variable_count, "source_constraint_count" => result.source_constraint_count])],
                 affected = members,
                 suggested_actions = ["Cross-check these rows with elastic supports and solver settings before modifying the source formulation."],
             ))
@@ -3169,6 +3531,7 @@ function analyze(
     evaluation::Union{Nothing,NumericalEvaluation} = nothing,
     cache::EvaluationCache = EvaluationCache(),
     scale_ratio_threshold::Real = 1.0e6,
+    component_scale_mismatch_factor::Real = 1.0e3,
     unit_circle_radius_tolerance::Real = 1.0e-6,
     numeric_type::Union{Nothing,Type{<:AbstractFloat}} = nothing,
     strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
@@ -3328,6 +3691,7 @@ function analyze(
             model,
             numerical_evaluation;
             scale_ratio_threshold = scale_ratio_threshold,
+            component_scale_mismatch_factor = component_scale_mismatch_factor,
             numeric_type = selected_numeric_type,
             strict_domain_proximity_threshold = strict_domain_proximity_threshold,
         )
@@ -3380,6 +3744,7 @@ function analyze(
             numeric_type = numeric_type,
             strict_domain_proximity_threshold = strict_domain_proximity_threshold,
             scale_ratio_threshold = scale_ratio_threshold,
+            component_scale_mismatch_factor = component_scale_mismatch_factor,
             coupled_qualification_strict_tolerance =
                 coupled_qualification_strict_tolerance,
             coupled_qualification_max_iterations = coupled_qualification_max_iterations,
