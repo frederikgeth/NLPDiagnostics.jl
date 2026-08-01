@@ -251,6 +251,8 @@ export iterative_jacobian_spectrum_estimate
 export analyze_iterative_right_nullspace_probe
 export analyze_iterative_left_nullspace_probe
 export analyze_iterative_jacobian_spectrum_probe
+export analyze_iterative_right_nullspace_persistence
+export analyze_iterative_left_nullspace_persistence
 export constraint_feasibility_summary
 export coupled_set_feasibility_summary
 export coupled_set_activity
@@ -4497,8 +4499,9 @@ function analyze(
     (!isnothing(iterative_right_nullspace_probe_dimension) ||
      !isnothing(iterative_left_nullspace_probe_dimension) ||
      !isnothing(iterative_spectrum_probe_dimension)) &&
-        isnothing(point) && isnothing(evaluation) && throw(ArgumentError(
-            "iterative sparse probes require an explicit point or supplied evaluation",
+        isnothing(point) && isnothing(evaluation) && !check_initialization &&
+        isnothing(iteration_bindings) && throw(ArgumentError(
+            "iterative sparse probes require an explicit point, supplied evaluation, check_initialization = true, or iteration_bindings",
         ))
     !isnothing(solver_log) && isnothing(solver_name) && isnothing(postmortem) &&
         throw(ArgumentError(
@@ -4773,6 +4776,32 @@ function analyze(
             expected_modes = expected_modes,
             scale_ratio_threshold = scale_ratio_threshold,
             component_scale_mismatch_factor = component_scale_mismatch_factor,
+            iterative_right_nullspace_probe_dimension =
+                iterative_right_nullspace_probe_dimension,
+            iterative_right_nullspace_probe_iterations =
+                iterative_right_nullspace_probe_iterations,
+            iterative_right_nullspace_probe_convergence_tolerance =
+                iterative_right_nullspace_probe_convergence_tolerance,
+            iterative_right_nullspace_probe_residual_relative_tolerance =
+                iterative_right_nullspace_probe_residual_relative_tolerance,
+            iterative_right_nullspace_probe_support_relative =
+                iterative_right_nullspace_probe_support_relative,
+            iterative_left_nullspace_probe_dimension =
+                iterative_left_nullspace_probe_dimension,
+            iterative_left_nullspace_probe_iterations =
+                iterative_left_nullspace_probe_iterations,
+            iterative_left_nullspace_probe_convergence_tolerance =
+                iterative_left_nullspace_probe_convergence_tolerance,
+            iterative_left_nullspace_probe_residual_relative_tolerance =
+                iterative_left_nullspace_probe_residual_relative_tolerance,
+            iterative_left_nullspace_probe_support_relative =
+                iterative_left_nullspace_probe_support_relative,
+            iterative_spectrum_probe_dimension = iterative_spectrum_probe_dimension,
+            iterative_spectrum_probe_iterations = iterative_spectrum_probe_iterations,
+            iterative_spectrum_probe_convergence_tolerance =
+                iterative_spectrum_probe_convergence_tolerance,
+            iterative_spectrum_probe_spread_threshold =
+                iterative_spectrum_probe_spread_threshold,
             coupled_qualification_strict_tolerance =
                 coupled_qualification_strict_tolerance,
             coupled_qualification_max_iterations = coupled_qualification_max_iterations,
@@ -4827,6 +4856,32 @@ function analyze(
             cache = cache,
             relative_step = iteration_point_relative_step,
             expected_modes = expected_modes,
+            iterative_right_nullspace_probe_dimension =
+                iterative_right_nullspace_probe_dimension,
+            iterative_right_nullspace_probe_iterations =
+                iterative_right_nullspace_probe_iterations,
+            iterative_right_nullspace_probe_convergence_tolerance =
+                iterative_right_nullspace_probe_convergence_tolerance,
+            iterative_right_nullspace_probe_residual_relative_tolerance =
+                iterative_right_nullspace_probe_residual_relative_tolerance,
+            iterative_right_nullspace_probe_support_relative =
+                iterative_right_nullspace_probe_support_relative,
+            iterative_left_nullspace_probe_dimension =
+                iterative_left_nullspace_probe_dimension,
+            iterative_left_nullspace_probe_iterations =
+                iterative_left_nullspace_probe_iterations,
+            iterative_left_nullspace_probe_convergence_tolerance =
+                iterative_left_nullspace_probe_convergence_tolerance,
+            iterative_left_nullspace_probe_residual_relative_tolerance =
+                iterative_left_nullspace_probe_residual_relative_tolerance,
+            iterative_left_nullspace_probe_support_relative =
+                iterative_left_nullspace_probe_support_relative,
+            iterative_spectrum_probe_dimension = iterative_spectrum_probe_dimension,
+            iterative_spectrum_probe_iterations = iterative_spectrum_probe_iterations,
+            iterative_spectrum_probe_convergence_tolerance =
+                iterative_spectrum_probe_convergence_tolerance,
+            iterative_spectrum_probe_spread_threshold =
+                iterative_spectrum_probe_spread_threshold,
         )
         append!(report.findings, iteration_point_report.findings)
         for (key, value) in iteration_point_report.metadata

@@ -88,6 +88,13 @@ Exact-point derivative-domain and floating-point range checks are also run.
 Thus a valid value with a singular derivative, such as `sqrt(0)`, is not
 mistaken for a safe NLP evaluation point.
 
+`analyze_initialization` can additionally run any explicit iterative sparse
+right-nullspace, left-nullspace, or spectrum probe against a complete set of
+`VariablePrimalStart` values. These are opt-in through the same
+`iterative_*_probe_dimension` keywords used by `analyze`. Missing starts still
+stop before numerical probing; the debugger never invents values merely to run
+a large-model screen.
+
 ## Sparse derivative semantics
 
 `NumericalEvaluation.jacobian_entries` retains the sparse entries exactly as
@@ -768,7 +775,11 @@ bound point and compares the log's primal-infeasibility column against three
 recomputed quantities: scalar-bound violation, coupled-set violation, and
 their maximum. A large mismatch is representational evidence, since solvers
 may use different scaling or feasibility semantics; it is not a solver-error
-claim. When an objective is available, it also compares the logged objective
+claim. Its opt-in `iterative_*_probe_dimension` keywords run the same sparse
+right-nullspace, left-nullspace, and spectrum screens independently at every
+explicitly bound point. Aggregate requested/finding counts remain explicit;
+the finite probes do not turn an iteration trace into a rank or redundancy
+certificate. When an objective is available, it also compares the logged objective
 with the model objective at the supplied point. Potential barrier, penalty,
 scaling, and point-alignment differences remain evidence rather than an
 assumption that the log column is the unmodified model objective.
@@ -962,10 +973,23 @@ spectrum_report = analyze_iterative_jacobian_spectrum_probe(
 )
 ```
 
-Both functions also accept a values vector or an already captured
+All three functions also accept a values vector or an already captured
 `NumericalEvaluation`. Passing an evaluation avoids re-evaluating the model;
 the model/point and model/values overloads only provide a non-mutating
 convenience path through `evaluate_numerical`.
+
+For a combined solver-independent report, pass any desired probe dimensions to
+`analyze(model; point = point, ...)` (or supply `evaluation = evaluation`).
+The requested probe stages are named explicitly in `report.metadata[:stages]`.
+No probe is run by default, and requesting one without numerical evidence is
+an error rather than an implicit starting-point choice.
+
+`analyze_iterative_right_nullspace_persistence(evaluations; ...)` and
+`analyze_iterative_left_nullspace_persistence(evaluations; ...)` compare the
+retained candidate subspaces over explicitly chosen points using principal
+cosines. They report unavailable, absent, persistent, or changed candidate
+geometry. Because each subspace comes from an explicit finite probe budget,
+these are not rank-persistence, redundancy, or physical-gauge certificates.
 
 The right-nullspace report identifies candidate variable directions with a
 small Jacobian residual and material coordinate support. The corresponding

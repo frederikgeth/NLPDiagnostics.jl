@@ -468,6 +468,231 @@ function analyze_iterative_jacobian_spectrum_probe(
     )
 end
 
+function _iterative_probe_persistence_scale(
+    evaluation::NumericalEvaluation{T},
+    side::Symbol,
+) where {T<:AbstractFloat}
+    summary = jacobian_scale_summary(evaluation)
+    raw_scale = side == :right ? summary.largest_finite_row_norm :
+                summary.largest_finite_column_norm
+    return max(one(T), something(raw_scale, zero(T)))
+end
+
+function _iterative_probe_persistence_report(
+    evaluations::AbstractVector{<:NumericalEvaluation{T}},
+    side::Symbol;
+    probe_dimension::Integer,
+    minimum_evaluations::Integer,
+    iterations::Integer,
+    convergence_tolerance::Real,
+    residual_relative_tolerance::Real,
+    subspace_alignment_threshold::Real,
+) where {T<:AbstractFloat}
+    side in (:right, :left) || throw(ArgumentError("side must be :right or :left"))
+    probe_dimension > 0 || throw(ArgumentError("probe_dimension must be positive"))
+    minimum_evaluations >= 2 ||
+        throw(ArgumentError("minimum_evaluations must be at least two"))
+    iterations > 0 || throw(ArgumentError("iterations must be positive"))
+    tolerance = convert(T, residual_relative_tolerance)
+    isfinite(tolerance) && tolerance >= zero(T) ||
+        throw(ArgumentError("residual_relative_tolerance must be finite and nonnegative"))
+    zero(T) <= subspace_alignment_threshold <= one(T) ||
+        throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    report = DiagnosticReport()
+    stage_prefix = side == :right ? "iterative_right_nullspace_persistence" :
+                   "iterative_left_nullspace_persistence"
+    report.metadata[:stage] = stage_prefix
+    report.metadata[:evaluation_count] = string(length(evaluations))
+    report.metadata[:minimum_evaluations] = string(minimum_evaluations)
+    report.metadata[:probe_dimension] = string(probe_dimension)
+    report.metadata[:iterations] = string(iterations)
+    report.metadata[:residual_relative_tolerance] = string(tolerance)
+    report.metadata[:subspace_alignment_threshold] = string(subspace_alignment_threshold)
+    isempty(evaluations) && return report
+    reference_coordinates = side == :right ? first(evaluations).point.variables :
+                            first(evaluations).constraint_sources
+    if any(
+        (side == :right ? evaluation.point.variables : evaluation.constraint_sources) !=
+        reference_coordinates for evaluation in evaluations
+    )
+        push!(report, Finding(
+            Symbol(stage_prefix * "_coordinate_mismatch");
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = StructuralProof,
+            confidence = ConfidenceCertain,
+            observation = "Iterative $(side)-candidate probes do not share one ordered coordinate scope across the supplied evaluations.",
+            why_it_matters = "Candidate-subspace persistence requires the same coordinates at every explicitly supplied point.",
+            evidence = [Evidence("Iterative candidate-subspace coordinate alignment"; details = [
+                "side" => side,
+                "evaluation_count" => length(evaluations),
+            ])],
+            suggested_actions = ["Evaluate the same ordered variables or scalar constraint rows at every point."],
+        ))
+        return report
+    end
+    probes = [
+        side == :right ?
+        iterative_right_nullspace_subspace_estimate(
+            evaluation, probe_dimension;
+            iterations = iterations, convergence_tolerance = convergence_tolerance,
+        ) :
+        iterative_left_nullspace_subspace_estimate(
+            evaluation, probe_dimension;
+            iterations = iterations, convergence_tolerance = convergence_tolerance,
+        ) for evaluation in evaluations
+    ]
+    available_indices = findall(probe -> probe.available, probes)
+    report.metadata[:available_evaluation_count] = string(length(available_indices))
+    if length(available_indices) < minimum_evaluations
+        push!(report, Finding(
+            Symbol(stage_prefix * "_unavailable");
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "Only $(length(available_indices)) supplied evaluation(s) have an available iterative $(side)-candidate probe.",
+            why_it_matters = "Persistence cannot be assessed when too few explicitly requested sparse probes have complete finite products.",
+            evidence = [Evidence("Iterative candidate-subspace availability"; details = [
+                "side" => side,
+                "evaluation_count" => length(evaluations),
+                "available_evaluation_count" => length(available_indices),
+                "minimum_evaluations" => minimum_evaluations,
+            ])],
+            suggested_actions = ["Resolve derivative availability or repeat at explicitly chosen points with a documented probe budget."],
+        ))
+        return report
+    end
+    candidate_subspaces = Matrix{T}[]
+    dimensions = Int[]
+    converged = Bool[]
+    labels = String[]
+    for index in available_indices
+        probe = probes[index]
+        evaluation = evaluations[index]
+        scale = _iterative_probe_persistence_scale(evaluation, side)
+        retained = findall(residual -> residual / scale <= tolerance, probe.residual_norms)
+        push!(candidate_subspaces, probe.directions[:, retained])
+        push!(dimensions, length(retained))
+        push!(converged, probe.converged)
+        push!(labels, evaluation.point.label)
+    end
+    report.metadata[:available_point_labels] = join(labels, ",")
+    report.metadata[:candidate_dimensions] = join(dimensions, ",")
+    report.metadata[:candidate_probe_converged_count] = string(count(identity, converged))
+    if all(iszero, dimensions)
+        push!(report, Finding(
+            Symbol(stage_prefix * "_no_small_residual_candidate");
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = all(converged) ? ConfidenceMedium : ConfidenceLow,
+            observation = "No available iterative $(side)-candidate probe produced a direction below its relative residual threshold across the supplied points.",
+            why_it_matters = "This finite screen does not establish full rank or row independence; it only lacks a retained candidate at the chosen budget.",
+            evidence = [Evidence("Iterative candidate-subspace persistence"; details = [
+                "side" => side,
+                "point_labels" => join(labels, ","),
+                "candidate_dimensions" => join(dimensions, ","),
+                "relative_tolerance" => tolerance,
+            ])],
+            suggested_actions = ["Increase the explicit probe dimension or iteration budget, or use guarded dense rank/nullspace analysis when feasible."],
+        ))
+        return report
+    end
+    same_dimension = all(==(first(dimensions)), dimensions) && first(dimensions) > 0
+    minimum_cosine = zero(T)
+    if same_dimension
+        minimum_cosine = one(T)
+        for left in 1:(length(candidate_subspaces) - 1),
+            right in (left + 1):length(candidate_subspaces)
+            cosines = svdvals(transpose(candidate_subspaces[left]) * candidate_subspaces[right])
+            minimum_cosine = min(minimum_cosine, isempty(cosines) ? zero(T) : minimum(cosines))
+        end
+    end
+    persistent = same_dimension && minimum_cosine >= convert(T, subspace_alignment_threshold)
+    report.metadata[:minimum_principal_cosine] = string(minimum_cosine)
+    affected = side == :right ?
+               EntityRef[EntityRef(:variable, variable.value) for variable in reference_coordinates] :
+               copy(reference_coordinates)
+    push!(report, Finding(
+        Symbol(stage_prefix * (persistent ? "_persistent" : "_not_persistent"));
+        severity = persistent ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = all(converged) ? ConfidenceMedium : ConfidenceLow,
+        observation = persistent ?
+                      "Iterative $(side)-candidate subspaces have the same retained dimension and align across the supplied points." :
+                      "Iterative $(side)-candidate subspaces change dimension or fail the requested alignment threshold across the supplied points.",
+        why_it_matters = "This compares finite-probe candidate geometry only; it does not certify rank, nullity, redundancy, or a physical explanation.",
+        evidence = [Evidence("Iterative candidate-subspace persistence"; details = [
+            "side" => side,
+            "point_labels" => join(labels, ","),
+            "candidate_dimensions" => join(dimensions, ","),
+            "minimum_principal_cosine" => minimum_cosine,
+            "alignment_threshold" => subspace_alignment_threshold,
+            "relative_tolerance" => tolerance,
+            "all_probes_converged" => all(converged),
+        ])],
+        affected = affected,
+        suggested_actions = persistent ?
+                            ["Compare the repeated candidate support with structural analysis and any plugin-declared expected modes."] :
+                            ["Inspect the explicit points, residual thresholds, and scaling before attributing a changing candidate to the model formulation."],
+    ))
+    return report
+end
+
+"""
+    analyze_iterative_right_nullspace_persistence(evaluations; ...)
+
+Compare finite-budget candidate right-null subspaces over explicitly supplied
+evaluations. This is not a numerical-rank persistence certificate.
+"""
+function analyze_iterative_right_nullspace_persistence(
+    evaluations::AbstractVector{<:NumericalEvaluation{T}};
+    probe_dimension::Integer = 1,
+    minimum_evaluations::Integer = 2,
+    iterations::Integer = 100,
+    convergence_tolerance::Real = sqrt(eps(T)),
+    residual_relative_tolerance::Real = sqrt(eps(T)),
+    subspace_alignment_threshold::Real = 0.98,
+) where {T<:AbstractFloat}
+    return _iterative_probe_persistence_report(
+        evaluations, :right;
+        probe_dimension = probe_dimension,
+        minimum_evaluations = minimum_evaluations,
+        iterations = iterations,
+        convergence_tolerance = convergence_tolerance,
+        residual_relative_tolerance = residual_relative_tolerance,
+        subspace_alignment_threshold = subspace_alignment_threshold,
+    )
+end
+
+"""
+    analyze_iterative_left_nullspace_persistence(evaluations; ...)
+
+Compare finite-budget candidate left-null subspaces over explicitly supplied
+evaluations. This is not a dependency, redundancy, or IIS certificate.
+"""
+function analyze_iterative_left_nullspace_persistence(
+    evaluations::AbstractVector{<:NumericalEvaluation{T}};
+    probe_dimension::Integer = 1,
+    minimum_evaluations::Integer = 2,
+    iterations::Integer = 100,
+    convergence_tolerance::Real = sqrt(eps(T)),
+    residual_relative_tolerance::Real = sqrt(eps(T)),
+    subspace_alignment_threshold::Real = 0.98,
+) where {T<:AbstractFloat}
+    return _iterative_probe_persistence_report(
+        evaluations, :left;
+        probe_dimension = probe_dimension,
+        minimum_evaluations = minimum_evaluations,
+        iterations = iterations,
+        convergence_tolerance = convergence_tolerance,
+        residual_relative_tolerance = residual_relative_tolerance,
+        subspace_alignment_threshold = subspace_alignment_threshold,
+    )
+end
+
 function _point_evidence(point::EvaluationPoint)
     preview_length = min(length(point.variables), 20)
     variables = point.variables[1:preview_length]

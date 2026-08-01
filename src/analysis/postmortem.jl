@@ -1014,6 +1014,24 @@ function analyze_iteration_points(
     degeneracy_nullspace_support_relative::Real = 0.1,
     degeneracy_nullspace_uniform_shift_correlation::Real = 0.98,
     degeneracy_nullspace_max_compact_support::Integer = 8,
+    iterative_right_nullspace_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_right_nullspace_probe_iterations::Integer = 100,
+    iterative_right_nullspace_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
+    iterative_right_nullspace_probe_residual_relative_tolerance::Real = sqrt(eps(Float64)),
+    iterative_right_nullspace_probe_support_relative::Real = 0.1,
+    iterative_left_nullspace_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_left_nullspace_probe_iterations::Integer = 100,
+    iterative_left_nullspace_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
+    iterative_left_nullspace_probe_residual_relative_tolerance::Real = sqrt(eps(Float64)),
+    iterative_left_nullspace_probe_support_relative::Real = 0.1,
+    iterative_spectrum_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_spectrum_probe_iterations::Integer = 100,
+    iterative_spectrum_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
+    iterative_spectrum_probe_spread_threshold::Real = 1.0e6,
+    check_iterative_right_nullspace_persistence::Bool = false,
+    check_iterative_left_nullspace_persistence::Bool = false,
+    iterative_probe_persistence_minimum_evaluations::Integer = 2,
+    iterative_probe_persistence_alignment_threshold::Real = 0.98,
     kwargs...,
 )
     residual_agreement_factor > 1 || throw(
@@ -1027,6 +1045,14 @@ function analyze_iteration_points(
         throw(ArgumentError("objective_trace_tolerance must be nonnegative"))
     !isnothing(relative_step) && relative_step <= 0 &&
         throw(ArgumentError("relative_step must be positive when supplied"))
+    check_iterative_right_nullspace_persistence &&
+        isnothing(iterative_right_nullspace_probe_dimension) && throw(ArgumentError(
+            "right iterative candidate persistence requires iterative_right_nullspace_probe_dimension",
+        ))
+    check_iterative_left_nullspace_persistence &&
+        isnothing(iterative_left_nullspace_probe_dimension) && throw(ArgumentError(
+            "left iterative candidate persistence requires iterative_left_nullspace_probe_dimension",
+        ))
     report = DiagnosticReport()
     report.metadata[:stage] = "iteration_points"
     report.metadata[:bound_iteration_count] = string(length(bindings))
@@ -1039,6 +1065,16 @@ function analyze_iteration_points(
         string(check_rank_persistence)
     report.metadata[:bound_iteration_component_rank_persistence_checked] =
         string(check_component_rank_persistence)
+    report.metadata[:bound_iteration_iterative_right_probe_requested] =
+        string(!isnothing(iterative_right_nullspace_probe_dimension))
+    report.metadata[:bound_iteration_iterative_left_probe_requested] =
+        string(!isnothing(iterative_left_nullspace_probe_dimension))
+    report.metadata[:bound_iteration_iterative_spectrum_probe_requested] =
+        string(!isnothing(iterative_spectrum_probe_dimension))
+    report.metadata[:bound_iteration_iterative_right_probe_persistence_checked] =
+        string(check_iterative_right_nullspace_persistence)
+    report.metadata[:bound_iteration_iterative_left_probe_persistence_checked] =
+        string(check_iterative_left_nullspace_persistence)
     report.metadata[:bound_iteration_segment_selector_count] = string(count(
         binding -> binding.selector == :segment_iteration, bindings,
     ))
@@ -1072,6 +1108,11 @@ function analyze_iteration_points(
     objective_trace = Tuple{IterationPointBinding,Float64}[]
     degeneracy_finding_count = 0
     component_rank_finding_count = 0
+    iterative_right_probe_finding_count = 0
+    iterative_left_probe_finding_count = 0
+    iterative_spectrum_probe_finding_count = 0
+    iterative_right_persistence_segment_count = 0
+    iterative_left_persistence_segment_count = 0
     evaluations_by_segment = Dict{Int,Any}()
     segment_qualified_metadata = length(unique([
         (binding.segment, binding.record.iteration) for binding in bindings
@@ -1107,6 +1148,41 @@ function analyze_iteration_points(
             )
             append!(report.findings, degeneracy_report.findings)
             degeneracy_finding_count += length(degeneracy_report.findings)
+        end
+        if !isnothing(iterative_right_nullspace_probe_dimension)
+            probe_report = analyze_iterative_right_nullspace_probe(
+                evaluation;
+                probe_dimension = iterative_right_nullspace_probe_dimension,
+                iterations = iterative_right_nullspace_probe_iterations,
+                convergence_tolerance = iterative_right_nullspace_probe_convergence_tolerance,
+                residual_relative_tolerance = iterative_right_nullspace_probe_residual_relative_tolerance,
+                support_relative = iterative_right_nullspace_probe_support_relative,
+            )
+            append!(report.findings, probe_report.findings)
+            iterative_right_probe_finding_count += length(probe_report.findings)
+        end
+        if !isnothing(iterative_left_nullspace_probe_dimension)
+            probe_report = analyze_iterative_left_nullspace_probe(
+                evaluation;
+                probe_dimension = iterative_left_nullspace_probe_dimension,
+                iterations = iterative_left_nullspace_probe_iterations,
+                convergence_tolerance = iterative_left_nullspace_probe_convergence_tolerance,
+                residual_relative_tolerance = iterative_left_nullspace_probe_residual_relative_tolerance,
+                support_relative = iterative_left_nullspace_probe_support_relative,
+            )
+            append!(report.findings, probe_report.findings)
+            iterative_left_probe_finding_count += length(probe_report.findings)
+        end
+        if !isnothing(iterative_spectrum_probe_dimension)
+            probe_report = analyze_iterative_jacobian_spectrum_probe(
+                evaluation;
+                probe_dimension = iterative_spectrum_probe_dimension,
+                iterations = iterative_spectrum_probe_iterations,
+                convergence_tolerance = iterative_spectrum_probe_convergence_tolerance,
+                spectral_spread_threshold = iterative_spectrum_probe_spread_threshold,
+            )
+            append!(report.findings, probe_report.findings)
+            iterative_spectrum_probe_finding_count += length(probe_report.findings)
         end
         if check_component_ranks
             component_rank_report = analyze_component_ranks(
@@ -1251,12 +1327,58 @@ function analyze_iteration_points(
             end
         end
     end
+    if check_iterative_right_nullspace_persistence ||
+       check_iterative_left_nullspace_persistence
+        for (_, evaluations) in sort(collect(evaluations_by_segment); by = first)
+            length(evaluations) >= iterative_probe_persistence_minimum_evaluations || continue
+            if check_iterative_right_nullspace_persistence
+                persistence_report = analyze_iterative_right_nullspace_persistence(
+                    evaluations;
+                    probe_dimension = iterative_right_nullspace_probe_dimension,
+                    minimum_evaluations = iterative_probe_persistence_minimum_evaluations,
+                    iterations = iterative_right_nullspace_probe_iterations,
+                    convergence_tolerance = iterative_right_nullspace_probe_convergence_tolerance,
+                    residual_relative_tolerance =
+                        iterative_right_nullspace_probe_residual_relative_tolerance,
+                    subspace_alignment_threshold =
+                        iterative_probe_persistence_alignment_threshold,
+                )
+                append!(report.findings, persistence_report.findings)
+                iterative_right_persistence_segment_count += 1
+            end
+            if check_iterative_left_nullspace_persistence
+                persistence_report = analyze_iterative_left_nullspace_persistence(
+                    evaluations;
+                    probe_dimension = iterative_left_nullspace_probe_dimension,
+                    minimum_evaluations = iterative_probe_persistence_minimum_evaluations,
+                    iterations = iterative_left_nullspace_probe_iterations,
+                    convergence_tolerance = iterative_left_nullspace_probe_convergence_tolerance,
+                    residual_relative_tolerance =
+                        iterative_left_nullspace_probe_residual_relative_tolerance,
+                    subspace_alignment_threshold =
+                        iterative_probe_persistence_alignment_threshold,
+                )
+                append!(report.findings, persistence_report.findings)
+                iterative_left_persistence_segment_count += 1
+            end
+        end
+    end
     objective_trace_segments = sort(unique(item[1].segment for item in objective_trace))
     report.metadata[:bound_iteration_segment_count] = string(length(trace_segments))
     report.metadata[:bound_iteration_degeneracy_finding_count] =
         string(degeneracy_finding_count)
     report.metadata[:bound_iteration_component_rank_finding_count] =
         string(component_rank_finding_count)
+    report.metadata[:bound_iteration_iterative_right_probe_finding_count] =
+        string(iterative_right_probe_finding_count)
+    report.metadata[:bound_iteration_iterative_left_probe_finding_count] =
+        string(iterative_left_probe_finding_count)
+    report.metadata[:bound_iteration_iterative_spectrum_probe_finding_count] =
+        string(iterative_spectrum_probe_finding_count)
+    report.metadata[:bound_iteration_iterative_right_probe_persistence_segment_count] =
+        string(iterative_right_persistence_segment_count)
+    report.metadata[:bound_iteration_iterative_left_probe_persistence_segment_count] =
+        string(iterative_left_persistence_segment_count)
     report.metadata[:bound_iteration_rank_persistence_segment_count] =
         string(persistence_segment_count)
     report.metadata[:bound_iteration_component_rank_persistence_segment_count] =

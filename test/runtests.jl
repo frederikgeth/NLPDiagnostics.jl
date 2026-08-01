@@ -163,8 +163,10 @@ end
     stability_markdown = NLPDiagnostics.markdown_profile_aggregate(
         stability_aggregates["stability_log1mexp_composite"],
     )
-    @test occursin("# NLPDiagnostics profile: stability_log1mexp_composite", stability_markdown)
-    @test occursin("## Expected evidence", stability_markdown)
+        @test occursin("# NLPDiagnostics profile: stability_log1mexp_composite", stability_markdown)
+        @test occursin("## Expected evidence", stability_markdown)
+        @test occursin("## Numerical observations", stability_markdown)
+        @test occursin("`jacobian_rank`", stability_markdown)
     @test occursin("`expressions`", stability_markdown)
     stability_comparison_markdown = NLPDiagnostics.markdown_profile_comparison(
         stability_comparison,
@@ -4841,6 +4843,34 @@ end
         )
         @test iterative_left_probe_from_model.metadata[:evaluation_point_label] ==
               "left probe convenience point"
+        second_evaluation = NLPDiagnostics.evaluate_numerical(
+            model,
+            NLPDiagnostics.evaluation_point(
+                model,
+                [1.0, -1.0];
+                label = "second affine point",
+            ),
+        )
+        right_probe_persistence =
+            NLPDiagnostics.analyze_iterative_right_nullspace_persistence(
+                [evaluation, second_evaluation];
+                iterations = 200,
+                residual_relative_tolerance = 1.0e-5,
+            )
+        @test length(findings(
+            right_probe_persistence,
+            :iterative_right_nullspace_persistence_persistent,
+        )) == 1
+        left_probe_persistence =
+            NLPDiagnostics.analyze_iterative_left_nullspace_persistence(
+                [evaluation, second_evaluation];
+                iterations = 200,
+                residual_relative_tolerance = 1.0e-5,
+            )
+        @test length(findings(
+            left_probe_persistence,
+            :iterative_left_nullspace_persistence_persistent,
+        )) == 1
         combined_iterative_probe_report = NLPDiagnostics.analyze(
             model;
             evaluation = evaluation,
@@ -10335,6 +10365,32 @@ end
         @test length(findings(
             stationary_start_report, :candidate_single_coordinate_null_direction,
         )) == 1
+        stationary_start_probe_report = NLPDiagnostics.analyze_initialization(
+            stationary_start;
+            iterative_right_nullspace_probe_dimension = 1,
+            iterative_right_nullspace_probe_iterations = 20,
+            iterative_left_nullspace_probe_dimension = 1,
+            iterative_left_nullspace_probe_iterations = 20,
+            iterative_spectrum_probe_dimension = 1,
+            iterative_spectrum_probe_iterations = 20,
+        )
+        @test stationary_start_probe_report.metadata[
+            :initialization_iterative_left_probe_requested
+        ] == "true"
+        @test length(findings(
+            stationary_start_probe_report,
+            :iterative_jacobian_candidate_small_residual_left_direction,
+        )) == 1
+        combined_initialization_probe_report = NLPDiagnostics.analyze(
+            stationary_start;
+            check_initialization = true,
+            iterative_left_nullspace_probe_dimension = 1,
+            iterative_left_nullspace_probe_iterations = 20,
+        )
+        @test length(findings(
+            combined_initialization_probe_report,
+            :iterative_jacobian_candidate_small_residual_left_direction,
+        )) == 1
         stationary_component = NLPDiagnostics.ComponentMetadata(
             :test_component,
             "stationary";
@@ -10886,6 +10942,35 @@ end
         @test stationary_iteration_report.metadata[
             :bound_iteration_component_ranks_checked
         ] == "true"
+        stationary_iteration_probe_report = NLPDiagnostics.analyze_iteration_points(
+            stationary_iteration_model,
+            [stationary_iteration_binding];
+            iterative_right_nullspace_probe_dimension = 1,
+            iterative_right_nullspace_probe_iterations = 20,
+            iterative_left_nullspace_probe_dimension = 1,
+            iterative_left_nullspace_probe_iterations = 20,
+            iterative_spectrum_probe_dimension = 1,
+            iterative_spectrum_probe_iterations = 20,
+        )
+        @test stationary_iteration_probe_report.metadata[
+            :bound_iteration_iterative_left_probe_requested
+        ] == "true"
+        @test stationary_iteration_probe_report.metadata[
+            :bound_iteration_iterative_left_probe_finding_count
+        ] == "1"
+        @test length(findings(
+            stationary_iteration_probe_report,
+            :iterative_jacobian_candidate_small_residual_left_direction,
+        )) == 1
+        combined_iteration_probe_report = NLPDiagnostics.analyze(
+            stationary_iteration_model;
+            iteration_bindings = [stationary_iteration_binding],
+            iterative_left_nullspace_probe_dimension = 1,
+            iterative_left_nullspace_probe_iterations = 20,
+        )
+        @test combined_iteration_probe_report.metadata[
+            :iteration_points_bound_iteration_iterative_left_probe_finding_count
+        ] == "1"
         no_degeneracy_iteration_report = NLPDiagnostics.analyze_iteration_points(
             stationary_iteration_model,
             [stationary_iteration_binding];

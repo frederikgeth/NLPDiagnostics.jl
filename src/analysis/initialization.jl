@@ -341,6 +341,20 @@ function analyze_initialization(
     degeneracy_nullspace_support_relative::Real = 0.1,
     degeneracy_nullspace_uniform_shift_correlation::Real = 0.98,
     degeneracy_nullspace_max_compact_support::Integer = 8,
+    iterative_right_nullspace_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_right_nullspace_probe_iterations::Integer = 100,
+    iterative_right_nullspace_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
+    iterative_right_nullspace_probe_residual_relative_tolerance::Real = sqrt(eps(Float64)),
+    iterative_right_nullspace_probe_support_relative::Real = 0.1,
+    iterative_left_nullspace_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_left_nullspace_probe_iterations::Integer = 100,
+    iterative_left_nullspace_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
+    iterative_left_nullspace_probe_residual_relative_tolerance::Real = sqrt(eps(Float64)),
+    iterative_left_nullspace_probe_support_relative::Real = 0.1,
+    iterative_spectrum_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_spectrum_probe_iterations::Integer = 100,
+    iterative_spectrum_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
+    iterative_spectrum_probe_spread_threshold::Real = 1.0e6,
     coupled_qualification_strict_tolerance::Union{Nothing,Real} = nothing,
     coupled_qualification_max_iterations::Integer = 1_000,
 )
@@ -350,6 +364,12 @@ function analyze_initialization(
     report = DiagnosticReport()
     report.metadata[:stage] = "initialization"
     report.metadata[:initialization_variable_count] = string(length(variables))
+    report.metadata[:initialization_iterative_right_probe_requested] =
+        string(!isnothing(iterative_right_nullspace_probe_dimension))
+    report.metadata[:initialization_iterative_left_probe_requested] =
+        string(!isnothing(iterative_left_nullspace_probe_dimension))
+    report.metadata[:initialization_iterative_spectrum_probe_requested] =
+        string(!isnothing(iterative_spectrum_probe_dimension))
     report.metadata[:coupled_qualification_max_iterations] =
         string(coupled_qualification_max_iterations)
     report.metadata[:missing_initial_value_count] =
@@ -416,6 +436,41 @@ function analyze_initialization(
     merge!(report.metadata, numerical.metadata)
     report.metadata[:stage] = "initialization"
     evaluation = evaluate_numerical(model, point; cache = cache)
+    if !isnothing(iterative_right_nullspace_probe_dimension)
+        probe_report = analyze_iterative_right_nullspace_probe(
+            evaluation;
+            probe_dimension = iterative_right_nullspace_probe_dimension,
+            iterations = iterative_right_nullspace_probe_iterations,
+            convergence_tolerance = iterative_right_nullspace_probe_convergence_tolerance,
+            residual_relative_tolerance = iterative_right_nullspace_probe_residual_relative_tolerance,
+            support_relative = iterative_right_nullspace_probe_support_relative,
+        )
+        append!(report.findings, probe_report.findings)
+        merge!(report.metadata, probe_report.metadata)
+    end
+    if !isnothing(iterative_left_nullspace_probe_dimension)
+        probe_report = analyze_iterative_left_nullspace_probe(
+            evaluation;
+            probe_dimension = iterative_left_nullspace_probe_dimension,
+            iterations = iterative_left_nullspace_probe_iterations,
+            convergence_tolerance = iterative_left_nullspace_probe_convergence_tolerance,
+            residual_relative_tolerance = iterative_left_nullspace_probe_residual_relative_tolerance,
+            support_relative = iterative_left_nullspace_probe_support_relative,
+        )
+        append!(report.findings, probe_report.findings)
+        merge!(report.metadata, probe_report.metadata)
+    end
+    if !isnothing(iterative_spectrum_probe_dimension)
+        probe_report = analyze_iterative_jacobian_spectrum_probe(
+            evaluation;
+            probe_dimension = iterative_spectrum_probe_dimension,
+            iterations = iterative_spectrum_probe_iterations,
+            convergence_tolerance = iterative_spectrum_probe_convergence_tolerance,
+            spectral_spread_threshold = iterative_spectrum_probe_spread_threshold,
+        )
+        append!(report.findings, probe_report.findings)
+        merge!(report.metadata, probe_report.metadata)
+    end
     if check_degeneracy
         degeneracy_keywords = (
             nullspace_support_relative = degeneracy_nullspace_support_relative,

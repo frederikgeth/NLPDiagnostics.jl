@@ -185,6 +185,21 @@ function markdown_profile_aggregate(aggregate::ProfileAggregate)
         println(io, "| `", stage, "` | ", timing.mean, " | ", allocations.mean, " |")
     end
     println(io)
+    println(io, "## Numerical observations")
+    println(io)
+    println(io, "| Metric | Availability | Mean | Minimum | Maximum | Standard deviation |")
+    println(io, "| --- | ---: | ---: | ---: | ---: | ---: |")
+    for item in sort!(copy(aggregate.numerical_summary); by = entry -> string(entry.metric))
+        println(
+            io,
+            "| `", item.metric, "` | ", item.available_count, "/", item.run_count,
+            " | ", something(item.mean, "unavailable"),
+            " | ", something(item.minimum, "unavailable"),
+            " | ", something(item.maximum, "unavailable"),
+            " | ", something(item.standard_deviation, "unavailable"), " |",
+        )
+    end
+    println(io)
     println(io, "## Finding stability")
     println(io)
     println(io, "| Stage | Code | Fraction |")

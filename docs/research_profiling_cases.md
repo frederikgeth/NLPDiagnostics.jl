@@ -156,8 +156,8 @@ benchmark infrastructure can serialize the data with its own chosen package.
 `profile_comparison_data` provides the corresponding portable stage, finding,
 and numerical-metric comparisons without assigning either formulation a score.
 `markdown_profile_aggregate` provides a concise human-facing view of one
-aggregate's retained runs, expected-evidence recovery, stage observations, and
-finding stability.
+aggregate's retained runs, expected-evidence recovery, stage observations,
+availability-aware numerical observations, and finding stability.
 `markdown_profile_comparison` provides the corresponding human-facing stage,
 finding, and numerical-metric comparison without selecting a winner.
 
