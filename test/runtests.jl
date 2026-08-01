@@ -4795,6 +4795,22 @@ end
         @test iterative_null.residual_norm < 1.0e-6
         @test maximum(abs, [1.0 1.0; 2.0 2.0] * iterative_null.direction) <
               1.0e-6
+        iterative_probe_report = NLPDiagnostics.analyze_iterative_right_nullspace_probe(
+            evaluation;
+            iterations = 200,
+            residual_relative_tolerance = 1.0e-5,
+        )
+        @test iterative_probe_report.metadata[:iterative_probe_available] == "true"
+        @test iterative_probe_report.metadata[
+            :iterative_probe_small_residual_direction_count
+        ] == "1"
+        @test length(findings(
+            iterative_probe_report,
+            :iterative_jacobian_candidate_small_residual_direction,
+        )) == 1
+        @test_throws ArgumentError NLPDiagnostics.analyze_iterative_right_nullspace_probe(
+            evaluation; probe_dimension = 0,
+        )
         two_dimensional_model = new_model()
         a, b, c = MOI.add_variables(two_dimensional_model, 3)
         MOI.add_constraint(
@@ -4827,6 +4843,22 @@ end
         @test iterative_spectrum.largest_singular_value_proxy ≈ sqrt(2.0) atol = 1.0e-6
         @test maximum(iterative_spectrum.candidate_small_singular_values) < 1.0e-6
         @test all(value -> value > 1.0e6, iterative_spectrum.spectral_spread_proxies)
+        iterative_spectrum_report = NLPDiagnostics.analyze_iterative_jacobian_spectrum_probe(
+            two_dimensional_evaluation;
+            probe_dimension = 2,
+            iterations = 200,
+            spectral_spread_threshold = 1.0e6,
+        )
+        @test iterative_spectrum_report.metadata[
+            :iterative_spectrum_probe_large_spread_count
+        ] == "2"
+        @test length(findings(
+            iterative_spectrum_report,
+            :iterative_jacobian_large_spectral_spread_proxy,
+        )) == 2
+        @test_throws ArgumentError NLPDiagnostics.analyze_iterative_jacobian_spectrum_probe(
+            two_dimensional_evaluation; spectral_spread_threshold = 1.0,
+        )
 
         zero_column_model = new_model()
         r, s = MOI.add_variables(zero_column_model, 2)

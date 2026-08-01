@@ -806,11 +806,20 @@ the analogous block probe when several candidate directions are useful; it
 returns orthonormal columns and a residual for each column. Neither API is
 used implicitly by `analyze_numerical`, because a requested candidate subspace
 must not be confused with an inferred nullity.
+`analyze_iterative_right_nullspace_probe(evaluation; ...)` is the corresponding
+explicit report wrapper. It records probe budget, convergence, residual scale,
+and material variable support for directions below a caller-selected residual
+threshold. Its findings are candidate numerical evidence only; the wrapper
+does not certify a nullspace, numerical rank, or physical mode.
 
 `iterative_jacobian_spectrum_estimate` combines a normal-operator power scale
 with the block probe's small-direction residuals. Its reported spectral spreads
 are screening proxies only—not condition estimates or singular-value bounds—so
 they remain opt-in and are never emitted as automatic conditioning findings.
+`analyze_iterative_jacobian_spectrum_probe(evaluation; ...)` provides the
+corresponding explicit report wrapper. It reports large spread proxies as
+heuristics and retains the probe dimension, convergence, residuals, and
+threshold; it never labels a proxy as a condition number.
 
 ## Active-set dependence fingerprints
 

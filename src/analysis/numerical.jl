@@ -74,6 +74,197 @@ function jacobian_scale_summary(evaluation::NumericalEvaluation{T}) where {T}
     )
 end
 
+"""
+    analyze_iterative_right_nullspace_probe(evaluation; ...)
+
+Run the explicit sparse-matvec candidate-direction probe and turn its output
+into inspectable numerical findings. This is intentionally separate from
+`analyze_numerical`: a requested probe dimension is not an inferred nullity,
+and a small residual is not a rank or physical-gauge certificate.
+"""
+function analyze_iterative_right_nullspace_probe(
+    evaluation::NumericalEvaluation{T};
+    probe_dimension::Integer = 1,
+    iterations::Integer = 100,
+    convergence_tolerance::Real = sqrt(eps(T)),
+    residual_relative_tolerance::Real = sqrt(eps(T)),
+    support_relative::Real = 0.1,
+) where {T<:AbstractFloat}
+    probe_dimension > 0 || throw(ArgumentError("probe_dimension must be positive"))
+    iterations > 0 || throw(ArgumentError("iterations must be positive"))
+    residual_tolerance = convert(T, residual_relative_tolerance)
+    isfinite(residual_tolerance) && residual_tolerance >= zero(T) ||
+        throw(ArgumentError("residual_relative_tolerance must be finite and nonnegative"))
+    zero(T) < support_relative <= one(T) ||
+        throw(ArgumentError("support_relative must lie in (0, 1]"))
+    probe = iterative_right_nullspace_subspace_estimate(
+        evaluation, probe_dimension;
+        iterations = iterations,
+        convergence_tolerance = convergence_tolerance,
+    )
+    report = DiagnosticReport()
+    report.metadata[:stage] = "iterative_right_nullspace_probe"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:iterative_probe_requested_dimension] = string(probe_dimension)
+    report.metadata[:iterative_probe_available] = string(probe.available)
+    report.metadata[:iterative_probe_iterations] = string(probe.iterations)
+    report.metadata[:iterative_probe_converged] = string(probe.converged)
+    report.metadata[:iterative_probe_residual_relative_tolerance] =
+        string(residual_tolerance)
+    report.metadata[:iterative_probe_support_relative] = string(support_relative)
+    if !probe.available
+        push!(report, Finding(:iterative_jacobian_nullspace_probe_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The requested iterative sparse Jacobian candidate-direction probe is unavailable: $(probe.reason).",
+            why_it_matters = "No candidate null direction is reported when sparse products or the probe initialization are unavailable.",
+            evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse probe availability"; details = [
+                "requested_dimension" => probe_dimension, "reason" => probe.reason,
+            ])],
+            suggested_actions = ["Resolve incomplete or non-finite Jacobian evidence, or use guarded dense rank analysis when feasible."],
+        ))
+        return report
+    end
+    scale_summary = jacobian_scale_summary(evaluation)
+    scale = max(one(T), something(scale_summary.largest_finite_row_norm, zero(T)))
+    report.metadata[:iterative_probe_residual_scale] = string(scale)
+    report.metadata[:iterative_probe_residual_norms] = join(probe.residual_norms, ",")
+    reported = 0
+    for column in axes(probe.directions, 2)
+        direction = view(probe.directions, :, column)
+        residual = probe.residual_norms[column]
+        relative_residual = residual / scale
+        relative_residual <= residual_tolerance || continue
+        magnitude = maximum(abs, direction; init = zero(T))
+        support = iszero(magnitude) ? Int[] :
+                  findall(value -> abs(value) >= T(support_relative) * magnitude, direction)
+        variables = evaluation.point.variables[support]
+        push!(report, Finding(:iterative_jacobian_candidate_small_residual_direction;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = probe.converged ? ConfidenceMedium : ConfidenceLow,
+            observation = "Iterative sparse probe direction $column has relative Jacobian residual $relative_residual below the requested threshold $residual_tolerance.",
+            why_it_matters = "This is a candidate local small-sensitivity direction only; it does not certify rank deficiency, nullity, or a physical gauge.",
+            evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse candidate direction"; details = [
+                "direction" => column, "residual_norm" => residual,
+                "residual_scale" => scale, "relative_residual" => relative_residual,
+                "relative_tolerance" => residual_tolerance,
+                "iterations" => probe.iterations, "converged" => probe.converged,
+                "support_variables" => join((variable.value for variable in variables), ","),
+                "support_relative" => support_relative,
+            ])],
+            affected = EntityRef[EntityRef(:variable, variable.value) for variable in variables],
+            suggested_actions = ["Inspect the listed coordinate support and compare with guarded dense nullspace analysis when feasible.", "Repeat with a documented probe dimension, iteration budget, and scaling convention before drawing formulation conclusions."],
+        ))
+        reported += 1
+    end
+    report.metadata[:iterative_probe_small_residual_direction_count] = string(reported)
+    if iszero(reported)
+        push!(report, Finding(:iterative_jacobian_no_small_residual_direction;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = probe.converged ? ConfidenceMedium : ConfidenceLow,
+            observation = "The requested iterative sparse probe found no direction below its relative residual threshold.",
+            why_it_matters = "This does not establish local full rank: the finite probe budget and initial subspace can miss small directions.",
+            evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse probe residuals"; details = [
+                "residual_norms" => join(probe.residual_norms, ","), "residual_scale" => scale,
+                "relative_tolerance" => residual_tolerance, "converged" => probe.converged,
+            ])],
+            suggested_actions = ["Increase the explicit probe dimension or iteration budget, or use guarded dense rank analysis when feasible."],
+        ))
+    end
+    return report
+end
+
+"""
+    analyze_iterative_jacobian_spectrum_probe(evaluation; ...)
+
+Turn the explicit iterative sparse spectral-scale probe into evidence-first
+findings. The resulting spreads are screening heuristics, never condition
+numbers or singular-value bounds.
+"""
+function analyze_iterative_jacobian_spectrum_probe(
+    evaluation::NumericalEvaluation{T};
+    probe_dimension::Integer = 1,
+    iterations::Integer = 100,
+    convergence_tolerance::Real = sqrt(eps(T)),
+    spectral_spread_threshold::Real = 1.0e6,
+) where {T<:AbstractFloat}
+    probe_dimension > 0 || throw(ArgumentError("probe_dimension must be positive"))
+    iterations > 0 || throw(ArgumentError("iterations must be positive"))
+    isfinite(spectral_spread_threshold) && spectral_spread_threshold > 1 ||
+        throw(ArgumentError("spectral_spread_threshold must be finite and greater than one"))
+    estimate = iterative_jacobian_spectrum_estimate(
+        evaluation;
+        probe_dimension = probe_dimension,
+        iterations = iterations,
+        convergence_tolerance = convergence_tolerance,
+    )
+    report = DiagnosticReport()
+    report.metadata[:stage] = "iterative_jacobian_spectrum_probe"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:iterative_spectrum_probe_requested_dimension] = string(probe_dimension)
+    report.metadata[:iterative_spectrum_probe_available] = string(estimate.available)
+    report.metadata[:iterative_spectrum_probe_iterations] = string(estimate.iterations)
+    report.metadata[:iterative_spectrum_probe_converged] = string(estimate.converged)
+    report.metadata[:iterative_spectrum_probe_spread_threshold] =
+        string(spectral_spread_threshold)
+    if !estimate.available
+        push!(report, Finding(:iterative_jacobian_spectrum_probe_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The requested iterative sparse Jacobian spectral probe is unavailable: $(estimate.reason).",
+            why_it_matters = "No spectral-scale screening observation is made without a complete finite sparse-product path.",
+            evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse spectrum availability"; details = [
+                "requested_dimension" => probe_dimension, "reason" => estimate.reason,
+            ])],
+            suggested_actions = ["Resolve incomplete or non-finite Jacobian evidence, or use guarded dense SVD conditioning when feasible."],
+        ))
+        return report
+    end
+    report.metadata[:iterative_spectrum_probe_largest_singular_value_proxy] =
+        string(estimate.largest_singular_value_proxy)
+    report.metadata[:iterative_spectrum_probe_candidate_residuals] =
+        join(estimate.candidate_small_singular_values, ",")
+    report.metadata[:iterative_spectrum_probe_spreads] = join(estimate.spectral_spread_proxies, ",")
+    flagged = 0
+    for (index, spread) in enumerate(estimate.spectral_spread_proxies)
+        spread > spectral_spread_threshold || continue
+        push!(report, Finding(:iterative_jacobian_large_spectral_spread_proxy;
+            severity = SeverityWarning, domain = NumericalIssue,
+            basis = HeuristicInterpretation, confidence = estimate.converged ? ConfidenceMedium : ConfidenceLow,
+            observation = "Iterative sparse probe reports spectral-spread proxy $spread for candidate direction $index, above threshold $spectral_spread_threshold.",
+            why_it_matters = "The power-scale and small-direction residual suggest a large scale separation, which can make local linear algebra sensitive. This is not a condition-number estimate or a rank conclusion.",
+            evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse spectral spread proxy"; details = [
+                "candidate_direction" => index,
+                "largest_singular_value_proxy" => estimate.largest_singular_value_proxy,
+                "candidate_residual" => estimate.candidate_small_singular_values[index],
+                "spectral_spread_proxy" => spread,
+                "threshold" => spectral_spread_threshold,
+                "iterations" => estimate.iterations,
+                "converged" => estimate.converged,
+            ])],
+            suggested_actions = ["Inspect Jacobian row/column scaling and run guarded dense conditioning analysis when feasible.", "Use the iterative right-nullspace probe separately if candidate coordinate support is needed."],
+        ))
+        flagged += 1
+    end
+    report.metadata[:iterative_spectrum_probe_large_spread_count] = string(flagged)
+    if iszero(flagged)
+        push!(report, Finding(:iterative_jacobian_no_large_spectral_spread_proxy;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = HeuristicInterpretation, confidence = estimate.converged ? ConfidenceMedium : ConfidenceLow,
+            observation = "The requested iterative sparse probe reports no spectral-spread proxy above its threshold.",
+            why_it_matters = "This finite heuristic probe does not establish good conditioning or full rank.",
+            evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse spectrum proxies"; details = [
+                "spreads" => join(estimate.spectral_spread_proxies, ","),
+                "threshold" => spectral_spread_threshold,
+                "converged" => estimate.converged,
+            ])],
+            suggested_actions = ["Increase the explicit probe dimension or iteration budget, or use guarded dense conditioning analysis when feasible."],
+        ))
+    end
+    return report
+end
+
 function _point_evidence(point::EvaluationPoint)
     preview_length = min(length(point.variables), 20)
     variables = point.variables[1:preview_length]
