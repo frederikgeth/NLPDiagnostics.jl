@@ -4808,6 +4808,18 @@ end
             iterative_probe_report,
             :iterative_jacobian_candidate_small_residual_direction,
         )) == 1
+        iterative_probe_from_model = NLPDiagnostics.analyze_iterative_right_nullspace_probe(
+            model,
+            [0.0, 0.0];
+            label = "probe convenience point",
+            iterations = 200,
+            residual_relative_tolerance = 1.0e-5,
+        )
+        @test iterative_probe_from_model.metadata[:evaluation_point_label] ==
+              "probe convenience point"
+        @test iterative_probe_from_model.metadata[
+            :iterative_probe_small_residual_direction_count
+        ] == "1"
         @test_throws ArgumentError NLPDiagnostics.analyze_iterative_right_nullspace_probe(
             evaluation; probe_dimension = 0,
         )
@@ -4856,6 +4868,22 @@ end
             iterative_spectrum_report,
             :iterative_jacobian_large_spectral_spread_proxy,
         )) == 2
+        iterative_spectrum_from_model = NLPDiagnostics.analyze_iterative_jacobian_spectrum_probe(
+            two_dimensional_model,
+            NLPDiagnostics.evaluation_point(
+                two_dimensional_model,
+                [0.0, 0.0, 0.0];
+                label = "spectrum convenience point",
+            );
+            probe_dimension = 2,
+            iterations = 200,
+            spectral_spread_threshold = 1.0e6,
+        )
+        @test iterative_spectrum_from_model.metadata[:evaluation_point_label] ==
+              "spectrum convenience point"
+        @test iterative_spectrum_from_model.metadata[
+            :iterative_spectrum_probe_candidate_count
+        ] == "2"
         @test_throws ArgumentError NLPDiagnostics.analyze_iterative_jacobian_spectrum_probe(
             two_dimensional_evaluation; spectral_spread_threshold = 1.0,
         )
@@ -5196,6 +5224,36 @@ end
         @test length(
             findings(result.degeneracy_report, :structural_numerical_rank_agreement),
         ) == 1
+        sparse_probe_result = NLPDiagnostics.profile_case(
+            model,
+            case;
+            iterative_right_nullspace_probe_dimension = 1,
+            iterative_right_nullspace_probe_iterations = 20,
+            iterative_spectrum_probe_dimension = 1,
+            iterative_spectrum_probe_iterations = 20,
+        )
+        @test haskey(
+            sparse_probe_result.stage_seconds,
+            :iterative_right_nullspace_probe,
+        )
+        @test haskey(
+            sparse_probe_result.stage_allocations,
+            :iterative_jacobian_spectrum_probe,
+        )
+        @test sparse_probe_result.numerical_report.metadata[
+            :iterative_probe_requested_dimension
+        ] == "1"
+        @test sparse_probe_result.numerical_report.metadata[
+            :iterative_spectrum_probe_candidate_count
+        ] == "1"
+        @test length(findings(
+            sparse_probe_result.numerical_report,
+            :iterative_jacobian_no_small_residual_direction,
+        )) == 1
+        @test length(findings(
+            sparse_probe_result.numerical_report,
+            :iterative_jacobian_no_large_spectral_spread_proxy,
+        )) == 1
         aggregate = NLPDiagnostics.profile_case_repeated(
             model,
             case;

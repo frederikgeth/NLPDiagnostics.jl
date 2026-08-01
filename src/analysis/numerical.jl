@@ -205,7 +205,8 @@ function analyze_iterative_jacobian_spectrum_probe(
     report.metadata[:iterative_spectrum_probe_requested_dimension] = string(probe_dimension)
     report.metadata[:iterative_spectrum_probe_available] = string(estimate.available)
     report.metadata[:iterative_spectrum_probe_iterations] = string(estimate.iterations)
-    report.metadata[:iterative_spectrum_probe_converged] = string(estimate.converged)
+    report.metadata[:iterative_spectrum_probe_candidate_subspace_converged] = string(estimate.candidate_subspace_converged)
+    report.metadata[:iterative_spectrum_probe_candidate_count] = string(length(estimate.candidate_small_singular_values))
     report.metadata[:iterative_spectrum_probe_spread_threshold] =
         string(spectral_spread_threshold)
     if !estimate.available
@@ -231,7 +232,7 @@ function analyze_iterative_jacobian_spectrum_probe(
         spread > spectral_spread_threshold || continue
         push!(report, Finding(:iterative_jacobian_large_spectral_spread_proxy;
             severity = SeverityWarning, domain = NumericalIssue,
-            basis = HeuristicInterpretation, confidence = estimate.converged ? ConfidenceMedium : ConfidenceLow,
+            basis = HeuristicInterpretation, confidence = estimate.candidate_subspace_converged ? ConfidenceMedium : ConfidenceLow,
             observation = "Iterative sparse probe reports spectral-spread proxy $spread for candidate direction $index, above threshold $spectral_spread_threshold.",
             why_it_matters = "The power-scale and small-direction residual suggest a large scale separation, which can make local linear algebra sensitive. This is not a condition-number estimate or a rank conclusion.",
             evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse spectral spread proxy"; details = [
@@ -241,7 +242,7 @@ function analyze_iterative_jacobian_spectrum_probe(
                 "spectral_spread_proxy" => spread,
                 "threshold" => spectral_spread_threshold,
                 "iterations" => estimate.iterations,
-                "converged" => estimate.converged,
+                "candidate_subspace_converged" => estimate.candidate_subspace_converged,
             ])],
             suggested_actions = ["Inspect Jacobian row/column scaling and run guarded dense conditioning analysis when feasible.", "Use the iterative right-nullspace probe separately if candidate coordinate support is needed."],
         ))
@@ -251,18 +252,86 @@ function analyze_iterative_jacobian_spectrum_probe(
     if iszero(flagged)
         push!(report, Finding(:iterative_jacobian_no_large_spectral_spread_proxy;
             severity = SeverityInfo, domain = NumericalIssue,
-            basis = HeuristicInterpretation, confidence = estimate.converged ? ConfidenceMedium : ConfidenceLow,
+            basis = HeuristicInterpretation, confidence = estimate.candidate_subspace_converged ? ConfidenceMedium : ConfidenceLow,
             observation = "The requested iterative sparse probe reports no spectral-spread proxy above its threshold.",
             why_it_matters = "This finite heuristic probe does not establish good conditioning or full rank.",
             evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse spectrum proxies"; details = [
                 "spreads" => join(estimate.spectral_spread_proxies, ","),
                 "threshold" => spectral_spread_threshold,
-                "converged" => estimate.converged,
+                "candidate_subspace_converged" => estimate.candidate_subspace_converged,
             ])],
             suggested_actions = ["Increase the explicit probe dimension or iteration budget, or use guarded dense conditioning analysis when feasible."],
         ))
     end
     return report
+end
+
+"""
+    analyze_iterative_right_nullspace_probe(model, point; cache, relative_step, ...)
+
+Evaluate `model` at `point`, then run the explicit sparse candidate-direction
+probe. This is a convenience overload only: it performs numerical evaluation
+and never changes the model. Reuse the `NumericalEvaluation` overload when an
+iterate has already been captured.
+"""
+function analyze_iterative_right_nullspace_probe(
+    model::MOI.ModelLike,
+    point::EvaluationPoint{T};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Real = cbrt(eps(T)),
+    kwargs...,
+) where {T<:AbstractFloat}
+    return analyze_iterative_right_nullspace_probe(
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step);
+        kwargs...,
+    )
+end
+
+function analyze_iterative_right_nullspace_probe(
+    model::MOI.ModelLike,
+    values::Union{AbstractVector{<:Real},AbstractDict{MOI.VariableIndex,<:Real}};
+    label::AbstractString = "user",
+    kwargs...,
+)
+    return analyze_iterative_right_nullspace_probe(
+        model,
+        evaluation_point(model, values; label = label);
+        kwargs...,
+    )
+end
+
+"""
+    analyze_iterative_jacobian_spectrum_probe(model, point; cache, relative_step, ...)
+
+Evaluate `model` at `point`, then run the explicit sparse spectral-scale
+probe. The resulting report remains a heuristic screening result, not a
+condition-number or rank certificate. Reuse the `NumericalEvaluation`
+overload when the point has already been evaluated.
+"""
+function analyze_iterative_jacobian_spectrum_probe(
+    model::MOI.ModelLike,
+    point::EvaluationPoint{T};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Real = cbrt(eps(T)),
+    kwargs...,
+) where {T<:AbstractFloat}
+    return analyze_iterative_jacobian_spectrum_probe(
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step);
+        kwargs...,
+    )
+end
+
+function analyze_iterative_jacobian_spectrum_probe(
+    model::MOI.ModelLike,
+    values::Union{AbstractVector{<:Real},AbstractDict{MOI.VariableIndex,<:Real}};
+    label::AbstractString = "user",
+    kwargs...,
+)
+    return analyze_iterative_jacobian_spectrum_probe(
+        model,
+        evaluation_point(model, values; label = label);
+        kwargs...,
+    )
 end
 
 function _point_evidence(point::EvaluationPoint)

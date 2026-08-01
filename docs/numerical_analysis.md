@@ -575,6 +575,15 @@ For callers that manually construct `ProfileResult`, the former positional
 constructor remains available and creates empty static/expression/reformulation reports;
 `profile_case` always supplies the fully populated reports.
 
+The potentially costly iterative sparse screens stay out of this default path.
+Set `iterative_right_nullspace_probe_dimension` and/or
+`iterative_spectrum_probe_dimension` when a profile case explicitly calls for
+them. The profile uses its already captured `NumericalEvaluation`, records a
+separate timing/allocation stage for each requested screen, and appends the
+resulting evidence to the numerical report. These remain finite-budget
+candidate and spectral-spread observations, respectively; profile aggregation
+does not convert them into nullity, condition-number, or physical claims.
+
 Stage timings include Julia compilation and allocation effects unless callers
 warm up a comparable case first. They are useful profiling evidence, not a
 portable solver-performance benchmark.
@@ -928,6 +937,34 @@ The retained reduced-Hessian spectra are also compared directly by maximum
 absolute eigenvalue. This isolates broad curvature-magnitude changes from
 flat-subspace orientation and Jacobian scaling, while remaining a local
 numerical observation rather than a physical stability classification.
+
+## Explicit iterative sparse probes
+
+For problems beyond the dense-work guard, the iterative probes are opt-in
+screens over an explicit finite iteration budget:
+
+```julia
+candidate_report = analyze_iterative_right_nullspace_probe(
+    model, point; probe_dimension = 2, iterations = 200,
+)
+spectrum_report = analyze_iterative_jacobian_spectrum_probe(
+    model, point; probe_dimension = 2, iterations = 200,
+)
+```
+
+Both functions also accept a values vector or an already captured
+`NumericalEvaluation`. Passing an evaluation avoids re-evaluating the model;
+the model/point and model/values overloads only provide a non-mutating
+convenience path through `evaluate_numerical`.
+
+The right-nullspace report identifies candidate directions with a small
+Jacobian residual and material coordinate support. It does not certify rank,
+nullity, or a physical gauge. The spectrum report compares a power-scale proxy
+with candidate small-direction residuals. Its reported spectral spreads are
+heuristic screening quantities—not condition numbers or singular-value bounds.
+Both reports retain their requested probe dimension, iteration budget,
+availability, and convergence evidence so a result can be reproduced or
+discounted appropriately.
 
 ## Current limits
 

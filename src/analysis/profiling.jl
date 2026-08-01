@@ -254,6 +254,19 @@ function _count_symbols(values)
     return counts
 end
 
+function _append_profile_probe!(numerical_report::DiagnosticReport, probe_report::DiagnosticReport)
+    append!(numerical_report.findings, probe_report.findings)
+    for (key, value) in probe_report.metadata
+        key in (:stage, :evaluation_point_label) && continue
+        numerical_report.metadata[key] = value
+    end
+    sort!(
+        numerical_report.findings;
+        by = finding -> (-Int(finding.severity), string(finding.code)),
+    )
+    return numerical_report
+end
+
 """
     profile_case(model, case; cache = EvaluationCache(), ...)
 
@@ -261,7 +274,8 @@ Run the generic static, expression, stable-reformulation, numerical, active-set,
 and structural-numerical degeneracy stages for one labeled `ProfileCase`. No
 solver is invoked and no model data is modified. The result retains timing and
 derivative-provenance counts alongside the full reports so formulation cases can
-be compared reproducibly.
+be compared reproducibly. The iterative sparse probes are disabled by default;
+set either probe dimension keyword to record explicit additional probe stages.
 """
 function profile_case(
     model::MOI.ModelLike,
@@ -278,6 +292,15 @@ function profile_case(
     feasibility_tolerance::Real = sqrt(eps(T)),
     active_tolerance::Real = sqrt(eps(T)),
     strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
+    iterative_right_nullspace_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_right_nullspace_probe_iterations::Integer = 100,
+    iterative_right_nullspace_probe_convergence_tolerance::Real = sqrt(eps(T)),
+    iterative_right_nullspace_probe_residual_relative_tolerance::Real = sqrt(eps(T)),
+    iterative_right_nullspace_probe_support_relative::Real = 0.1,
+    iterative_spectrum_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_spectrum_probe_iterations::Integer = 100,
+    iterative_spectrum_probe_convergence_tolerance::Real = sqrt(eps(T)),
+    iterative_spectrum_probe_spread_threshold::Real = 1.0e6,
 ) where {T<:AbstractFloat}
     hits_before = cache.hits
     misses_before = cache.misses
@@ -332,6 +355,39 @@ function profile_case(
         rank_relative_tolerance = rank_relative_tolerance,
         rank_max_dense_entries = rank_max_dense_entries,
     ))
+
+    if !isnothing(iterative_right_nullspace_probe_dimension)
+        probe_report = _profile_stage!(
+            timings,
+            allocations,
+            :iterative_right_nullspace_probe,
+            () -> analyze_iterative_right_nullspace_probe(
+                evaluation;
+                probe_dimension = iterative_right_nullspace_probe_dimension,
+                iterations = iterative_right_nullspace_probe_iterations,
+                convergence_tolerance = iterative_right_nullspace_probe_convergence_tolerance,
+                residual_relative_tolerance = iterative_right_nullspace_probe_residual_relative_tolerance,
+                support_relative = iterative_right_nullspace_probe_support_relative,
+            ),
+        )
+        _append_profile_probe!(numerical_report, probe_report)
+    end
+
+    if !isnothing(iterative_spectrum_probe_dimension)
+        probe_report = _profile_stage!(
+            timings,
+            allocations,
+            :iterative_jacobian_spectrum_probe,
+            () -> analyze_iterative_jacobian_spectrum_probe(
+                evaluation;
+                probe_dimension = iterative_spectrum_probe_dimension,
+                iterations = iterative_spectrum_probe_iterations,
+                convergence_tolerance = iterative_spectrum_probe_convergence_tolerance,
+                spectral_spread_threshold = iterative_spectrum_probe_spread_threshold,
+            ),
+        )
+        _append_profile_probe!(numerical_report, probe_report)
+    end
 
     active_set_report = _profile_stage!(timings, allocations, :active_set, () -> analyze_active_set(
         model,
