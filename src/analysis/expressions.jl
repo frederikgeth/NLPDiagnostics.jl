@@ -617,6 +617,45 @@ function _primitive_range_risks!(
                 "Inspect units and phase conventions before interpreting derivative or residual changes at this magnitude.",
             ],
         )
+        # The same family also contains primitives with poles. Keep this in
+        # the periodic branch so a near-pole tan/sec/csc/cot expression is
+        # diagnosed even though it is also subject to argument-reduction
+        # analysis above.
+        if head in (:tan, :sec, :csc, :cot, :tand, :secd, :cscd, :cotd) &&
+           input.lower == input.upper
+            proximity_threshold = T(strict_domain_proximity_threshold)
+            first_derivative, second_derivative, denominator_magnitude =
+                _periodic_derivative_estimates(head, input.lower, T)
+            if denominator_magnitude <= proximity_threshold
+                denominator_name = head in (:tan, :sec, :tand, :secd) ?
+                                   (head in (:tand, :secd) ? "cosd(argument)" : "cos(argument)") :
+                                   (head in (:cscd, :cotd) ? "sind(argument)" : "sin(argument)")
+                _push_expression_risk!(
+                    risks,
+                    source,
+                    path,
+                    value,
+                    :strict_domain_derivative_amplification,
+                    _amplification_assessment(true, first_derivative, second_derivative),
+                    "$(head) is evaluated close to a periodic singularity.",
+                    "The value may still be finite at the floating-point argument, but reciprocal trigonometric derivative factors can dominate local scaling near a zero of $denominator_name.",
+                    [
+                        "operator" => head,
+                        "argument" => input.lower,
+                        "denominator" => denominator_name,
+                        "denominator_magnitude" => denominator_magnitude,
+                        "estimated_first_derivative_magnitude" => first_derivative,
+                        "estimated_second_derivative_magnitude" => second_derivative,
+                        "numeric_type" => T,
+                        "proximity_threshold" => proximity_threshold,
+                    ],
+                    [
+                        "Choose an initialization away from the periodic singularity when the model semantics allow it.",
+                        "Inspect derivative-domain and Jacobian scaling findings at the same point.",
+                    ],
+                )
+            end
+        end
     elseif head == :atan && length(intervals) == 2 &&
            all(interval -> interval.valid && interval.lower == interval.upper &&
                            isfinite(interval.lower), intervals)
@@ -939,42 +978,6 @@ function _primitive_range_risks!(
                 ],
                 [
                     "Choose an initialization farther from the finite derivative boundary when the model semantics allow it.",
-                    "Inspect derivative-domain and Jacobian scaling findings at the same point.",
-                ],
-            )
-        end
-    elseif head in (:tan, :sec, :csc, :cot, :tand, :secd, :cscd, :cotd) && input.valid &&
-           input.lower == input.upper && isfinite(input.lower)
-        proximity_threshold = strict_domain_proximity_threshold
-        first_derivative, second_derivative, denominator_magnitude =
-            _periodic_derivative_estimates(head, input.lower, T)
-        if denominator_magnitude <= proximity_threshold
-            denominator_name = head in (:tan, :sec, :tand, :secd) ?
-                               (head in (:tand, :secd) ? "cosd(argument)" : "cos(argument)") :
-                               (head in (:cscd, :cotd) ? "sind(argument)" : "sin(argument)")
-            _push_expression_risk!(
-                risks,
-                source,
-                path,
-                value,
-                :strict_domain_derivative_amplification,
-                _amplification_assessment(
-                    true, first_derivative, second_derivative,
-                ),
-                "$(head) is evaluated close to a periodic singularity.",
-                "The value may still be finite at the floating-point argument, but reciprocal trigonometric derivative factors can dominate local scaling near a zero of $denominator_name.",
-                [
-                    "operator" => head,
-                    "argument" => input.lower,
-                    "denominator" => denominator_name,
-                    "denominator_magnitude" => denominator_magnitude,
-                    "estimated_first_derivative_magnitude" => first_derivative,
-                    "estimated_second_derivative_magnitude" => second_derivative,
-                    "numeric_type" => T,
-                    "proximity_threshold" => proximity_threshold,
-                ],
-                [
-                    "Choose an initialization away from the periodic singularity when the model semantics allow it.",
                     "Inspect derivative-domain and Jacobian scaling findings at the same point.",
                 ],
             )

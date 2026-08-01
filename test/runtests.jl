@@ -66,6 +66,47 @@ function findings(report, code)
     return filter(finding -> finding.code == code, report.findings)
 end
 
+@testset "optional PowerModels persistence entry points" begin
+    @test_throws ArgumentError NLPDiagnostics.powermodels_analyze_jacobian_rank_persistence(
+        nothing,
+        NLPDiagnostics.EvaluationPoint[],
+    )
+    @test_throws ArgumentError NLPDiagnostics.powermodels_analyze_component_rank_persistence(
+        nothing,
+        NLPDiagnostics.EvaluationPoint[],
+    )
+end
+
+if Base.find_package("PowerModels") !== nothing
+import PowerModels
+
+@testset "PowerModels public persistence adapter" begin
+    case_path = normpath(joinpath(
+        dirname(pathof(PowerModels)), "..", "test", "data", "matpower", "case3.m",
+    ))
+    pm = PowerModels.instantiate_model(
+        PowerModels.parse_file(case_path),
+        PowerModels.ACPPowerModel,
+        PowerModels.build_opf,
+    )
+    @test Base.get_extension(NLPDiagnostics, :PowerModelsExt) !== nothing
+    @test !isempty(NLPDiagnostics.powermodels_component_metadata(pm))
+    owner = NLPDiagnostics.powermodels_jump_model(pm)
+    @test owner !== nothing
+    backend = JuMP.backend(owner)
+    variables = MOI.get(backend, MOI.ListOfVariableIndices())
+    point = NLPDiagnostics.EvaluationPoint(variables, zeros(length(variables)); label = "case3-zero")
+    jacobian_report = NLPDiagnostics.powermodels_analyze_jacobian_rank_persistence(
+        pm, [point, point],
+    )
+    @test jacobian_report.metadata[:powermodels_angle_gauge_mode_count] isa String
+    component_report = NLPDiagnostics.powermodels_analyze_component_rank_persistence(
+        pm, [point, point],
+    )
+    @test component_report.metadata[:powermodels_angle_gauge_mode_count] isa String
+end
+end
+
 function evidence_details(finding)
     return Dict(finding.evidence[1].details)
 end
@@ -637,6 +678,41 @@ end
         :bus, "bus_1", [constraint_scale_reference, constraint_scale_reference];
         nominal_scale = 1.0,
     )
+    @test_throws ArgumentError NLPDiagnostics.ComponentConstraintScaleSemantics(
+        :bus, "bus_1", [NLPDiagnostics.EntityRef(:variable, 1)]; nominal_scale = 1.0,
+    )
+    empty_constraint_scale_model = MOIU.Model{Float64}()
+    empty_constraint_scale_report = NLPDiagnostics.analyze_component_constraint_scales(
+        empty_constraint_scale_model,
+        NLPDiagnostics.EvaluationPoint(MOI.VariableIndex[], Float64[]),
+    )
+    @test empty_constraint_scale_report.metadata[
+        :component_constraint_scale_declaration_count
+    ] == "0"
+    @test empty_constraint_scale_report.metadata[
+        :component_constraint_scale_source_count
+    ] == "0"
+    unknown_constraint_scale = NLPDiagnostics.ComponentConstraintScaleSemantics(
+        :bus, "bus_unknown", [NLPDiagnostics.EntityRef(:constraint, 2)]; nominal_scale = 1.0,
+    )
+    constraint_scale_scope_report =
+        NLPDiagnostics._component_constraint_scale_semantics_findings(
+            [unknown_constraint_scale], [constraint_scale_reference],
+        )
+    @test length(findings(
+        constraint_scale_scope_report, :component_constraint_scale_unknown_source,
+    )) == 1
+    nlp_constraint_scale = NLPDiagnostics.ComponentConstraintScaleSemantics(
+        :bus, "bus_nlp", [NLPDiagnostics.EntityRef(:nlp_constraint, 1)]; nominal_scale = 1.0,
+    )
+    nlp_constraint_scale_scope_report =
+        NLPDiagnostics._component_constraint_scale_semantics_findings(
+            [nlp_constraint_scale], [constraint_scale_reference],
+        )
+    @test length(findings(
+        nlp_constraint_scale_scope_report,
+        :component_constraint_scale_nlp_source_runtime_only,
+    )) == 1
     constraint_scale_point = NLPDiagnostics.EvaluationPoint(
         MOI.VariableIndex[], Float64[]; label = "constraint-scale fixture",
     )
@@ -655,6 +731,35 @@ end
     @test length(findings(
         constraint_scale_report, :component_constraint_nominal_scale_mismatch,
     )) == 1
+    @test constraint_scale_report.metadata[:component_constraint_scale_missing_source_count] == "0"
+    @test constraint_scale_report.metadata[:component_constraint_scale_unavailable_residual_count] == "0"
+    @test constraint_scale_report.metadata[:component_constraint_scale_source_count] == "1"
+    stale_constraint_scale = NLPDiagnostics.ComponentConstraintScaleSemantics(
+        :bus, "bus_stale", [NLPDiagnostics.EntityRef(:constraint, 2)]; nominal_scale = 1.0,
+    )
+    stale_constraint_scale_report = NLPDiagnostics.analyze_component_constraint_scales(
+        [stale_constraint_scale], constraint_scale_summary; mismatch_factor = 2.0,
+    )
+    @test stale_constraint_scale_report.metadata[
+        :component_constraint_scale_missing_source_count
+    ] == "1"
+    @test length(findings(
+        stale_constraint_scale_report, :component_constraint_scale_alignment_unavailable,
+    )) == 1
+    unavailable_scalar_activity = NLPDiagnostics.ConstraintActivity{Float64}(
+        1, constraint_scale_reference, missing, 0.0, 0.0, nothing, nothing,
+        nothing, false, false, :unavailable,
+    )
+    unavailable_scalar_summary = NLPDiagnostics.ConstraintFeasibilitySummary{Float64}(
+        constraint_scale_point, [unavailable_scalar_activity], 1.0e-8, 1.0e-8,
+        false, "unavailable scalar residual fixture",
+    )
+    unavailable_scalar_scale_report = NLPDiagnostics.analyze_component_constraint_scales(
+        [constraint_scale_semantics], unavailable_scalar_summary; mismatch_factor = 2.0,
+    )
+    @test unavailable_scalar_scale_report.metadata[
+        :component_constraint_scale_unavailable_residual_count
+    ] == "1"
     conflicting_constraint_scale = NLPDiagnostics.ComponentConstraintScaleSemantics(
         :controller, "ctl_1", [constraint_scale_reference]; nominal_scale = 2.0,
     )
@@ -666,6 +771,85 @@ end
     @test length(findings(
         conflicting_constraint_scale_report,
         :component_constraint_nominal_scale_conflict,
+    )) == 1
+    coupled_scale_activity = NLPDiagnostics.CoupledSetActivity{Float64}(
+        constraint_scale_reference, :second_order_cone, Union{Missing,Float64}[0.0, 10.0],
+        -10.0, 10.0, false, :violated, nothing,
+    )
+    coupled_scale_summary = NLPDiagnostics.CoupledSetFeasibilitySummary{Float64}(
+        constraint_scale_point, [coupled_scale_activity],
+        NLPDiagnostics.CoupledSetTangentEvidence{Float64}[], 1.0e-8, 1.0e-8,
+        true, nothing,
+    )
+    coupled_scale_report = NLPDiagnostics.analyze_component_constraint_scales(
+        [constraint_scale_semantics], coupled_scale_summary; mismatch_factor = 2.0,
+    )
+    @test length(findings(
+        coupled_scale_report, :component_coupled_constraint_nominal_scale_mismatch,
+    )) == 1
+    @test coupled_scale_report.metadata[
+        :component_coupled_constraint_scale_missing_source_count
+    ] == "0"
+    @test coupled_scale_report.metadata[
+        :component_coupled_constraint_scale_unsupported_geometry_count
+    ] == "0"
+    @test coupled_scale_report.metadata[
+        :component_coupled_constraint_scale_source_count
+    ] == "1"
+    @test coupled_scale_report.metadata[
+        :component_coupled_constraint_scale_supported_geometry_count
+    ] == "1"
+    stale_coupled_scale_report = NLPDiagnostics.analyze_component_constraint_scales(
+        [stale_constraint_scale], coupled_scale_summary; mismatch_factor = 2.0,
+    )
+    @test stale_coupled_scale_report.metadata[
+        :component_coupled_constraint_scale_missing_source_count
+    ] == "1"
+    @test length(findings(
+        stale_coupled_scale_report,
+        :component_coupled_constraint_scale_alignment_unavailable,
+    )) == 1
+    unsupported_coupled_activity = NLPDiagnostics.CoupledSetActivity{Float64}(
+        constraint_scale_reference, :plugin_coupled_set,
+        Union{Missing,Float64}[0.0], nothing, 1.0, false, :violated, nothing,
+    )
+    unsupported_coupled_summary = NLPDiagnostics.CoupledSetFeasibilitySummary{Float64}(
+        constraint_scale_point, [unsupported_coupled_activity],
+        NLPDiagnostics.CoupledSetTangentEvidence{Float64}[], 1.0e-8, 1.0e-8,
+        false, "unsupported geometry fixture",
+    )
+    unsupported_coupled_scale_report = NLPDiagnostics.analyze_component_constraint_scales(
+        [constraint_scale_semantics], unsupported_coupled_summary; mismatch_factor = 2.0,
+    )
+    @test unsupported_coupled_scale_report.metadata[
+        :component_coupled_constraint_scale_unsupported_geometry_count
+    ] == "1"
+    @test length(findings(
+        unsupported_coupled_scale_report,
+        :component_coupled_constraint_scale_alignment_unavailable,
+    )) == 1
+    unavailable_soc_activity = NLPDiagnostics.CoupledSetActivity{Float64}(
+        constraint_scale_reference, :second_order_cone,
+        Union{Missing,Float64}[missing, missing], nothing, nothing, false,
+        :unavailable, "non-finite fixture",
+    )
+    unavailable_soc_summary = NLPDiagnostics.CoupledSetFeasibilitySummary{Float64}(
+        constraint_scale_point, [unavailable_soc_activity],
+        NLPDiagnostics.CoupledSetTangentEvidence{Float64}[], 1.0e-8, 1.0e-8,
+        false, "unavailable residual fixture",
+    )
+    unavailable_soc_scale_report = NLPDiagnostics.analyze_component_constraint_scales(
+        [constraint_scale_semantics], unavailable_soc_summary; mismatch_factor = 2.0,
+    )
+    @test unavailable_soc_scale_report.metadata[
+        :component_coupled_constraint_scale_unavailable_residual_count
+    ] == "1"
+    coupled_conflict_report = NLPDiagnostics.analyze_component_constraint_scales(
+        [constraint_scale_semantics, conflicting_constraint_scale], coupled_scale_summary;
+        mismatch_factor = 2.0,
+    )
+    @test length(findings(
+        coupled_conflict_report, :component_coupled_constraint_nominal_scale_conflict,
     )) == 1
     scale_semantics = NLPDiagnostics.ComponentCoordinateSemantics(
         :bus, "bus_1", MOI.VariableIndex[MOI.VariableIndex(1)];
@@ -926,6 +1110,9 @@ end
     @test rank_report.metadata[:component_rank_declared_count] == "1"
     @test rank_report.metadata[:component_rank_comparison_count] == "1"
     @test rank_report.metadata[:component_rank_unavailable_count] == "0"
+    @test rank_report.metadata[:component_rank_expected_nullity_observed_count] == "0"
+    @test rank_report.metadata[:component_rank_unexpected_additional_nullity_count] == "0"
+    @test rank_report.metadata[:component_rank_unobserved_declared_nullity_count] == "0"
     @test isempty(findings(rank_report, :component_expected_rank_mismatch))
     mismatched = NLPDiagnostics.ComponentMetadata(
         :line,
@@ -940,6 +1127,155 @@ end
         components = [mismatched],
     )
     @test length(findings(mismatch_report, :component_expected_rank_mismatch)) == 1
+    @test mismatch_report.metadata[:component_rank_unexpected_additional_nullity_count] == "0"
+    @test mismatch_report.metadata[:component_rank_unobserved_declared_nullity_count] == "1"
+
+    y = MOI.add_variable(rank_model)
+    freedom = MOI.add_constraint(
+        rank_model,
+        MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, x)], 0.0),
+        MOI.EqualTo(0.0),
+    )
+    freedom_evaluation = NLPDiagnostics.evaluate_numerical(
+        rank_model,
+        NLPDiagnostics.evaluation_point(rank_model, [0.0, 0.0]),
+    )
+    freedom_component = NLPDiagnostics.ComponentMetadata(
+        :floating_device,
+        "one_expected_mode";
+        variables = [x, y],
+        constraints = [NLPDiagnostics.EntityRef(:constraint, freedom.value)],
+        expected_rank = 1,
+    )
+    freedom_report = NLPDiagnostics.analyze_component_ranks(
+        rank_model,
+        freedom_evaluation;
+        components = [freedom_component],
+    )
+    @test freedom_report.metadata[:component_rank_expected_nullity_observed_count] == "1"
+    @test length(findings(freedom_report, :component_expected_right_nullity_observed)) == 1
+    @test isempty(findings(freedom_report, :component_expected_rank_mismatch))
+
+    extra_mode_component = NLPDiagnostics.ComponentMetadata(
+        :floating_device,
+        "unexpected_mode";
+        variables = [x, y],
+        constraints = [
+            NLPDiagnostics.EntityRef(:constraint, constraint.value),
+            NLPDiagnostics.EntityRef(:constraint, freedom.value),
+        ],
+        expected_rank = 2,
+    )
+    extra_mode_report = NLPDiagnostics.analyze_component_ranks(
+        rank_model,
+        freedom_evaluation;
+        components = [extra_mode_component],
+    )
+    @test extra_mode_report.metadata[:component_rank_unexpected_additional_nullity_count] == "1"
+    @test extra_mode_report.metadata[:component_rank_unobserved_declared_nullity_count] == "0"
+
+    persistent_component_report = NLPDiagnostics.analyze_component_rank_persistence(
+        rank_model,
+        [
+            NLPDiagnostics.evaluate_numerical(
+                rank_model,
+                NLPDiagnostics.evaluation_point(rank_model, [0.0, 0.0]; label = "first"),
+            ),
+            NLPDiagnostics.evaluate_numerical(
+                rank_model,
+                NLPDiagnostics.evaluation_point(rank_model, [0.0, 0.0]; label = "second"),
+            ),
+        ];
+        components = [freedom_component],
+    )
+    @test length(findings(
+        persistent_component_report, :component_expected_rank_persistent,
+    )) == 1
+    @test persistent_component_report.metadata[:component_rank_persistent_count] == "1"
+    @test length(findings(
+        persistent_component_report,
+        :component_expected_right_nullspace_persistent,
+    )) == 1
+    @test persistent_component_report.metadata[
+        :component_right_nullspace_persistent_count
+    ] == "1"
+    persistent_component_point_report =
+        NLPDiagnostics.analyze_component_rank_persistence(
+            rank_model,
+            [
+                NLPDiagnostics.evaluation_point(rank_model, [0.0, 0.0]; label = "first"),
+                NLPDiagnostics.evaluation_point(rank_model, [0.0, 0.0]; label = "second"),
+            ];
+            components = [freedom_component],
+        )
+    @test length(findings(
+        persistent_component_point_report,
+        :component_expected_right_nullspace_persistent,
+    )) == 1
+    local_free_mode = NLPDiagnostics.ExpectedNullspaceMode(
+        :local_free_coordinate,
+        [x, y],
+        [0.0, 1.0],
+    )
+    local_fixed_mode = NLPDiagnostics.ExpectedNullspaceMode(
+        :locally_fixed_coordinate,
+        [x, y],
+        [1.0, 0.0],
+    )
+    component_mode_report = NLPDiagnostics.analyze_component_rank_persistence(
+        rank_model,
+        [
+            NLPDiagnostics.evaluation_point(rank_model, [0.0, 0.0]; label = "first"),
+            NLPDiagnostics.evaluation_point(rank_model, [0.0, 0.0]; label = "second"),
+        ];
+        components = [freedom_component],
+        expected_modes = [local_free_mode, local_fixed_mode],
+    )
+    @test length(findings(
+        component_mode_report, :component_persistent_expected_mode_observed,
+    )) == 1
+    @test length(findings(
+        component_mode_report, :component_persistent_expected_mode_not_observed,
+    )) == 1
+
+    stationary_component_model = MOIU.Model{Float64}()
+    stationary_variable = MOI.add_variable(stationary_component_model)
+    stationary_constraint = MOI.add_constraint(
+        stationary_component_model,
+        MOI.ScalarNonlinearFunction(:^, Any[stationary_variable, 2]),
+        MOI.EqualTo(0.0),
+    )
+    stationary_component = NLPDiagnostics.ComponentMetadata(
+        :test_device,
+        "stationary";
+        variables = [stationary_variable],
+        constraints = [NLPDiagnostics.EntityRef(
+            :constraint, stationary_constraint.value,
+        )],
+        expected_rank = 1,
+    )
+    changing_component_report = NLPDiagnostics.analyze_component_rank_persistence(
+        stationary_component_model,
+        [
+            NLPDiagnostics.evaluate_numerical(
+                stationary_component_model,
+                NLPDiagnostics.evaluation_point(
+                    stationary_component_model, [0.0]; label = "stationary",
+                ),
+            ),
+            NLPDiagnostics.evaluate_numerical(
+                stationary_component_model,
+                NLPDiagnostics.evaluation_point(
+                    stationary_component_model, [1.0]; label = "away",
+                ),
+            ),
+        ];
+        components = [stationary_component],
+    )
+    @test length(findings(
+        changing_component_report, :component_local_rank_not_persistent,
+    )) == 1
+    @test changing_component_report.metadata[:component_rank_changing_count] == "1"
 end
 
 @testset "elastic feasibility planning is non-mutating and explicit" begin
@@ -957,30 +1293,31 @@ end
     )
     before = length(MOI.get(model, MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}()))
     plan = NLPDiagnostics.elastic_feasibility_plan(model)
-    @test plan.relaxation_count == 1
-    @test plan.slack_count == 1
-    @test only(plan.relaxable_constraints).index == affine.value
-    @test only(plan.unsupported_constraints).index == nonlinear.value
+    @test plan.relaxation_count == 2
+    @test plan.slack_count == 2
+    @test Set(reference.index for reference in plan.relaxable_constraints) ==
+          Set([affine.value, nonlinear.value])
+    @test isempty(plan.unsupported_constraints)
     plan_report = NLPDiagnostics.analyze_elastic_feasibility_plan(plan)
-    @test plan_report.metadata[:unsupported_constraint_count] == "1"
-    @test length(findings(plan_report, :elastic_unsupported_constraints)) == 1
+    @test plan_report.metadata[:unsupported_constraint_count] == "0"
+    @test isempty(findings(plan_report, :elastic_unsupported_constraints))
     direct_plan_report = NLPDiagnostics.analyze_elastic_feasibility_plan(model)
-    @test direct_plan_report.metadata[:relaxation_count] == "1"
-    @test direct_plan_report.metadata[:unsupported_constraint_count] == "1"
+    @test direct_plan_report.metadata[:relaxation_count] == "2"
+    @test direct_plan_report.metadata[:unsupported_constraint_count] == "0"
     selected_plan = NLPDiagnostics.elastic_feasibility_plan(
         model;
-        selected_constraints = [only(plan.relaxable_constraints)],
+        selected_constraints = [plan.relaxable_constraints[1]],
     )
     @test selected_plan.relaxation_count == 1
     selected_report = NLPDiagnostics.analyze_elastic_feasibility_plan(selected_plan)
-    @test selected_report.metadata[:excluded_constraint_count] == "0"
+    @test selected_report.metadata[:excluded_constraint_count] == "1"
     @test_throws ArgumentError NLPDiagnostics.elastic_feasibility_plan(
         model;
         selected_constraints = [NLPDiagnostics.EntityRef(:constraint, 99)],
     )
     @test_throws ArgumentError NLPDiagnostics.elastic_feasibility_plan(
         model;
-        selected_constraints = [only(plan.relaxable_constraints), only(plan.relaxable_constraints)],
+        selected_constraints = [plan.relaxable_constraints[1], plan.relaxable_constraints[1]],
     )
     focused_model = MOIU.Model{Float64}()
     u, v = MOI.add_variables(focused_model, 2)
@@ -1009,21 +1346,29 @@ end
     auxiliary = NLPDiagnostics.build_elastic_feasibility_model(model)
     @test auxiliary.plan.relaxation_count == plan.relaxation_count
     @test auxiliary.model isa MOIU.UniversalFallback
-    @test length(auxiliary.relaxations) == 1
-    @test length(only(auxiliary.relaxations).slacks) == 1
+    @test length(auxiliary.relaxations) == 2
+    @test all(length(relaxation.slacks) == 1 for relaxation in auxiliary.relaxations)
     @test auxiliary.source_variable_map[x] isa MOI.VariableIndex
     @test auxiliary.source_variable_map[y] isa MOI.VariableIndex
-    @test haskey(auxiliary.relaxed_constraint_map, only(plan.relaxable_constraints))
+    @test all(haskey(auxiliary.relaxed_constraint_map, source) for source in plan.relaxable_constraints)
     @test MOI.get(auxiliary.model, MOI.ObjectiveSense()) == MOI.MIN_SENSE
-    @test length(MOI.get(auxiliary.model, MOI.ListOfVariableIndices())) == 3
-    relaxation = only(auxiliary.relaxations)
-    values = Dict(only(relaxation.slacks) => 0.25)
-    observed = NLPDiagnostics.elastic_relaxation_values(auxiliary, values)
-    @test only(observed).total == 0.25
-    @test only(observed).weighted_total == 0.25
-    @test only(observed).kind == :upper_bound
-    @test NLPDiagnostics.elastic_objective_value(auxiliary, values) == 0.25
-    report = NLPDiagnostics.analyze_elastic_relaxations(auxiliary, values)
+    @test length(MOI.get(auxiliary.model, MOI.ListOfVariableIndices())) == 4
+    affine_reference = only(filter(
+        item -> item.function_type == string(MOI.ScalarAffineFunction{Float64}),
+        plan.relaxable_constraints,
+    ))
+    relaxation = only(filter(item -> item.source == affine_reference, auxiliary.relaxations))
+    slack_values = Dict(
+        slack => (slack == only(relaxation.slacks) ? 0.25 : 0.0)
+        for item in auxiliary.relaxations for slack in item.slacks
+    )
+    observed = NLPDiagnostics.elastic_relaxation_values(auxiliary, slack_values)
+    affine_observation = only(filter(item -> item.source == affine_reference, observed))
+    @test affine_observation.total == 0.25
+    @test affine_observation.weighted_total == 0.25
+    @test affine_observation.kind == :upper_bound
+    @test NLPDiagnostics.elastic_objective_value(auxiliary, slack_values) == 0.25
+    report = NLPDiagnostics.analyze_elastic_relaxations(auxiliary, slack_values)
     @test report.metadata[:positive_elastic_relaxation_count] == "1"
     relaxation_finding = only(findings(report, :elastic_constraint_relaxed))
     @test evidence_details(relaxation_finding)["weighted_slack_magnitude"] == "0.25"
@@ -1032,21 +1377,24 @@ end
     @test_throws ArgumentError NLPDiagnostics.elastic_relaxation_values(auxiliary)
     weighted = NLPDiagnostics.build_elastic_feasibility_model(
         model;
-        weights = Dict(only(plan.relaxable_constraints) => 2.5),
+        weights = Dict(plan.relaxable_constraints[1] => 2.5),
     )
     objective = MOI.get(
         weighted.model,
         MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
     )
-    @test only(objective.terms).coefficient == 2.5
-    weighted_values = NLPDiagnostics.elastic_relaxation_values(
+    @test any(term -> term.coefficient == 2.5, objective.terms)
+    weighted_slack_values = NLPDiagnostics.elastic_relaxation_values(
         weighted,
-        Dict(only(only(weighted.relaxations).slacks) => 0.25),
+        Dict(
+            slack => (slack == only(weighted.relaxations[1].slacks) ? 0.25 : 0.0)
+            for item in weighted.relaxations for slack in item.slacks
+        ),
     )
-    @test only(weighted_values).weighted_total == 0.625
+    @test only(filter(item -> item.source == affine_reference, weighted_slack_values)).weighted_total == 0.625
     @test_throws ArgumentError NLPDiagnostics.build_elastic_feasibility_model(
         model;
-        weights = Dict(only(plan.relaxable_constraints) => 0.0),
+        weights = Dict(plan.relaxable_constraints[1] => 0.0),
     )
     linf_auxiliary = NLPDiagnostics.build_elastic_feasibility_model(
         model;
@@ -1054,10 +1402,13 @@ end
     )
     @test linf_auxiliary.objective_norm == :linf
     @test !isnothing(linf_auxiliary.epigraph_variable)
-    linf_relaxation = only(linf_auxiliary.relaxations)
+    linf_relaxation = linf_auxiliary.relaxations[1]
     @test NLPDiagnostics.elastic_objective_value(
         linf_auxiliary,
-        Dict(only(linf_relaxation.slacks) => 0.4),
+        Dict(
+            slack => (slack == only(linf_relaxation.slacks) ? 0.4 : 0.0)
+            for item in linf_auxiliary.relaxations for slack in item.slacks
+        ),
     ) == 0.4
     @test_throws ArgumentError NLPDiagnostics.build_elastic_feasibility_model(
         model;
@@ -1216,7 +1567,7 @@ end
         exponential_elastic_auxiliary.model,
         MOI.ConstraintFunction(),
         exponential_elastic_auxiliary.relaxed_constraint_map[
-            NLPDiagnostics.EntityRef(:constraint, exponential_elastic.value)
+            exponential_elastic_relaxation.source
         ],
     )
     @test only([term.scalar_term.coefficient for term in exponential_relaxed_function.terms if
@@ -1285,7 +1636,7 @@ end
         logdet_elastic_auxiliary.model,
         MOI.ConstraintFunction(),
         logdet_elastic_auxiliary.relaxed_constraint_map[
-            only(logdet_elastic_auxiliary.plan.relaxable_constraints)
+            logdet_elastic_relaxation.source
         ],
     )
     logdet_slack = only(logdet_elastic_relaxation.slacks)
@@ -1366,7 +1717,7 @@ end
         psd_elastic_auxiliary.model,
         MOI.ConstraintFunction(),
         psd_elastic_auxiliary.relaxed_constraint_map[
-            only(psd_elastic_plan.relaxable_constraints)
+            psd_elastic_relaxation.source
         ],
     )
     psd_slack = only(psd_elastic_relaxation.slacks)
@@ -1439,7 +1790,7 @@ end
         psd_square_elastic_auxiliary.model,
         MOI.ConstraintFunction(),
         psd_square_elastic_auxiliary.relaxed_constraint_map[
-            only(psd_square_elastic_auxiliary.plan.relaxable_constraints)
+            psd_square_elastic_relaxation.source
         ],
     )
     psd_square_slack = only(psd_square_elastic_relaxation.slacks)
@@ -1507,7 +1858,7 @@ end
     @test zero_relaxation.kind == :zeros
     @test length(zero_relaxation.slacks) == 4
 
-    subset_reference = NLPDiagnostics.EntityRef(:constraint, affine.value)
+    subset_reference = affine_reference
     positive_subset = NLPDiagnostics.ElasticSubsetSearch(
         NLPDiagnostics.ElasticSubsetProbe(
             [subset_reference], 1.0, true, "LOCALLY_INFEASIBLE", "FEASIBLE_POINT",
@@ -1577,7 +1928,9 @@ end
         conflict_report,
         :solver_conflict_membership,
     )) == 1
-    conflict_reference = NLPDiagnostics.EntityRef(:constraint, conflict_constraint.value)
+    conflict_reference = only(
+        NLPDiagnostics.elastic_feasibility_plan(conflict_model).relaxable_constraints,
+    )
     conflict_subset = NLPDiagnostics.ElasticSubsetSearch(
         NLPDiagnostics.ElasticSubsetProbe(
             [conflict_reference], 1.0, true, "LOCALLY_INFEASIBLE", "FEASIBLE_POINT",
@@ -1863,6 +2216,21 @@ end
             MOI.get(acoth_auxiliary.model, MOI.ConstraintSet(), index).lower == 1.00001,
         acoth_lower_guards,
     )
+    crossing_acoth_model = MOIU.Model{Float64}()
+    crossing_acoth_argument = MOI.add_variable(crossing_acoth_model)
+    MOI.add_constraint(crossing_acoth_model, crossing_acoth_argument, MOI.Interval(-2.0, 2.0))
+    MOI.add_constraint(
+        crossing_acoth_model,
+        MOI.ScalarNonlinearFunction(:acoth, Any[crossing_acoth_argument]),
+        MOI.LessThan(1.0),
+    )
+    crossing_acoth_plan = NLPDiagnostics.elastic_domain_guard_plan(crossing_acoth_model)
+    @test !only(crossing_acoth_plan.guards).materializable
+    crossing_acoth_report = NLPDiagnostics.analyze_elastic_domain_guard_plan(crossing_acoth_plan)
+    @test crossing_acoth_report.metadata[:elastic_domain_branch_sensitive_count] == "1"
+    @test length(findings(
+        crossing_acoth_report, :elastic_domain_guard_branch_selection_required,
+    )) == 1
 
     bound_model = MOIU.Model{Float64}()
     b = MOI.add_variable(bound_model)
@@ -1901,9 +2269,16 @@ end
         rank_max_dense_entries = 1,
     )
     @test any(
-        finding -> finding.code == :sparse_qr_pivot_scale_spread,
+        finding -> finding.code == :large_jacobian_column_scale_spread,
         scaled_result.numerical_report.findings,
     )
+    threshold_result = NLPDiagnostics.profile_case(
+        models[1],
+        cases[1];
+        rank_max_dense_entries = 1,
+        jacobian_condition_threshold = 1.0e6,
+    )
+    @test threshold_result.numerical_report.metadata[:jacobian_condition_threshold] == "1.0e6"
     aggregates = NLPDiagnostics.profile_cases_repeated(
         models,
         cases;
@@ -4543,8 +4918,107 @@ end
         finding = only(findings(local_loss, :unexpected_local_rank_loss))
         @test finding.domain == NLPDiagnostics.NumericalIssue
         @test finding.basis == NLPDiagnostics.LocalInference
-        @test length(findings(local_loss, :unknown_local_degeneracy_mode)) == 1
-        @test local_loss.metadata[:generic_nullspace_fingerprint_count] == "0"
+        @test length(findings(local_loss, :candidate_single_coordinate_null_direction)) == 1
+        @test isempty(findings(local_loss, :unknown_local_degeneracy_mode))
+        @test local_loss.metadata[:generic_nullspace_fingerprint_count] == "1"
+
+        compact_mode = new_model()
+        p, q, r = MOI.add_variables(compact_mode, 3)
+        MOI.add_constraint(
+            compact_mode,
+            F([T(1.0, p)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            compact_mode,
+            F([T(1.0, q), T(-1.0, r)], 0.0),
+            MOI.EqualTo(0.0),
+        )
+        compact_report = NLPDiagnostics.analyze_degeneracy(
+            compact_mode,
+            [0.0, 0.0, 0.0],
+        )
+        @test length(
+            findings(compact_report, :candidate_compact_coordinate_null_direction),
+        ) == 1
+        @test compact_report.metadata[:generic_nullspace_max_compact_support] == "8"
+        @test_throws ArgumentError NLPDiagnostics.analyze_degeneracy(
+            compact_mode,
+            [0.0, 0.0, 0.0];
+            nullspace_max_compact_support = 1,
+        )
+        persistent_jacobian_report = NLPDiagnostics.analyze_jacobian_rank_persistence([
+            NLPDiagnostics.evaluate_numerical(
+                underdetermined,
+                NLPDiagnostics.evaluation_point(underdetermined, [0.0, 0.0]; label = "first"),
+            ),
+            NLPDiagnostics.evaluate_numerical(
+                underdetermined,
+                NLPDiagnostics.evaluation_point(underdetermined, [2.0, 2.0]; label = "second"),
+            ),
+        ])
+        @test length(
+            findings(persistent_jacobian_report, :jacobian_right_nullspace_persistent),
+        ) == 1
+        persistent_expected_report = NLPDiagnostics.analyze_jacobian_rank_persistence(
+            [
+                NLPDiagnostics.evaluate_numerical(
+                    underdetermined,
+                    NLPDiagnostics.evaluation_point(underdetermined, [0.0, 0.0]; label = "first"),
+                ),
+                NLPDiagnostics.evaluate_numerical(
+                    underdetermined,
+                    NLPDiagnostics.evaluation_point(underdetermined, [2.0, 2.0]; label = "second"),
+                ),
+            ];
+            expected_modes = [common_shift],
+        )
+        @test length(
+            findings(persistent_expected_report, :persistent_jacobian_expected_mode_observed),
+        ) == 1
+        persistent_unexpected_report = NLPDiagnostics.analyze_jacobian_rank_persistence(
+            [
+                NLPDiagnostics.evaluate_numerical(
+                    underdetermined,
+                    NLPDiagnostics.evaluation_point(underdetermined, [0.0, 0.0]; label = "first"),
+                ),
+                NLPDiagnostics.evaluate_numerical(
+                    underdetermined,
+                    NLPDiagnostics.evaluation_point(underdetermined, [2.0, 2.0]; label = "second"),
+                ),
+            ];
+            expected_modes = [fixed_difference],
+        )
+        @test length(
+            findings(persistent_unexpected_report, :persistent_jacobian_expected_mode_not_observed),
+        ) == 1
+        persistent_point_report = NLPDiagnostics.analyze_jacobian_rank_persistence(
+            underdetermined,
+            [
+                NLPDiagnostics.evaluation_point(underdetermined, [0.0, 0.0]; label = "first"),
+                NLPDiagnostics.evaluation_point(underdetermined, [2.0, 2.0]; label = "second"),
+            ];
+            expected_modes = [common_shift],
+        )
+        @test length(
+            findings(persistent_point_report, :persistent_jacobian_expected_mode_observed),
+        ) == 1
+        stationary_evaluations = [
+            NLPDiagnostics.evaluate_numerical(
+                stationary,
+                NLPDiagnostics.evaluation_point(stationary, [0.0]; label = "stationary"),
+            ),
+            NLPDiagnostics.evaluate_numerical(
+                stationary,
+                NLPDiagnostics.evaluation_point(stationary, [1.0]; label = "away"),
+            ),
+        ]
+        changing_jacobian_report = NLPDiagnostics.analyze_jacobian_rank_persistence(
+            stationary_evaluations,
+        )
+        @test length(
+            findings(changing_jacobian_report, :jacobian_rank_not_persistent),
+        ) == 1
         combined = NLPDiagnostics.analyze(
             stationary;
             point = NLPDiagnostics.evaluation_point(stationary, [0.0]),
@@ -9563,6 +10037,57 @@ end
             ),
         ) == 1
         @test boundary_report.metadata[:initialization_active_row_count] == "1"
+        @test boundary_report.metadata[:initialization_degeneracy_checked] == "true"
+
+        stationary_start = new_model()
+        stationary_z = MOI.add_variable(stationary_start)
+        stationary_constraint = MOI.add_constraint(
+            stationary_start,
+            MOI.ScalarNonlinearFunction(:^, Any[stationary_z, 2]),
+            MOI.EqualTo(0.0),
+        )
+        MOI.set(stationary_start, MOI.VariablePrimalStart(), stationary_z, 0.0)
+        stationary_start_report = NLPDiagnostics.analyze_initialization(
+            stationary_start,
+        )
+        @test length(findings(
+            stationary_start_report, :unexpected_local_rank_loss,
+        )) == 1
+        @test length(findings(
+            stationary_start_report, :candidate_single_coordinate_null_direction,
+        )) == 1
+        stationary_component = NLPDiagnostics.ComponentMetadata(
+            :test_component,
+            "stationary";
+            variables = [stationary_z],
+            constraints = [NLPDiagnostics.EntityRef(
+                :constraint,
+                stationary_constraint.value,
+            )],
+            expected_rank = 1,
+        )
+        component_rank_start_report = NLPDiagnostics.analyze_initialization(
+            stationary_start;
+            components = [stationary_component],
+        )
+        @test length(findings(
+            component_rank_start_report, :component_expected_rank_mismatch,
+        )) == 1
+        @test component_rank_start_report.metadata[
+            :initialization_component_ranks_checked
+        ] == "true"
+        no_degeneracy_start_report = NLPDiagnostics.analyze_initialization(
+            stationary_start;
+            check_degeneracy = false,
+            check_component_ranks = false,
+        )
+        @test no_degeneracy_start_report.metadata[:initialization_degeneracy_checked] == "false"
+        @test no_degeneracy_start_report.metadata[
+            :initialization_component_ranks_checked
+        ] == "false"
+        @test isempty(findings(
+            no_degeneracy_start_report, :unexpected_local_rank_loss,
+        ))
 
         initialized_cone = new_model()
         initialized_t, initialized_x = MOI.add_variables(initialized_cone, 2)
@@ -10042,6 +10567,61 @@ end
         @test length(
             findings(point_report, :solver_iteration_objective_mismatch),
         ) == 1
+        @test point_report.metadata[:bound_iteration_degeneracy_checked] == "true"
+        stationary_iteration_model = new_model()
+        stationary_iteration_variable = MOI.add_variable(stationary_iteration_model)
+        stationary_iteration_constraint = MOI.add_constraint(
+            stationary_iteration_model,
+            MOI.ScalarNonlinearFunction(:^, Any[stationary_iteration_variable, 2]),
+            MOI.EqualTo(0.0),
+        )
+        stationary_iteration_binding = NLPDiagnostics.IterationPointBinding(
+            only(records),
+            NLPDiagnostics.EvaluationPoint(
+                [stationary_iteration_variable], [0.0]; label = "stationary-iterate",
+            ),
+            1,
+            :iteration,
+        )
+        stationary_iteration_component = NLPDiagnostics.ComponentMetadata(
+            :test_component,
+            "stationary_iterate";
+            variables = [stationary_iteration_variable],
+            constraints = [NLPDiagnostics.EntityRef(
+                :constraint,
+                stationary_iteration_constraint.value,
+            )],
+            expected_rank = 1,
+        )
+        stationary_iteration_report = NLPDiagnostics.analyze_iteration_points(
+            stationary_iteration_model,
+            [stationary_iteration_binding],
+            components = [stationary_iteration_component],
+        )
+        @test length(findings(
+            stationary_iteration_report, :unexpected_local_rank_loss,
+        )) == 1
+        @test length(findings(
+            stationary_iteration_report, :component_expected_rank_mismatch,
+        )) == 1
+        @test stationary_iteration_report.metadata[
+            :bound_iteration_component_ranks_checked
+        ] == "true"
+        no_degeneracy_iteration_report = NLPDiagnostics.analyze_iteration_points(
+            stationary_iteration_model,
+            [stationary_iteration_binding];
+            check_degeneracy = false,
+            check_component_ranks = false,
+        )
+        @test no_degeneracy_iteration_report.metadata[
+            :bound_iteration_degeneracy_checked
+        ] == "false"
+        @test no_degeneracy_iteration_report.metadata[
+            :bound_iteration_component_ranks_checked
+        ] == "false"
+        @test isempty(findings(
+            no_degeneracy_iteration_report, :unexpected_local_rank_loss,
+        ))
         stepped_point_report = NLPDiagnostics.analyze_iteration_points(
             model, bindings; relative_step = 1.0e-5,
         )

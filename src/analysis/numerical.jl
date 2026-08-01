@@ -931,7 +931,7 @@ function _analyze_numerical_evaluation(
     )
     append!(report.findings, component_scale_report.findings)
     component_constraint_scale_report = analyze_component_constraint_scales(
-        component_constraint_scale_semantics(model), summary;
+        model, evaluation;
         mismatch_factor = component_scale_mismatch_factor,
     )
     append!(report.findings, component_constraint_scale_report.findings)
@@ -992,6 +992,7 @@ function _analyze_numerical_evaluation(
     report.metadata[:sparse_qr_rank_scaling] = string(sparse_qr.scaling)
     report.metadata[:sparse_qr_row_column_rank] = string(scaled_sparse_qr.rank)
     report.metadata[:sparse_qr_condition_proxy] = string(sparse_qr.condition_proxy)
+    report.metadata[:jacobian_condition_threshold] = string(jacobian_condition_threshold)
     report.metadata[:evaluation_sources] = join(
         unique(string(capability.source) for capability in evaluation.capabilities),
         ",",
@@ -1783,6 +1784,242 @@ function _append_persistent_flat_expected_mode_findings!(
                             ["Inspect active geometry and nearby points before changing the declared expected-mode span."],
     ))
     return report
+end
+
+"""
+    analyze_jacobian_rank_persistence(evaluations; ...)
+
+Compare caller-supplied Jacobian rank and right-nullspace evidence across
+explicitly chosen points. This is a cross-point numerical screen: a persistent
+subspace is not, by itself, a structural or physical explanation.
+"""
+function analyze_jacobian_rank_persistence(
+    evaluations::AbstractVector{<:NumericalEvaluation{T}};
+    minimum_evaluations::Integer = 2,
+    relative_tolerance::Real = maximum((
+        max(length(evaluation.constraint_sources), length(evaluation.point.variables), 1)
+        for evaluation in evaluations); init = 1) * eps(T),
+    max_dense_entries::Integer = 4_000_000,
+    subspace_alignment_threshold::Real = 0.98,
+    expected_modes::AbstractVector{<:ExpectedNullspaceMode} = ExpectedNullspaceMode[],
+    expected_mode_residual_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    minimum_evaluations >= 2 ||
+        throw(ArgumentError("minimum_evaluations must be at least two"))
+    tolerance = convert(T, relative_tolerance)
+    tolerance >= zero(T) ||
+        throw(ArgumentError("relative_tolerance must be nonnegative"))
+    zero(T) <= subspace_alignment_threshold <= one(T) ||
+        throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    expected_mode_residual_tolerance >= zero(T) ||
+        throw(ArgumentError("expected_mode_residual_tolerance must be nonnegative"))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "jacobian_rank_persistence"
+    report.metadata[:evaluation_count] = string(length(evaluations))
+    report.metadata[:minimum_evaluations] = string(minimum_evaluations)
+    report.metadata[:relative_tolerance] = string(tolerance)
+    report.metadata[:subspace_alignment_threshold] = string(subspace_alignment_threshold)
+    report.metadata[:expected_mode_count] = string(length(expected_modes))
+    isempty(evaluations) && return report
+    reference_variables = evaluations[1].point.variables
+    reference_rows = evaluations[1].constraint_sources
+    if any(evaluation.point.variables != reference_variables for evaluation in evaluations) ||
+       any(evaluation.constraint_sources != reference_rows for evaluation in evaluations)
+        push!(report, Finding(:jacobian_rank_persistence_coordinate_mismatch;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Jacobian evaluations do not share one ordered variable and constraint-row scope.",
+            why_it_matters = "Rank and nullspace persistence require the same coordinates and rows at every explicitly supplied point.",
+            evidence = [Evidence("Jacobian persistence alignment"; details = [
+                "evaluation_count" => length(evaluations),
+            ])],
+            suggested_actions = ["Evaluate the same ordered variable coordinates and scalar constraint rows at every point."],
+        ))
+        return report
+    end
+    estimates = JacobianRankEstimate{T}[
+        jacobian_rank_estimate(
+            evaluation;
+            relative_tolerance = tolerance,
+            max_dense_entries = max_dense_entries,
+            compute_vectors = true,
+        ) for evaluation in evaluations
+    ]
+    candidates = findall(estimate -> estimate.available, estimates)
+    report.metadata[:available_evaluation_count] = string(length(candidates))
+    if length(candidates) < minimum_evaluations
+        push!(report, Finding(:jacobian_rank_persistence_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "Only $(length(candidates)) supplied evaluation(s) have an available dense Jacobian rank estimate.",
+            why_it_matters = "Cross-point rank persistence cannot be assessed when derivatives are incomplete, non-finite, or exceed the explicit dense guard.",
+            evidence = [Evidence("Jacobian persistence availability"; details = [
+                "evaluation_count" => length(evaluations),
+                "available_evaluation_count" => length(candidates),
+                "minimum_evaluations" => minimum_evaluations,
+            ])],
+            suggested_actions = ["Resolve derivative availability or increase the explicit dense rank guard if appropriate."],
+        ))
+        return report
+    end
+    available_estimates = estimates[candidates]
+    ranks = [estimate.rank for estimate in available_estimates]
+    nullities = [estimate.right_nullity for estimate in available_estimates]
+    labels = join((evaluations[index].point.label for index in candidates), ",")
+    report.metadata[:available_point_labels] = labels
+    report.metadata[:observed_ranks] = join(ranks, ",")
+    report.metadata[:observed_right_nullities] = join(nullities, ",")
+    if !all(==(first(ranks)), ranks)
+        push!(report, Finding(:jacobian_rank_not_persistent;
+            severity = SeverityWarning, domain = NumericalIssue,
+            basis = LocalInference, confidence = ConfidenceHigh,
+            observation = "Local Jacobian rank changes across $(length(available_estimates)) explicitly supplied points.",
+            why_it_matters = "The apparent degeneracy is operating-point-dependent, numerically threshold-sensitive, or evaluated under changing derivative behavior; it should not be treated as a persistent gauge without further evidence.",
+            evidence = [Evidence("Jacobian rank persistence"; details = [
+                "point_labels" => labels,
+                "ranks" => join(ranks, ","),
+                "right_nullities" => join(nullities, ","),
+                "relative_tolerance" => tolerance,
+            ])],
+            affected = EntityRef[EntityRef(:variable, variable.value) for variable in reference_variables],
+            suggested_actions = ["Compare derivative scales, domains, and active constraints at the supplied points."],
+        ))
+        return report
+    end
+    if first(nullities) == 0
+        push!(report, Finding(:jacobian_rank_persistent;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The local Jacobian rank is unchanged across $(length(available_estimates)) explicitly supplied points, with no right-null direction at the selected tolerance.",
+            why_it_matters = "This is repeated local rank evidence, not a global nonsingularity certificate.",
+            evidence = [Evidence("Jacobian rank persistence"; details = [
+                "point_labels" => labels,
+                "rank" => first(ranks),
+                "right_nullity" => 0,
+                "relative_tolerance" => tolerance,
+            ])],
+        ))
+        return report
+    end
+    minimum_cosine = one(T)
+    for left in eachindex(available_estimates), right in (left + 1):length(available_estimates)
+        cosines = svdvals(transpose(available_estimates[left].right_nullspace) *
+                          available_estimates[right].right_nullspace)
+        minimum_cosine = min(minimum_cosine, isempty(cosines) ? zero(T) : minimum(cosines))
+    end
+    persistent = all(==(first(nullities)), nullities) &&
+                 minimum_cosine >= convert(T, subspace_alignment_threshold)
+    report.metadata[:minimum_right_nullspace_principal_cosine] = string(minimum_cosine)
+    push!(report, Finding(
+        persistent ? :jacobian_right_nullspace_persistent :
+                     :jacobian_right_nullspace_not_persistent;
+        severity = persistent ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue,
+        basis = LocalInference,
+        confidence = ConfidenceHigh,
+        observation = persistent ?
+                      "The same-dimensional local Jacobian right-nullspace is aligned across $(length(available_estimates)) explicitly supplied points." :
+                      "Local Jacobian rank is unchanged, but the right-nullspace is not consistently aligned across $(length(available_estimates)) explicitly supplied points.",
+        why_it_matters = persistent ?
+                         "Repeated local nullspace geometry is more consistent with a persistent structural or representational freedom than a one-point derivative cancellation, but it does not establish a physical cause." :
+                         "Changing nullspace geometry can indicate operating-point dependence or numerical sensitivity even when the estimated rank is unchanged.",
+        evidence = [Evidence("Jacobian right-nullspace persistence"; details = [
+            "point_labels" => labels,
+            "rank" => first(ranks),
+            "right_nullities" => join(nullities, ","),
+            "minimum_principal_cosine" => minimum_cosine,
+            "alignment_threshold" => subspace_alignment_threshold,
+        ])],
+        affected = EntityRef[EntityRef(:variable, variable.value) for variable in reference_variables],
+        suggested_actions = persistent ?
+                            ["Compare the persistent subspace with expected-mode declarations and component metadata."] :
+                            ["Inspect nullspace fingerprints, derivative scaling, and active geometry at each point."],
+    ))
+    if persistent && !isempty(expected_modes)
+        point_columns = Dict(
+            variable => column for (column, variable) in enumerate(reference_variables)
+        )
+        mode_tolerance = convert(T, expected_mode_residual_tolerance)
+        for mode in expected_modes
+            direction = zeros(T, length(reference_variables))
+            missing_variables = Int[]
+            for (variable, coefficient) in zip(mode.variables, mode.direction)
+                column = get(point_columns, variable, 0)
+                if iszero(column)
+                    push!(missing_variables, variable.value)
+                else
+                    direction[column] += convert(T, coefficient)
+                end
+            end
+            if !isempty(missing_variables) || iszero(norm(direction))
+                push!(report, Finding(:persistent_jacobian_expected_mode_unaligned;
+                    severity = SeverityInfo, domain = RepresentationalIssue,
+                    basis = StructuralProof, confidence = ConfidenceCertain,
+                    observation = "Expected nullspace mode :$(mode.name) cannot be aligned with the common persistence coordinates.",
+                    why_it_matters = "A persistent-mode comparison requires every declared coordinate to be present at every point.",
+                    evidence = [Evidence("Persistent Jacobian expected-mode alignment"; details = [
+                        "mode" => mode.name,
+                        "unaligned_variable_indices" => join(missing_variables, ","),
+                    ])],
+                    suggested_actions = ["Declare the mode in the common evaluation-coordinate scope."],
+                ))
+                continue
+            end
+            normalized = direction / norm(direction)
+            residuals = T[
+                norm(normalized - estimate.right_nullspace *
+                     (transpose(estimate.right_nullspace) * normalized)) for
+                estimate in available_estimates
+            ]
+            observed = all(residual -> residual <= mode_tolerance, residuals)
+            push!(report, Finding(
+                observed ? :persistent_jacobian_expected_mode_observed :
+                           :persistent_jacobian_expected_mode_not_observed;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = observed ? PhysicalExpectation : LocalInference,
+                confidence = ConfidenceHigh,
+                observation = observed ?
+                              "Declared expected mode :$(mode.name) aligns with the persistent local Jacobian right-nullspace at every supplied point." :
+                              "Declared expected mode :$(mode.name) does not align with the local Jacobian right-nullspace at every supplied point.",
+                why_it_matters = observed ?
+                                 "This supports the declared interpretation across the supplied points, but does not prove a physical gauge or global invariance." :
+                                 "The declaration may be fixed or rotated by the formulation or operating point, or may not match the model coordinates.",
+                evidence = [Evidence("Persistent Jacobian expected-mode comparison"; details = [
+                    "mode" => mode.name,
+                    "point_labels" => labels,
+                    "projection_residuals" => join(residuals, ","),
+                    "tolerance" => mode_tolerance,
+                    "description" => mode.description,
+                ])],
+                affected = EntityRef[EntityRef(:variable, variable.value) for variable in mode.variables],
+                suggested_actions = observed ?
+                                    ["Retain the declaration and compare it with component and physical metadata."] :
+                                    ["Inspect the supplied points and declaration before treating the mode as expected."],
+            ))
+        end
+    end
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return report
+end
+
+"""
+    analyze_jacobian_rank_persistence(model, points; cache = EvaluationCache(), kwargs...)
+
+Evaluate one model at explicitly supplied points, then compare the resulting
+Jacobian rank evidence. This convenience method does not generate or modify
+points and preserves the supplied labels in report evidence.
+"""
+function analyze_jacobian_rank_persistence(
+    model::MOI.ModelLike,
+    points::AbstractVector{<:EvaluationPoint};
+    cache::EvaluationCache = EvaluationCache(),
+    kwargs...,
+)
+    evaluations = [
+        evaluate_numerical(model, point; cache = cache) for point in points
+    ]
+    return analyze_jacobian_rank_persistence(evaluations; kwargs...)
 end
 
 """

@@ -44,6 +44,14 @@ end
 function powermodels_analyze_reduced_hessian_persistence(model, snapshots; kwargs...)
     throw(ArgumentError("PowerModels support is not loaded for this model"))
 end
+"""Optional PowerModels cross-point Jacobian persistence entry point."""
+function powermodels_analyze_jacobian_rank_persistence(model, points; kwargs...)
+    throw(ArgumentError("PowerModels support is not loaded for this model"))
+end
+"""Optional PowerModels cross-point component-rank persistence entry point."""
+function powermodels_analyze_component_rank_persistence(model, points; kwargs...)
+    throw(ArgumentError("PowerModels support is not loaded for this model"))
+end
 """Optional domain-plugin port/connection declarations; the generic default is empty."""
 component_port_metadata(model::MOI.ModelLike) = ComponentPortMetadata[]
 component_port_metadata(model::ModelSnapshot) = ComponentPortMetadata[]
@@ -76,10 +84,10 @@ function _selected_jacobian_submatrix_evaluation(
         ) for entry in evaluation.jacobian_entries if
         haskey(row_positions, entry.row) && haskey(column_positions, entry.column)
     ]
-    point = EvaluationPoint(
-        evaluation.point.variables[columns],
-        evaluation.point.values[columns];
-        label = evaluation.point.label,
+    point = EvaluationPoint{T}(
+        collect(evaluation.point.variables[columns]),
+        T.(evaluation.point.values[columns]),
+        evaluation.point.label,
     )
     return NumericalEvaluation{T}(
         point,
@@ -205,13 +213,14 @@ end
 
 Extract a small set of conservative, inspectable local nullspace patterns.
 Currently recognized patterns are a near-uniform right-null vector (candidate
-common-coordinate shift) and a two-row left-null vector (candidate pairwise
-equation dependence).
+common-coordinate shift), a compact or single-coordinate right-null vector,
+and a two-row left-null vector (candidate pairwise equation dependence).
 """
 function nullspace_fingerprints(
     comparison::StructuralNumericalComparison{T};
     support_relative::Real = 0.1,
     uniform_shift_correlation::Real = 0.98,
+    max_compact_support::Integer = 8,
 ) where {T<:AbstractFloat}
     comparison.available || return NullspaceFingerprint{T}[]
     relative = convert(T, support_relative)
@@ -220,6 +229,8 @@ function nullspace_fingerprints(
         throw(ArgumentError("support_relative must lie in (0, 1]"))
     zero(T) <= correlation_threshold <= one(T) ||
         throw(ArgumentError("uniform_shift_correlation must lie in [0, 1]"))
+    max_compact_support >= 2 ||
+        throw(ArgumentError("max_compact_support must be at least 2"))
     estimate = something(comparison.estimate)
     fingerprints = NullspaceFingerprint{T}[]
     for vector_index in axes(estimate.right_nullspace, 2)
@@ -239,6 +250,29 @@ function nullspace_fingerprints(
                     :candidate_uniform_coordinate_shift,
                     support,
                     correlation,
+                ),
+            )
+        elseif length(local_support) == 1
+            push!(
+                fingerprints,
+                NullspaceFingerprint{T}(
+                    :right,
+                    vector_index,
+                    :candidate_single_coordinate_null_direction,
+                    support,
+                    one(T),
+                ),
+            )
+        elseif 2 <= length(local_support) <= min(max_compact_support, length(vector) - 1)
+            concentration = norm(vector[local_support]) / norm(vector)
+            push!(
+                fingerprints,
+                NullspaceFingerprint{T}(
+                    :right,
+                    vector_index,
+                    :candidate_compact_coordinate_null_direction,
+                    support,
+                    concentration,
                 ),
             )
         end
@@ -480,6 +514,71 @@ function _nullspace_fingerprint_findings(
                     ],
                     suggested_actions = [
                         "Compare the two rows with exact duplicate-expression findings and repeat at nearby points.",
+                    ],
+                    affected = affected,
+                ),
+            )
+        elseif fingerprint.kind == :candidate_single_coordinate_null_direction
+            column = only(fingerprint.support)
+            variable = comparison.point.variables[column]
+            push!(
+                findings,
+                Finding(
+                    :candidate_single_coordinate_null_direction;
+                    severity = SeverityWarning,
+                    domain = NumericalIssue,
+                    basis = HeuristicInterpretation,
+                    confidence = ConfidenceMedium,
+                    observation = "A local right-null vector is concentrated on variable $(variable.value).",
+                    why_it_matters = "This coordinate is locally free to first order in the aligned equality-Jacobian view. It can arise from a missing equation, a stationary nonlinear derivative, or derivative-evaluation behavior; it does not prove any one cause.",
+                    evidence = [
+                        _point_evidence(comparison.point),
+                        Evidence(
+                            "Nullspace fingerprint";
+                            details = [
+                                "side" => fingerprint.side,
+                                "vector_index" => fingerprint.vector_index,
+                                "variable" => variable.value,
+                            ],
+                        ),
+                    ],
+                    suggested_actions = [
+                        "Compare this coordinate with structural matching and zero-sensitivity evidence.",
+                        "Repeat at nearby domain-valid points before classifying it as a missing equation or gauge.",
+                    ],
+                    affected = [EntityRef(:variable, variable.value)],
+                ),
+            )
+        elseif fingerprint.kind == :candidate_compact_coordinate_null_direction
+            affected = EntityRef[
+                EntityRef(:variable, comparison.point.variables[column].value) for
+                column in fingerprint.support
+            ]
+            push!(
+                findings,
+                Finding(
+                    :candidate_compact_coordinate_null_direction;
+                    severity = SeverityInfo,
+                    domain = NumericalIssue,
+                    basis = HeuristicInterpretation,
+                    confidence = ConfidenceMedium,
+                    observation = "A local right-null vector is concentrated on $(length(fingerprint.support)) of $(length(comparison.free_variable_columns)) aligned free coordinates.",
+                    why_it_matters = "This compact direction can localize an unexpected freedom, weakly identified subsystem, or point-specific derivative cancellation. It is not proof of a missing equation or physical gauge.",
+                    evidence = [
+                        _point_evidence(comparison.point),
+                        Evidence(
+                            "Nullspace fingerprint";
+                            details = [
+                                "side" => fingerprint.side,
+                                "vector_index" => fingerprint.vector_index,
+                                "support_columns" => join(fingerprint.support, ","),
+                                "support_concentration" => fingerprint.score,
+                            ],
+                        ),
+                    ],
+                    suggested_actions = [
+                        "Inspect the supported variables together with structural matching and derivative-scale evidence.",
+                        "Compare nearby points and declared expected modes before assigning physical meaning.",
                     ],
                     affected = affected,
                 ),
@@ -751,6 +850,9 @@ function analyze_degeneracy(
     include_port_topology_modes::Bool = true,
     expected_mode_residual_tolerance::Real =
         sqrt(eps(eltype(evaluation.point.values))),
+    nullspace_support_relative::Real = 0.1,
+    nullspace_uniform_shift_correlation::Real = 0.98,
+    nullspace_max_compact_support::Integer = 8,
     kwargs...,
 )
     _validate_evaluation_variable_order(model, evaluation)
@@ -762,7 +864,12 @@ function analyze_degeneracy(
     ) : ExpectedNullspaceMode[]
     all_expected_modes = vcat(expected_modes, port_modes)
     comparison = structural_numerical_comparison(model, evaluation; kwargs...)
-    fingerprints = nullspace_fingerprints(comparison)
+    fingerprints = nullspace_fingerprints(
+        comparison;
+        support_relative = nullspace_support_relative,
+        uniform_shift_correlation = nullspace_uniform_shift_correlation,
+        max_compact_support = nullspace_max_compact_support,
+    )
     report = DiagnosticReport()
     append!(report.findings, _structural_numerical_findings(comparison))
     append!(report.findings, _nullspace_fingerprint_findings(comparison, evaluation, fingerprints))
@@ -791,6 +898,11 @@ function analyze_degeneracy(
         string(comparison.structural_matching_rank)
     report.metadata[:aligned_numerical_rank] = string(comparison.numerical_rank)
     report.metadata[:generic_nullspace_fingerprint_count] = string(length(fingerprints))
+    report.metadata[:generic_nullspace_support_relative] = string(nullspace_support_relative)
+    report.metadata[:generic_nullspace_uniform_shift_correlation] =
+        string(nullspace_uniform_shift_correlation)
+    report.metadata[:generic_nullspace_max_compact_support] =
+        string(nullspace_max_compact_support)
     report.metadata[:declared_expected_nullspace_mode_count] = string(length(expected_modes))
     report.metadata[:port_expected_nullspace_mode_count] = string(length(port_modes))
     report.metadata[:port_component_expected_nullspace_mode_count] = string(count(

@@ -167,11 +167,13 @@ export stable_reformulation_plan
 export analyze_stable_reformulation_plan
 export analyze_initialization
 export analyze_numerical
+export analyze_jacobian_rank_persistence
 export analyze_reduced_hessian
 export analyze_reduced_hessian_persistence
 export analyze_active_set
 export analyze_active_set_second_order
 export analyze_component_ranks
+export analyze_component_rank_persistence
 export elastic_feasibility_plan
 export analyze_elastic_feasibility_plan
 export build_elastic_feasibility_model
@@ -271,6 +273,8 @@ export powermodels_jump_model
 export powermodels_analyze_degeneracy
 export powermodels_analyze_active_set
 export powermodels_analyze_reduced_hessian_persistence
+export powermodels_analyze_jacobian_rank_persistence
+export powermodels_analyze_component_rank_persistence
 export component_port_metadata
 export component_port_nullspace_modes
 export component_port_connections
@@ -373,14 +377,14 @@ function _component_metadata_findings(
                 ))
             end
         end
-        scope_rank_bound = minimum(
-            filter(value -> !iszero(value), [
-                length(unique(item.variables)),
-                length(unique((item.index, item.subindex) for item in item.constraints)),
-            ]);
-            init = typemax(Int),
+        # Expected rank is a statement about a declared Jacobian block. A
+        # missing variable or equation side therefore has rank ceiling zero;
+        # do not discard that zero while validating malformed plugin input.
+        scope_rank_bound = min(
+            length(unique(item.variables)),
+            length(unique((item.index, item.subindex) for item in item.constraints)),
         )
-        if scope_rank_bound != typemax(Int) && !isnothing(item.expected_rank) &&
+        if !isnothing(item.expected_rank) &&
            item.expected_rank > scope_rank_bound
             push!(report, Finding(:component_metadata_expected_rank_exceeds_scope;
                 severity = SeverityError, domain = RepresentationalIssue,
@@ -624,6 +628,9 @@ function analyze_component_constraint_scales(
     report = DiagnosticReport()
     report.metadata[:stage] = "component_constraint_scales"
     report.metadata[:component_constraint_scale_declaration_count] = string(length(semantics))
+    report.metadata[:component_constraint_scale_source_count] = string(sum(
+        (length(item.constraints) for item in semantics); init = 0,
+    ))
     declarations_by_source = Dict{Tuple{Symbol,Int,Union{Nothing,Int}},Vector{ComponentConstraintScaleSemantics}}()
     for item in semantics, source in item.constraints
         push!(get!(declarations_by_source, _entity_row_key(source),
@@ -655,24 +662,40 @@ function analyze_component_constraint_scales(
     activities = Dict(_entity_row_key(item.source) => item for item in summary.activities)
     checked = 0
     unavailable = 0
+    missing_source = 0
+    unavailable_residual = 0
+    reported = Set{Tuple{Symbol,Int,Union{Nothing,Int},Float64}}()
     for item in semantics, source in item.constraints
         activity = get(activities, _entity_row_key(source), nothing)
-        if isnothing(activity) || isnothing(activity.feasibility_violation)
+        if isnothing(activity)
             unavailable += 1
+            missing_source += 1
+            continue
+        elseif isnothing(activity.feasibility_violation)
+            unavailable += 1
+            unavailable_residual += 1
             continue
         end
         checked += 1
         violation = activity.feasibility_violation
         ratio = violation / item.nominal_scale
         ratio > mismatch_factor || continue
+        report_key = (_entity_row_key(source)..., item.nominal_scale)
+        report_key in reported && continue
+        push!(reported, report_key)
+        declarations = join(sort!(unique([
+            "$(candidate.component_type):$(candidate.component_id)" for candidate in
+            get(declarations_by_source, _entity_row_key(source), ComponentConstraintScaleSemantics[]) if
+            isapprox(candidate.nominal_scale, item.nominal_scale;
+                     rtol = sqrt(eps(Float64)), atol = 0.0)
+        ])), ", ")
         push!(report, Finding(:component_constraint_nominal_scale_mismatch;
             severity = SeverityWarning, domain = NumericalIssue,
             basis = LocalInference, confidence = ConfidenceHigh,
             observation = "Constraint $(source.index) violation exceeds its declared nominal residual scale by a factor of $(ratio).",
             why_it_matters = "This is a set-relative scalar violation, not a raw constraint-function value or a solver feasibility certificate.",
             evidence = [Evidence("Declared constraint residual scale"; details = [
-                "component_type" => item.component_type, "component_id" => item.component_id,
-                "quantity" => item.quantity, "violation" => violation,
+                "components" => declarations, "quantity" => item.quantity, "violation" => violation,
                 "nominal_scale" => item.nominal_scale, "ratio" => ratio,
             ])], affected = [source],
             suggested_actions = ["Check the declared residual scale and compare it with the solver's feasibility tolerance."],
@@ -680,6 +703,8 @@ function analyze_component_constraint_scales(
     end
     report.metadata[:component_constraint_scale_checked_count] = string(checked)
     report.metadata[:component_constraint_scale_unavailable_count] = string(unavailable)
+    report.metadata[:component_constraint_scale_missing_source_count] = string(missing_source)
+    report.metadata[:component_constraint_scale_unavailable_residual_count] = string(unavailable_residual)
     unavailable == 0 || push!(report, Finding(:component_constraint_scale_alignment_unavailable;
         severity = SeverityInfo, domain = RepresentationalIssue,
         basis = StructuralProof, confidence = ConfidenceCertain,
@@ -691,7 +716,115 @@ function analyze_component_constraint_scales(
         ])],
         suggested_actions = ["Use evaluated scalar constraint-row references, or provide a geometry-specific residual convention in a domain plugin."],
     ))
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
+end
+
+"""Validate plugin-declared constraint-scale sources against a model snapshot."""
+function _component_constraint_scale_semantics_findings(
+    semantics::AbstractVector{<:ComponentConstraintScaleSemantics},
+    model_constraints::AbstractVector{<:EntityRef},
+)
+    report = DiagnosticReport()
+    known = Set(reference.index for reference in model_constraints if reference.kind == :constraint)
+    unknown = EntityRef[]
+    nlp_rows = EntityRef[]
+    for item in semantics, source in item.constraints
+        if source.kind == :constraint
+            source.index in known || push!(unknown, source)
+        elseif source.kind == :nlp_constraint
+            push!(nlp_rows, source)
+        end
+    end
+    if !isempty(unknown)
+        push!(report, Finding(:component_constraint_scale_unknown_source;
+            severity = SeverityError, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Constraint-scale metadata references $(length(unknown)) ordinary MOI constraint source(s) absent from the analyzed model.",
+            why_it_matters = "A stale source cannot receive a structural residual-scale interpretation or be aligned reliably at an evaluation point.",
+            evidence = [Evidence("Constraint-scale snapshot scope"; details = [
+                "unknown_constraint_indices" => join(sort!(unique(source.index for source in unknown)), ","),
+            ])],
+            affected = unique(unknown),
+            suggested_actions = ["Rebuild constraint-scale declarations from the analyzed model's current MOI constraint indices."],
+        ))
+    end
+    if !isempty(nlp_rows)
+        push!(report, Finding(:component_constraint_scale_nlp_source_runtime_only;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "$(length(nlp_rows)) constraint-scale declaration(s) reference evaluator-provided NLP rows that are validated only at numerical evaluation time.",
+            why_it_matters = "NLP evaluator rows are not ordinary snapshot constraints, so the static layer retains their runtime-only provenance rather than claiming model-scope validation.",
+            evidence = [Evidence("Constraint-scale NLP source scope"; details = [
+                "nlp_row_indices" => join(sort!(unique(source.index for source in nlp_rows)), ","),
+            ])],
+            affected = unique(nlp_rows),
+            suggested_actions = ["Supply an evaluation point to align these rows, or use ordinary MOI constraint sources when static scope validation is required."],
+        ))
+    end
+    report.metadata[:component_constraint_scale_unknown_source_count] = string(length(unknown))
+    report.metadata[:component_constraint_scale_nlp_runtime_source_count] = string(length(nlp_rows))
+    return report
+end
+
+"""Run all generic scalar, coupled, and snapshot-scope constraint-scale checks."""
+function analyze_component_constraint_scales(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T};
+    mismatch_factor::Real = 1.0e3,
+    feasibility_tolerance::Real = sqrt(eps(T)),
+    active_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    semantics = component_constraint_scale_semantics(model)
+    scalar_summary = constraint_feasibility_summary(
+        model, evaluation;
+        feasibility_tolerance = feasibility_tolerance,
+        active_tolerance = active_tolerance,
+    )
+    coupled_summary = coupled_set_feasibility_summary(
+        model, evaluation;
+        feasibility_tolerance = feasibility_tolerance,
+        active_tolerance = active_tolerance,
+    )
+    scalar_report = analyze_component_constraint_scales(
+        semantics, scalar_summary; mismatch_factor = mismatch_factor,
+    )
+    coupled_report = analyze_component_constraint_scales(
+        semantics, coupled_summary; mismatch_factor = mismatch_factor,
+    )
+    model_snapshot = snapshot(model)
+    scope_report = _component_constraint_scale_semantics_findings(
+        semantics, [_constraint_ref(record) for record in model_snapshot.constraints],
+    )
+    report = DiagnosticReport()
+    append!(report.findings, scalar_report.findings)
+    append!(report.findings, coupled_report.findings)
+    append!(report.findings, scope_report.findings)
+    for source in (scalar_report, coupled_report, scope_report)
+        for (key, value) in source.metadata
+            key == :stage && continue
+            report.metadata[key] = value
+        end
+    end
+    report.metadata[:stage] = "component_constraint_scales"
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return report
+end
+
+"""Evaluate a point, then run all generic constraint residual-scale checks."""
+function analyze_component_constraint_scales(
+    model::MOI.ModelLike,
+    point::EvaluationPoint;
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Real = cbrt(eps(eltype(point.values))),
+    kwargs...,
+)
+    evaluation = evaluate_numerical(
+        model, point;
+        cache = cache,
+        relative_step = relative_step,
+    )
+    return analyze_component_constraint_scales(model, evaluation; kwargs...)
 end
 
 """Compare declared scales with supported SOC-family feasibility violations."""
@@ -705,31 +838,115 @@ function analyze_component_constraint_scales(
     ))
     report = DiagnosticReport()
     report.metadata[:stage] = "component_constraint_scales"
+    report.metadata[:component_coupled_constraint_scale_declaration_count] = string(length(semantics))
+    report.metadata[:component_coupled_constraint_scale_source_count] = string(sum(
+        (length(item.constraints) for item in semantics); init = 0,
+    ))
+    declarations_by_source = Dict{Tuple{Symbol,Int,Union{Nothing,Int}},Vector{ComponentConstraintScaleSemantics}}()
+    for item in semantics, source in item.constraints
+        push!(get!(declarations_by_source, _entity_row_key(source),
+                   ComponentConstraintScaleSemantics[]), item)
+    end
+    for key in sort!(collect(Base.keys(declarations_by_source));
+                     by = key -> (string(key[1]), key[2], something(key[3], 0)))
+        declarations = declarations_by_source[key]
+        length(declarations) <= 1 && continue
+        reference = first(declarations).nominal_scale
+        all(item -> isapprox(item.nominal_scale, reference;
+                              rtol = sqrt(eps(Float64)), atol = 0.0), declarations) && continue
+        labels = join(sort!(unique([
+            "$(item.component_type):$(item.component_id)=$(item.nominal_scale)"
+            for item in declarations
+        ])), ", ")
+        push!(report, Finding(:component_coupled_constraint_nominal_scale_conflict;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Coupled constraint $(key[2]) has incompatible component residual-scale declarations.",
+            why_it_matters = "One coupled feasibility margin cannot have a single physical tolerance interpretation when component declarations use different nominal scales.",
+            evidence = [Evidence("Component coupled constraint-scale declarations";
+                details = ["constraint" => key[2], "declarations" => labels])],
+            affected = [EntityRef(key[1], key[2]; subindex = key[3])],
+            suggested_actions = ["Align nominal residual scales or provide explicitly transformed component-level residual conventions."],
+        ))
+    end
     activities = Dict(_entity_row_key(item.source) => item for item in summary.activities)
     checked = 0
     unavailable = 0
+    missing_source = 0
+    unsupported_geometry = 0
+    unavailable_residual = 0
+    reported = Set{Tuple{Symbol,Int,Union{Nothing,Int},Float64}}()
     for item in semantics, source in item.constraints
         activity = get(activities, _entity_row_key(source), nothing)
-        if isnothing(activity) || !(activity.set_kind in (:second_order_cone, :rotated_second_order_cone)) ||
-           isnothing(activity.feasibility_violation)
+        if isnothing(activity)
             unavailable += 1
+            missing_source += 1
+            continue
+        elseif !(activity.set_kind in (
+            :second_order_cone, :rotated_second_order_cone,
+            :norm_one_cone, :norm_infinity_cone, :norm_cone,
+            :norm_spectral_cone, :norm_nuclear_cone,
+            :positive_semidefinite_cone_triangle,
+            :scaled_positive_semidefinite_cone_triangle,
+            :positive_semidefinite_cone_square,
+            :hermitian_positive_semidefinite_cone_triangle,
+            :scaled_hermitian_positive_semidefinite_cone_triangle,
+            :power_cone, :dual_power_cone,
+            :exponential_cone, :dual_exponential_cone,
+            :geometric_mean_cone, :relative_entropy_cone,
+            :logdet_cone_triangle, :logdet_cone_square,
+            :scaled_logdet_cone_triangle,
+            :rootdet_cone_triangle, :rootdet_cone_square,
+            :scaled_rootdet_cone_triangle,
+        ))
+            unavailable += 1
+            unsupported_geometry += 1
+            continue
+        elseif isnothing(activity.feasibility_violation)
+            unavailable += 1
+            unavailable_residual += 1
             continue
         end
         checked += 1
         ratio = activity.feasibility_violation / item.nominal_scale
         ratio > mismatch_factor || continue
+        report_key = (_entity_row_key(source)..., item.nominal_scale)
+        report_key in reported && continue
+        push!(reported, report_key)
+        declarations = join(sort!(unique([
+            "$(candidate.component_type):$(candidate.component_id)" for candidate in
+            get(declarations_by_source, _entity_row_key(source), ComponentConstraintScaleSemantics[]) if
+            isapprox(candidate.nominal_scale, item.nominal_scale;
+                     rtol = sqrt(eps(Float64)), atol = 0.0)
+        ])), ", ")
         push!(report, Finding(:component_coupled_constraint_nominal_scale_mismatch;
             severity = SeverityWarning, domain = NumericalIssue,
             basis = LocalInference, confidence = ConfidenceHigh,
             observation = "$(activity.set_kind) constraint $(source.index) violation exceeds its declared nominal residual scale by a factor of $(ratio).",
             why_it_matters = "This uses the generic cone feasibility margin, not a raw vector-function value.",
-            evidence = [Evidence("Declared coupled constraint residual scale"; details = ["violation" => activity.feasibility_violation, "nominal_scale" => item.nominal_scale, "ratio" => ratio])],
+            evidence = [Evidence("Declared coupled constraint residual scale"; details = ["components" => declarations, "violation" => activity.feasibility_violation, "nominal_scale" => item.nominal_scale, "ratio" => ratio])],
             affected = [source],
             suggested_actions = ["Check the declared cone residual scale and compare it with solver feasibility tolerances."],
         ))
     end
     report.metadata[:component_coupled_constraint_scale_checked_count] = string(checked)
     report.metadata[:component_coupled_constraint_scale_unavailable_count] = string(unavailable)
+    report.metadata[:component_coupled_constraint_scale_missing_source_count] = string(missing_source)
+    report.metadata[:component_coupled_constraint_scale_unsupported_geometry_count] = string(unsupported_geometry)
+    report.metadata[:component_coupled_constraint_scale_unavailable_residual_count] = string(unavailable_residual)
+    report.metadata[:component_coupled_constraint_scale_supported_geometry_count] = string(checked + unavailable_residual)
+    unavailable == 0 || push!(report, Finding(:component_coupled_constraint_scale_alignment_unavailable;
+        severity = SeverityInfo, domain = RepresentationalIssue,
+        basis = StructuralProof, confidence = ConfidenceCertain,
+        observation = "$(unavailable) declared component constraint scale(s) could not be aligned with a supported coupled-set feasibility margin.",
+        why_it_matters = "The generic core does not compare a nominal residual scale with a raw vector-function value when the coupled-set geometry is unavailable or unsupported.",
+        evidence = [Evidence("Coupled constraint-scale alignment"; details = [
+            "unavailable_count" => unavailable,
+            "evaluated_coupled_set_count" => length(summary.activities),
+        ])],
+        suggested_actions = ["Use a supported coupled-set source or provide an explicit geometry-specific residual convention in a domain plugin."],
+    ))
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
 end
 
@@ -1471,6 +1688,11 @@ function _component_port_coordinate_semantics_cross_layer_findings(
     for variable in scale_shared_variables
         component_declarations = component_by_variable[variable]
         port_declarations = port_scales_by_variable[variable]
+        # An omitted component scale is intentionally not interpreted as a
+        # conflicting physical declaration. Plugins may add a port scale
+        # incrementally; warn only once the component layer makes an explicit
+        # comparison possible.
+        any(!isnothing, (item.nominal_scale for item in component_declarations)) || continue
         scales = Union{Nothing,Float64}[item.nominal_scale for item in component_declarations]
         append!(scales, Union{Nothing,Float64}[scale for (_, scale) in port_declarations])
         reference = first(scales)
@@ -2311,6 +2533,8 @@ function analyze_elastic_domain_guard_plan(plan::ElasticDomainGuardPlan)
     report.metadata[:elastic_domain_selected_constraint_count] = string(plan.selected_constraint_count)
     report.metadata[:elastic_domain_guard_count] = string(length(plan.guards))
     report.metadata[:elastic_domain_nonmaterializable_count] = string(length(plan.nonmaterializable))
+    branch_sensitive = count(guard -> !guard.materializable && occursin("branch", lowercase(guard.reason)), plan.guards)
+    report.metadata[:elastic_domain_branch_sensitive_count] = string(branch_sensitive)
     for guard in plan.guards
         proven = guard.assessment == :proven
         push!(report, Finding(
@@ -2335,6 +2559,20 @@ function analyze_elastic_domain_guard_plan(plan::ElasticDomainGuardPlan)
                                 ["Use an explicit guarded auxiliary formulation with a stated positive margin before interpreting elastic results."] :
                                 ["Use a domain-specific guarded formulation or reformulation; do not infer feasibility from an unguarded elastic solve."],
         ))
+        if !guard.materializable && occursin("branch", lowercase(guard.reason))
+            push!(report, Finding(
+                :elastic_domain_guard_branch_selection_required;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = "The $(guard.operator) domain evidence spans multiple admissible branches, so no generic elastic guard was added.",
+                why_it_matters = "Selecting one branch would strengthen and potentially change the model; leaving it unguarded would permit undefined operator evaluations.",
+                evidence = [Evidence("Branch-sensitive elastic domain guard"; details = ["operator" => guard.operator, "reason" => guard.reason])],
+                affected = [guard.source],
+                suggested_actions = ["Provide a domain-specific branch declaration or reformulate the expression with an explicit discrete or branch-selection model."],
+            ))
+        end
     end
     return report
 end
@@ -3625,6 +3863,9 @@ function analyze_component_ranks(
     declared = 0
     compared = 0
     unavailable = 0
+    expected_nullity_observed = 0
+    unexpected_additional_nullity = 0
+    unobserved_declared_nullity = 0
     for component in components
         isnothing(component.expected_rank) && continue
         (isempty(component.variables) || isempty(component.constraints)) && continue
@@ -3662,13 +3903,40 @@ function analyze_component_ranks(
             continue
         end
         compared += 1
-        estimate.rank == component.expected_rank && continue
+        expected_nullity = length(columns) - component.expected_rank
+        observed_nullity = length(columns) - estimate.rank
+        if estimate.rank == component.expected_rank
+            # A plugin may deliberately declare a rank smaller than the number of
+            # component coordinates.  Report the resulting local freedom as an
+            # observation rather than treating it as an error: this confirms the
+            # declared *dimension*, not the physical identity of a null mode.
+            if expected_nullity > 0
+                expected_nullity_observed += 1
+                push!(report, Finding(:component_expected_right_nullity_observed;
+                    severity = SeverityInfo, domain = RepresentationalIssue,
+                    basis = NumericalObservation, confidence = ConfidenceHigh,
+                    observation = "Component $(component.component_type) '$(component.component_id)' declares $(expected_nullity) local right-null direction(s), and the scoped Jacobian has the same local nullity at this point.",
+                    why_it_matters = "This is consistent with the component's declared degree of freedom, but does not by itself identify the physical mode or establish a network-wide gauge.",
+                    evidence = [Evidence("Scoped component Jacobian nullity"; details = ["expected_rank" => component.expected_rank, "observed_rank" => estimate.rank, "expected_right_nullity" => expected_nullity, "observed_right_nullity" => observed_nullity, "rows" => estimate.rows, "columns" => estimate.columns, "point" => evaluation.point.label])],
+                    affected = vcat([EntityRef(:variable, variable.value) for variable in component.variables], component.constraints),
+                    suggested_actions = ["Use domain metadata or a nullspace fingerprint to identify the mode before assigning physical meaning."],
+                ))
+            end
+            continue
+        end
+        if observed_nullity > expected_nullity
+            unexpected_additional_nullity += 1
+            nullity_interpretation = "The scoped Jacobian has $(observed_nullity - expected_nullity) additional local right-null direction(s) beyond the declaration."
+        else
+            unobserved_declared_nullity += 1
+            nullity_interpretation = "The scoped Jacobian is missing $(expected_nullity - observed_nullity) declared local right-null direction(s) at this point."
+        end
         push!(report, Finding(:component_expected_rank_mismatch;
             severity = SeverityWarning, domain = RepresentationalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
             observation = "Component $(component.component_type) '$(component.component_id)' declares expected rank $(component.expected_rank), while its scoped local Jacobian rank is $(estimate.rank).",
-            why_it_matters = "The discrepancy may indicate a stale component declaration, an operating-point rank loss, or a domain-specific modeling issue; the generic core does not choose among them.",
-            evidence = [Evidence("Scoped component Jacobian rank"; details = ["expected_rank" => component.expected_rank, "observed_rank" => estimate.rank, "rows" => estimate.rows, "columns" => estimate.columns, "point" => evaluation.point.label])],
+            why_it_matters = "$(nullity_interpretation) The discrepancy may indicate a stale component declaration, an operating-point rank loss, or a domain-specific modeling issue; the generic core does not choose among them.",
+            evidence = [Evidence("Scoped component Jacobian rank"; details = ["expected_rank" => component.expected_rank, "observed_rank" => estimate.rank, "expected_right_nullity" => expected_nullity, "observed_right_nullity" => observed_nullity, "right_nullity_difference" => observed_nullity - expected_nullity, "rows" => estimate.rows, "columns" => estimate.columns, "point" => evaluation.point.label])],
             affected = vcat([EntityRef(:variable, variable.value) for variable in component.variables], component.constraints),
             suggested_actions = ["Inspect the component's operating point, declared scope, and domain-plugin rank assumption."],
         ))
@@ -3676,7 +3944,291 @@ function analyze_component_ranks(
     report.metadata[:component_rank_declared_count] = string(declared)
     report.metadata[:component_rank_comparison_count] = string(compared)
     report.metadata[:component_rank_unavailable_count] = string(unavailable)
+    report.metadata[:component_rank_expected_nullity_observed_count] = string(expected_nullity_observed)
+    report.metadata[:component_rank_unexpected_additional_nullity_count] = string(unexpected_additional_nullity)
+    report.metadata[:component_rank_unobserved_declared_nullity_count] = string(unobserved_declared_nullity)
     return report
+end
+
+"""
+    analyze_component_rank_persistence(model, evaluations; ...)
+
+Compare optional component expected-rank declarations over explicitly supplied
+local Jacobian evaluations. This reports repeated numerical rank evidence; it
+does not identify the physical meaning of a component rank loss.
+"""
+function analyze_component_rank_persistence(
+    model::MOI.ModelLike,
+    evaluations::AbstractVector{<:NumericalEvaluation{T}};
+    components::AbstractVector{<:ComponentMetadata} = component_metadata(model),
+    minimum_evaluations::Integer = 2,
+    relative_tolerance::Real = maximum((
+        max(length(evaluation.point.variables), 1) for evaluation in evaluations
+    ); init = 1) * eps(T),
+    max_dense_entries::Integer = 4_000_000,
+    subspace_alignment_threshold::Real = 0.98,
+    expected_modes::AbstractVector{<:ExpectedNullspaceMode} = ExpectedNullspaceMode[],
+    expected_mode_residual_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    minimum_evaluations >= 2 ||
+        throw(ArgumentError("minimum_evaluations must be at least two"))
+    tolerance = convert(T, relative_tolerance)
+    tolerance >= zero(T) ||
+        throw(ArgumentError("relative_tolerance must be nonnegative"))
+    zero(T) <= subspace_alignment_threshold <= one(T) ||
+        throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    expected_mode_residual_tolerance >= zero(T) ||
+        throw(ArgumentError("expected_mode_residual_tolerance must be nonnegative"))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "component_rank_persistence"
+    report.metadata[:evaluation_count] = string(length(evaluations))
+    report.metadata[:minimum_evaluations] = string(minimum_evaluations)
+    report.metadata[:component_rank_persistence_declared_count] = "0"
+    report.metadata[:component_rank_persistence_expected_mode_count] =
+        string(length(expected_modes))
+    isempty(evaluations) && return report
+    declared = 0
+    compared = 0
+    unavailable = 0
+    persistent = 0
+    persistent_nullspace = 0
+    changing_nullspace = 0
+    changing = 0
+    persistently_mismatched = 0
+    for component in components
+        isnothing(component.expected_rank) && continue
+        (isempty(component.variables) || isempty(component.constraints)) && continue
+        declared += 1
+        ranks = Int[]
+        estimates = JacobianRankEstimate{T}[]
+        labels = String[]
+        alignment_failure = nothing
+        for evaluation in evaluations
+            variable_columns = Dict(
+                variable => column for
+                (column, variable) in enumerate(evaluation.point.variables)
+            )
+            row_keys = Dict(
+                _entity_row_key(source) => row for
+                (row, source) in enumerate(evaluation.constraint_sources)
+            )
+            columns = [get(variable_columns, variable, 0) for variable in component.variables]
+            rows = [get(row_keys, _entity_row_key(constraint), 0) for constraint in component.constraints]
+            if any(iszero, columns) || any(iszero, rows)
+                alignment_failure = "component scope is not fully aligned"
+                break
+            end
+            estimate = jacobian_rank_estimate(
+                _selected_jacobian_submatrix_evaluation(evaluation, rows, columns);
+                relative_tolerance = tolerance,
+                max_dense_entries = max_dense_entries,
+                compute_vectors = true,
+            )
+            if !estimate.available
+                alignment_failure = something(estimate.reason, "component rank estimate is unavailable")
+                break
+            end
+            push!(ranks, estimate.rank)
+            push!(estimates, estimate)
+            push!(labels, evaluation.point.label)
+        end
+        if !isnothing(alignment_failure)
+            unavailable += 1
+            push!(report, Finding(:component_rank_persistence_unavailable;
+                severity = SeverityInfo, domain = NumericalIssue,
+                basis = NumericalObservation, confidence = ConfidenceHigh,
+                observation = "Component $(component.component_type) '$(component.component_id)' cannot be compared across the supplied Jacobian evaluations.",
+                why_it_matters = "A cross-point component-rank conclusion requires a complete aligned scope and available local derivatives at every compared point.",
+                evidence = [Evidence("Component rank persistence availability"; details = [
+                    "expected_rank" => component.expected_rank,
+                    "reason" => alignment_failure,
+                ])],
+                affected = vcat([EntityRef(:variable, variable.value) for variable in component.variables], component.constraints),
+                suggested_actions = ["Use the same component coordinates and scalar constraint rows at every point, and resolve derivative availability."],
+            ))
+            continue
+        end
+        if length(ranks) < minimum_evaluations
+            unavailable += 1
+            push!(report, Finding(:component_rank_persistence_unavailable;
+                severity = SeverityInfo, domain = NumericalIssue,
+                basis = NumericalObservation, confidence = ConfidenceHigh,
+                observation = "Component $(component.component_type) '$(component.component_id)' has only $(length(ranks)) rank estimate(s) for persistence analysis.",
+                why_it_matters = "Component rank persistence requires at least $(minimum_evaluations) explicitly supplied evaluations.",
+                evidence = [Evidence("Component rank persistence availability"; details = [
+                    "available_evaluation_count" => length(ranks),
+                    "minimum_evaluations" => minimum_evaluations,
+                ])],
+            ))
+            continue
+        end
+        compared += 1
+        affected = vcat([EntityRef(:variable, variable.value) for variable in component.variables], component.constraints)
+        details = [
+            "expected_rank" => component.expected_rank,
+            "point_labels" => join(labels, ","),
+            "observed_ranks" => join(ranks, ","),
+            "relative_tolerance" => tolerance,
+        ]
+        if !all(==(first(ranks)), ranks)
+            changing += 1
+            push!(report, Finding(:component_local_rank_not_persistent;
+                severity = SeverityWarning, domain = NumericalIssue,
+                basis = LocalInference, confidence = ConfidenceHigh,
+                observation = "Component $(component.component_type) '$(component.component_id)' has changing scoped Jacobian rank across supplied points.",
+                why_it_matters = "The component rank behavior is operating-point-dependent or threshold-sensitive, so a one-point discrepancy should not be treated as persistent.",
+                evidence = [Evidence("Component rank persistence"; details = details)],
+                affected = affected,
+                suggested_actions = ["Compare derivative scales, active geometry, and component parameters at the supplied points."],
+            ))
+        elseif first(ranks) == component.expected_rank
+            persistent += 1
+            push!(report, Finding(:component_expected_rank_persistent;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = NumericalObservation, confidence = ConfidenceHigh,
+                observation = "Component $(component.component_type) '$(component.component_id)' matches declared rank $(component.expected_rank) at every supplied point.",
+                why_it_matters = "This is repeated local agreement with the declaration, not a proof of the component's physical semantics or global rank behavior.",
+                evidence = [Evidence("Component rank persistence"; details = details)],
+                affected = affected,
+                suggested_actions = ["Retain the declaration and compare any declared modes with cross-point nullspace evidence."],
+            ))
+            expected_nullity = length(component.variables) - component.expected_rank
+            if expected_nullity > 0
+                minimum_cosine = one(T)
+                for left in eachindex(estimates), right in (left + 1):length(estimates)
+                    cosines = svdvals(
+                        transpose(estimates[left].right_nullspace) *
+                        estimates[right].right_nullspace,
+                    )
+                    minimum_cosine = min(
+                        minimum_cosine,
+                        isempty(cosines) ? zero(T) : minimum(cosines),
+                    )
+                end
+                nullspace_is_persistent =
+                    minimum_cosine >= convert(T, subspace_alignment_threshold)
+                if nullspace_is_persistent
+                    persistent_nullspace += 1
+                else
+                    changing_nullspace += 1
+                end
+                push!(report, Finding(
+                    nullspace_is_persistent ?
+                    :component_expected_right_nullspace_persistent :
+                    :component_expected_right_nullspace_not_persistent;
+                    severity = nullspace_is_persistent ? SeverityInfo : SeverityWarning,
+                    domain = NumericalIssue,
+                    basis = LocalInference,
+                    confidence = ConfidenceHigh,
+                    observation = nullspace_is_persistent ?
+                                  "Component $(component.component_type) '$(component.component_id)' has an aligned $(expected_nullity)-dimensional local right-nullspace across supplied points." :
+                                  "Component $(component.component_type) '$(component.component_id)' has matching rank but a changing local right-nullspace across supplied points.",
+                    why_it_matters = nullspace_is_persistent ?
+                                     "Repeated local freedom geometry is more consistent with a persistent component-level invariance or formulation freedom, but does not identify a physical mode." :
+                                     "A stable rank can hide changing local freedoms, so the component's one-point nullspace should not be treated as persistent without this comparison.",
+                    evidence = [Evidence("Component right-nullspace persistence"; details = vcat(details, [
+                        "expected_right_nullity" => expected_nullity,
+                        "minimum_principal_cosine" => minimum_cosine,
+                        "alignment_threshold" => subspace_alignment_threshold,
+                    ]))],
+                    affected = affected,
+                    suggested_actions = nullspace_is_persistent ?
+                                        ["Compare the persistent local subspace with plugin-declared modes before assigning physical meaning."] :
+                                        ["Inspect component derivatives, parameters, and coordinate choices at each supplied point."],
+                ))
+                if nullspace_is_persistent
+                    component_positions = Dict(
+                        variable => position for
+                        (position, variable) in enumerate(component.variables)
+                    )
+                    mode_tolerance = convert(T, expected_mode_residual_tolerance)
+                    for mode in expected_modes
+                        all(variable -> haskey(component_positions, variable), mode.variables) ||
+                            continue
+                        direction = zeros(T, length(component.variables))
+                        for (variable, coefficient) in zip(mode.variables, mode.direction)
+                            direction[component_positions[variable]] += convert(T, coefficient)
+                        end
+                        iszero(norm(direction)) && continue
+                        normalized = direction / norm(direction)
+                        residuals = T[
+                            norm(normalized - estimate.right_nullspace *
+                                 (transpose(estimate.right_nullspace) * normalized))
+                            for estimate in estimates
+                        ]
+                        observed = all(residual -> residual <= mode_tolerance, residuals)
+                        push!(report, Finding(
+                            observed ? :component_persistent_expected_mode_observed :
+                                       :component_persistent_expected_mode_not_observed;
+                            severity = SeverityInfo,
+                            domain = RepresentationalIssue,
+                            basis = observed ? PhysicalExpectation : LocalInference,
+                            confidence = ConfidenceHigh,
+                            observation = observed ?
+                                          "Declared mode :$(mode.name) aligns with the persistent local right-nullspace of component $(component.component_type) '$(component.component_id)'." :
+                                          "Declared mode :$(mode.name) does not align with the persistent local right-nullspace of component $(component.component_type) '$(component.component_id)'.",
+                            why_it_matters = observed ?
+                                             "This supports the plugin's component-local interpretation across supplied points, but does not establish physical semantics or network-wide observability." :
+                                             "The declaration may not describe this component-local freedom, even though the local nullspace itself persists.",
+                            evidence = [Evidence("Persistent component expected-mode comparison"; details = [
+                                "component_type" => component.component_type,
+                                "component_id" => component.component_id,
+                                "mode" => mode.name,
+                                "point_labels" => join(labels, ","),
+                                "projection_residuals" => join(residuals, ","),
+                                "tolerance" => mode_tolerance,
+                                "description" => mode.description,
+                            ])],
+                            affected = affected,
+                            suggested_actions = observed ?
+                                                ["Retain the declaration and confirm its physical meaning in the domain plugin."] :
+                                                ["Inspect component coordinates and the expected-mode declaration before assigning physical meaning."],
+                        ))
+                    end
+                end
+            end
+        else
+            persistently_mismatched += 1
+            push!(report, Finding(:component_expected_rank_persistently_mismatched;
+                severity = SeverityWarning, domain = RepresentationalIssue,
+                basis = NumericalObservation, confidence = ConfidenceHigh,
+                observation = "Component $(component.component_type) '$(component.component_id)' has scoped rank $(first(ranks)) at every supplied point, differing from declared rank $(component.expected_rank).",
+                why_it_matters = "Repeated disagreement is stronger evidence that the declaration or component formulation needs inspection than a one-point mismatch, but it remains a numerical comparison rather than a physical diagnosis.",
+                evidence = [Evidence("Component rank persistence"; details = details)],
+                affected = affected,
+                suggested_actions = ["Inspect the declared component scope and expected rank, then compare expected modes and formulation assumptions."],
+            ))
+        end
+    end
+    report.metadata[:component_rank_persistence_declared_count] = string(declared)
+    report.metadata[:component_rank_persistence_compared_count] = string(compared)
+    report.metadata[:component_rank_persistence_unavailable_count] = string(unavailable)
+    report.metadata[:component_rank_persistent_count] = string(persistent)
+    report.metadata[:component_right_nullspace_persistent_count] =
+        string(persistent_nullspace)
+    report.metadata[:component_right_nullspace_changing_count] =
+        string(changing_nullspace)
+    report.metadata[:component_rank_changing_count] = string(changing)
+    report.metadata[:component_rank_persistently_mismatched_count] = string(persistently_mismatched)
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return report
+end
+
+"""
+    analyze_component_rank_persistence(model, points; cache = EvaluationCache(), kwargs...)
+
+Evaluate one model at caller-supplied points before running component-rank and
+component-nullspace persistence analysis. Points are never generated or
+modified by this convenience method.
+"""
+function analyze_component_rank_persistence(
+    model::MOI.ModelLike,
+    points::AbstractVector{<:EvaluationPoint};
+    cache::EvaluationCache = EvaluationCache(),
+    kwargs...,
+)
+    evaluations = [evaluate_numerical(model, point; cache = cache) for point in points]
+    return analyze_component_rank_persistence(model, evaluations; kwargs...)
 end
 
 """
@@ -3704,6 +4256,10 @@ function analyze(
     check_active_set::Bool = false,
     check_coupled_set_qualification::Bool = false,
     check_degeneracy::Bool = false,
+    expected_modes::Union{Nothing,AbstractVector{<:ExpectedNullspaceMode}} = nothing,
+    degeneracy_nullspace_support_relative::Real = 0.1,
+    degeneracy_nullspace_uniform_shift_correlation::Real = 0.98,
+    degeneracy_nullspace_max_compact_support::Integer = 8,
     coupled_qualification_strict_tolerance::Union{Nothing,Real} = nothing,
     coupled_qualification_max_iterations::Integer = 1_000,
     postmortem::Union{Nothing,SolverPostmortem} = nothing,
@@ -3730,6 +4286,7 @@ function analyze(
     ))
     declared_components = component_metadata(model)
     declared_component_coordinate_semantics = component_coordinate_semantics(model)
+    declared_component_constraint_scales = component_constraint_scale_semantics(model)
     declared_ports = component_port_metadata(model)
     declared_port_modes = component_port_nullspace_modes(model)
     declared_port_connections = component_port_connections(model)
@@ -3751,8 +4308,18 @@ function analyze(
         graph = graph,
         unit_circle_radius_tolerance = unit_circle_radius_tolerance,
     )
+    constraint_scale_scope_report = _component_constraint_scale_semantics_findings(
+        declared_component_constraint_scales,
+        [_constraint_ref(record) for record in model_snapshot.constraints],
+    )
+    append!(report.findings, constraint_scale_scope_report.findings)
+    merge!(report.metadata, constraint_scale_scope_report.metadata)
     report.metadata[:component_metadata_count] = string(length(declared_components))
     report.metadata[:component_coordinate_semantics_count] = string(length(declared_component_coordinate_semantics))
+    report.metadata[:component_constraint_scale_semantics_count] = string(length(declared_component_constraint_scales))
+    report.metadata[:component_constraint_scale_source_count] = string(sum(
+        (length(item.constraints) for item in declared_component_constraint_scales); init = 0,
+    ))
     report.metadata[:component_port_metadata_count] = string(length(declared_ports))
     report.metadata[:component_port_nullspace_mode_count] = string(length(declared_port_modes))
     report.metadata[:component_port_connection_count] = string(length(declared_port_connections))
@@ -3876,8 +4443,12 @@ function analyze(
                              coupled_qualification_strict_tolerance
             active_report = analyze_active_set(
                 model, numerical_evaluation;
+                component_scale_mismatch_factor = component_scale_mismatch_factor,
                 coupled_qualification_strict_tolerance = coupled_strict,
                 coupled_qualification_max_iterations = coupled_qualification_max_iterations,
+                expected_modes = isnothing(expected_modes) ?
+                                 expected_nullspace_modes(model, numerical_evaluation) :
+                                 expected_modes,
             )
             append!(report.findings, active_report.findings)
             merge!(report.metadata, active_report.metadata)
@@ -3890,13 +4461,23 @@ function analyze(
                 model, numerical_evaluation;
                 strict_tolerance = coupled_strict,
                 max_iterations = coupled_qualification_max_iterations,
+                component_scale_mismatch_factor = component_scale_mismatch_factor,
             )
             append!(report.findings, coupled_report.findings)
             merge!(report.metadata, coupled_report.metadata)
             stages *= ",coupled_set_qualification"
         end
         if check_degeneracy
-            degeneracy_report = analyze_degeneracy(model, numerical_evaluation)
+            degeneracy_keywords = (
+                nullspace_support_relative = degeneracy_nullspace_support_relative,
+                nullspace_uniform_shift_correlation = degeneracy_nullspace_uniform_shift_correlation,
+                nullspace_max_compact_support = degeneracy_nullspace_max_compact_support,
+            )
+            degeneracy_report = isnothing(expected_modes) ?
+                                analyze_degeneracy(model, numerical_evaluation; degeneracy_keywords...) :
+                                analyze_degeneracy(model, numerical_evaluation;
+                                                   degeneracy_keywords...,
+                                                   expected_modes = expected_modes)
             append!(report.findings, degeneracy_report.findings)
             merge!(report.metadata, degeneracy_report.metadata)
             stages *= ",degeneracy"
@@ -3908,6 +4489,7 @@ function analyze(
             cache = cache,
             numeric_type = numeric_type,
             strict_domain_proximity_threshold = strict_domain_proximity_threshold,
+            expected_modes = expected_modes,
             scale_ratio_threshold = scale_ratio_threshold,
             component_scale_mismatch_factor = component_scale_mismatch_factor,
             coupled_qualification_strict_tolerance =
@@ -3963,6 +4545,7 @@ function analyze(
             iteration_bindings;
             cache = cache,
             relative_step = iteration_point_relative_step,
+            expected_modes = expected_modes,
         )
         append!(report.findings, iteration_point_report.findings)
         for (key, value) in iteration_point_report.metadata

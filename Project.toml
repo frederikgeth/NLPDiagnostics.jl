@@ -1,8 +1,7 @@
-# NLPDiagnostics.jl package metadata
 name = "NLPDiagnostics"
 uuid = "232008d5-4a7d-4a0d-b656-549d5f457f0e"
-authors = ["NLPDiagnostics contributors"]
 version = "0.1.0-DEV"
+authors = ["NLPDiagnostics contributors"]
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -19,19 +18,20 @@ PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
 IpoptExt = "Ipopt"
 JuMPExt = "JuMP"
 MadNLPExt = "MadNLP"
-PowerModelsExt = "PowerModels"
+PowerModelsExt = ["PowerModels", "JuMP"]
 
 [compat]
 Ipopt = "1"
 JuMP = "1.20"
 MadNLP = "0.8, 0.9, 0.10"
-PowerModels = "0.19, 0.20, 0.21"
 MathOptInterface = "1.40"
+PowerModels = "0.19, 0.20, 0.21"
 julia = "1.10"
 
 [extras]
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
+PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "JuMP"]
+test = ["Test", "JuMP", "PowerModels"]

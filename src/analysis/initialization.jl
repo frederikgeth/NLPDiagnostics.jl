@@ -332,6 +332,15 @@ function analyze_initialization(
     component_scale_mismatch_factor::Real = 1.0e3,
     feasibility_tolerance::Real = sqrt(eps(Float64)),
     active_tolerance::Real = sqrt(eps(Float64)),
+    check_degeneracy::Bool = true,
+    expected_modes::Union{Nothing,AbstractVector{<:ExpectedNullspaceMode}} = nothing,
+    check_component_ranks::Bool = true,
+    components::AbstractVector{<:ComponentMetadata} = component_metadata(model),
+    component_rank_relative_tolerance::Union{Nothing,Real} = nothing,
+    component_rank_max_dense_entries::Integer = 4_000_000,
+    degeneracy_nullspace_support_relative::Real = 0.1,
+    degeneracy_nullspace_uniform_shift_correlation::Real = 0.98,
+    degeneracy_nullspace_max_compact_support::Integer = 8,
     coupled_qualification_strict_tolerance::Union{Nothing,Real} = nothing,
     coupled_qualification_max_iterations::Integer = 1_000,
 )
@@ -405,6 +414,38 @@ function analyze_initialization(
     merge!(report.metadata, numerical.metadata)
     report.metadata[:stage] = "initialization"
     evaluation = evaluate_numerical(model, point; cache = cache)
+    if check_degeneracy
+        degeneracy_keywords = (
+            nullspace_support_relative = degeneracy_nullspace_support_relative,
+            nullspace_uniform_shift_correlation =
+                degeneracy_nullspace_uniform_shift_correlation,
+            nullspace_max_compact_support = degeneracy_nullspace_max_compact_support,
+        )
+        degeneracy_report = isnothing(expected_modes) ?
+                            analyze_degeneracy(model, evaluation; degeneracy_keywords...) :
+                            analyze_degeneracy(
+            model,
+            evaluation;
+            degeneracy_keywords...,
+            expected_modes = expected_modes,
+        )
+        append!(report.findings, degeneracy_report.findings)
+        merge!(report.metadata, degeneracy_report.metadata)
+    end
+    if check_component_ranks
+        component_rank_report = analyze_component_ranks(
+            model,
+            evaluation;
+            components = components,
+            relative_tolerance = isnothing(component_rank_relative_tolerance) ?
+                                 max(length(evaluation.point.variables), 1) *
+                                 eps(eltype(evaluation.point.values)) :
+                                 component_rank_relative_tolerance,
+            max_dense_entries = component_rank_max_dense_entries,
+        )
+        append!(report.findings, component_rank_report.findings)
+        merge!(report.metadata, component_rank_report.metadata)
+    end
     summary = constraint_feasibility_summary(
         model,
         evaluation;
@@ -429,6 +470,9 @@ function analyze_initialization(
         string(summary.complete)
     report.metadata[:initialization_active_row_count] =
         string(length(active_constraint_rows(summary)))
+    report.metadata[:initialization_degeneracy_checked] = string(check_degeneracy)
+    report.metadata[:initialization_component_ranks_checked] =
+        string(check_component_ranks)
     report.metadata[:stage] = "initialization"
     append!(
         report.findings,

@@ -24,6 +24,18 @@ struct EvaluationPoint{T<:AbstractFloat}
         T = isempty(values) ? Float64 : float(promote_type(map(typeof, values)...))
         return new{T}(collect(variables), T.(values), String(label))
     end
+
+    function EvaluationPoint{T}(
+        variables::AbstractVector{MOI.VariableIndex},
+        values::AbstractVector{<:Real},
+        label::AbstractString = "user",
+    ) where {T<:AbstractFloat}
+        length(variables) == length(values) ||
+            throw(DimensionMismatch("variable and value lengths differ"))
+        length(unique(variables)) == length(variables) ||
+            throw(ArgumentError("evaluation-point variables must be unique"))
+        return new{T}(collect(variables), T.(values), String(label))
+    end
 end
 
 function Base.:(==)(left::EvaluationPoint, right::EvaluationPoint)
@@ -661,6 +673,8 @@ function ComponentConstraintScaleSemantics(
     isempty(constraints) && throw(ArgumentError("constraint scale semantics requires at least one constraint"))
     length(unique(constraints)) == length(constraints) ||
         throw(ArgumentError("constraint scale semantics constraint references must be unique"))
+    all(reference -> reference.kind in (:constraint, :nlp_constraint), constraints) ||
+        throw(ArgumentError("constraint scale semantics references must have kind :constraint or :nlp_constraint"))
     isfinite(nominal_scale) && nominal_scale > 0 ||
         throw(ArgumentError("constraint nominal_scale must be finite and positive"))
     return ComponentConstraintScaleSemantics(
@@ -855,15 +869,14 @@ function ComponentMetadata(
         throw(ArgumentError("component metadata variables must be unique"))
     all(constraint -> constraint.kind == :constraint, constraints) ||
         throw(ArgumentError("component metadata constraints must be constraint references"))
-    constraint_keys = [(item.index, item.subindex) for item in constraints]
-    length(unique(constraint_keys)) == length(constraint_keys) ||
-        throw(ArgumentError("component metadata constraints must be unique"))
-    scope_rank_bound = minimum(
-        filter(value -> !iszero(value), [length(variables), length(constraints)]);
-        init = typemax(Int),
-    )
-    scope_rank_bound != typemax(Int) && !isnothing(expected_rank) && expected_rank > scope_rank_bound &&
-        throw(ArgumentError("expected_rank cannot exceed the declared component scope"))
+    # A one-sided declaration has an unambiguous rank ceiling. With both
+    # variable and constraint scope present, plugins may intentionally expose
+    # only part of a component's internal equations, so retain the declaration
+    # for the later, evidence-bearing metadata diagnostic.
+    one_sided_scope = isempty(variables) ? length(constraints) :
+                      (isempty(constraints) ? length(variables) : 0)
+    !isnothing(expected_rank) && one_sided_scope > 0 && expected_rank > one_sided_scope &&
+        throw(ArgumentError("expected_rank cannot exceed the declared one-sided component scope"))
     any(isempty(String(key)) || isempty(strip(string(value))) for (key, value) in units) &&
         throw(ArgumentError("unit field names and labels must be nonempty"))
     return ComponentMetadata(component_type, string(component_id), collect(variables), collect(constraints),
@@ -879,7 +892,7 @@ function ComponentPortMetadata(
     terminal_labels::AbstractVector = String[],
     mode_labels::AbstractVector = String[],
     variables::AbstractVector{MOI.VariableIndex} = MOI.VariableIndex[],
-    connection_matrix::AbstractMatrix{<:Real},
+    connection_matrix::AbstractArray{<:Real},
     metadata::AbstractDict = Dict{String,String}(),
 )
     isempty(String(component_type)) &&

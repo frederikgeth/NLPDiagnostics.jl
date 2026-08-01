@@ -511,6 +511,41 @@ function NLPDiagnostics.powermodels_analyze_reduced_hessian_persistence(
     return report
 end
 
+function NLPDiagnostics.powermodels_analyze_jacobian_rank_persistence(
+    pm::PowerModels.AbstractPowerModel, points;
+    owner_variable_key::Symbol = :va,
+    include_angle_gauge_modes::Bool = true,
+    expected_modes::AbstractVector{<:NLPDiagnostics.ExpectedNullspaceMode} = NLPDiagnostics.ExpectedNullspaceMode[],
+    kwargs...,
+)
+    model = NLPDiagnostics.powermodels_jump_model(pm; key = owner_variable_key)
+    isnothing(model) && throw(ArgumentError("Cannot recover a JuMP model from public scalar :$(owner_variable_key) variables."))
+    backend = JuMP.backend(model)
+    evaluations = [NLPDiagnostics.evaluate_numerical(backend, point) for point in points]
+    angle_modes = include_angle_gauge_modes && !isempty(evaluations) ?
+                  NLPDiagnostics.powermodels_angle_gauge_modes(pm, first(evaluations); angle_key = owner_variable_key) : NLPDiagnostics.ExpectedNullspaceMode[]
+    report = NLPDiagnostics.analyze_jacobian_rank_persistence(evaluations; expected_modes = vcat(expected_modes, angle_modes), kwargs...)
+    report.metadata[:powermodels_angle_gauge_mode_count] = string(length(angle_modes))
+    return report
+end
+
+function NLPDiagnostics.powermodels_analyze_component_rank_persistence(
+    pm::PowerModels.AbstractPowerModel, points;
+    owner_variable_key::Symbol = :va,
+    include_angle_gauge_modes::Bool = true,
+    expected_modes::AbstractVector{<:NLPDiagnostics.ExpectedNullspaceMode} = NLPDiagnostics.ExpectedNullspaceMode[],
+    kwargs...,
+)
+    model = NLPDiagnostics.powermodels_jump_model(pm; key = owner_variable_key)
+    isnothing(model) && throw(ArgumentError("Cannot recover a JuMP model from public scalar :$(owner_variable_key) variables."))
+    backend = JuMP.backend(model)
+    evaluations = [NLPDiagnostics.evaluate_numerical(backend, point) for point in points]
+    angle_modes = include_angle_gauge_modes && !isempty(evaluations) ? NLPDiagnostics.powermodels_angle_gauge_modes(pm, first(evaluations); angle_key = owner_variable_key) : NLPDiagnostics.ExpectedNullspaceMode[]
+    report = NLPDiagnostics.analyze_component_rank_persistence(backend, evaluations; components = NLPDiagnostics.powermodels_component_metadata(pm), expected_modes = vcat(expected_modes, angle_modes), kwargs...)
+    report.metadata[:powermodels_angle_gauge_mode_count] = string(length(angle_modes))
+    return report
+end
+
 """
     NLPDiagnostics.powermodels_angle_gauge_modes(pm, evaluation; angle_key = :va)
 

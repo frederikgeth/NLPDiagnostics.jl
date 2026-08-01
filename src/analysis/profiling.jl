@@ -274,6 +274,7 @@ function profile_case(
     rank_relative_tolerance::Real =
         max(length(case.point.variables), 1) * eps(T),
     rank_max_dense_entries::Integer = 4_000_000,
+    jacobian_condition_threshold::Real = 1.0e10,
     feasibility_tolerance::Real = sqrt(eps(T)),
     active_tolerance::Real = sqrt(eps(T)),
     strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
@@ -327,6 +328,7 @@ function profile_case(
         scale_ratio_threshold = scale_ratio_threshold,
         component_scale_mismatch_factor = component_scale_mismatch_factor,
         strict_domain_proximity_threshold = strict_domain_proximity_threshold,
+        jacobian_condition_threshold = jacobian_condition_threshold,
         rank_relative_tolerance = rank_relative_tolerance,
         rank_max_dense_entries = rank_max_dense_entries,
     ))
@@ -857,7 +859,10 @@ function synthetic_derivative_boundary_profile_corpus()
         (
             "boundary_tan",
             "tan(x) near pi/2",
-            Float64(pi / 2),
+            # Do not use the rounded Float64 representation of pi/2 itself:
+            # its finite cosine can obscure the pole in a floating-point
+            # evaluator. This remains a finite, valid point near the pole.
+            Float64(pi / 2 - 1.0e-12),
             x -> MOI.ScalarNonlinearFunction(:tan, Any[x]),
         ),
         (

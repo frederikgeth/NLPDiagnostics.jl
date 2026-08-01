@@ -112,11 +112,14 @@ evaluation layers can expose its supporting evidence.
 
 ## Next: numerical rank and derivative refinement
 
-The next physical-scaling foundation is explicit constraint-residual semantics:
-plugins can now declare nominal scales on scalar MOI residual rows, which the
-core compares with set-relative residuals rather than raw function values.
-Coupled-set residual conventions cannot be inferred from units or vector-
-function spelling and remain future work.
+The explicit constraint-residual scaling foundation is implemented. Plugins
+declare nominal scales on scalar or supported coupled residual sources; the
+core compares set-relative violations rather than raw function values, validates
+ordinary sources structurally, retains evaluator NLP sources as runtime-only,
+and reports coverage limits. Supported coupled margins include SOC, norm, PSD,
+power, exponential, geometric-mean, relative-entropy, log-determinant, and
+root-determinant families. Plugin-supplied residual conventions remain future
+work for coupled geometries outside this generic coverage.
 
 - Sparse nonzero-pattern rank upper bounds and sparse-QR diagonal-pivot rank
   estimates alongside guarded dense SVD, plus explicit iterative sparse
@@ -163,6 +166,13 @@ Next auxiliary work:
 - wider multi-branch domain handling for remaining nonlinear operators; and
 - solver-specific certificate provenance for conflict output.
 
+Branch-sensitive guards are now explicitly reported when a generic guard would
+have to select one of multiple admissible branches (for example, reciprocal or
+inverse-hyperbolic domains crossing zero). The core records this as
+representational evidence and does not silently strengthen the model. Future
+work is an opt-in, plugin-declared branch convention rather than automatic
+branch selection.
+
 Solver-managed execution, result-status provenance, weighted L1/L∞ objectives,
 and a conservative greedy local subset reduction are implemented. The subset
 reduction is intentionally labeled as scope-, order-, and solver-dependent;
@@ -200,10 +210,24 @@ Numerical nullspaces are compared with structural results before any
 plugin-supplied expected-gauge interpretation. Implemented generic
 classifications include structurally expected local nullspaces and unexpected
 local rank loss, candidate common-coordinate shifts, and candidate two-row
-equation dependencies. Next classifications:
+equation dependencies, plus compact and single-coordinate local freedoms. Next
+classifications:
 
 - expected coordinate gauge declarations and observed-nullspace comparison
   (implemented, including declared-span dimension checks);
+- component expected-rank comparison and matching local right-nullity evidence
+  (implemented; the generic core deliberately leaves physical mode
+  fingerprinting to plugins), plus cross-point component-rank persistence
+  and component-local right-nullspace persistence evidence for explicitly
+  supplied evaluations, including optional component-scope expected-mode
+  comparison;
+- cross-point equality-Jacobian rank and right-nullspace persistence screens
+  (implemented for explicitly supplied, coordinate-aligned evaluations,
+  including expected-mode comparison at every supplied point);
+- initialization analysis includes the generic point-local degeneracy pass for
+  a complete explicit start (implemented; it remains opt-out and does not
+  generate or alter starts), plus optional component expected-rank comparison
+  at that start;
 - active-set nullspace classification beyond structural/numerical tangent
   comparisons, compact dependence, uniform shifts, and declared-mode spans;
 - richer flat reduced-Hessian direction fingerprints beyond uniform,
@@ -263,6 +287,11 @@ Explicit iteration-point bindings are implemented. They run generic numerical
 analysis at caller-supplied points and compare logged primal infeasibility with
 recomputed scalar-bound and coupled-set violation, retaining all three values
 as metadata; they also compare the logged and recomputed model objectives when
-available. Trace-level feasibility and objective disagreement across multiple
-bound points is reported conservatively. Future work is solver-specific iterate
-capture rather than reconstructing points from raw text.
+available. Their opt-out local degeneracy screen makes captured stationary rank
+loss and nullspace fingerprints visible, and their optional component-rank
+screen compares plugin declarations with the supplied iterate Jacobian, without
+interpreting log text as a certificate. Within each explicit non-restarted log
+segment, captured points also receive a cross-point Jacobian rank/nullspace
+persistence screen. Trace-level feasibility and objective disagreement across
+multiple bound points is reported conservatively. Future work is solver-specific
+iterate capture rather than reconstructing points from raw text.

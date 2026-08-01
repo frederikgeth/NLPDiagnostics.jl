@@ -144,6 +144,12 @@ from one removed by active constraints.
 `powermodels_analyze_reduced_hessian_persistence(pm, snapshots)` supplies the
 same optional candidates to cross-point flat-curvature persistence analysis;
 the snapshots remain the sole source of second-order numerical evidence.
+`powermodels_analyze_jacobian_rank_persistence(pm, points)` and
+`powermodels_analyze_component_rank_persistence(pm, points)` provide the
+analogous first-order cross-point screens. They evaluate only caller-supplied
+points on the recovered backend, preserve the optional angle candidates as
+expected-mode evidence, and do not reconstruct solver iterates or infer a
+physical interpretation from persistent rank or nullspace geometry.
 
 For a polar formulation whose scalar angle variables are publicly exposed as
 `:va`, `powermodels_angle_gauge_modes(pm, evaluation)` creates one opt-in

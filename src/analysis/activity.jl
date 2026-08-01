@@ -2049,8 +2049,8 @@ function _coupled_set_boundary_is_nonsmooth(
     elseif activity.set_kind == :geometric_mean_cone
         return any(value -> value <= tolerance, numeric[2:end])
     elseif activity.set_kind == :relative_entropy_cone
-        count = (length(numeric) - 1) ÷ 2
-        return any(value -> value <= tolerance, numeric[2:end]) || count < 1
+        component_count = (length(numeric) - 1) ÷ 2
+        return any(value -> value <= tolerance, numeric[2:end]) || component_count < 1
     end
     return false
 end
@@ -2585,18 +2585,30 @@ function analyze_coupled_set_qualification(
     active_tolerance::Real = sqrt(eps(T)),
     strict_tolerance::Real = sqrt(eps(T)),
     max_iterations::Integer = 1_000,
+    component_scale_mismatch_factor::Real = 1.0e3,
 ) where {T<:AbstractFloat}
     summary = coupled_set_feasibility_summary(
         model, evaluation;
         feasibility_tolerance = feasibility_tolerance,
         active_tolerance = active_tolerance,
     )
-    return analyze_coupled_set_qualification(
+    report = analyze_coupled_set_qualification(
         evaluation;
         summary = summary,
         strict_tolerance = strict_tolerance,
         max_iterations = max_iterations,
     )
+    scale_report = analyze_component_constraint_scales(
+        component_constraint_scale_semantics(model), summary;
+        mismatch_factor = component_scale_mismatch_factor,
+    )
+    append!(report.findings, scale_report.findings)
+    for (key, value) in scale_report.metadata
+        key == :stage && continue
+        report.metadata[key] = value
+    end
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return report
 end
 
 """
@@ -2656,6 +2668,7 @@ function analyze_active_set(
     mfcq_witness_max_iterations::Integer = 1_000,
     coupled_qualification_strict_tolerance::Real = sqrt(eps(T)),
     coupled_qualification_max_iterations::Integer = 1_000,
+    component_scale_mismatch_factor::Real = 1.0e3,
     mfcq_support_relative::Real = 1.0e-3,
     multiplier_support_relative::Real = 1.0e-3,
     nullspace_support_relative::Real = 0.1,
@@ -2775,6 +2788,15 @@ function analyze_active_set(
     # coupled constraint, avoiding irrelevant evidence-limit findings for
     # scalar-only NLPs.
     if !isempty(coupled_summary.activities)
+        coupled_scale_report = analyze_component_constraint_scales(
+            component_constraint_scale_semantics(model), coupled_summary;
+            mismatch_factor = component_scale_mismatch_factor,
+        )
+        append!(report.findings, coupled_scale_report.findings)
+        for (key, value) in coupled_scale_report.metadata
+            key == :stage && continue
+            report.metadata[key] = value
+        end
         coupled_qualification_report = analyze_coupled_set_qualification(
             evaluation;
             summary = coupled_summary,

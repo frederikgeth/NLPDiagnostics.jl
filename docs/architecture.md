@@ -62,6 +62,47 @@ independent `port_topology_candidate_mode_*` declarations. Degeneracy analysis
 compares those candidates with an observed local Jacobian right nullspace by
 default, but retains their representational provenance and never upgrades that
 comparison into an electrical interpretation.
+
+Generic equality-Jacobian nullspace fingerprints also report concentrated local
+right-null directions. A single-coordinate direction identifies a coordinate
+that is locally free to first order; a compact multi-coordinate direction
+localizes a small affected subsystem. Both are heuristic numerical evidence,
+not a diagnosis of a missing equation, a physical gauge, or a physical mode.
+They complement, rather than replace, expected-mode declarations and
+component-rank metadata.
+
+`analyze_jacobian_rank_persistence` provides the analogous explicit
+cross-point screen for first-order geometry. It requires callers to supply
+evaluations with identical ordered variables and scalar constraint rows, then
+compares rank and, when present, the right-nullspace using principal-angle
+alignment. A persistent local nullspace is still numerical evidence rather
+than proof of a physical gauge; a changing rank or span is evidence against
+treating a one-point mode as persistent.
+The model-and-points convenience method evaluates only the caller-supplied
+points; it never perturbs, generates, or writes an initialization.
+Initialization analysis runs the same generic first-order degeneracy comparison
+at a complete supplied start by default. This makes stationary derivative loss
+and localized nullspace fingerprints visible before a solve; callers can turn
+that screen off explicitly when only domain, feasibility, and active-set
+evidence is wanted.
+The same pass can compare optional plugin-supplied component expected ranks
+with the start-point Jacobian. A mismatch remains local numerical evidence with
+representational context; it is not an assertion that a component's physical
+model is invalid.
+`analyze_component_rank_persistence` extends that comparison across explicitly
+supplied evaluations. It separates changing component rank from persistent
+agreement or persistent mismatch with a declaration, while retaining the
+component scope, labels, ranks, and tolerance as evidence. When the declaration
+implies component-local right-nullity, it also compares the local nullspace
+subspaces using principal-angle alignment. Persistent local geometry still does
+not identify a physical mode without domain metadata. Optional expected-mode
+declarations whose coordinates lie entirely in that component scope can be
+tested against the persistent local subspace, preserving every point's
+projection residual instead of inferring a mode from component names.
+Optional `ExpectedNullspaceMode` declarations are tested against every
+available persistent subspace, retaining all projection residuals. This
+supports a plugin's expectation without silently turning it into a physical
+certificate.
 `component_port_coordinate_semantics(model)` separately declares whether a
 port's terminals represent voltage, current, power, angle, or a plugin-defined generic
 quantity, together with their representation and units. Combined analysis
@@ -111,8 +152,11 @@ analysis also validates that the coordinates and constraints exist in the
 analyzed model and that its expected rank cannot exceed either declared scope
 dimension. At an explicit evaluation point, `analyze_component_ranks` aligns
 both scopes to the evaluated Jacobian and reports an expected-versus-observed
-rank mismatch as numerical evidence with representational interpretation. It
-does not assign a physical cause to that mismatch.
+rank mismatch as numerical evidence with representational interpretation. When
+the declared rank deliberately leaves local coordinate freedom, it separately
+reports the matching right-nullity as an informational observation. That only
+confirms the declared local dimension: it does not identify a physical mode,
+prove a network-wide gauge, or assign a physical cause to either outcome.
 Plugins may separately declare `component_coordinate_semantics(model)` with
 `ComponentCoordinateSemantics` records. These label selected model coordinates
 as voltage, current, power, angle, or generic quantities, with an explicit
@@ -150,6 +194,9 @@ the constraint's units or function expression. The generic core must first
 compute the signed/equality residual with respect to the MOI set, then compare
 that residual with the declared scale through
 `analyze_component_constraint_scales`.
+Declarations accept only ordinary MOI `:constraint` and evaluator-provided
+`:nlp_constraint` source references; variables and unrelated entities are
+rejected at construction time.
 
 The initial slice supports only rows whose scalar residual semantics are
 already explicit in MOI (`EqualTo`, `LessThan`, `GreaterThan`, and interval
@@ -158,6 +205,28 @@ unavailable until their geometry-specific residual convention is declared. It
 is exposed through `component_constraint_scale_semantics(model)` and included
 automatically by numerical analysis. Scope validation beyond evaluation-row
 alignment remains future work.
+`analyze_component_constraint_scales(model, evaluation)` is the public
+combined entry point: it joins scalar, coupled, and snapshot-scope evidence
+without requiring a plugin to assemble summaries itself.
+`analyze_component_constraint_scales(model, point)` evaluates the point first
+and has the same non-mutating behavior; a model with no declarations reports
+zero evidence rather than failing.
+Combined reports retain both the count of declarations and the count of source
+rows referenced by those declarations, so absent metadata is distinguishable
+from a multi-row declaration that happened not to trigger a finding.
+Residual-scale reports separately count stale source references, aligned rows
+without an available scalar residual, and (for coupled sets) unsupported
+geometry. These are representational coverage limits, not feasibility claims.
+Coupled reports also retain the count of declarations aligned with a supported
+generic geometry, including rows whose margin exists but is numerically
+unavailable.
+Active-set analysis additionally supports the generic feasibility margins for
+second-order, rotated-second-order, and norm-family cones. Other coupled-set
+geometries remain unavailable until their residual conventions are explicit.
+The same report is included by standalone coupled-set qualification analysis.
+Coverage also includes PSD, power, exponential, geometric-mean,
+relative-entropy, log-determinant, and root-determinant margins whenever the
+generic coupled feasibility layer supplies a finite violation.
 This preserves the distinction between a numerical observation, a plugin's
 physical scaling convention, and a solver's own tolerance semantics.
 

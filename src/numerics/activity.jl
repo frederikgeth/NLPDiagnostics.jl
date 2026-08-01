@@ -211,33 +211,6 @@ does not authorize scalar active-row conversion.
 """
 coupled_set_tangent_evidence(args...) = nothing
 
-"""Return the explicit current availability state of cone-aware qualification."""
-function coupled_set_qualification_screen(
-    evaluation::NumericalEvaluation{T},
-    summary::CoupledSetFeasibilitySummary{T},
-) where {T<:AbstractFloat}
-    evaluation.point == summary.point ||
-        throw(ArgumentError("evaluation and coupled-set summary points differ"))
-    sources = EntityRef[tangent.source for tangent in summary.tangents]
-    return CoupledSetQualificationScreen{T}(
-        false,
-        isempty(sources) ?
-        "no smooth coupled-set boundary tangent is available at this point" :
-        "cone-aware qualification semantics are not implemented; scalar LICQ/MFCQ is intentionally unchanged",
-        evaluation.point,
-        sources,
-        false,
-        zeros(T, length(evaluation.point.variables)),
-        T[],
-        zeros(T, length(evaluation.point.variables)),
-        nothing,
-        nothing,
-        0,
-        false,
-        Symbol[],
-    )
-end
-
 """Build the coupled-set summary first, then return its qualification screen."""
 function coupled_set_qualification_screen(
     model::MOI.ModelLike,
@@ -2036,12 +2009,12 @@ function mfcq_screen(
     equality_estimate.rank == length(equalities) || return MFCQScreen{T}(
         true, "equality Jacobian is rank deficient", equalities, inequality_rows,
         false, zeros(T, length(evaluation.point.variables)), nothing, false, T[], nothing,
-        nothing, nothing, 0, false, equality_estimate.rank, equality_estimate.threshold,
+        nothing, nothing, 0, false, equality_estimate.rank, equality_estimate.absolute_threshold,
     )
     isempty(inequality_rows) && return MFCQScreen{T}(
         true, nothing, equalities, inequality_rows, true,
         zeros(T, length(evaluation.point.variables)), nothing, false, T[], nothing,
-        nothing, nothing, 0, false, equality_estimate.rank, equality_estimate.threshold,
+        nothing, nothing, 0, false, equality_estimate.rank, equality_estimate.absolute_threshold,
     )
     tangent = equality_estimate.right_nullspace
     jacobian = _combined_jacobian_matrix(evaluation)
@@ -2098,6 +2071,6 @@ function mfcq_screen(
         witness_iterations,
         witness_converged,
         equality_estimate.rank,
-        equality_estimate.threshold,
+        equality_estimate.absolute_threshold,
     )
 end

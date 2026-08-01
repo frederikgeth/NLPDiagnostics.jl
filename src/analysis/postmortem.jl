@@ -1001,6 +1001,19 @@ function analyze_iteration_points(
     trace_trend_factor::Real = 10,
     objective_trace_tolerance::Real = sqrt(eps(Float64)),
     relative_step::Union{Nothing,Real} = nothing,
+    check_degeneracy::Bool = true,
+    check_component_ranks::Bool = true,
+    components::AbstractVector{<:ComponentMetadata} = component_metadata(model),
+    component_rank_relative_tolerance::Union{Nothing,Real} = nothing,
+    component_rank_max_dense_entries::Integer = 4_000_000,
+    check_rank_persistence::Bool = true,
+    check_component_rank_persistence::Bool = true,
+    rank_persistence_minimum_evaluations::Integer = 2,
+    rank_persistence_subspace_alignment_threshold::Real = 0.98,
+    expected_modes::Union{Nothing,AbstractVector{<:ExpectedNullspaceMode}} = nothing,
+    degeneracy_nullspace_support_relative::Real = 0.1,
+    degeneracy_nullspace_uniform_shift_correlation::Real = 0.98,
+    degeneracy_nullspace_max_compact_support::Integer = 8,
     kwargs...,
 )
     residual_agreement_factor > 1 || throw(
@@ -1019,6 +1032,13 @@ function analyze_iteration_points(
     report.metadata[:bound_iteration_count] = string(length(bindings))
     report.metadata[:bound_iteration_relative_step] = isnothing(relative_step) ?
                                                      "type_default" : string(relative_step)
+    report.metadata[:bound_iteration_degeneracy_checked] = string(check_degeneracy)
+    report.metadata[:bound_iteration_component_ranks_checked] =
+        string(check_component_ranks)
+    report.metadata[:bound_iteration_rank_persistence_checked] =
+        string(check_rank_persistence)
+    report.metadata[:bound_iteration_component_rank_persistence_checked] =
+        string(check_component_rank_persistence)
     report.metadata[:bound_iteration_segment_selector_count] = string(count(
         binding -> binding.selector == :segment_iteration, bindings,
     ))
@@ -1050,6 +1070,9 @@ function analyze_iteration_points(
     end
     trace = Tuple{IterationPointBinding,Float64}[]
     objective_trace = Tuple{IterationPointBinding,Float64}[]
+    degeneracy_finding_count = 0
+    component_rank_finding_count = 0
+    evaluations_by_segment = Dict{Int,Any}()
     segment_qualified_metadata = length(unique([
         (binding.segment, binding.record.iteration) for binding in bindings
     ])) < length(bindings) || any(binding -> binding.segment != 1, bindings)
@@ -1061,6 +1084,44 @@ function analyze_iteration_points(
         )
         point_report = analyze_numerical(model, evaluation; kwargs...)
         append!(report.findings, point_report.findings)
+        if haskey(evaluations_by_segment, binding.segment)
+            push!(evaluations_by_segment[binding.segment], evaluation)
+        else
+            evaluations_by_segment[binding.segment] = [evaluation]
+        end
+        if check_degeneracy
+            degeneracy_keywords = (
+                nullspace_support_relative = degeneracy_nullspace_support_relative,
+                nullspace_uniform_shift_correlation =
+                    degeneracy_nullspace_uniform_shift_correlation,
+                nullspace_max_compact_support =
+                    degeneracy_nullspace_max_compact_support,
+            )
+            degeneracy_report = isnothing(expected_modes) ?
+                                analyze_degeneracy(model, evaluation; degeneracy_keywords...) :
+                                analyze_degeneracy(
+                model,
+                evaluation;
+                degeneracy_keywords...,
+                expected_modes = expected_modes,
+            )
+            append!(report.findings, degeneracy_report.findings)
+            degeneracy_finding_count += length(degeneracy_report.findings)
+        end
+        if check_component_ranks
+            component_rank_report = analyze_component_ranks(
+                model,
+                evaluation;
+                components = components,
+                relative_tolerance = isnothing(component_rank_relative_tolerance) ?
+                                     max(length(evaluation.point.variables), 1) *
+                                     eps(eltype(evaluation.point.values)) :
+                                     component_rank_relative_tolerance,
+                max_dense_entries = component_rank_max_dense_entries,
+            )
+            append!(report.findings, component_rank_report.findings)
+            component_rank_finding_count += length(component_rank_report.findings)
+        end
         feasibility = constraint_feasibility_summary(model, evaluation)
         violations = [
             activity.feasibility_violation for activity in feasibility.activities if
@@ -1149,8 +1210,57 @@ function analyze_iteration_points(
         item[1].segment, item[1].record.iteration, item[1].record.line,
     ))
     trace_segments = sort(unique(item[1].segment for item in trace))
+    persistence_segment_count = 0
+    component_persistence_segment_count = 0
+    if check_rank_persistence || (check_component_rank_persistence &&
+                                  check_component_ranks && !isempty(components))
+        for (segment, evaluations) in sort(collect(evaluations_by_segment); by = first)
+            length(evaluations) >= rank_persistence_minimum_evaluations || continue
+            segment_expected_modes = isnothing(expected_modes) ?
+                                     expected_nullspace_modes(model, evaluations[1]) :
+                                     expected_modes
+            if check_rank_persistence
+                persistence_report = analyze_jacobian_rank_persistence(
+                    evaluations;
+                    minimum_evaluations = rank_persistence_minimum_evaluations,
+                    subspace_alignment_threshold = rank_persistence_subspace_alignment_threshold,
+                    expected_modes = segment_expected_modes,
+                )
+                append!(report.findings, persistence_report.findings)
+                persistence_segment_count += 1
+            end
+            if check_component_rank_persistence && check_component_ranks &&
+               !isempty(components)
+                component_persistence_report = analyze_component_rank_persistence(
+                    model,
+                    evaluations;
+                    components = components,
+                    minimum_evaluations = rank_persistence_minimum_evaluations,
+                    subspace_alignment_threshold =
+                        rank_persistence_subspace_alignment_threshold,
+                    expected_modes = segment_expected_modes,
+                    relative_tolerance =
+                        isnothing(component_rank_relative_tolerance) ?
+                        max(length(evaluations[1].point.variables), 1) *
+                        eps(eltype(evaluations[1].point.values)) :
+                        component_rank_relative_tolerance,
+                    max_dense_entries = component_rank_max_dense_entries,
+                )
+                append!(report.findings, component_persistence_report.findings)
+                component_persistence_segment_count += 1
+            end
+        end
+    end
     objective_trace_segments = sort(unique(item[1].segment for item in objective_trace))
     report.metadata[:bound_iteration_segment_count] = string(length(trace_segments))
+    report.metadata[:bound_iteration_degeneracy_finding_count] =
+        string(degeneracy_finding_count)
+    report.metadata[:bound_iteration_component_rank_finding_count] =
+        string(component_rank_finding_count)
+    report.metadata[:bound_iteration_rank_persistence_segment_count] =
+        string(persistence_segment_count)
+    report.metadata[:bound_iteration_component_rank_persistence_segment_count] =
+        string(component_persistence_segment_count)
     report.metadata[:bound_iteration_multi_point_segment_count] = string(count(
         segment -> count(item -> item[1].segment == segment, trace) >= 2,
         trace_segments,
