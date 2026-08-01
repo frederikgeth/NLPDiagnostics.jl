@@ -487,6 +487,7 @@ function _iterative_probe_persistence_report(
     convergence_tolerance::Real,
     residual_relative_tolerance::Real,
     subspace_alignment_threshold::Real,
+    support_relative::Real,
 ) where {T<:AbstractFloat}
     side in (:right, :left) || throw(ArgumentError("side must be :right or :left"))
     probe_dimension > 0 || throw(ArgumentError("probe_dimension must be positive"))
@@ -498,6 +499,8 @@ function _iterative_probe_persistence_report(
         throw(ArgumentError("residual_relative_tolerance must be finite and nonnegative"))
     zero(T) <= subspace_alignment_threshold <= one(T) ||
         throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    zero(T) < support_relative <= one(T) ||
+        throw(ArgumentError("support_relative must lie in (0, 1]"))
     report = DiagnosticReport()
     stage_prefix = side == :right ? "iterative_right_nullspace_persistence" :
                    "iterative_left_nullspace_persistence"
@@ -508,6 +511,7 @@ function _iterative_probe_persistence_report(
     report.metadata[:iterations] = string(iterations)
     report.metadata[:residual_relative_tolerance] = string(tolerance)
     report.metadata[:subspace_alignment_threshold] = string(subspace_alignment_threshold)
+    report.metadata[:support_relative] = string(support_relative)
     isempty(evaluations) && return report
     reference_coordinates = side == :right ? first(evaluations).point.variables :
                             first(evaluations).constraint_sources
@@ -567,6 +571,7 @@ function _iterative_probe_persistence_report(
     dimensions = Int[]
     converged = Bool[]
     labels = String[]
+    supported_coordinates = Set{Int}()
     for index in available_indices
         probe = probes[index]
         evaluation = evaluations[index]
@@ -576,10 +581,20 @@ function _iterative_probe_persistence_report(
         push!(dimensions, length(retained))
         push!(converged, probe.converged)
         push!(labels, evaluation.point.label)
+        isempty(retained) && continue
+        magnitudes = vec(maximum(abs, probe.directions[:, retained]; dims = 2))
+        maximum_magnitude = maximum(magnitudes; init = zero(T))
+        iszero(maximum_magnitude) && continue
+        union!(supported_coordinates, findall(
+            magnitude -> magnitude >= T(support_relative) * maximum_magnitude,
+            magnitudes,
+        ))
     end
     report.metadata[:available_point_labels] = join(labels, ",")
     report.metadata[:candidate_dimensions] = join(dimensions, ",")
     report.metadata[:candidate_probe_converged_count] = string(count(identity, converged))
+    report.metadata[:candidate_support_coordinate_count] =
+        string(length(supported_coordinates))
     if all(iszero, dimensions)
         push!(report, Finding(
             Symbol(stage_prefix * "_no_small_residual_candidate");
@@ -611,9 +626,10 @@ function _iterative_probe_persistence_report(
     end
     persistent = same_dimension && minimum_cosine >= convert(T, subspace_alignment_threshold)
     report.metadata[:minimum_principal_cosine] = string(minimum_cosine)
+    support = sort!(collect(supported_coordinates))
     affected = side == :right ?
-               EntityRef[EntityRef(:variable, variable.value) for variable in reference_coordinates] :
-               copy(reference_coordinates)
+               EntityRef[EntityRef(:variable, reference_coordinates[index].value) for index in support] :
+               EntityRef[reference_coordinates[index] for index in support]
     push!(report, Finding(
         Symbol(stage_prefix * (persistent ? "_persistent" : "_not_persistent"));
         severity = persistent ? SeverityInfo : SeverityWarning,
@@ -631,6 +647,8 @@ function _iterative_probe_persistence_report(
             "minimum_principal_cosine" => minimum_cosine,
             "alignment_threshold" => subspace_alignment_threshold,
             "relative_tolerance" => tolerance,
+            "support_relative" => support_relative,
+            "support_coordinates" => join(support, ","),
             "all_probes_converged" => all(converged),
         ])],
         affected = affected,
@@ -655,6 +673,7 @@ function analyze_iterative_right_nullspace_persistence(
     convergence_tolerance::Real = sqrt(eps(T)),
     residual_relative_tolerance::Real = sqrt(eps(T)),
     subspace_alignment_threshold::Real = 0.98,
+    support_relative::Real = 0.1,
 ) where {T<:AbstractFloat}
     return _iterative_probe_persistence_report(
         evaluations, :right;
@@ -664,6 +683,7 @@ function analyze_iterative_right_nullspace_persistence(
         convergence_tolerance = convergence_tolerance,
         residual_relative_tolerance = residual_relative_tolerance,
         subspace_alignment_threshold = subspace_alignment_threshold,
+        support_relative = support_relative,
     )
 end
 
@@ -681,6 +701,7 @@ function analyze_iterative_left_nullspace_persistence(
     convergence_tolerance::Real = sqrt(eps(T)),
     residual_relative_tolerance::Real = sqrt(eps(T)),
     subspace_alignment_threshold::Real = 0.98,
+    support_relative::Real = 0.1,
 ) where {T<:AbstractFloat}
     return _iterative_probe_persistence_report(
         evaluations, :left;
@@ -690,7 +711,50 @@ function analyze_iterative_left_nullspace_persistence(
         convergence_tolerance = convergence_tolerance,
         residual_relative_tolerance = residual_relative_tolerance,
         subspace_alignment_threshold = subspace_alignment_threshold,
+        support_relative = support_relative,
     )
+end
+
+"""
+    analyze_iterative_right_nullspace_persistence(model, points; cache, relative_step, ...)
+
+Evaluate one model at explicitly supplied points, then compare finite-budget
+candidate right-null subspaces. This convenience method neither chooses nor
+modifies points.
+"""
+function analyze_iterative_right_nullspace_persistence(
+    model::MOI.ModelLike,
+    points::AbstractVector{<:EvaluationPoint{T}};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Real = cbrt(eps(T)),
+    kwargs...,
+) where {T<:AbstractFloat}
+    evaluations = NumericalEvaluation{T}[
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step) for
+        point in points
+    ]
+    return analyze_iterative_right_nullspace_persistence(evaluations; kwargs...)
+end
+
+"""
+    analyze_iterative_left_nullspace_persistence(model, points; cache, relative_step, ...)
+
+Evaluate one model at explicitly supplied points, then compare finite-budget
+candidate left-null subspaces. This convenience method neither chooses nor
+modifies points.
+"""
+function analyze_iterative_left_nullspace_persistence(
+    model::MOI.ModelLike,
+    points::AbstractVector{<:EvaluationPoint{T}};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Real = cbrt(eps(T)),
+    kwargs...,
+) where {T<:AbstractFloat}
+    evaluations = NumericalEvaluation{T}[
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step) for
+        point in points
+    ]
+    return analyze_iterative_left_nullspace_persistence(evaluations; kwargs...)
 end
 
 function _point_evidence(point::EvaluationPoint)
@@ -2420,6 +2484,7 @@ function analyze_jacobian_rank_persistence(
         for evaluation in evaluations); init = 1) * eps(T),
     max_dense_entries::Integer = 4_000_000,
     subspace_alignment_threshold::Real = 0.98,
+    left_nullspace_support_relative::Real = 0.1,
     expected_modes::AbstractVector{<:ExpectedNullspaceMode} = ExpectedNullspaceMode[],
     expected_mode_residual_tolerance::Real = sqrt(eps(T)),
 ) where {T<:AbstractFloat}
@@ -2430,6 +2495,8 @@ function analyze_jacobian_rank_persistence(
         throw(ArgumentError("relative_tolerance must be nonnegative"))
     zero(T) <= subspace_alignment_threshold <= one(T) ||
         throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    zero(T) < left_nullspace_support_relative <= one(T) ||
+        throw(ArgumentError("left_nullspace_support_relative must lie in (0, 1]"))
     expected_mode_residual_tolerance >= zero(T) ||
         throw(ArgumentError("expected_mode_residual_tolerance must be nonnegative"))
     report = DiagnosticReport()
@@ -2438,6 +2505,8 @@ function analyze_jacobian_rank_persistence(
     report.metadata[:minimum_evaluations] = string(minimum_evaluations)
     report.metadata[:relative_tolerance] = string(tolerance)
     report.metadata[:subspace_alignment_threshold] = string(subspace_alignment_threshold)
+    report.metadata[:left_nullspace_support_relative] =
+        string(left_nullspace_support_relative)
     report.metadata[:expected_mode_count] = string(length(expected_modes))
     isempty(evaluations) && return report
     reference_variables = evaluations[1].point.variables
@@ -2484,10 +2553,12 @@ function analyze_jacobian_rank_persistence(
     available_estimates = estimates[candidates]
     ranks = [estimate.rank for estimate in available_estimates]
     nullities = [estimate.right_nullity for estimate in available_estimates]
+    left_nullities = [estimate.left_nullity for estimate in available_estimates]
     labels = join((evaluations[index].point.label for index in candidates), ",")
     report.metadata[:available_point_labels] = labels
     report.metadata[:observed_ranks] = join(ranks, ",")
     report.metadata[:observed_right_nullities] = join(nullities, ",")
+    report.metadata[:observed_left_nullities] = join(left_nullities, ",")
     if !all(==(first(ranks)), ranks)
         push!(report, Finding(:jacobian_rank_not_persistent;
             severity = SeverityWarning, domain = NumericalIssue,
@@ -2504,6 +2575,72 @@ function analyze_jacobian_rank_persistence(
             suggested_actions = ["Compare derivative scales, domains, and active constraints at the supplied points."],
         ))
         return report
+    end
+    if first(left_nullities) == 0
+        push!(report, Finding(:jacobian_left_nullspace_absent_persistent;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The local Jacobian rank is unchanged across $(length(available_estimates)) explicitly supplied points, with no left-null direction at the selected tolerance.",
+            why_it_matters = "This is repeated local row-rank evidence, not a global independence certificate.",
+            evidence = [Evidence("Jacobian left-nullspace persistence"; details = [
+                "point_labels" => labels,
+                "rank" => first(ranks),
+                "left_nullity" => 0,
+                "relative_tolerance" => tolerance,
+            ])],
+        ))
+    else
+        left_support = Set{Int}()
+        for estimate in available_estimates
+            magnitudes = vec(maximum(abs, estimate.left_nullspace; dims = 2))
+            maximum_magnitude = maximum(magnitudes; init = zero(T))
+            iszero(maximum_magnitude) && continue
+            union!(left_support, findall(
+                magnitude -> magnitude >= T(left_nullspace_support_relative) * maximum_magnitude,
+                magnitudes,
+            ))
+        end
+        left_support_positions = sort!(collect(left_support))
+        minimum_left_cosine = one(T)
+        for left in eachindex(available_estimates), right in (left + 1):length(available_estimates)
+            cosines = svdvals(transpose(available_estimates[left].left_nullspace) *
+                              available_estimates[right].left_nullspace)
+            minimum_left_cosine = min(
+                minimum_left_cosine,
+                isempty(cosines) ? zero(T) : minimum(cosines),
+            )
+        end
+        left_persistent = all(==(first(left_nullities)), left_nullities) &&
+                          minimum_left_cosine >= convert(T, subspace_alignment_threshold)
+        report.metadata[:minimum_left_nullspace_principal_cosine] =
+            string(minimum_left_cosine)
+        push!(report, Finding(
+            left_persistent ? :jacobian_left_nullspace_persistent :
+                              :jacobian_left_nullspace_not_persistent;
+            severity = left_persistent ? SeverityInfo : SeverityWarning,
+            domain = NumericalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = left_persistent ?
+                          "The same-dimensional local Jacobian left-nullspace is aligned across $(length(available_estimates)) explicitly supplied points." :
+                          "Local Jacobian rank is unchanged, but the left-nullspace is not consistently aligned across $(length(available_estimates)) explicitly supplied points.",
+            why_it_matters = left_persistent ?
+                             "Repeated dependent-equation geometry is more consistent with persistent local row dependence than a one-point cancellation, but it does not prove redundancy or an IIS." :
+                             "Changing left-nullspace geometry can indicate operating-point dependence or numerical sensitivity even when estimated rank is unchanged.",
+            evidence = [Evidence("Jacobian left-nullspace persistence"; details = [
+                "point_labels" => labels,
+                "rank" => first(ranks),
+                "left_nullities" => join(left_nullities, ","),
+                "minimum_principal_cosine" => minimum_left_cosine,
+                "alignment_threshold" => subspace_alignment_threshold,
+                "support_relative" => left_nullspace_support_relative,
+                "support_rows" => join(left_support_positions, ","),
+            ])],
+            affected = EntityRef[reference_rows[index] for index in left_support_positions],
+            suggested_actions = left_persistent ?
+                                ["Inspect the persistent constraint combination together with structural matching and duplicate-expression evidence."] :
+                                ["Inspect row scaling, derivative domains, and active geometry at each point before attributing a changing dependency."],
+        ))
     end
     if first(nullities) == 0
         push!(report, Finding(:jacobian_rank_persistent;

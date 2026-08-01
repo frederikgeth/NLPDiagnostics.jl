@@ -1010,6 +1010,7 @@ function analyze_iteration_points(
     check_component_rank_persistence::Bool = true,
     rank_persistence_minimum_evaluations::Integer = 2,
     rank_persistence_subspace_alignment_threshold::Real = 0.98,
+    rank_persistence_left_nullspace_support_relative::Real = 0.1,
     expected_modes::Union{Nothing,AbstractVector{<:ExpectedNullspaceMode}} = nothing,
     degeneracy_nullspace_support_relative::Real = 0.1,
     degeneracy_nullspace_uniform_shift_correlation::Real = 0.98,
@@ -1063,6 +1064,8 @@ function analyze_iteration_points(
         string(check_component_ranks)
     report.metadata[:bound_iteration_rank_persistence_checked] =
         string(check_rank_persistence)
+    report.metadata[:bound_iteration_rank_persistence_left_nullspace_support_relative] =
+        string(rank_persistence_left_nullspace_support_relative)
     report.metadata[:bound_iteration_component_rank_persistence_checked] =
         string(check_component_rank_persistence)
     report.metadata[:bound_iteration_iterative_right_probe_requested] =
@@ -1300,6 +1303,8 @@ function analyze_iteration_points(
                     evaluations;
                     minimum_evaluations = rank_persistence_minimum_evaluations,
                     subspace_alignment_threshold = rank_persistence_subspace_alignment_threshold,
+                    left_nullspace_support_relative =
+                        rank_persistence_left_nullspace_support_relative,
                     expected_modes = segment_expected_modes,
                 )
                 append!(report.findings, persistence_report.findings)

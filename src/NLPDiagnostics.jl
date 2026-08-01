@@ -4479,6 +4479,11 @@ function analyze(
     iterative_spectrum_probe_iterations::Integer = 100,
     iterative_spectrum_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
     iterative_spectrum_probe_spread_threshold::Real = 1.0e6,
+    check_iterative_right_nullspace_persistence::Bool = false,
+    check_iterative_left_nullspace_persistence::Bool = false,
+    iterative_probe_persistence_minimum_evaluations::Integer = 2,
+    iterative_probe_persistence_alignment_threshold::Real = 0.98,
+    iteration_rank_persistence_left_nullspace_support_relative::Real = 0.1,
     expected_modes::Union{Nothing,AbstractVector{<:ExpectedNullspaceMode}} = nothing,
     degeneracy_nullspace_support_relative::Real = 0.1,
     degeneracy_nullspace_uniform_shift_correlation::Real = 0.98,
@@ -4882,6 +4887,16 @@ function analyze(
                 iterative_spectrum_probe_convergence_tolerance,
             iterative_spectrum_probe_spread_threshold =
                 iterative_spectrum_probe_spread_threshold,
+            check_iterative_right_nullspace_persistence =
+                check_iterative_right_nullspace_persistence,
+            check_iterative_left_nullspace_persistence =
+                check_iterative_left_nullspace_persistence,
+            iterative_probe_persistence_minimum_evaluations =
+                iterative_probe_persistence_minimum_evaluations,
+            iterative_probe_persistence_alignment_threshold =
+                iterative_probe_persistence_alignment_threshold,
+            rank_persistence_left_nullspace_support_relative =
+                iteration_rank_persistence_left_nullspace_support_relative,
         )
         append!(report.findings, iteration_point_report.findings)
         for (key, value) in iteration_point_report.metadata

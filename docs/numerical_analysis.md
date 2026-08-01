@@ -129,6 +129,13 @@ It reports a numerical rank deficiency only when rank is below
 deficiency. When rank changes after normalization, the report calls this
 scale-sensitive evidence rather than a mathematical degeneracy.
 
+`analyze_jacobian_rank_persistence` compares both right-nullspace and
+left-nullspace geometry across explicit points. Persistent right directions can
+indicate recurring free-coordinate geometry; persistent left directions screen
+for recurring dependent-equation combinations. Its left-nullspace finding
+localizes material constraint rows with `left_nullspace_support_relative`.
+Neither establishes a physical gauge, redundancy, or an IIS.
+
 `sparse_jacobian_pattern_estimate(evaluation)` applies maximum matching to the
 combined observed nonzero pattern without forming a dense matrix. Its term rank
 is only an upper bound on numerical rank: a deficient bound proves local
@@ -538,6 +545,10 @@ physical gauge. Opaque callback rows, incomplete structural support, and
 unmatched coordinate systems make the comparison unavailable rather than
 forcing an interpretation. `analyze_degeneracy` exposes this generic first
 classification and is available from `analyze(...; check_degeneracy = true)`.
+`analyze_degeneracy` also accepts the explicit iterative right-nullspace,
+left-nullspace, and spectrum probe keywords. These append finite-budget sparse
+screening evidence to the focused degeneracy report without changing its dense
+or structural classifications.
 
 The same stage adds two deliberately weak but inspectable fingerprints:
 
@@ -779,10 +790,19 @@ claim. Its opt-in `iterative_*_probe_dimension` keywords run the same sparse
 right-nullspace, left-nullspace, and spectrum screens independently at every
 explicitly bound point. Aggregate requested/finding counts remain explicit;
 the finite probes do not turn an iteration trace into a rank or redundancy
-certificate. When an objective is available, it also compares the logged objective
+certificate. With `check_iterative_right_nullspace_persistence` or
+`check_iterative_left_nullspace_persistence`, same-segment points can also be
+screened for persistent candidate geometry; each requires its corresponding
+probe dimension and remains separate from dense rank persistence. When an objective is available, it also compares the logged objective
 with the model objective at the supplied point. Potential barrier, penalty,
 scaling, and point-alignment differences remain evidence rather than an
 assumption that the log column is the unmodified model objective.
+
+Dense rank persistence also compares left-nullspace geometry. Its
+`rank_persistence_left_nullspace_support_relative` control is forwarded to
+`analyze_jacobian_rank_persistence` and limits the affected constraint rows to
+material coordinates of the observed left-null directions. It is localization
+evidence, not a declaration of a redundant constraint or an IIS.
 Its optional `relative_step` is passed directly to the point evaluator and is
 recorded in report metadata; all remaining keyword arguments configure the
 numerical analysis of that captured evaluation.
@@ -988,8 +1008,12 @@ an error rather than an implicit starting-point choice.
 `analyze_iterative_left_nullspace_persistence(evaluations; ...)` compare the
 retained candidate subspaces over explicitly chosen points using principal
 cosines. They report unavailable, absent, persistent, or changed candidate
-geometry. Because each subspace comes from an explicit finite probe budget,
-these are not rank-persistence, redundancy, or physical-gauge certificates.
+geometry, together with the material coordinate support selected by
+`support_relative`. Because each subspace comes from an explicit finite probe
+budget, these are not rank-persistence, redundancy, or physical-gauge
+certificates.
+Both also offer `(model, points; cache, relative_step, ...)` convenience
+overloads, which evaluate only the supplied points and never select starts.
 
 The right-nullspace report identifies candidate variable directions with a
 small Jacobian residual and material coordinate support. The corresponding

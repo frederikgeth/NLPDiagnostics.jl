@@ -856,6 +856,25 @@ function analyze_degeneracy(
     nullspace_support_relative::Real = 0.1,
     nullspace_uniform_shift_correlation::Real = 0.98,
     nullspace_max_compact_support::Integer = 8,
+    iterative_right_nullspace_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_right_nullspace_probe_iterations::Integer = 100,
+    iterative_right_nullspace_probe_convergence_tolerance::Real =
+        sqrt(eps(eltype(evaluation.point.values))),
+    iterative_right_nullspace_probe_residual_relative_tolerance::Real =
+        sqrt(eps(eltype(evaluation.point.values))),
+    iterative_right_nullspace_probe_support_relative::Real = 0.1,
+    iterative_left_nullspace_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_left_nullspace_probe_iterations::Integer = 100,
+    iterative_left_nullspace_probe_convergence_tolerance::Real =
+        sqrt(eps(eltype(evaluation.point.values))),
+    iterative_left_nullspace_probe_residual_relative_tolerance::Real =
+        sqrt(eps(eltype(evaluation.point.values))),
+    iterative_left_nullspace_probe_support_relative::Real = 0.1,
+    iterative_spectrum_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_spectrum_probe_iterations::Integer = 100,
+    iterative_spectrum_probe_convergence_tolerance::Real =
+        sqrt(eps(eltype(evaluation.point.values))),
+    iterative_spectrum_probe_spread_threshold::Real = 1.0e6,
     kwargs...,
 )
     _validate_evaluation_variable_order(model, evaluation)
@@ -894,8 +913,60 @@ function analyze_degeneracy(
             residual_tolerance = expected_mode_residual_tolerance,
         ),
     )
+    if !isnothing(iterative_right_nullspace_probe_dimension)
+        probe_report = analyze_iterative_right_nullspace_probe(
+            evaluation;
+            probe_dimension = iterative_right_nullspace_probe_dimension,
+            iterations = iterative_right_nullspace_probe_iterations,
+            convergence_tolerance = iterative_right_nullspace_probe_convergence_tolerance,
+            residual_relative_tolerance =
+                iterative_right_nullspace_probe_residual_relative_tolerance,
+            support_relative = iterative_right_nullspace_probe_support_relative,
+        )
+        append!(report.findings, probe_report.findings)
+        for (key, value) in probe_report.metadata
+            key in (:stage, :evaluation_point_label) && continue
+            report.metadata[key] = value
+        end
+    end
+    if !isnothing(iterative_left_nullspace_probe_dimension)
+        probe_report = analyze_iterative_left_nullspace_probe(
+            evaluation;
+            probe_dimension = iterative_left_nullspace_probe_dimension,
+            iterations = iterative_left_nullspace_probe_iterations,
+            convergence_tolerance = iterative_left_nullspace_probe_convergence_tolerance,
+            residual_relative_tolerance =
+                iterative_left_nullspace_probe_residual_relative_tolerance,
+            support_relative = iterative_left_nullspace_probe_support_relative,
+        )
+        append!(report.findings, probe_report.findings)
+        for (key, value) in probe_report.metadata
+            key in (:stage, :evaluation_point_label) && continue
+            report.metadata[key] = value
+        end
+    end
+    if !isnothing(iterative_spectrum_probe_dimension)
+        probe_report = analyze_iterative_jacobian_spectrum_probe(
+            evaluation;
+            probe_dimension = iterative_spectrum_probe_dimension,
+            iterations = iterative_spectrum_probe_iterations,
+            convergence_tolerance = iterative_spectrum_probe_convergence_tolerance,
+            spectral_spread_threshold = iterative_spectrum_probe_spread_threshold,
+        )
+        append!(report.findings, probe_report.findings)
+        for (key, value) in probe_report.metadata
+            key in (:stage, :evaluation_point_label) && continue
+            report.metadata[key] = value
+        end
+    end
     report.metadata[:stage] = "degeneracy"
     report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:degeneracy_iterative_right_probe_requested] =
+        string(!isnothing(iterative_right_nullspace_probe_dimension))
+    report.metadata[:degeneracy_iterative_left_probe_requested] =
+        string(!isnothing(iterative_left_nullspace_probe_dimension))
+    report.metadata[:degeneracy_iterative_spectrum_probe_requested] =
+        string(!isnothing(iterative_spectrum_probe_dimension))
     report.metadata[:structural_numerical_comparison_available] =
         string(comparison.available)
     report.metadata[:structural_matching_rank] =
