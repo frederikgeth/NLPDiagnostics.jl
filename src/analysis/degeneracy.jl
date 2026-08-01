@@ -58,6 +58,9 @@ component_port_metadata(model::ModelSnapshot) = ComponentPortMetadata[]
 """Optional plugin declarations of expected terminal/mode port null directions."""
 component_port_nullspace_modes(model::MOI.ModelLike) = PortNullspaceMode[]
 component_port_nullspace_modes(model::ModelSnapshot) = PortNullspaceMode[]
+"""Optional plugin-owned semantic labels for named port null modes."""
+component_port_nullspace_mode_semantics(model::MOI.ModelLike) = PortNullspaceModeSemantics[]
+component_port_nullspace_mode_semantics(model::ModelSnapshot) = PortNullspaceModeSemantics[]
 """Optional plugin-declared directed maps between named component ports."""
 component_port_connections(model::MOI.ModelLike) = PortConnectionMetadata[]
 component_port_connections(model::ModelSnapshot) = PortConnectionMetadata[]
@@ -862,6 +865,7 @@ function analyze_degeneracy(
         component_port_connections(model),
         component_port_coordinate_maps(model),
     ) : ExpectedNullspaceMode[]
+    port_summary = port_expected_nullspace_summary(port_modes)
     all_expected_modes = vcat(expected_modes, port_modes)
     comparison = structural_numerical_comparison(model, evaluation; kwargs...)
     fingerprints = nullspace_fingerprints(
@@ -905,12 +909,14 @@ function analyze_degeneracy(
         string(nullspace_max_compact_support)
     report.metadata[:declared_expected_nullspace_mode_count] = string(length(expected_modes))
     report.metadata[:port_expected_nullspace_mode_count] = string(length(port_modes))
-    report.metadata[:port_component_expected_nullspace_mode_count] = string(count(
-        mode -> startswith(string(mode.name), "component_port_candidate_mode_"), port_modes,
-    ))
-    report.metadata[:port_topology_expected_nullspace_mode_count] = string(count(
-        mode -> startswith(string(mode.name), "port_topology_candidate_mode_"), port_modes,
-    ))
+    report.metadata[:port_expected_nullspace_independent_rank] =
+        string(port_summary.rank)
+    report.metadata[:port_expected_nullspace_relative_tolerance] =
+        string(port_summary.relative_tolerance)
+    report.metadata[:port_component_expected_nullspace_mode_count] =
+        string(count(==(:component), port_summary.candidate_origins))
+    report.metadata[:port_topology_expected_nullspace_mode_count] =
+        string(count(==(:topology), port_summary.candidate_origins))
     sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
 end

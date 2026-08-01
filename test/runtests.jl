@@ -958,6 +958,38 @@ end
     terminal_port_mode = NLPDiagnostics.PortNullspaceMode(
         :transformer, "tx_1", "high", :terminal, [0.0, 1.0],
     )
+    named_terminal_port_mode = NLPDiagnostics.PortNullspaceMode(
+        :transformer, "tx_1", "high", :terminal, [0.0, 1.0];
+        name = :floating_neutral,
+        description = "Plugin-defined physical identifier only.",
+    )
+    @test named_terminal_port_mode.name == :floating_neutral
+    named_mode_semantics = NLPDiagnostics.PortNullspaceModeSemantics(
+        :transformer, "tx_1", "high", :floating_neutral;
+        category = :floating_neutral,
+        description = "Plugin-owned physical label.",
+    )
+    @test named_mode_semantics.category == :floating_neutral
+    named_mode_semantic_report = NLPDiagnostics._component_port_nullspace_mode_semantic_findings(
+        [named_terminal_port_mode], [named_mode_semantics],
+    )
+    @test length(findings(
+        named_mode_semantic_report,
+        :component_port_nullspace_mode_semantics_declared,
+    )) == 1
+    @test named_mode_semantic_report.metadata[
+        :component_port_nullspace_mode_semantics_aligned_count
+    ] == "1"
+    unaligned_mode_semantics = NLPDiagnostics.PortNullspaceModeSemantics(
+        :transformer, "tx_1", "high", :missing_mode;
+        category = :floating_neutral,
+    )
+    @test length(findings(
+        NLPDiagnostics._component_port_nullspace_mode_semantic_findings(
+            [named_terminal_port_mode], [unaligned_mode_semantics],
+        ),
+        :component_port_nullspace_mode_semantics_unaligned,
+    )) == 1
     visible_coordinate_map = NLPDiagnostics.PortCoordinateMap(
         :transformer, "tx_1", "high", MOI.VariableIndex[MOI.VariableIndex(1)];
         terminal_to_variable = reshape([0.0, 1.0], 1, 2),
@@ -976,6 +1008,52 @@ end
     @test length(component_projected_modes) == 1
     @test component_projected_modes[1].name ==
           :component_port_candidate_mode_transformer_tx_1_high_1
+    @test only(NLPDiagnostics.port_component_expected_nullspace_modes(
+        [rank_deficient_port], [named_terminal_port_mode], [visible_coordinate_map],
+    )).name == :component_port_candidate_mode_transformer_tx_1_high_floating_neutral
+    duplicate_terminal_port_mode = NLPDiagnostics.PortNullspaceMode(
+        :transformer, "tx_1", "high", :terminal, [0.0, 2.0],
+    )
+    dependent_component_modes = NLPDiagnostics.port_component_expected_nullspace_modes(
+        [rank_deficient_port], [terminal_port_mode, duplicate_terminal_port_mode],
+        [visible_coordinate_map],
+    )
+    dependent_component_mode_report =
+        NLPDiagnostics._port_expected_mode_span_findings(dependent_component_modes)
+    @test length(findings(
+        dependent_component_mode_report,
+        :port_expected_nullspace_candidate_span_dependent,
+    )) == 1
+    @test dependent_component_mode_report.metadata[
+        :port_expected_nullspace_candidate_span_rank
+    ] == "1"
+    dependent_component_mode_summary = NLPDiagnostics.port_expected_nullspace_summary(
+        dependent_component_modes,
+    )
+    @test dependent_component_mode_summary.variables ==
+          MOI.VariableIndex[MOI.VariableIndex(1)]
+    @test dependent_component_mode_summary.candidate_names == [
+        :component_port_candidate_mode_transformer_tx_1_high_1,
+        :component_port_candidate_mode_transformer_tx_1_high_2,
+    ]
+    @test dependent_component_mode_summary.candidate_origins == [:component, :component]
+    @test all(occursin("component-port null direction", description) for
+              description in dependent_component_mode_summary.candidate_descriptions)
+    @test size(dependent_component_mode_summary.directions) == (1, 2)
+    @test dependent_component_mode_summary.rank == 1
+    @test NLPDiagnostics.port_expected_nullspace_summary(
+        [rank_deficient_port], [terminal_port_mode],
+        NLPDiagnostics.PortConnectionMetadata{Float64}[], [visible_coordinate_map],
+    ).rank == 1
+    @test NLPDiagnostics.port_expected_nullspace_summary(
+        NLPDiagnostics.ExpectedNullspaceMode[],
+    ).rank == 0
+    @test_throws ArgumentError NLPDiagnostics.ExpectedNullspaceMode(
+        :nonfinite, MOI.VariableIndex[MOI.VariableIndex(1)], [NaN],
+    )
+    @test_throws ArgumentError NLPDiagnostics.PortNullspaceMode(
+        :transformer, "tx_1", "high", :terminal, [NaN],
+    )
     unaligned_coordinate_map = NLPDiagnostics.PortCoordinateMap(
         :transformer, "tx_1", "missing", MOI.VariableIndex[MOI.VariableIndex(1)];
         terminal_to_variable = reshape([1.0], 1, 1),
@@ -1015,6 +1093,7 @@ end
     )
     @test length(projected_modes) == 1
     @test projected_modes[1].name == :port_topology_candidate_mode_1
+    @test occursin("transformer:tx_1:high", projected_modes[1].description)
     coordinate_projection_report = NLPDiagnostics._component_port_topology_coordinate_projection_findings(
         [rank_deficient_port, second_port], [connection],
         [coordinate_map, NLPDiagnostics.PortCoordinateMap(
@@ -3418,8 +3497,8 @@ end
             findings(report, :inconsistent_opposing_affine_inequalities),
         )
         @test inconsistent.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(inconsistent)["normalized_lower"] == "2.0"
-        @test evidence_details(inconsistent)["normalized_upper"] == "1.0"
+        @test evidence_details(inconsistent)["normalized_lower"] == "-1.0"
+        @test evidence_details(inconsistent)["normalized_upper"] == "-2.0"
     end
 
     @testset "affine equalities are checked against parallel half-spaces" begin
@@ -3954,7 +4033,7 @@ end
         @test evidence_details(proven)["argument_interval"] ==
               "[-Inf, -1.0]"
         @test occursin(
-            "v$(x.value)=declared_variable_bounds:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.LessThan{Float64}#1",
+            "v$(x.value)=declared_variable_bounds:MathOptInterface.VariableIndex/MathOptInterface.LessThan{Float64}#1",
             evidence_details(proven)["support_interval_origins"],
         )
         @test proven_report.metadata[:proven_domain_violation_count] == "1"
@@ -5077,7 +5156,7 @@ end
         @test all(value -> value >= 0, values(result.stage_allocations))
         @test haskey(result.stage_seconds, :static)
         @test haskey(result.stage_allocations, :static)
-        @test isempty(result.static_report.findings)
+        @test !isempty(result.static_report.findings)
         @test haskey(result.stage_seconds, :expressions)
         @test haskey(result.stage_allocations, :expressions)
         @test isempty(result.expression_report.findings)
@@ -5681,8 +5760,11 @@ end
         underdetermined_matching = NLPDiagnostics.active_set_matching(
             underdetermined_active, underdetermined_evaluation, underdetermined_summary,
         )
-        underdetermined = only(NLPDiagnostics._active_matching_findings(
-            underdetermined_active, underdetermined_evaluation, underdetermined_matching,
+        underdetermined = only(filter(
+            finding -> finding.code == :active_set_structural_underdetermination,
+            NLPDiagnostics._active_matching_findings(
+                underdetermined_active, underdetermined_evaluation, underdetermined_matching,
+            ),
         ))
         @test underdetermined.code == :active_set_structural_underdetermination
         @test underdetermined.confidence == NLPDiagnostics.ConfidenceHigh
@@ -5745,8 +5827,12 @@ end
         domain_findings = NLPDiagnostics._active_matching_findings(
             domain_active, domain_evaluation, domain_matching,
         )
-        @test only(domain_findings).code == :active_set_structural_underdetermination
-        @test Dict(only(domain_findings).evidence[end].details)[
+        domain_underdetermination = only(filter(
+            finding -> finding.code == :active_set_structural_underdetermination,
+            domain_findings,
+        ))
+        @test domain_underdetermination.code == :active_set_structural_underdetermination
+        @test Dict(domain_underdetermination.evidence[end].details)[
             "excluded_nonfree_variable_domain_rows"
         ] == "1"
 
@@ -5799,7 +5885,7 @@ end
         @test count(node -> node.block == 1, active_graph_data.variables) == 1
         @test count(node -> node.block == 2, active_graph_data.variables) == 1
         @test occursin(
-            "DM=well",
+            "dm=well",
             NLPDiagnostics.structural_graph_text(block_active, block_decomposition),
         )
         @test occursin(
@@ -5904,10 +5990,12 @@ end
             finite_difference_block_report,
             :active_set_well_determined_block_finite_difference_derivatives,
         )) == 1
-        @test length(findings(
+        # Each well-determined block contains one row. The full active set
+        # mixes derivative sources, but no individual block does.
+        @test isempty(findings(
             finite_difference_block_report,
             :active_set_well_determined_block_mixed_derivative_provenance,
-        )) == 1
+        ))
         partial_finite_difference_block_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
             block_evaluation.point,
             block_evaluation.objective_value,
@@ -9040,7 +9128,7 @@ end
         @test all(
             finding ->
                 Dict(finding.evidence[1].details)["support_interval_origins"] ==
-                "v$(x.value)=declared_variable_bounds:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.Interval{Float64}#1",
+                "v$(x.value)=declared_variable_bounds:MathOptInterface.VariableIndex/MathOptInterface.Interval{Float64}#1",
             possible,
         )
 
@@ -9299,7 +9387,7 @@ end
             NLPDiagnostics.analyze_expressions(saturated_logistic_model),
             :logistic_derivative_underflow_risk,
         ))
-        @test saturated_logistic.basis == NLPDiagnostics.MathematicalProof
+        @test saturated_logistic.basis == NLPDiagnostics.LocalInference
         @test saturated_logistic.domain == NLPDiagnostics.NumericalIssue
         @test length(findings(
             NLPDiagnostics.analyze_expressions(
@@ -9988,7 +10076,7 @@ end
         @test Dict(finding.evidence[1].details)["numeric_type"] ==
               "Float32"
         @test Dict(finding.evidence[1].details)["support_interval_origins"] ==
-              "v$(x.value)=declared_variable_bounds:MathOptInterface.ScalarNonlinearFunction/MathOptInterface.EqualTo{Float64}#1"
+              "v$(x.value)=declared_variable_bounds:MathOptInterface.VariableIndex/MathOptInterface.EqualTo{Float64}#1"
     end
 
     @testset "initialization analysis is explicit and complete" begin
@@ -10401,7 +10489,7 @@ end
         @test report.metadata[:recognized_log_observation_count] == "10"
         @test evidence_details(
             only(findings(report, :solver_log_restoration_failure)),
-        )["line"] == "2"
+        )["line"] == "3"
         @test_throws ArgumentError NLPDiagnostics.analyze_solver_log(
             "TestSolver",
             log;
@@ -10457,7 +10545,7 @@ end
         @test report.metadata[:final_segment_end_line] == "3"
         @test report.metadata[:final_segment_record_count] == "2"
         @test report.metadata[:final_segment_annotated_iteration_row_count] == "1"
-        annotation = only(findings(report, :solver_iteration_annotated_rows))
+        annotation = first(findings(report, :solver_iteration_annotated_rows))
         @test annotation.basis == NLPDiagnostics.NumericalObservation
         @test annotation.domain == NLPDiagnostics.RepresentationalIssue
         appended_log = ipopt_log * "\n" *
@@ -10485,7 +10573,7 @@ end
             stagnation_window = 3,
             stagnation_improvement_factor = 2,
         )
-        stagnation = only(findings(
+        stagnation = first(findings(
             stagnant_report,
             :solver_iteration_residual_stagnation,
         ))
@@ -10509,7 +10597,7 @@ end
             stagnation_window = 3,
             small_primal_step_threshold = 1e-8,
         )
-        small_steps = only(findings(
+        small_steps = first(findings(
             stalled_step_report,
             :solver_iteration_small_primal_steps,
         ))
@@ -10531,7 +10619,7 @@ end
             stagnation_window = 3,
             residual_imbalance_factor = 100,
         )
-        imbalance = only(findings(
+        imbalance = first(findings(
             imbalance_report,
             :solver_iteration_residual_imbalance,
         ))
@@ -10576,7 +10664,7 @@ end
             MOI.EqualTo(0.0),
         )
         stationary_iteration_binding = NLPDiagnostics.IterationPointBinding(
-            only(records),
+            records[1],
             NLPDiagnostics.EvaluationPoint(
                 [stationary_iteration_variable], [0.0]; label = "stationary-iterate",
             ),

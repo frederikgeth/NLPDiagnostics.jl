@@ -44,15 +44,18 @@ export CoupledSetFeasibilitySummary
 export ComponentMetadata
 export ComponentPortMetadata
 export PortNullspaceMode
+export PortNullspaceModeSemantics
 export PortConnectionMetadata
 export PortTopologyNullspace
 export PortCoordinateMap
 export PortCoordinateSemantics
 export ComponentCoordinateSemantics
 export PortTopologyCoordinateProjection
+export PortExpectedNullspaceSummary
 export port_topology_expected_nullspace_modes
 export port_component_expected_nullspace_modes
 export port_expected_nullspace_modes
+export port_expected_nullspace_summary
 export ElasticFeasibilityPlan
 export ElasticRelaxation
 export ElasticFeasibilityModel
@@ -277,6 +280,7 @@ export powermodels_analyze_jacobian_rank_persistence
 export powermodels_analyze_component_rank_persistence
 export component_port_metadata
 export component_port_nullspace_modes
+export component_port_nullspace_mode_semantics
 export component_port_connections
 export component_port_coordinate_maps
 export component_port_coordinate_semantics
@@ -1182,6 +1186,23 @@ function _component_port_nullspace_mode_findings(
     port_by_key = Dict(
         (port.component_type, port.component_id, port.port_id) => port for port in ports
     )
+    named_mode_keys = [
+        ((mode.component_type, mode.component_id, mode.port_id), mode.name)
+        for mode in modes if !isnothing(mode.name)
+    ]
+    for key in unique([key for key in named_mode_keys if count(==(key), named_mode_keys) > 1])
+        push!(report, Finding(:component_port_expected_nullspace_mode_duplicate_name;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Component-port metadata declares the named null mode :$(key[2]) more than once for one port.",
+            why_it_matters = "A named mode is intended to provide stable plugin provenance, so reuse on one port makes candidate identity ambiguous.",
+            evidence = [Evidence("Duplicate component-port null-mode name"; details = [
+                "component_type" => key[1][1], "component_id" => key[1][2],
+                "port_id" => key[1][3], "mode_name" => key[2],
+            ])],
+            suggested_actions = ["Use a distinct stable name for each declared null direction on this port."],
+        ))
+    end
     for mode in modes
         key = (mode.component_type, mode.component_id, mode.port_id)
         port = get(port_by_key, key, nothing)
@@ -1191,7 +1212,7 @@ function _component_port_nullspace_mode_findings(
                 basis = StructuralProof, confidence = ConfidenceCertain,
                 observation = "Declared port nullspace mode cannot be aligned with a declared component port.",
                 why_it_matters = "A connection-map nullspace comparison requires a stable component and port identity.",
-                evidence = [Evidence("Declared port nullspace mode"; details = ["component_type" => mode.component_type, "component_id" => mode.component_id, "port_id" => mode.port_id, "space" => mode.space])],
+                evidence = [Evidence("Declared port nullspace mode"; details = ["component_type" => mode.component_type, "component_id" => mode.component_id, "port_id" => mode.port_id, "mode_name" => something(mode.name, ""), "space" => mode.space])],
                 suggested_actions = ["Declare the corresponding component port or correct the mode identity."],
             ))
             continue
@@ -1204,7 +1225,7 @@ function _component_port_nullspace_mode_findings(
                 basis = StructuralProof, confidence = ConfidenceCertain,
                 observation = "Declared $(mode.space)-space port null mode has dimension $(length(mode.direction)), but the port map expects $expected_dimension.",
                 why_it_matters = "A direction can only be compared with a connection map in its declared coordinate space.",
-                evidence = [Evidence("Declared port nullspace mode dimensions"; details = ["component_type" => mode.component_type, "component_id" => mode.component_id, "port_id" => mode.port_id])],
+                evidence = [Evidence("Declared port nullspace mode dimensions"; details = ["component_type" => mode.component_type, "component_id" => mode.component_id, "port_id" => mode.port_id, "mode_name" => something(mode.name, "")])],
                 suggested_actions = ["Use one direction entry per declared terminal or mode label."],
             ))
             continue
@@ -1229,12 +1250,78 @@ function _component_port_nullspace_mode_findings(
             why_it_matters = observed ?
                              "The declared hidden mode agrees with this plugin-supplied map, without validating its physical interpretation or network assembly." :
                              "A mismatch can reflect stale metadata, a connection convention error, or an intentionally operating-point-dependent declaration.",
-            evidence = [Evidence("Component port nullspace comparison"; details = ["component_type" => mode.component_type, "component_id" => mode.component_id, "port_id" => mode.port_id, "space" => mode.space, "residual_norm" => residual, "threshold" => threshold, "description" => mode.description])],
+            evidence = [Evidence("Component port nullspace comparison"; details = ["component_type" => mode.component_type, "component_id" => mode.component_id, "port_id" => mode.port_id, "mode_name" => something(mode.name, ""), "space" => mode.space, "residual_norm" => residual, "threshold" => threshold, "description" => mode.description])],
             suggested_actions = observed ?
                                 ["Retain the declaration as port-level expected-mode evidence and compare it with network-level observed modes later."] :
                                 ["Check terminal/mode ordering and connection conventions before changing the declared physical interpretation."],
         ))
     end
+    return report
+end
+
+"""Validate opaque plugin semantic labels against named port-mode declarations."""
+function _component_port_nullspace_mode_semantic_findings(
+    modes::AbstractVector{<:PortNullspaceMode},
+    semantics::AbstractVector{<:PortNullspaceModeSemantics},
+)
+    report = DiagnosticReport()
+    mode_keys = Set(
+        ((mode.component_type, mode.component_id, mode.port_id), mode.name)
+        for mode in modes if !isnothing(mode.name)
+    )
+    semantic_keys = [
+        ((item.component_type, item.component_id, item.port_id), item.mode_name)
+        for item in semantics
+    ]
+    aligned = 0
+    unaligned = 0
+    for key in unique([key for key in semantic_keys if count(==(key), semantic_keys) > 1])
+        push!(report, Finding(:component_port_nullspace_mode_semantics_duplicate;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Plugin metadata assigns more than one semantic record to named port mode :$(key[2]) on one port.",
+            why_it_matters = "Semantic labels are opaque to the generic core, but duplicate records make plugin provenance ambiguous.",
+            evidence = [Evidence("Duplicate port-mode semantic label"; details = [
+                "component_type" => key[1][1], "component_id" => key[1][2],
+                "port_id" => key[1][3], "mode_name" => key[2],
+            ])],
+            suggested_actions = ["Keep one semantic record per named null mode and place any aliases in its description."],
+        ))
+    end
+    for item in semantics
+        key = ((item.component_type, item.component_id, item.port_id), item.mode_name)
+        if key in mode_keys
+            aligned += 1
+            push!(report, Finding(:component_port_nullspace_mode_semantics_declared;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceHigh,
+                observation = "Plugin declares opaque semantic category :$(item.category) for named port mode :$(item.mode_name).",
+                why_it_matters = "The label provides inspectable plugin provenance beside generic structural and numerical evidence, without making the category a generic physical classification.",
+                evidence = [Evidence("Declared port-mode semantic label"; details = [
+                    "component_type" => item.component_type, "component_id" => item.component_id,
+                    "port_id" => item.port_id, "mode_name" => item.mode_name,
+                    "category" => item.category, "description" => item.description,
+                ])],
+                suggested_actions = ["Use the domain plugin to interpret this category together with the recorded generic evidence."],
+            ))
+            continue
+        end
+        unaligned += 1
+        push!(report, Finding(:component_port_nullspace_mode_semantics_unaligned;
+            severity = SeverityWarning, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceHigh,
+            observation = "Plugin semantic category :$(item.category) references named port mode :$(item.mode_name), but that mode is not declared on the same port.",
+            why_it_matters = "The generic core cannot associate an opaque physical label with structural or numerical evidence unless its named direction exists.",
+            evidence = [Evidence("Unaligned port-mode semantic label"; details = [
+                "component_type" => item.component_type, "component_id" => item.component_id,
+                "port_id" => item.port_id, "mode_name" => item.mode_name,
+                "category" => item.category, "description" => item.description,
+            ])],
+            suggested_actions = ["Declare the matching named PortNullspaceMode, or correct the semantic record's component, port, and name."],
+        ))
+    end
+    report.metadata[:component_port_nullspace_mode_semantics_aligned_count] = string(aligned)
+    report.metadata[:component_port_nullspace_mode_semantics_unaligned_count] = string(unaligned)
     return report
 end
 
@@ -1906,12 +1993,15 @@ function port_topology_expected_nullspace_modes(
     scale = maximum(decomposition.S; init = zero(T))
     threshold = convert(T, relative_tolerance) * max(one(T), scale)
     rank = count(value -> value > threshold, decomposition.S)
+    scope = join(sort([
+        "$(key[1]):$(key[2]):$(key[3])" for key in projection.topology.port_keys
+    ]), ", ")
     return ExpectedNullspaceMode{T}[
         ExpectedNullspaceMode(
             Symbol("port_topology_candidate_mode_", index),
             projection.variables,
             decomposition.U[:, index];
-            description = "Candidate expected mode projected from declared connected-port topology maps (terminal nullity $(size(projection.topology.nullspace, 2))).",
+            description = "Candidate expected mode projected from declared connected-port topology maps over port scope [$scope] (terminal nullity $(size(projection.topology.nullspace, 2))).",
         ) for index in 1:rank
     ]
 end
@@ -1937,6 +2027,7 @@ function port_component_expected_nullspace_modes(
     )
     result = ExpectedNullspaceMode{T}[]
     ordinal_by_key = Dict{Tuple{Symbol,String,String},Int}()
+    named_occurrence_by_key = Dict{Tuple{Symbol,String,String,Symbol},Int}()
     for mode in port_modes
         mode.space == :terminal || continue
         key = (mode.component_type, mode.component_id, mode.port_id)
@@ -1950,15 +2041,25 @@ function port_component_expected_nullspace_modes(
         iszero(norm(direction)) && continue
         ordinal = get(ordinal_by_key, key, 0) + 1
         ordinal_by_key[key] = ordinal
+        identifier = if isnothing(mode.name)
+            Symbol(string(ordinal))
+        else
+            named_key = (key..., mode.name)
+            occurrence = get(named_occurrence_by_key, named_key, 0) + 1
+            named_occurrence_by_key[named_key] = occurrence
+            occurrence == 1 ? mode.name : Symbol(mode.name, "_", occurrence)
+        end
         push!(result, ExpectedNullspaceMode(
             Symbol(
                 "component_port_candidate_mode_", mode.component_type, "_",
-                mode.component_id, "_", mode.port_id, "_", ordinal,
+                mode.component_id, "_", mode.port_id, "_", identifier,
             ),
             map.variables,
             direction;
             description = isempty(mode.description) ?
-                          "Candidate expected mode projected from a declared terminal-space component-port null direction." :
+                          (isnothing(mode.name) ?
+                           "Candidate expected mode projected from a declared terminal-space component-port null direction." :
+                           "Candidate expected mode projected from declared component-port mode :$(mode.name).") :
                           "Candidate expected mode projected from component-port declaration: $(mode.description)",
         ))
     end
@@ -1998,9 +2099,9 @@ function _port_expected_mode_overlap_findings(
         throw(ArgumentError("alignment_tolerance must lie in [0, 1]"))
     report = DiagnosticReport()
     component_modes = [mode for mode in modes if
-                       startswith(string(mode.name), "component_port_candidate_mode_")]
+                       _port_expected_mode_origin(mode) == :component]
     topology_modes = [mode for mode in modes if
-                      startswith(string(mode.name), "port_topology_candidate_mode_")]
+                      _port_expected_mode_origin(mode) == :topology]
     for component_mode in component_modes, topology_mode in topology_modes
         variables = sort!(unique(vcat(component_mode.variables, topology_mode.variables));
                           by = variable -> variable.value)
@@ -2029,6 +2130,91 @@ function _port_expected_mode_overlap_findings(
     return report
 end
 
+function _port_expected_mode_origin(mode::ExpectedNullspaceMode)
+    startswith(string(mode.name), "component_port_candidate_mode_") && return :component
+    startswith(string(mode.name), "port_topology_candidate_mode_") && return :topology
+    return :unknown
+end
+
+"""
+    port_expected_nullspace_summary(modes; relative_tolerance)
+
+Return the model-coordinate matrix and independent span of projected port
+expected-mode candidates. This is declaration-level structural evidence; it
+does not compare the candidates with a Jacobian or assign physical semantics.
+"""
+function port_expected_nullspace_summary(
+    modes::AbstractVector{<:ExpectedNullspaceMode};
+    relative_tolerance::Real = sqrt(eps(Float64)),
+)
+    isfinite(relative_tolerance) && relative_tolerance >= 0 ||
+        throw(ArgumentError("relative_tolerance must be finite and nonnegative"))
+    isempty(modes) && return PortExpectedNullspaceSummary{Float64}(
+        MOI.VariableIndex[], Symbol[], Symbol[], String[], zeros(Float64, 0, 0), 0,
+        Float64(relative_tolerance),
+    )
+    T = float(promote_type((eltype(mode.direction) for mode in modes)...))
+    variables = sort!(unique(vcat((mode.variables for mode in modes)...));
+                      by = variable -> variable.value)
+    positions = Dict(variable => position for (position, variable) in enumerate(variables))
+    directions = zeros(T, length(variables), length(modes))
+    for (column, mode) in enumerate(modes)
+        for (variable, value) in zip(mode.variables, mode.direction)
+            directions[positions[variable], column] += T(value)
+        end
+    end
+    singular_values = svdvals(directions)
+    scale = maximum(singular_values; init = zero(T))
+    tolerance = T(relative_tolerance)
+    rank = count(value -> value > tolerance * max(one(T), scale), singular_values)
+    return PortExpectedNullspaceSummary{T}(
+        variables, Symbol[mode.name for mode in modes],
+        Symbol[_port_expected_mode_origin(mode) for mode in modes],
+        String[mode.description for mode in modes],
+        directions, rank, tolerance,
+    )
+end
+
+"""
+Identify dependent projected port candidates while retaining every declaration.
+
+The individual component and topology declarations remain useful provenance,
+so this check deliberately reports their collective span rather than silently
+deduplicating them. It is a structural property of plugin-supplied coordinate
+maps, not numerical evidence about the model Jacobian.
+"""
+function _port_expected_mode_span_findings(
+    modes::AbstractVector{<:ExpectedNullspaceMode};
+    relative_tolerance::Real = sqrt(eps(Float64)),
+)
+    summary = port_expected_nullspace_summary(modes;
+        relative_tolerance = relative_tolerance,
+    )
+    report = DiagnosticReport()
+    report.metadata[:port_expected_nullspace_candidate_span_count] =
+        string(length(summary.candidate_names))
+    report.metadata[:port_expected_nullspace_candidate_span_rank] = string(summary.rank)
+    report.metadata[:port_expected_nullspace_candidate_span_relative_tolerance] =
+        string(summary.relative_tolerance)
+    summary.rank == length(modes) && return report
+    push!(report, Finding(:port_expected_nullspace_candidate_span_dependent;
+        severity = SeverityInfo, domain = RepresentationalIssue,
+        basis = StructuralProof, confidence = ConfidenceHigh,
+        observation = "$(length(modes)) projected port expected-mode candidate(s) span only $(summary.rank) independent model-coordinate direction(s).",
+        why_it_matters = "The declarations retain distinct provenance, but their count must not be interpreted as an independent expected-nullity count before comparison with a numerical Jacobian.",
+        evidence = [Evidence("Projected port expected-mode span"; details = [
+            "candidate_modes" => join(string.(summary.candidate_names), ","),
+            "candidate_descriptions" => join(summary.candidate_descriptions, " | "),
+            "candidate_count" => length(modes),
+            "independent_rank" => summary.rank,
+            "relative_tolerance" => summary.relative_tolerance,
+        ])],
+        affected = [EntityRef(:variable, variable.value) for variable in summary.variables],
+        suggested_actions = ["Retain each declaration for provenance, but interpret their shared span as $(summary.rank) expected direction(s).", "Inspect port maps and mode declarations if the dependency was unintended."],
+    ))
+    return report
+end
+
 function port_expected_nullspace_modes(
     ports::AbstractVector{<:ComponentPortMetadata},
     port_modes::AbstractVector{<:PortNullspaceMode},
@@ -2053,6 +2239,20 @@ function port_expected_nullspace_modes(
     throw(ArgumentError(
         "port metadata, modes, connections, and coordinate maps must use one floating-point type",
     ))
+end
+
+"""Build a projected expected-mode summary directly from port declarations."""
+function port_expected_nullspace_summary(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    port_modes::AbstractVector{<:PortNullspaceMode},
+    connections::AbstractVector{<:PortConnectionMetadata},
+    coordinate_maps::AbstractVector{<:PortCoordinateMap};
+    kwargs...,
+)
+    return port_expected_nullspace_summary(
+        port_expected_nullspace_modes(ports, port_modes, connections, coordinate_maps);
+        kwargs...,
+    )
 end
 
 function port_topology_expected_nullspace_modes(
@@ -4289,6 +4489,7 @@ function analyze(
     declared_component_constraint_scales = component_constraint_scale_semantics(model)
     declared_ports = component_port_metadata(model)
     declared_port_modes = component_port_nullspace_modes(model)
+    declared_port_mode_semantics = component_port_nullspace_mode_semantics(model)
     declared_port_connections = component_port_connections(model)
     declared_port_coordinate_maps = component_port_coordinate_maps(model)
     declared_port_coordinate_semantics = component_port_coordinate_semantics(model)
@@ -4321,7 +4522,11 @@ function analyze(
         (length(item.constraints) for item in declared_component_constraint_scales); init = 0,
     ))
     report.metadata[:component_port_metadata_count] = string(length(declared_ports))
+    report.metadata[:coupled_qualification_max_iterations] =
+        string(coupled_qualification_max_iterations)
     report.metadata[:component_port_nullspace_mode_count] = string(length(declared_port_modes))
+    report.metadata[:component_port_nullspace_mode_semantics_count] =
+        string(length(declared_port_mode_semantics))
     report.metadata[:component_port_connection_count] = string(length(declared_port_connections))
     report.metadata[:component_port_coordinate_map_count] = string(length(declared_port_coordinate_maps))
     report.metadata[:component_port_coordinate_semantics_count] = string(length(declared_port_coordinate_semantics))
@@ -4346,6 +4551,11 @@ function analyze(
         declared_ports, declared_port_modes,
     )
     append!(report.findings, port_mode_report.findings)
+    port_mode_semantic_report = _component_port_nullspace_mode_semantic_findings(
+        declared_port_modes, declared_port_mode_semantics,
+    )
+    append!(report.findings, port_mode_semantic_report.findings)
+    merge!(report.metadata, port_mode_semantic_report.metadata)
     port_connection_report = _component_port_connection_findings(
         declared_ports, declared_port_connections,
     )
@@ -4375,6 +4585,9 @@ function analyze(
     )
     port_overlap_report = _port_expected_mode_overlap_findings(port_expected_modes)
     append!(report.findings, port_overlap_report.findings)
+    port_span_report = _port_expected_mode_span_findings(port_expected_modes)
+    append!(report.findings, port_span_report.findings)
+    merge!(report.metadata, port_span_report.metadata)
     report.metadata[:port_expected_nullspace_candidate_count] =
         string(length(port_expected_modes))
     port_projection_report = _component_port_topology_coordinate_projection_findings(
@@ -4473,6 +4686,9 @@ function analyze(
                 nullspace_uniform_shift_correlation = degeneracy_nullspace_uniform_shift_correlation,
                 nullspace_max_compact_support = degeneracy_nullspace_max_compact_support,
             )
+            # `analyze_degeneracy` projects declared port modes itself. Keep
+            # caller-declared modes separate here so a port candidate is
+            # compared exactly once and retains its own provenance/count.
             degeneracy_report = isnothing(expected_modes) ?
                                 analyze_degeneracy(model, numerical_evaluation; degeneracy_keywords...) :
                                 analyze_degeneracy(model, numerical_evaluation;

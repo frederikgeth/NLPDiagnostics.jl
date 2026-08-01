@@ -825,6 +825,8 @@ function _active_set_findings(
                 Evidence("MFCQ equality-gradient rank"; details = [
                     "equality_rows" => join(mfcq.equality_rows, ","),
                     "inequality_rows" => join(mfcq.inequality_rows, ","),
+                    "equality_jacobian_rank" => mfcq.equality_jacobian_rank,
+                    "equality_jacobian_threshold" => mfcq.equality_jacobian_threshold,
                     "equality_derivative_methods" => join(
                         sort(unique(string.(evaluation.jacobian_row_methods[
                             mfcq.equality_rows,
@@ -1163,10 +1165,8 @@ function _active_matching_findings(
         ))
     end
     if partition.complete &&
-       (!isempty(partition.underdetermined_constraints) ||
-        length(partition.underdetermined_variables) >
-        length([position for position in matching.eligible_variable_positions if
-                iszero(matching.variable_match[position])]))
+       (!isempty(partition.underdetermined_variables) ||
+        !isempty(partition.underdetermined_constraints))
         region_variables = _variable_position_labels(
             graph, partition.underdetermined_variables,
         )
@@ -2694,6 +2694,7 @@ function analyze_active_set(
         component_port_connections(model),
         component_port_coordinate_maps(model),
     ) : ExpectedNullspaceMode[]
+    port_summary = port_expected_nullspace_summary(port_modes)
     all_expected_modes = vcat(expected_modes, port_modes)
     summary = constraint_feasibility_summary(
         model,
@@ -2860,12 +2861,14 @@ function analyze_active_set(
     report.metadata[:active_expected_nullspace_mode_count] = string(length(expected_modes))
     report.metadata[:active_port_expected_nullspace_mode_count] =
         string(length(port_modes))
-    report.metadata[:active_port_component_expected_nullspace_mode_count] = string(count(
-        mode -> startswith(string(mode.name), "component_port_candidate_mode_"), port_modes,
-    ))
-    report.metadata[:active_port_topology_expected_nullspace_mode_count] = string(count(
-        mode -> startswith(string(mode.name), "port_topology_candidate_mode_"), port_modes,
-    ))
+    report.metadata[:active_port_expected_nullspace_independent_rank] =
+        string(port_summary.rank)
+    report.metadata[:active_port_expected_nullspace_relative_tolerance] =
+        string(port_summary.relative_tolerance)
+    report.metadata[:active_port_component_expected_nullspace_mode_count] =
+        string(count(==(:component), port_summary.candidate_origins))
+    report.metadata[:active_port_topology_expected_nullspace_mode_count] =
+        string(count(==(:topology), port_summary.candidate_origins))
     report.metadata[:active_structural_unmapped_row_count] =
         string(length(active_matching.unmapped_rows))
     report.metadata[:supported_coupled_set_count] = string(length(coupled_summary.activities))

@@ -34,10 +34,16 @@ instead of attaching contradictory labels to one coordinate.
 For each port, the plugin should specify:
 
 - terminal labels and mode labels;
-- connection matrix and any expected hidden terminal or mode directions;
+- connection matrix and any expected hidden terminal or mode directions, with
+  an optional stable `PortNullspaceMode` name when the plugin needs to retain
+  its own physical identifier; and
 - quantity (`:voltage`, `:current`, `:power`, `:angle`, or `:generic`),
   representation, unit convention, and optional positive nominal scale; and
 - terminal-to-MOI-variable coordinates where numerical comparison is intended.
+
+Optionally declare `PortNullspaceModeSemantics` for a named mode. Its category
+is deliberately opaque to the generic core: it is validated as provenance and
+preserved in evidence, but only the domain plugin may interpret it physically.
 
 Network links are declared by `PortConnectionMetadata` maps. The generic core
 can assemble their terminal-coordinate nullspace, project connected-port modes
@@ -45,6 +51,13 @@ into MOI coordinates, and compare explicit candidates with local Jacobian,
 active-set, and persistent reduced-Hessian evidence. It does not label a mode
 as a neutral, common mode, delta circulation, or voltage-collapse mechanism.
 Those are plugin-level physical classifications.
+If projected component and topology candidates are linearly dependent, the
+core retains every declaration for provenance but reports their independent
+model-coordinate span. Candidate count is therefore never an expected-nullity
+claim. `port_expected_nullspace_summary` exposes the same candidate matrix,
+coordinate scope, rank, and tolerance to plugins and downstream tooling; the
+same independent-rank context is retained by generic degeneracy, active-set,
+and reduced-Hessian persistence reports.
 When a port declares `nominal_scale`, the generic numerical stage compares it
 only through an explicit map row containing one terminal coordinate. Mixed
 terminal-coordinate maps or absent maps remain an unavailable generic scale projection and

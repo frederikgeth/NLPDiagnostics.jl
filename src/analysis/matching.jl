@@ -30,6 +30,25 @@ struct ActiveSetStructuralMatching
     reason::Union{Nothing,String}
 end
 
+# Matchings are immutable value objects. Defining structural equality makes
+# independently computed views of the same selected active set comparable in
+# tests and downstream tooling without exposing their implementation details.
+Base.:(==)(left::StructuralMatching, right::StructuralMatching) =
+    left.variable_match == right.variable_match &&
+    left.constraint_match == right.constraint_match &&
+    left.eligible_variable_positions == right.eligible_variable_positions &&
+    left.eligible_constraint_positions == right.eligible_constraint_positions &&
+    left.complete == right.complete
+
+Base.:(==)(left::ActiveSetStructuralMatching, right::ActiveSetStructuralMatching) =
+    left.matching == right.matching &&
+    left.selected_rows == right.selected_rows &&
+    left.aligned_rows == right.aligned_rows &&
+    left.selected_constraint_positions == right.selected_constraint_positions &&
+    left.unmapped_rows == right.unmapped_rows &&
+    left.complete == right.complete &&
+    left.reason == right.reason
+
 function _augment_constraint!(
     graph::IncidenceGraph,
     constraint_position::Int,

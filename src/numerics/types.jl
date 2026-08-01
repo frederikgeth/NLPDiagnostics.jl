@@ -555,8 +555,25 @@ struct PortNullspaceMode{T<:AbstractFloat}
     component_type::Symbol
     component_id::String
     port_id::String
+    name::Union{Nothing,Symbol}
     space::Symbol
     direction::Vector{T}
+    description::String
+end
+
+"""
+Opaque plugin-owned semantic label for one named `PortNullspaceMode`.
+
+`category` is intentionally not interpreted by the generic core. It gives a
+domain plugin a stable way to retain identifiers such as `:floating_neutral`
+or `:delta_circulation` beside generic structural and numerical evidence.
+"""
+struct PortNullspaceModeSemantics
+    component_type::Symbol
+    component_id::String
+    port_id::String
+    mode_name::Symbol
+    category::Symbol
     description::String
 end
 
@@ -692,6 +709,21 @@ struct PortTopologyCoordinateProjection{T<:AbstractFloat}
     topology::PortTopologyNullspace{T}
     projected_nullspace::Matrix{T}
     consistency_residual::T
+end
+
+"""
+Inspectable model-coordinate span of projected component- and topology-port
+expected-mode candidates. Candidate directions remain individually named for
+provenance; `rank` is their independent coordinate-span dimension.
+"""
+struct PortExpectedNullspaceSummary{T<:AbstractFloat}
+    variables::Vector{MOI.VariableIndex}
+    candidate_names::Vector{Symbol}
+    candidate_origins::Vector{Symbol}
+    candidate_descriptions::Vector{String}
+    directions::Matrix{T}
+    rank::Int
+    relative_tolerance::T
 end
 
 """Inspectable, non-mutating scope for a future elastic-feasibility auxiliary model."""
@@ -938,18 +970,40 @@ function PortNullspaceMode(
     port_id,
     space::Symbol,
     direction::AbstractVector{<:Real};
+    name::Union{Nothing,Symbol} = nothing,
     description::AbstractString = "",
 )
     space in (:terminal, :mode) ||
         throw(ArgumentError("port nullspace space must be :terminal or :mode"))
     isempty(direction) && throw(ArgumentError("port nullspace direction must be nonempty"))
+    !isnothing(name) && isempty(strip(string(name))) &&
+        throw(ArgumentError("port nullspace mode name must be nonempty when supplied"))
     T = float(promote_type(map(typeof, direction)...))
     converted = T.(direction)
+    all(isfinite, converted) ||
+        throw(ArgumentError("port nullspace direction must be finite"))
     iszero(norm(converted)) &&
         throw(ArgumentError("port nullspace direction must be nonzero"))
     return PortNullspaceMode{T}(
-        component_type, string(component_id), string(port_id), space,
+        component_type, string(component_id), string(port_id), name, space,
         converted, String(description),
+    )
+end
+
+function PortNullspaceModeSemantics(
+    component_type::Symbol,
+    component_id,
+    port_id,
+    mode_name::Symbol;
+    category::Symbol,
+    description::AbstractString = "",
+)
+    all(!isempty(strip(string(value))) for value in (
+        component_type, component_id, port_id, mode_name, category,
+    )) || throw(ArgumentError("port nullspace mode semantic identities and category must be nonempty"))
+    return PortNullspaceModeSemantics(
+        component_type, string(component_id), string(port_id), mode_name,
+        category, String(description),
     )
 end
 
@@ -1071,6 +1125,8 @@ function ExpectedNullspaceMode(
         throw(ArgumentError("expected-nullspace variables must be unique"))
     T = float(promote_type(map(typeof, direction)...))
     converted = T.(direction)
+    all(isfinite, converted) ||
+        throw(ArgumentError("expected-nullspace direction must be finite"))
     iszero(norm(converted)) &&
         throw(ArgumentError("expected-nullspace direction must be nonzero"))
     return ExpectedNullspaceMode{T}(

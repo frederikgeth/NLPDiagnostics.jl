@@ -350,6 +350,8 @@ function analyze_initialization(
     report = DiagnosticReport()
     report.metadata[:stage] = "initialization"
     report.metadata[:initialization_variable_count] = string(length(variables))
+    report.metadata[:coupled_qualification_max_iterations] =
+        string(coupled_qualification_max_iterations)
     report.metadata[:missing_initial_value_count] =
         string(length(missing_positions))
     if !isempty(missing_positions)

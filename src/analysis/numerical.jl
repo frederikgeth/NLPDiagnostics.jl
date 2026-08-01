@@ -2218,6 +2218,7 @@ function analyze_reduced_hessian_persistence(
         component_port_connections(model),
         component_port_coordinate_maps(model),
     ) : ExpectedNullspaceMode[]
+    port_summary = port_expected_nullspace_summary(port_modes)
     all_expected_modes = vcat(resolved_expected_modes, port_modes)
     report = analyze_reduced_hessian_persistence(
         snapshots;
@@ -2228,12 +2229,14 @@ function analyze_reduced_hessian_persistence(
         string(length(resolved_expected_modes))
     report.metadata[:persistent_flat_port_expected_mode_count] =
         string(length(port_modes))
-    report.metadata[:persistent_flat_port_component_expected_mode_count] = string(count(
-        mode -> startswith(string(mode.name), "component_port_candidate_mode_"), port_modes,
-    ))
-    report.metadata[:persistent_flat_port_topology_expected_mode_count] = string(count(
-        mode -> startswith(string(mode.name), "port_topology_candidate_mode_"), port_modes,
-    ))
+    report.metadata[:persistent_flat_port_expected_independent_rank] =
+        string(port_summary.rank)
+    report.metadata[:persistent_flat_port_expected_relative_tolerance] =
+        string(port_summary.relative_tolerance)
+    report.metadata[:persistent_flat_port_component_expected_mode_count] =
+        string(count(==(:component), port_summary.candidate_origins))
+    report.metadata[:persistent_flat_port_topology_expected_mode_count] =
+        string(count(==(:topology), port_summary.candidate_origins))
     any(finding -> finding.code == :reduced_hessian_flat_subspace_persistent,
         report.findings) || return report
     _append_persistent_flat_component_metadata_findings!(

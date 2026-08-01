@@ -2551,7 +2551,7 @@ function _analyze_dominated_affine_inequalities!(
             why_it_matters = "The dominated inequalities do not restrict the feasible region further, but they can obscure model intent and add redundant rows or multipliers.",
             evidence = [Evidence("Normalized oriented affine half-space";
                 details = ["tightest_normalized_bound" => tightest_bound,
-                           "dominated_constraint_count" => length(dominated)],
+                           "dominated_constraint_count" => string(length(dominated))],
             )],
             suggested_actions = ["Retain the looser inequality only when its separate provenance is useful.",
                                  "Compare the parallel rows' units and scaling if both were expected to bind."],
@@ -3184,7 +3184,7 @@ function _analyze_reused_constraint_expressions!(
                     evidence = [Evidence("Repeated-expression set intersection";
                         details = ["effective_lower" => lower,
                                    "effective_upper" => upper,
-                                   "dominated_constraint_count" => length(dominated)],
+                                   "dominated_constraint_count" => string(length(dominated))],
                     )],
                     suggested_actions = ["Remove redundant sets when their separate provenance is not needed."],
                     affected = dominated_references,
