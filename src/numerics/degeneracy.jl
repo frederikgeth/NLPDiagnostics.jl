@@ -314,6 +314,91 @@ function iterative_right_nullspace_subspace_estimate(
 end
 
 """
+    iterative_left_nullspace_subspace_estimate(evaluation, dimension; ...)
+
+Use a block sparse-matvec iteration to probe `dimension` candidate left
+directions with small `J' * y` residuals. These directions can screen for
+locally dependent constraint combinations at scale. They are not a rank
+estimate, dependency certificate, IIS, or physical classification.
+"""
+function iterative_left_nullspace_subspace_estimate(
+    evaluation::NumericalEvaluation{T},
+    dimension::Integer;
+    iterations::Integer = 100,
+    convergence_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    dimension > 0 || throw(ArgumentError("dimension must be positive"))
+    iterations > 0 || throw(ArgumentError("iterations must be positive"))
+    tolerance = convert(T, convergence_tolerance)
+    tolerance >= zero(T) ||
+        throw(ArgumentError("convergence_tolerance must be nonnegative"))
+    rows = length(evaluation.constraint_sources)
+    unavailable(reason) = IterativeLeftNullspaceSubspaceEstimate{T}(
+        false, reason, evaluation.point, Int(dimension), 0, false,
+        zeros(T, rows, 0), T[], nothing,
+    )
+    rows > 0 || return unavailable("Jacobian has no constraint rows")
+    dimension <= rows ||
+        throw(ArgumentError("dimension must not exceed the Jacobian row count"))
+    pattern = sparse_jacobian_pattern_estimate(evaluation)
+    pattern.available || return unavailable(pattern.reason)
+    matrix = _combined_sparse_jacobian_matrix(evaluation)
+    seed = T[
+        sin(T(row * (column + 1))) + cos(T((row + 1) * column)) for
+        row in 1:rows, column in 1:dimension
+    ]
+    directions = try
+        Matrix(qr(seed).Q)[:, 1:dimension]
+    catch error
+        return unavailable("could not orthonormalize initial block: $(sprint(showerror, error))")
+    end
+    all(isfinite, directions) || return unavailable("initial block is non-finite")
+
+    probe = view(directions, :, 1)
+    spectral_scale = zero(T)
+    for _ in 1:min(20, Int(iterations))
+        normal_product = matrix * (adjoint(matrix) * probe)
+        product_norm = norm(normal_product)
+        isfinite(product_norm) ||
+            return unavailable("sparse transposed-Jacobian product became non-finite")
+        spectral_scale = max(spectral_scale, product_norm)
+        iszero(product_norm) && break
+        probe = normal_product / product_norm
+    end
+    shift = max(T(4) * spectral_scale, eps(T))
+    completed_iterations = 0
+    converged = false
+    subspace_change = nothing
+    for iteration in 1:Int(iterations)
+        candidate = directions - matrix * (adjoint(matrix) * directions) / shift
+        candidate = try
+            Matrix(qr(candidate).Q)[:, 1:dimension]
+        catch error
+            return unavailable("iterative candidate block became rank deficient: $(sprint(showerror, error))")
+        end
+        all(isfinite, candidate) || return unavailable("iterative candidate block became non-finite")
+        for column in 1:dimension
+            dot(candidate[:, column], directions[:, column]) < zero(T) &&
+                (candidate[:, column] .*= -one(T))
+        end
+        subspace_change = norm(candidate * transpose(candidate) -
+                               directions * transpose(directions))
+        directions = candidate
+        completed_iterations = iteration
+        if subspace_change <= tolerance
+            converged = true
+            break
+        end
+    end
+    residuals = T[norm(adjoint(matrix) * directions[:, column]) for column in 1:dimension]
+    all(isfinite, residuals) || return unavailable("candidate residual became non-finite")
+    return IterativeLeftNullspaceSubspaceEstimate{T}(
+        true, nothing, evaluation.point, Int(dimension), completed_iterations,
+        converged, directions, residuals, subspace_change,
+    )
+end
+
+"""
     iterative_jacobian_spectrum_estimate(evaluation; probe_dimension = 1, ...)
 
 Return a sparse-matvec spectral-scale proxy from a normal-operator power

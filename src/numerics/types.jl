@@ -210,6 +210,19 @@ struct IterativeNullspaceSubspaceEstimate{T<:AbstractFloat}
     subspace_change::Union{Nothing,T}
 end
 
+"""Iterative sparse-matvec probe for a candidate left-null subspace."""
+struct IterativeLeftNullspaceSubspaceEstimate{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    requested_dimension::Int
+    iterations::Int
+    converged::Bool
+    directions::Matrix{T}
+    residual_norms::Vector{T}
+    subspace_change::Union{Nothing,T}
+end
+
 """Sparse-matvec spectral-scale and small-direction residual probe."""
 struct IterativeJacobianSpectrumEstimate{T<:AbstractFloat}
     available::Bool

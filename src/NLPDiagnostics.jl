@@ -246,8 +246,10 @@ export sparse_jacobian_pattern_estimate
 export sparse_qr_rank_estimate
 export iterative_right_nullspace_estimate
 export iterative_right_nullspace_subspace_estimate
+export iterative_left_nullspace_subspace_estimate
 export iterative_jacobian_spectrum_estimate
 export analyze_iterative_right_nullspace_probe
+export analyze_iterative_left_nullspace_probe
 export analyze_iterative_jacobian_spectrum_probe
 export constraint_feasibility_summary
 export coupled_set_feasibility_summary
@@ -4443,6 +4445,9 @@ evidence stage; no solver state is queried or inferred. An explicitly supplied
 `solver_log` is likewise analyzed as raw and structured trace evidence.
 Caller-captured `iteration_bindings` can append point-local evidence without
 reconstructing solver iterates.
+The iterative sparse probe dimensions are opt-in and require an explicit point
+or supplied evaluation; they add finite-budget screening stages rather than
+changing rank, degeneracy, or physical classifications.
 """
 function analyze(
     model::MOI.ModelLike;
@@ -4458,6 +4463,20 @@ function analyze(
     check_active_set::Bool = false,
     check_coupled_set_qualification::Bool = false,
     check_degeneracy::Bool = false,
+    iterative_right_nullspace_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_right_nullspace_probe_iterations::Integer = 100,
+    iterative_right_nullspace_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
+    iterative_right_nullspace_probe_residual_relative_tolerance::Real = sqrt(eps(Float64)),
+    iterative_right_nullspace_probe_support_relative::Real = 0.1,
+    iterative_left_nullspace_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_left_nullspace_probe_iterations::Integer = 100,
+    iterative_left_nullspace_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
+    iterative_left_nullspace_probe_residual_relative_tolerance::Real = sqrt(eps(Float64)),
+    iterative_left_nullspace_probe_support_relative::Real = 0.1,
+    iterative_spectrum_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_spectrum_probe_iterations::Integer = 100,
+    iterative_spectrum_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
+    iterative_spectrum_probe_spread_threshold::Real = 1.0e6,
     expected_modes::Union{Nothing,AbstractVector{<:ExpectedNullspaceMode}} = nothing,
     degeneracy_nullspace_support_relative::Real = 0.1,
     degeneracy_nullspace_uniform_shift_correlation::Real = 0.98,
@@ -4475,6 +4494,12 @@ function analyze(
     !isnothing(point) && !isnothing(evaluation) && throw(ArgumentError(
         "provide either point or evaluation, not both",
     ))
+    (!isnothing(iterative_right_nullspace_probe_dimension) ||
+     !isnothing(iterative_left_nullspace_probe_dimension) ||
+     !isnothing(iterative_spectrum_probe_dimension)) &&
+        isnothing(point) && isnothing(evaluation) && throw(ArgumentError(
+            "iterative sparse probes require an explicit point or supplied evaluation",
+        ))
     !isnothing(solver_log) && isnothing(solver_name) && isnothing(postmortem) &&
         throw(ArgumentError(
             "solver_log requires solver_name or a supplied postmortem",
@@ -4652,6 +4677,44 @@ function analyze(
         append!(report.findings, component_rank_report.findings)
         merge!(report.metadata, component_rank_report.metadata)
         stages *= ",numerical"
+        if !isnothing(iterative_right_nullspace_probe_dimension)
+            probe_report = analyze_iterative_right_nullspace_probe(
+                numerical_evaluation;
+                probe_dimension = iterative_right_nullspace_probe_dimension,
+                iterations = iterative_right_nullspace_probe_iterations,
+                convergence_tolerance = iterative_right_nullspace_probe_convergence_tolerance,
+                residual_relative_tolerance = iterative_right_nullspace_probe_residual_relative_tolerance,
+                support_relative = iterative_right_nullspace_probe_support_relative,
+            )
+            append!(report.findings, probe_report.findings)
+            merge!(report.metadata, probe_report.metadata)
+            stages *= ",iterative_right_nullspace_probe"
+        end
+        if !isnothing(iterative_left_nullspace_probe_dimension)
+            probe_report = analyze_iterative_left_nullspace_probe(
+                numerical_evaluation;
+                probe_dimension = iterative_left_nullspace_probe_dimension,
+                iterations = iterative_left_nullspace_probe_iterations,
+                convergence_tolerance = iterative_left_nullspace_probe_convergence_tolerance,
+                residual_relative_tolerance = iterative_left_nullspace_probe_residual_relative_tolerance,
+                support_relative = iterative_left_nullspace_probe_support_relative,
+            )
+            append!(report.findings, probe_report.findings)
+            merge!(report.metadata, probe_report.metadata)
+            stages *= ",iterative_left_nullspace_probe"
+        end
+        if !isnothing(iterative_spectrum_probe_dimension)
+            probe_report = analyze_iterative_jacobian_spectrum_probe(
+                numerical_evaluation;
+                probe_dimension = iterative_spectrum_probe_dimension,
+                iterations = iterative_spectrum_probe_iterations,
+                convergence_tolerance = iterative_spectrum_probe_convergence_tolerance,
+                spectral_spread_threshold = iterative_spectrum_probe_spread_threshold,
+            )
+            append!(report.findings, probe_report.findings)
+            merge!(report.metadata, probe_report.metadata)
+            stages *= ",iterative_jacobian_spectrum_probe"
+        end
         if check_active_set
             coupled_strict = isnothing(coupled_qualification_strict_tolerance) ?
                              sqrt(eps(eltype(numerical_evaluation.point.values))) :

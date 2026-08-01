@@ -4808,6 +4808,68 @@ end
             iterative_probe_report,
             :iterative_jacobian_candidate_small_residual_direction,
         )) == 1
+        iterative_left_subspace =
+            NLPDiagnostics.iterative_left_nullspace_subspace_estimate(
+                evaluation,
+                1;
+                iterations = 200,
+            )
+        @test iterative_left_subspace.available
+        @test size(iterative_left_subspace.directions) == (2, 1)
+        @test only(iterative_left_subspace.residual_norms) < 1.0e-6
+        @test maximum(abs, transpose([1.0 1.0; 2.0 2.0]) *
+                         iterative_left_subspace.directions) < 1.0e-6
+        iterative_left_probe_report = NLPDiagnostics.analyze_iterative_left_nullspace_probe(
+            evaluation;
+            iterations = 200,
+            residual_relative_tolerance = 1.0e-5,
+        )
+        @test iterative_left_probe_report.metadata[:iterative_left_probe_available] == "true"
+        @test iterative_left_probe_report.metadata[
+            :iterative_left_probe_small_residual_direction_count
+        ] == "1"
+        @test length(findings(
+            iterative_left_probe_report,
+            :iterative_jacobian_candidate_small_residual_left_direction,
+        )) == 1
+        iterative_left_probe_from_model = NLPDiagnostics.analyze_iterative_left_nullspace_probe(
+            model,
+            [0.0, 0.0];
+            label = "left probe convenience point",
+            iterations = 200,
+            residual_relative_tolerance = 1.0e-5,
+        )
+        @test iterative_left_probe_from_model.metadata[:evaluation_point_label] ==
+              "left probe convenience point"
+        combined_iterative_probe_report = NLPDiagnostics.analyze(
+            model;
+            evaluation = evaluation,
+            iterative_right_nullspace_probe_dimension = 1,
+            iterative_right_nullspace_probe_iterations = 200,
+            iterative_right_nullspace_probe_residual_relative_tolerance = 1.0e-5,
+            iterative_left_nullspace_probe_dimension = 1,
+            iterative_left_nullspace_probe_iterations = 200,
+            iterative_left_nullspace_probe_residual_relative_tolerance = 1.0e-5,
+            iterative_spectrum_probe_dimension = 1,
+            iterative_spectrum_probe_iterations = 200,
+            iterative_spectrum_probe_spread_threshold = 1.0e6,
+        )
+        @test occursin(
+            "iterative_right_nullspace_probe",
+            combined_iterative_probe_report.metadata[:stages],
+        )
+        @test occursin(
+            "iterative_left_nullspace_probe",
+            combined_iterative_probe_report.metadata[:stages],
+        )
+        @test length(findings(
+            combined_iterative_probe_report,
+            :iterative_jacobian_candidate_small_residual_left_direction,
+        )) == 1
+        @test_throws ArgumentError NLPDiagnostics.analyze(
+            model;
+            iterative_left_nullspace_probe_dimension = 1,
+        )
         iterative_probe_from_model = NLPDiagnostics.analyze_iterative_right_nullspace_probe(
             model,
             [0.0, 0.0];
@@ -5229,6 +5291,8 @@ end
             case;
             iterative_right_nullspace_probe_dimension = 1,
             iterative_right_nullspace_probe_iterations = 20,
+            iterative_left_nullspace_probe_dimension = 1,
+            iterative_left_nullspace_probe_iterations = 20,
             iterative_spectrum_probe_dimension = 1,
             iterative_spectrum_probe_iterations = 20,
         )
@@ -5240,11 +5304,18 @@ end
             sparse_probe_result.stage_allocations,
             :iterative_jacobian_spectrum_probe,
         )
+        @test haskey(
+            sparse_probe_result.stage_seconds,
+            :iterative_left_nullspace_probe,
+        )
         @test sparse_probe_result.numerical_report.metadata[
             :iterative_probe_requested_dimension
         ] == "1"
         @test sparse_probe_result.numerical_report.metadata[
             :iterative_spectrum_probe_candidate_count
+        ] == "1"
+        @test sparse_probe_result.numerical_report.metadata[
+            :iterative_left_probe_requested_dimension
         ] == "1"
         @test length(findings(
             sparse_probe_result.numerical_report,
@@ -5254,6 +5325,36 @@ end
             sparse_probe_result.numerical_report,
             :iterative_jacobian_no_large_spectral_spread_proxy,
         )) == 1
+        sparse_probe_aggregate = NLPDiagnostics.profile_case_repeated(
+            model,
+            case;
+            repetitions = 2,
+            warmup = false,
+            iterative_right_nullspace_probe_dimension = 1,
+            iterative_right_nullspace_probe_iterations = 20,
+            iterative_left_nullspace_probe_dimension = 1,
+            iterative_left_nullspace_probe_iterations = 20,
+            iterative_spectrum_probe_dimension = 1,
+            iterative_spectrum_probe_iterations = 20,
+        )
+        repeated_probe_directions = only(filter(
+            item -> item.metric == :iterative_probe_small_residual_direction_count,
+            sparse_probe_aggregate.numerical_summary,
+        ))
+        @test repeated_probe_directions.available_count == 2
+        @test repeated_probe_directions.mean == 0.0
+        repeated_left_probe_directions = only(filter(
+            item -> item.metric == :iterative_left_probe_small_residual_direction_count,
+            sparse_probe_aggregate.numerical_summary,
+        ))
+        @test repeated_left_probe_directions.available_count == 2
+        @test repeated_left_probe_directions.maximum == 0.0
+        repeated_probe_spread = only(filter(
+            item -> item.metric == :iterative_spectrum_probe_large_spread_count,
+            sparse_probe_aggregate.numerical_summary,
+        ))
+        @test repeated_probe_spread.available_count == 2
+        @test repeated_probe_spread.maximum == 0.0
         aggregate = NLPDiagnostics.profile_case_repeated(
             model,
             case;

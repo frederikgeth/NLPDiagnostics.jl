@@ -176,6 +176,107 @@ function analyze_iterative_right_nullspace_probe(
 end
 
 """
+    analyze_iterative_left_nullspace_probe(evaluation; ...)
+
+Run the explicit sparse-matvec candidate-dependency probe and turn its output
+into inspectable numerical findings. A small `J' * y` residual is only a
+candidate local dependent-equation combination. It does not certify row rank,
+redundancy, infeasibility, or a physical interpretation.
+"""
+function analyze_iterative_left_nullspace_probe(
+    evaluation::NumericalEvaluation{T};
+    probe_dimension::Integer = 1,
+    iterations::Integer = 100,
+    convergence_tolerance::Real = sqrt(eps(T)),
+    residual_relative_tolerance::Real = sqrt(eps(T)),
+    support_relative::Real = 0.1,
+) where {T<:AbstractFloat}
+    probe_dimension > 0 || throw(ArgumentError("probe_dimension must be positive"))
+    iterations > 0 || throw(ArgumentError("iterations must be positive"))
+    residual_tolerance = convert(T, residual_relative_tolerance)
+    isfinite(residual_tolerance) && residual_tolerance >= zero(T) ||
+        throw(ArgumentError("residual_relative_tolerance must be finite and nonnegative"))
+    zero(T) < support_relative <= one(T) ||
+        throw(ArgumentError("support_relative must lie in (0, 1]"))
+    probe = iterative_left_nullspace_subspace_estimate(
+        evaluation, probe_dimension;
+        iterations = iterations,
+        convergence_tolerance = convergence_tolerance,
+    )
+    report = DiagnosticReport()
+    report.metadata[:stage] = "iterative_left_nullspace_probe"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:iterative_left_probe_requested_dimension] = string(probe_dimension)
+    report.metadata[:iterative_left_probe_available] = string(probe.available)
+    report.metadata[:iterative_left_probe_iterations] = string(probe.iterations)
+    report.metadata[:iterative_left_probe_converged] = string(probe.converged)
+    report.metadata[:iterative_left_probe_residual_relative_tolerance] =
+        string(residual_tolerance)
+    report.metadata[:iterative_left_probe_support_relative] = string(support_relative)
+    if !probe.available
+        push!(report, Finding(:iterative_jacobian_left_nullspace_probe_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The requested iterative sparse Jacobian candidate-dependency probe is unavailable: $(probe.reason).",
+            why_it_matters = "No candidate dependent-equation combination is reported when sparse products or the probe initialization are unavailable.",
+            evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse left probe availability"; details = [
+                "requested_dimension" => probe_dimension, "reason" => probe.reason,
+            ])],
+            suggested_actions = ["Resolve incomplete or non-finite Jacobian evidence, or use guarded dense left-nullspace analysis when feasible."],
+        ))
+        return report
+    end
+    scale_summary = jacobian_scale_summary(evaluation)
+    scale = max(one(T), something(scale_summary.largest_finite_column_norm, zero(T)))
+    report.metadata[:iterative_left_probe_residual_scale] = string(scale)
+    report.metadata[:iterative_left_probe_residual_norms] = join(probe.residual_norms, ",")
+    reported = 0
+    for column in axes(probe.directions, 2)
+        direction = view(probe.directions, :, column)
+        residual = probe.residual_norms[column]
+        relative_residual = residual / scale
+        relative_residual <= residual_tolerance || continue
+        magnitude = maximum(abs, direction; init = zero(T))
+        support = iszero(magnitude) ? Int[] :
+                  findall(value -> abs(value) >= T(support_relative) * magnitude, direction)
+        constraints = evaluation.constraint_sources[support]
+        push!(report, Finding(:iterative_jacobian_candidate_small_residual_left_direction;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = probe.converged ? ConfidenceMedium : ConfidenceLow,
+            observation = "Iterative sparse left probe direction $column has relative transposed-Jacobian residual $relative_residual below the requested threshold $residual_tolerance.",
+            why_it_matters = "This is a candidate local dependent-equation combination only; it does not certify redundancy, an IIS, row rank, or a physical cause.",
+            evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse candidate left direction"; details = [
+                "direction" => column, "residual_norm" => residual,
+                "residual_scale" => scale, "relative_residual" => relative_residual,
+                "relative_tolerance" => residual_tolerance,
+                "iterations" => probe.iterations, "converged" => probe.converged,
+                "support_constraints" => join((constraint.index for constraint in constraints), ","),
+                "support_relative" => support_relative,
+            ])],
+            affected = copy(constraints),
+            suggested_actions = ["Inspect the listed constraint combination and compare with guarded dense left-nullspace analysis when feasible.", "Repeat with a documented probe dimension, iteration budget, and scaling convention before drawing formulation conclusions."],
+        ))
+        reported += 1
+    end
+    report.metadata[:iterative_left_probe_small_residual_direction_count] = string(reported)
+    if iszero(reported)
+        push!(report, Finding(:iterative_jacobian_no_small_residual_left_direction;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = probe.converged ? ConfidenceMedium : ConfidenceLow,
+            observation = "The requested iterative sparse left probe found no direction below its relative transposed-Jacobian residual threshold.",
+            why_it_matters = "This does not establish local row independence: the finite probe budget and initial subspace can miss small directions.",
+            evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse left probe residuals"; details = [
+                "residual_norms" => join(probe.residual_norms, ","), "residual_scale" => scale,
+                "relative_tolerance" => residual_tolerance, "converged" => probe.converged,
+            ])],
+            suggested_actions = ["Increase the explicit probe dimension or iteration budget, or use guarded dense left-nullspace analysis when feasible."],
+        ))
+    end
+    return report
+end
+
+"""
     analyze_iterative_jacobian_spectrum_probe(evaluation; ...)
 
 Turn the explicit iterative sparse spectral-scale probe into evidence-first
@@ -294,6 +395,39 @@ function analyze_iterative_right_nullspace_probe(
     kwargs...,
 )
     return analyze_iterative_right_nullspace_probe(
+        model,
+        evaluation_point(model, values; label = label);
+        kwargs...,
+    )
+end
+
+"""
+    analyze_iterative_left_nullspace_probe(model, point; cache, relative_step, ...)
+
+Evaluate `model` at `point`, then run the explicit sparse candidate-dependency
+probe. This convenience overload is non-mutating. Reuse the
+`NumericalEvaluation` overload when an iterate has already been captured.
+"""
+function analyze_iterative_left_nullspace_probe(
+    model::MOI.ModelLike,
+    point::EvaluationPoint{T};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Real = cbrt(eps(T)),
+    kwargs...,
+) where {T<:AbstractFloat}
+    return analyze_iterative_left_nullspace_probe(
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step);
+        kwargs...,
+    )
+end
+
+function analyze_iterative_left_nullspace_probe(
+    model::MOI.ModelLike,
+    values::Union{AbstractVector{<:Real},AbstractDict{MOI.VariableIndex,<:Real}};
+    label::AbstractString = "user",
+    kwargs...,
+)
+    return analyze_iterative_left_nullspace_probe(
         model,
         evaluation_point(model, values; label = label);
         kwargs...,

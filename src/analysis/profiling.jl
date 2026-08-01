@@ -297,6 +297,11 @@ function profile_case(
     iterative_right_nullspace_probe_convergence_tolerance::Real = sqrt(eps(T)),
     iterative_right_nullspace_probe_residual_relative_tolerance::Real = sqrt(eps(T)),
     iterative_right_nullspace_probe_support_relative::Real = 0.1,
+    iterative_left_nullspace_probe_dimension::Union{Nothing,Integer} = nothing,
+    iterative_left_nullspace_probe_iterations::Integer = 100,
+    iterative_left_nullspace_probe_convergence_tolerance::Real = sqrt(eps(T)),
+    iterative_left_nullspace_probe_residual_relative_tolerance::Real = sqrt(eps(T)),
+    iterative_left_nullspace_probe_support_relative::Real = 0.1,
     iterative_spectrum_probe_dimension::Union{Nothing,Integer} = nothing,
     iterative_spectrum_probe_iterations::Integer = 100,
     iterative_spectrum_probe_convergence_tolerance::Real = sqrt(eps(T)),
@@ -368,6 +373,23 @@ function profile_case(
                 convergence_tolerance = iterative_right_nullspace_probe_convergence_tolerance,
                 residual_relative_tolerance = iterative_right_nullspace_probe_residual_relative_tolerance,
                 support_relative = iterative_right_nullspace_probe_support_relative,
+            ),
+        )
+        _append_profile_probe!(numerical_report, probe_report)
+    end
+
+    if !isnothing(iterative_left_nullspace_probe_dimension)
+        probe_report = _profile_stage!(
+            timings,
+            allocations,
+            :iterative_left_nullspace_probe,
+            () -> analyze_iterative_left_nullspace_probe(
+                evaluation;
+                probe_dimension = iterative_left_nullspace_probe_dimension,
+                iterations = iterative_left_nullspace_probe_iterations,
+                convergence_tolerance = iterative_left_nullspace_probe_convergence_tolerance,
+                residual_relative_tolerance = iterative_left_nullspace_probe_residual_relative_tolerance,
+                support_relative = iterative_left_nullspace_probe_support_relative,
             ),
         )
         _append_profile_probe!(numerical_report, probe_report)
@@ -511,11 +533,23 @@ function _profile_expected_evidence_summary(runs::Vector{<:ProfileResult})
 end
 
 function _profile_numerical_summary(runs::Vector{<:ProfileResult})
-    metrics = (
+    metrics = Pair{Symbol,Union{Nothing,Symbol}}[
         :jacobian_rank => :jacobian_rank_available,
         :sparse_qr_rank => :sparse_qr_rank_available,
         :sparse_qr_condition_proxy => nothing,
+    ]
+    # These scalar summaries are added only when at least one retained run
+    # explicitly requested the corresponding sparse probe. Their availability
+    # flags keep unavailable probe paths out of numerical averages.
+    for metric in (
+        :iterative_probe_small_residual_direction_count => :iterative_probe_available,
+        :iterative_left_probe_small_residual_direction_count => :iterative_left_probe_available,
+        :iterative_spectrum_probe_large_spread_count => :iterative_spectrum_probe_available,
+        :iterative_spectrum_probe_largest_singular_value_proxy => :iterative_spectrum_probe_available,
     )
+        any(haskey(run.numerical_report.metadata, first(metric)) for run in runs) &&
+            push!(metrics, metric)
+    end
     summaries = ProfileNumericalSummary[]
     for (metric, availability_key) in metrics
         values = Float64[]

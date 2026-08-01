@@ -576,13 +576,15 @@ constructor remains available and creates empty static/expression/reformulation 
 `profile_case` always supplies the fully populated reports.
 
 The potentially costly iterative sparse screens stay out of this default path.
-Set `iterative_right_nullspace_probe_dimension` and/or
+Set `iterative_right_nullspace_probe_dimension`,
+`iterative_left_nullspace_probe_dimension`, and/or
 `iterative_spectrum_probe_dimension` when a profile case explicitly calls for
 them. The profile uses its already captured `NumericalEvaluation`, records a
 separate timing/allocation stage for each requested screen, and appends the
 resulting evidence to the numerical report. These remain finite-budget
-candidate and spectral-spread observations, respectively; profile aggregation
-does not convert them into nullity, condition-number, or physical claims.
+candidate-dependency and spectral-spread observations; profile aggregation does
+not convert them into nullity, redundancy, condition-number, or physical
+claims.
 
 Stage timings include Julia compilation and allocation effects unless callers
 warm up a comparable case first. They are useful profiling evidence, not a
@@ -594,10 +596,15 @@ and returns minimum, mean, maximum, and population standard deviation for each
 stage. It also returns per-stage diagnostic-code occurrence fractions, making
 stable versus intermittent findings explicit across retained runs. Its
 `numerical_summary` separately aggregates available finite Jacobian rank,
-sparse-QR rank, and sparse-QR pivot-proxy observations. Each metric records
-both retained-run count and available-value count, so unavailable diagnostics
-are never silently averaged as zeros. These summaries describe local observed
-variation; they are not statistical confidence intervals.
+sparse-QR rank, and sparse-QR pivot-proxy observations. When a sparse probe is
+explicitly requested, it also aggregates right- and left-candidate
+small-residual counts, the large-spread count, and largest spectral-scale
+proxy. Each metric records both
+retained-run count and available-value count, so unavailable diagnostics are
+never silently averaged as zeros. Probe summaries remain observations of a
+finite algorithmic screen, not rank, condition-number, or physical estimates.
+These summaries describe local observed variation; they are not statistical
+confidence intervals.
 
 ## Cache lifetime
 
@@ -947,6 +954,9 @@ screens over an explicit finite iteration budget:
 candidate_report = analyze_iterative_right_nullspace_probe(
     model, point; probe_dimension = 2, iterations = 200,
 )
+dependency_report = analyze_iterative_left_nullspace_probe(
+    model, point; probe_dimension = 2, iterations = 200,
+)
 spectrum_report = analyze_iterative_jacobian_spectrum_probe(
     model, point; probe_dimension = 2, iterations = 200,
 )
@@ -957,14 +967,16 @@ Both functions also accept a values vector or an already captured
 the model/point and model/values overloads only provide a non-mutating
 convenience path through `evaluate_numerical`.
 
-The right-nullspace report identifies candidate directions with a small
-Jacobian residual and material coordinate support. It does not certify rank,
-nullity, or a physical gauge. The spectrum report compares a power-scale proxy
-with candidate small-direction residuals. Its reported spectral spreads are
-heuristic screening quantities—not condition numbers or singular-value bounds.
-Both reports retain their requested probe dimension, iteration budget,
-availability, and convergence evidence so a result can be reproduced or
-discounted appropriately.
+The right-nullspace report identifies candidate variable directions with a
+small Jacobian residual and material coordinate support. The corresponding
+left-nullspace report identifies candidate constraint combinations with a small
+transposed-Jacobian residual and material constraint support. Neither certifies
+rank, nullity, redundancy, an IIS, or a physical gauge. The spectrum report
+compares a power-scale proxy with candidate small-direction residuals. Its
+reported spectral spreads are heuristic screening quantities—not condition
+numbers or singular-value bounds. All reports retain their requested probe
+dimension, iteration budget, availability, and convergence evidence so a result
+can be reproduced or discounted appropriately.
 
 ## Current limits
 
