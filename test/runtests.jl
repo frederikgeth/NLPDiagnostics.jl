@@ -231,6 +231,29 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     completed_starts = NLPDiagnostics.bmopf_start_completion_point(context)
     @test completed_starts.label == "bmopf-partial-starts-completed"
     @test completed_starts.values == zeros(8)
+    saved_result = Dict{String,Any}(
+        "bus" => Dict{String,Any}(
+            "bus" => Dict{String,Any}(
+                "a" => Dict{String,Any}("vr" => 230.0, "vi" => 0.0),
+                "n" => Dict{String,Any}("vr" => 0.0, "vi" => 0.0),
+            ),
+        ),
+    )
+    saved_point = NLPDiagnostics.bmopf_result_voltage_point(
+        per_unit_context, saved_result;
+        fallback_value = -7.0,
+    )
+    @test saved_point.point.label == "bmopf-result-voltage-partial"
+    @test saved_point.mapped_coordinate_count == 4
+    @test saved_point.mapped_voltage_coordinate_count == 4 # compatibility alias
+    @test saved_point.fallback_coordinate_count == 4
+    @test saved_point.registered_coordinate_count == 4
+    @test saved_point.mapped_registered_coordinate_fraction == 1.0
+    @test saved_point.mapped_coordinate_counts_by_family == Dict(
+        "vr" => 2, "vi" => 2,
+    )
+    @test isempty(saved_point.unresolved_saved_coordinate_counts_by_family)
+    @test saved_point.point.values == [1.0, 0.0, 0.0, 0.0, -7.0, -7.0, -7.0, -7.0]
     coordinate_probe = NLPDiagnostics.bmopf_coordinate_probe_point(context)
     @test coordinate_probe.label == "bmopf-zero-coordinate-probe"
     @test coordinate_probe.values == zeros(8)

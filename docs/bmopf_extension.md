@@ -203,10 +203,19 @@ in `bmopf_build_and_profile` and `bmopf_build_and_analyze_opf` is a generic
 post-build/pre-KCL hook; callers must use only lifecycle stages legal at that
 point.
 
-`bmopf_result_voltage_point(context, result; result_units = :si)` is the first
-saved-solution adapter slice. It maps only public rectangular bus-voltage
-records and converts SI values through public per-bus voltage bases. It returns
-the point plus mapped/fallback counts; all non-voltage model coordinates use an
-explicit fallback and therefore the result is labelled a partial-result probe.
-This conservative boundary avoids claiming that a saved solution file fully
-specifies every current, control, and auxiliary coordinate.
+`bmopf_result_voltage_point(context, result; result_units = :si)` maps public
+rectangular bus-voltage records plus line, load, voltage-source, IBR, switch,
+and ground current records. It converts SI values through public per-bus
+voltage/current bases and returns mapped, registered, unresolved, and fallback
+counts by semantic family. Coordinates not represented in the result retain an
+explicit fallback, so the point remains a partial-result probe rather than a
+claim that the saved solution fully specifies every control or auxiliary
+coordinate.
+
+The draft corpus runner exposes this adapter as
+`NLPDIAGNOSTICS_BMOPF_POINT_POLICY=saved_result`. By default it reads the
+adjacent `_result_si.json` file. Set `NLPDIAGNOSTICS_BMOPF_RESULT_UNITS=model`
+and/or `NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX=...` only when the file's numerical
+coordinates genuinely use those conventions. Its JSON record persists the
+mapping coverage and exact result path, making any fallback visible in a
+benchmark comparison.

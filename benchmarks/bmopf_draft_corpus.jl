@@ -11,6 +11,11 @@
 # NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT=/path/to/BMOPFDraftData/benchmarks \
 #   NLPDIAGNOSTICS_BMOPF_POINT_POLICY=zero \
 #   julia --project=. benchmarks/bmopf_draft_corpus.jl
+#
+# Use NLPDIAGNOSTICS_BMOPF_POINT_POLICY=saved_result to profile an adjacent
+# saved result. It defaults to `<snapshot>_result_si.json`; record a different
+# numerical convention explicitly with NLPDIAGNOSTICS_BMOPF_RESULT_UNITS and
+# NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX.
 
 using NLPDiagnostics
 using BMOPFTools
@@ -34,24 +39,57 @@ function _dense_entry_limit()
     return limit
 end
 
-function _case_point(name, context, point_policy)
-    point = if point_policy == "initialization"
+function _saved_result_path(snapshot_path, result_units)
+    suffix = get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX", "_result_$(result_units).json")
+    endswith(suffix, ".json") || error("NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX must end in .json")
+    path = replace(snapshot_path, ".bmopf.json" => suffix)
+    isfile(path) || error("saved-result policy requested, but no result file exists at $path")
+    return path
+end
+
+function _case_point(name, context, point_policy, snapshot_path)
+    point, provenance, metadata = if point_policy == "initialization"
         candidate = NLPDiagnostics.bmopf_initialization_point(context)
         isnothing(candidate) && error(
             "$name: staged model has incomplete starts; rerun with " *
             "NLPDIAGNOSTICS_BMOPF_POINT_POLICY=zero for a synthetic coordinate probe",
         )
-        candidate
+        candidate, point_policy, Dict{String,Any}()
     elseif point_policy == "bmopf_start_values"
         NLPDiagnostics.bmopf_start_completion_point(context;
             missing_value = 0.0,
             label = "bmopf-engine-starts-plus-zero-completion",
+        ), "BMOPFTools voltage starts with explicit zero completion for missing coordinates", Dict{String,Any}()
+    elseif point_policy == "saved_result"
+        result_units = Symbol(lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_UNITS", "si")))
+        result_units in (:si, :model) || error("NLPDIAGNOSTICS_BMOPF_RESULT_UNITS must be si or model")
+        path = _saved_result_path(snapshot_path, result_units)
+        mapped = NLPDiagnostics.bmopf_result_voltage_point(context, BMOPFTools.read_result(path);
+            result_units = result_units,
+            label = "bmopf-saved-result-partial-probe",
+        )
+        mapped.point,
+        "saved BMOPF result with explicit fallback for unmapped coordinates",
+        Dict{String,Any}(
+            "saved_result_path" => abspath(path),
+            "saved_result_units" => string(result_units),
+            "mapped_coordinate_count" => mapped.mapped_coordinate_count,
+            "fallback_coordinate_count" => mapped.fallback_coordinate_count,
+            "registered_coordinate_count" => mapped.registered_coordinate_count,
+            "mapped_registered_coordinate_fraction" => mapped.mapped_registered_coordinate_fraction,
+            "mapped_coordinate_counts_by_family" => mapped.mapped_coordinate_counts_by_family,
+            "unresolved_saved_coordinate_counts_by_family" => mapped.unresolved_saved_coordinate_counts_by_family,
         )
     elseif point_policy == "zero"
-        NLPDiagnostics.bmopf_coordinate_probe_point(context; label = "bmopf-draft-zero-coordinate-probe")
+        NLPDiagnostics.bmopf_coordinate_probe_point(context; label = "bmopf-draft-zero-coordinate-probe"), point_policy, Dict{String,Any}()
     else
-        error("unknown NLPDIAGNOSTICS_BMOPF_POINT_POLICY='$point_policy' (use initialization, bmopf_start_values, or zero)")
+        error("unknown NLPDIAGNOSTICS_BMOPF_POINT_POLICY='$point_policy' (use initialization, bmopf_start_values, saved_result, or zero)")
     end
+    profile_metadata = Dict{String,Any}(
+        "point_policy" => point_policy,
+        "point_provenance" => provenance,
+    )
+    merge!(profile_metadata, metadata)
     return NLPDiagnostics.ProfileCase(name, point;
         description = "BMOPF draft-data snapshot; point policy=$point_policy",
         task = "BMOPF draft-corpus diagnostic benchmark",
@@ -59,11 +97,7 @@ function _case_point(name, context, point_policy)
         initialization = point_policy,
         scale = "as declared by BMOPF snapshot",
         tags = [:bmopf, :draft_corpus, :multiconductor],
-        metadata = Dict(
-            "point_policy" => point_policy,
-            "point_provenance" => point_policy == "bmopf_start_values" ?
-                                  "BMOPFTools voltage starts with explicit zero completion for missing coordinates" : point_policy,
-        ),
+        metadata = profile_metadata,
     )
 end
 
@@ -105,7 +139,7 @@ function main()
             run, data, variable_count, constraint_row_count, jacobian_entries,
             generic_findings, context_findings = if analysis_mode == "profile"
                 profile_run = NLPDiagnostics.bmopf_build_and_profile(network,
-                    context -> _case_point(name, context, point_policy);
+                    context -> _case_point(name, context, point_policy, path);
                     build_kwargs = (add_objective = false,),
                     profile_kwargs = (
                         include_initialization = true,

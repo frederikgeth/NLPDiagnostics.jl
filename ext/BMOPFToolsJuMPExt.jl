@@ -213,12 +213,14 @@ end
         result_units = :si, fallback_value = 0.0,
         label = "bmopf-result-voltage-partial")
 
-Map only unambiguous saved rectangular `result["bus"][bus][terminal]["vr"|"vi"]`
-coordinates to the staged MOI model. SI values are converted using BMOPFTools'
-public per-bus voltage bases; `:model` accepts model-coordinate values directly.
-All other coordinates receive explicit `fallback_value`, and their count is
-returned. Thus this is a labeled partial-result probe, never a claim that a
-saved result completely represents every auxiliary model coordinate.
+Map unambiguous saved rectangular voltage and public current records to the
+staged MOI model. SI values are converted using BMOPFTools' public per-bus
+voltage/current bases; `:model` accepts model-coordinate values directly. All
+other coordinates receive explicit `fallback_value`. The returned coverage
+counts distinguish mapped registry coordinates, unresolved saved records, and
+fallback coordinates. Thus this is a labeled partial-result probe, never a
+claim that a saved result completely represents every auxiliary model
+coordinate.
 """
 function _bmopf_result_voltage_point(
     context,
@@ -234,15 +236,31 @@ function _bmopf_result_voltage_point(
     variables = MOI.get(backend, MOI.ListOfVariableIndices())
     values = fill(Float64(fallback_value), length(variables))
     positions = Dict(variable => position for (position, variable) in enumerate(variables))
+    registered_variables = Set{MOI.VariableIndex}()
+    for key in BMOPFTools.opf_object_keys(context; kind = :variable)
+        object = try BMOPFTools.opf_object(context, key) catch; nothing end
+        object isa JuMP.VariableRef || continue
+        variable = JuMP.index(object)
+        haskey(positions, variable) && push!(registered_variables, variable)
+    end
     buses = get(result, "bus", Dict())
     mapped = 0
     mapped_by_family = Dict{Symbol,Int}()
+    unresolved_by_family = Dict{Symbol,Int}()
     function assign!(key, value)
         value isa Real && isfinite(value) || return
         object = try BMOPFTools.opf_object(context, key) catch; nothing end
-        object isa JuMP.VariableRef || return
+        if !(object isa JuMP.VariableRef)
+            family = key.family
+            unresolved_by_family[family] = get(unresolved_by_family, family, 0) + 1
+            return
+        end
         position = get(positions, JuMP.index(object), nothing)
-        isnothing(position) && return
+        if isnothing(position)
+            family = key.family
+            unresolved_by_family[family] = get(unresolved_by_family, family, 0) + 1
+            return
+        end
         values[position] = Float64(value)
         mapped += 1
         family = key.family
@@ -271,21 +289,22 @@ function _bmopf_result_voltage_point(
     for (line_id, line_result) in get(result, "line", Dict())
             line = get(get(network, "line", Dict()), string(line_id), nothing)
             line isa AbstractDict && line_result isa AbstractDict || continue
-            for (map_field, bus_field, rfield, real_family, imag_family) in (
-                ("terminal_map_from", "bus_from", "cr_fr", :cr_fr, :ci_fr),
-                # BMOPFTools result extraction deliberately keys both line-end
-                # quantities by the from-terminal label; conductor position
-                # remains aligned with the to-end model key.
-                ("terminal_map_from", "bus_to", "cr_to", :cr_to, :ci_to),
+            for (result_map_field, key_map_field, bus_field, rfield, side) in (
+                ("terminal_map_from", "terminal_map_from", "bus_from", "cr_fr", :from),
+                # Result records use the from-side terminal label, whereas the
+                # public :to key is indexed in the to-side conductor order.
+                ("terminal_map_from", "terminal_map_to", "bus_to", "cr_to", :to),
             )
-                terminals = string.(get(line, map_field, String[]))
+                result_terminals = string.(get(line, result_map_field, String[]))
+                key_terminals = string.(get(line, key_map_field, String[]))
                 base = result_units == :si ? _bmopf_current_base(context, string(get(line, bus_field, ""))) : 1.0
                 isnothing(base) && continue
-                for (position, terminal) in enumerate(terminals)
+                for (position, terminal) in enumerate(result_terminals)
+                    position <= length(key_terminals) || continue
                     entry = get(line_result, terminal, nothing)
                     entry isa AbstractDict || continue
-                    assign_scaled!(BMOPFTools.OpfModelKey(:variable, real_family, (string(line_id), position)), get(entry, rfield, nothing), base)
-                    assign_scaled!(BMOPFTools.OpfModelKey(:variable, imag_family, (string(line_id), position)), get(entry, replace(rfield, "cr" => "ci"), nothing), base)
+                    assign_scaled!(BMOPFTools.opf_line_current_key(string(line_id), position; side), get(entry, rfield, nothing), base)
+                    assign_scaled!(BMOPFTools.opf_line_current_key(string(line_id), position; side, component = :imag), get(entry, replace(rfield, "cr" => "ci"), nothing), base)
                 end
             end
     end
@@ -303,8 +322,15 @@ function _bmopf_result_voltage_point(
             for (position, terminal) in enumerate(terminals)
                 entry = get(component_result, terminal, nothing)
                 entry isa AbstractDict || continue
-                assign_scaled!(BMOPFTools.OpfModelKey(:variable, real_family, (string(id), position)), get(entry, result_real, nothing), base)
-                assign_scaled!(BMOPFTools.OpfModelKey(:variable, imag_family, (string(id), position)), get(entry, result_imag, nothing), base)
+                key = if real_family == :crd
+                    BMOPFTools.opf_load_current_key(string(id), position)
+                elseif real_family == :cr_src
+                    BMOPFTools.opf_voltage_source_current_key(string(id), position)
+                else
+                    BMOPFTools.opf_ibr_current_key(string(id), position)
+                end
+                assign_scaled!(key, get(entry, result_real, nothing), base)
+                assign_scaled!(BMOPFTools.OpfModelKey(key.kind, imag_family, key.index), get(entry, result_imag, nothing), base)
             end
         end
     end
@@ -333,10 +359,17 @@ function _bmopf_result_voltage_point(
     end
     return (
         point = NLPDiagnostics.EvaluationPoint(variables, values; label = label),
+        mapped_coordinate_count = mapped,
+        # Retained for source compatibility; this now counts voltage and public
+        # current coordinates, so new callers should use mapped_coordinate_count.
         mapped_voltage_coordinate_count = mapped,
         fallback_coordinate_count = length(variables) - mapped,
+        registered_coordinate_count = length(registered_variables),
+        mapped_registered_coordinate_fraction = isempty(registered_variables) ?
+                                               0.0 : mapped / length(registered_variables),
         result_units = result_units,
         mapped_coordinate_counts_by_family = Dict(string(key) => value for (key, value) in mapped_by_family),
+        unresolved_saved_coordinate_counts_by_family = Dict(string(key) => value for (key, value) in unresolved_by_family),
     )
 end
 
