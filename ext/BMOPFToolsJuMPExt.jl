@@ -140,6 +140,65 @@ function _bmopf_initialization_point(context; kwargs...)
 end
 
 """
+    bmopf_set_start_values!(context)
+
+Explicitly invoke BMOPFTools' public `set_opf_start_values!` stage, then
+return `nothing`. This mutates only the staged context's start values. It is
+intentionally opt-in: generated starts are an engine initialization policy, not
+model data observed by NLPDiagnostics. No solve is performed. The stage may
+initialize only a subset of model coordinates; use
+`bmopf_start_completion_point` only when an explicit fallback policy is wanted.
+"""
+function _bmopf_set_start_values!(
+    context,
+)
+    owner = _bmopf_context_model(context)
+    owner isa JuMP.Model || throw(ArgumentError("BMOPFTools.opf_model(context) did not return a JuMP.Model"))
+    try
+        BMOPFTools.set_opf_start_values!(context)
+    catch error
+        error isa MethodError && error.f === BMOPFTools.set_opf_start_values! || rethrow()
+        throw(ArgumentError(
+            "BMOPFTools.set_opf_start_values! is unavailable; load BMOPFTools' JuMP/IPOPT staged-build extension before requesting generated starts",
+        ))
+    end
+    return nothing
+end
+
+"""
+    bmopf_start_completion_point(context; missing_value = 0.0,
+        label = "bmopf-partial-starts-completed") -> EvaluationPoint
+
+Create a complete point from exact BMOPF `VariablePrimalStart` values, replacing
+each missing coordinate by caller-specified finite `missing_value`. The staged
+model is not modified. This is an explicit *mixed* initialization policy, not
+an observed complete initialization and not a physical feasibility claim. Run
+`bmopf_analyze_initialization` alongside it to retain the original missing-start
+evidence.
+"""
+function _bmopf_start_completion_point(
+    context;
+    missing_value::Real = 0.0,
+    label::AbstractString = "bmopf-partial-starts-completed",
+)
+    isfinite(missing_value) || throw(ArgumentError("missing_value must be finite"))
+    owner = _bmopf_context_model(context)
+    owner isa JuMP.Model || throw(ArgumentError("BMOPFTools.opf_model(context) did not return a JuMP.Model"))
+    backend = JuMP.backend(owner)
+    variables = MOI.get(backend, MOI.ListOfVariableIndices())
+    values = Float64[]
+    for variable in variables
+        start = try
+            MOI.get(backend, MOI.VariablePrimalStart(), variable)
+        catch
+            nothing
+        end
+        push!(values, start isa Real && isfinite(start) ? Float64(start) : Float64(missing_value))
+    end
+    return NLPDiagnostics.EvaluationPoint(variables, values; label = label)
+end
+
+"""
     bmopf_coordinate_probe_point(context; value = 0.0, label = "bmopf-zero-coordinate-probe")
 
 Construct an explicitly synthetic constant-coordinate `EvaluationPoint` in
@@ -283,23 +342,12 @@ function _bmopf_profile_case(
     )
 end
 
-"""
-    bmopf_build_and_profile(network, case_builder; finalize_kcl = true, build_kwargs = NamedTuple(), profile_kwargs = NamedTuple())
-
-Build a fresh staged BMOPF context from caller-owned `network`, then invoke
-`case_builder(context)` to produce the explicit `ProfileCase` to profile. The
-network is deep-copied by default. By default the fresh context is finalized
-with BMOPFTools' public `enforce_kcl!` before profiling; pass
-`finalize_kcl=false` only to benchmark an intentionally incomplete build.
-The function never solves or modifies caller-owned data. The returned named
-tuple retains the built context, `BMOPFProfileResult`, and separately measured
-build/KCL cost.
-"""
-function _bmopf_build_and_profile(
+"""Build and optionally KCL-finalize a fresh staged context from copied data."""
+function _bmopf_build_context(
     network::AbstractDict,
-    case_builder::Function;
+    ;
     build_kwargs::NamedTuple = NamedTuple(),
-    profile_kwargs::NamedTuple = NamedTuple(),
+    prepare_context::Union{Nothing,Function} = nothing,
     copy_network::Bool = true,
     finalize_kcl::Bool = true,
 )
@@ -314,6 +362,9 @@ function _bmopf_build_and_profile(
         ))
     end
     context = build_timing.value
+    # The hook is deliberately explicit and runs before KCL finalization because
+    # BMOPFTools' public lifecycle requires e.g. generated start values then.
+    !isnothing(prepare_context) && prepare_context(context)
     kcl_timing = if finalize_kcl
         try
             @timed BMOPFTools.enforce_kcl!(context)
@@ -326,20 +377,85 @@ function _bmopf_build_and_profile(
     else
         nothing
     end
-    case = case_builder(context)
-    case isa NLPDiagnostics.ProfileCase || throw(ArgumentError(
-        "case_builder(context) must return an NLPDiagnostics.ProfileCase, got $(typeof(case))",
-    ))
-    result = _bmopf_profile_case(context, case; profile_kwargs...)
     return (
         context = context,
-        result = result,
         build_seconds = Float64(build_timing.time),
         build_allocations = Int(build_timing.bytes),
         kcl_seconds = isnothing(kcl_timing) ? 0.0 : Float64(kcl_timing.time),
         kcl_allocations = isnothing(kcl_timing) ? 0 : Int(kcl_timing.bytes),
         kcl_finalized = finalize_kcl,
         network_copied = copy_network,
+    )
+end
+
+"""
+    bmopf_build_and_profile(network, case_builder; finalize_kcl = true, build_kwargs = NamedTuple(), profile_kwargs = NamedTuple(), prepare_context = nothing)
+
+Build a fresh staged BMOPF context from caller-owned `network`, then invoke
+`case_builder(context)` to produce the explicit `ProfileCase` to profile. The
+network is deep-copied by default. By default the fresh context is finalized
+with BMOPFTools' public `enforce_kcl!` before profiling; pass
+`finalize_kcl=false` only to benchmark an intentionally incomplete build.
+The function never solves or modifies caller-owned data. The returned named
+tuple retains the built context, `BMOPFProfileResult`, and separately measured
+build/KCL cost.
+`prepare_context`, when supplied explicitly, runs after construction but before
+KCL finalization. It may mutate only the fresh staged context; callers remain
+responsible for using a stage that is legal after the fused build recipe.
+"""
+function _bmopf_build_and_profile(
+    network::AbstractDict,
+    case_builder::Function;
+    build_kwargs::NamedTuple = NamedTuple(),
+    profile_kwargs::NamedTuple = NamedTuple(),
+    prepare_context::Union{Nothing,Function} = nothing,
+    copy_network::Bool = true,
+    finalize_kcl::Bool = true,
+)
+    built = _bmopf_build_context(network;
+        build_kwargs, prepare_context, copy_network, finalize_kcl,
+    )
+    case = case_builder(built.context)
+    case isa NLPDiagnostics.ProfileCase || throw(ArgumentError(
+        "case_builder(context) must return an NLPDiagnostics.ProfileCase, got $(typeof(case))",
+    ))
+    result = _bmopf_profile_case(built.context, case; profile_kwargs...)
+    return (
+        built...,
+        result = result,
+    )
+end
+
+"""
+    bmopf_build_and_analyze_opf(network; finalize_kcl = true, build_kwargs = NamedTuple(), analysis_kwargs = NamedTuple(), prepare_context = nothing)
+
+Build and KCL-finalize a fresh staged BMOPF context, then run the generic and
+BMOPF structural analysis without an evaluation point. Consequently it never
+evaluates derivatives, materializes a Jacobian, performs dense rank/SVD work,
+or interprets a synthetic probe as an initialization. The network is copied by
+default and neither it nor the staged model is solved or otherwise modified.
+"""
+function _bmopf_build_and_analyze_opf(
+    network::AbstractDict;
+    build_kwargs::NamedTuple = NamedTuple(),
+    analysis_kwargs::NamedTuple = NamedTuple(),
+    prepare_context::Union{Nothing,Function} = nothing,
+    copy_network::Bool = true,
+    finalize_kcl::Bool = true,
+)
+    built = _bmopf_build_context(network;
+        build_kwargs, prepare_context, copy_network, finalize_kcl,
+    )
+    analysis_timing = @timed _bmopf_analyze_opf(built.context; analysis_kwargs...)
+    report = analysis_timing.value
+    report.metadata[:bmopf_benchmark_analysis_mode] = "structural"
+    report.metadata[:bmopf_derivative_evaluation_requested] = "false"
+    report.metadata[:bmopf_dense_rank_analysis_requested] = "false"
+    return (
+        built...,
+        report = report,
+        analysis_seconds = Float64(analysis_timing.time),
+        analysis_allocations = Int(analysis_timing.bytes),
     )
 end
 

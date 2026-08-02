@@ -227,6 +227,10 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test length(NLPDiagnostics.bmopf_component_coordinate_semantics(context)) == 2
     @test isempty(NLPDiagnostics.bmopf_component_report(context).findings)
     @test isnothing(NLPDiagnostics.bmopf_initialization_point(context))
+    @test_throws ArgumentError NLPDiagnostics.bmopf_set_start_values!(context)
+    completed_starts = NLPDiagnostics.bmopf_start_completion_point(context)
+    @test completed_starts.label == "bmopf-partial-starts-completed"
+    @test completed_starts.values == zeros(8)
     coordinate_probe = NLPDiagnostics.bmopf_coordinate_probe_point(context)
     @test coordinate_probe.label == "bmopf-zero-coordinate-probe"
     @test coordinate_probe.values == zeros(8)

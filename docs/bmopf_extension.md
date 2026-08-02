@@ -123,3 +123,82 @@ interpreted as a physically meaningful voltage initialization.
 Run `benchmarks/summarize_bmopf_smoke.jl <output-directory>` after a corpus
 execution to produce `summary.json`, including point-policy provenance and
 per-case/aggregate finding-code counts.
+
+Both BMOPF runners record the scalar model dimensions and the product of
+variables and scalar constraint rows. Their dense rank/SVD analyses are guarded
+by `NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES`, which defaults to `250000`.
+If a Jacobian exceeds that size, the generic reports retain structural and
+row/column evidence but skip dense materialization. Set the variable to `0` to
+skip every dense rank stage explicitly. This is the intended default safeguard
+for large feeder benchmarks, not a claim that no numerical diagnosis is
+possible.
+
+`benchmarks/bmopf_draft_corpus.jl` reads the `.bmopf.json` snapshots in the
+BMOPFDraftData benchmark repository using BMOPFTools' public `parse_bmopf`
+interface. By default it selects two 30-bus representatives; it never sweeps
+the repository implicitly. Select individual snapshots through
+`NLPDIAGNOSTICS_BMOPF_CASES`, relative to
+`NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT`. For example, a large snapshot can be
+run without dense rank materialization:
+
+```sh
+NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT=/path/to/BMOPFDraftData/benchmarks \
+NLPDIAGNOSTICS_BMOPF_CASES=ENWLsnapshots/538bus_LG/538bus_LG_t01_0800.bmopf.json \
+NLPDIAGNOSTICS_BMOPF_POINT_POLICY=zero \
+NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES=0 \
+julia --project=. benchmarks/bmopf_draft_corpus.jl
+```
+
+As with the smoke runner, `zero` is an explicit synthetic coordinate probe;
+its findings must not be interpreted as a physically meaningful voltage state.
+
+Before choosing a draft-corpus campaign, run
+`benchmarks/inventory_bmopf_draft_corpus.jl`. It only parses BMOPF JSON and
+records file sizes plus top-level schema-component counts; it neither builds a
+JuMP model nor evaluates derivatives. The inventory's coarse counts are
+selection metadata, explicitly not a numerical-complexity estimate. This makes
+the 30-bus/538-bus distinction inspectable before a campaign is launched.
+
+`benchmarks/summarize_bmopf_smoke.jl` accepts output directories from either
+BMOPF runner despite its historical name. Its `summary.json` reports how many
+successful cases were dense-rank eligible, skipped by the configured size
+policy, structurally screened without numerical work, or from an older record
+with unknown eligibility. A skipped dense stage
+therefore cannot be mistaken for clean rank evidence during cross-case review.
+
+For a large-network first pass, set
+`NLPDIAGNOSTICS_BMOPF_ANALYSIS_MODE=structural` when running
+`bmopf_draft_corpus.jl`. This uses the public
+`bmopf_build_and_analyze_opf(network; ...)` entry point: it builds and
+KCL-finalizes a copied context, then collects generic static/expression/
+structural evidence and BMOPF terminal, lifecycle, registry, and component
+evidence. It does not create an evaluation point, evaluate derivatives,
+materialize a Jacobian, or compute any rank. Its records say
+`derivative_evaluation_requested=false` and `dense_rank_analysis_eligible=false`
+to distinguish this intentional scope from a size-skipped numerical stage.
+
+BMOPFTools' public `set_opf_start_values!` stage is available for a later,
+explicit benchmark policy based on the engine's voltage-start heuristic. Use
+`bmopf_set_start_values!(context)` to invoke it intentionally. It mutates only
+staged start values and never solves; it may initialize only a subset of model
+coordinates. `bmopf_start_completion_point(context; missing_value = 0.0)`
+constructs a non-mutating complete point from those exact starts and an
+explicit fallback for the remainder. The draft and smoke runners expose this
+mixed policy through
+`NLPDIAGNOSTICS_BMOPF_POINT_POLICY=bmopf_start_values`. It is not invoked by
+NLPDiagnostics automatically: a generated start is an initialization policy
+that must be recorded and chosen by the caller, not a neutral observation of
+the original model.
+
+The fused BMOPFTools `build_opf_model` recipe already runs its voltage-start
+stage. It may still leave non-voltage coordinates without explicit starts, so
+the runners' `bmopf_start_values` policy uses the explicit zero-completion
+constructor and labels the point accordingly. It must be interpreted as a
+mixed engine-start/default-zero probe, never as a physically feasible state or
+as the model's observed complete initialization. Run the retained
+initialization report to see the original missing-start evidence.
+`bmopf_set_start_values!` is for callers using BMOPFTools' lower-level staged
+construction before that stage has run. The optional `prepare_context` callback
+in `bmopf_build_and_profile` and `bmopf_build_and_analyze_opf` is a generic
+post-build/pre-KCL hook; callers must use only lifecycle stages legal at that
+point.

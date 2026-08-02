@@ -70,9 +70,18 @@ bmopf_profile_case(context, case; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPE
 """Optional BMOPFTools build-and-profile benchmark entry point."""
 bmopf_build_and_profile(network, case_builder; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools' JuMP/IPOPT staged-build extension is required to build and profile a BMOPF network")._bmopf_build_and_profile(network, case_builder; kwargs...)
+"""Optional BMOPFTools build-and-structurally-analyze benchmark entry point."""
+bmopf_build_and_analyze_opf(network; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools' JuMP/IPOPT staged-build extension is required to build and analyze a BMOPF network")._bmopf_build_and_analyze_opf(network; kwargs...)
 """Optional BMOPFTools staged-OPF initialization-point entry point."""
 bmopf_initialization_point(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to inspect staged BMOPF initialization")._bmopf_initialization_point(context; kwargs...)
+"""Explicitly apply BMOPFTools' public generated start-value policy and return its point."""
+bmopf_set_start_values!(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to apply staged BMOPF start values")._bmopf_set_start_values!(context; kwargs...)
+"""Construct a non-mutating complete point from BMOPF starts plus an explicit fallback."""
+bmopf_start_completion_point(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to complete staged BMOPF start values")._bmopf_start_completion_point(context; kwargs...)
 """Optional BMOPFTools explicit synthetic coordinate-probe point entry point."""
 bmopf_coordinate_probe_point(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to construct a staged BMOPF coordinate probe")._bmopf_coordinate_probe_point(context; kwargs...)

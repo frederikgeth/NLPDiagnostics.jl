@@ -128,6 +128,7 @@ export markdown_profile_comparison
 export ProfileResult
 export BMOPFProfileResult
 export profile_result_data
+export bmopf_build_and_analyze_opf
 export ProfileTimingSummary
 export ProfileAllocationSummary
 export ProfileFindingStability
@@ -294,6 +295,8 @@ export bmopf_analyze_opf
 export bmopf_profile_case
 export bmopf_build_and_profile
 export bmopf_initialization_point
+export bmopf_set_start_values!
+export bmopf_start_completion_point
 export bmopf_coordinate_probe_point
 export bmopf_analyze_initialization
 export bmopf_analyze_degeneracy
