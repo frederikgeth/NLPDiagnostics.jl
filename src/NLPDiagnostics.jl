@@ -297,6 +297,7 @@ export bmopf_build_and_profile
 export bmopf_initialization_point
 export bmopf_set_start_values!
 export bmopf_start_completion_point
+export bmopf_result_voltage_point
 export bmopf_coordinate_probe_point
 export bmopf_analyze_initialization
 export bmopf_analyze_degeneracy

@@ -56,6 +56,16 @@ function _bmopf_voltage_base(context, bus::String)
     return Float64(value)
 end
 
+"""Return the public positive current base, or one for SI model coordinates."""
+function _bmopf_current_base(context, bus::String)
+    bases = BMOPFTools.opf_bases(context)
+    isnothing(bases) && return 1.0
+    hasproperty(bases, :i_base) || return nothing
+    value = get(getproperty(bases, :i_base), bus, nothing)
+    value isa Real && isfinite(value) && value > 0 || return nothing
+    return Float64(value)
+end
+
 function _bmopf_floating_neutral_components(context)
     network = BMOPFTools.opf_network(context)
     canonical = Dict{String,Any}(string(key) => value for (key, value) in network)
@@ -196,6 +206,138 @@ function _bmopf_start_completion_point(
         push!(values, start isa Real && isfinite(start) ? Float64(start) : Float64(missing_value))
     end
     return NLPDiagnostics.EvaluationPoint(variables, values; label = label)
+end
+
+"""
+    bmopf_result_voltage_point(context, result;
+        result_units = :si, fallback_value = 0.0,
+        label = "bmopf-result-voltage-partial")
+
+Map only unambiguous saved rectangular `result["bus"][bus][terminal]["vr"|"vi"]`
+coordinates to the staged MOI model. SI values are converted using BMOPFTools'
+public per-bus voltage bases; `:model` accepts model-coordinate values directly.
+All other coordinates receive explicit `fallback_value`, and their count is
+returned. Thus this is a labeled partial-result probe, never a claim that a
+saved result completely represents every auxiliary model coordinate.
+"""
+function _bmopf_result_voltage_point(
+    context,
+    result::AbstractDict;
+    result_units::Symbol = :si,
+    fallback_value::Real = 0.0,
+    label::AbstractString = "bmopf-result-voltage-partial",
+)
+    result_units in (:si, :model) || throw(ArgumentError("result_units must be :si or :model"))
+    isfinite(fallback_value) || throw(ArgumentError("fallback_value must be finite"))
+    owner = _bmopf_context_model(context)
+    backend = JuMP.backend(owner)
+    variables = MOI.get(backend, MOI.ListOfVariableIndices())
+    values = fill(Float64(fallback_value), length(variables))
+    positions = Dict(variable => position for (position, variable) in enumerate(variables))
+    buses = get(result, "bus", Dict())
+    mapped = 0
+    mapped_by_family = Dict{Symbol,Int}()
+    function assign!(key, value)
+        value isa Real && isfinite(value) || return
+        object = try BMOPFTools.opf_object(context, key) catch; nothing end
+        object isa JuMP.VariableRef || return
+        position = get(positions, JuMP.index(object), nothing)
+        isnothing(position) && return
+        values[position] = Float64(value)
+        mapped += 1
+        family = key.family
+        mapped_by_family[family] = get(mapped_by_family, family, 0) + 1
+    end
+    assign_scaled!(key, value, base) =
+        value isa Real && isfinite(value) && assign!(key, Float64(value) / base)
+    for (bus, terminals) in buses
+        terminals isa AbstractDict || continue
+        base = result_units == :si ? _bmopf_voltage_base(context, string(bus)) : 1.0
+        isnothing(base) && throw(ArgumentError("saved SI voltage for bus '$bus' cannot be mapped because no public voltage base is declared"))
+        for (terminal, values_dict) in terminals
+            values_dict isa AbstractDict || continue
+            for (component, field) in ((:real, "vr"), (:imag, "vi"))
+                value = get(values_dict, field, nothing)
+                value isa Real && isfinite(value) || continue
+                key = BMOPFTools.opf_bus_voltage_key(string(bus), string(terminal); component)
+                assign!(key, Float64(value) / base)
+            end
+        end
+    end
+    network = BMOPFTools.opf_network(context)
+    # Saved currents are keyed by terminal labels while public model keys use
+    # conductor positions. SI current values are converted through public bases
+    # at the corresponding component terminal bus.
+    for (line_id, line_result) in get(result, "line", Dict())
+            line = get(get(network, "line", Dict()), string(line_id), nothing)
+            line isa AbstractDict && line_result isa AbstractDict || continue
+            for (map_field, bus_field, rfield, real_family, imag_family) in (
+                ("terminal_map_from", "bus_from", "cr_fr", :cr_fr, :ci_fr),
+                # BMOPFTools result extraction deliberately keys both line-end
+                # quantities by the from-terminal label; conductor position
+                # remains aligned with the to-end model key.
+                ("terminal_map_from", "bus_to", "cr_to", :cr_to, :ci_to),
+            )
+                terminals = string.(get(line, map_field, String[]))
+                base = result_units == :si ? _bmopf_current_base(context, string(get(line, bus_field, ""))) : 1.0
+                isnothing(base) && continue
+                for (position, terminal) in enumerate(terminals)
+                    entry = get(line_result, terminal, nothing)
+                    entry isa AbstractDict || continue
+                    assign_scaled!(BMOPFTools.OpfModelKey(:variable, real_family, (string(line_id), position)), get(entry, rfield, nothing), base)
+                    assign_scaled!(BMOPFTools.OpfModelKey(:variable, imag_family, (string(line_id), position)), get(entry, replace(rfield, "cr" => "ci"), nothing), base)
+                end
+            end
+    end
+    for (section, real_family, imag_family, result_real, result_imag) in (
+        ("load", :crd, :cid, "crd", "cid"),
+        ("voltage_source", :cr_src, :ci_src, "cr", "ci"),
+        ("ibr", :cri, :cii, "cri", "cii"),
+    )
+        for (id, component_result) in get(result, section, Dict())
+            component = get(get(network, section, Dict()), string(id), nothing)
+            component isa AbstractDict && component_result isa AbstractDict || continue
+            terminals = string.(get(component, "terminal_map", String[]))
+            base = result_units == :si ? _bmopf_current_base(context, string(get(component, "bus", ""))) : 1.0
+            isnothing(base) && continue
+            for (position, terminal) in enumerate(terminals)
+                entry = get(component_result, terminal, nothing)
+                entry isa AbstractDict || continue
+                assign_scaled!(BMOPFTools.OpfModelKey(:variable, real_family, (string(id), position)), get(entry, result_real, nothing), base)
+                assign_scaled!(BMOPFTools.OpfModelKey(:variable, imag_family, (string(id), position)), get(entry, result_imag, nothing), base)
+            end
+        end
+    end
+    for (switch_id, switch_result) in get(result, "switch", Dict())
+        switch = get(get(network, "switch", Dict()), string(switch_id), nothing)
+        switch isa AbstractDict && switch_result isa AbstractDict || continue
+        terminals = string.(get(switch, "terminal_map_from", String[]))
+        base = result_units == :si ? _bmopf_current_base(context, string(get(switch, "bus_from", ""))) : 1.0
+        isnothing(base) && continue
+        for (position, terminal) in enumerate(terminals)
+            entry = get(switch_result, terminal, nothing)
+            entry isa AbstractDict || continue
+            assign_scaled!(BMOPFTools.opf_switch_current_key(string(switch_id), position), get(entry, "cr", nothing), base)
+            assign_scaled!(BMOPFTools.opf_switch_current_key(string(switch_id), position; component = :imag), get(entry, "ci", nothing), base)
+        end
+    end
+    for (bus, terminals) in get(result, "ground", Dict())
+        base = result_units == :si ? _bmopf_current_base(context, string(bus)) : 1.0
+        isnothing(base) && continue
+        terminals isa AbstractDict || continue
+        for (terminal, entry) in terminals
+            entry isa AbstractDict || continue
+            assign_scaled!(BMOPFTools.opf_ground_current_key(string(bus), string(terminal)), get(entry, "cg_r", nothing), base)
+            assign_scaled!(BMOPFTools.opf_ground_current_key(string(bus), string(terminal); component = :imag), get(entry, "cg_i", nothing), base)
+        end
+    end
+    return (
+        point = NLPDiagnostics.EvaluationPoint(variables, values; label = label),
+        mapped_voltage_coordinate_count = mapped,
+        fallback_coordinate_count = length(variables) - mapped,
+        result_units = result_units,
+        mapped_coordinate_counts_by_family = Dict(string(key) => value for (key, value) in mapped_by_family),
+    )
 end
 
 """

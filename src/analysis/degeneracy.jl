@@ -82,6 +82,9 @@ bmopf_set_start_values!(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPEx
 """Construct a non-mutating complete point from BMOPF starts plus an explicit fallback."""
 bmopf_start_completion_point(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to complete staged BMOPF start values")._bmopf_start_completion_point(context; kwargs...)
+"""Map saved BMOPF rectangular bus voltages into a labeled partial evaluation point."""
+bmopf_result_voltage_point(context, result; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to map a BMOPF result point")._bmopf_result_voltage_point(context, result; kwargs...)
 """Optional BMOPFTools explicit synthetic coordinate-probe point entry point."""
 bmopf_coordinate_probe_point(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to construct a staged BMOPF coordinate probe")._bmopf_coordinate_probe_point(context; kwargs...)

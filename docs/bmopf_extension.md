@@ -202,3 +202,11 @@ construction before that stage has run. The optional `prepare_context` callback
 in `bmopf_build_and_profile` and `bmopf_build_and_analyze_opf` is a generic
 post-build/pre-KCL hook; callers must use only lifecycle stages legal at that
 point.
+
+`bmopf_result_voltage_point(context, result; result_units = :si)` is the first
+saved-solution adapter slice. It maps only public rectangular bus-voltage
+records and converts SI values through public per-bus voltage bases. It returns
+the point plus mapped/fallback counts; all non-voltage model coordinates use an
+explicit fallback and therefore the result is labelled a partial-result probe.
+This conservative boundary avoids claiming that a saved solution file fully
+specifies every current, control, and auxiliary coordinate.
