@@ -803,6 +803,46 @@ Dense rank persistence also compares left-nullspace geometry. Its
 `analyze_jacobian_rank_persistence` and limits the affected constraint rows to
 material coordinates of the observed left-null directions. It is localization
 evidence, not a declaration of a redundant constraint or an IIS.
+Persistent right-nullspace evidence is localized analogously with
+`right_nullspace_support_relative`: only material variable coordinates across
+the observed subspaces are listed. This narrows inspection scope but does not
+turn a local numerical direction into a proven gauge.
+
+For a persistent right-nullspace, declared expected modes are checked both
+individually and as one independent span. The span screen prevents multiple
+plausible-looking declarations from being mistaken for a jointly observed
+gauge when their combined dimension exceeds, or is misaligned with, the
+observed nullspace. `expected_mode_span_alignment_threshold` and
+`expected_mode_span_rank_relative_tolerance` are explicit numerical controls;
+an observed span supports the declaration only locally and does not validate
+its physical semantics.
+
+`analyze_jacobian_scaling_persistence(evaluations)` is the corresponding
+cross-point row/column scale screen. It reports whether finite scale-spread
+ratios remain within an explicit factor and becomes unavailable rather than
+comparing non-finite derivatives. `analyze_jacobian_rank_persistence` includes
+this evidence automatically, so a rank change can be read alongside a separate
+answer to whether derivative scaling also changed. Neither outcome identifies
+the mathematical cause of a rank change.
+
+When rank changes, `analyze_jacobian_rank_persistence` also attaches
+row-level derivative-provenance persistence evidence. The standalone
+`analyze_jacobian_derivative_provenance_persistence` screen compares recorded
+method labels (for example, exact symbolic, AD, or finite differences) rather
+than derivative values. A method change or partial derivative path can explain
+why a numerical conclusion needs rechecking, but it does not establish that
+the model or the solver is wrong.
+
+For bound solver iterations, rank-persistence controls are exposed as
+`rank_persistence_*` keywords on `analyze_iteration_points`; the combined
+`analyze` API forwards the corresponding `iteration_rank_persistence_*`
+keywords. The report records the requested left-support, scaling, and
+expected-mode thresholds, preserving the tolerance semantics used to interpret
+each restarted segment.
+`check_jacobian_condition_persistence = true` independently adds finite-only
+conditioning comparison within each segment; the combined entry point exposes
+the same request as `check_iteration_jacobian_condition_persistence`. It never
+compares endpoints across restarts.
 Its optional `relative_step` is passed directly to the point evaluator and is
 recorded in report metadata; all remaining keyword arguments configure the
 numerical analysis of that captured evaluation.
@@ -835,6 +875,31 @@ The numerical report also compares unscaled and row-column-scaled sparse-QR
 ranks. A disagreement produces `sparse_qr_rank_scaling_sensitivity`, which is
 evidence that pivot-threshold semantics depend on scaling, not a diagnosis of
 structural degeneracy.
+When the guarded dense SVD is also available, the report cross-checks both
+unscaled and row-column-scaled ranks against sparse QR. It emits
+`dense_sparse_qr_rank_agreement` or `dense_sparse_qr_rank_disagreement` with
+both methods' thresholds in the evidence. Agreement is stronger local
+numerical support, not an exact-rank proof; disagreement is explicitly
+method-sensitive evidence rather than a structural conclusion.
+
+`analyze_jacobian_rank_tolerance_sweep(evaluation)` makes threshold sensitivity
+explicit for the guarded dense-SVD estimator. It reports the supplied relative
+tolerances, resulting absolute singular-value thresholds, and ranks. A stable
+sweep is only stronger local numerical evidence; a changing sweep warns that
+the apparent nullity is tolerance-sensitive rather than proving a formulation
+defect.
+The combined `analyze` entry point exposes this opt-in screen through
+`jacobian_rank_tolerance_sweep_tolerances` for an explicit point or supplied
+evaluation; it is never silently run as part of the default numerical stage.
+With `check_initialization = true`, the same option evaluates the complete
+declared start point; incomplete starts still prevent numerical probing rather
+than being filled implicitly.
+
+`analyze_jacobian_condition_persistence(evaluations)` compares finite guarded
+dense-SVD condition estimates across explicit points. It is unavailable rather
+than forming a ratio when any local estimate is rank-deficient, non-finite, or
+blocked by the dense-work guard. Stable or changing conditioning is numerical
+evidence about local linear algebra, not a global bound or a solver diagnosis.
 When dense SVD is unavailable, an extreme retained-pivot ratio can also emit
 `sparse_qr_pivot_scale_spread`. This is intentionally a heuristic pivot-scale
 warning, not a numerical condition estimate.

@@ -4768,6 +4768,8 @@ end
         @test maximum(abs, [1.0 1.0; 2.0 2.0] * estimate.right_nullspace) < 1.0e-10
         report = NLPDiagnostics.analyze_numerical(model, [0.0, 0.0])
         @test length(findings(report, :numerical_jacobian_rank_deficiency)) == 1
+        @test length(findings(report, :dense_sparse_qr_rank_agreement)) == 1
+        @test report.metadata[:dense_sparse_qr_unscaled_rank_agree] == "true"
         @test report.metadata[:sparse_qr_rank_available] == "true"
         @test report.metadata[:sparse_qr_rank] == "1"
         @test report.metadata[:sparse_qr_rank_scaling] == "none"
@@ -4902,8 +4904,15 @@ end
             dense_rank_persistence,
             :jacobian_left_nullspace_persistent,
         )).affected) == 2
+        @test length(only(findings(
+            dense_rank_persistence,
+            :jacobian_right_nullspace_persistent,
+        )).affected) == 2
         @test_throws ArgumentError NLPDiagnostics.analyze_jacobian_rank_persistence(
             [evaluation, second_evaluation]; left_nullspace_support_relative = 0,
+        )
+        @test_throws ArgumentError NLPDiagnostics.analyze_jacobian_rank_persistence(
+            [evaluation, second_evaluation]; right_nullspace_support_relative = 0,
         )
         degeneracy_with_sparse_probes = NLPDiagnostics.analyze_degeneracy(
             model,
@@ -5102,6 +5111,103 @@ end
         ) == 1
     end
 
+    @testset "Jacobian rank tolerance sweep is explicit" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(model, F([T(1.0, x)], 0.0), MOI.EqualTo(0.0))
+        MOI.add_constraint(model, F([T(1.0e-8, y)], 0.0), MOI.EqualTo(0.0))
+        point = NLPDiagnostics.evaluation_point(model, [0.0, 0.0]; label = "tolerance-sweep")
+        sensitive = NLPDiagnostics.analyze_jacobian_rank_tolerance_sweep(
+            model,
+            point;
+            relative_tolerances = [1.0e-10, 1.0e-6],
+        )
+        @test length(findings(sensitive, :jacobian_rank_tolerance_sensitive)) == 1
+        @test sensitive.metadata[:ranks] == "2,1"
+        combined = NLPDiagnostics.analyze(
+            model;
+            point = point,
+            jacobian_rank_tolerance_sweep_tolerances = [1.0e-10, 1.0e-6],
+        )
+        @test length(findings(combined, :jacobian_rank_tolerance_sensitive)) == 1
+        @test occursin("jacobian_rank_tolerance_sweep", combined.metadata[:stages])
+        stable = NLPDiagnostics.analyze_jacobian_rank_tolerance_sweep(
+            model,
+            point;
+            relative_tolerances = [1.0e-6, 1.0e-4],
+        )
+        @test length(findings(stable, :jacobian_rank_tolerance_stable)) == 1
+        @test_throws ArgumentError NLPDiagnostics.analyze_jacobian_rank_tolerance_sweep(
+            model,
+            point;
+            relative_tolerances = Float64[],
+        )
+        @test_throws ArgumentError NLPDiagnostics.analyze(
+            model;
+            jacobian_rank_tolerance_sweep_tolerances = [1.0e-10, 1.0e-6],
+        )
+    end
+
+    @testset "Jacobian scaling persistence is separate from rank persistence" begin
+        model = new_model()
+        x, y = MOI.add_variables(model, 2)
+        MOI.add_constraint(
+            model,
+            MOI.ScalarNonlinearFunction(:^, Any[x, 2]),
+            MOI.EqualTo(0.0),
+        )
+        F = MOI.ScalarAffineFunction{Float64}
+        T = MOI.ScalarAffineTerm{Float64}
+        MOI.add_constraint(model, F([T(1.0, y)], 0.0), MOI.EqualTo(0.0))
+        points = [
+            NLPDiagnostics.evaluation_point(model, [1.0, 1.0]; label = "near"),
+            NLPDiagnostics.evaluation_point(model, [100.0, 1.0]; label = "far"),
+        ]
+        scaling = NLPDiagnostics.analyze_jacobian_scaling_persistence(
+            model, points; change_factor_threshold = 10,
+        )
+        @test length(findings(scaling, :jacobian_scaling_changing)) == 1
+        @test scaling.metadata[:row_change_factor] == "100.0"
+        @test_throws ArgumentError NLPDiagnostics.analyze_jacobian_scaling_persistence(
+            model, points; change_factor_threshold = 0.5,
+        )
+        rank = NLPDiagnostics.analyze_jacobian_rank_persistence(
+            model, points; scaling_change_factor_threshold = 10,
+        )
+        @test length(findings(rank, :jacobian_rank_persistent)) == 1
+        @test length(findings(rank, :jacobian_scaling_changing)) == 1
+        @test rank.metadata[:scaling_row_change_factor] == "100.0"
+        conditioning = NLPDiagnostics.analyze_jacobian_condition_persistence(
+            model, points; change_factor_threshold = 10,
+        )
+        @test length(findings(conditioning, :jacobian_condition_changing)) == 1
+        @test conditioning.metadata[:change_factor] == "100.0"
+        evaluations = [NLPDiagnostics.evaluate_numerical(model, point) for point in points]
+        changed_provenance = NLPDiagnostics.NumericalEvaluation{Float64}(
+            evaluations[2].point,
+            evaluations[2].objective_value,
+            evaluations[2].objective_source,
+            evaluations[2].objective_gradient,
+            evaluations[2].constraint_values,
+            evaluations[2].constraint_sources,
+            evaluations[2].jacobian_entries,
+            [:central_finite_difference, evaluations[2].jacobian_row_methods[2]],
+            evaluations[2].capabilities,
+            evaluations[2].failures,
+        )
+        provenance = NLPDiagnostics.analyze_jacobian_derivative_provenance_persistence(
+            [evaluations[1], changed_provenance],
+        )
+        @test length(findings(
+            provenance, :jacobian_derivative_provenance_changing,
+        )) == 1
+        @test length(only(findings(
+            provenance, :jacobian_derivative_provenance_changing,
+        )).affected) == 1
+    end
+
     @testset "structural and numerical rank comparison stays nonphysical" begin
         underdetermined = new_model()
         x, y = MOI.add_variables(underdetermined, 2)
@@ -5258,6 +5364,10 @@ end
         @test length(
             findings(persistent_expected_report, :persistent_jacobian_expected_mode_observed),
         ) == 1
+        @test length(findings(
+            persistent_expected_report,
+            :persistent_jacobian_expected_mode_span_observed,
+        )) == 1
         persistent_unexpected_report = NLPDiagnostics.analyze_jacobian_rank_persistence(
             [
                 NLPDiagnostics.evaluate_numerical(
@@ -5274,6 +5384,38 @@ end
         @test length(
             findings(persistent_unexpected_report, :persistent_jacobian_expected_mode_not_observed),
         ) == 1
+        persistent_overspecified_span_report =
+            NLPDiagnostics.analyze_jacobian_rank_persistence(
+                [
+                    NLPDiagnostics.evaluate_numerical(
+                        underdetermined,
+                        NLPDiagnostics.evaluation_point(underdetermined, [0.0, 0.0]; label = "first"),
+                    ),
+                    NLPDiagnostics.evaluate_numerical(
+                        underdetermined,
+                        NLPDiagnostics.evaluation_point(underdetermined, [2.0, 2.0]; label = "second"),
+                    ),
+                ];
+                expected_modes = [common_shift, fixed_difference],
+            )
+        @test length(findings(
+            persistent_overspecified_span_report,
+            :persistent_jacobian_expected_mode_span_not_observed,
+        )) == 1
+        @test_throws ArgumentError NLPDiagnostics.analyze_jacobian_rank_persistence(
+            [
+                NLPDiagnostics.evaluate_numerical(
+                    underdetermined,
+                    NLPDiagnostics.evaluation_point(underdetermined, [0.0, 0.0]; label = "first"),
+                ),
+                NLPDiagnostics.evaluate_numerical(
+                    underdetermined,
+                    NLPDiagnostics.evaluation_point(underdetermined, [2.0, 2.0]; label = "second"),
+                ),
+            ];
+            expected_modes = [common_shift],
+            expected_mode_span_alignment_threshold = 2.0,
+        )
         persistent_point_report = NLPDiagnostics.analyze_jacobian_rank_persistence(
             underdetermined,
             [
@@ -5301,6 +5443,9 @@ end
         @test length(
             findings(changing_jacobian_report, :jacobian_rank_not_persistent),
         ) == 1
+        @test changing_jacobian_report.metadata[
+            :derivative_provenance_stable_row_count
+        ] == "1"
         combined = NLPDiagnostics.analyze(
             stationary;
             point = NLPDiagnostics.evaluation_point(stationary, [0.0]),
@@ -5406,6 +5551,13 @@ end
             sparse_probe_result.numerical_report,
             :iterative_jacobian_no_large_spectral_spread_proxy,
         )) == 1
+        sweep_profile_result = NLPDiagnostics.profile_case(
+            model,
+            case;
+            jacobian_rank_tolerance_sweep_tolerances = [1.0e-10, 1.0e-6],
+        )
+        @test haskey(sweep_profile_result.stage_seconds, :jacobian_rank_tolerance_sweep)
+        @test sweep_profile_result.numerical_report.metadata[:rank_span] == "0"
         sparse_probe_aggregate = NLPDiagnostics.profile_case_repeated(
             model,
             case;
@@ -10416,6 +10568,16 @@ end
         @test length(findings(
             stationary_start_report, :candidate_single_coordinate_null_direction,
         )) == 1
+        stationary_start_sweep_report = NLPDiagnostics.analyze_initialization(
+            stationary_start;
+            jacobian_rank_tolerance_sweep_tolerances = [1.0e-10, 1.0e-6],
+        )
+        @test stationary_start_sweep_report.metadata[
+            :initialization_jacobian_rank_tolerance_sweep_requested
+        ] == "true"
+        @test length(findings(
+            stationary_start_sweep_report, :jacobian_rank_tolerance_stable,
+        )) == 1
         stationary_start_probe_report = NLPDiagnostics.analyze_initialization(
             stationary_start;
             iterative_right_nullspace_probe_dimension = 1,
@@ -10441,6 +10603,14 @@ end
         @test length(findings(
             combined_initialization_probe_report,
             :iterative_jacobian_candidate_small_residual_left_direction,
+        )) == 1
+        combined_initialization_sweep_report = NLPDiagnostics.analyze(
+            stationary_start;
+            check_initialization = true,
+            jacobian_rank_tolerance_sweep_tolerances = [1.0e-10, 1.0e-6],
+        )
+        @test length(findings(
+            combined_initialization_sweep_report, :jacobian_rank_tolerance_stable,
         )) == 1
         stationary_component = NLPDiagnostics.ComponentMetadata(
             :test_component,
@@ -11031,6 +11201,7 @@ end
                 iterative_left_nullspace_probe_iterations = 20,
                 check_iterative_right_nullspace_persistence = true,
                 check_iterative_left_nullspace_persistence = true,
+                check_jacobian_condition_persistence = true,
             )
         @test stationary_iteration_persistence_report.metadata[
             :bound_iteration_iterative_right_probe_persistence_segment_count
@@ -11045,6 +11216,13 @@ end
         @test length(findings(
             stationary_iteration_persistence_report,
             :iterative_left_nullspace_persistence_persistent,
+        )) == 1
+        @test stationary_iteration_persistence_report.metadata[
+            :bound_iteration_jacobian_condition_persistence_segment_count
+        ] == "1"
+        @test length(findings(
+            stationary_iteration_persistence_report,
+            :jacobian_condition_persistence_unavailable,
         )) == 1
         combined_iteration_probe_report = NLPDiagnostics.analyze(
             stationary_iteration_model;
@@ -11062,10 +11240,26 @@ end
                 stationary_iteration_second_binding,
             ],
             iteration_rank_persistence_left_nullspace_support_relative = 0.5,
+            iteration_rank_persistence_right_nullspace_support_relative = 0.4,
+            iteration_rank_persistence_scaling_change_factor_threshold = 7.0,
+            iteration_rank_persistence_expected_mode_span_alignment_threshold = 0.9,
+            check_iteration_jacobian_condition_persistence = true,
         )
         @test combined_iteration_rank_support_report.metadata[
             :iteration_points_bound_iteration_rank_persistence_left_nullspace_support_relative
         ] == "0.5"
+        @test combined_iteration_rank_support_report.metadata[
+            :iteration_points_bound_iteration_rank_persistence_right_nullspace_support_relative
+        ] == "0.4"
+        @test combined_iteration_rank_support_report.metadata[
+            :iteration_points_bound_iteration_rank_persistence_scaling_change_factor_threshold
+        ] == "7.0"
+        @test combined_iteration_rank_support_report.metadata[
+            :iteration_points_bound_iteration_rank_persistence_expected_mode_span_alignment_threshold
+        ] == "0.9"
+        @test combined_iteration_rank_support_report.metadata[
+            :iteration_points_bound_iteration_jacobian_condition_persistence_checked
+        ] == "true"
         no_degeneracy_iteration_report = NLPDiagnostics.analyze_iteration_points(
             stationary_iteration_model,
             [stationary_iteration_binding];

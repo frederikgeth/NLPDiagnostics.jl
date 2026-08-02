@@ -1007,10 +1007,21 @@ function analyze_iteration_points(
     component_rank_relative_tolerance::Union{Nothing,Real} = nothing,
     component_rank_max_dense_entries::Integer = 4_000_000,
     check_rank_persistence::Bool = true,
+    check_jacobian_condition_persistence::Bool = false,
     check_component_rank_persistence::Bool = true,
     rank_persistence_minimum_evaluations::Integer = 2,
     rank_persistence_subspace_alignment_threshold::Real = 0.98,
     rank_persistence_left_nullspace_support_relative::Real = 0.1,
+    rank_persistence_right_nullspace_support_relative::Real = 0.1,
+    rank_persistence_scaling_change_factor_threshold::Real = 100,
+    rank_persistence_expected_mode_residual_tolerance::Real = sqrt(eps(Float64)),
+    rank_persistence_expected_mode_span_alignment_threshold::Real = 0.98,
+    rank_persistence_expected_mode_span_rank_relative_tolerance::Real = sqrt(eps(Float64)),
+    condition_persistence_minimum_evaluations::Integer = 2,
+    condition_persistence_relative_tolerance::Union{Nothing,Real} = nothing,
+    condition_persistence_scaling::Symbol = :none,
+    condition_persistence_max_dense_entries::Integer = 4_000_000,
+    condition_persistence_change_factor_threshold::Real = 100,
     expected_modes::Union{Nothing,AbstractVector{<:ExpectedNullspaceMode}} = nothing,
     degeneracy_nullspace_support_relative::Real = 0.1,
     degeneracy_nullspace_uniform_shift_correlation::Real = 0.98,
@@ -1064,8 +1075,31 @@ function analyze_iteration_points(
         string(check_component_ranks)
     report.metadata[:bound_iteration_rank_persistence_checked] =
         string(check_rank_persistence)
+    report.metadata[:bound_iteration_jacobian_condition_persistence_checked] =
+        string(check_jacobian_condition_persistence)
+    report.metadata[:bound_iteration_condition_persistence_minimum_evaluations] =
+        string(condition_persistence_minimum_evaluations)
+    report.metadata[:bound_iteration_condition_persistence_relative_tolerance] =
+        isnothing(condition_persistence_relative_tolerance) ? "type_default" :
+        string(condition_persistence_relative_tolerance)
+    report.metadata[:bound_iteration_condition_persistence_scaling] =
+        string(condition_persistence_scaling)
+    report.metadata[:bound_iteration_condition_persistence_max_dense_entries] =
+        string(condition_persistence_max_dense_entries)
+    report.metadata[:bound_iteration_condition_persistence_change_factor_threshold] =
+        string(condition_persistence_change_factor_threshold)
     report.metadata[:bound_iteration_rank_persistence_left_nullspace_support_relative] =
         string(rank_persistence_left_nullspace_support_relative)
+    report.metadata[:bound_iteration_rank_persistence_right_nullspace_support_relative] =
+        string(rank_persistence_right_nullspace_support_relative)
+    report.metadata[:bound_iteration_rank_persistence_scaling_change_factor_threshold] =
+        string(rank_persistence_scaling_change_factor_threshold)
+    report.metadata[:bound_iteration_rank_persistence_expected_mode_residual_tolerance] =
+        string(rank_persistence_expected_mode_residual_tolerance)
+    report.metadata[:bound_iteration_rank_persistence_expected_mode_span_alignment_threshold] =
+        string(rank_persistence_expected_mode_span_alignment_threshold)
+    report.metadata[:bound_iteration_rank_persistence_expected_mode_span_rank_relative_tolerance] =
+        string(rank_persistence_expected_mode_span_rank_relative_tolerance)
     report.metadata[:bound_iteration_component_rank_persistence_checked] =
         string(check_component_rank_persistence)
     report.metadata[:bound_iteration_iterative_right_probe_requested] =
@@ -1291,27 +1325,61 @@ function analyze_iteration_points(
     trace_segments = sort(unique(item[1].segment for item in trace))
     persistence_segment_count = 0
     component_persistence_segment_count = 0
-    if check_rank_persistence || (check_component_rank_persistence &&
+    condition_persistence_segment_count = 0
+    if check_rank_persistence || check_jacobian_condition_persistence ||
+       (check_component_rank_persistence &&
                                   check_component_ranks && !isempty(components))
         for (segment, evaluations) in sort(collect(evaluations_by_segment); by = first)
-            length(evaluations) >= rank_persistence_minimum_evaluations || continue
             segment_expected_modes = isnothing(expected_modes) ?
                                      expected_nullspace_modes(model, evaluations[1]) :
                                      expected_modes
-            if check_rank_persistence
+            if check_rank_persistence &&
+               length(evaluations) >= rank_persistence_minimum_evaluations
                 persistence_report = analyze_jacobian_rank_persistence(
                     evaluations;
                     minimum_evaluations = rank_persistence_minimum_evaluations,
                     subspace_alignment_threshold = rank_persistence_subspace_alignment_threshold,
+                    scaling_change_factor_threshold =
+                        rank_persistence_scaling_change_factor_threshold,
                     left_nullspace_support_relative =
                         rank_persistence_left_nullspace_support_relative,
+                    right_nullspace_support_relative =
+                        rank_persistence_right_nullspace_support_relative,
                     expected_modes = segment_expected_modes,
+                    expected_mode_residual_tolerance =
+                        rank_persistence_expected_mode_residual_tolerance,
+                    expected_mode_span_alignment_threshold =
+                        rank_persistence_expected_mode_span_alignment_threshold,
+                    expected_mode_span_rank_relative_tolerance =
+                        rank_persistence_expected_mode_span_rank_relative_tolerance,
                 )
                 append!(report.findings, persistence_report.findings)
                 persistence_segment_count += 1
             end
+            if check_jacobian_condition_persistence &&
+               length(evaluations) >= condition_persistence_minimum_evaluations
+                condition_keywords = (
+                    minimum_evaluations = condition_persistence_minimum_evaluations,
+                    scaling = condition_persistence_scaling,
+                    max_dense_entries = condition_persistence_max_dense_entries,
+                    change_factor_threshold =
+                        condition_persistence_change_factor_threshold,
+                )
+                condition_report = isnothing(condition_persistence_relative_tolerance) ?
+                                   analyze_jacobian_condition_persistence(
+                    evaluations; condition_keywords...,
+                ) :
+                                   analyze_jacobian_condition_persistence(
+                    evaluations;
+                    condition_keywords...,
+                    relative_tolerance = condition_persistence_relative_tolerance,
+                )
+                append!(report.findings, condition_report.findings)
+                condition_persistence_segment_count += 1
+            end
             if check_component_rank_persistence && check_component_ranks &&
-               !isempty(components)
+               !isempty(components) &&
+               length(evaluations) >= rank_persistence_minimum_evaluations
                 component_persistence_report = analyze_component_rank_persistence(
                     model,
                     evaluations;
@@ -1386,6 +1454,8 @@ function analyze_iteration_points(
         string(iterative_left_persistence_segment_count)
     report.metadata[:bound_iteration_rank_persistence_segment_count] =
         string(persistence_segment_count)
+    report.metadata[:bound_iteration_jacobian_condition_persistence_segment_count] =
+        string(condition_persistence_segment_count)
     report.metadata[:bound_iteration_component_rank_persistence_segment_count] =
         string(component_persistence_segment_count)
     report.metadata[:bound_iteration_multi_point_segment_count] = string(count(

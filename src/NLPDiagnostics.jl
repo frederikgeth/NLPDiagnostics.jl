@@ -171,6 +171,10 @@ export analyze_stable_reformulation_plan
 export analyze_initialization
 export analyze_numerical
 export analyze_jacobian_rank_persistence
+export analyze_jacobian_scaling_persistence
+export analyze_jacobian_derivative_provenance_persistence
+export analyze_jacobian_rank_tolerance_sweep
+export analyze_jacobian_condition_persistence
 export analyze_reduced_hessian
 export analyze_reduced_hessian_persistence
 export analyze_active_set
@@ -4465,6 +4469,9 @@ function analyze(
     check_active_set::Bool = false,
     check_coupled_set_qualification::Bool = false,
     check_degeneracy::Bool = false,
+    jacobian_rank_tolerance_sweep_tolerances::Union{Nothing,AbstractVector{<:Real}} = nothing,
+    jacobian_rank_tolerance_sweep_scaling::Symbol = :none,
+    jacobian_rank_tolerance_sweep_max_dense_entries::Integer = 4_000_000,
     iterative_right_nullspace_probe_dimension::Union{Nothing,Integer} = nothing,
     iterative_right_nullspace_probe_iterations::Integer = 100,
     iterative_right_nullspace_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
@@ -4481,9 +4488,20 @@ function analyze(
     iterative_spectrum_probe_spread_threshold::Real = 1.0e6,
     check_iterative_right_nullspace_persistence::Bool = false,
     check_iterative_left_nullspace_persistence::Bool = false,
+    check_iteration_jacobian_condition_persistence::Bool = false,
     iterative_probe_persistence_minimum_evaluations::Integer = 2,
     iterative_probe_persistence_alignment_threshold::Real = 0.98,
     iteration_rank_persistence_left_nullspace_support_relative::Real = 0.1,
+    iteration_rank_persistence_right_nullspace_support_relative::Real = 0.1,
+    iteration_rank_persistence_scaling_change_factor_threshold::Real = 100,
+    iteration_rank_persistence_expected_mode_residual_tolerance::Real = sqrt(eps(Float64)),
+    iteration_rank_persistence_expected_mode_span_alignment_threshold::Real = 0.98,
+    iteration_rank_persistence_expected_mode_span_rank_relative_tolerance::Real = sqrt(eps(Float64)),
+    iteration_condition_persistence_minimum_evaluations::Integer = 2,
+    iteration_condition_persistence_relative_tolerance::Union{Nothing,Real} = nothing,
+    iteration_condition_persistence_scaling::Symbol = :none,
+    iteration_condition_persistence_max_dense_entries::Integer = 4_000_000,
+    iteration_condition_persistence_change_factor_threshold::Real = 100,
     expected_modes::Union{Nothing,AbstractVector{<:ExpectedNullspaceMode}} = nothing,
     degeneracy_nullspace_support_relative::Real = 0.1,
     degeneracy_nullspace_uniform_shift_correlation::Real = 0.98,
@@ -4507,6 +4525,10 @@ function analyze(
         isnothing(point) && isnothing(evaluation) && !check_initialization &&
         isnothing(iteration_bindings) && throw(ArgumentError(
             "iterative sparse probes require an explicit point, supplied evaluation, check_initialization = true, or iteration_bindings",
+        ))
+    !isnothing(jacobian_rank_tolerance_sweep_tolerances) &&
+        isnothing(point) && isnothing(evaluation) && !check_initialization && throw(ArgumentError(
+            "jacobian rank tolerance sweep requires an explicit point or supplied evaluation",
         ))
     !isnothing(solver_log) && isnothing(solver_name) && isnothing(postmortem) &&
         throw(ArgumentError(
@@ -4723,6 +4745,17 @@ function analyze(
             merge!(report.metadata, probe_report.metadata)
             stages *= ",iterative_jacobian_spectrum_probe"
         end
+        if !isnothing(jacobian_rank_tolerance_sweep_tolerances)
+            sweep_report = analyze_jacobian_rank_tolerance_sweep(
+                numerical_evaluation;
+                relative_tolerances = jacobian_rank_tolerance_sweep_tolerances,
+                scaling = jacobian_rank_tolerance_sweep_scaling,
+                max_dense_entries = jacobian_rank_tolerance_sweep_max_dense_entries,
+            )
+            append!(report.findings, sweep_report.findings)
+            merge!(report.metadata, sweep_report.metadata)
+            stages *= ",jacobian_rank_tolerance_sweep"
+        end
         if check_active_set
             coupled_strict = isnothing(coupled_qualification_strict_tolerance) ?
                              sqrt(eps(eltype(numerical_evaluation.point.values))) :
@@ -4807,6 +4840,12 @@ function analyze(
                 iterative_spectrum_probe_convergence_tolerance,
             iterative_spectrum_probe_spread_threshold =
                 iterative_spectrum_probe_spread_threshold,
+            jacobian_rank_tolerance_sweep_tolerances =
+                jacobian_rank_tolerance_sweep_tolerances,
+            jacobian_rank_tolerance_sweep_scaling =
+                jacobian_rank_tolerance_sweep_scaling,
+            jacobian_rank_tolerance_sweep_max_dense_entries =
+                jacobian_rank_tolerance_sweep_max_dense_entries,
             coupled_qualification_strict_tolerance =
                 coupled_qualification_strict_tolerance,
             coupled_qualification_max_iterations = coupled_qualification_max_iterations,
@@ -4891,12 +4930,33 @@ function analyze(
                 check_iterative_right_nullspace_persistence,
             check_iterative_left_nullspace_persistence =
                 check_iterative_left_nullspace_persistence,
+            check_jacobian_condition_persistence =
+                check_iteration_jacobian_condition_persistence,
             iterative_probe_persistence_minimum_evaluations =
                 iterative_probe_persistence_minimum_evaluations,
             iterative_probe_persistence_alignment_threshold =
                 iterative_probe_persistence_alignment_threshold,
             rank_persistence_left_nullspace_support_relative =
                 iteration_rank_persistence_left_nullspace_support_relative,
+            rank_persistence_right_nullspace_support_relative =
+                iteration_rank_persistence_right_nullspace_support_relative,
+            rank_persistence_scaling_change_factor_threshold =
+                iteration_rank_persistence_scaling_change_factor_threshold,
+            rank_persistence_expected_mode_residual_tolerance =
+                iteration_rank_persistence_expected_mode_residual_tolerance,
+            rank_persistence_expected_mode_span_alignment_threshold =
+                iteration_rank_persistence_expected_mode_span_alignment_threshold,
+            rank_persistence_expected_mode_span_rank_relative_tolerance =
+                iteration_rank_persistence_expected_mode_span_rank_relative_tolerance,
+            condition_persistence_minimum_evaluations =
+                iteration_condition_persistence_minimum_evaluations,
+            condition_persistence_relative_tolerance =
+                iteration_condition_persistence_relative_tolerance,
+            condition_persistence_scaling = iteration_condition_persistence_scaling,
+            condition_persistence_max_dense_entries =
+                iteration_condition_persistence_max_dense_entries,
+            condition_persistence_change_factor_threshold =
+                iteration_condition_persistence_change_factor_threshold,
         )
         append!(report.findings, iteration_point_report.findings)
         for (key, value) in iteration_point_report.metadata

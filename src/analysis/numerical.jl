@@ -1528,6 +1528,312 @@ function _rank_findings(
     return findings
 end
 
+"""Cross-check guarded dense-SVD and sparse-QR rank estimates when both exist."""
+function _dense_sparse_qr_rank_crosscheck_findings(
+    evaluation::NumericalEvaluation,
+    dense::JacobianRankEstimate,
+    dense_scaled::JacobianRankEstimate,
+    sparse::SparseQRRankEstimate,
+    sparse_scaled::SparseQRRankEstimate,
+)
+    findings = Finding[]
+    dense.available && sparse.available || return findings
+    unscaled_agree = dense.rank == sparse.rank
+    scaled_comparable = dense_scaled.available && sparse_scaled.available
+    scaled_agree = !scaled_comparable || dense_scaled.rank == sparse_scaled.rank
+    agreement = unscaled_agree && scaled_agree
+    affected = vcat(
+        evaluation.constraint_sources,
+        EntityRef[EntityRef(:variable, variable.value) for variable in evaluation.point.variables],
+    )
+    push!(findings, Finding(
+        agreement ? :dense_sparse_qr_rank_agreement : :dense_sparse_qr_rank_disagreement;
+        severity = agreement ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = agreement ? ConfidenceMedium : ConfidenceHigh,
+        observation = agreement ?
+                      "Guarded dense SVD and sparse QR give the same local Jacobian rank at the recorded scaling(s)." :
+                      "Guarded dense SVD and sparse QR give different local Jacobian rank estimates at one or more recorded scaling(s).",
+        why_it_matters = agreement ?
+                         "Agreement between independent dense singular-value and sparse pivot screens strengthens this local numerical observation, without proving exact rank." :
+                         "The rank conclusion is method- or threshold-sensitive; it should not be promoted to a scale-independent structural or physical diagnosis.",
+        evidence = [_point_evidence(evaluation.point), Evidence("Dense-SVD and sparse-QR rank cross-check"; details = [
+            "dense_unscaled_rank" => dense.rank,
+            "sparse_qr_unscaled_rank" => sparse.rank,
+            "unscaled_agree" => unscaled_agree,
+            "dense_row_column_rank" => dense_scaled.rank,
+            "sparse_qr_row_column_rank" => sparse_scaled.rank,
+            "scaled_comparable" => scaled_comparable,
+            "scaled_agree" => scaled_agree,
+            "dense_relative_tolerance" => dense.relative_tolerance,
+            "sparse_qr_relative_tolerance" => sparse.relative_tolerance,
+        ])],
+        affected = affected,
+        suggested_actions = agreement ?
+                            ["Use the agreement as repeated local numerical evidence and still compare nearby points before making a structural interpretation."] :
+                            ["Inspect pivot and singular-value thresholds, row/column scaling, and derivative provenance before relying on either rank estimate."],
+    ))
+    return findings
+end
+
+"""
+    analyze_jacobian_rank_tolerance_sweep(evaluation; ...)
+
+Re-estimate one guarded dense Jacobian rank over explicit relative tolerances.
+The result is a numerical sensitivity screen: stable ranks do not prove exact
+rank, and changing ranks do not identify a mathematical cause.
+"""
+function analyze_jacobian_rank_tolerance_sweep(
+    evaluation::NumericalEvaluation{T};
+    relative_tolerances::AbstractVector{<:Real} = T[
+        sqrt(eps(T)) / 100,
+        sqrt(eps(T)),
+        sqrt(eps(T)) * 100,
+    ],
+    scaling::Symbol = :none,
+    max_dense_entries::Integer = 4_000_000,
+) where {T<:AbstractFloat}
+    isempty(relative_tolerances) &&
+        throw(ArgumentError("relative_tolerances must not be empty"))
+    tolerances = sort!(unique(T.(relative_tolerances)))
+    all(value -> isfinite(value) && value >= zero(T), tolerances) ||
+        throw(ArgumentError("relative_tolerances must be finite and nonnegative"))
+    estimates = [
+        jacobian_rank_estimate(
+            evaluation;
+            scaling = scaling,
+            relative_tolerance = tolerance,
+            max_dense_entries = max_dense_entries,
+        ) for tolerance in tolerances
+    ]
+    report = DiagnosticReport()
+    report.metadata[:stage] = "jacobian_rank_tolerance_sweep"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:scaling] = string(scaling)
+    report.metadata[:relative_tolerances] = join(tolerances, ",")
+    report.metadata[:available_estimate_count] = string(count(estimate -> estimate.available, estimates))
+    affected = vcat(
+        evaluation.constraint_sources,
+        EntityRef[EntityRef(:variable, variable.value) for variable in evaluation.point.variables],
+    )
+    if any(!estimate.available for estimate in estimates)
+        push!(report, Finding(:jacobian_rank_tolerance_sweep_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "At least one requested dense Jacobian rank estimate is unavailable in the tolerance sweep.",
+            why_it_matters = "Rank sensitivity cannot be compared when derivative evidence is incomplete, non-finite, or exceeds the explicit dense guard.",
+            evidence = [_point_evidence(evaluation.point), Evidence("Jacobian rank tolerance-sweep availability"; details = [
+                "relative_tolerances" => report.metadata[:relative_tolerances],
+                "availability" => join((estimate.available for estimate in estimates), ","),
+                "reasons" => join((something(estimate.reason, "") for estimate in estimates), ";"),
+                "scaling" => scaling,
+            ])],
+            affected = affected,
+            suggested_actions = ["Resolve derivative availability or raise the explicit dense-work guard before interpreting a tolerance sweep."],
+        ))
+        return report
+    end
+    ranks = [estimate.rank for estimate in estimates]
+    stable = all(==(first(ranks)), ranks)
+    report.metadata[:ranks] = join(ranks, ",")
+    report.metadata[:minimum_rank] = string(minimum(ranks))
+    report.metadata[:maximum_rank] = string(maximum(ranks))
+    report.metadata[:rank_span] = string(maximum(ranks) - minimum(ranks))
+    report.metadata[:absolute_thresholds] = join(
+        (estimate.absolute_threshold for estimate in estimates), ",",
+    )
+    push!(report, Finding(
+        stable ? :jacobian_rank_tolerance_stable : :jacobian_rank_tolerance_sensitive;
+        severity = stable ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = stable ? ConfidenceMedium : ConfidenceHigh,
+        observation = stable ?
+                      "The guarded dense Jacobian rank remains $(first(ranks)) across $(length(tolerances)) requested relative tolerances." :
+                      "The guarded dense Jacobian rank changes across $(length(tolerances)) requested relative tolerances.",
+        why_it_matters = stable ?
+                         "The local rank observation is less sensitive to this documented tolerance range, but remains numerical and point-local." :
+                         "The apparent nullity is threshold-sensitive, so it should not be interpreted as a scale-independent structural or physical degeneracy.",
+        evidence = [_point_evidence(evaluation.point), Evidence("Jacobian rank tolerance sweep"; details = [
+            "relative_tolerances" => report.metadata[:relative_tolerances],
+            "absolute_thresholds" => report.metadata[:absolute_thresholds],
+            "ranks" => report.metadata[:ranks],
+            "scaling" => scaling,
+        ])],
+        affected = affected,
+        suggested_actions = stable ?
+                            ["Record this tolerance range with the local rank observation and compare nearby points before interpreting its cause."] :
+                            ["Inspect singular values, physical scaling, and derivative provenance before classifying the apparent nullspace."],
+    ))
+    return report
+end
+
+"""Evaluate one explicit point before sweeping guarded dense rank tolerances."""
+function analyze_jacobian_rank_tolerance_sweep(
+    model::MOI.ModelLike,
+    point::EvaluationPoint;
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Union{Nothing,Real} = nothing,
+    kwargs...,
+)
+    evaluation = isnothing(relative_step) ?
+                 evaluate_numerical(model, point; cache = cache) :
+                 evaluate_numerical(model, point; cache = cache, relative_step = relative_step)
+    return analyze_jacobian_rank_tolerance_sweep(evaluation; kwargs...)
+end
+
+"""
+    analyze_jacobian_condition_persistence(evaluations; ...)
+
+Compare finite guarded dense-SVD Jacobian condition estimates at explicit
+points. It is deliberately unavailable for rank-deficient or non-finite local
+estimates, because those do not support a finite condition-ratio comparison.
+"""
+function analyze_jacobian_condition_persistence(
+    evaluations::AbstractVector{<:NumericalEvaluation{T}};
+    minimum_evaluations::Integer = 2,
+    relative_tolerance::Real = maximum((
+        max(length(evaluation.constraint_sources), length(evaluation.point.variables), 1)
+        for evaluation in evaluations); init = 1) * eps(T),
+    scaling::Symbol = :none,
+    max_dense_entries::Integer = 4_000_000,
+    change_factor_threshold::Real = 100,
+) where {T<:AbstractFloat}
+    minimum_evaluations >= 2 ||
+        throw(ArgumentError("minimum_evaluations must be at least two"))
+    tolerance = convert(T, relative_tolerance)
+    tolerance >= zero(T) || throw(ArgumentError("relative_tolerance must be nonnegative"))
+    change_factor_threshold >= one(T) ||
+        throw(ArgumentError("change_factor_threshold must be at least one"))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "jacobian_condition_persistence"
+    report.metadata[:evaluation_count] = string(length(evaluations))
+    report.metadata[:minimum_evaluations] = string(minimum_evaluations)
+    report.metadata[:relative_tolerance] = string(tolerance)
+    report.metadata[:scaling] = string(scaling)
+    report.metadata[:change_factor_threshold] = string(change_factor_threshold)
+    if length(evaluations) < minimum_evaluations
+        push!(report, Finding(:jacobian_condition_persistence_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "Only $(length(evaluations)) explicitly supplied evaluation(s) are available for Jacobian conditioning persistence.",
+            why_it_matters = "Cross-point conditioning comparison requires at least $(minimum_evaluations) evaluations.",
+            evidence = [Evidence("Jacobian conditioning persistence availability"; details = [
+                "evaluation_count" => length(evaluations),
+                "minimum_evaluations" => minimum_evaluations,
+            ])],
+            suggested_actions = ["Supply multiple evaluations over the operating region of interest."],
+        ))
+        return report
+    end
+    reference_variables = first(evaluations).point.variables
+    reference_rows = first(evaluations).constraint_sources
+    if any(evaluation.point.variables != reference_variables for evaluation in evaluations) ||
+       any(evaluation.constraint_sources != reference_rows for evaluation in evaluations)
+        push!(report, Finding(:jacobian_condition_persistence_coordinate_mismatch;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Jacobian evaluations do not share one ordered variable and constraint-row scope.",
+            why_it_matters = "Condition estimates can be compared only in common derivative coordinates.",
+            evidence = [Evidence("Jacobian conditioning persistence alignment"; details = [
+                "evaluation_count" => length(evaluations),
+            ])],
+            suggested_actions = ["Evaluate the same ordered variables and scalar constraint rows at every point."],
+        ))
+        return report
+    end
+    estimates = [
+        jacobian_rank_estimate(
+            evaluation;
+            scaling = scaling,
+            relative_tolerance = tolerance,
+            max_dense_entries = max_dense_entries,
+            compute_vectors = false,
+        ) for evaluation in evaluations
+    ]
+    conditions = [estimate.condition_estimate for estimate in estimates]
+    finite_available = all(
+        estimate.available && !isnothing(condition) && isfinite(condition)
+        for (estimate, condition) in zip(estimates, conditions)
+    )
+    if !finite_available
+        push!(report, Finding(:jacobian_condition_persistence_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "At least one supplied point lacks a finite guarded dense Jacobian condition estimate.",
+            why_it_matters = "Rank-deficient, non-finite, or dense-guarded local Jacobians cannot support a finite conditioning-ratio comparison.",
+            evidence = [Evidence("Jacobian conditioning persistence availability"; details = [
+                "point_labels" => join((evaluation.point.label for evaluation in evaluations), ","),
+                "rank_estimate_available" => join((estimate.available for estimate in estimates), ","),
+                "ranks" => join((estimate.rank for estimate in estimates), ","),
+                "condition_estimates" => join(conditions, ","),
+                "reasons" => join((something(estimate.reason, "") for estimate in estimates), ";"),
+            ])],
+            affected = vcat(
+                reference_rows,
+                EntityRef[EntityRef(:variable, variable.value) for variable in reference_variables],
+            ),
+            suggested_actions = ["Resolve rank deficiency or derivative availability before comparing finite condition estimates across points."],
+        ))
+        return report
+    end
+    finite_conditions = T[condition::T for condition in conditions]
+    reference_condition = first(finite_conditions)
+    change_factor = maximum((
+        max(reference_condition / condition, condition / reference_condition)
+        for condition in finite_conditions[2:end]
+    ); init = one(T))
+    persistent = change_factor <= convert(T, change_factor_threshold)
+    report.metadata[:condition_estimates] = join(finite_conditions, ",")
+    report.metadata[:change_factor] = string(change_factor)
+    push!(report, Finding(
+        persistent ? :jacobian_condition_persistent : :jacobian_condition_changing;
+        severity = persistent ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = persistent ?
+                      "Finite guarded dense Jacobian condition estimates remain within a factor of $(change_factor_threshold) across $(length(evaluations)) supplied points." :
+                      "Finite guarded dense Jacobian condition estimates change by more than a factor of $(change_factor_threshold) across $(length(evaluations)) supplied points.",
+        why_it_matters = persistent ?
+                         "Stable local conditioning helps interpret cross-point numerical behavior, but is neither a global condition bound nor a solver prediction." :
+                         "Changing conditioning can alter linear-solve accuracy and tolerance semantics without proving a mathematical or physical model change.",
+        evidence = [Evidence("Jacobian conditioning persistence"; details = [
+            "point_labels" => join((evaluation.point.label for evaluation in evaluations), ","),
+            "condition_estimates" => report.metadata[:condition_estimates],
+            "change_factor" => change_factor,
+            "change_factor_threshold" => change_factor_threshold,
+            "relative_tolerance" => tolerance,
+            "scaling" => scaling,
+        ])],
+        affected = vcat(
+            reference_rows,
+            EntityRef[EntityRef(:variable, variable.value) for variable in reference_variables],
+        ),
+        suggested_actions = persistent ?
+                            ["Use the stable local conditioning evidence with rank, scaling, and derivative-provenance reports."] :
+                            ["Inspect row/column scales, coordinate units, and nearby active geometry before attributing conditioning changes to the formulation."],
+    ))
+    return report
+end
+
+"""Evaluate explicit points before comparing Jacobian conditioning persistence."""
+function analyze_jacobian_condition_persistence(
+    model::MOI.ModelLike,
+    points::AbstractVector{<:EvaluationPoint};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Union{Nothing,Real} = nothing,
+    kwargs...,
+)
+    evaluations = [
+        isnothing(relative_step) ? evaluate_numerical(model, point; cache = cache) :
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step)
+        for point in points
+    ]
+    return analyze_jacobian_condition_persistence(evaluations; kwargs...)
+end
+
 """
     analyze_numerical(model, point; cache, scale_ratio_threshold)
 
@@ -1593,6 +1899,16 @@ function _analyze_numerical_evaluation(
             suggested_actions = ["Inspect row and column scales and compare with dense-SVD results when feasible."],
         ))
     end
+    append!(
+        report.findings,
+        _dense_sparse_qr_rank_crosscheck_findings(
+            evaluation,
+            unscaled_rank,
+            scaled_rank,
+            sparse_qr,
+            scaled_sparse_qr,
+        ),
+    )
     append!(
         report.findings,
         _rank_findings(
@@ -1675,6 +1991,14 @@ function _analyze_numerical_evaluation(
     report.metadata[:sparse_qr_rank_scaling] = string(sparse_qr.scaling)
     report.metadata[:sparse_qr_row_column_rank] = string(scaled_sparse_qr.rank)
     report.metadata[:sparse_qr_condition_proxy] = string(sparse_qr.condition_proxy)
+    report.metadata[:dense_sparse_qr_unscaled_rank_agree] = string(
+        unscaled_rank.available && sparse_qr.available &&
+        unscaled_rank.rank == sparse_qr.rank,
+    )
+    report.metadata[:dense_sparse_qr_row_column_rank_agree] = string(
+        scaled_rank.available && scaled_sparse_qr.available &&
+        scaled_rank.rank == scaled_sparse_qr.rank,
+    )
     report.metadata[:jacobian_condition_threshold] = string(jacobian_condition_threshold)
     report.metadata[:evaluation_sources] = join(
         unique(string(capability.source) for capability in evaluation.capabilities),
@@ -2145,6 +2469,270 @@ function _scale_ratio_change_factor(
     return max(left / right, right / left)
 end
 
+"""
+    analyze_jacobian_scaling_persistence(evaluations; ...)
+
+Compare Jacobian row- and column-scale spread at explicitly supplied points.
+This is numerical scaling evidence, not a rank estimate or a mathematical
+explanation for a changing derivative scale.
+"""
+function analyze_jacobian_scaling_persistence(
+    evaluations::AbstractVector{<:NumericalEvaluation{T}};
+    minimum_evaluations::Integer = 2,
+    change_factor_threshold::Real = 100,
+) where {T<:AbstractFloat}
+    minimum_evaluations >= 2 ||
+        throw(ArgumentError("minimum_evaluations must be at least two"))
+    change_factor_threshold >= one(T) ||
+        throw(ArgumentError("change_factor_threshold must be at least one"))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "jacobian_scaling_persistence"
+    report.metadata[:evaluation_count] = string(length(evaluations))
+    report.metadata[:minimum_evaluations] = string(minimum_evaluations)
+    report.metadata[:change_factor_threshold] = string(change_factor_threshold)
+    if length(evaluations) < minimum_evaluations
+        push!(report, Finding(:jacobian_scaling_persistence_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "Only $(length(evaluations)) explicitly supplied evaluation(s) are available for Jacobian scaling persistence.",
+            why_it_matters = "Cross-point scaling comparison requires at least $(minimum_evaluations) evaluations.",
+            evidence = [Evidence("Jacobian scaling persistence availability"; details = [
+                "evaluation_count" => length(evaluations),
+                "minimum_evaluations" => minimum_evaluations,
+            ])],
+            suggested_actions = ["Supply multiple evaluations over the operating region of interest."],
+        ))
+        return report
+    end
+    reference_variables = first(evaluations).point.variables
+    reference_rows = first(evaluations).constraint_sources
+    if any(evaluation.point.variables != reference_variables for evaluation in evaluations) ||
+       any(evaluation.constraint_sources != reference_rows for evaluation in evaluations)
+        push!(report, Finding(:jacobian_scaling_persistence_coordinate_mismatch;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Jacobian evaluations do not share one ordered variable and constraint-row scope.",
+            why_it_matters = "Row and column scale changes are comparable only in common coordinates.",
+            evidence = [Evidence("Jacobian scaling persistence alignment"; details = [
+                "evaluation_count" => length(evaluations),
+            ])],
+            suggested_actions = ["Evaluate the same ordered variable coordinates and scalar constraint rows at every point."],
+        ))
+        return report
+    end
+    summaries = jacobian_scale_summary.(evaluations)
+    report.metadata[:nonfinite_row_counts] = join(
+        (length(summary.nonfinite_rows) for summary in summaries), ",",
+    )
+    report.metadata[:nonfinite_column_counts] = join(
+        (length(summary.nonfinite_columns) for summary in summaries), ",",
+    )
+    if any(!isempty(summary.nonfinite_rows) || !isempty(summary.nonfinite_columns)
+           for summary in summaries)
+        push!(report, Finding(:jacobian_scaling_persistence_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "Jacobian scaling persistence is unavailable because at least one supplied evaluation has non-finite derivatives.",
+            why_it_matters = "Scale ratios cannot be safely compared across non-finite derivative observations.",
+            evidence = [Evidence("Jacobian scaling persistence availability"; details = [
+                "point_labels" => join((evaluation.point.label for evaluation in evaluations), ","),
+                "nonfinite_row_counts" => report.metadata[:nonfinite_row_counts],
+                "nonfinite_column_counts" => report.metadata[:nonfinite_column_counts],
+            ])],
+            suggested_actions = ["Resolve derivative-domain or numerical failures before interpreting cross-point scaling changes."],
+        ))
+        return report
+    end
+    reference = first(summaries)
+    row_change_factor = maximum((
+        _scale_ratio_change_factor(reference.row_scale_ratio, summary.row_scale_ratio, T)
+        for summary in summaries[2:end]
+    ); init = one(T))
+    column_change_factor = maximum((
+        _scale_ratio_change_factor(reference.column_scale_ratio, summary.column_scale_ratio, T)
+        for summary in summaries[2:end]
+    ); init = one(T))
+    persistent = row_change_factor <= convert(T, change_factor_threshold) &&
+                 column_change_factor <= convert(T, change_factor_threshold)
+    report.metadata[:row_change_factor] = string(row_change_factor)
+    report.metadata[:column_change_factor] = string(column_change_factor)
+    push!(report, Finding(
+        persistent ? :jacobian_scaling_persistent : :jacobian_scaling_changing;
+        severity = persistent ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = persistent ?
+                      "Jacobian row and column scale-spread ratios remain within a factor of $(change_factor_threshold) across $(length(evaluations)) supplied points." :
+                      "Jacobian row or column scale-spread ratios change by more than the configured factor across $(length(evaluations)) supplied points.",
+        why_it_matters = persistent ?
+                         "Stable derivative scaling helps distinguish repeated rank evidence from changing numerical scale." :
+                         "Changing derivative scale spread can change rank thresholds, conditioning, and solver-tolerance semantics without proving a mathematical defect.",
+        evidence = [Evidence("Jacobian scaling persistence"; details = [
+            "point_labels" => join((evaluation.point.label for evaluation in evaluations), ","),
+            "row_scale_ratios" => join((summary.row_scale_ratio for summary in summaries), ","),
+            "column_scale_ratios" => join((summary.column_scale_ratio for summary in summaries), ","),
+            "row_change_factor" => row_change_factor,
+            "column_change_factor" => column_change_factor,
+            "change_factor_threshold" => change_factor_threshold,
+        ])],
+        affected = vcat(
+            EntityRef[reference_rows[row] for row in eachindex(reference_rows)],
+            EntityRef[EntityRef(:variable, variable.value) for variable in reference_variables],
+        ),
+        suggested_actions = persistent ?
+                            ["Use the stable scaling evidence when interpreting cross-point rank changes."] :
+                            ["Inspect derivative row/column norms, units, and solver scaling before treating rank changes as intrinsic."],
+    ))
+    return report
+end
+
+"""Evaluate explicit points before running Jacobian scaling persistence analysis."""
+function analyze_jacobian_scaling_persistence(
+    model::MOI.ModelLike,
+    points::AbstractVector{<:EvaluationPoint};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Union{Nothing,Real} = nothing,
+    kwargs...,
+)
+    evaluations = [
+        isnothing(relative_step) ? evaluate_numerical(model, point; cache = cache) :
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step)
+        for point in points
+    ]
+    return analyze_jacobian_scaling_persistence(evaluations; kwargs...)
+end
+
+"""
+    analyze_jacobian_derivative_provenance_persistence(evaluations; ...)
+
+Compare the row-level derivative methods recorded at explicit points. This
+checks evidence provenance only; it does not compare derivative values or
+certify the accuracy of any recorded method.
+"""
+function analyze_jacobian_derivative_provenance_persistence(
+    evaluations::AbstractVector{<:NumericalEvaluation};
+    minimum_evaluations::Integer = 2,
+)
+    minimum_evaluations >= 2 ||
+        throw(ArgumentError("minimum_evaluations must be at least two"))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "jacobian_derivative_provenance_persistence"
+    report.metadata[:evaluation_count] = string(length(evaluations))
+    report.metadata[:minimum_evaluations] = string(minimum_evaluations)
+    if length(evaluations) < minimum_evaluations
+        push!(report, Finding(:jacobian_derivative_provenance_persistence_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "Only $(length(evaluations)) explicitly supplied evaluation(s) are available for Jacobian derivative-provenance persistence.",
+            why_it_matters = "Cross-point method comparison requires at least $(minimum_evaluations) evaluations.",
+            evidence = [Evidence("Jacobian derivative-provenance persistence availability"; details = [
+                "evaluation_count" => length(evaluations),
+                "minimum_evaluations" => minimum_evaluations,
+            ])],
+            suggested_actions = ["Supply multiple evaluations over the operating region of interest."],
+        ))
+        return report
+    end
+    reference_rows = first(evaluations).constraint_sources
+    if any(evaluation.constraint_sources != reference_rows for evaluation in evaluations)
+        push!(report, Finding(:jacobian_derivative_provenance_persistence_coordinate_mismatch;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Jacobian evaluations do not share one ordered constraint-row scope.",
+            why_it_matters = "Derivative methods can be compared only when each row refers to the same scalar constraint across points.",
+            evidence = [Evidence("Jacobian derivative-provenance persistence alignment"; details = [
+                "evaluation_count" => length(evaluations),
+            ])],
+            suggested_actions = ["Evaluate the same ordered scalar constraint rows at every point."],
+        ))
+        return report
+    end
+    if any(length(evaluation.jacobian_row_methods) != length(reference_rows)
+           for evaluation in evaluations)
+        push!(report, Finding(:jacobian_derivative_provenance_persistence_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "At least one evaluation lacks one row-level derivative-provenance label.",
+            why_it_matters = "Method persistence cannot be assessed without one label for every common Jacobian row.",
+            evidence = [Evidence("Jacobian derivative-provenance persistence availability"; details = [
+                "row_count" => length(reference_rows),
+                "method_counts" => join((length(evaluation.jacobian_row_methods) for evaluation in evaluations), ","),
+            ])],
+            suggested_actions = ["Capture complete row-level derivative provenance before comparing points."],
+        ))
+        return report
+    end
+    methods_by_row = [
+        Symbol[evaluation.jacobian_row_methods[row] for evaluation in evaluations]
+        for row in eachindex(reference_rows)
+    ]
+    changing_rows = findall(methods -> !all(==(first(methods)), methods), methods_by_row)
+    incomplete_rows = findall(methods -> any(
+        method -> method in (:unavailable, :partial_central_finite_difference), methods,
+    ), methods_by_row)
+    report.metadata[:stable_row_count] = string(length(reference_rows) - length(changing_rows))
+    report.metadata[:changing_row_count] = string(length(changing_rows))
+    report.metadata[:incomplete_row_count] = string(length(incomplete_rows))
+    report.metadata[:point_labels] = join((evaluation.point.label for evaluation in evaluations), ",")
+    if !isempty(incomplete_rows)
+        push!(report, Finding(:jacobian_derivative_provenance_persistence_incomplete;
+            severity = SeverityWarning, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "$(length(incomplete_rows)) Jacobian row(s) use unavailable or partial finite-difference derivative evidence at one or more supplied points.",
+            why_it_matters = "Rank and scaling changes involving these rows may reflect incomplete derivative evidence rather than changing model geometry.",
+            evidence = [Evidence("Jacobian derivative-provenance persistence"; details = [
+                "point_labels" => report.metadata[:point_labels],
+                "incomplete_rows" => join(incomplete_rows, ","),
+                "row_methods" => join((join(methods_by_row[row], "->") for row in incomplete_rows), ";"),
+            ])],
+            affected = reference_rows[incomplete_rows],
+            suggested_actions = ["Resolve derivative-domain and finite-difference failures before interpreting cross-point rank or scaling changes."],
+        ))
+    end
+    persistent = isempty(changing_rows)
+    push!(report, Finding(
+        persistent ? :jacobian_derivative_provenance_persistent :
+                     :jacobian_derivative_provenance_changing;
+        severity = persistent ? SeverityInfo : SeverityWarning,
+        domain = persistent ? RepresentationalIssue : NumericalIssue,
+        basis = NumericalObservation,
+        confidence = isempty(incomplete_rows) ? ConfidenceHigh : ConfidenceMedium,
+        observation = persistent ?
+                      "Jacobian row-level derivative provenance is unchanged across $(length(evaluations)) explicitly supplied points." :
+                      "Jacobian row-level derivative provenance changes for $(length(changing_rows)) row(s) across $(length(evaluations)) explicitly supplied points.",
+        why_it_matters = persistent ?
+                         "Stable provenance makes a cross-point derivative comparison easier to interpret, without proving derivative accuracy." :
+                         "A rank, conditioning, or scaling change can be influenced by changing derivative construction or fallback behavior; this is provenance evidence, not a solver or model-defect claim.",
+        evidence = [Evidence("Jacobian derivative-provenance persistence"; details = [
+            "point_labels" => report.metadata[:point_labels],
+            "changing_rows" => join(changing_rows, ","),
+            "row_methods" => join((join(methods, "->") for methods in methods_by_row), ";"),
+        ])],
+        affected = persistent ? copy(reference_rows) : reference_rows[changing_rows],
+        suggested_actions = persistent ?
+                            ["Use the stable provenance alongside value, scaling, and rank evidence."] :
+                            ["Compare the affected rows under one verified derivative method before attributing a numerical-geometry change to the formulation."],
+    ))
+    return report
+end
+
+"""Evaluate explicit points before comparing Jacobian derivative provenance."""
+function analyze_jacobian_derivative_provenance_persistence(
+    model::MOI.ModelLike,
+    points::AbstractVector{<:EvaluationPoint};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Union{Nothing,Real} = nothing,
+    kwargs...,
+)
+    evaluations = [
+        isnothing(relative_step) ? evaluate_numerical(model, point; cache = cache) :
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step)
+        for point in points
+    ]
+    return analyze_jacobian_derivative_provenance_persistence(evaluations; kwargs...)
+end
+
 function _append_reduced_hessian_jacobian_scaling_persistence_findings!(
     report::DiagnosticReport,
     candidates::AbstractVector{<:ReducedHessianSnapshot{T}};
@@ -2469,6 +3057,105 @@ function _append_persistent_flat_expected_mode_findings!(
     return report
 end
 
+"""Compare a declared expected-mode span with every persistent right-nullspace."""
+function _append_persistent_jacobian_expected_mode_span_findings!(
+    report::DiagnosticReport,
+    modes::AbstractVector{<:ExpectedNullspaceMode},
+    variables::AbstractVector{MOI.VariableIndex},
+    estimates::AbstractVector{<:JacobianRankEstimate{T}},
+    point_labels::AbstractString;
+    alignment_threshold::Real,
+    mode_rank_relative_tolerance::Real,
+) where {T<:AbstractFloat}
+    report.metadata[:persistent_jacobian_expected_mode_span_count] = string(length(modes))
+    isempty(modes) && return report
+    zero(T) <= alignment_threshold <= one(T) ||
+        throw(ArgumentError("expected_mode_span_alignment_threshold must lie in [0, 1]"))
+    mode_rank_relative_tolerance >= zero(T) || throw(ArgumentError(
+        "expected-mode span relative tolerance must be nonnegative",
+    ))
+    columns_by_variable = Dict(variable => column for (column, variable) in enumerate(variables))
+    directions = zeros(T, length(variables), length(modes))
+    affected = EntityRef[]
+    for (mode_column, mode) in enumerate(modes)
+        missing = Int[]
+        for (variable, coefficient) in zip(mode.variables, mode.direction)
+            column = get(columns_by_variable, variable, 0)
+            if iszero(column)
+                push!(missing, variable.value)
+            else
+                directions[column, mode_column] += convert(T, coefficient)
+            end
+            push!(affected, EntityRef(:variable, variable.value))
+        end
+        if !isempty(missing)
+            push!(report, Finding(:persistent_jacobian_expected_mode_span_unaligned;
+                severity = SeverityInfo, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "The declared expected-mode span cannot be aligned with the common Jacobian persistence coordinates.",
+                why_it_matters = "A span comparison requires every declared coordinate to be present at every supplied point.",
+                evidence = [Evidence("Persistent Jacobian expected-mode span alignment"; details = [
+                    "mode" => mode.name,
+                    "unaligned_variable_indices" => join(missing, ","),
+                ])],
+                suggested_actions = ["Declare every expected mode in the common evaluation-coordinate scope."],
+            ))
+            return report
+        end
+    end
+    unique!(affected)
+    declared_basis = _orthonormal_mode_basis(
+        directions; relative_tolerance = mode_rank_relative_tolerance,
+    )
+    declared_dimension = size(declared_basis, 2)
+    minimum_cosine = one(T)
+    observed_dimensions = Int[]
+    for estimate in estimates
+        nullspace = estimate.right_nullspace
+        push!(observed_dimensions, size(nullspace, 2))
+        cosines = declared_dimension == 0 ? T[] :
+                  svdvals(transpose(nullspace) * declared_basis)
+        minimum_cosine = min(
+            minimum_cosine,
+            isempty(cosines) ? zero(T) : minimum(cosines),
+        )
+    end
+    observed = declared_dimension > 0 &&
+               all(dimension -> declared_dimension <= dimension, observed_dimensions) &&
+               minimum_cosine >= convert(T, alignment_threshold)
+    report.metadata[:persistent_jacobian_expected_mode_span_dimension] =
+        string(declared_dimension)
+    report.metadata[:persistent_jacobian_expected_mode_span_minimum_principal_cosine] =
+        string(minimum_cosine)
+    push!(report, Finding(
+        observed ? :persistent_jacobian_expected_mode_span_observed :
+                   :persistent_jacobian_expected_mode_span_not_observed;
+        severity = SeverityInfo,
+        domain = RepresentationalIssue,
+        basis = observed ? PhysicalExpectation : LocalInference,
+        confidence = observed ? ConfidenceHigh : ConfidenceMedium,
+        observation = observed ?
+                      "The declared expected-mode span aligns with the persistent local Jacobian right-nullspace at every supplied point." :
+                      "The declared expected-mode span does not align with the persistent local Jacobian right-nullspace at every supplied point.",
+        why_it_matters = observed ?
+                         "The repeated local nullspace is consistent with the declared span, without proving its physical interpretation or global invariance." :
+                         "Individual expected modes can appear plausible while their collective span is too large, dependent, or misaligned; this is local numerical evidence rather than a plugin error.",
+        evidence = [Evidence("Persistent Jacobian expected-mode span comparison"; details = [
+            "point_labels" => point_labels,
+            "declared_mode_count" => length(modes),
+            "declared_span_dimension" => declared_dimension,
+            "observed_right_nullities" => join(observed_dimensions, ","),
+            "minimum_principal_cosine" => minimum_cosine,
+            "alignment_threshold" => alignment_threshold,
+        ])],
+        affected = affected,
+        suggested_actions = observed ?
+                            ["Retain the span as expected-mode evidence and confirm its semantics in the relevant plugin."] :
+                            ["Inspect declared mode independence, coordinate scope, and nearby active geometry before changing the declaration."],
+    ))
+    return report
+end
+
 """
     analyze_jacobian_rank_persistence(evaluations; ...)
 
@@ -2484,9 +3171,13 @@ function analyze_jacobian_rank_persistence(
         for evaluation in evaluations); init = 1) * eps(T),
     max_dense_entries::Integer = 4_000_000,
     subspace_alignment_threshold::Real = 0.98,
+    scaling_change_factor_threshold::Real = 100,
     left_nullspace_support_relative::Real = 0.1,
+    right_nullspace_support_relative::Real = 0.1,
     expected_modes::AbstractVector{<:ExpectedNullspaceMode} = ExpectedNullspaceMode[],
     expected_mode_residual_tolerance::Real = sqrt(eps(T)),
+    expected_mode_span_alignment_threshold::Real = 0.98,
+    expected_mode_span_rank_relative_tolerance::Real = sqrt(eps(T)),
 ) where {T<:AbstractFloat}
     minimum_evaluations >= 2 ||
         throw(ArgumentError("minimum_evaluations must be at least two"))
@@ -2495,19 +3186,35 @@ function analyze_jacobian_rank_persistence(
         throw(ArgumentError("relative_tolerance must be nonnegative"))
     zero(T) <= subspace_alignment_threshold <= one(T) ||
         throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    scaling_change_factor_threshold >= one(T) ||
+        throw(ArgumentError("scaling_change_factor_threshold must be at least one"))
     zero(T) < left_nullspace_support_relative <= one(T) ||
         throw(ArgumentError("left_nullspace_support_relative must lie in (0, 1]"))
+    zero(T) < right_nullspace_support_relative <= one(T) ||
+        throw(ArgumentError("right_nullspace_support_relative must lie in (0, 1]"))
     expected_mode_residual_tolerance >= zero(T) ||
         throw(ArgumentError("expected_mode_residual_tolerance must be nonnegative"))
+    zero(T) <= expected_mode_span_alignment_threshold <= one(T) ||
+        throw(ArgumentError("expected_mode_span_alignment_threshold must lie in [0, 1]"))
+    expected_mode_span_rank_relative_tolerance >= zero(T) ||
+        throw(ArgumentError("expected_mode_span_rank_relative_tolerance must be nonnegative"))
     report = DiagnosticReport()
     report.metadata[:stage] = "jacobian_rank_persistence"
     report.metadata[:evaluation_count] = string(length(evaluations))
     report.metadata[:minimum_evaluations] = string(minimum_evaluations)
     report.metadata[:relative_tolerance] = string(tolerance)
     report.metadata[:subspace_alignment_threshold] = string(subspace_alignment_threshold)
+    report.metadata[:scaling_change_factor_threshold] =
+        string(scaling_change_factor_threshold)
     report.metadata[:left_nullspace_support_relative] =
         string(left_nullspace_support_relative)
+    report.metadata[:right_nullspace_support_relative] =
+        string(right_nullspace_support_relative)
     report.metadata[:expected_mode_count] = string(length(expected_modes))
+    report.metadata[:expected_mode_span_alignment_threshold] =
+        string(expected_mode_span_alignment_threshold)
+    report.metadata[:expected_mode_span_rank_relative_tolerance] =
+        string(expected_mode_span_rank_relative_tolerance)
     isempty(evaluations) && return report
     reference_variables = evaluations[1].point.variables
     reference_rows = evaluations[1].constraint_sources
@@ -2551,6 +3258,16 @@ function analyze_jacobian_rank_persistence(
         return report
     end
     available_estimates = estimates[candidates]
+    scaling_report = analyze_jacobian_scaling_persistence(
+        evaluations[candidates];
+        minimum_evaluations = minimum_evaluations,
+        change_factor_threshold = scaling_change_factor_threshold,
+    )
+    append!(report.findings, scaling_report.findings)
+    for (key, value) in scaling_report.metadata
+        key == :stage && continue
+        report.metadata[Symbol("scaling_", key)] = value
+    end
     ranks = [estimate.rank for estimate in available_estimates]
     nullities = [estimate.right_nullity for estimate in available_estimates]
     left_nullities = [estimate.left_nullity for estimate in available_estimates]
@@ -2560,6 +3277,14 @@ function analyze_jacobian_rank_persistence(
     report.metadata[:observed_right_nullities] = join(nullities, ",")
     report.metadata[:observed_left_nullities] = join(left_nullities, ",")
     if !all(==(first(ranks)), ranks)
+        provenance_report = analyze_jacobian_derivative_provenance_persistence(
+            evaluations[candidates]; minimum_evaluations = minimum_evaluations,
+        )
+        append!(report.findings, provenance_report.findings)
+        for (key, value) in provenance_report.metadata
+            key == :stage && continue
+            report.metadata[Symbol("derivative_provenance_", key)] = value
+        end
         push!(report, Finding(:jacobian_rank_not_persistent;
             severity = SeverityWarning, domain = NumericalIssue,
             basis = LocalInference, confidence = ConfidenceHigh,
@@ -2665,6 +3390,17 @@ function analyze_jacobian_rank_persistence(
     end
     persistent = all(==(first(nullities)), nullities) &&
                  minimum_cosine >= convert(T, subspace_alignment_threshold)
+    right_support = Set{Int}()
+    for estimate in available_estimates
+        magnitudes = vec(maximum(abs, estimate.right_nullspace; dims = 2))
+        maximum_magnitude = maximum(magnitudes; init = zero(T))
+        iszero(maximum_magnitude) && continue
+        union!(right_support, findall(
+            magnitude -> magnitude >= T(right_nullspace_support_relative) * maximum_magnitude,
+            magnitudes,
+        ))
+    end
+    right_support_positions = sort!(collect(right_support))
     report.metadata[:minimum_right_nullspace_principal_cosine] = string(minimum_cosine)
     push!(report, Finding(
         persistent ? :jacobian_right_nullspace_persistent :
@@ -2685,8 +3421,13 @@ function analyze_jacobian_rank_persistence(
             "right_nullities" => join(nullities, ","),
             "minimum_principal_cosine" => minimum_cosine,
             "alignment_threshold" => subspace_alignment_threshold,
+            "support_relative" => right_nullspace_support_relative,
+            "support_variables" => join(right_support_positions, ","),
         ])],
-        affected = EntityRef[EntityRef(:variable, variable.value) for variable in reference_variables],
+        affected = EntityRef[
+            EntityRef(:variable, reference_variables[index].value)
+            for index in right_support_positions
+        ],
         suggested_actions = persistent ?
                             ["Compare the persistent subspace with expected-mode declarations and component metadata."] :
                             ["Inspect nullspace fingerprints, derivative scaling, and active geometry at each point."],
@@ -2754,6 +3495,15 @@ function analyze_jacobian_rank_persistence(
                                     ["Inspect the supplied points and declaration before treating the mode as expected."],
             ))
         end
+        _append_persistent_jacobian_expected_mode_span_findings!(
+            report,
+            expected_modes,
+            reference_variables,
+            available_estimates,
+            labels;
+            alignment_threshold = expected_mode_span_alignment_threshold,
+            mode_rank_relative_tolerance = expected_mode_span_rank_relative_tolerance,
+        )
     end
     sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
@@ -2770,10 +3520,13 @@ function analyze_jacobian_rank_persistence(
     model::MOI.ModelLike,
     points::AbstractVector{<:EvaluationPoint};
     cache::EvaluationCache = EvaluationCache(),
+    relative_step::Union{Nothing,Real} = nothing,
     kwargs...,
 )
     evaluations = [
-        evaluate_numerical(model, point; cache = cache) for point in points
+        isnothing(relative_step) ? evaluate_numerical(model, point; cache = cache) :
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step)
+        for point in points
     ]
     return analyze_jacobian_rank_persistence(evaluations; kwargs...)
 end

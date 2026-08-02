@@ -321,6 +321,9 @@ function profile_case(
     iterative_spectrum_probe_iterations::Integer = 100,
     iterative_spectrum_probe_convergence_tolerance::Real = sqrt(eps(T)),
     iterative_spectrum_probe_spread_threshold::Real = 1.0e6,
+    jacobian_rank_tolerance_sweep_tolerances::Union{Nothing,AbstractVector{<:Real}} = nothing,
+    jacobian_rank_tolerance_sweep_scaling::Symbol = :none,
+    jacobian_rank_tolerance_sweep_max_dense_entries::Integer = 4_000_000,
 ) where {T<:AbstractFloat}
     hits_before = cache.hits
     misses_before = cache.misses
@@ -424,6 +427,21 @@ function profile_case(
             ),
         )
         _append_profile_probe!(numerical_report, probe_report)
+    end
+
+    if !isnothing(jacobian_rank_tolerance_sweep_tolerances)
+        sweep_report = _profile_stage!(
+            timings,
+            allocations,
+            :jacobian_rank_tolerance_sweep,
+            () -> analyze_jacobian_rank_tolerance_sweep(
+                evaluation;
+                relative_tolerances = jacobian_rank_tolerance_sweep_tolerances,
+                scaling = jacobian_rank_tolerance_sweep_scaling,
+                max_dense_entries = jacobian_rank_tolerance_sweep_max_dense_entries,
+            ),
+        )
+        _append_profile_probe!(numerical_report, sweep_report)
     end
 
     active_set_report = _profile_stage!(timings, allocations, :active_set, () -> analyze_active_set(
@@ -561,6 +579,9 @@ function _profile_numerical_summary(runs::Vector{<:ProfileResult})
         :iterative_left_probe_small_residual_direction_count => :iterative_left_probe_available,
         :iterative_spectrum_probe_large_spread_count => :iterative_spectrum_probe_available,
         :iterative_spectrum_probe_largest_singular_value_proxy => :iterative_spectrum_probe_available,
+        :minimum_rank => nothing,
+        :maximum_rank => nothing,
+        :rank_span => nothing,
     )
         any(haskey(run.numerical_report.metadata, first(metric)) for run in runs) &&
             push!(metrics, metric)

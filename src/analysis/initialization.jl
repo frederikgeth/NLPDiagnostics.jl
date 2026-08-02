@@ -355,6 +355,9 @@ function analyze_initialization(
     iterative_spectrum_probe_iterations::Integer = 100,
     iterative_spectrum_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
     iterative_spectrum_probe_spread_threshold::Real = 1.0e6,
+    jacobian_rank_tolerance_sweep_tolerances::Union{Nothing,AbstractVector{<:Real}} = nothing,
+    jacobian_rank_tolerance_sweep_scaling::Symbol = :none,
+    jacobian_rank_tolerance_sweep_max_dense_entries::Integer = 4_000_000,
     coupled_qualification_strict_tolerance::Union{Nothing,Real} = nothing,
     coupled_qualification_max_iterations::Integer = 1_000,
 )
@@ -370,6 +373,8 @@ function analyze_initialization(
         string(!isnothing(iterative_left_nullspace_probe_dimension))
     report.metadata[:initialization_iterative_spectrum_probe_requested] =
         string(!isnothing(iterative_spectrum_probe_dimension))
+    report.metadata[:initialization_jacobian_rank_tolerance_sweep_requested] =
+        string(!isnothing(jacobian_rank_tolerance_sweep_tolerances))
     report.metadata[:coupled_qualification_max_iterations] =
         string(coupled_qualification_max_iterations)
     report.metadata[:missing_initial_value_count] =
@@ -436,6 +441,16 @@ function analyze_initialization(
     merge!(report.metadata, numerical.metadata)
     report.metadata[:stage] = "initialization"
     evaluation = evaluate_numerical(model, point; cache = cache)
+    if !isnothing(jacobian_rank_tolerance_sweep_tolerances)
+        sweep_report = analyze_jacobian_rank_tolerance_sweep(
+            evaluation;
+            relative_tolerances = jacobian_rank_tolerance_sweep_tolerances,
+            scaling = jacobian_rank_tolerance_sweep_scaling,
+            max_dense_entries = jacobian_rank_tolerance_sweep_max_dense_entries,
+        )
+        append!(report.findings, sweep_report.findings)
+        merge!(report.metadata, sweep_report.metadata)
+    end
     if !isnothing(iterative_right_nullspace_probe_dimension)
         probe_report = analyze_iterative_right_nullspace_probe(
             evaluation;
