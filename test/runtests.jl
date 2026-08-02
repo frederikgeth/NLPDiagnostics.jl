@@ -107,6 +107,219 @@ import PowerModels
 end
 end
 
+if Base.find_package("BMOPFTools") === nothing
+@testset "BMOPFTools terminal adapter fallback" begin
+    @test_throws ArgumentError NLPDiagnostics.bmopf_terminal_report(Dict{String,Any}())
+    @test_throws ArgumentError NLPDiagnostics.bmopf_analyze_opf(nothing)
+end
+else
+import BMOPFTools
+
+@testset "BMOPFTools terminal adapter" begin
+    @test Base.get_extension(NLPDiagnostics, :BMOPFToolsExt) !== nothing
+    net = Dict{String,Any}(
+        "name" => "floating-neutral-adapter-test",
+        "bus" => Dict{String,Any}(
+            "source" => Dict{String,Any}("terminal_names" => ["a", "n"]),
+            "load" => Dict{String,Any}("terminal_names" => ["a", "n"]),
+        ),
+        "line" => Dict{String,Any}(
+            "line" => Dict{String,Any}(
+                "bus_from" => "source", "bus_to" => "load",
+                "terminal_map_from" => ["a", "n"],
+                "terminal_map_to" => ["a", "n"],
+            ),
+        ),
+        "load" => Dict{String,Any}(
+            "load" => Dict{String,Any}(
+                "bus" => "load", "terminal_map" => ["a", "n"],
+                "configuration" => "WYE",
+            ),
+        ),
+    )
+    report = NLPDiagnostics.bmopf_terminal_report(net)
+    @test report.metadata[:bmopf_engine] == "BMOPFTools.analyze"
+    @test report.metadata[:bmopf_grounding_n_floating] == "1"
+    @test length(findings(report, :e_prov_floating_neutral)) == 1
+end
+
+struct TestBMOPFContext
+    model::JuMP.Model
+    net::Dict{String,Any}
+    objects::Dict{BMOPFTools.OpfModelKey,Any}
+    bases
+end
+BMOPFTools.opf_model(context::TestBMOPFContext) = context.model
+BMOPFTools.opf_network(context::TestBMOPFContext) = context.net
+BMOPFTools.opf_lifecycle(::TestBMOPFContext) = :kcl_finalized
+BMOPFTools.opf_object(context::TestBMOPFContext, key::BMOPFTools.OpfModelKey) = context.objects[key]
+BMOPFTools.opf_bases(context::TestBMOPFContext) = context.bases
+BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
+    key for key in keys(context.objects) if isnothing(kind) || key.kind == kind
+]
+
+@testset "BMOPFTools staged OPF adapter" begin
+    @test Base.get_extension(NLPDiagnostics, :BMOPFToolsJuMPExt) !== nothing
+    if !hasmethod(BMOPFTools.build_opf_model, Tuple{Dict{String,Any}})
+        @test_throws ArgumentError NLPDiagnostics.bmopf_build_and_profile(
+            Dict{String,Any}(), identity,
+        )
+    end
+    model = JuMP.Model()
+    JuMP.@variable(model, vr_a)
+    JuMP.@variable(model, vr_n)
+    JuMP.@variable(model, vi_a)
+    JuMP.@variable(model, vi_n)
+    JuMP.@variable(model, vr_load_a)
+    JuMP.@variable(model, vr_load_n)
+    JuMP.@variable(model, vi_load_a)
+    JuMP.@variable(model, vi_load_n)
+    JuMP.@constraint(model, vr_a == 1)
+    net = Dict{String,Any}(
+        "bus" => Dict{String,Any}(
+            "bus" => Dict{String,Any}(
+                "terminal_names" => ["a", "n"],
+                "perfectly_grounded_terminals" => ["n"],
+            ),
+        ),
+    )
+    objects = Dict{BMOPFTools.OpfModelKey,Any}(
+        BMOPFTools.opf_bus_voltage_key("bus", "a") => vr_a,
+        BMOPFTools.opf_bus_voltage_key("bus", "n") => vr_n,
+        BMOPFTools.opf_bus_voltage_key("bus", "a"; component = :imag) => vi_a,
+        BMOPFTools.opf_bus_voltage_key("bus", "n"; component = :imag) => vi_n,
+    )
+    context = TestBMOPFContext(model, net, objects, nothing)
+    ports = NLPDiagnostics.bmopf_terminal_port_metadata(context)
+    @test length(ports) == 2
+    @test all(length(port.terminal_labels) == 2 for port in ports)
+    @test length(NLPDiagnostics.bmopf_terminal_port_coordinate_maps(context)) == 2
+    @test length(NLPDiagnostics.bmopf_terminal_port_coordinate_semantics(context)) == 2
+    @test isempty(NLPDiagnostics.bmopf_terminal_port_report(context).findings)
+    per_unit_context = TestBMOPFContext(
+        model, net, objects, (v_base = Dict("bus" => 230.0),),
+    )
+    per_unit_ports = NLPDiagnostics.bmopf_terminal_port_metadata(per_unit_context)
+    @test all(port.metadata["physical_voltage_base_V"] == "230.0" for port in per_unit_ports)
+    per_unit_semantics = NLPDiagnostics.bmopf_terminal_port_coordinate_semantics(per_unit_context)
+    @test all(item.nominal_scale == 1.0 for item in per_unit_semantics)
+    @test all(item.units["voltage"] == "p.u." for item in per_unit_semantics)
+    @test all(occursin("230.0 V", item.description) for item in per_unit_semantics)
+    coordinate_point = NLPDiagnostics.EvaluationPoint(
+        JuMP.index.([vr_a, vr_n, vi_a, vi_n]), [1.0, 0.0, 0.0, 0.0],
+    )
+    scale_report = NLPDiagnostics.bmopf_terminal_port_coordinate_scale_report(
+        per_unit_context, coordinate_point,
+    )
+    @test isempty(scale_report.findings)
+    @test scale_report.metadata[:bmopf_terminal_port_coordinate_scale_basis] ==
+          "per-unit model coordinates (nominal coordinate one)"
+    differentiability_report = NLPDiagnostics.bmopf_opf_differentiability_report(context)
+    @test differentiability_report.metadata[:bmopf_opf_differentiability_available] == "false"
+    @test length(findings(differentiability_report, :bmopf_opf_differentiability_unavailable)) == 1
+    registry_report = NLPDiagnostics.bmopf_opf_registry_report(context)
+    @test registry_report.metadata[:bmopf_opf_registry_direct_variable_count] == "4"
+    @test registry_report.metadata[:bmopf_opf_registry_unregistered_model_variable_count] == "4"
+    @test length(findings(registry_report, :bmopf_opf_registry_unregistered_model_variables)) == 1
+    components = NLPDiagnostics.bmopf_component_metadata(context)
+    @test length(components) == 2
+    @test sort!([component.component_id for component in components]) == ["vi", "vr"]
+    @test length(NLPDiagnostics.bmopf_component_coordinate_semantics(context)) == 2
+    @test isempty(NLPDiagnostics.bmopf_component_report(context).findings)
+    @test isnothing(NLPDiagnostics.bmopf_initialization_point(context))
+    coordinate_probe = NLPDiagnostics.bmopf_coordinate_probe_point(context)
+    @test coordinate_probe.label == "bmopf-zero-coordinate-probe"
+    @test coordinate_probe.values == zeros(8)
+    @test_throws ArgumentError NLPDiagnostics.bmopf_coordinate_probe_point(context; value = Inf)
+    initialization_report = NLPDiagnostics.bmopf_analyze_initialization(context)
+    @test initialization_report.metadata[:bmopf_terminal_coordinate_scales_at_initialization] == "false"
+    @test initialization_report.metadata[:bmopf_floating_neutral_candidate_modes_included] == "false"
+    for (variable, value) in zip(
+        (vr_a, vr_n, vi_a, vi_n, vr_load_a, vr_load_n, vi_load_a, vi_load_n),
+        (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0),
+    )
+        JuMP.set_start_value(variable, value)
+    end
+    @test !isnothing(NLPDiagnostics.bmopf_initialization_point(context))
+    complete_initialization_report = NLPDiagnostics.bmopf_analyze_initialization(context)
+    @test complete_initialization_report.metadata[
+        :bmopf_terminal_coordinate_scales_at_initialization
+    ] == "true"
+    numerical_point = NLPDiagnostics.EvaluationPoint(
+        MOI.get(JuMP.backend(model), MOI.ListOfVariableIndices()), zeros(8);
+        label = "bmopf-staged-test",
+    )
+    benchmark_case = NLPDiagnostics.ProfileCase(
+        "bmopf-staged-test", numerical_point;
+        task = "adapter regression", formulation = "BMOPF IVR", scale = "SI",
+    )
+    benchmark_result = NLPDiagnostics.bmopf_profile_case(
+        context, benchmark_case; include_initialization = false,
+    )
+    @test benchmark_result isa NLPDiagnostics.BMOPFProfileResult
+    @test benchmark_result.context_report.metadata[:bmopf_opf_context] ==
+          "BMOPFTools staged OPF context"
+    benchmark_data = NLPDiagnostics.profile_result_data(benchmark_result)
+    @test haskey(benchmark_data, "profile")
+    @test haskey(benchmark_data, "bmopf_context_report")
+    degeneracy_report = NLPDiagnostics.bmopf_analyze_degeneracy(context, numerical_point)
+    @test degeneracy_report.metadata[:bmopf_floating_neutral_candidate_modes_included] == "false"
+    active_set_report = NLPDiagnostics.bmopf_analyze_active_set(context, numerical_point)
+    @test active_set_report.metadata[:bmopf_floating_neutral_candidate_modes_applied] == "0"
+    persistence_report = NLPDiagnostics.bmopf_analyze_jacobian_rank_persistence(
+        context, [numerical_point, numerical_point],
+    )
+    @test persistence_report.metadata[:bmopf_floating_neutral_candidate_modes_included] == "false"
+    component_persistence_report = NLPDiagnostics.bmopf_analyze_component_rank_persistence(
+        context, [numerical_point, numerical_point],
+    )
+    @test component_persistence_report.metadata[:bmopf_floating_neutral_candidate_modes_applied] == "0"
+    report = NLPDiagnostics.bmopf_analyze_opf(context)
+    @test report.metadata[:bmopf_opf_context] == "BMOPFTools staged OPF context"
+    @test report.metadata[:bmopf_opf_lifecycle] == "kcl_finalized"
+    @test occursin("bmopf_terminal_ports", report.metadata[:stages])
+
+    floating_net = Dict{String,Any}(
+        "bus" => Dict{String,Any}(
+            "bus" => Dict{String,Any}("terminal_names" => ["a", "n"]),
+            "load" => Dict{String,Any}("terminal_names" => ["a", "n"]),
+        ),
+        "line" => Dict{String,Any}(
+            "line" => Dict{String,Any}(
+                "bus_from" => "bus", "bus_to" => "load",
+                "terminal_map_from" => ["a", "n"],
+                "terminal_map_to" => ["a", "n"],
+            ),
+        ),
+        "load" => Dict{String,Any}(
+            "load" => Dict{String,Any}(
+                "bus" => "load", "terminal_map" => ["a", "n"],
+                "configuration" => "WYE",
+            ),
+        ),
+    )
+    floating_objects = copy(objects)
+    merge!(floating_objects, Dict{BMOPFTools.OpfModelKey,Any}(
+        BMOPFTools.opf_bus_voltage_key("load", "a") => vr_load_a,
+        BMOPFTools.opf_bus_voltage_key("load", "n") => vr_load_n,
+        BMOPFTools.opf_bus_voltage_key("load", "a"; component = :imag) => vi_load_a,
+        BMOPFTools.opf_bus_voltage_key("load", "n"; component = :imag) => vi_load_n,
+    ))
+    floating_context = TestBMOPFContext(model, floating_net, floating_objects, nothing)
+    candidate_modes = NLPDiagnostics.bmopf_floating_neutral_candidate_modes(floating_context)
+    @test length(candidate_modes) == 2
+    @test all(length(mode.variables) == 4 for mode in candidate_modes)
+    candidate_report = NLPDiagnostics.bmopf_floating_neutral_candidate_report(floating_context)
+    @test length(findings(candidate_report, :bmopf_floating_neutral_candidate_mode)) == 1
+    @test isempty(NLPDiagnostics.bmopf_opf_lifecycle_report(floating_context).findings)
+    floating_analysis = NLPDiagnostics.bmopf_analyze_opf(
+        floating_context; include_floating_neutral_candidates = true,
+    )
+    @test floating_analysis.metadata[:bmopf_floating_neutral_candidates_enabled] == "true"
+    @test floating_analysis.metadata[:bmopf_floating_neutral_candidate_modes_applied] == "2"
+end
+end
+
 function evidence_details(finding)
     return Dict(finding.evidence[1].details)
 end

@@ -52,6 +52,87 @@ end
 function powermodels_analyze_component_rank_persistence(model, points; kwargs...)
     throw(ArgumentError("PowerModels support is not loaded for this model"))
 end
+function _bmopf_extension(name::Symbol, message::String)
+    extension = Base.get_extension(@__MODULE__, name)
+    isnothing(extension) && throw(ArgumentError(message))
+    return extension
+end
+
+"""Optional BMOPFTools terminal/grounding adapter entry point."""
+bmopf_terminal_report(net) = _bmopf_extension(:BMOPFToolsExt,
+    "BMOPFTools support is not loaded; install BMOPFTools to analyze BMOPF terminal data")._bmopf_terminal_report(net)
+"""Optional BMOPFTools staged-OPF diagnostic entry point."""
+bmopf_analyze_opf(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to analyze a staged BMOPF OPF context")._bmopf_analyze_opf(context; kwargs...)
+"""Optional BMOPFTools staged-OPF profile-case entry point."""
+bmopf_profile_case(context, case; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to profile a staged BMOPF OPF context")._bmopf_profile_case(context, case; kwargs...)
+"""Optional BMOPFTools build-and-profile benchmark entry point."""
+bmopf_build_and_profile(network, case_builder; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools' JuMP/IPOPT staged-build extension is required to build and profile a BMOPF network")._bmopf_build_and_profile(network, case_builder; kwargs...)
+"""Optional BMOPFTools staged-OPF initialization-point entry point."""
+bmopf_initialization_point(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF initialization")._bmopf_initialization_point(context; kwargs...)
+"""Optional BMOPFTools explicit synthetic coordinate-probe point entry point."""
+bmopf_coordinate_probe_point(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to construct a staged BMOPF coordinate probe")._bmopf_coordinate_probe_point(context; kwargs...)
+"""Optional BMOPFTools staged-OPF initialization analysis entry point."""
+bmopf_analyze_initialization(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to analyze staged BMOPF initialization")._bmopf_analyze_initialization(context; kwargs...)
+"""Optional BMOPFTools local degeneracy analysis entry point."""
+bmopf_analyze_degeneracy(context, point; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to analyze staged BMOPF OPF degeneracy")._bmopf_analyze_degeneracy(context, point; kwargs...)
+"""Optional BMOPFTools active-set analysis entry point."""
+bmopf_analyze_active_set(context, point; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to analyze staged BMOPF OPF active sets")._bmopf_analyze_active_set(context, point; kwargs...)
+"""Optional BMOPFTools reduced-Hessian persistence entry point."""
+bmopf_analyze_reduced_hessian_persistence(context, snapshots; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to analyze staged BMOPF reduced-Hessian persistence")._bmopf_analyze_reduced_hessian_persistence(context, snapshots; kwargs...)
+"""Optional BMOPFTools Jacobian-rank persistence entry point."""
+bmopf_analyze_jacobian_rank_persistence(context, points; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to analyze staged BMOPF Jacobian-rank persistence")._bmopf_analyze_jacobian_rank_persistence(context, points; kwargs...)
+"""Optional BMOPFTools component-rank persistence entry point."""
+bmopf_analyze_component_rank_persistence(context, points; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to analyze staged BMOPF component-rank persistence")._bmopf_analyze_component_rank_persistence(context, points; kwargs...)
+"""Optional BMOPFTools staged-OPF terminal-port metadata hook."""
+bmopf_terminal_port_metadata(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF terminal ports")._bmopf_terminal_port_metadata(context)
+"""Optional BMOPFTools staged-OPF terminal-to-model-coordinate map hook."""
+bmopf_terminal_port_coordinate_maps(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF terminal ports")._bmopf_terminal_port_coordinate_maps(context)
+"""Optional BMOPFTools staged-OPF terminal-coordinate semantics hook."""
+bmopf_terminal_port_coordinate_semantics(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF terminal ports")._bmopf_terminal_port_coordinate_semantics(context)
+"""Optional BMOPFTools staged-OPF terminal-port validation report hook."""
+bmopf_terminal_port_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF terminal ports")._bmopf_terminal_port_report(context)
+"""Optional BMOPFTools staged-OPF terminal-coordinate scale report hook."""
+bmopf_terminal_port_coordinate_scale_report(context, point; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF terminal-coordinate scales")._bmopf_terminal_port_coordinate_scale_report(context, point; kwargs...)
+"""Optional BMOPFTools physical floating-neutral candidate-mode hook."""
+bmopf_floating_neutral_candidate_modes(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF floating-neutral candidates")._bmopf_floating_neutral_candidate_modes(context)
+"""Optional BMOPFTools physical floating-neutral candidate-mode report hook."""
+bmopf_floating_neutral_candidate_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF floating-neutral candidates")._bmopf_floating_neutral_candidate_report(context)
+"""Optional BMOPFTools staged-OPF lifecycle report hook."""
+bmopf_opf_lifecycle_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect a staged BMOPF OPF lifecycle")._bmopf_opf_lifecycle_report(context)
+"""Optional BMOPFTools staged-OPF differentiability report hook."""
+bmopf_opf_differentiability_report(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF differentiability")._bmopf_opf_differentiability_report(context; kwargs...)
+"""Optional BMOPFTools staged-OPF semantic-registry report hook."""
+bmopf_opf_registry_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect a staged BMOPF OPF registry")._bmopf_opf_registry_report(context)
+"""Optional BMOPFTools staged-OPF semantic component metadata hook."""
+bmopf_component_metadata(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF components")._bmopf_component_metadata(context)
+"""Optional BMOPFTools staged-OPF component-coordinate semantics hook."""
+bmopf_component_coordinate_semantics(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF components")._bmopf_component_coordinate_semantics(context)
+"""Optional BMOPFTools staged-OPF component metadata report hook."""
+bmopf_component_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF components")._bmopf_component_report(context)
 """Optional domain-plugin port/connection declarations; the generic default is empty."""
 component_port_metadata(model::MOI.ModelLike) = ComponentPortMetadata[]
 component_port_metadata(model::ModelSnapshot) = ComponentPortMetadata[]

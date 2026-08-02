@@ -255,6 +255,21 @@ port-coordinate nominal scales: direct terminal maps yield map-adjusted
 point-local scale checks and static shared-coordinate consistency checks, while
 mixed maps remain explicitly unavailable to generic scalar scaling.
 
+The first BMOPFTools staged-OPF adapter is also implemented. It translates
+public terminal/grounding evidence, validates registered rectangular terminal
+voltage coordinates, preserves SI versus per-unit coordinate semantics and
+physical base evidence, audits lifecycle and semantic-registry coverage, and
+offers opt-in floating-neutral candidates to local degeneracy, active-set, and
+cross-point persistence analyses. These candidates remain physical
+expectations rather than automatic gauge claims; see `docs/bmopf_extension.md`.
+`bmopf_profile_case` now provides the first reproducible real-context benchmark
+record: it retains generic profile timings separately from BMOPFTools terminal,
+port, lifecycle, registry, component, and initialization evidence. Curating
+real feeder cases and collecting large-machine observations is the next step;
+the context-level harness does not invoke a solver, while
+`bmopf_build_and_profile` can explicitly construct and KCL-finalize a fresh
+staged context from a caller-owned copied network before profiling it.
+
 ## Solver postmortem foundation
 
 `SolverPostmortem` is a solver-neutral record for a solver name, normalized

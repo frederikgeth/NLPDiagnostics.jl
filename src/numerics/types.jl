@@ -1315,6 +1315,21 @@ struct ProfileResult{T<:AbstractFloat}
     cache_misses::Int
 end
 
+"""
+One generic profile run plus optional domain-plugin context evidence.
+
+`BMOPFProfileResult` keeps BMOPFTools-specific observations separate from the
+generic `ProfileResult`, so plugin construction metadata is not mistaken for a
+generic numerical stage while one serializable benchmark record is retained.
+"""
+struct BMOPFProfileResult{T<:AbstractFloat}
+    profile::ProfileResult{T}
+    context_report::DiagnosticReport
+    initialization_report::Union{Nothing,DiagnosticReport}
+    bmopf_stage_seconds::Dict{Symbol,Float64}
+    bmopf_stage_allocations::Dict{Symbol,Int}
+end
+
 """Backward-compatible positional construction without static/expression/reformulation reports."""
 function ProfileResult(
     case::ProfileCase{T},
