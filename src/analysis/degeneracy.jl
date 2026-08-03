@@ -82,9 +82,18 @@ bmopf_set_start_values!(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPEx
 """Construct a non-mutating complete point from BMOPF starts plus an explicit fallback."""
 bmopf_start_completion_point(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to complete staged BMOPF start values")._bmopf_start_completion_point(context; kwargs...)
-"""Map saved BMOPF rectangular bus voltages into a labeled partial evaluation point."""
+"""Map saved BMOPF result coordinates into a labeled partial evaluation point."""
 bmopf_result_voltage_point(context, result; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to map a BMOPF result point")._bmopf_result_voltage_point(context, result; kwargs...)
+"""Report the representational coverage of one `bmopf_result_voltage_point` mapping."""
+bmopf_result_mapping_report(mapping) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to report BMOPF saved-result mapping coverage")._bmopf_result_mapping_report(mapping)
+"""Build a labeled profile case and qualification report from a saved BMOPF result."""
+bmopf_saved_result_profile_case(name, context, result; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to profile a saved BMOPF result")._bmopf_saved_result_profile_case(name, context, result; kwargs...)
+"""Profile a saved BMOPF result and retain its mapping qualification automatically."""
+bmopf_profile_saved_result(context, name, result; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to profile a saved BMOPF result")._bmopf_profile_saved_result(context, name, result; kwargs...)
 """Optional BMOPFTools explicit synthetic coordinate-probe point entry point."""
 bmopf_coordinate_probe_point(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to construct a staged BMOPF coordinate probe")._bmopf_coordinate_probe_point(context; kwargs...)

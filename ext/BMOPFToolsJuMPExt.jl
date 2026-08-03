@@ -66,6 +66,16 @@ function _bmopf_current_base(context, bus::String)
     return Float64(value)
 end
 
+"""Return the public system power base, or one for SI model coordinates."""
+function _bmopf_power_base(context)
+    bases = BMOPFTools.opf_bases(context)
+    isnothing(bases) && return 1.0
+    hasproperty(bases, :s_base) || return nothing
+    value = getproperty(bases, :s_base)
+    value isa Real && isfinite(value) && value > 0 || return nothing
+    return Float64(value)
+end
+
 function _bmopf_floating_neutral_components(context)
     network = BMOPFTools.opf_network(context)
     canonical = Dict{String,Any}(string(key) => value for (key, value) in network)
@@ -245,6 +255,7 @@ function _bmopf_result_voltage_point(
     end
     buses = get(result, "bus", Dict())
     mapped = 0
+    mapped_variables = Set{MOI.VariableIndex}()
     mapped_by_family = Dict{Symbol,Int}()
     unresolved_by_family = Dict{Symbol,Int}()
     function assign!(key, value)
@@ -263,6 +274,7 @@ function _bmopf_result_voltage_point(
         end
         values[position] = Float64(value)
         mapped += 1
+        push!(mapped_variables, JuMP.index(object))
         family = key.family
         mapped_by_family[family] = get(mapped_by_family, family, 0) + 1
     end
@@ -283,6 +295,69 @@ function _bmopf_result_voltage_point(
         end
     end
     network = BMOPFTools.opf_network(context)
+    # Reconstruct explicitly registered monitored IBR voltage magnitudes from
+    # the saved rectangular bus voltages. The public key records both reference
+    # mode and controller ownership; neutral labels come from the staged engine,
+    # never variable-name parsing.
+    function saved_voltage(bus, terminal)
+        terminals = get(buses, string(bus), nothing)
+        terminals isa AbstractDict || return nothing
+        entry = get(terminals, string(terminal), nothing)
+        entry isa AbstractDict || return nothing
+        vr = get(entry, "vr", nothing)
+        vi = get(entry, "vi", nothing)
+        vr isa Real && vi isa Real && isfinite(vr) && isfinite(vi) || return nothing
+        base = result_units == :si ? _bmopf_voltage_base(context, string(bus)) : 1.0
+        isnothing(base) && return nothing
+        return ComplexF64(Float64(vr) / base, Float64(vi) / base)
+    end
+    neutral_labels = Set(string.(BMOPFTools.opf_neutral_labels(context)))
+    for key in BMOPFTools.opf_object_keys(context; kind = :variable)
+        key.family == :u_ibr || continue
+        index = key.index
+        index isa Tuple && length(index) == 4 || continue
+        ibr_id, phase, reference_raw, _ = index
+        phase isa Integer || continue
+        inv = get(get(network, "ibr", Dict()), string(ibr_id), nothing)
+        inv isa AbstractDict || continue
+        bus = string(get(inv, "bus", ""))
+        terminals = string.(get(inv, "terminal_map", String[]))
+        isempty(terminals) && continue
+        topology = string(get(inv, "topology", "FOUR_LEG"))
+        phase_positions = [position for (position, terminal) in enumerate(terminals)
+                           if !(terminal in neutral_labels)]
+        phase <= length(phase_positions) || continue
+        phase_terminal = terminals[phase_positions[phase]]
+        reference = Symbol(reference_raw)
+        voltage = if reference == :pg || reference == :single_pg
+            saved_voltage(bus, phase_terminal)
+        elseif reference == :pn
+            neutral_positions = findall(terminal -> terminal in neutral_labels, terminals)
+            length(neutral_positions) == 1 || continue
+            phase_voltage = saved_voltage(bus, phase_terminal)
+            neutral_voltage = saved_voltage(bus, terminals[only(neutral_positions)])
+            isnothing(phase_voltage) || isnothing(neutral_voltage) ? nothing :
+                phase_voltage - neutral_voltage
+        elseif reference == :pp
+            topology == "THREE_LEG" || topology == "FOUR_LEG" || continue
+            length(phase_positions) >= 2 || continue
+            next_terminal = terminals[phase_positions[mod1(phase + 1, length(phase_positions))]]
+            phase_voltage = saved_voltage(bus, phase_terminal)
+            next_voltage = saved_voltage(bus, next_terminal)
+            isnothing(phase_voltage) || isnothing(next_voltage) ? nothing :
+                phase_voltage - next_voltage
+        elseif reference == :single_diff
+            length(terminals) >= 2 || continue
+            phase_voltage = saved_voltage(bus, phase_terminal)
+            reference_voltage = saved_voltage(bus, terminals[2])
+            isnothing(phase_voltage) || isnothing(reference_voltage) ? nothing :
+                phase_voltage - reference_voltage
+        else
+            continue
+        end
+        isnothing(voltage) && continue
+        assign!(key, abs(voltage))
+    end
     # Saved currents are keyed by terminal labels while public model keys use
     # conductor positions. SI current values are converted through public bases
     # at the corresponding component terminal bus.
@@ -331,6 +406,12 @@ function _bmopf_result_voltage_point(
                 end
                 assign_scaled!(key, get(entry, result_real, nothing), base)
                 assign_scaled!(BMOPFTools.OpfModelKey(key.kind, imag_family, key.index), get(entry, result_imag, nothing), base)
+                if section == "ibr"
+                    power_base = result_units == :si ? _bmopf_power_base(context) : 1.0
+                    isnothing(power_base) && continue
+                    assign_scaled!(BMOPFTools.opf_ibr_power_key(string(id), position), get(entry, "pg", nothing), power_base)
+                    assign_scaled!(BMOPFTools.opf_ibr_power_key(string(id), position; component = :reactive), get(entry, "qg", nothing), power_base)
+                end
             end
         end
     end
@@ -365,12 +446,267 @@ function _bmopf_result_voltage_point(
         mapped_voltage_coordinate_count = mapped,
         fallback_coordinate_count = length(variables) - mapped,
         registered_coordinate_count = length(registered_variables),
+        unregistered_model_coordinate_count = length(variables) - length(registered_variables),
+        unmapped_registered_coordinate_count = length(setdiff(registered_variables, mapped_variables)),
         mapped_registered_coordinate_fraction = isempty(registered_variables) ?
-                                               0.0 : mapped / length(registered_variables),
+                                               0.0 : length(mapped_variables) / length(registered_variables),
         result_units = result_units,
         mapped_coordinate_counts_by_family = Dict(string(key) => value for (key, value) in mapped_by_family),
         unresolved_saved_coordinate_counts_by_family = Dict(string(key) => value for (key, value) in unresolved_by_family),
     )
+end
+
+"""
+    bmopf_result_mapping_report(mapping) -> DiagnosticReport
+
+Describe the exact adapter coverage returned by `bmopf_result_voltage_point`.
+This is representational evidence: a fallback coordinate is not evidence that
+the saved solution is infeasible, only that the result file did not specify
+that staged-model coordinate through the supported public mapping.
+"""
+function _bmopf_result_mapping_report(mapping)
+    required = (
+        :mapped_coordinate_count,
+        :fallback_coordinate_count,
+        :registered_coordinate_count,
+        :unregistered_model_coordinate_count,
+        :unmapped_registered_coordinate_count,
+        :mapped_registered_coordinate_fraction,
+        :result_units,
+        :mapped_coordinate_counts_by_family,
+        :unresolved_saved_coordinate_counts_by_family,
+    )
+    all(property -> hasproperty(mapping, property), required) || throw(ArgumentError(
+        "mapping must be the named result returned by bmopf_result_voltage_point",
+    ))
+    mapped = mapping.mapped_coordinate_count
+    fallback = mapping.fallback_coordinate_count
+    registered = mapping.registered_coordinate_count
+    unregistered_model = mapping.unregistered_model_coordinate_count
+    unmapped_registered = mapping.unmapped_registered_coordinate_count
+    fraction = mapping.mapped_registered_coordinate_fraction
+    mapped >= 0 && fallback >= 0 && registered >= 0 && unregistered_model >= 0 && unmapped_registered >= 0 || throw(ArgumentError(
+        "mapping counts must be nonnegative",
+    ))
+    0.0 <= fraction <= 1.0 || throw(ArgumentError(
+        "mapped_registered_coordinate_fraction must lie in [0, 1]",
+    ))
+    report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:stage] = "bmopf_saved_result_mapping"
+    report.metadata[:bmopf_saved_result_coordinate_count] = string(mapped + fallback)
+    report.metadata[:bmopf_saved_result_mapped_coordinate_count] = string(mapped)
+    report.metadata[:bmopf_saved_result_fallback_coordinate_count] = string(fallback)
+    report.metadata[:bmopf_saved_result_registered_coordinate_count] = string(registered)
+    report.metadata[:bmopf_saved_result_unregistered_model_coordinate_count] = string(unregistered_model)
+    report.metadata[:bmopf_saved_result_unmapped_registered_coordinate_count] = string(unmapped_registered)
+    report.metadata[:bmopf_saved_result_registered_coordinate_fraction] = string(fraction)
+    report.metadata[:bmopf_saved_result_units] = string(mapping.result_units)
+    report.metadata[:bmopf_saved_result_mapped_families] = join(sort!(collect(keys(mapping.mapped_coordinate_counts_by_family))), ",")
+    report.metadata[:bmopf_saved_result_unresolved_families] = join(sort!(collect(keys(mapping.unresolved_saved_coordinate_counts_by_family))), ",")
+    push!(report, NLPDiagnostics.Finding(:bmopf_saved_result_mapping_coverage;
+        severity = fallback == 0 ? NLPDiagnostics.SeverityInfo : NLPDiagnostics.SeverityWarning,
+        domain = NLPDiagnostics.RepresentationalIssue,
+        basis = NLPDiagnostics.NumericalObservation,
+        confidence = NLPDiagnostics.ConfidenceCertain,
+        observation = "$mapped saved-result coordinate(s) mapped into the staged model; $fallback coordinate(s) use the explicit fallback.",
+        why_it_matters = fallback == 0 ?
+            "The adapter covered every staged coordinate at this boundary; this still does not establish feasibility or optimality of the saved values." :
+            "Derivative and feasibility observations at this point combine saved values with a caller-selected fallback, so they are not an unqualified diagnosis of the saved solution.",
+        evidence = [NLPDiagnostics.Evidence("BMOPF saved-result mapping"; details = [
+            "mapped_coordinate_count" => mapped,
+            "fallback_coordinate_count" => fallback,
+            "registered_coordinate_count" => registered,
+            "unregistered_model_coordinate_count" => unregistered_model,
+            "unmapped_registered_coordinate_count" => unmapped_registered,
+            "mapped_registered_coordinate_fraction" => fraction,
+            "result_units" => mapping.result_units,
+            "mapped_by_family" => join(("$key=$(value)" for (key, value) in sort!(collect(mapping.mapped_coordinate_counts_by_family))), ","),
+        ])],
+        suggested_actions = fallback == 0 ?
+            ["Inspect feasibility, derivative, and solver-status evidence separately; mapping coverage alone is not a physical validation."] :
+            ["Inspect the mapped and fallback family counts before treating numerical findings as properties of the saved solution.", "Extend the public result adapter only for fields with an unambiguous BMOPFTools semantic key and unit basis."],
+    ))
+    if unregistered_model > 0
+        push!(report, NLPDiagnostics.Finding(:bmopf_saved_result_unregistered_model_coordinates;
+            severity = NLPDiagnostics.SeverityWarning,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.StructuralProof,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "$unregistered_model staged-model coordinate(s) have no public BMOPFTools registry key.",
+            why_it_matters = "A saved-result adapter cannot map these auxiliary coordinates by component semantics. Their fallback values are a formulation-boundary limitation, not evidence that the saved physical state is invalid.",
+            evidence = [NLPDiagnostics.Evidence("BMOPFTools public registry coverage"; details = [
+                "model_coordinate_count" => mapped + fallback,
+                "registered_coordinate_count" => registered,
+                "unregistered_model_coordinate_count" => unregistered_model,
+            ])],
+            suggested_actions = ["Inspect `bmopf_opf_registry_report(context)` to identify the unregistered variables before interpreting a saved-result numerical profile.", "Add public semantic registry keys in BMOPFTools where those coordinates represent stable model concepts."],
+        ))
+    end
+    if unmapped_registered > 0
+        push!(report, NLPDiagnostics.Finding(:bmopf_saved_result_unmapped_registered_coordinates;
+            severity = NLPDiagnostics.SeverityWarning,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.NumericalObservation,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "$unmapped_registered registered staged-model coordinate(s) are absent from the supported saved-result mapping.",
+            why_it_matters = "These semantic coordinates are known to the model but were not supplied by this result file or adapter slice, so fallback values affect the numerical probe.",
+            evidence = [NLPDiagnostics.Evidence("BMOPF registered-coordinate mapping coverage"; details = [
+                "registered_coordinate_count" => registered,
+                "mapped_registered_coordinate_fraction" => fraction,
+                "unmapped_registered_coordinate_count" => unmapped_registered,
+            ])],
+            suggested_actions = ["Inspect the result schema and mapped-family counts; extend the adapter only where units and public semantic keys are unambiguous."],
+        ))
+    end
+    unresolved = mapping.unresolved_saved_coordinate_counts_by_family
+    if !isempty(unresolved)
+        push!(report, NLPDiagnostics.Finding(:bmopf_saved_result_unresolved_records;
+            severity = NLPDiagnostics.SeverityWarning,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.NumericalObservation,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "Saved-result records for $(sum(values(unresolved))) coordinate(s) have no matching public staged-model coordinate.",
+            why_it_matters = "The result and staged model may use different component coverage, terminal ordering, or formulation auxiliaries; silently discarding those records would hide a compatibility boundary.",
+            evidence = [NLPDiagnostics.Evidence("Unresolved BMOPF saved-result records"; details = [
+                "counts_by_family" => join(("$key=$(value)" for (key, value) in sort!(collect(unresolved))), ","),
+            ])],
+            suggested_actions = ["Compare the result-file component inventory and the staged model registry before using this result as a benchmark point."],
+        ))
+    end
+    return report
+end
+
+"""Fingerprint the coordinate magnitude implied by a saved-result unit choice."""
+function _bmopf_result_unit_report(context, result::AbstractDict;
+                                   result_units::Symbol)
+    result_units in (:si, :model) || throw(ArgumentError("result_units must be :si or :model"))
+    report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:bmopf_saved_result_unit_report_stage] = "bmopf_saved_result_units"
+    report.metadata[:bmopf_saved_result_units] = string(result_units)
+    bases = BMOPFTools.opf_bases(context)
+    isnothing(bases) && return report
+    # A grounded-neutral coordinate is commonly exactly zero.  It carries no
+    # information about the SI-to-model scale and must not dominate a median
+    # fingerprint for an otherwise well-scaled result.
+    ratios = Float64[]
+    zero_magnitude_count = 0
+    for (bus, terminals) in get(result, "bus", Dict())
+        terminals isa AbstractDict || continue
+        base = _bmopf_voltage_base(context, string(bus))
+        isnothing(base) && continue
+        for entry in values(terminals)
+            entry isa AbstractDict || continue
+            vr = get(entry, "vr", nothing)
+            vi = get(entry, "vi", nothing)
+            vr isa Real && vi isa Real && isfinite(vr) && isfinite(vi) || continue
+            magnitude = hypot(Float64(vr), Float64(vi))
+            if iszero(magnitude)
+                zero_magnitude_count += 1
+            else
+                push!(ratios, result_units == :si ? magnitude / base : magnitude)
+            end
+        end
+    end
+    report.metadata[:bmopf_saved_result_unit_fingerprint_count] = string(length(ratios))
+    report.metadata[:bmopf_saved_result_unit_fingerprint_zero_magnitude_count] =
+        string(zero_magnitude_count)
+    isempty(ratios) && return report
+    sort!(ratios)
+    median_ratio = ratios[cld(length(ratios), 2)]
+    report.metadata[:bmopf_saved_result_unit_fingerprint_median_coordinate_magnitude] = string(median_ratio)
+    if median_ratio < 0.05 || median_ratio > 20.0
+        push!(report, NLPDiagnostics.Finding(:bmopf_saved_result_unit_scale_suspicious;
+            severity = NLPDiagnostics.SeverityWarning,
+            domain = NLPDiagnostics.NumericalIssue,
+            basis = NLPDiagnostics.HeuristicInterpretation,
+            confidence = NLPDiagnostics.ConfidenceMedium,
+            observation = "Saved-result unit choice '$result_units' yields median rectangular-voltage coordinate magnitude $median_ratio.",
+            why_it_matters = "Per-unit staged coordinates are usually order one. An extreme converted magnitude can indicate that SI values were treated as model coordinates (or vice versa), which distorts derivative and tolerance interpretation.",
+            evidence = [NLPDiagnostics.Evidence("Saved-result voltage unit fingerprint"; details = [
+                "result_units" => result_units,
+                "sample_count" => length(ratios),
+                "median_coordinate_magnitude" => median_ratio,
+                "heuristic_expected_band" => "[0.05, 20]",
+            ])],
+            suggested_actions = ["Confirm the numerical convention of the result file against BMOPFTools public voltage bases.", "Pass result_units = :si only for physical-voltage result fields; use :model only for already-scaled staged coordinates."],
+        ))
+    end
+    return report
+end
+
+"""
+    bmopf_saved_result_profile_case(name, context, result; kwargs...)
+
+Build one solver-independent `ProfileCase` from a saved BMOPF result and return
+`(case, mapping, mapping_report)`. The case's point is complete only to the
+extent recorded by `mapping_report`; this constructor deliberately preserves
+that qualification instead of presenting a saved JSON result as an unqualified
+physical state.
+"""
+function _bmopf_saved_result_profile_case(
+    name::AbstractString,
+    context,
+    result::AbstractDict;
+    result_units::Symbol = :si,
+    fallback_value::Real = 0.0,
+    label::AbstractString = "bmopf-saved-result-partial-probe",
+    description::AbstractString = "Saved BMOPF result diagnostic profile",
+    task::Union{Nothing,AbstractString} = "BMOPF saved-result diagnostic benchmark",
+    formulation::AbstractString = "BMOPF IVR",
+    scale::AbstractString = "as declared by BMOPF snapshot",
+    tags::AbstractVector{Symbol} = Symbol[:bmopf, :saved_result, :multiconductor],
+    metadata::AbstractDict = Dict{String,String}(),
+)
+    mapping = _bmopf_result_voltage_point(context, result;
+        result_units, fallback_value, label,
+    )
+    mapping_report = _bmopf_result_mapping_report(mapping)
+    _bmopf_append_report!(mapping_report,
+                          _bmopf_result_unit_report(context, result; result_units))
+    case_metadata = Dict{String,Any}(
+        "point_policy" => "saved_result",
+        "point_provenance" => "saved BMOPF result with explicit fallback for unmapped coordinates",
+        "saved_result_units" => string(result_units),
+        "mapped_coordinate_count" => mapping.mapped_coordinate_count,
+        "fallback_coordinate_count" => mapping.fallback_coordinate_count,
+        "registered_coordinate_count" => mapping.registered_coordinate_count,
+        "unregistered_model_coordinate_count" => mapping.unregistered_model_coordinate_count,
+        "unmapped_registered_coordinate_count" => mapping.unmapped_registered_coordinate_count,
+        "mapped_registered_coordinate_fraction" => mapping.mapped_registered_coordinate_fraction,
+        "mapped_coordinate_counts_by_family" => mapping.mapped_coordinate_counts_by_family,
+        "unresolved_saved_coordinate_counts_by_family" => mapping.unresolved_saved_coordinate_counts_by_family,
+    )
+    merge!(case_metadata, Dict(string(key) => value for (key, value) in metadata))
+    case = NLPDiagnostics.ProfileCase(name, mapping.point;
+        description, task, formulation, initialization = "saved_result", scale,
+        tags, metadata = case_metadata,
+    )
+    return (case = case, mapping = mapping, mapping_report = mapping_report)
+end
+
+"""
+    bmopf_profile_saved_result(context, name, result; profile_kwargs = NamedTuple(), ...)
+
+Profile a saved result against an already-built staged context. Mapping coverage
+findings are appended to the ordinary BMOPF context report, so callers receive
+one profile object with both numerical observations and the point-provenance
+qualification. This function neither solves nor modifies the model.
+"""
+function _bmopf_profile_saved_result(
+    context,
+    name::AbstractString,
+    result::AbstractDict;
+    profile_kwargs::NamedTuple = NamedTuple(),
+    case_kwargs::NamedTuple = NamedTuple(),
+)
+    saved = _bmopf_saved_result_profile_case(name, context, result; case_kwargs...)
+    profile = _bmopf_profile_case(context, saved.case; profile_kwargs...)
+    _bmopf_append_report!(profile.context_report, saved.mapping_report)
+    profile.context_report.metadata[:bmopf_saved_result_profile] = "true"
+    sort!(profile.context_report.findings;
+          by = finding -> (-Int(finding.severity), string(finding.code)))
+    return (profile = profile, case = saved.case, mapping = saved.mapping,
+            mapping_report = saved.mapping_report)
 end
 
 """
@@ -450,6 +786,7 @@ function _bmopf_profile_context_report(
     context,
     point::NLPDiagnostics.EvaluationPoint;
     include_floating_neutral_candidates::Bool,
+    include_differentiability::Bool = true,
 )
     report = NLPDiagnostics.DiagnosticReport()
     _bmopf_append_report!(report,
@@ -460,6 +797,10 @@ function _bmopf_profile_context_report(
     _bmopf_append_report!(report, _bmopf_component_report(context))
     _bmopf_append_report!(report,
         _bmopf_terminal_port_coordinate_scale_report(context, point))
+    if include_differentiability
+        _bmopf_append_report!(report,
+            NLPDiagnostics.bmopf_opf_differentiability_report(context))
+    end
     candidates = include_floating_neutral_candidates ?
                  _bmopf_floating_neutral_candidate_modes(context) :
                  NLPDiagnostics.ExpectedNullspaceMode[]
@@ -473,19 +814,21 @@ function _bmopf_profile_context_report(
 end
 
 """
-    bmopf_profile_case(context, case; include_initialization = true, ...) -> BMOPFProfileResult
+    bmopf_profile_case(context, case; include_initialization = true,
+        include_differentiability = true, ...) -> BMOPFProfileResult
 
 Profile one explicit `ProfileCase` against a staged BMOPF context. Generic
 findings and timings are retained in `result.profile`; BMOPFTools terminal,
-port, lifecycle, registry, component, and direct terminal-scale evidence is
-retained separately in `result.context_report`. This function never solves or
-modifies the model.
+port, lifecycle, registry, component, direct terminal-scale, and (by default)
+engine differentiability evidence are retained separately in
+`result.context_report`. This function never solves or modifies the model.
 """
 function _bmopf_profile_case(
     context,
     case::NLPDiagnostics.ProfileCase;
     include_initialization::Bool = true,
     include_floating_neutral_candidates::Bool = false,
+    include_differentiability::Bool = true,
     cache::NLPDiagnostics.EvaluationCache = NLPDiagnostics.EvaluationCache(),
     kwargs...,
 )
@@ -495,6 +838,7 @@ function _bmopf_profile_case(
     generic_timing = @timed NLPDiagnostics.profile_case(backend, case; cache, kwargs...)
     context_timing = @timed _bmopf_profile_context_report(context, case.point;
         include_floating_neutral_candidates,
+        include_differentiability,
     )
     initialization_timing = include_initialization ?
         @timed(_bmopf_analyze_initialization(context;
@@ -909,6 +1253,17 @@ end
 
 _bmopf_key_label(key) = "$(key.kind):$(key.family):$(repr(key.index))"
 
+"""Return a display-only group for an unregistered JuMP variable name.
+
+This intentionally has no physical semantics: it is only a compact way to
+show repeated engine construction labels in a registry-coverage finding.
+"""
+function _bmopf_unregistered_name_group(owner::JuMP.Model, variable::MOI.VariableIndex)
+    label = JuMP.name(JuMP.VariableRef(owner, variable))
+    isempty(label) && return "(unnamed)"
+    return replace(label, r"_\d+(?:_\d+)*$" => "")
+end
+
 function _bmopf_registry_variable_families(context)
     result = Dict{Symbol,Vector{MOI.VariableIndex}}()
     for key in BMOPFTools.opf_object_keys(context; kind = :variable)
@@ -925,7 +1280,11 @@ end
 
 function _bmopf_family_semantics(family::Symbol)
     label = String(family)
-    if startswith(label, "v")
+    if family == :u_ibr
+        return (:voltage, :magnitude, "V")
+    elseif family == :p_ibr || family == :q_ibr
+        return (:power, family == :p_ibr ? :active : :reactive, "VA")
+    elseif startswith(label, "v")
         return (:voltage, startswith(label, "vi") ? :rectangular_imag : :rectangular_real, "V")
     elseif startswith(label, "c") || startswith(label, "i")
         return (:current, startswith(label, "ci") ? :rectangular_imag : :rectangular_real, "A")
@@ -1053,6 +1412,14 @@ function _bmopf_opf_registry_report(context)
     unregistered = sort!(collect(setdiff(model_variables, registered)); by = variable -> variable.value)
     report.metadata[:bmopf_opf_registry_unregistered_model_variable_count] = string(length(unregistered))
     if !isempty(unregistered)
+        name_groups = Dict{String,Vector{MOI.VariableIndex}}()
+        for variable in unregistered
+            group = _bmopf_unregistered_name_group(owner, variable)
+            push!(get!(name_groups, group, MOI.VariableIndex[]), variable)
+        end
+        report.metadata[:bmopf_opf_registry_unregistered_name_group_counts] = join([
+            "$(group)=$(length(name_groups[group]))" for group in sort!(collect(keys(name_groups)))
+        ], ",")
         push!(report, NLPDiagnostics.Finding(:bmopf_opf_registry_unregistered_model_variables;
             severity = NLPDiagnostics.SeverityInfo,
             domain = NLPDiagnostics.RepresentationalIssue,
@@ -1064,6 +1431,24 @@ function _bmopf_opf_registry_report(context)
             affected = [NLPDiagnostics.EntityRef(:variable, variable.value) for variable in unregistered],
             suggested_actions = ["For custom devices, register stable OpfModelKey entries; otherwise confirm these variables are intentionally private to the formulation."],
         ))
+        for group in sort!(collect(keys(name_groups)))
+            variables = name_groups[group]
+            push!(report, NLPDiagnostics.Finding(:bmopf_opf_registry_unregistered_name_group;
+                severity = NLPDiagnostics.SeverityInfo,
+                domain = NLPDiagnostics.RepresentationalIssue,
+                basis = NLPDiagnostics.StructuralProof,
+                confidence = NLPDiagnostics.ConfidenceCertain,
+                observation = "$(length(variables)) unregistered staged-model coordinate(s) use JuMP construction label group '$group'.",
+                why_it_matters = "This is display-only construction provenance, not a physical classification. It helps distinguish one repeated auxiliary-variable family from scattered custom additions when planning registry coverage.",
+                evidence = [NLPDiagnostics.Evidence("Unregistered JuMP construction-label group"; details = [
+                    "name_group" => group,
+                    "coordinate_count" => length(variables),
+                    "variable_indices" => join((string(variable.value) for variable in variables), ","),
+                ])],
+                affected = [NLPDiagnostics.EntityRef(:variable, variable.value) for variable in variables],
+                suggested_actions = ["Use the construction site and public registry API to decide whether this repeated coordinate family should receive stable semantic keys."],
+            ))
+        end
     end
     return report
 end

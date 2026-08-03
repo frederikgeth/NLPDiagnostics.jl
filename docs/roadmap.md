@@ -269,6 +269,49 @@ real feeder cases and collecting large-machine observations is the next step;
 the context-level harness does not invoke a solver, while
 `bmopf_build_and_profile` can explicitly construct and KCL-finalize a fresh
 staged context from a caller-owned copied network before profiling it.
+The corpus summarizer now also aggregates per-stage diagnostic wall-clock and
+allocation observations across successful profile records, while preserving
+structural-only campaigns as a separate zero-profile population. These are
+machine- and configuration-dependent measurements, intended to guide benchmark
+selection and stage budgets rather than serve as performance scores.
+The first live corpus checks now cover a 30-bus LN profile (704 variables,
+844 scalar rows; dense rank intentionally skipped) and a 538-bus LN structural
+pass (11,028 variables, 12,538 scalar rows; no point evaluation or dense rank).
+The 30-bus evidence mix was predominantly representational and numerical,
+while the large structural pass recovered repeated implied-bound and duplicate-
+expression patterns without attempting dense analysis.
+The BMOPF context profile now also includes BMOPFTools' public differentiability
+audit by default, preserving engine annotations and local readiness
+qualifications next to generic derivative evidence. This remains an engine-owned
+qualification report, not a proof of LICQ, KKT nonsingularity, or global
+smoothness.
+Campaign summaries can now be compared with an evidence-preserving command
+that reports case-status changes, finding-count deltas, stage timing changes,
+dense-rank availability, and saved-result mapping changes without reducing them
+to a single score.
+Corpus-wide fingerprint reports now extend this to multiple campaigns, with
+case-size normalization and recurring finding-code plus evidence-attribute
+coverage across mathematical, numerical, structural, and representational
+observations.
+Benchmark runners now record Julia/package versions, machine metadata, the
+NLPDiagnostics revision, and an environment fingerprint that participates in
+resume matching. A read-only preflight command reports missing required solver
+dependencies before a campaign is launched.
+An explicit local bootstrap helper now develops the sibling BMOPFTools checkout
+and instantiates/precompiles the benchmark stack in the ignored
+`work/benchmark-environment` project, keeping the solver-independent package
+environment unchanged.
+An opt-in `bmopf_solver_trace.jl` runner now covers the complementary live-solve
+workflow for selected small snapshots: it records Ipopt/MadNLP callback traces,
+the final-result profile, BMOPFTools context evidence, and environment
+provenance in one JSON artifact, while a variable-count guard records skips
+instead of launching large solves.
+The companion trace summarizer aggregates phase/segment counts, residual
+endpoints, solver-result findings, and BMOPF context findings while preserving
+the raw per-case records for inspection.
+An evidence-preserving comparison command now aligns selected Ipopt/MadNLP
+summaries, exposes objective-convention disagreements and residual deltas, and
+keeps environment mismatches explicit instead of producing a solver score.
 
 ## Solver postmortem foundation
 
@@ -280,6 +323,29 @@ that a solver's termination proves feasibility, infeasibility, optimality, or
 a physical cause. Future Ipopt and MadNLP extensions should translate their
 native results into this record while retaining the raw status and relevant
 metadata.
+
+The read-only `solver_result_point(model; result_index = 1)` boundary now
+requires a complete public MOI `VariablePrimal` vector and never fills missing
+coordinates. `analyze_solver_result` combines that point with an explicitly
+supplied or optional solver-extension postmortem, then runs the ordinary
+analysis pipeline. Missing result coordinates and missing postmortem adapters
+are retained as representational findings rather than being confused with a
+solver or mathematical diagnosis. It never calls `optimize!`, changes starts,
+or alters the optimizer.
+
+`profile_solver_result` builds the corresponding `ProfileCase` and serializable
+profile automatically, while retaining postmortem evidence in a separate
+`result_report`. Its `profile_kwargs` expose numerical budgets and its
+`case_kwargs` preserve task/formulation/scale provenance.
+When `solver_log` is supplied, the same result report also retains raw marker,
+structured iteration, and postmortem/log-consistency evidence; log parsing is
+never treated as a feasibility or optimality certificate.
+Profile captures also compare a finite solver-reported objective with the
+recomputed objective at the retained primal point, labeling disagreement as
+numerical/representational evidence rather than as a KKT or optimality claim.
+They can additionally accept explicit `IterationPointBinding` records;
+captured-iterate numerical, feasibility, and persistence evidence is retained
+in the same result report, while raw log text remains non-reconstructive.
 
 The Ipopt extension is implemented for a direct `Ipopt.Optimizer` and through
 the optional JuMP adapter: it maps Ipopt raw statuses and public MOI result
@@ -310,3 +376,32 @@ segment, captured points also receive a cross-point Jacobian rank/nullspace
 persistence screen. Trace-level feasibility and objective disagreement across
 multiple bound points is reported conservatively. Future work is solver-specific
 iterate capture rather than reconstructing points from raw text.
+The solver-independent capture boundary is now explicit: callback adapters can
+append `SolverIterationRecord` values to an `IterationTraceCapture`, attach
+complete `EvaluationPoint` values when available, and freeze a segmented
+`SolverIterationTrace`. Trace data is serializable, restart boundaries remain
+visible, and `profile_solver_result(...; iteration_trace = trace)` carries the
+capture provenance into the result report. Ipopt/MadNLP-specific callback
+adapters remain optional extensions; the core still never reconstructs points
+from printed log text. The Ipopt extension now implements this boundary through
+its public `CallbackFunction`, including optional `CallbackVariablePrimal`
+point capture and explicit restoration-phase labels. MadNLP callback capture
+now implements its public `AbstractUserCallback`/`intermediate_callback`
+boundary, capturing solver metrics and explicit phase labels while intentionally
+leaving primal-point bindings unavailable.
+MadNLP callback objectives are unpacked through its public callback accessor,
+avoiding false cross-solver objective mismatches caused solely by internal
+objective scaling; the raw solver-result objective remains the comparison
+reference.
+Both solver extensions also expose one-call solve helpers:
+`ipopt_optimize_with_iteration_trace!` installs the Ipopt callback (optionally
+capturing callback primal points), solves, and returns a frozen trace, while
+`madnlp_optimize_with_iteration_trace!` performs the analogous metric-only
+MadNLP workflow. These are convenience boundaries; the underlying capture
+objects remain available for multi-phase or custom solve workflows.
+The solver-independent `profile_solver_with_iteration_trace!` helper now
+accepts a caller-supplied trace solve function and returns a
+`SolverTraceProfileRun`. Ipopt and MadNLP provide convenience wrappers that
+solve, profile the final public MOI result, and serialize the trace alongside
+the profile, making benchmark records directly inspectable without coupling
+the core to a solver.

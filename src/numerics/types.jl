@@ -1503,6 +1503,39 @@ struct SolverPostmortem
 end
 
 """
+One read-only diagnostic capture from a solver result.
+
+`point` is present only when every public MOI variable primal at
+`result_index` was readable as a real value. `postmortem` is present only when
+the caller supplied one or a loaded solver extension could read one. The
+contained report keeps either absence explicit as representational evidence;
+neither absence is silently replaced with defaults.
+"""
+struct SolverResultAnalysis
+    point::Union{Nothing,EvaluationPoint}
+    postmortem::Union{Nothing,SolverPostmortem}
+    report::DiagnosticReport
+    result_index::Int
+    postmortem_read_error::Union{Nothing,String}
+end
+
+"""
+One profile built from a completed solver result.
+
+`profile` and `case` are `nothing` when the requested result did not expose a
+complete primal point. `result_report` retains postmortem and availability
+evidence independently of the generic profile stages.
+"""
+struct SolverProfileResult
+    profile::Union{Nothing,ProfileResult}
+    case::Union{Nothing,ProfileCase}
+    postmortem::Union{Nothing,SolverPostmortem}
+    result_report::DiagnosticReport
+    result_index::Int
+    postmortem_read_error::Union{Nothing,String}
+end
+
+"""
 One line-level observation extracted from a solver log.
 
 `category` labels text that was explicitly present in the log. It is not an
@@ -1578,6 +1611,50 @@ struct IterationPointBinding{T<:AbstractFloat}
     point::EvaluationPoint{T}
     segment::Int
     selector::Symbol
+end
+
+"""
+An explicit solver iteration trace assembled from parsed records and optional
+caller-captured points. `records` remain in source order; `segments` preserve
+restart boundaries inferred from decreasing printed iteration numbers.
+"""
+struct SolverIterationTrace
+    records::Vector{SolverIterationRecord}
+    bindings::Vector{IterationPointBinding}
+    segments::Vector{SolverIterationSegment}
+end
+
+"""Mutable collector for solver callbacks that expose iteration records."""
+mutable struct IterationTraceCapture
+    records::Vector{SolverIterationRecord}
+    bindings::Vector{IterationPointBinding}
+    segment::Int
+    last_iteration::Union{Nothing,Int}
+end
+
+IterationTraceCapture() = IterationTraceCapture(
+    SolverIterationRecord[], IterationPointBinding[], 1, nothing,
+)
+
+function SolverIterationTrace(
+    records::AbstractVector{SolverIterationRecord},
+    bindings::AbstractVector{<:IterationPointBinding},
+)
+    copied_records = copy(records)
+    return SolverIterationTrace(
+        copied_records,
+        IterationPointBinding[bindings...],
+        solver_iteration_segments(copied_records),
+    )
+end
+
+"""
+One completed solve that retains both the callback iteration trace and the
+read-only solver-result profile built from the final public MOI result.
+"""
+struct SolverTraceProfileRun
+    trace::SolverIterationTrace
+    result::SolverProfileResult
 end
 
 IterationPointBinding(

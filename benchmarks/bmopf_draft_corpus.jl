@@ -16,12 +16,19 @@
 # saved result. It defaults to `<snapshot>_result_si.json`; record a different
 # numerical convention explicitly with NLPDIAGNOSTICS_BMOPF_RESULT_UNITS and
 # NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX.
+# Set NLPDIAGNOSTICS_BMOPF_RESUME=true to reuse only matching successful
+# records. Set NLPDIAGNOSTICS_BMOPF_FORCE=true to rerun selected cases.
 
 using NLPDiagnostics
 using BMOPFTools
 using JuMP
 using Ipopt # activates BMOPFTools' public staged OPF extension
 using JSON
+using SHA
+
+include(joinpath(@__DIR__, "benchmark_environment.jl"))
+
+const _RUNNER_VERSION = "bmopf-draft-corpus-v3"
 
 const _DEFAULT_CASES = [
     "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
@@ -47,7 +54,7 @@ function _saved_result_path(snapshot_path, result_units)
     return path
 end
 
-function _case_point(name, context, point_policy, snapshot_path)
+function _case_point(name, context, point_policy, snapshot_path; mapping_sink = nothing)
     point, provenance, metadata = if point_policy == "initialization"
         candidate = NLPDiagnostics.bmopf_initialization_point(context)
         isnothing(candidate) && error(
@@ -64,22 +71,19 @@ function _case_point(name, context, point_policy, snapshot_path)
         result_units = Symbol(lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_UNITS", "si")))
         result_units in (:si, :model) || error("NLPDIAGNOSTICS_BMOPF_RESULT_UNITS must be si or model")
         path = _saved_result_path(snapshot_path, result_units)
-        mapped = NLPDiagnostics.bmopf_result_voltage_point(context, BMOPFTools.read_result(path);
+        saved = NLPDiagnostics.bmopf_saved_result_profile_case(
+            name, context, BMOPFTools.read_result(path);
             result_units = result_units,
             label = "bmopf-saved-result-partial-probe",
+            description = "BMOPF draft-data snapshot; point policy=$point_policy",
+            task = "BMOPF draft-corpus diagnostic benchmark",
+            formulation = "BMOPF IVR",
+            scale = "as declared by BMOPF snapshot",
+            tags = [:bmopf, :draft_corpus, :multiconductor, :saved_result],
+            metadata = Dict{String,Any}("saved_result_path" => abspath(path)),
         )
-        mapped.point,
-        "saved BMOPF result with explicit fallback for unmapped coordinates",
-        Dict{String,Any}(
-            "saved_result_path" => abspath(path),
-            "saved_result_units" => string(result_units),
-            "mapped_coordinate_count" => mapped.mapped_coordinate_count,
-            "fallback_coordinate_count" => mapped.fallback_coordinate_count,
-            "registered_coordinate_count" => mapped.registered_coordinate_count,
-            "mapped_registered_coordinate_fraction" => mapped.mapped_registered_coordinate_fraction,
-            "mapped_coordinate_counts_by_family" => mapped.mapped_coordinate_counts_by_family,
-            "unresolved_saved_coordinate_counts_by_family" => mapped.unresolved_saved_coordinate_counts_by_family,
-        )
+        !isnothing(mapping_sink) && (mapping_sink[] = saved.mapping)
+        return saved.case
     elseif point_policy == "zero"
         NLPDiagnostics.bmopf_coordinate_probe_point(context; label = "bmopf-draft-zero-coordinate-probe"), point_policy, Dict{String,Any}()
     else
@@ -116,6 +120,80 @@ function _record_name(relative)
     replace(replace(relative, '/' => "__"), ".bmopf.json" => "")
 end
 
+function _env_flag(name; default = false)
+    raw = lowercase(strip(get(ENV, name, default ? "true" : "false")))
+    raw in ("1", "true", "yes", "on") && return true
+    raw in ("0", "false", "no", "off") && return false
+    error("$name must be a boolean (true/false), got '$raw'")
+end
+
+function _bmopf_integrity_preflight(network)
+    findings = BMOPFTools.Finding[]
+    result = BMOPFTools.integrity_check(network, findings)
+    return Dict{String,Any}(
+        "error_count" => count(f -> f.severity == BMOPFTools.ERROR, findings),
+        "warning_count" => count(f -> f.severity == BMOPFTools.WARNING, findings),
+        "finding_count" => length(findings),
+        "blocking" => any(f -> f.severity == BMOPFTools.ERROR, findings),
+        "findings" => [Dict{String,Any}(
+            "severity" => string(f.severity), "code" => f.code,
+            "section" => string(f.section), "component_type" => string(f.component_type),
+            "component_id" => f.component_id, "message" => f.message,
+            "detail" => f.detail,
+        ) for f in findings],
+        "summary" => result,
+    )
+end
+
+function _sha256_file(path)
+    return bytes2hex(SHA.sha256(read(path)))
+end
+
+function _case_fingerprint(
+    root, relative, point_policy, analysis_mode, dense_entry_limit,
+    environment_fingerprint = _benchmark_environment_fingerprint(),
+)
+    snapshot_path = joinpath(root, relative)
+    result_units = lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_UNITS", "si"))
+    result_suffix = get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX", "_result_$(result_units).json")
+    endswith(result_suffix, ".json") || error("NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX must end in .json")
+    result_path = point_policy == "saved_result" ?
+                  replace(snapshot_path, ".bmopf.json" => result_suffix) : nothing
+    parts = String[
+        _RUNNER_VERSION,
+        relative,
+        _sha256_file(snapshot_path),
+        point_policy,
+        analysis_mode,
+        string(dense_entry_limit),
+        result_units,
+        result_suffix,
+        environment_fingerprint,
+    ]
+    if !isnothing(result_path) && isfile(result_path)
+        push!(parts, _sha256_file(result_path))
+    elseif !isnothing(result_path)
+        push!(parts, "missing-result-file")
+    end
+    return bytes2hex(SHA.sha256(codeunits(join(parts, "\n"))))
+end
+
+function _cached_case_index(name, relative, result_file, record, fingerprint)
+    return Dict{String,Any}(
+        "name" => name,
+        "snapshot" => relative,
+        "status" => "skipped",
+        "skip_reason" => "matching_cached_result",
+        "result_file" => result_file,
+        "analysis_mode" => get(record, "analysis_mode", "unknown"),
+        "point_policy" => get(record, "point_policy", "unknown"),
+        "campaign_fingerprint" => fingerprint,
+        "model_variable_count" => get(record, "model_variable_count", nothing),
+        "generic_finding_count" => nothing,
+        "context_finding_count" => nothing,
+    )
+end
+
 function main()
     root = get(ENV, "NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT", "")
     isempty(root) && error("Set NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT to BMOPFDraftData/benchmarks")
@@ -128,18 +206,69 @@ function main()
         "unknown NLPDIAGNOSTICS_BMOPF_ANALYSIS_MODE='$analysis_mode' (use profile or structural)",
     )
     dense_entry_limit = _dense_entry_limit()
+    resume = _env_flag("NLPDIAGNOSTICS_BMOPF_RESUME")
+    force = _env_flag("NLPDIAGNOSTICS_BMOPF_FORCE")
+    force && (resume = false)
+    environment = _benchmark_environment()
+    environment_fingerprint = _benchmark_environment_fingerprint(environment)
+    selected_cases = _requested_cases(root)
+    manifest_cases = Dict{String,Any}[]
+    for relative in selected_cases
+        fingerprint = _case_fingerprint(
+            root, relative, point_policy, analysis_mode, dense_entry_limit,
+            environment_fingerprint,
+        )
+        push!(manifest_cases, Dict(
+            "snapshot" => relative,
+            "snapshot_sha256" => _sha256_file(joinpath(root, relative)),
+            "campaign_fingerprint" => fingerprint,
+        ))
+    end
+    write(joinpath(output_dir, "campaign_manifest.json"), JSON.json(Dict(
+        "runner_version" => _RUNNER_VERSION,
+        "benchmark_root" => abspath(root),
+        "analysis_mode" => analysis_mode,
+        "point_policy" => point_policy,
+        "rank_max_dense_entries" => dense_entry_limit,
+        "resume" => resume,
+        "force" => force,
+        "environment" => environment,
+        "environment_fingerprint" => environment_fingerprint,
+        "cases" => manifest_cases,
+    )))
     index = Vector{Dict{String,Any}}()
 
-    for relative in _requested_cases(root)
+    for relative in selected_cases
         path = joinpath(root, relative)
         name = _record_name(relative)
         result_path = joinpath(output_dir, "$name.json")
+        fingerprint = only(item["campaign_fingerprint"] for item in manifest_cases
+                           if item["snapshot"] == relative)
+        if resume && !force && isfile(result_path)
+            cached = try
+                JSON.parsefile(result_path)
+            catch
+                nothing
+            end
+            if cached isa AbstractDict &&
+               get(cached, "status", nothing) == "ok" &&
+               get(cached, "campaign_fingerprint", nothing) == fingerprint
+                push!(index, _cached_case_index(name, relative, basename(result_path), cached, fingerprint))
+                println("$name: SKIPPED — matching cached result")
+                continue
+            end
+        end
+        preflight = nothing
         try
             network = BMOPFTools.parse_bmopf(path)
+            preflight = _bmopf_integrity_preflight(network)
             run, data, variable_count, constraint_row_count, jacobian_entries,
             generic_findings, context_findings = if analysis_mode == "profile"
+                mapping_sink = Ref{Any}(nothing)
                 profile_run = NLPDiagnostics.bmopf_build_and_profile(network,
-                    context -> _case_point(name, context, point_policy, path);
+                    context -> _case_point(name, context, point_policy, path;
+                        mapping_sink = mapping_sink,
+                    );
                     build_kwargs = (add_objective = false,),
                     profile_kwargs = (
                         include_initialization = true,
@@ -147,11 +276,21 @@ function main()
                         jacobian_rank_tolerance_sweep_max_dense_entries = dense_entry_limit,
                     ),
                 )
+                mapping_report = isnothing(mapping_sink[]) ? nothing :
+                    NLPDiagnostics.bmopf_result_mapping_report(mapping_sink[])
+                if !isnothing(mapping_report)
+                    append!(profile_run.result.context_report.findings, mapping_report.findings)
+                    merge!(profile_run.result.context_report.metadata, mapping_report.metadata)
+                    sort!(profile_run.result.context_report.findings;
+                          by = finding -> (-Int(finding.severity), string(finding.code)))
+                end
                 profile_data = NLPDiagnostics.profile_result_data(profile_run.result)
                 evaluation = profile_run.result.profile.evaluation
                 variables = length(evaluation.point.variables)
                 rows = length(evaluation.constraint_sources)
                 findings = sum(length(report["findings"]) for report in values(profile_data["profile"]["reports"]))
+                profile_data["bmopf_saved_result_mapping_report"] =
+                    isnothing(mapping_report) ? nothing : NLPDiagnostics.report_data(mapping_report)
                 (profile_run, profile_data, variables, rows, variables * rows,
                  findings, length(profile_data["bmopf_context_report"]["findings"]))
             else
@@ -170,8 +309,11 @@ function main()
             payload = Dict{String,Any}(
                 "snapshot" => relative,
                 "snapshot_path" => abspath(path),
+                "campaign_fingerprint" => fingerprint,
+                "environment_fingerprint" => environment_fingerprint,
                 "analysis_mode" => analysis_mode,
                 "point_policy" => point_policy,
+                "integrity_preflight" => preflight,
                 "model_variable_count" => variable_count,
                 row_count_key => constraint_row_count,
                 "jacobian_dense_entry_count" => jacobian_entries,
@@ -187,6 +329,7 @@ function main()
             write(result_path, JSON.json(payload))
             push!(index, Dict(
                 "name" => name, "snapshot" => relative, "status" => "ok",
+                "campaign_fingerprint" => fingerprint,
                 "result_file" => basename(result_path), "analysis_mode" => analysis_mode,
                 "point_policy" => point_policy,
                 "model_variable_count" => variable_count,
@@ -209,18 +352,27 @@ function main()
             write(result_path, JSON.json(Dict(
                 "snapshot" => relative, "snapshot_path" => abspath(path),
                 "status" => "error", "error" => message,
+                "integrity_preflight" => preflight,
+                "campaign_fingerprint" => fingerprint,
+                "environment_fingerprint" => environment_fingerprint,
             )))
             push!(index, Dict(
                 "name" => name, "snapshot" => relative, "status" => "error",
                 "result_file" => basename(result_path), "error" => message,
+                "campaign_fingerprint" => fingerprint,
             ))
             println("$name: ERROR — $(sprint(showerror, error))")
         end
     end
     write(joinpath(output_dir, "index.json"), JSON.json(Dict(
         "benchmark_root" => abspath(root),
+        "runner_version" => _RUNNER_VERSION,
         "analysis_mode" => analysis_mode,
         "rank_max_dense_entries" => dense_entry_limit,
+        "resume" => resume,
+        "force" => force,
+        "environment" => environment,
+        "environment_fingerprint" => environment_fingerprint,
         "cases" => index,
     )))
     println("wrote evidence records to $output_dir")

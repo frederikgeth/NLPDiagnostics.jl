@@ -18,6 +18,56 @@ mutable struct TestNLPEvaluator <: MOI.AbstractNLPEvaluator
     requested::Vector{Symbol}
 end
 
+if Base.find_package("Ipopt") !== nothing
+    import Ipopt
+
+    @testset "Ipopt public iteration trace capture" begin
+        model = JuMP.Model(Ipopt.Optimizer)
+        JuMP.set_silent(model)
+        JuMP.@variable(model, x)
+        JuMP.@constraint(model, x >= 1.0)
+        JuMP.@NLobjective(model, Min, (x - 2.0)^2)
+        JuMP.set_start_value(x, 0.25)
+        run = NLPDiagnostics.ipopt_profile_with_iteration_trace!(model;
+            capture_points = true,
+        )
+        trace = run.trace
+        @test !isempty(trace.records)
+        @test length(trace.bindings) == length(trace.records)
+        @test all(record.format == :ipopt_callback for record in trace.records)
+        @test all(length(binding.point.values) == 1 for binding in trace.bindings)
+        @test all(binding.point.label isa String for binding in trace.bindings)
+        @test NLPDiagnostics.iteration_trace_data(trace)["record_count"] == length(trace.records)
+        @test run.result isa NLPDiagnostics.SolverProfileResult
+        run_data = NLPDiagnostics.profile_result_data(run)
+        @test run_data["iteration_trace"]["record_count"] == length(trace.records)
+        @test haskey(run_data, "solver_profile")
+    end
+end
+
+if Base.find_package("MadNLP") !== nothing
+    import MadNLP
+
+    @testset "MadNLP public intermediate trace callback" begin
+        model = JuMP.Model(MadNLP.Optimizer)
+        JuMP.set_silent(model)
+        JuMP.@variable(model, x)
+        JuMP.@constraint(model, x >= 1.0)
+        JuMP.@NLobjective(model, Min, (x - 2.0)^2)
+        JuMP.set_start_value(x, 0.25)
+        run = NLPDiagnostics.madnlp_profile_with_iteration_trace!(model)
+        trace = run.trace
+        @test !isempty(trace.records)
+        @test all(record.format == :madnlp_callback for record in trace.records)
+        @test any(record.phase == :regular for record in trace.records)
+        @test all(isnothing(binding.point) for binding in trace.bindings)
+        @test run.result isa NLPDiagnostics.SolverProfileResult
+        @test isapprox(last(trace.records).objective, JuMP.objective_value(model);
+            rtol = 1.0e-8,
+        )
+    end
+end
+
 TestNLPEvaluator() = TestNLPEvaluator(0, Symbol[])
 
 MOI.features_available(::TestNLPEvaluator) = [:Grad, :Jac, :Hess]
@@ -154,6 +204,9 @@ BMOPFTools.opf_network(context::TestBMOPFContext) = context.net
 BMOPFTools.opf_lifecycle(::TestBMOPFContext) = :kcl_finalized
 BMOPFTools.opf_object(context::TestBMOPFContext, key::BMOPFTools.OpfModelKey) = context.objects[key]
 BMOPFTools.opf_bases(context::TestBMOPFContext) = context.bases
+if isdefined(BMOPFTools, :opf_neutral_labels)
+    BMOPFTools.opf_neutral_labels(::TestBMOPFContext) = Set(["n"])
+end
 BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     key for key in keys(context.objects) if isnothing(kind) || key.kind == kind
 ]
@@ -220,7 +273,9 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     registry_report = NLPDiagnostics.bmopf_opf_registry_report(context)
     @test registry_report.metadata[:bmopf_opf_registry_direct_variable_count] == "4"
     @test registry_report.metadata[:bmopf_opf_registry_unregistered_model_variable_count] == "4"
+    @test occursin("vr_load_a=1", registry_report.metadata[:bmopf_opf_registry_unregistered_name_group_counts])
     @test length(findings(registry_report, :bmopf_opf_registry_unregistered_model_variables)) == 1
+    @test length(findings(registry_report, :bmopf_opf_registry_unregistered_name_group)) == 4
     components = NLPDiagnostics.bmopf_component_metadata(context)
     @test length(components) == 2
     @test sort!([component.component_id for component in components]) == ["vi", "vr"]
@@ -248,12 +303,86 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test saved_point.mapped_voltage_coordinate_count == 4 # compatibility alias
     @test saved_point.fallback_coordinate_count == 4
     @test saved_point.registered_coordinate_count == 4
+    @test saved_point.unregistered_model_coordinate_count == 4
+    @test saved_point.unmapped_registered_coordinate_count == 0
     @test saved_point.mapped_registered_coordinate_fraction == 1.0
     @test saved_point.mapped_coordinate_counts_by_family == Dict(
         "vr" => 2, "vi" => 2,
     )
     @test isempty(saved_point.unresolved_saved_coordinate_counts_by_family)
     @test saved_point.point.values == [1.0, 0.0, 0.0, 0.0, -7.0, -7.0, -7.0, -7.0]
+    saved_mapping_report = NLPDiagnostics.bmopf_result_mapping_report(saved_point)
+    @test saved_mapping_report.metadata[:stage] == "bmopf_saved_result_mapping"
+    @test saved_mapping_report.metadata[:bmopf_saved_result_fallback_coordinate_count] == "4"
+    @test length(findings(saved_mapping_report, :bmopf_saved_result_mapping_coverage)) == 1
+    @test length(findings(saved_mapping_report, :bmopf_saved_result_unregistered_model_coordinates)) == 1
+    @test only(findings(saved_mapping_report, :bmopf_saved_result_mapping_coverage)).domain ==
+          NLPDiagnostics.RepresentationalIssue
+    @test_throws ArgumentError NLPDiagnostics.bmopf_result_mapping_report((;))
+    saved_case = NLPDiagnostics.bmopf_saved_result_profile_case(
+        "saved-result-test", per_unit_context, saved_result;
+        fallback_value = -7.0,
+    )
+    @test saved_case.case.name == "saved-result-test"
+    @test saved_case.case.initialization == "saved_result"
+    @test saved_case.mapping.point.values == saved_point.point.values
+    @test saved_case.mapping_report.metadata[:stage] == "bmopf_saved_result_mapping"
+    @test saved_case.mapping_report.metadata[
+        :bmopf_saved_result_unit_fingerprint_count] == "1"
+    @test saved_case.mapping_report.metadata[
+        :bmopf_saved_result_unit_fingerprint_zero_magnitude_count] == "1"
+    @test isempty(findings(saved_case.mapping_report, :bmopf_saved_result_unit_scale_suspicious))
+    mislabelled_case = NLPDiagnostics.bmopf_saved_result_profile_case(
+        "mislabelled-result-test", per_unit_context, saved_result;
+        result_units = :model,
+    )
+    @test length(findings(mislabelled_case.mapping_report,
+                          :bmopf_saved_result_unit_scale_suspicious)) == 1
+    saved_profile = NLPDiagnostics.bmopf_profile_saved_result(
+        per_unit_context, "saved-result-profile-test", saved_result;
+        case_kwargs = (fallback_value = -7.0,),
+        profile_kwargs = (include_initialization = false,),
+    )
+    @test saved_profile.profile.context_report.metadata[:bmopf_saved_result_profile] == "true"
+    @test length(findings(saved_profile.profile.context_report,
+                          :bmopf_saved_result_mapping_coverage)) == 1
+    if isdefined(BMOPFTools, :opf_ibr_voltage_magnitude_key)
+        magnitude_model = JuMP.Model()
+        JuMP.@variable(magnitude_model, m_vr_a)
+        JuMP.@variable(magnitude_model, m_vr_n)
+        JuMP.@variable(magnitude_model, m_vi_a)
+        JuMP.@variable(magnitude_model, m_vi_n)
+        JuMP.@variable(magnitude_model, u_pg)
+        JuMP.@variable(magnitude_model, u_diff)
+        magnitude_objects = Dict{BMOPFTools.OpfModelKey,Any}(
+            BMOPFTools.opf_bus_voltage_key("bus", "a") => m_vr_a,
+            BMOPFTools.opf_bus_voltage_key("bus", "n") => m_vr_n,
+            BMOPFTools.opf_bus_voltage_key("bus", "a"; component = :imag) => m_vi_a,
+            BMOPFTools.opf_bus_voltage_key("bus", "n"; component = :imag) => m_vi_n,
+        )
+        magnitude_objects[BMOPFTools.opf_ibr_voltage_magnitude_key(
+            "ibr", 1; reference = :single_pg, controller = :single,
+        )] = u_pg
+        magnitude_objects[BMOPFTools.opf_ibr_voltage_magnitude_key(
+            "ibr", 1; reference = :single_diff, controller = :single,
+        )] = u_diff
+        magnitude_net = deepcopy(net)
+        magnitude_net["ibr"] = Dict{String,Any}(
+            "ibr" => Dict{String,Any}(
+                "bus" => "bus", "topology" => "SINGLE_PHASE",
+                "terminal_map" => ["a", "n"],
+            ),
+        )
+        magnitude_context = TestBMOPFContext(
+            magnitude_model, magnitude_net, magnitude_objects,
+            (v_base = Dict("bus" => 230.0),),
+        )
+        magnitude_point = NLPDiagnostics.bmopf_result_voltage_point(
+            magnitude_context, saved_result; fallback_value = -7.0,
+        )
+        @test magnitude_point.mapped_coordinate_counts_by_family["u_ibr"] == 2
+        @test magnitude_point.point.values[end-1:end] == [1.0, 1.0]
+    end
     coordinate_probe = NLPDiagnostics.bmopf_coordinate_probe_point(context)
     @test coordinate_probe.label == "bmopf-zero-coordinate-probe"
     @test coordinate_probe.values == zeros(8)
@@ -286,6 +415,9 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test benchmark_result isa NLPDiagnostics.BMOPFProfileResult
     @test benchmark_result.context_report.metadata[:bmopf_opf_context] ==
           "BMOPFTools staged OPF context"
+    @test benchmark_result.context_report.metadata[
+        :bmopf_opf_differentiability_available
+    ] == "false"
     benchmark_data = NLPDiagnostics.profile_result_data(benchmark_result)
     @test haskey(benchmark_data, "profile")
     @test haskey(benchmark_data, "bmopf_context_report")
@@ -11003,11 +11135,72 @@ end
         @test length(findings(
             combined_report, :solver_reported_infeasibility,
         )) == 1
+        @test isnothing(NLPDiagnostics.solver_result_point(combined_model))
+        @test_throws ArgumentError NLPDiagnostics.solver_result_point(
+            combined_model; result_index = 0,
+        )
+        explicit_result_analysis = NLPDiagnostics.analyze_solver_result(
+            combined_model;
+            postmortem = postmortem,
+            read_postmortem = false,
+        )
+        @test explicit_result_analysis isa NLPDiagnostics.SolverResultAnalysis
+        @test isnothing(explicit_result_analysis.point)
+        @test explicit_result_analysis.postmortem === postmortem
+        @test explicit_result_analysis.result_index == 1
+        @test explicit_result_analysis.report.metadata[
+            :solver_result_point_available
+        ] == "false"
+        @test explicit_result_analysis.report.metadata[
+            :solver_result_postmortem_available
+        ] == "true"
+        @test length(findings(
+            explicit_result_analysis.report, :solver_result_point_unavailable,
+        )) == 1
+        unavailable_profile = NLPDiagnostics.profile_solver_result(
+            combined_model; read_postmortem = false,
+        )
+        @test unavailable_profile isa NLPDiagnostics.SolverProfileResult
+        @test unavailable_profile.profile === nothing
+        @test unavailable_profile.case === nothing
+        @test unavailable_profile.result_report.metadata[
+            :solver_result_point_available
+        ] == "false"
+        unavailable_profile_data = NLPDiagnostics.profile_result_data(
+            unavailable_profile,
+        )
+        @test unavailable_profile_data["profile"] === nothing
+        automatic_result_analysis = NLPDiagnostics.analyze_solver_result(
+            combined_model,
+        )
+        @test isnothing(automatic_result_analysis.postmortem)
+        @test !isnothing(automatic_result_analysis.postmortem_read_error)
+        @test length(findings(
+            automatic_result_analysis.report, :solver_postmortem_unavailable,
+        )) == 1
         combined_log = """
         iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
            0  1.0e+00 1.0e+00 2.0e+00  -1.0 0.0e+00    -  0.0e+00 0.0e+00   0
         Restoration Failed
         """
+        trace_profile = NLPDiagnostics.profile_solver_result(
+            combined_model;
+            postmortem = postmortem,
+            read_postmortem = false,
+            solver_log = combined_log,
+        )
+        @test trace_profile.result_report.metadata[
+            :solver_result_solver_log_available
+        ] == "true"
+        @test trace_profile.result_report.metadata[
+            :solver_iterations_parsed_iteration_count
+        ] == "1"
+        @test length(findings(
+            trace_profile.result_report, :solver_log_restoration_failure,
+        )) == 1
+        @test trace_profile.result_report.metadata[
+            :postmortem_log_consistency_postmortem_log_conflicting_marker_count
+        ] == "1"
         combined_log_report = NLPDiagnostics.analyze(
             combined_model;
             postmortem = postmortem,
@@ -11108,6 +11301,56 @@ end
         @test combined_binding_report.metadata[
             :iteration_points_bound_iteration_relative_step
         ] == "1.0e-5"
+        combined_profile_binding = NLPDiagnostics.profile_solver_result(
+            combined_model;
+            postmortem = optimistic_postmortem,
+            read_postmortem = false,
+            iteration_bindings = [combined_binding],
+            iteration_kwargs = (
+                check_degeneracy = false,
+                check_component_ranks = false,
+                check_rank_persistence = false,
+            ),
+        )
+        @test combined_profile_binding.result_report.metadata[
+            :solver_result_iteration_binding_count
+        ] == "1"
+        @test combined_profile_binding.result_report.metadata[
+            :solver_iteration_points_bound_iteration_count
+        ] == "1"
+        trace_capture = NLPDiagnostics.IterationTraceCapture()
+        NLPDiagnostics.capture_iteration!(
+            trace_capture, combined_binding.record; point = combined_binding.point,
+        )
+        trace = NLPDiagnostics.iteration_trace(trace_capture)
+        @test length(trace.records) == 1
+        @test length(trace.segments) == 1
+        @test length(trace.bindings) == 1
+        trace_data = NLPDiagnostics.iteration_trace_data(trace)
+        @test trace_data["record_count"] == 1
+        @test trace_data["binding_count"] == 1
+        trace_report = NLPDiagnostics.analyze_iteration_trace(
+            combined_model, trace;
+            check_degeneracy = false,
+            check_component_ranks = false,
+            check_rank_persistence = false,
+        )
+        @test trace_report.metadata[:iteration_trace_record_count] == "1"
+        @test trace_report.metadata[:iteration_trace_captured_binding_count] == "1"
+        combined_profile_trace = NLPDiagnostics.profile_solver_result(
+            combined_model;
+            postmortem = optimistic_postmortem,
+            read_postmortem = false,
+            iteration_trace = trace,
+            iteration_kwargs = (
+                check_degeneracy = false,
+                check_component_ranks = false,
+                check_rank_persistence = false,
+            ),
+        )
+        @test combined_profile_trace.result_report.metadata[
+            :solver_result_iteration_trace_record_count
+        ] == "1"
 
         limit_report = NLPDiagnostics.analyze_postmortem(
             NLPDiagnostics.SolverPostmortem("TestSolver", :iteration_limit),

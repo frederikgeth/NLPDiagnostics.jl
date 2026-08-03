@@ -53,6 +53,38 @@ function profile_result_data(result::ProfileResult)
     )
 end
 
+"""Return serializable data for a solver-result profile capture."""
+function profile_result_data(result::SolverProfileResult)
+    return Dict{String,Any}(
+        "profile" => isnothing(result.profile) ? nothing : profile_result_data(result.profile),
+        "case" => isnothing(result.case) ? nothing : _profile_case_data(result.case),
+        "postmortem" => isnothing(result.postmortem) ? nothing : Dict(
+            "solver" => result.postmortem.solver,
+            "termination" => string(result.postmortem.termination),
+            "raw_status" => result.postmortem.raw_status,
+            "iterations" => result.postmortem.iterations,
+            "objective_value" => result.postmortem.objective_value,
+            "primal_residual" => result.postmortem.primal_residual,
+            "dual_residual" => result.postmortem.dual_residual,
+            "complementarity" => result.postmortem.complementarity,
+            "restoration_attempted" => result.postmortem.restoration_attempted,
+            "restoration_succeeded" => result.postmortem.restoration_succeeded,
+            "metadata" => _profile_sorted_data(result.postmortem.metadata),
+        ),
+        "result_report" => report_data(result.result_report),
+        "result_index" => result.result_index,
+        "postmortem_read_error" => result.postmortem_read_error,
+    )
+end
+
+"""Return serializable data for a trace-capturing solver profile run."""
+function profile_result_data(result::SolverTraceProfileRun)
+    return Dict{String,Any}(
+        "iteration_trace" => iteration_trace_data(result.trace),
+        "solver_profile" => profile_result_data(result.result),
+    )
+end
+
 """Return renderer-neutral, serializable data for a repeated profile aggregate."""
 function profile_aggregate_data(aggregate::ProfileAggregate)
     timing_data = Dict(

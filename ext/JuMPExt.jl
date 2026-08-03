@@ -10,7 +10,7 @@ NLPDiagnostics.analyze(model::JuMP.Model; kwargs...) =
     NLPDiagnostics.analyze(JuMP.backend(model); kwargs...)
 
 """
-    NLPDiagnostics.solver_postmortem(model::JuMP.Model)
+NLPDiagnostics.solver_postmortem(model::JuMP.Model)
 
 Read a postmortem from the optimizer currently attached to `model`. This only
 uses `JuMP.unsafe_backend` to select a solver-specific, read-only adapter; it
@@ -28,6 +28,140 @@ function NLPDiagnostics.solver_postmortem(model::JuMP.Model)
         ))
     end
     return NLPDiagnostics.solver_postmortem(optimizer)
+end
+
+NLPDiagnostics.solver_result_point(model::JuMP.Model; kwargs...) =
+    NLPDiagnostics.solver_result_point(JuMP.backend(model); kwargs...)
+
+NLPDiagnostics.ipopt_iteration_trace_capture(model::JuMP.Model; kwargs...) =
+    NLPDiagnostics.ipopt_iteration_trace_capture(JuMP.backend(model); kwargs...)
+
+function NLPDiagnostics.ipopt_optimize_with_iteration_trace!(
+    model::JuMP.Model;
+    capture::NLPDiagnostics.IterationTraceCapture = NLPDiagnostics.IterationTraceCapture(),
+    capture_points::Bool = false,
+)
+    NLPDiagnostics.ipopt_iteration_trace_capture(JuMP.backend(model);
+        capture, capture_points,
+    )
+    JuMP.optimize!(model)
+    return NLPDiagnostics.iteration_trace(capture)
+end
+
+function NLPDiagnostics.madnlp_optimize_with_iteration_trace!(
+    model::JuMP.Model;
+    capture::NLPDiagnostics.IterationTraceCapture = NLPDiagnostics.IterationTraceCapture(),
+)
+    callback, capture = NLPDiagnostics.madnlp_iteration_trace_callback(; capture)
+    JuMP.set_optimizer_attribute(model, "intermediate_callback", callback)
+    JuMP.optimize!(model)
+    return NLPDiagnostics.iteration_trace(capture)
+end
+
+function NLPDiagnostics.ipopt_profile_with_iteration_trace!(
+    model::JuMP.Model;
+    capture::NLPDiagnostics.IterationTraceCapture = NLPDiagnostics.IterationTraceCapture(),
+    capture_points::Bool = false,
+    kwargs...,
+)
+    return NLPDiagnostics.profile_solver_with_iteration_trace!(
+        model,
+        current -> NLPDiagnostics.ipopt_optimize_with_iteration_trace!(current;
+            capture, capture_points,
+        );
+        kwargs...,
+    )
+end
+
+function NLPDiagnostics.madnlp_profile_with_iteration_trace!(
+    model::JuMP.Model;
+    capture::NLPDiagnostics.IterationTraceCapture = NLPDiagnostics.IterationTraceCapture(),
+    kwargs...,
+)
+    return NLPDiagnostics.profile_solver_with_iteration_trace!(
+        model,
+        current -> NLPDiagnostics.madnlp_optimize_with_iteration_trace!(current;
+            capture,
+        );
+        kwargs...,
+    )
+end
+
+function NLPDiagnostics.analyze_solver_result(
+    model::JuMP.Model;
+    result_index::Integer = 1,
+    label::AbstractString = "solver-result",
+    postmortem::Union{Nothing,NLPDiagnostics.SolverPostmortem} = nothing,
+    read_postmortem::Bool = true,
+    kwargs...,
+)
+    resolved_postmortem = postmortem
+    read_error = nothing
+    if isnothing(resolved_postmortem) && read_postmortem
+        try
+            resolved_postmortem = NLPDiagnostics.solver_postmortem(model)
+        catch error
+            read_error = sprint(showerror, error)
+        end
+    end
+    return NLPDiagnostics._analyze_solver_result(
+        JuMP.backend(model);
+        result_index,
+        label,
+        postmortem = resolved_postmortem,
+        postmortem_read_error = read_error,
+        kwargs...,
+    )
+end
+
+function NLPDiagnostics.profile_solver_result(
+    model::JuMP.Model;
+    name::AbstractString = "solver-result",
+    label::AbstractString = "solver-result",
+    result_index::Integer = 1,
+    postmortem::Union{Nothing,NLPDiagnostics.SolverPostmortem} = nothing,
+    read_postmortem::Bool = true,
+    solver_log::Union{Nothing,AbstractString} = nothing,
+    solver_name::Union{Nothing,AbstractString} = nothing,
+    solver_log_residual_tolerance::Real = 1.0e-6,
+    solver_log_max_evidence_lines::Integer = 20,
+    solver_log_objective_agreement_factor::Real = 100,
+    solver_result_objective_relative_tolerance::Real = 1.0e-6,
+    iteration_trace::Union{Nothing,NLPDiagnostics.SolverIterationTrace} = nothing,
+    iteration_bindings = nothing,
+    iteration_kwargs::NamedTuple = NamedTuple(),
+    profile_kwargs::NamedTuple = NamedTuple(),
+    case_kwargs::NamedTuple = NamedTuple(),
+)
+    resolved_postmortem = postmortem
+    read_error = nothing
+    if isnothing(resolved_postmortem) && read_postmortem
+        try
+            resolved_postmortem = NLPDiagnostics.solver_postmortem(model)
+        catch error
+            read_error = sprint(showerror, error)
+        end
+    end
+    return NLPDiagnostics._profile_solver_result(
+        JuMP.backend(model);
+        name,
+        label,
+        result_index,
+        postmortem = resolved_postmortem,
+        postmortem_read_error = read_error,
+        read_postmortem = false,
+        solver_log,
+        solver_name,
+        solver_log_residual_tolerance,
+        solver_log_max_evidence_lines,
+        solver_log_objective_agreement_factor,
+        solver_result_objective_relative_tolerance,
+        iteration_trace,
+        iteration_bindings,
+        iteration_kwargs,
+        profile_kwargs,
+        case_kwargs,
+    )
 end
 
 NLPDiagnostics.analyze_static(model::JuMP.Model) =

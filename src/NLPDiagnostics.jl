@@ -126,6 +126,8 @@ export profile_comparison_data
 export markdown_profile_aggregate
 export markdown_profile_comparison
 export ProfileResult
+export SolverProfileResult
+export SolverTraceProfileRun
 export BMOPFProfileResult
 export profile_result_data
 export bmopf_build_and_analyze_opf
@@ -139,11 +141,14 @@ export ProfileNumericalComparison
 export ProfileComparison
 export ProfileNumericalSummary
 export SolverPostmortem
+export SolverResultAnalysis
 export SolverLogObservation
 export SolverIterationRecord
 export SolverIterationSegment
 export SolverIterationSummary
 export IterationPointBinding
+export SolverIterationTrace
+export IterationTraceCapture
 export MathematicalIssue, NumericalIssue, PhysicalIssue, RepresentationalIssue
 export MathematicalProof, NumericalObservation, PhysicalExpectation
 export markdown_report
@@ -225,11 +230,25 @@ export profile_synthetic_quadratic_geometry_corpus
 export profile_synthetic_float32_derivative_overflow_corpus
 export profile_synthetic_coupled_cone_corpus
 export solver_postmortem
+export solver_result_point
+export analyze_solver_result
+export profile_solver_result
+export profile_solver_with_iteration_trace!
 export solver_log_observations
 export solver_iteration_records
 export solver_iteration_segments
 export solver_iteration_summary
 export bind_iteration_points
+export capture_iteration!
+export iteration_trace
+export iteration_trace_data
+export analyze_iteration_trace
+export ipopt_iteration_trace_capture
+export madnlp_iteration_trace_callback
+export ipopt_optimize_with_iteration_trace!
+export madnlp_optimize_with_iteration_trace!
+export ipopt_profile_with_iteration_trace!
+export madnlp_profile_with_iteration_trace!
 export connected_components
 export constraint_role
 export dulmage_mendelsohn
@@ -298,6 +317,9 @@ export bmopf_initialization_point
 export bmopf_set_start_values!
 export bmopf_start_completion_point
 export bmopf_result_voltage_point
+export bmopf_result_mapping_report
+export bmopf_saved_result_profile_case
+export bmopf_profile_saved_result
 export bmopf_coordinate_probe_point
 export bmopf_analyze_initialization
 export bmopf_analyze_degeneracy

@@ -93,6 +93,87 @@ function _madnlp_postmortem(model)
     )
 end
 
+mutable struct _MadNLPTraceCallback <: MadNLP.AbstractUserCallback
+    capture::NLPDiagnostics.IterationTraceCapture
+end
+
+function (callback::_MadNLPTraceCallback)(solver, mode::MadNLP.AbstractUserCallbackStatus)
+    counters = MadNLP.get_cnt(solver)
+    record = NLPDiagnostics.SolverIterationRecord(
+        :madnlp_callback,
+        0,
+        Int(counters.k),
+        mode isa MadNLP.UserCallbackRestore ? :restoration :
+        mode isa MadNLP.UserCallbackRobust ? :robust : :regular,
+        # MadNLP's callback getter exposes the internally scaled objective;
+        # unpacking through its public callback accessor keeps the trace in
+        # model objective units, matching MOI ObjectiveValue and Ipopt traces.
+        Float64(MadNLP.unpack_obj(
+            MadNLP.get_cb(solver), MadNLP.get_obj_val(solver),
+        )),
+        Float64(MadNLP.get_inf_pr(solver)),
+        Float64(MadNLP.get_inf_du(solver)),
+        Float64(MadNLP.get_inf_compl(solver)),
+        Float64(MadNLP.get_alpha(solver)),
+        "",
+    )
+    NLPDiagnostics.capture_iteration!(callback.capture, record)
+    return true
+end
+
+"""
+    NLPDiagnostics.madnlp_iteration_trace_callback(; capture=nothing)
+
+Construct a MadNLP `AbstractUserCallback` for the public
+`intermediate_callback` option and return its `IterationTraceCapture`. Pass the
+callback object to `MadNLP.MadNLPSolver(...; intermediate_callback=callback)`
+or the corresponding MOI raw optimizer attribute. MadNLP exposes solver
+metrics, but not a stable MOI callback primal-vector interface, so this adapter
+captures iteration metrics only and never fabricates `EvaluationPoint`s.
+"""
+function NLPDiagnostics.madnlp_iteration_trace_callback(
+    ; capture::NLPDiagnostics.IterationTraceCapture = NLPDiagnostics.IterationTraceCapture(),
+)
+    callback = _MadNLPTraceCallback(capture)
+    return callback, capture
+end
+
+"""
+    NLPDiagnostics.madnlp_optimize_with_iteration_trace!(model)
+
+Install MadNLP's public `intermediate_callback`, call `MOI.optimize!`, and
+return a frozen metric-only `SolverIterationTrace`.
+"""
+function NLPDiagnostics.madnlp_optimize_with_iteration_trace!(
+    model::MOI.ModelLike;
+    capture::NLPDiagnostics.IterationTraceCapture = NLPDiagnostics.IterationTraceCapture(),
+)
+    callback, capture = NLPDiagnostics.madnlp_iteration_trace_callback(; capture)
+    MOI.set(model, MOI.RawOptimizerAttribute("intermediate_callback"), callback)
+    MOI.optimize!(model)
+    return NLPDiagnostics.iteration_trace(capture)
+end
+
+"""
+    NLPDiagnostics.madnlp_profile_with_iteration_trace!(model; kwargs...)
+
+Solve through MadNLP's public intermediate callback, then build a
+solver-result profile retaining the metric-only trace.
+"""
+function NLPDiagnostics.madnlp_profile_with_iteration_trace!(
+    model::MOI.ModelLike;
+    capture::NLPDiagnostics.IterationTraceCapture = NLPDiagnostics.IterationTraceCapture(),
+    kwargs...,
+)
+    return NLPDiagnostics.profile_solver_with_iteration_trace!(
+        model,
+        current -> NLPDiagnostics.madnlp_optimize_with_iteration_trace!(current;
+            capture,
+        );
+        kwargs...,
+    )
+end
+
 function __init__()
     NLPDiagnostics.register_solver_postmortem_adapter!(
         :madnlp,

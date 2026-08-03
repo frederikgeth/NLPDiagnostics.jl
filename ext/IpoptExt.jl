@@ -95,6 +95,102 @@ function _ipopt_postmortem(model)
     )
 end
 
+"""
+    NLPDiagnostics.ipopt_iteration_trace_capture(model; capture_points=false)
+
+Install Ipopt's public `CallbackFunction` intermediate callback and return an
+`IterationTraceCapture` that receives solver iteration metrics. The callback
+uses only public MOI attributes. With `capture_points=true`, it additionally
+copies the callback primal vector through `CallbackVariablePrimal`; this is
+explicitly labeled as a captured point and is never reconstructed from log
+text. Call `iteration_trace(capture)` after `optimize!`.
+"""
+function NLPDiagnostics.ipopt_iteration_trace_capture(
+    model::MOI.ModelLike;
+    capture::NLPDiagnostics.IterationTraceCapture = NLPDiagnostics.IterationTraceCapture(),
+    capture_points::Bool = false,
+)
+    variables = capture_points ? MOI.get(model, MOI.ListOfVariableIndices()) : MOI.VariableIndex[]
+    callback = function(
+        alg_mod::Cint,
+        iter_count::Cint,
+        obj_value::Float64,
+        inf_pr::Float64,
+        inf_du::Float64,
+        mu::Float64,
+        d_norm::Float64,
+        regularization_size::Float64,
+        alpha_du::Float64,
+        alpha_pr::Float64,
+        ls_trials::Cint,
+    )
+        record = NLPDiagnostics.SolverIterationRecord(
+            :ipopt_callback,
+            0,
+            Int(iter_count),
+            alg_mod == 0 ? :regular : :restoration,
+            obj_value,
+            inf_pr,
+            inf_du,
+            nothing,
+            alpha_pr,
+            "",
+        )
+        point = if capture_points
+            values = [MOI.get(model, MOI.CallbackVariablePrimal(model), variable)
+                      for variable in variables]
+            NLPDiagnostics.EvaluationPoint(variables, values;
+                label = "ipopt-callback-iteration-$(Int(iter_count))")
+        else
+            nothing
+        end
+        NLPDiagnostics.capture_iteration!(capture, record; point = point)
+        return true
+    end
+    MOI.set(model, Ipopt.CallbackFunction(), callback)
+    return capture
+end
+
+"""
+    NLPDiagnostics.ipopt_optimize_with_iteration_trace!(model; capture_points=false)
+
+Install the public Ipopt callback, call `MOI.optimize!`, and return the frozen
+`SolverIterationTrace`. Supply `capture_points=true` only when callback primal
+coordinates are needed; the default keeps the trace metric-only.
+"""
+function NLPDiagnostics.ipopt_optimize_with_iteration_trace!(
+    model::MOI.ModelLike;
+    capture::NLPDiagnostics.IterationTraceCapture = NLPDiagnostics.IterationTraceCapture(),
+    capture_points::Bool = false,
+)
+    NLPDiagnostics.ipopt_iteration_trace_capture(model;
+        capture, capture_points,
+    )
+    MOI.optimize!(model)
+    return NLPDiagnostics.iteration_trace(capture)
+end
+
+"""
+    NLPDiagnostics.ipopt_profile_with_iteration_trace!(model; kwargs...)
+
+Solve through Ipopt's public callback, then build a solver-result profile that
+retains the captured trace and serializes both artifacts together.
+"""
+function NLPDiagnostics.ipopt_profile_with_iteration_trace!(
+    model::MOI.ModelLike;
+    capture::NLPDiagnostics.IterationTraceCapture = NLPDiagnostics.IterationTraceCapture(),
+    capture_points::Bool = false,
+    kwargs...,
+)
+    return NLPDiagnostics.profile_solver_with_iteration_trace!(
+        model,
+        current -> NLPDiagnostics.ipopt_optimize_with_iteration_trace!(current;
+            capture, capture_points,
+        );
+        kwargs...,
+    )
+end
+
 function __init__()
     NLPDiagnostics.register_solver_postmortem_adapter!(
         :ipopt,

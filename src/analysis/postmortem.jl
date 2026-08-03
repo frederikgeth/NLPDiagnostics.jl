@@ -44,6 +44,505 @@ function solver_postmortem(model::MOI.AbstractOptimizer)
     ))
 end
 
+"""
+    ipopt_iteration_trace_capture(model; kwargs...)
+
+Extension boundary for Ipopt's public intermediate callback. The solver
+extension supplies the typed implementation; the core keeps a descriptive
+failure when Ipopt is not loaded.
+"""
+function ipopt_iteration_trace_capture(model; kwargs...)
+    throw(ArgumentError(
+        "NLPDiagnostics' Ipopt iteration-capture extension is unavailable. " *
+        "Load Ipopt together with JuMP before installing the callback.",
+    ))
+end
+
+"""
+    madnlp_iteration_trace_callback(; kwargs...)
+
+Extension boundary for MadNLP's public `intermediate_callback` option. The
+MadNLP extension supplies the callback object; the core remains solver-free.
+"""
+function madnlp_iteration_trace_callback(args...; kwargs...)
+    throw(ArgumentError(
+        "NLPDiagnostics' MadNLP iteration-capture extension is unavailable. " *
+        "Load MadNLP before constructing its callback.",
+    ))
+end
+
+function ipopt_optimize_with_iteration_trace!(model; kwargs...)
+    throw(ArgumentError(
+        "NLPDiagnostics' Ipopt iteration-capture extension is unavailable. " *
+        "Load Ipopt together with JuMP before solving with trace capture.",
+    ))
+end
+
+function madnlp_optimize_with_iteration_trace!(model; kwargs...)
+    throw(ArgumentError(
+        "NLPDiagnostics' MadNLP iteration-capture extension is unavailable. " *
+        "Load MadNLP together with JuMP before solving with trace capture.",
+    ))
+end
+
+function ipopt_profile_with_iteration_trace!(model; kwargs...)
+    throw(ArgumentError(
+        "NLPDiagnostics' Ipopt trace-profile extension is unavailable. " *
+        "Load Ipopt together with JuMP before solving with trace profiling.",
+    ))
+end
+
+function madnlp_profile_with_iteration_trace!(model; kwargs...)
+    throw(ArgumentError(
+        "NLPDiagnostics' MadNLP trace-profile extension is unavailable. " *
+        "Load MadNLP together with JuMP before solving with trace profiling.",
+    ))
+end
+
+function _solver_result_primal(model::MOI.ModelLike, variable, result_index::Int)
+    try
+        value = MOI.get(model, MOI.VariablePrimal(result_index), variable)
+        return value isa Real ? value : nothing
+    catch
+        return nothing
+    end
+end
+
+"""
+    solver_result_point(model; result_index = 1, label = "solver-result")
+
+Read a complete primal point from a completed MOI result without modifying or
+solving the model. Returns `nothing` when the requested result is absent or
+any model variable has no real `VariablePrimal` value. Missing coordinates are
+never filled, because a partial solver result is not a safe numerical point.
+"""
+function solver_result_point(
+    model::MOI.ModelLike;
+    result_index::Integer = 1,
+    label::AbstractString = "solver-result",
+)
+    result_index >= 1 || throw(ArgumentError("result_index must be positive"))
+    index = Int(result_index)
+    result_count = try
+        MOI.get(model, MOI.ResultCount())
+    catch
+        nothing
+    end
+    result_count isa Integer && result_count < index && return nothing
+    variables = MOI.get(model, MOI.ListOfVariableIndices())
+    values = [_solver_result_primal(model, variable, index) for variable in variables]
+    any(isnothing, values) && return nothing
+    return EvaluationPoint(
+        variables,
+        Real[something(value) for value in values];
+        label = label,
+    )
+end
+
+function _solver_result_unavailable_finding(result_index::Int)
+    return Finding(:solver_result_point_unavailable;
+        severity = SeverityWarning,
+        domain = RepresentationalIssue,
+        basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = "Result index $result_index does not expose a complete real primal vector for all model variables.",
+        why_it_matters = "Numerical derivative, feasibility, and degeneracy checks require one complete explicitly ordered point. NLPDiagnostics does not fill absent solver coordinates with starts or zeros.",
+        evidence = [Evidence("Public MOI solver-result availability"; details = [
+            "result_index" => result_index,
+            "point_policy" => "complete public VariablePrimal values required",
+        ])],
+        suggested_actions = [
+            "Check MOI ResultCount, PrimalStatus, and the selected result index.",
+            "Provide an explicit EvaluationPoint only if its missing-coordinate policy is appropriate for the diagnostic question.",
+        ],
+    )
+end
+
+function _solver_postmortem_unavailable_finding(error_text::AbstractString)
+    return Finding(:solver_postmortem_unavailable;
+        severity = SeverityInfo,
+        domain = RepresentationalIssue,
+        basis = StructuralProof,
+        confidence = ConfidenceHigh,
+        observation = "No loaded solver-specific postmortem adapter could read the attached optimizer.",
+        why_it_matters = "The primal point can still be analyzed, but native termination and restoration evidence is unavailable through the current public adapter set.",
+        evidence = [Evidence("Solver postmortem adapter request"; details = [
+            "error" => error_text,
+        ])],
+        suggested_actions = [
+            "Load the matching NLPDiagnostics solver extension or supply a SolverPostmortem explicitly.",
+        ],
+    )
+end
+
+function _analyze_solver_result(
+    model::MOI.ModelLike;
+    result_index::Integer = 1,
+    label::AbstractString = "solver-result",
+    postmortem::Union{Nothing,SolverPostmortem} = nothing,
+    postmortem_read_error::Union{Nothing,AbstractString} = nothing,
+    kwargs...,
+)
+    result_index >= 1 || throw(ArgumentError("result_index must be positive"))
+    index = Int(result_index)
+    point = solver_result_point(model; result_index = index, label = label)
+    report = isnothing(point) ?
+             analyze(model; postmortem, kwargs...) :
+             analyze(model; point, postmortem, kwargs...)
+    report.metadata[:solver_result_index] = string(index)
+    report.metadata[:solver_result_point_available] = string(!isnothing(point))
+    report.metadata[:solver_result_postmortem_available] = string(!isnothing(postmortem))
+    if isnothing(point)
+        push!(report, _solver_result_unavailable_finding(index))
+    end
+    read_error = isnothing(postmortem_read_error) ? nothing : String(postmortem_read_error)
+    if !isnothing(read_error)
+        report.metadata[:solver_result_postmortem_read_error] = read_error
+        push!(report, _solver_postmortem_unavailable_finding(read_error))
+    end
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return SolverResultAnalysis(point, postmortem, report, index, read_error)
+end
+
+"""
+    analyze_solver_result(model; result_index = 1, postmortem = nothing,
+                          read_postmortem = true, kwargs...)
+
+Run the normal diagnostic pipeline at a completed solver result, retaining the
+complete public primal point and an optional solver-specific postmortem. This
+function is read-only: it never calls `optimize!`, changes starts, or changes
+the optimizer. An unavailable primal result or postmortem adapter is reported
+explicitly instead of being inferred.
+"""
+function analyze_solver_result(
+    model::MOI.ModelLike;
+    result_index::Integer = 1,
+    label::AbstractString = "solver-result",
+    postmortem::Union{Nothing,SolverPostmortem} = nothing,
+    read_postmortem::Bool = true,
+    kwargs...,
+)
+    resolved_postmortem = postmortem
+    read_error = nothing
+    if isnothing(resolved_postmortem) && read_postmortem
+        try
+            resolved_postmortem = solver_postmortem(model)
+        catch error
+            read_error = sprint(showerror, error)
+        end
+    end
+    return _analyze_solver_result(
+        model;
+        result_index,
+        label,
+        postmortem = resolved_postmortem,
+        postmortem_read_error = read_error,
+        kwargs...,
+    )
+end
+
+function _solver_profile_result_report(
+    model::MOI.ModelLike,
+    point,
+    postmortem,
+    result_index::Int,
+    postmortem_read_error,
+    solver_log,
+    solver_name,
+    solver_log_residual_tolerance::Real,
+    solver_log_max_evidence_lines::Integer,
+    solver_log_objective_agreement_factor::Real,
+    iteration_bindings,
+    iteration_kwargs::NamedTuple,
+)
+    report = DiagnosticReport()
+    report.metadata[:stage] = "solver_result_profile"
+    report.metadata[:solver_result_index] = string(result_index)
+    report.metadata[:solver_result_point_available] = string(!isnothing(point))
+    report.metadata[:solver_result_postmortem_available] = string(!isnothing(postmortem))
+    report.metadata[:solver_result_solver_log_available] = string(!isnothing(solver_log))
+    report.metadata[:solver_result_iteration_bindings_available] = string(!isnothing(iteration_bindings))
+    if isnothing(point)
+        push!(report, _solver_result_unavailable_finding(result_index))
+    end
+    if !isnothing(postmortem)
+        postmortem_report = analyze_postmortem(postmortem)
+        append!(report.findings, postmortem_report.findings)
+        for (key, value) in postmortem_report.metadata
+            report.metadata[Symbol("postmortem_", key)] = value
+        end
+    end
+    read_error = isnothing(postmortem_read_error) ? nothing : String(postmortem_read_error)
+    if !isnothing(read_error)
+        report.metadata[:solver_result_postmortem_read_error] = read_error
+        push!(report, _solver_postmortem_unavailable_finding(read_error))
+    end
+    if !isnothing(solver_log)
+        resolved_solver_name = isnothing(solver_name) ?
+                               (isnothing(postmortem) ? nothing : postmortem.solver) :
+                               String(solver_name)
+        isnothing(resolved_solver_name) && throw(ArgumentError(
+            "solver_log requires solver_name or an available SolverPostmortem",
+        ))
+        if !isnothing(postmortem) && resolved_solver_name != postmortem.solver
+            throw(ArgumentError(
+                "solver_name and postmortem solver must agree when both are supplied",
+            ))
+        end
+        log_report = analyze_solver_log(
+            resolved_solver_name,
+            solver_log;
+            max_evidence_lines = solver_log_max_evidence_lines,
+        )
+        iteration_report = analyze_solver_iterations(
+            resolved_solver_name,
+            solver_log;
+            residual_tolerance = solver_log_residual_tolerance,
+        )
+        for (key, value) in log_report.metadata
+            report.metadata[Symbol("solver_log_", key)] = value
+        end
+        for (key, value) in iteration_report.metadata
+            report.metadata[Symbol("solver_iterations_", key)] = value
+        end
+        append!(report.findings, log_report.findings)
+        append!(report.findings, iteration_report.findings)
+        if !isnothing(postmortem)
+            consistency_report = analyze_postmortem_log_consistency(
+                postmortem,
+                solver_log;
+                max_evidence_lines = solver_log_max_evidence_lines,
+                objective_agreement_factor = solver_log_objective_agreement_factor,
+            )
+            for (key, value) in consistency_report.metadata
+                report.metadata[Symbol("postmortem_log_consistency_", key)] = value
+            end
+            append!(report.findings, consistency_report.findings)
+        end
+    end
+    if !isnothing(iteration_bindings)
+        iteration_report = analyze_iteration_points(
+            model,
+            iteration_bindings;
+            iteration_kwargs...,
+        )
+        report.metadata[:solver_result_iteration_binding_count] = string(length(iteration_bindings))
+        for (key, value) in iteration_report.metadata
+            report.metadata[Symbol("solver_iteration_points_", key)] = value
+        end
+        append!(report.findings, iteration_report.findings)
+    end
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return report, read_error
+end
+
+function _append_solver_result_objective_comparison!(
+    report::DiagnosticReport,
+    profile,
+    postmortem,
+    relative_tolerance::Real,
+)
+    tolerance = Float64(relative_tolerance)
+    tolerance >= 0 || throw(ArgumentError(
+        "solver_result_objective_relative_tolerance must be nonnegative",
+    ))
+    isnothing(postmortem) && return report
+    reported = postmortem.objective_value
+    evaluated = profile.evaluation.objective_value
+    report.metadata[:solver_result_objective_comparison_available] =
+        string(reported isa Real && evaluated isa Real)
+    if !(reported isa Real && evaluated isa Real &&
+         isfinite(reported) && isfinite(evaluated))
+        return report
+    end
+    difference = abs(Float64(reported) - Float64(evaluated))
+    scale = max(1.0, abs(Float64(reported)), abs(Float64(evaluated)))
+    relative_difference = difference / scale
+    report.metadata[:solver_result_reported_objective] = string(reported)
+    report.metadata[:solver_result_recomputed_objective] = string(evaluated)
+    report.metadata[:solver_result_objective_absolute_difference] = string(difference)
+    report.metadata[:solver_result_objective_relative_difference] = string(relative_difference)
+    report.metadata[:solver_result_objective_relative_tolerance] = string(tolerance)
+    if relative_difference > tolerance
+        push!(report, Finding(:solver_result_objective_mismatch;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceMedium,
+            observation = "The solver-reported objective $reported differs from the recomputed model objective $evaluated by relative difference $relative_difference.",
+            why_it_matters = "The solver value may use a scaling, offset, sign convention, barrier objective, or a differently timed iterate. Objective comparisons and solver tolerances should be resolved before interpreting this profile as one consistent result record.",
+            evidence = [Evidence("Solver objective comparison"; details = [
+                "solver" => postmortem.solver,
+                "reported_objective" => reported,
+                "recomputed_objective" => evaluated,
+                "absolute_difference" => difference,
+                "relative_difference" => relative_difference,
+                "relative_tolerance" => tolerance,
+            ])],
+            suggested_actions = [
+                "Check solver objective scaling, offsets, maximization sign conventions, and whether the reported value is from the final primal point.",
+                "Retain the mismatch as representational evidence unless the solver's objective convention is independently confirmed.",
+            ],
+        ))
+    end
+    return report
+end
+
+function _profile_solver_result(
+    model::MOI.ModelLike;
+    name::AbstractString = "solver-result",
+    label::AbstractString = "solver-result",
+    result_index::Integer = 1,
+    postmortem::Union{Nothing,SolverPostmortem} = nothing,
+    postmortem_read_error::Union{Nothing,AbstractString} = nothing,
+    read_postmortem::Bool = true,
+    solver_log::Union{Nothing,AbstractString} = nothing,
+    solver_name::Union{Nothing,AbstractString} = nothing,
+    solver_log_residual_tolerance::Real = 1.0e-6,
+    solver_log_max_evidence_lines::Integer = 20,
+    solver_log_objective_agreement_factor::Real = 100,
+    solver_result_objective_relative_tolerance::Real = 1.0e-6,
+    iteration_trace::Union{Nothing,SolverIterationTrace} = nothing,
+    iteration_bindings = nothing,
+    iteration_kwargs::NamedTuple = NamedTuple(),
+    profile_kwargs::NamedTuple = NamedTuple(),
+    case_kwargs::NamedTuple = NamedTuple(),
+)
+    result_index >= 1 || throw(ArgumentError("result_index must be positive"))
+    index = Int(result_index)
+    point = solver_result_point(model; result_index = index, label = label)
+    if !isnothing(iteration_trace) && !isnothing(iteration_bindings)
+        throw(ArgumentError(
+            "supply iteration_trace or iteration_bindings, not both",
+        ))
+    end
+    resolved_iteration_bindings = isnothing(iteration_trace) ? iteration_bindings :
+                                  iteration_trace.bindings
+    resolved_postmortem = postmortem
+    read_error = isnothing(postmortem_read_error) ? nothing : String(postmortem_read_error)
+    if isnothing(resolved_postmortem) && read_postmortem && isnothing(read_error)
+        try
+            resolved_postmortem = solver_postmortem(model)
+        catch error
+            read_error = sprint(showerror, error)
+        end
+    end
+    report, read_error = _solver_profile_result_report(
+        model, point, resolved_postmortem, index, read_error,
+        solver_log, solver_name, solver_log_residual_tolerance,
+        solver_log_max_evidence_lines, solver_log_objective_agreement_factor,
+        resolved_iteration_bindings, iteration_kwargs,
+    )
+    if !isnothing(iteration_trace)
+        report.metadata[:solver_result_iteration_trace_available] = "true"
+        report.metadata[:solver_result_iteration_trace_record_count] =
+            string(length(iteration_trace.records))
+        report.metadata[:solver_result_iteration_trace_segment_count] =
+            string(length(iteration_trace.segments))
+    else
+        report.metadata[:solver_result_iteration_trace_available] = "false"
+    end
+    isnothing(point) && return SolverProfileResult(
+        nothing, nothing, resolved_postmortem, report, index, read_error,
+    )
+    case_solver = isnothing(resolved_postmortem) ? solver_name : resolved_postmortem.solver
+    resolved_case_kwargs = hasproperty(case_kwargs, :solver) ? case_kwargs :
+                           merge((solver = case_solver,), case_kwargs)
+    case = ProfileCase(String(name), point; resolved_case_kwargs...)
+    profile = profile_case(model, case; profile_kwargs...)
+    _append_solver_result_objective_comparison!(
+        report, profile, resolved_postmortem,
+        solver_result_objective_relative_tolerance,
+    )
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return SolverProfileResult(
+        profile, case, resolved_postmortem, report, index, read_error,
+    )
+end
+
+"""
+    profile_solver_result(model; name = "solver-result", result_index = 1,
+                          read_postmortem = true, solver_log = nothing,
+                          solver_name = nothing, profile_kwargs = (;),
+                          case_kwargs = (;),
+                          solver_result_objective_relative_tolerance = 1.0e-6,
+                          iteration_trace = nothing,
+                          iteration_bindings = nothing, iteration_kwargs = (;))
+
+Profile a complete public solver primal result and retain solver postmortem
+evidence in a separate serializable report. This operation is read-only: it
+does not solve, change starts, or mutate the optimizer. Use `case_kwargs` for
+the descriptive `ProfileCase` fields and `profile_kwargs` for numerical-stage
+budgets. Pass caller-captured `IterationPointBinding` values through
+`iteration_bindings` to analyze actual solver iterates; `iteration_kwargs`
+controls that trace analysis and no iterate is reconstructed from log text.
+Alternatively, pass a `SolverIterationTrace` through `iteration_trace` to
+retain callback segment provenance and captured-point counts automatically.
+"""
+function profile_solver_result(
+    model::MOI.ModelLike;
+    name::AbstractString = "solver-result",
+    label::AbstractString = "solver-result",
+    result_index::Integer = 1,
+    postmortem::Union{Nothing,SolverPostmortem} = nothing,
+    read_postmortem::Bool = true,
+    solver_log::Union{Nothing,AbstractString} = nothing,
+    solver_name::Union{Nothing,AbstractString} = nothing,
+    solver_log_residual_tolerance::Real = 1.0e-6,
+    solver_log_max_evidence_lines::Integer = 20,
+    solver_log_objective_agreement_factor::Real = 100,
+    solver_result_objective_relative_tolerance::Real = 1.0e-6,
+    iteration_trace::Union{Nothing,SolverIterationTrace} = nothing,
+    iteration_bindings = nothing,
+    iteration_kwargs::NamedTuple = NamedTuple(),
+    profile_kwargs::NamedTuple = NamedTuple(),
+    case_kwargs::NamedTuple = NamedTuple(),
+)
+    return _profile_solver_result(
+        model;
+        name,
+        label,
+        result_index,
+        postmortem,
+        read_postmortem,
+        solver_log,
+        solver_name,
+        solver_log_residual_tolerance,
+        solver_log_max_evidence_lines,
+        solver_log_objective_agreement_factor,
+        solver_result_objective_relative_tolerance,
+        iteration_trace,
+        iteration_bindings,
+        iteration_kwargs,
+        profile_kwargs,
+        case_kwargs,
+    )
+end
+
+"""
+    profile_solver_with_iteration_trace!(model, solve_with_trace!; kwargs...)
+
+Run a caller-supplied solver trace workflow and immediately profile the final
+public solver result while retaining the frozen trace. The callback workflow is
+deliberately supplied by the caller so this core helper remains solver
+independent; the solver-specific convenience wrappers use it internally.
+"""
+function profile_solver_with_iteration_trace!(
+    model,
+    solve_with_trace!::Function;
+    kwargs...,
+)
+    haskey(kwargs, :iteration_trace) && throw(ArgumentError(
+        "iteration_trace is produced by solve_with_trace! and must not be supplied",
+    ))
+    trace = solve_with_trace!(model)
+    trace isa SolverIterationTrace || throw(ArgumentError(
+        "solve_with_trace! must return a SolverIterationTrace, got $(typeof(trace))",
+    ))
+    result = profile_solver_result(model; iteration_trace = trace, kwargs...)
+    return SolverTraceProfileRun(trace, result)
+end
+
 function _postmortem_evidence(postmortem::SolverPostmortem)
     return Evidence(
         "Solver postmortem record";
@@ -716,6 +1215,106 @@ function solver_iteration_segments(records::AbstractVector{SolverIterationRecord
         ))
     end
     return segments
+end
+
+"""
+    capture_iteration!(capture, record; point = nothing)
+
+Append one solver callback observation to an `IterationTraceCapture`. A
+decrease in the printed iteration number starts a new trace segment. If
+`point` is supplied, it is retained as an explicit `IterationPointBinding`;
+the collector never invents coordinates from log fields.
+"""
+function capture_iteration!(
+    capture::IterationTraceCapture,
+    record::SolverIterationRecord;
+    point::Union{Nothing,EvaluationPoint} = nothing,
+)
+    if !isnothing(capture.last_iteration) &&
+       record.iteration < capture.last_iteration
+        capture.segment += 1
+    end
+    push!(capture.records, record)
+    if !isnothing(point)
+        push!(capture.bindings, IterationPointBinding(
+            record, point, capture.segment, :captured,
+        ))
+    end
+    capture.last_iteration = record.iteration
+    return capture
+end
+
+"""Freeze a mutable callback collector into an inspectable iteration trace."""
+function iteration_trace(capture::IterationTraceCapture)
+    return SolverIterationTrace(capture.records, capture.bindings)
+end
+
+"""Build a trace from parsed records and optional point bindings."""
+function iteration_trace(
+    records::AbstractVector{SolverIterationRecord};
+    bindings::AbstractVector{<:IterationPointBinding} = IterationPointBinding[],
+)
+    return SolverIterationTrace(records, bindings)
+end
+
+"""Serialize an iteration trace without retaining solver-internal objects."""
+function iteration_trace_data(trace::SolverIterationTrace)
+    record_data = [Dict{String,Any}(
+        "format" => string(record.format),
+        "line" => record.line,
+        "iteration" => record.iteration,
+        "phase" => string(record.phase),
+        "objective" => record.objective,
+        "primal_infeasibility" => record.primal_infeasibility,
+        "dual_infeasibility" => record.dual_infeasibility,
+        "complementarity" => record.complementarity,
+        "primal_step" => record.primal_step,
+        "text" => record.text,
+    ) for record in trace.records]
+    segment_data = [Dict{String,Any}(
+        "start_line" => segment.start_line,
+        "end_line" => segment.end_line,
+        "record_count" => segment.record_count,
+        "first_iteration" => segment.first_iteration,
+        "final_iteration" => segment.final_iteration,
+        "formats" => string.(segment.formats),
+        "annotated_row_count" => segment.annotated_row_count,
+    ) for segment in trace.segments]
+    binding_data = [Dict{String,Any}(
+        "line" => binding.record.line,
+        "iteration" => binding.record.iteration,
+        "segment" => binding.segment,
+        "selector" => string(binding.selector),
+        "point" => Dict(
+            "label" => binding.point.label,
+            "variables" => [variable.value for variable in binding.point.variables],
+            "values" => copy(binding.point.values),
+        ),
+    ) for binding in trace.bindings]
+    return Dict{String,Any}(
+        "record_count" => length(trace.records),
+        "segment_count" => length(trace.segments),
+        "binding_count" => length(trace.bindings),
+        "records" => record_data,
+        "segments" => segment_data,
+        "bindings" => binding_data,
+    )
+end
+
+"""Run point diagnostics for a retained trace and annotate its provenance."""
+function analyze_iteration_trace(
+    model::MOI.ModelLike,
+    trace::SolverIterationTrace;
+    kwargs...,
+)
+    report = analyze_iteration_points(model, trace.bindings; kwargs...)
+    report.metadata[:iteration_trace_record_count] = string(length(trace.records))
+    report.metadata[:iteration_trace_segment_count] = string(length(trace.segments))
+    report.metadata[:iteration_trace_binding_count] = string(length(trace.bindings))
+    report.metadata[:iteration_trace_captured_binding_count] = string(count(
+        binding -> binding.selector == :captured, trace.bindings,
+    ))
+    return report
 end
 
 """

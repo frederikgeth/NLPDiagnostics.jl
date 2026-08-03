@@ -15,6 +15,8 @@ using JuMP
 using Ipopt # together with JuMP, activates BMOPFTools' public staged OPF extension
 using JSON
 
+include(joinpath(@__DIR__, "benchmark_environment.jl"))
+
 const _SMOKE_FIXTURES = [
     (
         name = "grounded-neutral",
@@ -93,6 +95,24 @@ function _dense_entry_limit()
     return limit
 end
 
+function _bmopf_integrity_preflight(network)
+    findings = BMOPFTools.Finding[]
+    result = BMOPFTools.integrity_check(network, findings)
+    return Dict{String,Any}(
+        "error_count" => count(f -> f.severity == BMOPFTools.ERROR, findings),
+        "warning_count" => count(f -> f.severity == BMOPFTools.WARNING, findings),
+        "finding_count" => length(findings),
+        "blocking" => any(f -> f.severity == BMOPFTools.ERROR, findings),
+        "findings" => [Dict{String,Any}(
+            "severity" => string(f.severity), "code" => f.code,
+            "section" => string(f.section), "component_type" => string(f.component_type),
+            "component_id" => f.component_id, "message" => f.message,
+            "detail" => f.detail,
+        ) for f in findings],
+        "summary" => result,
+    )
+end
+
 function main()
     root = get(ENV, "NLPDIAGNOSTICS_BMOPF_FIXTURE_ROOT", "")
     isempty(root) && error(
@@ -115,13 +135,17 @@ function main()
     )
     point_policy = lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_POINT_POLICY", "initialization"))
     dense_entry_limit = _dense_entry_limit()
+    environment = _benchmark_environment()
+    environment_fingerprint = _benchmark_environment_fingerprint(environment)
 
     for spec in fixtures
         path = joinpath(root, spec.file)
         result_path = joinpath(output_dir, "$(spec.name).json")
+        preflight = nothing
         try
             isfile(path) || error("fixture is missing: $path")
             network = BMOPFTools.from_dss(path)
+            preflight = _bmopf_integrity_preflight(network)
             run = NLPDiagnostics.bmopf_build_and_profile(network,
                 context -> _benchmark_case(spec, context, point_policy);
                 build_kwargs = (add_objective = false,),
@@ -142,7 +166,9 @@ function main()
             payload = Dict{String,Any}(
                 "fixture" => spec.file,
                 "fixture_path" => abspath(path),
+                "integrity_preflight" => preflight,
                 "tags" => string.(spec.tags),
+                "environment_fingerprint" => environment_fingerprint,
                 "point_policy" => point_policy,
                 "model_variable_count" => variable_count,
                 "scalar_constraint_row_count" => constraint_row_count,
@@ -177,6 +203,7 @@ function main()
             write(result_path, JSON.json(Dict(
                 "fixture" => spec.file, "fixture_path" => abspath(path),
                 "status" => "error", "error" => message,
+                "integrity_preflight" => preflight,
             )))
             push!(index, Dict(
                 "name" => spec.name, "status" => "error",
@@ -187,6 +214,8 @@ function main()
     end
     write(joinpath(output_dir, "index.json"), JSON.json(Dict(
         "fixture_root" => abspath(root),
+        "environment" => environment,
+        "environment_fingerprint" => environment_fingerprint,
         "rank_max_dense_entries" => dense_entry_limit,
         "cases" => index,
     )))

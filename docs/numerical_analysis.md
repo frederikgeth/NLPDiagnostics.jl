@@ -699,6 +699,23 @@ operates on the actual optimizer: call it after `optimize!`, or after JuMP has
 attached the optimizer. An unattached or unsupported optimizer produces an
 explicit error rather than a guessed postmortem.
 
+For live iteration evidence, `ipopt_iteration_trace_capture(model;
+capture_points=false)` installs Ipopt's public `CallbackFunction` intermediate
+callback and returns an `IterationTraceCapture`. Each callback row records
+objective, primal/dual infeasibility, steps, iteration number, and regular or
+restoration phase. With `capture_points=true`, callback primal coordinates are
+copied through `MOI.CallbackVariablePrimal` and retained as explicitly
+captured `EvaluationPoint` bindings. No solver internals or log reconstruction
+are used; call `iteration_trace(capture)` after `optimize!`.
+For the common solve-and-inspect workflow, `ipopt_optimize_with_iteration_trace!(model;
+capture_points=false)` installs the callback, calls `optimize!`, and returns the
+frozen `SolverIterationTrace` directly. An optional `capture` keyword lets a
+caller reuse a collector across controlled solve phases.
+`ipopt_profile_with_iteration_trace!` goes one step further: it solves, then
+profiles the final public MOI result with that trace and returns a
+`SolverTraceProfileRun`. `profile_result_data` serializes the trace and profile
+as separate evidence sections.
+
 ### MadNLP extension
 
 When `MadNLP` is loaded, the same `solver_postmortem` entry point recognizes
@@ -706,6 +723,24 @@ its MOI optimizer. The extension records public MOI statuses, barrier
 iterations, objective value, solve time, and MadNLP's raw status string. It
 does not inspect MadNLP internals to infer residuals or restoration history;
 only the raw `Restoration Failed` status records unsuccessful restoration.
+
+`madnlp_iteration_trace_callback()` constructs a MadNLP
+`AbstractUserCallback` for the public `intermediate_callback` option and
+returns `(callback, capture)`. The callback records objective, primal/dual
+infeasibility, complementarity, step length, iteration, and regular/restoration
+phase. The objective is unpacked through MadNLP's public callback accessor so
+it remains in model objective units rather than MadNLP's internal objective
+scaling. MadNLP's callback API does not provide a stable MOI primal-vector
+interface, so this adapter deliberately captures metrics only; it does not
+invent `EvaluationPoint`s. After `solve!` or `optimize!`, freeze the collector
+with `iteration_trace(capture)`.
+The one-call helper `madnlp_optimize_with_iteration_trace!(model)` performs the
+same attach, solve, and freeze sequence for a JuMP or MOI MadNLP model. It
+returns metric records only, preserving the callback API's explicit limitation
+around primal-vector capture.
+`madnlp_profile_with_iteration_trace!` returns the same combined
+`SolverTraceProfileRun` shape, with the MadNLP metric-only trace retained next
+to the final-result profile.
 
 ## Raw solver-log evidence
 

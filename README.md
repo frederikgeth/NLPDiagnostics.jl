@@ -32,6 +32,7 @@ read-only snapshot through the public MOI model API and reports:
 - finite first- and second-derivative domain checks;
 - overflow, underflow, and stable-expression fingerprints; and
 - explicit MOI initialization analysis without invented default starts.
+- optional Ipopt/MadNLP iteration-trace capture through public solver callbacks.
 
 ```julia
 import MathOptInterface as MOI
@@ -72,6 +73,22 @@ report = analyze(model; evaluation = evaluation)
 # Or inspect complete MOI/JuMP start values:
 initial_report = analyze(model; check_initialization = true)
 ```
+
+When the optional solver extensions are loaded, a solve can return an
+evidence-preserving iteration trace in one call:
+
+```julia
+using Ipopt
+trace = ipopt_optimize_with_iteration_trace!(model; capture_points = true)
+```
+
+`madnlp_optimize_with_iteration_trace!` provides the analogous MadNLP helper;
+MadNLP captures solver metrics and phase labels but does not fabricate primal
+points when its callback API does not expose them.
+For a combined artifact, `ipopt_profile_with_iteration_trace!` and
+`madnlp_profile_with_iteration_trace!` return a `SolverTraceProfileRun` with
+both the frozen trace and the final solver-result profile; it can be exported
+with `profile_result_data`.
 
 Each finding separately records:
 
