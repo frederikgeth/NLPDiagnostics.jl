@@ -159,12 +159,32 @@ function _finding_summary(record)
     all_counts = _finding_code_counts(evidence["all"])
     feasibility = get(all_counts, "constraint_feasibility_violation", 0)
     scale_counts = Dict(code => get(all_counts, code, 0) for code in sort!(collect(_SCALE_CODES)))
+    numerical_report = get(get(get(record, "profile", Dict()), "profile", Dict()),
+                           "reports", Dict())
+    numerical_report = numerical_report isa AbstractDict ?
+                       get(numerical_report, "numerical", Dict()) : Dict()
+    numerical_metadata = get(numerical_report, "metadata", Dict())
+    numerical_metadata = numerical_metadata isa AbstractDict ? numerical_metadata : Dict()
+    derivative_codes = _finding_code_counts(get(numerical_report, "findings", Any[]))
+    derivative_fingerprint = Dict(
+        "jacobian_rank_available" => get(numerical_metadata, "jacobian_rank_available", nothing),
+        "jacobian_rank" => _int_or_nothing(get(numerical_metadata, "jacobian_rank", nothing)),
+        "sparse_qr_rank_available" => get(numerical_metadata, "sparse_qr_rank_available", nothing),
+        "sparse_qr_rank" => _int_or_nothing(get(numerical_metadata, "sparse_qr_rank", nothing)),
+        "sparse_jacobian_pattern_rank_upper_bound" => _int_or_nothing(
+            get(numerical_metadata, "sparse_jacobian_pattern_rank_upper_bound", nothing),
+        ),
+        "derivative_finding_counts" => Dict(code => derivative_codes[code]
+            for code in sort!(collect(keys(derivative_codes)))
+            if occursin("derivative", code) || occursin("jacobian", code) || occursin("scale", code)),
+    )
     return Dict(
         "finding_code_counts_by_domain" => by_domain,
         "finding_code_counts" => Dict(code => all_counts[code] for code in sort!(collect(keys(all_counts)))),
         "constraint_feasibility_violation_count" => feasibility,
         "scale_finding_counts" => scale_counts,
         "total_finding_count" => length(evidence["all"]),
+        "derivative_fingerprint" => derivative_fingerprint,
     )
 end
 
@@ -182,6 +202,15 @@ function _case_comparison(snapshot, left, right)
     right_policy = _policy_metadata(right)
     left_codes = left_summary["finding_code_counts"]
     right_codes = right_summary["finding_code_counts"]
+    left_derivative = left_summary["derivative_fingerprint"]
+    right_derivative = right_summary["derivative_fingerprint"]
+    derivative_deltas = Dict{String,Any}()
+    for key in ("jacobian_rank", "sparse_qr_rank", "sparse_jacobian_pattern_rank_upper_bound")
+        lvalue = get(left_derivative, key, nothing)
+        rvalue = get(right_derivative, key, nothing)
+        lvalue isa Number && rvalue isa Number || continue
+        derivative_deltas["$(key)_delta_right_minus_left"] = rvalue - lvalue
+    end
     return Dict(
         "snapshot" => snapshot,
         "left_campaign_fingerprint" => get(left, "campaign_fingerprint", nothing),
@@ -193,6 +222,7 @@ function _case_comparison(snapshot, left, right)
         "finding_count_delta_right_minus_left" => right_summary["total_finding_count"] - left_summary["total_finding_count"],
         "feasibility_violation_delta_right_minus_left" => right_summary["constraint_feasibility_violation_count"] - left_summary["constraint_feasibility_violation_count"],
         "scale_finding_delta_right_minus_left" => _delta_map(left_summary["scale_finding_counts"], right_summary["scale_finding_counts"]),
+        "derivative_fingerprint_delta" => derivative_deltas,
         "finding_code_delta_right_minus_left" => _delta_map(left_codes, right_codes),
     )
 end

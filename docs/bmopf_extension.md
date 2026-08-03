@@ -463,6 +463,14 @@ the motivating field-ratio evidence is retained beside the profile comparison.
 Positive deltas mean the right campaign produced more findings; this is not a
 quality score and does not certify either policy.
 
+For repeatable policy experiments, `benchmarks/launch_bmopf_result_policy_matrix.jl`
+runs isolated `si`, `pu`, `pu_bus_si`, and `pu_all_si` child campaigns (or a
+subset selected with `NLPDIAGNOSTICS_BMOPF_POLICY_MATRIX`). Its manifest keeps
+the exact policy, process status, timeout, and output directory for each run.
+`benchmarks/summarize_bmopf_result_policy_matrix.jl matrix_index.json` then
+materializes every pairwise comparison under the matrix directory and emits a
+single summary containing the derivative-rank fingerprints and finding deltas.
+
 Set `NLPDIAGNOSTICS_BMOPF_INCLUDE_FLOATING_NEUTRAL_CANDIDATES=true` on a
 structural or profile corpus run to retain BMOPFTools' explicit floating-neutral
 candidate modes. These are physical expectations attached to the report; they

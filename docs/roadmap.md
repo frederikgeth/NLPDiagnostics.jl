@@ -389,6 +389,18 @@ mapped exported families as SI restored zero feasibility delta for that case.
 This is evidence that the remaining mismatch is in current/power-family
 semantics rather than a single voltage conversion, and motivates broader
 paired campaigns before any automatic policy inference is attempted.
+An isolated policy-matrix launcher now runs the baseline SI/PU choices and
+explicit correction probes in separate child processes. On the first 30-bus
+case, the `pu_all_si` policy matched the SI feasibility fingerprint exactly
+(zero violation delta), while `pu_bus_si` alone did not. This gives us a
+reproducible experiment harness for the next phase: derive field policies from
+larger paired campaigns and inspect derivative/rank changes without conflating
+process or cache failures with numerical findings.
+The policy-matrix summarizer now runs all pairwise comparisons and retains
+Jacobian-rank availability, sparse-QR rank, derivative-provenance codes, and
+scale-finding deltas alongside feasibility changes. This is the benchmark
+boundary needed before testing policy hypotheses on the larger 99- and
+538-bus cases.
 
 ## Solver postmortem foundation
 
