@@ -738,6 +738,34 @@ The one-call helper `madnlp_optimize_with_iteration_trace!(model)` performs the
 same attach, solve, and freeze sequence for a JuMP or MOI MadNLP model. It
 returns metric records only, preserving the callback API's explicit limitation
 around primal-vector capture.
+
+For controlled postmortem regression cases, run
+`benchmarks/solver_failure_cases.jl`. It exercises deliberately limited,
+infeasible, invalid-domain, and restoration-candidate models and records the
+intended signal separately from the observed termination. Use
+`benchmarks/summarize_solver_failure_cases.jl` to aggregate resource-limit,
+infeasibility, numerical-failure, restoration, and unclassified outcomes; a
+different observed category is evidence to investigate, not an assertion
+failure. The harness configures the solver-owned `output_file` option by
+default, so each record also contains `<solver>__<case>.log` when the backend
+supports file logging. Set `NLPDIAGNOSTICS_FAILURE_CAPTURE_LOGS=false` to
+disable that configuration. If logs were captured by an outer process, set
+`NLPDIAGNOSTICS_FAILURE_LOG_DIR` to files named `<solver>__<case>.log`; those
+files take precedence and the harness correlates their raw markers and
+structured iteration rows without reconstructing logs from callback metrics.
+The serialized record retains the primary solve profile beside the same
+supplied log's marker, iteration, and postmortem/log-consistency reports. A
+missing log is reported as missing evidence, never as evidence that no
+restoration or numerical event occurred; each record identifies whether its
+log source was the solver-owned file, an external file, or unavailable.
+For process isolation around native solver exits, use the dependency-light
+`benchmarks/launch_solver_failure_cases.jl` launcher. It keeps the parent from
+loading JuMP or a solver and preserves completed logs/process statuses when a
+child exits before normal JSON serialization. Set
+`NLPDIAGNOSTICS_FAILURE_CHILD_TIMEOUT_SECONDS` to bound each child; timeout
+records are reported explicitly as `process_timeout`, with the partial process
+log retained. The direct harness remains an in-process, low-overhead smoke
+test.
 `madnlp_profile_with_iteration_trace!` returns the same combined
 `SolverTraceProfileRun` shape, with the MadNLP metric-only trace retained next
 to the final-result profile.
@@ -756,7 +784,10 @@ local linear-system observation, with follow-up directed to Jacobian and
 active-set rank diagnostics rather than a global singularity claim.
 It does not parse iteration tables, reconstruct residuals, or treat log text as
 a proof of infeasibility or optimality. Future solver extensions can add
-structured log parsers while preserving these raw, inspectable evidence lines.
+solver-specific fields while preserving these raw, inspectable evidence lines.
+The separate `analyze_solver_iterations` parser handles complete Ipopt and
+MadNLP iteration rows, preserves restart segments and suffix annotations, and
+does not reinterpret residual headings as infeasibility outcomes.
 Restoration entry and restoration failure remain separate observations: an
 attempt is never upgraded to a failure or an infeasibility certificate.
 

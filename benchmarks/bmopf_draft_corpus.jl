@@ -16,6 +16,10 @@
 # saved result. It defaults to `<snapshot>_result_si.json`; record a different
 # numerical convention explicitly with NLPDIAGNOSTICS_BMOPF_RESULT_UNITS and
 # NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX.
+# Set NLPDIAGNOSTICS_BMOPF_RESULT_UNITS=pu to consume the corpus' adjacent
+# `_result_pu.json` files; `model` remains an alias for already-scaled values.
+# For mixed exports, override individual families with
+# NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS=bus_voltage=si,line_current=pu.
 # Set NLPDIAGNOSTICS_BMOPF_RESUME=true to reuse only matching successful
 # records. Set NLPDIAGNOSTICS_BMOPF_FORCE=true to rerun selected cases.
 
@@ -28,7 +32,7 @@ using SHA
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
-const _RUNNER_VERSION = "bmopf-draft-corpus-v3"
+const _RUNNER_VERSION = "bmopf-draft-corpus-v8"
 
 const _DEFAULT_CASES = [
     "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
@@ -54,6 +58,27 @@ function _saved_result_path(snapshot_path, result_units)
     return path
 end
 
+function _result_field_units()
+    raw = strip(get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS", ""))
+    isempty(raw) && return Dict{Symbol,Symbol}()
+    units = Dict{Symbol,Symbol}()
+    for item in split(raw, ',')
+        token = strip(item)
+        isempty(token) && continue
+        parts = occursin('=', token) ? split(token, '='; limit = 2) : split(token, ':'; limit = 2)
+        length(parts) == 2 || error("NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS entries must use family=unit, got '$token'")
+        family = Symbol(lowercase(strip(parts[1])))
+        unit = Symbol(lowercase(strip(parts[2])))
+        unit in (:si, :pu, :model) || error("NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS unit must be si, pu, or model, got '$unit'")
+        family in (:bus_voltage, :line_current, :load_current, :source_current,
+                   :ibr_current, :ibr_power, :switch_current, :ground_current) ||
+            error("unknown NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS family '$family'")
+        haskey(units, family) && error("duplicate NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS family '$family'")
+        units[family] = unit
+    end
+    return units
+end
+
 function _case_point(name, context, point_policy, snapshot_path; mapping_sink = nothing)
     point, provenance, metadata = if point_policy == "initialization"
         candidate = NLPDiagnostics.bmopf_initialization_point(context)
@@ -69,20 +94,28 @@ function _case_point(name, context, point_policy, snapshot_path; mapping_sink = 
         ), "BMOPFTools voltage starts with explicit zero completion for missing coordinates", Dict{String,Any}()
     elseif point_policy == "saved_result"
         result_units = Symbol(lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_UNITS", "si")))
-        result_units in (:si, :model) || error("NLPDIAGNOSTICS_BMOPF_RESULT_UNITS must be si or model")
+        result_units in (:si, :pu, :model) || error("NLPDIAGNOSTICS_BMOPF_RESULT_UNITS must be si, pu, or model")
+        field_units = _result_field_units()
         path = _saved_result_path(snapshot_path, result_units)
         saved = NLPDiagnostics.bmopf_saved_result_profile_case(
             name, context, BMOPFTools.read_result(path);
             result_units = result_units,
+            field_units = field_units,
             label = "bmopf-saved-result-partial-probe",
             description = "BMOPF draft-data snapshot; point policy=$point_policy",
             task = "BMOPF draft-corpus diagnostic benchmark",
             formulation = "BMOPF IVR",
             scale = "as declared by BMOPF snapshot",
             tags = [:bmopf, :draft_corpus, :multiconductor, :saved_result],
-            metadata = Dict{String,Any}("saved_result_path" => abspath(path)),
+            metadata = Dict{String,Any}(
+                "saved_result_path" => abspath(path),
+                "saved_result_field_units" => join(("$(key)=$(value)" for (key, value) in sort!(collect(field_units); by = first)), ","),
+            ),
         )
-        !isnothing(mapping_sink) && (mapping_sink[] = saved.mapping)
+        # Preserve the full adapter return, not only the raw mapping. The
+        # mapping report also carries the unit fingerprint and any
+        # representational qualification that a benchmark summary must retain.
+        !isnothing(mapping_sink) && (mapping_sink[] = saved)
         return saved.case
     elseif point_policy == "zero"
         NLPDiagnostics.bmopf_coordinate_probe_point(context; label = "bmopf-draft-zero-coordinate-probe"), point_policy, Dict{String,Any}()
@@ -107,7 +140,44 @@ end
 
 function _requested_cases(root)
     selected = filter(!isempty, strip.(split(get(ENV, "NLPDIAGNOSTICS_BMOPF_CASES", ""), ',')))
-    cases = isempty(selected) ? _DEFAULT_CASES : selected
+    selection = lowercase(strip(get(ENV, "NLPDIAGNOSTICS_BMOPF_CASE_SELECTION", "")))
+    if isempty(selected) && !isempty(selection)
+        prefixes = if selection == "30bus"
+            ["ENWLsnapshots/30bus_LN/", "ENWLsnapshots/30bus_LG/"]
+        elseif selection == "30bus_ln"
+            ["ENWLsnapshots/30bus_LN/"]
+        elseif selection == "30bus_lg"
+            ["ENWLsnapshots/30bus_LG/"]
+        elseif selection == "538bus"
+            ["ENWLsnapshots/538bus_LN/", "ENWLsnapshots/538bus_LG/"]
+        elseif selection == "538bus_ln"
+            ["ENWLsnapshots/538bus_LN/"]
+        elseif selection == "538bus_lg"
+            ["ENWLsnapshots/538bus_LG/"]
+        elseif selection == "99bus"
+            ["ENWLsnapshots/99bus_LN/", "ENWLsnapshots/99bus_LG/"]
+        elseif selection == "99bus_ln"
+            ["ENWLsnapshots/99bus_LN/"]
+        elseif selection == "99bus_lg"
+            ["ENWLsnapshots/99bus_LG/"]
+        else
+            error("unknown NLPDIAGNOSTICS_BMOPF_CASE_SELECTION='$selection' " *
+                  "(use 30bus[_ln|_lg], 538bus[_ln|_lg], or 99bus[_ln|_lg])")
+        end
+        discovered = String[]
+        for (directory, _, files) in walkdir(joinpath(root, "ENWLsnapshots"))
+            for file in files
+                endswith(file, ".bmopf.json") || continue
+                relative = relpath(joinpath(directory, file), root)
+                any(startswith(relative, prefix) for prefix in prefixes) || continue
+                push!(discovered, relative)
+            end
+        end
+        cases = sort!(discovered)
+        isempty(cases) && error("NLPDIAGNOSTICS_BMOPF_CASE_SELECTION='$selection' found no snapshots")
+    else
+        cases = isempty(selected) ? _DEFAULT_CASES : selected
+    end
     for relative in cases
         isabspath(relative) && error("case selections must be relative to NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT: $relative")
         endswith(relative, ".bmopf.json") || error("case selection is not a .bmopf.json snapshot: $relative")
@@ -151,10 +221,12 @@ end
 
 function _case_fingerprint(
     root, relative, point_policy, analysis_mode, dense_entry_limit,
+    include_floating_neutral_candidates,
     environment_fingerprint = _benchmark_environment_fingerprint(),
 )
     snapshot_path = joinpath(root, relative)
     result_units = lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_UNITS", "si"))
+    result_field_units = get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS", "")
     result_suffix = get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX", "_result_$(result_units).json")
     endswith(result_suffix, ".json") || error("NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX must end in .json")
     result_path = point_policy == "saved_result" ?
@@ -166,7 +238,9 @@ function _case_fingerprint(
         point_policy,
         analysis_mode,
         string(dense_entry_limit),
+        string(include_floating_neutral_candidates),
         result_units,
+        result_field_units,
         result_suffix,
         environment_fingerprint,
     ]
@@ -206,6 +280,10 @@ function main()
         "unknown NLPDIAGNOSTICS_BMOPF_ANALYSIS_MODE='$analysis_mode' (use profile or structural)",
     )
     dense_entry_limit = _dense_entry_limit()
+    include_floating_neutral_candidates = _env_flag(
+        "NLPDIAGNOSTICS_BMOPF_INCLUDE_FLOATING_NEUTRAL_CANDIDATES";
+        default = false,
+    )
     resume = _env_flag("NLPDIAGNOSTICS_BMOPF_RESUME")
     force = _env_flag("NLPDIAGNOSTICS_BMOPF_FORCE")
     force && (resume = false)
@@ -216,6 +294,7 @@ function main()
     for relative in selected_cases
         fingerprint = _case_fingerprint(
             root, relative, point_policy, analysis_mode, dense_entry_limit,
+            include_floating_neutral_candidates,
             environment_fingerprint,
         )
         push!(manifest_cases, Dict(
@@ -227,8 +306,12 @@ function main()
     write(joinpath(output_dir, "campaign_manifest.json"), JSON.json(Dict(
         "runner_version" => _RUNNER_VERSION,
         "benchmark_root" => abspath(root),
+        "case_selection" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASE_SELECTION", ""),
         "analysis_mode" => analysis_mode,
         "point_policy" => point_policy,
+        "result_units" => lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_UNITS", "si")),
+        "result_field_units" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS", ""),
+        "include_floating_neutral_candidates" => include_floating_neutral_candidates,
         "rank_max_dense_entries" => dense_entry_limit,
         "resume" => resume,
         "force" => force,
@@ -272,12 +355,18 @@ function main()
                     build_kwargs = (add_objective = false,),
                     profile_kwargs = (
                         include_initialization = true,
+                        include_floating_neutral_candidates = include_floating_neutral_candidates,
                         rank_max_dense_entries = dense_entry_limit,
                         jacobian_rank_tolerance_sweep_max_dense_entries = dense_entry_limit,
                     ),
                 )
-                mapping_report = isnothing(mapping_sink[]) ? nothing :
-                    NLPDiagnostics.bmopf_result_mapping_report(mapping_sink[])
+                saved_mapping = mapping_sink[]
+                mapping = isnothing(saved_mapping) ? nothing :
+                    (hasproperty(saved_mapping, :mapping) ? saved_mapping.mapping : saved_mapping)
+                mapping_report = isnothing(saved_mapping) ? nothing :
+                    (hasproperty(saved_mapping, :mapping_report) ?
+                     saved_mapping.mapping_report :
+                     NLPDiagnostics.bmopf_result_mapping_report(mapping))
                 if !isnothing(mapping_report)
                     append!(profile_run.result.context_report.findings, mapping_report.findings)
                     merge!(profile_run.result.context_report.metadata, mapping_report.metadata)
@@ -296,6 +385,7 @@ function main()
             else
                 structural_run = NLPDiagnostics.bmopf_build_and_analyze_opf(network;
                     build_kwargs = (add_objective = false,),
+                    analysis_kwargs = (include_floating_neutral_candidates = include_floating_neutral_candidates,),
                 )
                 structural_data = NLPDiagnostics.report_data(structural_run.report)
                 variables = parse(Int, structural_run.report.metadata[:variable_count])
@@ -313,6 +403,7 @@ function main()
                 "environment_fingerprint" => environment_fingerprint,
                 "analysis_mode" => analysis_mode,
                 "point_policy" => point_policy,
+                "include_floating_neutral_candidates" => include_floating_neutral_candidates,
                 "integrity_preflight" => preflight,
                 "model_variable_count" => variable_count,
                 row_count_key => constraint_row_count,
@@ -367,7 +458,12 @@ function main()
     write(joinpath(output_dir, "index.json"), JSON.json(Dict(
         "benchmark_root" => abspath(root),
         "runner_version" => _RUNNER_VERSION,
+        "case_selection" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASE_SELECTION", ""),
         "analysis_mode" => analysis_mode,
+        "point_policy" => point_policy,
+        "result_units" => lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_UNITS", "si")),
+        "result_field_units" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS", ""),
+        "include_floating_neutral_candidates" => include_floating_neutral_candidates,
         "rank_max_dense_entries" => dense_entry_limit,
         "resume" => resume,
         "force" => force,

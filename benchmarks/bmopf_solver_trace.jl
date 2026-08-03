@@ -33,7 +33,7 @@ end
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
-const _RUNNER_VERSION = "bmopf-solver-trace-v2"
+const _RUNNER_VERSION = "bmopf-solver-trace-v3"
 const _DEFAULT_CASES = [
     "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
 ]
@@ -151,14 +151,55 @@ function _apply_solver_options(model, options)
     return model
 end
 
+function _truncate_log(text, limit = 100_000)
+    length(text) <= limit && return text
+    return text[1:limit] * "\n...[truncated]..."
+end
+
+function _configure_solver_log!(model, solver_name, path)
+    _env_flag("NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS") || return nothing
+    mkpath(dirname(path))
+    try
+        JuMP.set_optimizer_attribute(model, "output_file", path)
+        if solver_name == "ipopt"
+            JuMP.set_optimizer_attribute(model, "file_print_level", 5)
+        else
+            JuMP.set_optimizer_attribute(model, "file_print_level", MadNLP.INFO)
+        end
+        return nothing
+    catch error
+        return sprint(showerror, error)
+    end
+end
+
+function _solver_log_evidence(solver_name, path)
+    isfile(path) || return nothing
+    text = read(path, String)
+    isempty(strip(text)) && return nothing
+    return Dict{String,Any}(
+        "path" => path,
+        "source" => "solver_output_file",
+        "text" => _truncate_log(text),
+        "raw" => NLPDiagnostics.report_data(
+            NLPDiagnostics.analyze_solver_log(solver_name, text),
+        ),
+        "iterations" => NLPDiagnostics.report_data(
+            NLPDiagnostics.analyze_solver_iterations(solver_name, text),
+        ),
+    )
+end
+
 function _case_record(root, relative, solver_name, output_dir, max_variables,
                       capture_points, dense_entry_limit, environment_fingerprint,
                       solver_options, per_unit)
     path = joinpath(root, relative)
     name = replace(replace(relative, '/' => "__"), ".bmopf.json" => "")
     result_path = joinpath(output_dir, "$name.json")
+    solver_log_path = joinpath(output_dir, "$name.log")
+    capture_logs = _env_flag("NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS")
     sweep_label = get(ENV, "NLPDIAGNOSTICS_BMOPF_SWEEP_LABEL", "")
     preflight = nothing
+    log_configuration_error = nothing
     try
         network = BMOPFTools.parse_bmopf(path)
         preflight = _integrity_preflight(network)
@@ -171,6 +212,9 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
         kcl_timing = @timed BMOPFTools.enforce_kcl!(context)
         model = BMOPFTools.opf_model(context)
         _apply_solver_options(model, solver_options)
+        log_configuration_error = _configure_solver_log!(
+            model, solver_name, solver_log_path,
+        )
         backend = JuMP.backend(model)
         variable_count = length(MOI.get(backend, MOI.ListOfVariableIndices()))
         if variable_count > max_variables
@@ -183,7 +227,10 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                 "solver_options" => solver_options,
                 "per_unit" => per_unit,
                 "sweep_label" => sweep_label,
+                "capture_logs" => capture_logs,
                 "integrity_preflight" => preflight,
+                "solver_log_path" => solver_log_path,
+                "solver_log_configuration_error" => log_configuration_error,
             )
             write(result_path, JSON.json(payload))
             return Dict{String,Any}("name" => name, "snapshot" => relative,
@@ -191,6 +238,8 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                 "model_variable_count" => variable_count)
         end
         run = _solve_with_trace(model, solver_name; capture_points)
+        solver_log_evidence = capture_logs ?
+            _solver_log_evidence(solver_name, solver_log_path) : nothing
         trace_data = NLPDiagnostics.iteration_trace_data(run.trace)
         solver_data = NLPDiagnostics.profile_result_data(run)
         bmopf_data = if isnothing(run.result.case)
@@ -217,6 +266,7 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "objective_comparison_reference" => "recomputed MOI model objective",
             "bmopf_extracted_result_convention" => "BMOPFTools public result units (typically SI)",
             "capture_points" => capture_points,
+            "capture_logs" => capture_logs,
             "model_variable_count" => variable_count,
             "build_seconds" => build_timing.time,
             "build_allocations" => build_timing.bytes,
@@ -228,6 +278,9 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "bmopf_profile" => bmopf_data,
             "solver_result_constraint_row_count" => isnothing(run.result.profile) ?
                 nothing : length(run.result.profile.evaluation.constraint_sources),
+            "solver_log_evidence" => solver_log_evidence,
+            "solver_log_path" => solver_log_path,
+            "solver_log_configuration_error" => log_configuration_error,
         )
         write(result_path, JSON.json(payload))
         return Dict{String,Any}(
@@ -236,6 +289,7 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "model_variable_count" => variable_count,
             "iteration_count" => length(run.trace.records),
             "build_seconds" => build_timing.time, "kcl_seconds" => kcl_timing.time,
+            "solver_log_available" => !isnothing(solver_log_evidence),
         )
     catch error
         message = sprint(showerror, error, catch_backtrace())
@@ -246,7 +300,12 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "solver_options" => solver_options,
             "per_unit" => per_unit,
             "sweep_label" => sweep_label,
+            "capture_logs" => capture_logs,
             "error" => message, "integrity_preflight" => preflight,
+            "solver_log_evidence" => capture_logs ?
+                _solver_log_evidence(solver_name, solver_log_path) : nothing,
+            "solver_log_path" => solver_log_path,
+            "solver_log_configuration_error" => log_configuration_error,
         )
         write(result_path, JSON.json(payload))
         return Dict{String,Any}(
@@ -289,6 +348,7 @@ function main()
         "runner_version" => _RUNNER_VERSION,
         "benchmark_root" => abspath(root), "solver" => solver_name,
         "capture_points" => capture_points,
+        "capture_logs" => _env_flag("NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS"),
         "solver_options" => solver_options,
         "per_unit" => per_unit,
         "max_solver_variables" => max_variables,

@@ -312,6 +312,83 @@ the raw per-case records for inspection.
 An evidence-preserving comparison command now aligns selected Ipopt/MadNLP
 summaries, exposes objective-convention disagreements and residual deltas, and
 keeps environment mismatches explicit instead of producing a solver score.
+The option-sweep orchestrator now launches isolated trace campaigns with
+explicit solver attributes and aggregates termination categories, making
+restoration, slow-progress, numerical-failure, and resource-limit behavior
+inspectable across controlled configurations.
+The BMOPF trace runner now has opt-in solver-owned log capture, preserving raw
+marker and structured-iteration evidence beside callback traces; its
+summarizer reports log availability, observation counts, and finding-code
+distributions without reconstructing iterates from text.
+The controlled `solver_failure_cases.jl` harness now supplies small
+solver-independent postmortem regression models for iteration limits,
+infeasibility, invalid domains, and restoration candidates; its summarizer
+keeps intended signals separate from observed solver classifications. The
+harness configures solver-owned log files when supported, accepts externally
+captured logs through `NLPDIAGNOSTICS_FAILURE_LOG_DIR`, and stores raw marker,
+structured-iteration, and postmortem/log-consistency evidence together. Log
+capture remains optional evidence: it does not reconstruct iterates or turn a
+restoration message into an infeasibility certificate.
+Subprocess isolation around native solver exits is now implemented. The
+dependency-light `launch_solver_failure_cases.jl` launcher preserves each
+child's exit status, partial process log, and an explicit per-child timeout;
+timed-out MadNLP starts or restoration cases remain `process_timeout` evidence
+rather than being silently dropped. A matching
+`launch_bmopf_solver_trace.jl` launcher isolates one BMOPF snapshot per child
+while retaining solver-owned logs and completed JSON records. The direct
+harnesses remain available as in-process, low-overhead smoke tests.
+The `launch_bmopf_solver_matrix.jl` launcher now runs the same snapshot set
+through Ipopt and MadNLP in separate evidence directories, with per-pair
+timeouts and a parent manifest. The existing summary/comparison tools can
+therefore compare termination, iteration, residual, objective-convention, and
+solver-log evidence without mixing process-startup failures into solver
+outcomes.
+`summarize_bmopf_solver_matrix.jl` now materializes missing per-solver
+summaries and pairwise comparison artifacts from that manifest, retaining
+summary or comparison subprocess failures as explicit campaign evidence.
+`summarize_bmopf_campaign.jl` combines those solver summaries with one or more
+structural/profile corpus summaries while preserving source-specific evidence
+and emitting aggregate recurring-fingerprint counts.
+The corpus runner now has explicit, provenance-bearing time-series selectors
+for 30-, 538-, and 99-bus LN/LG snapshots. A corrected 30-bus structural sweep
+covered all 50 snapshots (704 variables, 844 scalar rows each) with zero
+errors; a preceding full-corpus structural sweep covered all 150 snapshots
+without dense rank materialization. The benchmark stack and core package
+regression suite remain green (1,541 tests), using the depot-safe launcher when
+the host Julia depot is read-only.
+Saved-result profiling now accepts the corpus' explicit `:pu` convention in
+addition to SI and model coordinates, and the corpus runner preserves the
+adapter's unit-fingerprint report. Across 50 30-bus snapshots, SI inputs gave
+zero generic feasibility violations and zero unit-scale warnings; interpreting
+the adjacent `_result_pu.json` files as homogeneous model coordinates produced
+20,250 feasibility-violation findings and 50 scale warnings (median voltage
+magnitude about 228). This is a useful mixed-unit fingerprint, not a solver
+failure: the data's per-unit label does not describe every exported field.
+The field-level `compare_bmopf_saved_result_units.jl` report now compares
+paired SI/PU leaves directly, preserving ratio distributions by exported field
+family instead of forcing a global conversion. The corpus runner also exposes
+BMOPFTools' floating-neutral candidate modes behind an explicit opt-in flag;
+candidate directions remain physical expectations and are never promoted to
+generic nullspace claims automatically.
+The first saved-result 538-bus profile also completes: one 11,028-variable /
+12,538-row case mapped all staged coordinates with dense rank skipped. Its
+dominant numerical limitation was `active_set_block_rank_unavailable` (2,424
+block observations), alongside a large Jacobian row-scale spread; these are
+recorded as analysis-availability and scaling evidence, not as a blanket claim
+that the 538-bus model is singular.
+The saved-result adapter now also accepts a field-level unit policy, retained
+in mapping/report metadata and benchmark fingerprints. This supports mixed
+exports without pretending that a global `:pu` suffix is a homogeneous
+numerical convention. The next benchmark ticket is to run paired SI/PU
+campaigns with policies derived from the field-ratio report, then compare
+feasibility and derivative fingerprints under those declared policies.
+The policy-aware profile comparator is now available. On the first 30-bus
+paired probe, applying `bus_voltage=si` alone to the PU export did not restore
+the SI feasibility fingerprint (it added 419 violations), while declaring all
+mapped exported families as SI restored zero feasibility delta for that case.
+This is evidence that the remaining mismatch is in current/power-family
+semantics rather than a single voltage conversion, and motivates broader
+paired campaigns before any automatic policy inference is attempted.
 
 ## Solver postmortem foundation
 
@@ -405,3 +482,13 @@ accepts a caller-supplied trace solve function and returns a
 solve, profile the final public MOI result, and serialize the trace alongside
 the profile, making benchmark records directly inspectable without coupling
 the core to a solver.
+
+The BMOPF solver-trace campaign now has opt-in solver-owned log capture with
+raw marker evidence and structured iteration summaries. Ipopt annotations are
+parsed without discarding rows, while residual headings are excluded from
+reported-infeasibility markers. The summary retains log availability, parsed
+iteration/segment counts, final and minimum printed residuals, and log finding
+codes separately from solver-result and BMOPFTools context evidence. A
+depot-safe `run_benchmark.jl` launcher provides a writable compiled-cache
+overlay for restricted environments, and the generic failure harness uses the
+same provenance-preserving pattern.

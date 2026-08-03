@@ -771,7 +771,7 @@ function solver_log_observations(log::AbstractString)
             :reported_unboundedness
         elseif occursin("diverging", normalized) || occursin("diverged", normalized)
             :diverging_iterates
-        elseif occursin("infeasib", normalized)
+        elseif _is_reported_infeasibility_marker(normalized)
             :reported_infeasibility
         elseif occursin("maximum iterations", normalized) ||
                occursin("maximum number of iterations", normalized) ||
@@ -798,6 +798,27 @@ function solver_log_observations(log::AbstractString)
         )
     end
     return observations
+end
+
+"""Return true for solver outcome text, excluding residual column headings."""
+function _is_reported_infeasibility_marker(normalized::AbstractString)
+    occursin("infeasib", normalized) || return false
+    # Ipopt and MadNLP print residual headings such as `dual infeasibility`
+    # and `inf_pr`; those are measurements, not solver declarations that the
+    # problem is infeasible.  Keep explicit local/global outcome language.
+    occursin("dual infeasibility", normalized) && return false
+    occursin("primal infeasibility", normalized) && return false
+    occursin("constraint violation", normalized) && return false
+    occursin("variable bound violation", normalized) && return false
+    occursin("overall nlp error", normalized) && return false
+    return occursin("local infeasibility", normalized) ||
+           occursin("problem is infeasible", normalized) ||
+           occursin("problem appears infeasible", normalized) ||
+           occursin("infeasible problem", normalized) ||
+           occursin("infeasible solution", normalized) ||
+           occursin("infeasible point", normalized) ||
+           occursin("infeasibility detected", normalized) ||
+           occursin("converged to a point of", normalized)
 end
 
 function _solver_log_evidence(
@@ -967,7 +988,7 @@ function analyze_solver_log(
     report.metadata[:stage] = "solver_log"
     report.metadata[:solver] = String(solver)
     report.metadata[:recognized_log_observation_count] = string(
-        sum(length, values(grouped)),
+        sum(length, values(grouped); init = 0),
     )
     for category in sort!(collect(keys(grouped)); by = string)
         observations = grouped[category]
@@ -1132,6 +1153,15 @@ function _log_float(token)
     return tryparse(Float64, replace(token, 'D' => 'E', 'd' => 'e'))
 end
 
+"""Parse numeric iteration fields with solver suffix annotations."""
+function _iteration_log_float(token)
+    value = _log_float(token)
+    isnothing(value) || return value
+    stripped = replace(token, r"[A-Za-z]+$" => "")
+    stripped == token && return nothing
+    return _log_float(stripped)
+end
+
 function _iteration_token(token)
     matched = match(r"^(\d+)([A-Za-z]*)$", token)
     isnothing(matched) && return nothing
@@ -1167,15 +1197,18 @@ function solver_iteration_records(log::AbstractString)
         objective, primal, dual = _log_float.(fields[2:4])
         any(isnothing, (objective, primal, dual)) && continue
         if format == :ipopt
-            primal_step = _log_float(fields[9])
+            # Ipopt appends restoration/line-search annotations to alpha_pr,
+            # for example `8.78e-01H`; preserve the raw row while parsing the
+            # numeric portion for structured residual analysis.
+            primal_step = _iteration_log_float(fields[9])
             isnothing(primal_step) && continue
             push!(records, SolverIterationRecord(
                 :ipopt, line_number, iteration, phase, objective, primal, dual,
                 nothing, primal_step, String(line),
             ))
         else
-            complementarity = _log_float(fields[5])
-            primal_step = _log_float(fields[8])
+            complementarity = _iteration_log_float(fields[5])
+            primal_step = _iteration_log_float(fields[8])
             any(isnothing, (complementarity, primal_step)) && continue
             push!(records, SolverIterationRecord(
                 :madnlp, line_number, iteration, phase, objective, primal, dual,
@@ -1387,6 +1420,10 @@ function analyze_solver_iterations(
         string(summary.minimum_primal_infeasibility)
     report.metadata[:minimum_logged_dual_infeasibility] =
         string(summary.minimum_dual_infeasibility)
+    report.metadata[:final_logged_primal_infeasibility] =
+        string(summary.final_primal_infeasibility)
+    report.metadata[:final_logged_dual_infeasibility] =
+        string(summary.final_dual_infeasibility)
     report.metadata[:annotated_iteration_row_count] = string(summary.annotated_row_count)
     report.metadata[:iteration_segment_count] = string(summary.segment_count)
     report.metadata[:stagnation_window] = string(stagnation_window)

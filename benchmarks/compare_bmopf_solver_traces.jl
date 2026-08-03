@@ -36,6 +36,8 @@ function _compare_case(left, right)
     right_codes = _as_dict(get(right, "solver_result_finding_codes", nothing))
     bmopf_left = _as_dict(get(left, "bmopf_context_finding_codes", nothing))
     bmopf_right = _as_dict(get(right, "bmopf_context_finding_codes", nothing))
+    left_log = _as_dict(get(left, "solver_log_iterations", nothing))
+    right_log = _as_dict(get(right, "solver_log_iterations", nothing))
     return Dict{String,Any}(
         "status" => Dict("left" => get(left, "status", nothing), "right" => get(right, "status", nothing)),
         "conventions" => Dict(
@@ -63,6 +65,36 @@ function _compare_case(left, right)
             "final_primal_infeasibility" => Dict("left" => get(left_trace, "final_primal_infeasibility", nothing), "right" => get(right_trace, "final_primal_infeasibility", nothing)),
             "final_dual_infeasibility" => Dict("left" => get(left_trace, "final_dual_infeasibility", nothing), "right" => get(right_trace, "final_dual_infeasibility", nothing)),
             "phase_counts" => Dict("left" => get(left_trace, "phase_counts", Dict()), "right" => get(right_trace, "phase_counts", Dict())),
+        ),
+        "solver_log" => Dict(
+            "available" => Dict(
+                "left" => get(left, "solver_log_available", false),
+                "right" => get(right, "solver_log_available", false),
+            ),
+            "finding_codes" => Dict(
+                "left" => get(left, "solver_log_finding_codes", Dict()),
+                "right" => get(right, "solver_log_finding_codes", Dict()),
+            ),
+            "iteration_count" => Dict(
+                "left" => get(left_log, "record_count", nothing),
+                "right" => get(right_log, "record_count", nothing),
+                "delta_right_minus_left" => _delta(
+                    get(left_log, "record_count", nothing),
+                    get(right_log, "record_count", nothing),
+                ),
+            ),
+            "segment_count" => Dict(
+                "left" => get(left_log, "segment_count", nothing),
+                "right" => get(right_log, "segment_count", nothing),
+            ),
+            "final_primal_infeasibility" => Dict(
+                "left" => get(left_log, "final_primal_infeasibility", nothing),
+                "right" => get(right_log, "final_primal_infeasibility", nothing),
+            ),
+            "final_dual_infeasibility" => Dict(
+                "left" => get(left_log, "final_dual_infeasibility", nothing),
+                "right" => get(right_log, "final_dual_infeasibility", nothing),
+            ),
         ),
         "solver_result_finding_codes" => Dict("left" => left_codes, "right" => right_codes),
         "bmopf_context_finding_codes" => Dict("left" => bmopf_left, "right" => bmopf_right),

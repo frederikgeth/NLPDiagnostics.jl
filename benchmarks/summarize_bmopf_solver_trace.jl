@@ -24,6 +24,48 @@ function _merge_counts!(target, source)
     return target
 end
 
+function _integer_value(value, default = 0)
+    value isa Integer && return Int(value)
+    try
+        return parse(Int, String(value))
+    catch
+        return default
+    end
+end
+
+function _log_iteration_summary(report)
+    report isa AbstractDict || return Dict{String,Any}()
+    metadata = get(report, "metadata", nothing)
+    metadata isa AbstractDict || return Dict{String,Any}()
+    result = Dict{String,Any}()
+    function normalized(value)
+        value isa Number && return value
+        value isa AbstractString || return value
+        try
+            return parse(Int, value)
+        catch
+        end
+        try
+            return parse(Float64, value)
+        catch
+            return value
+        end
+    end
+    for (output, key) in (
+        "record_count" => "parsed_iteration_count",
+        "segment_count" => "iteration_segment_count",
+        "final_iteration" => "final_parsed_iteration",
+        "final_primal_infeasibility" => "final_logged_primal_infeasibility",
+        "final_dual_infeasibility" => "final_logged_dual_infeasibility",
+        "minimum_primal_infeasibility" => "minimum_logged_primal_infeasibility",
+        "minimum_dual_infeasibility" => "minimum_logged_dual_infeasibility",
+    )
+        value = get(metadata, key, nothing)
+        isnothing(value) || (result[output] = normalized(value))
+    end
+    return result
+end
+
 function _trace_summary(trace)
     records = get(trace, "records", Any[])
     phases = Dict{String,Int}()
@@ -91,6 +133,11 @@ function main()
     bmopf_finding_codes = Dict{String,Int}()
     failure_category_counts = Dict{String,Int}()
     status_counts = Dict{String,Int}()
+    solver_log_evidence_case_count = 0
+    solver_log_observation_count = 0
+    solver_log_finding_codes = Dict{String,Int}()
+    solver_log_iteration_count = 0
+    solver_log_iteration_segment_count = 0
     iteration_counts = Int[]
     for entry in get(index, "cases", Any[])
         name = String(get(entry, "name", "unknown"))
@@ -105,7 +152,8 @@ function main()
         summary["status"] = status
         for key in ("solver", "solver_options", "per_unit", "model_coordinate_units",
                     "solver_objective_convention", "objective_comparison_reference",
-                    "bmopf_extracted_result_convention", "environment_fingerprint")
+                    "bmopf_extracted_result_convention", "environment_fingerprint",
+                    "sweep_label", "capture_logs")
             haskey(record, key) && (summary[key] = record[key])
         end
         if status == "ok"
@@ -138,6 +186,35 @@ function main()
                 summary["bmopf_context_finding_codes"] = Dict{String,Int}()
             end
         end
+        solver_log = get(record, "solver_log_evidence", nothing)
+        summary["solver_log_available"] = solver_log isa AbstractDict
+        summary["solver_log_path"] = get(record, "solver_log_path", nothing)
+        if solver_log isa AbstractDict
+            solver_log_evidence_case_count += 1
+            raw = get(solver_log, "raw", nothing)
+            raw_metadata = raw isa AbstractDict ? get(raw, "metadata", nothing) : nothing
+            if raw_metadata isa AbstractDict
+                solver_log_observation_count += _integer_value(
+                    get(raw_metadata, "recognized_log_observation_count", 0),
+                )
+            end
+            _merge_counts!(solver_log_finding_codes, _count_codes(raw))
+            iterations = get(solver_log, "iterations", nothing)
+            _merge_counts!(solver_log_finding_codes, _count_codes(iterations))
+            summary["solver_log_finding_codes"] = _count_codes(raw)
+            _merge_counts!(summary["solver_log_finding_codes"], _count_codes(iterations))
+            iteration_summary = _log_iteration_summary(iterations)
+            summary["solver_log_iterations"] = iteration_summary
+            solver_log_iteration_count += _integer_value(
+                get(iteration_summary, "record_count", 0),
+            )
+            solver_log_iteration_segment_count += _integer_value(
+                get(iteration_summary, "segment_count", 0),
+            )
+        else
+            summary["solver_log_finding_codes"] = Dict{String,Int}()
+            summary["solver_log_iterations"] = Dict{String,Any}()
+        end
         push!(cases, summary)
     end
     summary_path = length(ARGS) == 2 ? abspath(ARGS[2]) : joinpath(output_dir, "summary.json")
@@ -154,6 +231,11 @@ function main()
         "solver_result_finding_codes" => trace_finding_codes,
         "bmopf_context_finding_codes" => bmopf_finding_codes,
         "failure_category_counts" => failure_category_counts,
+        "solver_log_evidence_case_count" => solver_log_evidence_case_count,
+        "solver_log_observation_count" => solver_log_observation_count,
+        "solver_log_finding_codes" => solver_log_finding_codes,
+        "solver_log_iteration_count" => solver_log_iteration_count,
+        "solver_log_iteration_segment_count" => solver_log_iteration_segment_count,
         "cases" => cases,
     )
     write(summary_path, JSON.json(payload))

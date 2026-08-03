@@ -311,9 +311,35 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     )
     @test isempty(saved_point.unresolved_saved_coordinate_counts_by_family)
     @test saved_point.point.values == [1.0, 0.0, 0.0, 0.0, -7.0, -7.0, -7.0, -7.0]
+    pu_result = Dict{String,Any}(
+        "bus" => Dict{String,Any}(
+            "bus" => Dict{String,Any}(
+                "a" => Dict{String,Any}("vr" => 1.0, "vi" => 0.0),
+                "n" => Dict{String,Any}("vr" => 0.0, "vi" => 0.0),
+            ),
+        ),
+    )
+    pu_point = NLPDiagnostics.bmopf_result_voltage_point(
+        per_unit_context, pu_result; result_units = :pu, fallback_value = -7.0,
+    )
+    @test pu_point.point.values == saved_point.point.values
+    @test pu_point.result_units == :pu
+    mixed_policy_point = NLPDiagnostics.bmopf_result_voltage_point(
+        per_unit_context, pu_result;
+        result_units = :si,
+        field_units = Dict(:bus_voltage => :pu),
+        fallback_value = -7.0,
+    )
+    @test mixed_policy_point.point.values == pu_point.point.values
+    @test mixed_policy_point.field_units[:bus_voltage] == :pu
+    @test mixed_policy_point.field_units[:line_current] == :si
+    @test_throws ArgumentError NLPDiagnostics.bmopf_result_voltage_point(
+        per_unit_context, pu_result; field_units = Dict(:not_a_family => :pu),
+    )
     saved_mapping_report = NLPDiagnostics.bmopf_result_mapping_report(saved_point)
     @test saved_mapping_report.metadata[:stage] == "bmopf_saved_result_mapping"
     @test saved_mapping_report.metadata[:bmopf_saved_result_fallback_coordinate_count] == "4"
+    @test occursin("bus_voltage=si", saved_mapping_report.metadata[:bmopf_saved_result_field_units])
     @test length(findings(saved_mapping_report, :bmopf_saved_result_mapping_coverage)) == 1
     @test length(findings(saved_mapping_report, :bmopf_saved_result_unregistered_model_coordinates)) == 1
     @test only(findings(saved_mapping_report, :bmopf_saved_result_mapping_coverage)).domain ==
@@ -332,6 +358,20 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test saved_case.mapping_report.metadata[
         :bmopf_saved_result_unit_fingerprint_zero_magnitude_count] == "1"
     @test isempty(findings(saved_case.mapping_report, :bmopf_saved_result_unit_scale_suspicious))
+    mixed_saved_case = NLPDiagnostics.bmopf_saved_result_profile_case(
+        "mixed-unit-result-test", per_unit_context, pu_result;
+        result_units = :si,
+        field_units = Dict(:bus_voltage => :pu),
+        fallback_value = -7.0,
+    )
+    @test mixed_saved_case.case.metadata["saved_result_field_units"] isa AbstractString
+    @test occursin("bus_voltage=pu", mixed_saved_case.mapping_report.metadata[:bmopf_saved_result_field_units])
+    mislabelled_pu_case = NLPDiagnostics.bmopf_saved_result_profile_case(
+        "mislabelled-pu-result-test", per_unit_context, saved_result;
+        result_units = :pu,
+    )
+    @test length(findings(mislabelled_pu_case.mapping_report,
+                          :bmopf_saved_result_unit_scale_suspicious)) == 1
     mislabelled_case = NLPDiagnostics.bmopf_saved_result_profile_case(
         "mislabelled-result-test", per_unit_context, saved_result;
         result_units = :model,
@@ -11446,6 +11486,14 @@ end
             log;
             max_evidence_lines = 0,
         )
+        successful_ipopt_footer = """
+        Dual infeasibility......:   4.2e-14    4.2e-13
+        Constraint violation....:   3.3e-16    3.3e-16
+        EXIT: Optimal Solution Found.
+        """
+        @test isempty(findings(NLPDiagnostics.analyze_solver_log(
+            "Ipopt", successful_ipopt_footer,
+        ), :solver_log_reported_infeasibility))
     end
 
     @testset "structured solver iteration evidence" begin
@@ -11459,6 +11507,13 @@ end
         @test records[2].format == :ipopt
         @test records[2].phase == :annotated
         @test records[2].primal_step == 1.0
+        suffix_log = """
+        iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+           1  2.0e+00 1.0e-02 3.0e-02  -2.0 1.0e+00    -  1.0e+00 8.0e-01H  1
+        """
+        suffix_records = NLPDiagnostics.solver_iteration_records(suffix_log)
+        @test length(suffix_records) == 1
+        @test suffix_records[1].primal_step == 0.8
         summary = NLPDiagnostics.solver_iteration_summary(records)
         @test summary.record_count == 2
         @test summary.formats == [:ipopt]

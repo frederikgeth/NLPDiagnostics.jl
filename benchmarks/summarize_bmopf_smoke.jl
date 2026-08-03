@@ -107,11 +107,14 @@ function main()
     saved_result_unmapped_registered_coordinates = 0
     saved_result_mapping_fractions = Float64[]
     saved_result_units = Dict{String,Int}()
+    saved_result_field_units = Dict{String,Int}()
     saved_result_unit_scale_warning_cases = 0
     saved_result_mapping_warning_cases = 0
     skipped_cases = 0
     error_cases = 0
     profile_case_count = 0
+    floating_neutral_candidate_cases = 0
+    floating_neutral_candidate_modes = 0
     aggregate_stage_seconds = Dict{String,Vector{Float64}}()
     aggregate_stage_allocations = Dict{String,Vector{Float64}}()
     for entry in index["cases"]
@@ -191,6 +194,20 @@ function main()
             summary["generic_finding_attributes"] = generic_attributes
             summary["context_finding_attributes"] = context_attributes
             summary["initialization_finding_attributes"] = initialization_attributes
+            report_metadata = if analysis_mode == "structural"
+                get(record["report"], "metadata", Dict{String,Any}())
+            else
+                get(profile["bmopf_context_report"], "metadata", Dict{String,Any}())
+            end
+            candidate_modes = try
+                parse(Int, string(get(report_metadata,
+                    "bmopf_floating_neutral_candidate_mode_count", "0")))
+            catch
+                0
+            end
+            candidate_modes > 0 && (floating_neutral_candidate_cases += 1)
+            floating_neutral_candidate_modes += candidate_modes
+            summary["floating_neutral_candidate_mode_count"] = candidate_modes
             if analysis_mode != "structural" && haskey(record, "profile")
                 profile_case_count += 1
                 serialized_profile = get(record["profile"], "profile", nothing)
@@ -218,6 +235,7 @@ function main()
                     "unmapped_registered_coordinate_count" => parse(Int, metadata["bmopf_saved_result_unmapped_registered_coordinate_count"]),
                     "mapped_registered_coordinate_fraction" => parse(Float64, metadata["bmopf_saved_result_registered_coordinate_fraction"]),
                     "result_units" => metadata["bmopf_saved_result_units"],
+                    "field_units" => get(metadata, "bmopf_saved_result_field_units", nothing),
                 )
                 fraction = parse(Float64, metadata[
                     "bmopf_saved_result_registered_coordinate_fraction",
@@ -225,6 +243,8 @@ function main()
                 push!(saved_result_mapping_fractions, fraction)
                 units = metadata["bmopf_saved_result_units"]
                 saved_result_units[units] = get(saved_result_units, units, 0) + 1
+                field_units = get(metadata, "bmopf_saved_result_field_units", nothing)
+                !isnothing(field_units) && (saved_result_field_units[field_units] = get(saved_result_field_units, field_units, 0) + 1)
                 mapping_codes = Set(String(finding["code"]) for finding in saved_mapping["findings"])
                 if "bmopf_saved_result_unit_scale_suspicious" in mapping_codes
                     saved_result_unit_scale_warning_cases += 1
@@ -260,12 +280,24 @@ function main()
         push!(cases, summary)
     end
     root_key, root_value = _index_root(index)
+    index_cases = get(index, "cases", Any[])
+    first_case = isempty(index_cases) ? Dict{String,Any}() : first(index_cases)
     summary = Dict{String,Any}(
         root_key => root_value,
         "environment" => get(index, "environment", nothing),
         "environment_fingerprint" => get(index, "environment_fingerprint", nothing),
         "rank_max_dense_entries" => get(index, "rank_max_dense_entries", nothing),
         "runner_version" => get(index, "runner_version", nothing),
+        "case_selection" => get(index, "case_selection", nothing),
+        "analysis_mode" => get(index, "analysis_mode", get(first_case, "analysis_mode", nothing)),
+        "point_policy" => get(index, "point_policy", get(first_case, "point_policy", nothing)),
+        "result_units" => get(index, "result_units", nothing),
+        "result_field_units" => get(index, "result_field_units", nothing),
+        "include_floating_neutral_candidates" => get(index, "include_floating_neutral_candidates", nothing),
+        "floating_neutral_candidate_counts" => Dict(
+            "cases_with_candidates" => floating_neutral_candidate_cases,
+            "candidate_mode_count" => floating_neutral_candidate_modes,
+        ),
         "resume" => get(index, "resume", false),
         "force" => get(index, "force", false),
         "profile_case_count" => profile_case_count,
@@ -290,6 +322,7 @@ function main()
             "mapping_fraction_mean" => isempty(saved_result_mapping_fractions) ? nothing : sum(saved_result_mapping_fractions) / length(saved_result_mapping_fractions),
             "mapping_fraction_maximum" => isempty(saved_result_mapping_fractions) ? nothing : maximum(saved_result_mapping_fractions),
             "result_units_case_counts" => _sorted_counts(saved_result_units),
+            "result_field_units_policy_case_counts" => _sorted_counts(saved_result_field_units),
             "unit_scale_warning_case_count" => saved_result_unit_scale_warning_cases,
             "mapping_warning_case_count" => saved_result_mapping_warning_cases,
         ),

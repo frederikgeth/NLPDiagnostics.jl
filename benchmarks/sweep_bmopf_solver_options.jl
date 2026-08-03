@@ -12,6 +12,10 @@ is `baseline:;tight_tol:max_iter=500,tol=1e-8;short_limit:max_iter=25`.
 """
 
 using JSON
+using NLPDiagnostics
+using BMOPFTools
+using JuMP
+using Ipopt
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 

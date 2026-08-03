@@ -147,6 +147,13 @@ the repository implicitly. Select individual snapshots through
 `NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT`. For example, a large snapshot can be
 run without dense rank materialization:
 
+For repeatable time-series selections, set
+`NLPDIAGNOSTICS_BMOPF_CASE_SELECTION` to `30bus`, `30bus_ln`, `30bus_lg`,
+`538bus`, `538bus_ln`, `538bus_lg`, `99bus`, `99bus_ln`, or `99bus_lg`.
+The unsuffixed selector includes both LN and LG snapshots; the suffixed forms
+select one formulation. Selectors discover and sort snapshots under the
+benchmark root; explicit `NLPDIAGNOSTICS_BMOPF_CASES` takes precedence.
+
 ```sh
 NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT=/path/to/BMOPFDraftData/benchmarks \
 NLPDIAGNOSTICS_BMOPF_CASES=ENWLsnapshots/538bus_LG/538bus_LG_t01_0800.bmopf.json \
@@ -173,11 +180,52 @@ NLPDIAGNOSTICS_BMOPF_SOLVER=ipopt \
 julia --project=work/benchmark-environment benchmarks/bmopf_solver_trace.jl
 ```
 
+On systems where the default Julia depot is read-only or has stale compiled
+cache locks, use the depot-safe launcher instead:
+
+```sh
+julia benchmarks/run_benchmark.jl benchmarks/bmopf_solver_trace.jl
+```
+
+It keeps the selected benchmark project and existing package sources visible,
+but places compiled caches and package locks in a writable temporary overlay.
+Set `NLPDIAGNOSTICS_BENCHMARK_DEPOT` to make that overlay persistent.
+
 Set `NLPDIAGNOSTICS_BMOPF_SOLVER=madnlp` only when MadNLP is installed in the
 selected benchmark environment. `NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS=true`
 enables Ipopt callback primal vectors; leave it false for a compact metrics
 trace. This solve runner is intentionally separate from the structural corpus
 runner so large-case campaigns cannot acquire a solver workload implicitly.
+Set `NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS=true` to also configure the solver-owned
+`output_file` and retain raw marker/iteration evidence beside the callback
+trace. Log capture is opt-in because solver output can be large; the summary
+reports how many cases supplied log evidence and which log findings occurred.
+Structured log summaries also retain the parsed iteration count, segment count,
+final iteration, and final printed primal/dual residuals. Residual headings
+such as Ipopt's `Dual infeasibility` are not treated as infeasibility outcome
+markers, and Ipopt row suffixes are retained while their numeric fields are
+parsed.
+For multi-case campaigns where a native solver exit must not affect the other
+snapshots, use `benchmarks/launch_bmopf_solver_trace.jl`; it launches one
+snapshot per child process and preserves a per-case process log and exit code.
+`NLPDIAGNOSTICS_BMOPF_CHILD_TIMEOUT_SECONDS` bounds each child (900 seconds by
+default), and timed-out cases remain explicit in the parent index rather than
+being treated as successful or failed solves.
+For a cross-solver matrix, use
+`benchmarks/launch_bmopf_solver_matrix.jl` with
+`NLPDIAGNOSTICS_BMOPF_SOLVERS=ipopt,madnlp`. It creates separate solver
+directories and a `matrix_index.json`; summarize each directory independently,
+then compare them with `compare_bmopf_solver_traces.jl`. This keeps solver
+startup timeouts, objective conventions, log evidence, and environment
+fingerprints visible instead of collapsing them into a benchmark score.
+`summarize_bmopf_solver_matrix.jl <matrix-output>` automates that final step:
+it creates missing per-solver summaries, writes pairwise comparison artifacts,
+and records any summary/comparison subprocess error in `matrix_summary.json`.
+Use `summarize_bmopf_campaign.jl <corpus-summary.json> <matrix-summary.json>`
+to combine corpus and solver evidence. Set
+`NLPDIAGNOSTICS_BMOPF_ADDITIONAL_CORPUS_SUMMARIES` to a comma-separated list
+of additional corpus summaries; their structural, context, integrity, and
+generic fingerprints are aggregated while each source remains separate.
 Use `NLPDIAGNOSTICS_BMOPF_SOLVER_OPTIONS=max_iter=500,tol=1e-8` for explicit
 solver attributes and `NLPDIAGNOSTICS_BMOPF_PER_UNIT=false` to reproduce a
 model-native/SI build. Both choices, along with the solver objective convention
@@ -185,6 +233,14 @@ and objective-comparison reference, are retained in each JSON record. MadNLP
 callback objectives are unscaled before capture so they can be compared with
 the recomputed MOI objective; this does not reinterpret the solver's dual or
 constraint-residual scaling.
+For controlled option campaigns, use
+`benchmarks/sweep_bmopf_solver_options.jl`. Set
+`NLPDIAGNOSTICS_BMOPF_SWEEP='baseline:;tight_tol:max_iter=500,tol=1e-8;short_limit:max_iter=25'`;
+each configuration receives its own evidence directory and summary. The
+summary classifies explicit `slow_progress`, `restoration_failed`,
+`numerical_failure`, `resource_limit`, and successful terminations while
+retaining raw records. This is a diagnostic campaign tool, not a solver
+benchmark scorecard.
 Run `benchmarks/summarize_bmopf_solver_trace.jl <output-directory>` to produce
 `summary.json` with status counts, trace phase/segment statistics, final and
 minimum printed residuals, and separate solver-result/BMOPF finding-code
@@ -195,7 +251,9 @@ Compare two such summaries with
 madnlp/summary.json`. The comparison reports iteration, phase, residual, and
 objective deltas, marks objective alignment as unavailable/aligned or
 `different_convention_or_solution`, and preserves environment-fingerprint
-mismatches explicitly rather than attributing them to solver quality.
+mismatches explicitly rather than attributing them to solver quality. When
+logs were captured, it also compares log availability, finding-code sets,
+parsed iteration/segment counts, and final printed residuals.
 
 Before choosing a draft-corpus campaign, run
 `benchmarks/inventory_bmopf_draft_corpus.jl`. It only parses BMOPF JSON and
@@ -309,12 +367,23 @@ point.
 
 `bmopf_result_voltage_point(context, result; result_units = :si)` maps public
 rectangular bus-voltage records plus line, load, voltage-source, IBR, switch,
-and ground current records. It converts SI values through public per-bus
-voltage/current bases and returns mapped, registered, unresolved, and fallback
-counts by semantic family. Coordinates not represented in the result retain an
+and ground current records. `result_units=:si` converts physical values through
+public per-bus voltage/current bases; `result_units=:pu` and `:model` accept
+already-scaled coordinates. The function returns mapped, registered,
+unresolved, and fallback counts by semantic family. Coordinates not represented
+in the result retain an
 explicit fallback, so the point remains a partial-result probe rather than a
 claim that the saved solution fully specifies every control or auxiliary
 coordinate.
+
+Because BMOPF result files can be mixed-unit exports, callers may override the
+global default per semantic family with `field_units`, for example
+`field_units = Dict(:bus_voltage => :si, :line_current => :pu,
+:ibr_power => :model)`. Supported families are `bus_voltage`, `line_current`,
+`load_current`, `source_current`, `ibr_current`, `ibr_power`, `switch_current`,
+and `ground_current`; omitted families inherit `result_units`. The normalized
+policy is retained in the mapping and report metadata, so the unit convention
+used by a numerical probe is inspectable rather than inferred from a filename.
 
 `bmopf_result_mapping_report(mapping)` turns that exact coverage record into
 representational findings. A fallback is deliberately a warning about the
@@ -358,10 +427,43 @@ magnitudes from saved rectangular voltages using the engine-declared neutral
 labels and key reference mode. A missing or ambiguous declared reference is
 left unmapped; the adapter never guesses from terminal or variable names.
 
-The draft corpus runner exposes this adapter as
+The adapter accepts `result_units=:si` for physical SI values and
+`result_units=:pu` (or the backward-compatible `:model`) for already-scaled
+per-unit/model coordinates. The draft corpus runner exposes this adapter as
 `NLPDIAGNOSTICS_BMOPF_POINT_POLICY=saved_result`. By default it reads the
-adjacent `_result_si.json` file. Set `NLPDIAGNOSTICS_BMOPF_RESULT_UNITS=model`
-and/or `NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX=...` only when the file's numerical
-coordinates genuinely use those conventions. Its JSON record persists the
-mapping coverage and exact result path, making any fallback visible in a
-benchmark comparison.
+adjacent `_result_si.json` file. Set
+`NLPDIAGNOSTICS_BMOPF_RESULT_UNITS=pu` to select the adjacent `_result_pu.json`
+files, or use `NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX=...` for another explicit
+schema. Its JSON record persists the mapping coverage and exact result path,
+making any fallback visible in a benchmark comparison.
+
+To inspect whether the SI and PU files themselves use a consistent convention,
+run `benchmarks/compare_bmopf_saved_result_units.jl <benchmark-root>`. It
+compares paired numeric leaves and reports observed `PU / SI` magnitude ratios
+by exported field family. This is an evidence report, not a conversion rule:
+the 30-bus snapshots, for example, keep bus-voltage magnitudes near ratio one
+but scale `line/s_through` by roughly `1e-6`, while several auxiliary families
+are mixed. Use this before treating a result suffix as a homogeneous model-unit
+declaration.
+
+The corpus runner accepts the same explicit policy through
+`NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS`, using comma-separated
+`family=unit` entries (for example
+`bus_voltage=si,line_current=pu,ibr_power=model`). The policy is included in
+case fingerprints and saved-result metadata, so changing it cannot silently
+reuse an incompatible cached profile.
+
+To compare the numerical consequences of two saved-result policies, run
+`benchmarks/compare_bmopf_saved_result_profiles.jl <left-campaign>
+<right-campaign> [output.json]`. It aligns records by snapshot and reports
+per-case and aggregate deltas for finding codes, constraint-feasibility
+violations, scale warnings, mapping coverage, and the unit fingerprint. Set
+`NLPDIAGNOSTICS_BMOPF_UNIT_RATIO_REPORT` to the paired SI/PU leaf comparison so
+the motivating field-ratio evidence is retained beside the profile comparison.
+Positive deltas mean the right campaign produced more findings; this is not a
+quality score and does not certify either policy.
+
+Set `NLPDIAGNOSTICS_BMOPF_INCLUDE_FLOATING_NEUTRAL_CANDIDATES=true` on a
+structural or profile corpus run to retain BMOPFTools' explicit floating-neutral
+candidate modes. These are physical expectations attached to the report; they
+are not automatic claims that the observed Jacobian has those null directions.

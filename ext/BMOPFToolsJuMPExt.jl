@@ -46,6 +46,46 @@ end
 _bmopf_port_id(component::Symbol) = component == :real ? "voltage_real" : "voltage_imag"
 _bmopf_representation(component::Symbol) = component == :real ? :rectangular_real : :rectangular_imag
 
+const _BMOPF_RESULT_FIELD_FAMILIES = (
+    :bus_voltage,
+    :line_current,
+    :load_current,
+    :source_current,
+    :ibr_current,
+    :ibr_power,
+    :switch_current,
+    :ground_current,
+)
+
+"""Normalize the optional per-family saved-result unit policy.
+
+`result_units` remains the backwards-compatible default.  A field policy is
+deliberately explicit: it prevents a mixed BMOPF export from being treated as
+one homogeneous SI or per-unit file merely because its filename says so.
+"""
+function _bmopf_result_field_units(result_units::Symbol, field_units)
+    result_units in (:si, :pu, :model) ||
+        throw(ArgumentError("result_units must be :si, :pu, or :model"))
+    field_units isa AbstractDict || throw(ArgumentError("field_units must be an AbstractDict mapping result families to :si, :pu, or :model"))
+    policy = Dict{Symbol,Symbol}(family => result_units for family in _BMOPF_RESULT_FIELD_FAMILIES)
+    for (raw_family, raw_unit) in field_units
+        family = Symbol(lowercase(String(raw_family)))
+        family in _BMOPF_RESULT_FIELD_FAMILIES || throw(ArgumentError(
+            "unknown BMOPF saved-result field family '$family'; supported families are $(join(_BMOPF_RESULT_FIELD_FAMILIES, ", "))",
+        ))
+        unit = Symbol(lowercase(String(raw_unit)))
+        unit in (:si, :pu, :model) || throw(ArgumentError(
+            "unit for BMOPF saved-result field family '$family' must be :si, :pu, or :model",
+        ))
+        policy[family] = unit
+    end
+    return policy
+end
+
+_bmopf_result_field_units_string(policy) = join(
+    ("$(family)=$(policy[family])" for family in _BMOPF_RESULT_FIELD_FAMILIES), ",",
+)
+
 """Return a finite positive physical voltage base declared for a per-unit bus."""
 function _bmopf_voltage_base(context, bus::String)
     bases = BMOPFTools.opf_bases(context)
@@ -225,21 +265,22 @@ end
 
 Map unambiguous saved rectangular voltage and public current records to the
 staged MOI model. SI values are converted using BMOPFTools' public per-bus
-voltage/current bases; `:model` accepts model-coordinate values directly. All
-other coordinates receive explicit `fallback_value`. The returned coverage
-counts distinguish mapped registry coordinates, unresolved saved records, and
-fallback coordinates. Thus this is a labeled partial-result probe, never a
-claim that a saved result completely represents every auxiliary model
-coordinate.
+voltage/current bases; `:pu` and `:model` accept already-scaled
+model-coordinate values directly. All other coordinates receive explicit
+`fallback_value`. The returned coverage counts distinguish mapped registry
+coordinates, unresolved saved records, and fallback coordinates. Thus this is
+a labeled partial-result probe, never a claim that a saved result completely
+represents every auxiliary model coordinate.
 """
 function _bmopf_result_voltage_point(
     context,
     result::AbstractDict;
     result_units::Symbol = :si,
+    field_units::AbstractDict = Dict{Symbol,Symbol}(),
     fallback_value::Real = 0.0,
     label::AbstractString = "bmopf-result-voltage-partial",
 )
-    result_units in (:si, :model) || throw(ArgumentError("result_units must be :si or :model"))
+    field_policy = _bmopf_result_field_units(result_units, field_units)
     isfinite(fallback_value) || throw(ArgumentError("fallback_value must be finite"))
     owner = _bmopf_context_model(context)
     backend = JuMP.backend(owner)
@@ -282,7 +323,7 @@ function _bmopf_result_voltage_point(
         value isa Real && isfinite(value) && assign!(key, Float64(value) / base)
     for (bus, terminals) in buses
         terminals isa AbstractDict || continue
-        base = result_units == :si ? _bmopf_voltage_base(context, string(bus)) : 1.0
+        base = field_policy[:bus_voltage] == :si ? _bmopf_voltage_base(context, string(bus)) : 1.0
         isnothing(base) && throw(ArgumentError("saved SI voltage for bus '$bus' cannot be mapped because no public voltage base is declared"))
         for (terminal, values_dict) in terminals
             values_dict isa AbstractDict || continue
@@ -307,7 +348,7 @@ function _bmopf_result_voltage_point(
         vr = get(entry, "vr", nothing)
         vi = get(entry, "vi", nothing)
         vr isa Real && vi isa Real && isfinite(vr) && isfinite(vi) || return nothing
-        base = result_units == :si ? _bmopf_voltage_base(context, string(bus)) : 1.0
+        base = field_policy[:bus_voltage] == :si ? _bmopf_voltage_base(context, string(bus)) : 1.0
         isnothing(base) && return nothing
         return ComplexF64(Float64(vr) / base, Float64(vi) / base)
     end
@@ -372,7 +413,7 @@ function _bmopf_result_voltage_point(
             )
                 result_terminals = string.(get(line, result_map_field, String[]))
                 key_terminals = string.(get(line, key_map_field, String[]))
-                base = result_units == :si ? _bmopf_current_base(context, string(get(line, bus_field, ""))) : 1.0
+                base = field_policy[:line_current] == :si ? _bmopf_current_base(context, string(get(line, bus_field, ""))) : 1.0
                 isnothing(base) && continue
                 for (position, terminal) in enumerate(result_terminals)
                     position <= length(key_terminals) || continue
@@ -392,7 +433,9 @@ function _bmopf_result_voltage_point(
             component = get(get(network, section, Dict()), string(id), nothing)
             component isa AbstractDict && component_result isa AbstractDict || continue
             terminals = string.(get(component, "terminal_map", String[]))
-            base = result_units == :si ? _bmopf_current_base(context, string(get(component, "bus", ""))) : 1.0
+            family = real_family == :crd ? :load_current :
+                     real_family == :cr_src ? :source_current : :ibr_current
+            base = field_policy[family] == :si ? _bmopf_current_base(context, string(get(component, "bus", ""))) : 1.0
             isnothing(base) && continue
             for (position, terminal) in enumerate(terminals)
                 entry = get(component_result, terminal, nothing)
@@ -407,7 +450,7 @@ function _bmopf_result_voltage_point(
                 assign_scaled!(key, get(entry, result_real, nothing), base)
                 assign_scaled!(BMOPFTools.OpfModelKey(key.kind, imag_family, key.index), get(entry, result_imag, nothing), base)
                 if section == "ibr"
-                    power_base = result_units == :si ? _bmopf_power_base(context) : 1.0
+                    power_base = field_policy[:ibr_power] == :si ? _bmopf_power_base(context) : 1.0
                     isnothing(power_base) && continue
                     assign_scaled!(BMOPFTools.opf_ibr_power_key(string(id), position), get(entry, "pg", nothing), power_base)
                     assign_scaled!(BMOPFTools.opf_ibr_power_key(string(id), position; component = :reactive), get(entry, "qg", nothing), power_base)
@@ -419,7 +462,7 @@ function _bmopf_result_voltage_point(
         switch = get(get(network, "switch", Dict()), string(switch_id), nothing)
         switch isa AbstractDict && switch_result isa AbstractDict || continue
         terminals = string.(get(switch, "terminal_map_from", String[]))
-        base = result_units == :si ? _bmopf_current_base(context, string(get(switch, "bus_from", ""))) : 1.0
+        base = field_policy[:switch_current] == :si ? _bmopf_current_base(context, string(get(switch, "bus_from", ""))) : 1.0
         isnothing(base) && continue
         for (position, terminal) in enumerate(terminals)
             entry = get(switch_result, terminal, nothing)
@@ -429,7 +472,7 @@ function _bmopf_result_voltage_point(
         end
     end
     for (bus, terminals) in get(result, "ground", Dict())
-        base = result_units == :si ? _bmopf_current_base(context, string(bus)) : 1.0
+        base = field_policy[:ground_current] == :si ? _bmopf_current_base(context, string(bus)) : 1.0
         isnothing(base) && continue
         terminals isa AbstractDict || continue
         for (terminal, entry) in terminals
@@ -451,6 +494,7 @@ function _bmopf_result_voltage_point(
         mapped_registered_coordinate_fraction = isempty(registered_variables) ?
                                                0.0 : length(mapped_variables) / length(registered_variables),
         result_units = result_units,
+        field_units = Dict{Symbol,Symbol}(field_policy),
         mapped_coordinate_counts_by_family = Dict(string(key) => value for (key, value) in mapped_by_family),
         unresolved_saved_coordinate_counts_by_family = Dict(string(key) => value for (key, value) in unresolved_by_family),
     )
@@ -473,6 +517,7 @@ function _bmopf_result_mapping_report(mapping)
         :unmapped_registered_coordinate_count,
         :mapped_registered_coordinate_fraction,
         :result_units,
+        :field_units,
         :mapped_coordinate_counts_by_family,
         :unresolved_saved_coordinate_counts_by_family,
     )
@@ -501,6 +546,7 @@ function _bmopf_result_mapping_report(mapping)
     report.metadata[:bmopf_saved_result_unmapped_registered_coordinate_count] = string(unmapped_registered)
     report.metadata[:bmopf_saved_result_registered_coordinate_fraction] = string(fraction)
     report.metadata[:bmopf_saved_result_units] = string(mapping.result_units)
+    report.metadata[:bmopf_saved_result_field_units] = _bmopf_result_field_units_string(mapping.field_units)
     report.metadata[:bmopf_saved_result_mapped_families] = join(sort!(collect(keys(mapping.mapped_coordinate_counts_by_family))), ",")
     report.metadata[:bmopf_saved_result_unresolved_families] = join(sort!(collect(keys(mapping.unresolved_saved_coordinate_counts_by_family))), ",")
     push!(report, NLPDiagnostics.Finding(:bmopf_saved_result_mapping_coverage;
@@ -520,6 +566,7 @@ function _bmopf_result_mapping_report(mapping)
             "unmapped_registered_coordinate_count" => unmapped_registered,
             "mapped_registered_coordinate_fraction" => fraction,
             "result_units" => mapping.result_units,
+            "field_units" => _bmopf_result_field_units_string(mapping.field_units),
             "mapped_by_family" => join(("$key=$(value)" for (key, value) in sort!(collect(mapping.mapped_coordinate_counts_by_family))), ","),
         ])],
         suggested_actions = fallback == 0 ?
@@ -578,11 +625,13 @@ end
 
 """Fingerprint the coordinate magnitude implied by a saved-result unit choice."""
 function _bmopf_result_unit_report(context, result::AbstractDict;
-                                   result_units::Symbol)
-    result_units in (:si, :model) || throw(ArgumentError("result_units must be :si or :model"))
+                                   result_units::Symbol,
+                                   field_units::AbstractDict = Dict{Symbol,Symbol}())
+    field_policy = _bmopf_result_field_units(result_units, field_units)
     report = NLPDiagnostics.DiagnosticReport()
     report.metadata[:bmopf_saved_result_unit_report_stage] = "bmopf_saved_result_units"
     report.metadata[:bmopf_saved_result_units] = string(result_units)
+    report.metadata[:bmopf_saved_result_field_units] = _bmopf_result_field_units_string(field_policy)
     bases = BMOPFTools.opf_bases(context)
     isnothing(bases) && return report
     # A grounded-neutral coordinate is commonly exactly zero.  It carries no
@@ -603,7 +652,7 @@ function _bmopf_result_unit_report(context, result::AbstractDict;
             if iszero(magnitude)
                 zero_magnitude_count += 1
             else
-                push!(ratios, result_units == :si ? magnitude / base : magnitude)
+                push!(ratios, field_policy[:bus_voltage] == :si ? magnitude / base : magnitude)
             end
         end
     end
@@ -624,11 +673,13 @@ function _bmopf_result_unit_report(context, result::AbstractDict;
             why_it_matters = "Per-unit staged coordinates are usually order one. An extreme converted magnitude can indicate that SI values were treated as model coordinates (or vice versa), which distorts derivative and tolerance interpretation.",
             evidence = [NLPDiagnostics.Evidence("Saved-result voltage unit fingerprint"; details = [
                 "result_units" => result_units,
+                "bus_voltage_units" => field_policy[:bus_voltage],
+                "field_units" => _bmopf_result_field_units_string(field_policy),
                 "sample_count" => length(ratios),
                 "median_coordinate_magnitude" => median_ratio,
                 "heuristic_expected_band" => "[0.05, 20]",
             ])],
-            suggested_actions = ["Confirm the numerical convention of the result file against BMOPFTools public voltage bases.", "Pass result_units = :si only for physical-voltage result fields; use :model only for already-scaled staged coordinates."],
+            suggested_actions = ["Confirm the numerical convention of each result field against BMOPFTools public bases.", "Use field_units to declare mixed exports explicitly; reserve :model for already-scaled staged coordinates."],
         ))
     end
     return report
@@ -648,6 +699,7 @@ function _bmopf_saved_result_profile_case(
     context,
     result::AbstractDict;
     result_units::Symbol = :si,
+    field_units::AbstractDict = Dict{Symbol,Symbol}(),
     fallback_value::Real = 0.0,
     label::AbstractString = "bmopf-saved-result-partial-probe",
     description::AbstractString = "Saved BMOPF result diagnostic profile",
@@ -658,15 +710,16 @@ function _bmopf_saved_result_profile_case(
     metadata::AbstractDict = Dict{String,String}(),
 )
     mapping = _bmopf_result_voltage_point(context, result;
-        result_units, fallback_value, label,
+        result_units, field_units, fallback_value, label,
     )
     mapping_report = _bmopf_result_mapping_report(mapping)
     _bmopf_append_report!(mapping_report,
-                          _bmopf_result_unit_report(context, result; result_units))
+                          _bmopf_result_unit_report(context, result; result_units, field_units))
     case_metadata = Dict{String,Any}(
         "point_policy" => "saved_result",
         "point_provenance" => "saved BMOPF result with explicit fallback for unmapped coordinates",
         "saved_result_units" => string(result_units),
+        "saved_result_field_units" => _bmopf_result_field_units_string(mapping.field_units),
         "mapped_coordinate_count" => mapping.mapped_coordinate_count,
         "fallback_coordinate_count" => mapping.fallback_coordinate_count,
         "registered_coordinate_count" => mapping.registered_coordinate_count,
