@@ -14,6 +14,50 @@ expected_nullspace_modes(model::MOI.ModelLike, evaluation::NumericalEvaluation) 
 """Optional domain-plugin component declarations; the generic default is empty."""
 component_metadata(model::MOI.ModelLike) = ComponentMetadata[]
 component_metadata(model::ModelSnapshot) = ComponentMetadata[]
+"""Report expected-rank declaration coverage for supplied component metadata."""
+function component_rank_capability_report(
+    components::AbstractVector{<:ComponentMetadata};
+    source::AbstractString = "domain-plugin component metadata",
+    stage::Symbol = :component_rank_capability,
+)
+    report = DiagnosticReport()
+    declared = count(component -> !isnothing(component.expected_rank), components)
+    unavailable = length(components) - declared
+    report.metadata[:stage] = string(stage)
+    report.metadata[:component_metadata_count] = string(length(components))
+    report.metadata[:component_expected_rank_declared_count] = string(declared)
+    report.metadata[:component_expected_rank_unavailable_count] = string(unavailable)
+    report.metadata[:component_expected_rank_coverage] = isempty(components) ?
+        "unavailable" : string(declared / length(components))
+    unavailable == 0 && return report
+    missing_components = filter(component -> isnothing(component.expected_rank), components)
+    affected = EntityRef[]
+    for component in missing_components
+        append!(affected, (EntityRef(:variable, variable.value) for variable in component.variables))
+        append!(affected, component.constraints)
+    end
+    push!(report, Finding(:component_expected_rank_unavailable;
+        severity = SeverityInfo,
+        domain = RepresentationalIssue,
+        basis = StructuralProof,
+        confidence = ConfidenceCertain,
+        observation = "$unavailable component declaration(s) do not provide an expected physical rank.",
+        why_it_matters = "Component-rank comparison can only interpret observed local rank against a domain-plugin declaration; absent declarations must not be interpreted as zero rank loss or full rank.",
+        evidence = [Evidence("Component expected-rank capability"; details = [
+            "component_count" => length(components),
+            "expected_rank_declared_count" => declared,
+            "expected_rank_unavailable_count" => unavailable,
+            "expected_rank_coverage" => isempty(components) ? "unavailable" : string(declared / length(components)),
+            "source" => String(source),
+        ])],
+        affected = unique(affected),
+        suggested_actions = [
+            "Add expected_rank declarations only when component equations and coordinate scopes are physically justified.",
+            "Use generic Jacobian and structural persistence evidence independently of this capability boundary.",
+        ],
+    ))
+    return report
+end
 """Optional plugin declarations of component model-coordinate semantics."""
 component_coordinate_semantics(model::MOI.ModelLike) = ComponentCoordinateSemantics[]
 component_coordinate_semantics(model::ModelSnapshot) = ComponentCoordinateSemantics[]
@@ -21,6 +65,8 @@ component_constraint_scale_semantics(model::MOI.ModelLike) = ComponentConstraint
 component_constraint_scale_semantics(model::ModelSnapshot) = ComponentConstraintScaleSemantics[]
 """Optional PowerModels adapter hook; extended only when PowerModels is loaded."""
 powermodels_component_metadata(model) = ComponentMetadata[]
+"""Optional PowerModels expected-rank capability report hook."""
+powermodels_component_rank_capability_report(model) = DiagnosticReport()
 """Optional PowerModels public-API capability report hook."""
 powermodels_capability_report(model) = DiagnosticReport()
 """Optional PowerModels data-level reference-bus report hook."""
@@ -154,6 +200,9 @@ bmopf_component_coordinate_semantics(context) = _bmopf_extension(:BMOPFToolsJuMP
 """Optional BMOPFTools staged-OPF component metadata report hook."""
 bmopf_component_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to inspect staged BMOPF components")._bmopf_component_report(context)
+"""Report BMOPFTools expected-component-rank declaration coverage."""
+bmopf_component_rank_capability_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF component-rank capability")._bmopf_component_rank_capability_report(context)
 """Optional domain-plugin port/connection declarations; the generic default is empty."""
 component_port_metadata(model::MOI.ModelLike) = ComponentPortMetadata[]
 component_port_metadata(model::ModelSnapshot) = ComponentPortMetadata[]

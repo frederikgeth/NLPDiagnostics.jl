@@ -126,7 +126,9 @@ function _persistence_view(path)
     report = _load(path)
     jacobian = get(report, "jacobian_rank_persistence", Dict())
     component = get(report, "component_rank_persistence", Dict())
+    component_capability = get(report, "component_rank_capability", Dict())
     jacobian_codes = _count_codes(jacobian)
+    capability_codes = _count_codes(component_capability)
     return Dict{String,Any}(
         "report_path" => path,
         "benchmark_root" => get(report, "benchmark_root", nothing),
@@ -140,6 +142,8 @@ function _persistence_view(path)
         "active_set" => _active_set_summary(report),
         "jacobian" => _report_view(report, "jacobian_rank_persistence"),
         "component" => _report_view(report, "component_rank_persistence"),
+        "component_rank_capability" => _report_view(report, "component_rank_capability"),
+        "component_rank_capability_finding_code_counts" => capability_codes,
         "observed_fingerprints" => Dict(
             "rank_persistent" => get(jacobian_codes, "jacobian_rank_persistent", 0),
             "rank_changing" => get(jacobian_codes, "jacobian_rank_changing", 0),

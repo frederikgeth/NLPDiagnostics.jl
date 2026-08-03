@@ -141,6 +141,11 @@ import PowerModels
     )
     @test Base.get_extension(NLPDiagnostics, :PowerModelsExt) !== nothing
     @test !isempty(NLPDiagnostics.powermodels_component_metadata(pm))
+    component_capability_report = NLPDiagnostics.powermodels_component_rank_capability_report(pm)
+    @test component_capability_report.metadata[:stage] ==
+          "powermodels_component_rank_capability"
+    @test length(findings(component_capability_report,
+                          :component_expected_rank_unavailable)) == 1
     owner = NLPDiagnostics.powermodels_jump_model(pm)
     @test owner !== nothing
     backend = JuMP.backend(owner)
@@ -280,7 +285,14 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test length(components) == 2
     @test sort!([component.component_id for component in components]) == ["vi", "vr"]
     @test length(NLPDiagnostics.bmopf_component_coordinate_semantics(context)) == 2
-    @test isempty(NLPDiagnostics.bmopf_component_report(context).findings)
+    component_report = NLPDiagnostics.bmopf_component_report(context)
+    @test isempty(component_report.findings)
+    @test component_report.metadata[:bmopf_component_expected_rank_declared_count] == "0"
+    @test component_report.metadata[:bmopf_component_expected_rank_unavailable_count] == "2"
+    @test component_report.metadata[:bmopf_component_expected_rank_coverage] == "0.0"
+    rank_capability_report = NLPDiagnostics.bmopf_component_rank_capability_report(context)
+    @test rank_capability_report.metadata[:stage] == "bmopf_component_rank_capability"
+    @test length(findings(rank_capability_report, :bmopf_component_expected_rank_unavailable)) == 1
     @test isnothing(NLPDiagnostics.bmopf_initialization_point(context))
     @test_throws ArgumentError NLPDiagnostics.bmopf_set_start_values!(context)
     completed_starts = NLPDiagnostics.bmopf_start_completion_point(context)
@@ -458,6 +470,18 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test benchmark_result.context_report.metadata[
         :bmopf_opf_differentiability_available
     ] == "false"
+    @test benchmark_result.context_report.metadata[
+        :bmopf_component_rank_capability_checked
+    ] == "true"
+    @test benchmark_result.context_report.metadata[
+        :bmopf_component_expected_rank_declared_count
+    ] == "0"
+    @test benchmark_result.context_report.metadata[
+        :bmopf_component_expected_rank_unavailable_count
+    ] == "2"
+    @test benchmark_result.context_report.metadata[
+        :bmopf_component_rank_capability_finding_count
+    ] == "1"
     benchmark_data = NLPDiagnostics.profile_result_data(benchmark_result)
     @test haskey(benchmark_data, "profile")
     @test haskey(benchmark_data, "bmopf_context_report")
@@ -1560,6 +1584,28 @@ end
         constraints = [NLPDiagnostics.EntityRef(:constraint, 1)],
         expected_rank = 2,
     )
+    generic_capability_report = NLPDiagnostics.component_rank_capability_report([
+        NLPDiagnostics.ComponentMetadata(
+            :line, "declared";
+            variables = MOI.VariableIndex[MOI.VariableIndex(1)],
+            expected_rank = 1,
+        ),
+        NLPDiagnostics.ComponentMetadata(:line, "undeclared"),
+    ]; source = "test plugin")
+    @test generic_capability_report.metadata[:component_metadata_count] == "2"
+    @test generic_capability_report.metadata[:component_expected_rank_declared_count] == "1"
+    @test generic_capability_report.metadata[:component_expected_rank_unavailable_count] == "1"
+    @test generic_capability_report.metadata[:component_expected_rank_coverage] == "0.5"
+    @test length(findings(generic_capability_report,
+                          :component_expected_rank_unavailable)) == 1
+    complete_capability_report = NLPDiagnostics.component_rank_capability_report([
+        NLPDiagnostics.ComponentMetadata(
+            :line, "declared";
+            variables = MOI.VariableIndex[MOI.VariableIndex(1)],
+            expected_rank = 1,
+        ),
+    ])
+    @test isempty(complete_capability_report.findings)
     malformed = NLPDiagnostics.ComponentMetadata[
         NLPDiagnostics.ComponentMetadata(Symbol(""), "", MOI.VariableIndex[MOI.VariableIndex(2), MOI.VariableIndex(2)], NLPDiagnostics.EntityRef[], Dict(Symbol("") => " "), -1, Dict{String,String}()),
         NLPDiagnostics.ComponentMetadata(:line, "duplicate", MOI.VariableIndex[], NLPDiagnostics.EntityRef[], Dict{Symbol,String}(), nothing, Dict{String,String}()),

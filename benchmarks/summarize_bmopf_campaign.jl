@@ -196,6 +196,9 @@ function main()
             "observed_fingerprint_totals" => _merge_code_maps(
                 persistence_views, "observed_fingerprint_totals",
             ),
+            "component_rank_capability_finding_code_totals" => _merge_code_maps(
+                persistence_views, "component_rank_capability_finding_code_counts",
+            ),
         ),
         "solver_summaries" => solver_views,
         "pairwise_comparisons" => comparisons,

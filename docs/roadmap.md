@@ -428,10 +428,32 @@ Active-set summaries now also retain row-scope intersection, union, and
 transition counts. The five-point 30-bus run had 620 rows common to every
 point, 732 rows in the union, and one active-set transition, making the change
 in active geometry inspectable without turning it into a stability score.
+The guarded 538-bus two-point run mapped all 22,056 point coordinates with no
+fallbacks; 10,120 active rows were common to both points, with 11,330 in the
+union and one transition. Its 3,934 block-rank-unavailable observations and
+909 active-feasibility findings remain explicit availability/numerical evidence
+rather than a claim of global rank deficiency.
 The unified BMOPF campaign summary now accepts persistence summaries through
 `NLPDIAGNOSTICS_BMOPF_PERSISTENCE_SUMMARIES`, aggregating rank/nullspace/scale
 fingerprints while keeping persistence availability separate from solver and
 corpus finding counts.
+BMOPFTools component-rank persistence now reports expected-rank declaration
+coverage explicitly. Current registry-family metadata declares zero physical
+expected ranks, so the persistence result remains an availability boundary,
+not a fabricated full-rank or rank-loss conclusion.
+The public `bmopf_component_rank_capability_report(context)` API exposes the
+same boundary as a standalone, inspectable report with an explicit
+`bmopf_component_expected_rank_unavailable` finding, without changing the
+existing profile report's finding set.
+Saved-result persistence artifacts now retain that capability report beside
+the numerical component-persistence report, and the persistence/campaign
+summarizers aggregate its finding codes separately from rank fingerprints.
+The ordinary BMOPF profile context now also carries declaration coverage and
+capability-finding counts as metadata, without flattening the standalone
+capability finding into the existing context finding set.
+The capability screen is now also available in the generic core and through
+the PowerModels adapter, so plugin-specific reports share the same declaration
+boundary and finding semantics.
 
 ## Solver postmortem foundation
 

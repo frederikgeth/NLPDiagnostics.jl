@@ -81,6 +81,18 @@ end
 NLPDiagnostics.component_metadata(pm::PowerModels.AbstractPowerModel) =
     NLPDiagnostics.powermodels_component_metadata(pm)
 
+function NLPDiagnostics.powermodels_component_rank_capability_report(
+    pm::PowerModels.AbstractPowerModel,
+)
+    components = NLPDiagnostics.powermodels_component_metadata(pm)
+    report = NLPDiagnostics.component_rank_capability_report(components;
+        source = "PowerModels public component metadata",
+        stage = :powermodels_component_rank_capability,
+    )
+    report.metadata[:powermodels_component_metadata_count] = string(length(components))
+    return report
+end
+
 """
     NLPDiagnostics.powermodels_capability_report(pm)
 

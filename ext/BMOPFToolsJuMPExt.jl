@@ -834,6 +834,22 @@ function _bmopf_append_report!(target, source)
     return target
 end
 
+"""Preserve component-rank capability in a flat profile report without adding a duplicate finding."""
+function _bmopf_append_component_rank_capability_metadata!(report, context)
+    capability = _bmopf_component_rank_capability_report(context)
+    report.metadata[:bmopf_component_rank_capability_checked] = "true"
+    report.metadata[:bmopf_component_rank_capability_finding_count] =
+        string(length(capability.findings))
+    for key in (:bmopf_component_metadata_count,
+                :bmopf_component_expected_rank_declared_count,
+                :bmopf_component_expected_rank_unavailable_count,
+                :bmopf_component_expected_rank_coverage)
+        haskey(capability.metadata, key) || continue
+        report.metadata[key] = capability.metadata[key]
+    end
+    return report
+end
+
 """Collect BMOPF-only evidence without rerunning generic profiling stages."""
 function _bmopf_profile_context_report(
     context,
@@ -850,6 +866,10 @@ function _bmopf_profile_context_report(
     _bmopf_append_report!(report, _bmopf_component_report(context))
     _bmopf_append_report!(report,
         _bmopf_terminal_port_coordinate_scale_report(context, point))
+    # Keep the existing profile finding set stable. The standalone capability
+    # report remains available to callers that want its explicit finding; the
+    # profile record still exposes its counts and coverage as metadata.
+    _bmopf_append_component_rank_capability_metadata!(report, context)
     if include_differentiability
         _bmopf_append_report!(report,
             NLPDiagnostics.bmopf_opf_differentiability_report(context))
@@ -1180,9 +1200,15 @@ function _bmopf_analyze_component_rank_persistence(
     modes, candidates = _bmopf_resolved_expected_modes(context;
         include_floating_neutral_candidates, expected_modes,
     )
+    components = _bmopf_component_metadata(context)
     report = NLPDiagnostics.analyze_component_rank_persistence(backend, evaluations;
-        components = _bmopf_component_metadata(context), expected_modes = modes, kwargs...,
+        components = components, expected_modes = modes, kwargs...,
     )
+    declared = count(component -> !isnothing(component.expected_rank), components)
+    report.metadata[:bmopf_component_expected_rank_declared_count] = string(declared)
+    report.metadata[:bmopf_component_expected_rank_unavailable_count] = string(length(components) - declared)
+    report.metadata[:bmopf_component_expected_rank_coverage] = isempty(components) ?
+        "unavailable" : string(declared / length(components))
     return _bmopf_append_candidate_provenance!(report, context, candidates,
                                                 include_floating_neutral_candidates)
 end
@@ -1396,6 +1422,45 @@ function _bmopf_component_report(context)
     merge!(report.metadata, semantic_report.metadata)
     report.metadata[:bmopf_component_metadata_count] = string(length(components))
     report.metadata[:bmopf_component_coordinate_semantics_count] = string(length(semantics))
+    expected_rank_declared = count(component -> !isnothing(component.expected_rank), components)
+    report.metadata[:bmopf_component_expected_rank_declared_count] = string(expected_rank_declared)
+    report.metadata[:bmopf_component_expected_rank_unavailable_count] =
+        string(length(components) - expected_rank_declared)
+    report.metadata[:bmopf_component_expected_rank_coverage] = isempty(components) ?
+        "unavailable" : string(expected_rank_declared / length(components))
+    return report
+end
+
+"""Report whether BMOPFTools component metadata can support expected-rank analysis."""
+function _bmopf_component_rank_capability_report(context)
+    components = _bmopf_component_metadata(context)
+    declared = count(component -> !isnothing(component.expected_rank), components)
+    unavailable = length(components) - declared
+    report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:stage] = "bmopf_component_rank_capability"
+    report.metadata[:bmopf_component_metadata_count] = string(length(components))
+    report.metadata[:bmopf_component_expected_rank_declared_count] = string(declared)
+    report.metadata[:bmopf_component_expected_rank_unavailable_count] = string(unavailable)
+    report.metadata[:bmopf_component_expected_rank_coverage] = isempty(components) ?
+        "unavailable" : string(declared / length(components))
+    if unavailable > 0
+        push!(report, NLPDiagnostics.Finding(:bmopf_component_expected_rank_unavailable;
+            severity = NLPDiagnostics.SeverityInfo,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.StructuralProof,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "$unavailable BMOPFTools component declaration(s) do not provide an expected physical rank.",
+            why_it_matters = "Component-rank persistence can repeat observed rank evidence only where a plugin declares the component's expected rank in model coordinates; absent declarations must not be interpreted as zero rank loss or full rank.",
+            evidence = [NLPDiagnostics.Evidence("BMOPFTools component-rank capability"; details = [
+                "component_count" => length(components),
+                "expected_rank_declared_count" => declared,
+                "expected_rank_unavailable_count" => unavailable,
+                "expected_rank_coverage" => isempty(components) ? "unavailable" : string(declared / length(components)),
+                "source" => "BMOPFTools public OPF registry family metadata",
+            ])],
+            suggested_actions = ["Add plugin-owned expected_rank declarations only when component equations and coordinate scopes are physically justified.", "Use generic Jacobian and structural persistence evidence independently of this capability boundary."],
+        ))
+    end
     return report
 end
 

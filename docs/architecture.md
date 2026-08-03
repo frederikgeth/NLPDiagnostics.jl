@@ -12,6 +12,10 @@ expected rank, and serializable metadata. The
 generic core does not infer these semantics from variable names. A future
 PowerModels extension should use this hook with `expected_nullspace_modes` to
 declare electrical references, ports, and expected physical gauges.
+`component_rank_capability_report(components)` makes the declaration boundary
+explicit before any numerical comparison: it reports declared, unavailable,
+and coverage counts and emits an informational representational finding only
+for components without an expected rank.
 Plugins may additionally extend `component_port_metadata(model)` with typed
 `ComponentPortMetadata` records. A record names component and port identities,
 terminal and mode coordinates, an inspectable connection matrix, and optional

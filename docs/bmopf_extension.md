@@ -54,6 +54,17 @@ Available staged numerical entry points are:
 - `bmopf_analyze_component_rank_persistence(context, points; ...)`; and
 - `bmopf_analyze_reduced_hessian_persistence(context, snapshots; ...)`.
 
+Use `bmopf_component_rank_capability_report(context)` to inspect that
+component-rank boundary directly. It reports how many plugin component
+families declare a physically justified expected rank, and emits an explicit
+informational finding when the declarations are absent. This keeps a missing
+plugin capability distinct from an observed numerical rank deficiency.
+
+The component-rank path records expected-rank declaration coverage in its
+metadata. BMOPFTools registry families currently expose coordinate semantics
+but no physical expected-rank declarations, so component-rank persistence is
+reported as unavailable rather than silently interpreted as zero rank loss.
+
 `bmopf_analyze_initialization` reads exact `VariablePrimalStart` values and
 never invents, fills, or modifies them. The other entry points evaluate only
 caller-supplied points or snapshots. None solve, alter, or initialize the
@@ -81,6 +92,10 @@ data = NLPDiagnostics.profile_result_data(result)
 `initialization_report` is retained separately. BMOPF-only time and allocation
 observations are separate from generic numerical-stage timings, so benchmark
 comparisons do not conflate the two.
+The context report also records component expected-rank coverage and the
+standalone capability-finding count as metadata. The explicit finding remains
+available through `bmopf_component_rank_capability_report(context)` without
+being duplicated in the existing profile finding set.
 By default, `bmopf_profile_case` also appends BMOPFTools' public
 `opf_differentiability_report` to `context_report`. This preserves engine-owned
 nonsmooth-operator, dynamic-branch, unsupported-parameter, active-set, and
@@ -482,10 +497,14 @@ feasibility and sparse-rank fingerprints in both cases.
 For time-series evidence on one staged formulation, use
 `benchmarks/bmopf_saved_result_persistence.jl`. It maps multiple saved results
 into one context and reports cross-point Jacobian-rank, nullspace-alignment,
-scaling, and component-rank persistence. With a zero dense budget it records
+scaling, component-rank persistence, and the component expected-rank capability
+report. With a zero dense budget it records
 availability limits explicitly; for a small case, increasing
 `NLPDIAGNOSTICS_BMOPF_PERSISTENCE_MAX_DENSE_ENTRIES` enables the actual local
 rank comparison.
+The persistence summarizer retains capability findings separately from
+numerical rank fingerprints, and the campaign summarizer aggregates them in a
+separate capability namespace.
 The guarded 538-bus two-point run mapped all 11,028 coordinates at both
 points while reporting rank persistence as unavailable under the zero dense
 budget, which is the intended large-model behavior.
@@ -495,6 +514,9 @@ remain separate observations because the active set can change even when the
 equality-Jacobian rank is stable.
 The persistence summarizer additionally reports active-row intersection,
 union, and transition counts, preserving the row-scope change explicitly.
+In the guarded 538-bus two-point run, 10,120 active rows were common to both
+points and 11,330 appeared in the union; dense active-block rank remained
+explicitly unavailable under the large-model budget.
 
 Set `NLPDIAGNOSTICS_BMOPF_INCLUDE_FLOATING_NEUTRAL_CANDIDATES=true` on a
 structural or profile corpus run to retain BMOPFTools' explicit floating-neutral

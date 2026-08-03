@@ -5,7 +5,8 @@
 One staged context is built from the first selected snapshot; saved results from
 the remaining snapshots are mapped into that same ordered MOI coordinate space.
 The resulting points are passed to Jacobian-rank and component-rank persistence
-analysis. No solve is performed and no point is generated or completed.
+analysis; component expected-rank declaration capability is recorded separately.
+No solve is performed and no point is generated or completed.
 """
 
 using NLPDiagnostics
@@ -111,6 +112,7 @@ function main()
     component_report = NLPDiagnostics.bmopf_analyze_component_rank_persistence(
         context, points; max_dense_entries = rank_limit,
     )
+    component_capability_report = NLPDiagnostics.bmopf_component_rank_capability_report(context)
     report = Dict{String,Any}(
         "report_version" => "bmopf-saved-result-persistence-v1",
         "benchmark_root" => root,
@@ -123,6 +125,7 @@ function main()
         "active_set_reports" => active_reports,
         "jacobian_rank_persistence" => NLPDiagnostics.report_data(rank_report),
         "component_rank_persistence" => NLPDiagnostics.report_data(component_report),
+        "component_rank_capability" => NLPDiagnostics.report_data(component_capability_report),
         "interpretation" => "Cross-point numerical persistence evidence only; persistent rank or nullspace patterns do not establish a physical cause.",
     )
     write(output_path, JSON.json(report))
