@@ -69,6 +69,49 @@ function _mapping_summary(report)
     )
 end
 
+function _active_set_summary(report)
+    records = get(report, "active_set_reports", Any[])
+    records isa AbstractVector || return Dict("point_count" => 0)
+    code_counts = Dict{String,Int}()
+    active_rows = Int[]
+    row_sets = Set{Int}[]
+    for record in records
+        record isa AbstractDict || continue
+        nested = get(record, "report", Dict())
+        metadata = _metadata(nested)
+        raw_rows = get(metadata, "active_row_count", nothing)
+        value = _int(raw_rows)
+        value isa Int && push!(active_rows, value)
+        raw_set = get(metadata, "active_rows", "")
+        parsed_set = Set{Int}()
+        if raw_set isa AbstractString
+            for token in filter(!isempty, split(raw_set, ','))
+                parsed = _int(strip(token))
+                parsed isa Int && push!(parsed_set, parsed)
+            end
+        end
+        push!(row_sets, parsed_set)
+        for (code, count) in _count_codes(nested)
+            code_counts[code] = get(code_counts, code, 0) + count
+        end
+    end
+    common_rows = isempty(row_sets) ? Set{Int}() : foldl(intersect, row_sets)
+    union_rows = isempty(row_sets) ? Set{Int}() : foldl(union, row_sets)
+    transition_count = sum(
+        row_sets[index] != row_sets[index - 1] for index in 2:length(row_sets)
+    )
+    return Dict(
+        "point_count" => length(records),
+        "active_row_count_minimum" => isempty(active_rows) ? nothing : minimum(active_rows),
+        "active_row_count_mean" => isempty(active_rows) ? nothing : sum(active_rows) / length(active_rows),
+        "active_row_count_maximum" => isempty(active_rows) ? nothing : maximum(active_rows),
+        "active_row_intersection_count" => length(common_rows),
+        "active_row_union_count" => length(union_rows),
+        "active_row_transition_count" => transition_count,
+        "finding_code_counts" => Dict(code => code_counts[code] for code in sort!(collect(keys(code_counts)))),
+    )
+end
+
 function _report_view(report, key)
     value = get(report, key, Dict())
     value isa AbstractDict || return Dict{String,Any}()
@@ -94,6 +137,7 @@ function _persistence_view(path)
         "dense_rank_max_entries" => get(report, "dense_rank_max_entries", nothing),
         "model_variable_count" => get(report, "model_variable_count", nothing),
         "mapping" => _mapping_summary(report),
+        "active_set" => _active_set_summary(report),
         "jacobian" => _report_view(report, "jacobian_rank_persistence"),
         "component" => _report_view(report, "component_rank_persistence"),
         "observed_fingerprints" => Dict(

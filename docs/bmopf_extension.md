@@ -489,6 +489,12 @@ rank comparison.
 The guarded 538-bus two-point run mapped all 11,028 coordinates at both
 points while reporting rank persistence as unavailable under the zero dense
 budget, which is the intended large-model behavior.
+Persistence records also include per-point active-set screens, including
+active-row counts and LICQ/MFCQ, feasibility, and active-DM fingerprints. These
+remain separate observations because the active set can change even when the
+equality-Jacobian rank is stable.
+The persistence summarizer additionally reports active-row intersection,
+union, and transition counts, preserving the row-scope change explicitly.
 
 Set `NLPDIAGNOSTICS_BMOPF_INCLUDE_FLOATING_NEUTRAL_CANDIDATES=true` on a
 structural or profile corpus run to retain BMOPFTools' explicit floating-neutral

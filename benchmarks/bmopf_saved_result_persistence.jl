@@ -95,6 +95,16 @@ function main()
         ))
         push!(points, saved.mapping.point)
     end
+    active_reports = Any[]
+    for (relative, point) in zip(selected, points)
+        active = NLPDiagnostics.bmopf_analyze_active_set(
+            context, point; rank_max_dense_entries = rank_limit,
+        )
+        push!(active_reports, Dict(
+            "snapshot" => relative,
+            "report" => NLPDiagnostics.report_data(active),
+        ))
+    end
     rank_report = NLPDiagnostics.bmopf_analyze_jacobian_rank_persistence(
         context, points; max_dense_entries = rank_limit,
     )
@@ -110,6 +120,7 @@ function main()
         "dense_rank_max_entries" => rank_limit,
         "model_variable_count" => length(points[1].variables),
         "mapping" => mappings,
+        "active_set_reports" => active_reports,
         "jacobian_rank_persistence" => NLPDiagnostics.report_data(rank_report),
         "component_rank_persistence" => NLPDiagnostics.report_data(component_report),
         "interpretation" => "Cross-point numerical persistence evidence only; persistent rank or nullspace patterns do not establish a physical cause.",

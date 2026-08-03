@@ -420,6 +420,14 @@ The guarded 538-bus two-point persistence run mapped all 11,028 coordinates at
 both points and reported rank persistence as unavailable under the zero dense
 budget, preserving the large-model analysis boundary without silently reducing
 the model or fabricating a nullspace conclusion.
+The persistence harness now retains per-point active-set reports as well. On
+the five-point 30-bus dense run, active rows ranged from 620 to 732 (mean
+642.4), with LICQ/MFCQ, active-DM, and active-feasibility fingerprints kept
+separate from the persistent equality-Jacobian rank result.
+Active-set summaries now also retain row-scope intersection, union, and
+transition counts. The five-point 30-bus run had 620 rows common to every
+point, 732 rows in the union, and one active-set transition, making the change
+in active geometry inspectable without turning it into a stability score.
 The unified BMOPF campaign summary now accepts persistence summaries through
 `NLPDIAGNOSTICS_BMOPF_PERSISTENCE_SUMMARIES`, aggregating rank/nullspace/scale
 fingerprints while keeping persistence availability separate from solver and
