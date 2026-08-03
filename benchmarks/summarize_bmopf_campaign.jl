@@ -60,6 +60,33 @@ function _solver_view(summary)
     )
 end
 
+function _persistence_view(summary)
+    reports = get(summary, "reports", Any[])
+    reports isa AbstractVector || (reports = Any[])
+    observed = Dict{String,Int}()
+    availability = Dict{String,Int}()
+    for report in reports
+        report isa AbstractDict || continue
+        fingerprints = get(report, "observed_fingerprints", Dict())
+        fingerprints isa AbstractDict || continue
+        for (key, value) in fingerprints
+            value isa Number || continue
+            observed[String(key)] = get(observed, String(key), 0) + Int(value)
+        end
+        dense = get(report, "dense_rank_max_entries", nothing)
+        label = dense == 0 ? "dense_disabled" : "dense_enabled_or_unbounded"
+        availability[label] = get(availability, label, 0) + 1
+    end
+    return Dict{String,Any}(
+        "summary_path" => nothing,
+        "report_version" => get(summary, "report_version", nothing),
+        "report_count" => get(summary, "report_count", length(reports)),
+        "reports" => reports,
+        "observed_fingerprint_totals" => Dict(key => observed[key] for key in sort!(collect(keys(observed)))),
+        "dense_budget_case_counts" => Dict(key => availability[key] for key in sort!(collect(keys(availability)))),
+    )
+end
+
 function _merge_code_maps(summaries, field)
     merged = Dict{String,Int}()
     for summary in summaries
@@ -95,6 +122,20 @@ function main()
         additional_corpus[path] = view
         push!(corpus_views, view)
     end
+    persistence_paths = filter(!isempty, strip.(split(
+        get(ENV, "NLPDIAGNOSTICS_BMOPF_PERSISTENCE_SUMMARIES", ""), ',';
+    )))
+    persistence = nothing
+    additional_persistence = Dict{String,Any}()
+    persistence_views = Any[]
+    for raw_path in persistence_paths
+        path = abspath(raw_path)
+        view = _persistence_view(_load(path))
+        view["summary_path"] = path
+        additional_persistence[path] = view
+        push!(persistence_views, view)
+    end
+    !isempty(persistence_views) && (persistence = first(persistence_views))
     matrix = nothing
     solver_views = Dict{String,Any}()
     comparisons = Dict{String,Any}()
@@ -149,6 +190,13 @@ function main()
             ),
         ),
         "solver_matrix" => matrix,
+        "persistence" => persistence,
+        "additional_persistence" => additional_persistence,
+        "persistence_fingerprint_aggregates" => Dict(
+            "observed_fingerprint_totals" => _merge_code_maps(
+                persistence_views, "observed_fingerprint_totals",
+            ),
+        ),
         "solver_summaries" => solver_views,
         "pairwise_comparisons" => comparisons,
         "fingerprints" => Dict(

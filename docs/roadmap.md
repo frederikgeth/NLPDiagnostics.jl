@@ -401,6 +401,29 @@ Jacobian-rank availability, sparse-QR rank, derivative-provenance codes, and
 scale-finding deltas alongside feasibility changes. This is the benchmark
 boundary needed before testing policy hypotheses on the larger 99- and
 538-bus cases.
+Those larger probes are now complete with dense rank disabled: one 99-bus LN
+case and one 538-bus LN case both ran successfully under SI and `pu_all_si`.
+Each had zero feasibility-violation delta and identical Jacobian/sparse-QR
+rank fingerprints; the corrected policy reduced the total finding count by
+one and removed one row-scale warning. This supports treating the current
+issue as result-export unit semantics rather than a model-size-dependent rank
+failure, while leaving the remaining per-family policy inference empirical.
+The saved-result persistence harness now maps multiple time points into one
+staged context. On five 30-bus LN points with dense rank enabled, local
+Jacobian rank remained persistent with no right-null direction at the selected
+tolerance, while left-nullspace alignment was not persistent and row/column
+scale spread changed materially. This is the first time-series fingerprint
+separating stable local rank from changing residual geometry; the same harness
+records explicit availability when dense analysis is budgeted out on larger
+models.
+The guarded 538-bus two-point persistence run mapped all 11,028 coordinates at
+both points and reported rank persistence as unavailable under the zero dense
+budget, preserving the large-model analysis boundary without silently reducing
+the model or fabricating a nullspace conclusion.
+The unified BMOPF campaign summary now accepts persistence summaries through
+`NLPDIAGNOSTICS_BMOPF_PERSISTENCE_SUMMARIES`, aggregating rank/nullspace/scale
+fingerprints while keeping persistence availability separate from solver and
+corpus finding counts.
 
 ## Solver postmortem foundation
 

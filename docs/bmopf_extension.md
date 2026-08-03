@@ -226,6 +226,11 @@ to combine corpus and solver evidence. Set
 `NLPDIAGNOSTICS_BMOPF_ADDITIONAL_CORPUS_SUMMARIES` to a comma-separated list
 of additional corpus summaries; their structural, context, integrity, and
 generic fingerprints are aggregated while each source remains separate.
+Set `NLPDIAGNOSTICS_BMOPF_PERSISTENCE_SUMMARIES` to one or more comma-separated
+outputs from `summarize_bmopf_persistence.jl` to include cross-point rank,
+nullspace, scaling, mapping, and availability fingerprints in the same
+campaign report. Persistence sources remain separate from solver and corpus
+finding counts.
 Use `NLPDIAGNOSTICS_BMOPF_SOLVER_OPTIONS=max_iter=500,tol=1e-8` for explicit
 solver attributes and `NLPDIAGNOSTICS_BMOPF_PER_UNIT=false` to reproduce a
 model-native/SI build. Both choices, along with the solver objective convention
@@ -470,6 +475,20 @@ the exact policy, process status, timeout, and output directory for each run.
 `benchmarks/summarize_bmopf_result_policy_matrix.jl matrix_index.json` then
 materializes every pairwise comparison under the matrix directory and emits a
 single summary containing the derivative-rank fingerprints and finding deltas.
+The same matrix has been smoke-tested on representative 99-bus and 538-bus
+LN cases with dense analysis disabled; SI and `pu_all_si` produced matching
+feasibility and sparse-rank fingerprints in both cases.
+
+For time-series evidence on one staged formulation, use
+`benchmarks/bmopf_saved_result_persistence.jl`. It maps multiple saved results
+into one context and reports cross-point Jacobian-rank, nullspace-alignment,
+scaling, and component-rank persistence. With a zero dense budget it records
+availability limits explicitly; for a small case, increasing
+`NLPDIAGNOSTICS_BMOPF_PERSISTENCE_MAX_DENSE_ENTRIES` enables the actual local
+rank comparison.
+The guarded 538-bus two-point run mapped all 11,028 coordinates at both
+points while reporting rank persistence as unavailable under the zero dense
+budget, which is the intended large-model behavior.
 
 Set `NLPDIAGNOSTICS_BMOPF_INCLUDE_FLOATING_NEUTRAL_CANDIDATES=true` on a
 structural or profile corpus run to retain BMOPFTools' explicit floating-neutral
