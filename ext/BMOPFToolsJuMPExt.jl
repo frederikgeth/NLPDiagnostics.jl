@@ -57,6 +57,108 @@ const _BMOPF_RESULT_FIELD_FAMILIES = (
     :ground_current,
 )
 
+const _BMOPF_RESULT_FIELD_CATALOG = Dict{Symbol,NamedTuple}(
+    :bus_voltage => (
+        quantity = "rectangular terminal voltage",
+        result_paths = ["bus/*/*/vr", "bus/*/*/vi"],
+        model_key_families = ["vr", "vi"],
+        base_kind = "voltage",
+        physical_unit = "V",
+        adapter_supported = true,
+        notes = "Mapped through the public per-bus terminal voltage base when declared SI.",
+    ),
+    :line_current => (
+        quantity = "rectangular branch-terminal current",
+        result_paths = ["line/*/*/cr_fr", "line/*/*/ci_fr", "line/*/*/cr_to", "line/*/*/ci_to"],
+        model_key_families = ["cr_fr", "ci_fr", "cr_to", "ci_to"],
+        base_kind = "current",
+        physical_unit = "A",
+        adapter_supported = true,
+        notes = "Mapped through the public current base at the corresponding terminal bus.",
+    ),
+    :load_current => (
+        quantity = "rectangular load-terminal current",
+        result_paths = ["load/*/*/crd", "load/*/*/cid"],
+        model_key_families = ["crd", "cid"],
+        base_kind = "current",
+        physical_unit = "A",
+        adapter_supported = true,
+        notes = "Mapped through the public current base at the load bus.",
+    ),
+    :source_current => (
+        quantity = "rectangular voltage-source current",
+        result_paths = ["voltage_source/*/*/cr", "voltage_source/*/*/ci"],
+        model_key_families = ["cr_src", "ci_src"],
+        base_kind = "current",
+        physical_unit = "A",
+        adapter_supported = true,
+        notes = "Mapped through the public current base at the source bus.",
+    ),
+    :ibr_current => (
+        quantity = "rectangular inverter-terminal current",
+        result_paths = ["ibr/*/*/cri", "ibr/*/*/cii"],
+        model_key_families = ["cri", "cii"],
+        base_kind = "current",
+        physical_unit = "A",
+        adapter_supported = true,
+        notes = "Mapped through the public current base at the IBR bus.",
+    ),
+    :ibr_power => (
+        quantity = "IBR active/reactive power auxiliary",
+        result_paths = ["ibr/*/*/pg", "ibr/*/*/qg"],
+        model_key_families = ["p_ibr", "q_ibr"],
+        base_kind = "power",
+        physical_unit = "W",
+        adapter_supported = true,
+        notes = "Mapped through the public system power base; exported line/thermal powers are separate fields.",
+    ),
+    :ibr_voltage_magnitude => (
+        quantity = "reconstructed IBR monitored-voltage magnitude",
+        result_paths = ["derived:ibr/*/*/u_ibr"],
+        model_key_families = ["u_ibr"],
+        base_kind = "voltage",
+        physical_unit = "V",
+        adapter_supported = true,
+        notes = "Reconstructed from saved bus rectangular voltages; not a direct saved-result field.",
+    ),
+    :switch_current => (
+        quantity = "rectangular switch current",
+        result_paths = ["switch/*/*/cr", "switch/*/*/ci"],
+        model_key_families = ["cr_sw", "ci_sw"],
+        base_kind = "current",
+        physical_unit = "A",
+        adapter_supported = true,
+        notes = "Mapped through the public current base at the switch from-bus.",
+    ),
+    :ground_current => (
+        quantity = "rectangular perfect-ground current",
+        result_paths = ["ground/*/*/cg_r", "ground/*/*/cg_i"],
+        model_key_families = ["cr_gnd", "ci_gnd"],
+        base_kind = "current",
+        physical_unit = "A",
+        adapter_supported = true,
+        notes = "Mapped through the public current base at the grounded bus.",
+    ),
+)
+
+function _bmopf_result_field_catalog()
+    return Dict{String,Any}(
+        "catalog_version" => "bmopf-result-field-catalog-v1",
+        "interpretation" => "Declared adapter semantics and conversion bases; this does not certify the units of any individual export file.",
+        "families" => Dict{String,Any}(
+            string(family) => Dict{String,Any}(
+                "quantity" => entry.quantity,
+                "result_paths" => copy(entry.result_paths),
+                "model_key_families" => copy(entry.model_key_families),
+                "base_kind" => entry.base_kind,
+                "physical_unit" => entry.physical_unit,
+                "adapter_supported" => entry.adapter_supported,
+                "notes" => entry.notes,
+            ) for (family, entry) in sort!(collect(_BMOPF_RESULT_FIELD_CATALOG); by = first)
+        ),
+    )
+end
+
 """Normalize the optional per-family saved-result unit policy.
 
 `result_units` remains the backwards-compatible default.  A field policy is
@@ -623,6 +725,199 @@ function _bmopf_result_mapping_report(mapping)
     return report
 end
 
+const _BMOPF_MODEL_FAMILY_TO_RESULT_FAMILY = Dict{Symbol,String}(
+    :vr => "bus_voltage", :vi => "bus_voltage",
+    :cr_fr => "line_current", :ci_fr => "line_current",
+    :cr_to => "line_current", :ci_to => "line_current",
+    :crd => "load_current", :cid => "load_current",
+    :cr_src => "source_current", :ci_src => "source_current",
+    :cri => "ibr_current", :cii => "ibr_current",
+    :p_ibr => "ibr_power", :q_ibr => "ibr_power",
+    :u_ibr => "ibr_voltage_magnitude",
+    :cr_sw => "switch_current", :ci_sw => "switch_current",
+    :cr_gnd => "ground_current", :ci_gnd => "ground_current",
+)
+
+function _bmopf_variable_result_descriptors(context)
+    result = Dict{MOI.VariableIndex,Dict{String,String}}()
+    for key in BMOPFTools.opf_object_keys(context; kind = :variable)
+        family = get(_BMOPF_MODEL_FAMILY_TO_RESULT_FAMILY, key.family,
+                     "unclassified_$(key.family)")
+        object = try
+            BMOPFTools.opf_object(context, key)
+        catch
+            nothing
+        end
+        object isa JuMP.VariableRef || continue
+        index_text = sprint(show, key.index)
+        device = key.index isa Tuple && !isempty(key.index) ? string(first(key.index)) : index_text
+        result[JuMP.index(object)] = Dict(
+            "result_family" => family,
+            "model_key_family" => string(key.family),
+            "index" => index_text,
+            "device" => device,
+        )
+    end
+    return result
+end
+
+function _bmopf_row_field_support(evaluation, row, variable_descriptors)
+    families = Dict{String,Int}()
+    instances = Dict{String,Int}()
+    devices = Dict{String,Int}()
+    columns = Int[]
+    entries = 0
+    for entry in evaluation.jacobian_entries
+        entry.row == row || continue
+        isfinite(entry.value) || continue
+        iszero(entry.value) && continue
+        entries += 1
+        push!(columns, entry.column)
+    end
+    for column in unique(columns)
+        1 <= column <= length(evaluation.point.variables) || continue
+        variable = evaluation.point.variables[column]
+        descriptor = get(variable_descriptors, variable, Dict(
+            "result_family" => "unclassified_model_variable",
+            "model_key_family" => "unclassified",
+            "index" => "?",
+            "device" => "?",
+        ))
+        family = descriptor["result_family"]
+        families[family] = get(families, family, 0) + 1
+        instance = string(family, "/", descriptor["model_key_family"], "/", descriptor["index"])
+        instances[instance] = get(instances, instance, 0) + 1
+        device = string(family, "/", descriptor["device"])
+        devices[device] = get(devices, device, 0) + 1
+    end
+    return families, instances, devices, entries
+end
+
+function _bmopf_family_count_string(counts)
+    return join(("$(key)=$(value)" for (key, value) in
+                 sort!(collect(counts); by = first)), ",")
+end
+
+"""
+    _bmopf_constraint_feasibility_field_attribution(context, result; mapping=nothing)
+
+Attribute scalar feasibility violations to the registered BMOPF variable
+families appearing in each violating row's evaluated Jacobian support. This is
+structural support evidence: it identifies which mapped coordinate families
+participate in a violated row, but does not prove that a particular exported
+field caused the violation.
+"""
+function _bmopf_constraint_feasibility_field_attribution(
+    context,
+    result;
+    mapping = nothing,
+    feasibility_tolerance::Real = sqrt(eps(Float64)),
+    active_tolerance::Real = sqrt(eps(Float64)),
+)
+    profile = hasproperty(result, :profile) ? result.profile : result
+    hasproperty(profile, :evaluation) || throw(ArgumentError(
+        "result must contain a NumericalEvaluation or BMOPFProfileResult",
+    ))
+    evaluation = profile.evaluation
+    owner = _bmopf_context_model(context)
+    backend = JuMP.backend(owner)
+    summary = NLPDiagnostics.constraint_feasibility_summary(
+        backend, evaluation;
+        feasibility_tolerance, active_tolerance,
+    )
+    report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:stage] = "bmopf_constraint_feasibility_field_attribution"
+    report.metadata[:bmopf_result_field_catalog_version] = "bmopf-result-field-catalog-v1"
+    report.metadata[:bmopf_feasibility_attribution_complete] = string(summary.complete)
+    variable_descriptors = _bmopf_variable_result_descriptors(context)
+    violations = filter(activity -> activity.classification == :violated,
+                        summary.activities)
+    family_rows = Dict{String,Int}()
+    family_coordinates = Dict{String,Int}()
+    field_instances = Dict{String,Int}()
+    device_instances = Dict{String,Int}()
+    derivative_methods = Dict{String,Int}()
+    row_records = Any[]
+    unsupported_rows = 0
+    for activity in violations
+        method = activity.row <= length(evaluation.jacobian_row_methods) ?
+                 string(evaluation.jacobian_row_methods[activity.row]) : "unavailable"
+        derivative_methods[method] = get(derivative_methods, method, 0) + 1
+        support, instances, devices, entry_count = _bmopf_row_field_support(
+            evaluation, activity.row, variable_descriptors,
+        )
+        isempty(support) && (unsupported_rows += 1)
+        for (family, count) in support
+            family_rows[family] = get(family_rows, family, 0) + 1
+            family_coordinates[family] = get(family_coordinates, family, 0) + count
+        end
+        for (instance, count) in instances
+            field_instances[instance] = get(field_instances, instance, 0) + 1
+        end
+        for (device, count) in devices
+            device_instances[device] = get(device_instances, device, 0) + 1
+        end
+        push!(row_records, Dict{String,Any}(
+            "row" => activity.row,
+            "source" => NLPDiagnostics.entity_data(activity.source),
+            "value" => activity.value,
+            "lower" => activity.lower,
+            "upper" => activity.upper,
+            "feasibility_violation" => activity.feasibility_violation,
+            "jacobian_support_entry_count" => entry_count,
+            "field_family_support" => support,
+            "field_instances" => sort!(collect(keys(instances))),
+            "device_instances" => sort!(collect(keys(devices))),
+        ))
+    end
+    report.metadata[:bmopf_feasibility_attribution_violation_count] = string(length(violations))
+    report.metadata[:bmopf_feasibility_attribution_unsupported_row_count] = string(unsupported_rows)
+    report.metadata[:bmopf_feasibility_attribution_family_row_counts] =
+        _bmopf_family_count_string(family_rows)
+    report.metadata[:bmopf_feasibility_attribution_family_coordinate_counts] =
+        _bmopf_family_count_string(family_coordinates)
+    report.metadata[:bmopf_feasibility_attribution_jacobian_method_counts] =
+        _bmopf_family_count_string(derivative_methods)
+    report.metadata[:bmopf_feasibility_attribution_field_instance_counts] =
+        _bmopf_family_count_string(field_instances)
+    report.metadata[:bmopf_feasibility_attribution_device_counts] =
+        _bmopf_family_count_string(device_instances)
+    power_base = _bmopf_power_base(context)
+    report.metadata[:bmopf_feasibility_attribution_power_base] =
+        isnothing(power_base) ? "unavailable" : string(power_base)
+    if mapping !== nothing && hasproperty(mapping, :mapped_coordinate_counts_by_family)
+        report.metadata[:bmopf_feasibility_attribution_mapped_coordinate_counts] =
+            _bmopf_family_count_string(mapping.mapped_coordinate_counts_by_family)
+    end
+    isempty(violations) && return report
+    push!(report, NLPDiagnostics.Finding(:bmopf_constraint_feasibility_field_attribution;
+        severity = NLPDiagnostics.SeverityInfo,
+        domain = NLPDiagnostics.MathematicalIssue,
+        basis = NLPDiagnostics.NumericalObservation,
+        confidence = NLPDiagnostics.ConfidenceCertain,
+        observation = "$(length(violations)) violated scalar row(s) were attributed to registered BMOPF variable families through evaluated Jacobian support.",
+        why_it_matters = "The attribution narrows which coordinate families participate in the infeasible rows while preserving the distinction between support evidence and causal unit diagnosis.",
+        evidence = [NLPDiagnostics.Evidence("BMOPF feasibility-field attribution"; details = [
+            "violating_row_count" => length(violations),
+            "unsupported_row_count" => unsupported_rows,
+            "family_row_counts" => _bmopf_family_count_string(family_rows),
+            "family_coordinate_counts" => _bmopf_family_count_string(family_coordinates),
+            "jacobian_method_counts" => _bmopf_family_count_string(derivative_methods),
+            "field_instance_counts" => _bmopf_family_count_string(field_instances),
+            "device_counts" => _bmopf_family_count_string(device_instances),
+            "power_base" => power_base,
+            "catalog_version" => "bmopf-result-field-catalog-v1",
+            "row_records" => sprint(show, row_records),
+        ])],
+        affected = NLPDiagnostics.EntityRef[activity.source for activity in violations],
+        suggested_actions = [
+            "Compare the implicated field families against the explicit result-field unit policy and public BMOPFTools bases.",
+            "Treat this as support attribution, not proof that one field family caused the violation.",
+        ],
+    ))
+    return report
+end
+
 """Fingerprint the coordinate magnitude implied by a saved-result unit choice."""
 function _bmopf_result_unit_report(context, result::AbstractDict;
                                    result_units::Symbol,
@@ -1051,10 +1346,31 @@ function _bmopf_build_and_analyze_opf(
     )
 end
 
+function _bmopf_component_rank_capability_data(report::NLPDiagnostics.DiagnosticReport)
+    metadata = report.metadata
+    coverage = tryparse(Float64,
+        get(metadata, :bmopf_component_expected_rank_coverage, ""))
+    return Dict{String,Any}(
+        "checked" => get(metadata, :bmopf_component_rank_capability_checked, "false") == "true",
+        "component_count" => something(tryparse(Int,
+            get(metadata, :bmopf_component_metadata_count, "")), 0),
+        "expected_rank_declared_count" => something(tryparse(Int,
+            get(metadata, :bmopf_component_expected_rank_declared_count, "")), 0),
+        "expected_rank_unavailable_count" => something(tryparse(Int,
+            get(metadata, :bmopf_component_expected_rank_unavailable_count, "")), 0),
+        "expected_rank_coverage" => coverage,
+        "finding_count" => something(tryparse(Int,
+            get(metadata, :bmopf_component_rank_capability_finding_count, "")), 0),
+    )
+end
+
 function NLPDiagnostics.profile_result_data(result::NLPDiagnostics.BMOPFProfileResult)
     return Dict{String,Any}(
         "profile" => NLPDiagnostics.profile_result_data(result.profile),
         "bmopf_context_report" => NLPDiagnostics.report_data(result.context_report),
+        "bmopf_result_field_catalog" => _bmopf_result_field_catalog(),
+        "bmopf_component_rank_capability" =>
+            _bmopf_component_rank_capability_data(result.context_report),
         "bmopf_initialization_report" => isnothing(result.initialization_report) ?
             nothing : NLPDiagnostics.report_data(result.initialization_report),
         "bmopf_stage_seconds" => Dict(string(key) => value for

@@ -219,6 +219,10 @@ function _case_comparison(snapshot, left, right)
         "right_policy" => right_policy,
         "left_summary" => left_summary,
         "right_summary" => right_summary,
+        "left_result_field_catalog" => get(get(left, "profile", Dict()), "bmopf_result_field_catalog", nothing),
+        "right_result_field_catalog" => get(get(right, "profile", Dict()), "bmopf_result_field_catalog", nothing),
+        "left_feasibility_field_attribution" => get(get(left, "profile", Dict()), "bmopf_constraint_feasibility_field_attribution", nothing),
+        "right_feasibility_field_attribution" => get(get(right, "profile", Dict()), "bmopf_constraint_feasibility_field_attribution", nothing),
         "finding_count_delta_right_minus_left" => right_summary["total_finding_count"] - left_summary["total_finding_count"],
         "feasibility_violation_delta_right_minus_left" => right_summary["constraint_feasibility_violation_count"] - left_summary["constraint_feasibility_violation_count"],
         "scale_finding_delta_right_minus_left" => _delta_map(left_summary["scale_finding_counts"], right_summary["scale_finding_counts"]),
@@ -235,6 +239,34 @@ function _aggregate_cases(cases)
         end
     end
     return Dict(code => total[code] for code in sort!(collect(keys(total))))
+end
+
+function _unit_ratio_case(ratio_report, snapshot)
+    ratio_report isa AbstractDict || return nothing
+    for case in get(ratio_report, "cases", Any[])
+        case isa AbstractDict || continue
+        get(case, "snapshot", nothing) == snapshot || continue
+        families = get(case, "field_families", Dict())
+        families isa AbstractDict || return nothing
+        outliers = Dict{String,Any}()
+        for (family, entry) in families
+            entry isa AbstractDict || continue
+            classification = get(entry, "classification", nothing)
+            classification in ("same_exported_scale", "no_nonzero_numeric_pairs") && continue
+            outliers[String(family)] = Dict(
+                "classification" => classification,
+                "median_pu_over_si_magnitude_ratio" => get(entry, "median_pu_over_si_magnitude_ratio", nothing),
+                "minimum_pu_over_si_magnitude_ratio" => get(entry, "minimum_pu_over_si_magnitude_ratio", nothing),
+                "maximum_pu_over_si_magnitude_ratio" => get(entry, "maximum_pu_over_si_magnitude_ratio", nothing),
+                "nonzero_ratio_count" => get(entry, "nonzero_ratio_count", 0),
+            )
+        end
+        return Dict(
+            "paired_unit_ratio_case_available" => true,
+            "outlier_field_families" => outliers,
+        )
+    end
+    return Dict("paired_unit_ratio_case_available" => false)
 end
 
 function main()
@@ -267,8 +299,13 @@ function main()
     right_index = isfile(joinpath(right_dir, "index.json")) ? _load(joinpath(right_dir, "index.json")) : Dict()
     ratio_path = get(ENV, "NLPDIAGNOSTICS_BMOPF_UNIT_RATIO_REPORT", "")
     ratio_report = isempty(ratio_path) ? nothing : _load(abspath(ratio_path))
+    for case in comparisons
+        snapshot = get(case, "snapshot", nothing)
+        snapshot isa AbstractString || continue
+        case["unit_ratio_fingerprint"] = _unit_ratio_case(ratio_report, snapshot)
+    end
     report = Dict(
-        "report_version" => "bmopf-saved-result-profile-comparison-v1",
+        "report_version" => "bmopf-saved-result-profile-comparison-v2",
         "left_campaign" => Dict("directory" => left_dir, "runner_version" => get(left_index, "runner_version", nothing), "result_units" => get(left_index, "result_units", nothing), "result_field_units" => get(left_index, "result_field_units", nothing)),
         "right_campaign" => Dict("directory" => right_dir, "runner_version" => get(right_index, "runner_version", nothing), "result_units" => get(right_index, "result_units", nothing), "result_field_units" => get(right_index, "result_field_units", nothing)),
         "paired_case_count" => length(comparisons),

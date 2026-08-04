@@ -41,6 +41,29 @@ end
 
 _sorted_counts(counts) = Dict(key => counts[key] for key in sort!(collect(keys(counts))))
 
+function _parse_count_map(value)
+    result = Dict{String,Int}()
+    if value isa AbstractDict
+        for (key, raw) in value
+            try
+                result[String(key)] = Int(raw)
+            catch
+            end
+        end
+        return result
+    end
+    value isa AbstractString || return result
+    for item in filter(!isempty, split(value, ','))
+        parts = split(item, '='; limit = 2)
+        length(parts) == 2 || continue
+        try
+            result[String(strip(parts[1]))] = parse(Int, strip(parts[2]))
+        catch
+        end
+    end
+    return result
+end
+
 function _collect_numeric_metrics!(destination, metrics)
     metrics isa AbstractDict || return destination
     for (key, value) in metrics
@@ -103,6 +126,7 @@ function main()
     saved_result_cases = 0
     saved_result_fallback_coordinates = 0
     saved_result_unresolved_records = 0
+    saved_result_unresolved_families = Dict{String,Int}()
     saved_result_unregistered_model_coordinates = 0
     saved_result_unmapped_registered_coordinates = 0
     saved_result_mapping_fractions = Float64[]
@@ -115,6 +139,19 @@ function main()
     profile_case_count = 0
     floating_neutral_candidate_cases = 0
     floating_neutral_candidate_modes = 0
+    component_rank_capability_cases = 0
+    component_rank_capability_checked_cases = 0
+    component_rank_capability_components = 0
+    component_rank_capability_declared = 0
+    component_rank_capability_unavailable = 0
+    component_rank_capability_findings = 0
+    component_rank_capability_coverages = Float64[]
+    feasibility_attribution_cases = 0
+    feasibility_attribution_violation_rows = 0
+    feasibility_attribution_unsupported_rows = 0
+    feasibility_attribution_family_rows = Dict{String,Int}()
+    feasibility_attribution_jacobian_methods = Dict{String,Int}()
+    result_field_catalog_cases = 0
     aggregate_stage_seconds = Dict{String,Vector{Float64}}()
     aggregate_stage_allocations = Dict{String,Vector{Float64}}()
     for entry in index["cases"]
@@ -210,6 +247,55 @@ function main()
             summary["floating_neutral_candidate_mode_count"] = candidate_modes
             if analysis_mode != "structural" && haskey(record, "profile")
                 profile_case_count += 1
+                catalog = get(profile, "bmopf_result_field_catalog", nothing)
+                catalog isa AbstractDict && (result_field_catalog_cases += 1)
+                attribution = get(profile,
+                    "bmopf_constraint_feasibility_field_attribution", nothing)
+                if attribution isa AbstractDict
+                    feasibility_attribution_cases += 1
+                    metadata = get(attribution, "metadata", Dict())
+                    feasibility_attribution_violation_rows += try
+                        parse(Int, string(get(metadata,
+                            "bmopf_feasibility_attribution_violation_count", "0")))
+                    catch
+                        0
+                    end
+                    feasibility_attribution_unsupported_rows += try
+                        parse(Int, string(get(metadata,
+                            "bmopf_feasibility_attribution_unsupported_row_count", "0")))
+                    catch
+                        0
+                    end
+                    for (family, count) in _parse_count_map(get(metadata,
+                        "bmopf_feasibility_attribution_family_row_counts", ""))
+                        feasibility_attribution_family_rows[family] =
+                            get(feasibility_attribution_family_rows, family, 0) + count
+                    end
+                    for (method, count) in _parse_count_map(get(metadata,
+                        "bmopf_feasibility_attribution_jacobian_method_counts", ""))
+                        feasibility_attribution_jacobian_methods[method] =
+                            get(feasibility_attribution_jacobian_methods, method, 0) + count
+                    end
+                    summary["feasibility_field_attribution"] = attribution
+                end
+                capability = get(profile, "bmopf_component_rank_capability", nothing)
+                if capability isa AbstractDict
+                    component_rank_capability_cases += 1
+                    component_rank_capability_checked_cases +=
+                        Bool(get(capability, "checked", false))
+                    component_rank_capability_components +=
+                        Int(get(capability, "component_count", 0))
+                    component_rank_capability_declared +=
+                        Int(get(capability, "expected_rank_declared_count", 0))
+                    component_rank_capability_unavailable +=
+                        Int(get(capability, "expected_rank_unavailable_count", 0))
+                    component_rank_capability_findings +=
+                        Int(get(capability, "finding_count", 0))
+                    coverage = get(capability, "expected_rank_coverage", nothing)
+                    coverage isa Number && isfinite(Float64(coverage)) &&
+                        push!(component_rank_capability_coverages, Float64(coverage))
+                    summary["component_rank_capability"] = capability
+                end
                 serialized_profile = get(record["profile"], "profile", nothing)
                 if serialized_profile isa AbstractDict
                     _collect_numeric_metrics!(
@@ -262,7 +348,13 @@ function main()
                     details = Dict(finding["evidence"][1]["details"])
                     counts = get(details, "counts_by_family", "")
                     for item in filter(!isempty, split(counts, ','))
-                        saved_result_unresolved_records += parse(Int, split(item, '='; limit = 2)[2])
+                        parts = split(item, '='; limit = 2)
+                        length(parts) == 2 || continue
+                        family = String(strip(parts[1]))
+                        count = parse(Int, strip(parts[2]))
+                        saved_result_unresolved_records += count
+                        saved_result_unresolved_families[family] =
+                            get(saved_result_unresolved_families, family, 0) + count
                     end
                 end
             end
@@ -298,6 +390,25 @@ function main()
             "cases_with_candidates" => floating_neutral_candidate_cases,
             "candidate_mode_count" => floating_neutral_candidate_modes,
         ),
+        "component_rank_capability_counts" => Dict(
+            "profile_cases_with_capability_data" => component_rank_capability_cases,
+            "checked_cases" => component_rank_capability_checked_cases,
+            "component_count_total" => component_rank_capability_components,
+            "expected_rank_declared_count_total" => component_rank_capability_declared,
+            "expected_rank_unavailable_count_total" => component_rank_capability_unavailable,
+            "capability_finding_count_total" => component_rank_capability_findings,
+            "coverage_minimum" => isempty(component_rank_capability_coverages) ? nothing : minimum(component_rank_capability_coverages),
+            "coverage_mean" => isempty(component_rank_capability_coverages) ? nothing : sum(component_rank_capability_coverages) / length(component_rank_capability_coverages),
+            "coverage_maximum" => isempty(component_rank_capability_coverages) ? nothing : maximum(component_rank_capability_coverages),
+        ),
+        "result_field_catalog_case_count" => result_field_catalog_cases,
+        "feasibility_field_attribution_counts" => Dict(
+            "cases_with_attribution" => feasibility_attribution_cases,
+            "violation_row_count_total" => feasibility_attribution_violation_rows,
+            "unsupported_row_count_total" => feasibility_attribution_unsupported_rows,
+            "family_row_counts" => _sorted_counts(feasibility_attribution_family_rows),
+            "jacobian_method_counts" => _sorted_counts(feasibility_attribution_jacobian_methods),
+        ),
         "resume" => get(index, "resume", false),
         "force" => get(index, "force", false),
         "profile_case_count" => profile_case_count,
@@ -316,6 +427,7 @@ function main()
             "saved_result_cases" => saved_result_cases,
             "fallback_coordinate_count" => saved_result_fallback_coordinates,
             "unresolved_saved_record_count" => saved_result_unresolved_records,
+            "unresolved_record_family_counts" => _sorted_counts(saved_result_unresolved_families),
             "unregistered_model_coordinate_count" => saved_result_unregistered_model_coordinates,
             "unmapped_registered_coordinate_count" => saved_result_unmapped_registered_coordinates,
             "mapping_fraction_minimum" => isempty(saved_result_mapping_fractions) ? nothing : minimum(saved_result_mapping_fractions),

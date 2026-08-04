@@ -134,6 +134,13 @@ bmopf_result_voltage_point(context, result; kwargs...) = _bmopf_extension(:BMOPF
 """Report the representational coverage of one `bmopf_result_voltage_point` mapping."""
 bmopf_result_mapping_report(mapping) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to report BMOPF saved-result mapping coverage")._bmopf_result_mapping_report(mapping)
+"""Return the explicit BMOPF saved-result field/unit catalog."""
+bmopf_result_field_catalog() = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect the BMOPF saved-result field catalog")._bmopf_result_field_catalog()
+"""Attribute scalar feasibility violations to supported BMOPF variable families."""
+bmopf_constraint_feasibility_field_attribution(context, result; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF feasibility-field attribution")._bmopf_constraint_feasibility_field_attribution(context, result; kwargs...)
 """Build a labeled profile case and qualification report from a saved BMOPF result."""
 bmopf_saved_result_profile_case(name, context, result; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to profile a saved BMOPF result")._bmopf_saved_result_profile_case(name, context, result; kwargs...)

@@ -398,6 +398,23 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test saved_profile.profile.context_report.metadata[:bmopf_saved_result_profile] == "true"
     @test length(findings(saved_profile.profile.context_report,
                           :bmopf_saved_result_mapping_coverage)) == 1
+    field_catalog = NLPDiagnostics.bmopf_result_field_catalog()
+    @test field_catalog["catalog_version"] == "bmopf-result-field-catalog-v1"
+    @test field_catalog["families"]["bus_voltage"]["base_kind"] == "voltage"
+    @test field_catalog["families"]["ibr_power"]["physical_unit"] == "W"
+    feasibility_attribution = NLPDiagnostics.bmopf_constraint_feasibility_field_attribution(
+        per_unit_context, saved_profile.profile; mapping = saved_profile.mapping,
+    )
+    @test feasibility_attribution.metadata[:stage] ==
+          "bmopf_constraint_feasibility_field_attribution"
+    @test haskey(feasibility_attribution.metadata,
+                 :bmopf_feasibility_attribution_violation_count)
+    @test haskey(feasibility_attribution.metadata,
+                 :bmopf_feasibility_attribution_field_instance_counts)
+    @test haskey(feasibility_attribution.metadata,
+                 :bmopf_feasibility_attribution_device_counts)
+    @test haskey(feasibility_attribution.metadata,
+                 :bmopf_feasibility_attribution_power_base)
     if isdefined(BMOPFTools, :opf_ibr_voltage_magnitude_key)
         magnitude_model = JuMP.Model()
         JuMP.@variable(magnitude_model, m_vr_a)
@@ -485,6 +502,13 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     benchmark_data = NLPDiagnostics.profile_result_data(benchmark_result)
     @test haskey(benchmark_data, "profile")
     @test haskey(benchmark_data, "bmopf_context_report")
+    capability_data = benchmark_data["bmopf_component_rank_capability"]
+    @test capability_data["checked"] == true
+    @test capability_data["component_count"] == 2
+    @test capability_data["expected_rank_declared_count"] == 0
+    @test capability_data["expected_rank_unavailable_count"] == 2
+    @test capability_data["expected_rank_coverage"] == 0.0
+    @test capability_data["finding_count"] == 1
     degeneracy_report = NLPDiagnostics.bmopf_analyze_degeneracy(context, numerical_point)
     @test degeneracy_report.metadata[:bmopf_floating_neutral_candidate_modes_included] == "false"
     active_set_report = NLPDiagnostics.bmopf_analyze_active_set(context, numerical_point)
@@ -1641,14 +1665,19 @@ end
         constraints = [NLPDiagnostics.EntityRef(:constraint, constraint.value)],
         expected_rank = 1,
     )
+    undeclared_component = NLPDiagnostics.ComponentMetadata(:line, "undeclared")
     rank_report = NLPDiagnostics.analyze_component_ranks(
         rank_model,
         evaluation;
-        components = [aligned],
+        components = [aligned, undeclared_component],
     )
     @test rank_report.metadata[:component_rank_declared_count] == "1"
     @test rank_report.metadata[:component_rank_comparison_count] == "1"
     @test rank_report.metadata[:component_rank_unavailable_count] == "0"
+    @test rank_report.metadata[:component_rank_capability_checked] == "true"
+    @test rank_report.metadata[:component_expected_rank_declared_count] == "1"
+    @test rank_report.metadata[:component_expected_rank_unavailable_count] == "1"
+    @test rank_report.metadata[:component_expected_rank_coverage] == "0.5"
     @test rank_report.metadata[:component_rank_expected_nullity_observed_count] == "0"
     @test rank_report.metadata[:component_rank_unexpected_additional_nullity_count] == "0"
     @test rank_report.metadata[:component_rank_unobserved_declared_nullity_count] == "0"
@@ -1725,12 +1754,15 @@ end
                 NLPDiagnostics.evaluation_point(rank_model, [0.0, 0.0]; label = "second"),
             ),
         ];
-        components = [freedom_component],
+        components = [freedom_component, undeclared_component],
     )
     @test length(findings(
         persistent_component_report, :component_expected_rank_persistent,
     )) == 1
     @test persistent_component_report.metadata[:component_rank_persistent_count] == "1"
+    @test persistent_component_report.metadata[:component_rank_capability_checked] == "true"
+    @test persistent_component_report.metadata[:component_expected_rank_declared_count] == "1"
+    @test persistent_component_report.metadata[:component_expected_rank_unavailable_count] == "1"
     @test length(findings(
         persistent_component_report,
         :component_expected_right_nullspace_persistent,

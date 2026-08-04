@@ -9,7 +9,9 @@ failures and leaves durable records for
 
 The default matrix is `si,pu,pu_bus_si,pu_all_si`. Select a subset with
 `NLPDIAGNOSTICS_BMOPF_POLICY_MATRIX`, and use the ordinary corpus environment
-variables to choose cases, dense-rank limits, and timeouts.
+variables to choose cases, dense-rank limits, and timeouts. To isolate a unit
+conversion policy from the saved-file choice, override suffixes with
+`NLPDIAGNOSTICS_BMOPF_POLICY_RESULT_SUFFIXES=name=_result_foo.json,...`.
 """
 
 using JSON
@@ -21,6 +23,28 @@ const _POLICIES = Dict{String,NamedTuple}(
     "pu_bus_si" => (result_units = "pu", field_units = "bus_voltage=si"),
     "pu_all_si" => (result_units = "pu", field_units = _ALL_SI),
 )
+
+function _result_suffixes()
+    raw = strip(get(ENV, "NLPDIAGNOSTICS_BMOPF_POLICY_RESULT_SUFFIXES", ""))
+    isempty(raw) && return Dict{String,String}()
+    suffixes = Dict{String,String}()
+    for token in split(raw, ',')
+        item = strip(token)
+        isempty(item) && continue
+        parts = split(item, '='; limit = 2)
+        length(parts) == 2 || error(
+            "NLPDIAGNOSTICS_BMOPF_POLICY_RESULT_SUFFIXES entries must use name=suffix.json, got '$item'",
+        )
+        name = strip(parts[1])
+        suffix = strip(parts[2])
+        haskey(_POLICIES, name) || error("unknown policy in result suffix override: '$name'")
+        endswith(suffix, ".json") || error("result suffix for '$name' must end in .json")
+        isempty(suffix) && error("result suffix for '$name' must not be empty")
+        haskey(suffixes, name) && error("duplicate result suffix override for '$name'")
+        suffixes[name] = suffix
+    end
+    return suffixes
+end
 
 function _timeout_seconds()
     value = try parse(Float64, get(ENV, "NLPDIAGNOSTICS_BMOPF_POLICY_TIMEOUT_SECONDS", "900"))
@@ -42,7 +66,7 @@ function _selected_policies()
     return unique(raw)
 end
 
-function _run_policy(script, project, root, output_root, name, spec, timeout_seconds)
+function _run_policy(script, project, root, output_root, name, spec, timeout_seconds, result_suffixes)
     output_dir = joinpath(output_root, name)
     mkpath(output_dir)
     child_env = copy(ENV)
@@ -51,6 +75,13 @@ function _run_policy(script, project, root, output_root, name, spec, timeout_sec
     child_env["NLPDIAGNOSTICS_BMOPF_POINT_POLICY"] = "saved_result"
     child_env["NLPDIAGNOSTICS_BMOPF_RESULT_UNITS"] = spec.result_units
     child_env["NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS"] = spec.field_units
+    if haskey(result_suffixes, name)
+        child_env["NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX"] = result_suffixes[name]
+    elseif haskey(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX")
+        child_env["NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX"] = ENV["NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX"]
+    else
+        delete!(child_env, "NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX")
+    end
     process_log = joinpath(output_dir, "policy.process.log")
     julia = Base.julia_cmd()
     command = `$julia --startup-file=no --project=$project $script`
@@ -72,6 +103,8 @@ function _run_policy(script, project, root, output_root, name, spec, timeout_sec
         "policy" => name,
         "result_units" => spec.result_units,
         "result_field_units" => spec.field_units,
+        "result_suffix" => get(result_suffixes, name,
+            get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX", "_result_$(spec.result_units).json")),
         "output_directory" => output_dir,
         "process_log" => basename(process_log),
         "process_timeout" => timed_out,
@@ -92,17 +125,19 @@ function main()
     project = isempty(project) ? Base.active_project() : abspath(project)
     script = abspath(joinpath(@__DIR__, "bmopf_draft_corpus.jl"))
     timeout_seconds = _timeout_seconds()
+    result_suffixes = _result_suffixes()
     entries = Dict{String,Any}[]
     for name in _selected_policies()
-        entry = _run_policy(script, project, root, output_root, name, _POLICIES[name], timeout_seconds)
+        entry = _run_policy(script, project, root, output_root, name, _POLICIES[name], timeout_seconds, result_suffixes)
         push!(entries, entry)
         println("$name: $(entry["status"]) timeout=$(entry["process_timeout"])")
     end
     manifest = Dict{String,Any}(
-        "runner_version" => "bmopf-result-policy-matrix-v1",
+        "runner_version" => "bmopf-result-policy-matrix-v2",
         "benchmark_root" => root,
         "output_root" => output_root,
         "child_timeout_seconds" => timeout_seconds,
+        "policy_result_suffix_overrides" => result_suffixes,
         "policies" => entries,
         "cases" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASES", ""),
         "case_selection" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASE_SELECTION", ""),

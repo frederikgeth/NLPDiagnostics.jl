@@ -374,6 +374,12 @@ function main()
                           by = finding -> (-Int(finding.severity), string(finding.code)))
                 end
                 profile_data = NLPDiagnostics.profile_result_data(profile_run.result)
+                profile_data["bmopf_constraint_feasibility_field_attribution"] =
+                    NLPDiagnostics.report_data(
+                        NLPDiagnostics.bmopf_constraint_feasibility_field_attribution(
+                            profile_run.context, profile_run.result; mapping,
+                        ),
+                    )
                 evaluation = profile_run.result.profile.evaluation
                 variables = length(evaluation.point.variables)
                 rows = length(evaluation.constraint_sources)

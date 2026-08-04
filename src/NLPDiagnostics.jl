@@ -320,6 +320,8 @@ export bmopf_set_start_values!
 export bmopf_start_completion_point
 export bmopf_result_voltage_point
 export bmopf_result_mapping_report
+export bmopf_result_field_catalog
+export bmopf_constraint_feasibility_field_attribution
 export bmopf_saved_result_profile_case
 export bmopf_profile_saved_result
 export bmopf_coordinate_probe_point
@@ -4123,6 +4125,13 @@ function analyze_component_ranks(
 ) where {T<:AbstractFloat}
     report = DiagnosticReport()
     report.metadata[:stage] = "component_ranks"
+    declared_capability = count(component -> !isnothing(component.expected_rank), components)
+    report.metadata[:component_rank_capability_checked] = "true"
+    report.metadata[:component_expected_rank_declared_count] = string(declared_capability)
+    report.metadata[:component_expected_rank_unavailable_count] =
+        string(length(components) - declared_capability)
+    report.metadata[:component_expected_rank_coverage] = isempty(components) ?
+        "unavailable" : string(declared_capability / length(components))
     variable_columns = Dict(variable => column for (column, variable) in enumerate(evaluation.point.variables))
     row_keys = Dict(_entity_row_key(source) => row for (row, source) in enumerate(evaluation.constraint_sources))
     declared = 0
@@ -4248,6 +4257,13 @@ function analyze_component_rank_persistence(
     report.metadata[:stage] = "component_rank_persistence"
     report.metadata[:evaluation_count] = string(length(evaluations))
     report.metadata[:minimum_evaluations] = string(minimum_evaluations)
+    declared_capability = count(component -> !isnothing(component.expected_rank), components)
+    report.metadata[:component_rank_capability_checked] = "true"
+    report.metadata[:component_expected_rank_declared_count] = string(declared_capability)
+    report.metadata[:component_expected_rank_unavailable_count] =
+        string(length(components) - declared_capability)
+    report.metadata[:component_expected_rank_coverage] = isempty(components) ?
+        "unavailable" : string(declared_capability / length(components))
     report.metadata[:component_rank_persistence_declared_count] = "0"
     report.metadata[:component_rank_persistence_expected_mode_count] =
         string(length(expected_modes))

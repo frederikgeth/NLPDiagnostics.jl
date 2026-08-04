@@ -92,10 +92,19 @@ data = NLPDiagnostics.profile_result_data(result)
 `initialization_report` is retained separately. BMOPF-only time and allocation
 observations are separate from generic numerical-stage timings, so benchmark
 comparisons do not conflate the two.
+Serialized profile records also expose a typed
+`bmopf_component_rank_capability` object with declaration counts, coverage, and
+capability-finding count, so campaign tools need not parse string metadata.
 The context report also records component expected-rank coverage and the
 standalone capability-finding count as metadata. The explicit finding remains
 available through `bmopf_component_rank_capability_report(context)` without
 being duplicated in the existing profile finding set.
+`bmopf_result_field_catalog()` exposes the adapter-owned mapping from saved
+export families to physical quantities, public BMOPFTools bases, and registered
+model-key families. Profiled saved-result benchmark records also carry
+`bmopf_constraint_feasibility_field_attribution`, which reports the registered
+families in each violated row's evaluated Jacobian support. This is structural
+support evidence, not a claim that one field family caused the violation.
 By default, `bmopf_profile_case` also appends BMOPFTools' public
 `opf_differentiability_report` to `context_report`. This preserves engine-owned
 nonsmooth-operator, dynamic-branch, unsupported-parameter, active-set, and
@@ -455,7 +464,9 @@ adjacent `_result_si.json` file. Set
 `NLPDIAGNOSTICS_BMOPF_RESULT_UNITS=pu` to select the adjacent `_result_pu.json`
 files, or use `NLPDIAGNOSTICS_BMOPF_RESULT_SUFFIX=...` for another explicit
 schema. Its JSON record persists the mapping coverage and exact result path,
-making any fallback visible in a benchmark comparison.
+making any fallback visible in a benchmark comparison. The smoke summarizer
+also aggregates unresolved saved-result records by exported family, so a
+repeated `ci_to`/`cr_to` boundary is distinguishable from case-specific loss.
 
 To inspect whether the SI and PU files themselves use a consistent convention,
 run `benchmarks/compare_bmopf_saved_result_units.jl <benchmark-root>`. It
@@ -487,12 +498,30 @@ For repeatable policy experiments, `benchmarks/launch_bmopf_result_policy_matrix
 runs isolated `si`, `pu`, `pu_bus_si`, and `pu_all_si` child campaigns (or a
 subset selected with `NLPDIAGNOSTICS_BMOPF_POLICY_MATRIX`). Its manifest keeps
 the exact policy, process status, timeout, and output directory for each run.
+Set `NLPDIAGNOSTICS_BMOPF_POLICY_RESULT_SUFFIXES` to override the adjacent
+saved-result suffix for an individual child (for example,
+`pu_all_si=_result_si.json`). This separates a conversion-policy effect from a
+difference between the SI and PU files themselves.
 `benchmarks/summarize_bmopf_result_policy_matrix.jl matrix_index.json` then
 materializes every pairwise comparison under the matrix directory and emits a
 single summary containing the derivative-rank fingerprints and finding deltas.
 The same matrix has been smoke-tested on representative 99-bus and 538-bus
 LN cases with dense analysis disabled; SI and `pu_all_si` produced matching
 feasibility and sparse-rank fingerprints in both cases.
+That agreement is not a corpus-wide conclusion: the full 30-bus LN/LG sweep
+covered 50 paired snapshots and found 14 cases with nonzero feasibility deltas
+(187 aggregate additional violations under `pu_all_si`). Use the paired
+comparison and validation report as the evidence boundary; investigate the
+affected exported fields before treating either policy as interchangeable.
+Run `benchmarks/validate_bmopf_campaign.jl` on the resulting campaign or
+comparison summaries before interpreting them. It reports separate readiness
+gates for generic observations, saved-result mapping, dense rank, physical
+component rank, and paired-policy alignment; a warning means unavailable or
+conditional evidence, not a solver failure. It also validates bounded
+Ipopt/MadNLP matrix summaries for successful child processes and paired trace
+records. When `NLPDIAGNOSTICS_BMOPF_UNIT_RATIO_REPORT` is supplied, each paired
+case also retains its nontrivial field-family ratio fingerprints, so a policy
+delta can be inspected alongside the exported fields that differ in scale.
 
 For time-series evidence on one staged formulation, use
 `benchmarks/bmopf_saved_result_persistence.jl`. It maps multiple saved results

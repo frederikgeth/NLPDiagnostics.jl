@@ -451,9 +451,59 @@ summarizers aggregate its finding codes separately from rank fingerprints.
 The ordinary BMOPF profile context now also carries declaration coverage and
 capability-finding counts as metadata, without flattening the standalone
 capability finding into the existing context finding set.
+Serialized profile records now carry those counts as a typed capability
+object, and the smoke summarizer aggregates them separately from context
+finding codes and numerical fingerprints.
 The capability screen is now also available in the generic core and through
 the PowerModels adapter, so plugin-specific reports share the same declaration
 boundary and finding semantics.
+Generic point-local and cross-point component-rank reports now carry the same
+coverage metadata even when every declared component matches numerically; an
+undeclared component therefore remains visible as an availability boundary,
+not as an inferred full-rank result.
+The new `validate_bmopf_campaign.jl` gate checks case errors, integrity
+preflight, saved-result mapping completeness, dense-rank availability,
+component-rank capability, environment provenance, and paired-policy alignment
+without converting those checks into a quality score.
+It also checks bounded solver-matrix summaries, keeping successful solver
+termination, paired trace availability, and conditional physical evidence as
+separate readiness gates.
+The full-corpus validation phase now attributes unresolved saved-result records
+by exported family, preserving the difference between a stable schema boundary
+and a case-specific mapping failure.
+The first 50-case 30-bus LN/LG policy sweep also showed why this gate matters:
+the three-case representative agreement did not generalize, with 14 paired
+cases and 187 aggregate feasibility violations differing under `pu_all_si`.
+This is now treated as an empirical unit/formulation hypothesis, not as a
+validated equivalence claim.
+The follow-up same-file isolation matrix separates the effects: on the SI file,
+`si` and `pu_all_si` are identical; on the PU file, `pu` versus `pu_all_si`
+changes the feasibility fingerprint in all 14 affected snapshots (5,483 fewer
+violations under `pu_all_si`). The remaining policy work is therefore to
+document the mixed export convention and identify which field families require
+SI conversion, rather than comparing filename suffixes alone.
+The affected-snapshot field-ratio report also narrows the hypothesis: mapped
+bus, line-current, load-current, voltage-source, and IBR families are near the
+same exported scale, while derived `line/s_through` is consistently about
+`10^-6` of its SI counterpart and a few ground/shadow-price fields are mixed.
+This argues against attributing the policy delta to `ibr/pg` without further
+evidence.
+The adapter now serializes a versioned result-field catalog and a separate
+feasibility-field attribution report. On the affected PU cohort, `pu` produced
+5,670 attributed violated rows across the 14 cases, spanning bus voltage,
+line current, load current, IBR current, and IBR power support; `pu_all_si`
+produced 187 rows, all supported by IBR power coordinates. The report remains
+explicitly non-causal: it identifies Jacobian support families, not a proven
+source-field defect.
+The instance-level extension makes that evidence inspectable without parsing
+variable names: the 187 `pu_all_si` rows involve the IBR power records of all
+28 `pv_*` devices in the cohort, whereas the `pu` rows are dominated by the
+bus-voltage support at bus `79` (3,248 row attributions) plus the surrounding
+network current/load supports. Both campaigns report the same BMOPFTools power
+base (`1e6`), so this observation does not by itself identify a bad base or a
+causal IBR field error. It does establish the next benchmark boundary: inspect
+the per-device P/Q residuals and the exact constraint metadata before making a
+physical interpretation.
 
 ## Solver postmortem foundation
 
