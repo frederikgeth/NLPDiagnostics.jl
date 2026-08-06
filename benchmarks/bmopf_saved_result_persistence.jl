@@ -78,6 +78,7 @@ function main()
     BMOPFTools.enforce_kcl!(context)
     mappings = Any[]
     points = NLPDiagnostics.EvaluationPoint[]
+    controller_curve_snapshots = Any[]
     for relative in selected
         result_path = replace(joinpath(root, relative), ".bmopf.json" => "_result_$(result_units).json")
         isfile(result_path) || error("saved result is missing: $result_path")
@@ -95,6 +96,25 @@ function main()
             "fallback_coordinate_count" => saved.mapping.fallback_coordinate_count,
         ))
         push!(points, saved.mapping.point)
+        observations = NLPDiagnostics.bmopf_controller_curve_operating_point_observations(
+            context, saved.mapping.point; result_units = :model,
+        )
+        push!(controller_curve_snapshots, Dict{String,Any}(
+            "snapshot" => relative,
+            "observation_count" => length(observations),
+            "observations" => NLPDiagnostics.controller_curve_operating_point_observation_data(observations),
+            "families" => sort!(collect(Set(string(observation.curve_family) for observation in observations))),
+            "statuses" => sort!(collect(Set(string(observation.status) for observation in observations))),
+            "monitor_semantics" => sort!(collect(Set(string(observation.monitor_semantics) for observation in observations))),
+            "exact_monitor_count" => count(
+                observation -> observation.monitor_semantics == :exact_public_monitored_voltage,
+                observations,
+            ),
+            "proxy_monitor_count" => count(
+                observation -> observation.monitor_semantics == :terminal_pair_magnitude_proxy,
+                observations,
+            ),
+        ))
     end
     active_reports = Any[]
     for (relative, point) in zip(selected, points)
@@ -112,9 +132,12 @@ function main()
     component_report = NLPDiagnostics.bmopf_analyze_component_rank_persistence(
         context, points; max_dense_entries = rank_limit,
     )
+    controller_curve_persistence = NLPDiagnostics.bmopf_current_law_operating_point_persistence(
+        context, points; result_units = :model,
+    )
     component_capability_report = NLPDiagnostics.bmopf_component_rank_capability_report(context)
     report = Dict{String,Any}(
-        "report_version" => "bmopf-saved-result-persistence-v1",
+        "report_version" => "bmopf-saved-result-persistence-v2",
         "benchmark_root" => root,
         "snapshots" => selected,
         "result_units" => string(result_units),
@@ -122,6 +145,8 @@ function main()
         "dense_rank_max_entries" => rank_limit,
         "model_variable_count" => length(points[1].variables),
         "mapping" => mappings,
+        "controller_curve_snapshots" => controller_curve_snapshots,
+        "controller_curve_persistence" => NLPDiagnostics.report_data(controller_curve_persistence),
         "active_set_reports" => active_reports,
         "jacobian_rank_persistence" => NLPDiagnostics.report_data(rank_report),
         "component_rank_persistence" => NLPDiagnostics.report_data(component_report),

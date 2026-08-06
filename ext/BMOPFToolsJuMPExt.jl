@@ -817,6 +817,8 @@ const _BMOPF_RESULT_FIELD_FAMILIES = (
     :bus_voltage,
     :line_current,
     :load_current,
+    :generator_current,
+    :generator_power,
     :source_current,
     :ibr_current,
     :ibr_power,
@@ -851,6 +853,24 @@ const _BMOPF_RESULT_FIELD_CATALOG = Dict{Symbol,NamedTuple}(
         physical_unit = "A",
         adapter_supported = true,
         notes = "Mapped through the public current base at the load bus.",
+    ),
+    :generator_current => (
+        quantity = "rectangular generator-terminal current",
+        result_paths = ["generator/*/*/crg", "generator/*/*/cig"],
+        model_key_families = ["crg", "cig"],
+        base_kind = "current",
+        physical_unit = "A",
+        adapter_supported = true,
+        notes = "Mapped through the public current base at the generator bus.",
+    ),
+    :generator_power => (
+        quantity = "generator active/reactive power from saved result",
+        result_paths = ["generator/*/*/pg", "generator/*/*/qg"],
+        model_key_families = String[],
+        base_kind = "power",
+        physical_unit = "W",
+        adapter_supported = true,
+        notes = "Used for saved-result equation residuals; the public model registry exposes the bilinear power map through voltage/current coordinates.",
     ),
     :source_current => (
         quantity = "rectangular voltage-source current",
@@ -1295,6 +1315,7 @@ function _bmopf_result_voltage_point(
     end
     for (section, real_family, imag_family, result_real, result_imag) in (
         ("load", :crd, :cid, "crd", "cid"),
+        ("generator", :crg, :cig, "crg", "cig"),
         ("voltage_source", :cr_src, :ci_src, "cr", "ci"),
         ("ibr", :cri, :cii, "cri", "cii"),
     )
@@ -1303,6 +1324,7 @@ function _bmopf_result_voltage_point(
             component isa AbstractDict && component_result isa AbstractDict || continue
             terminals = string.(get(component, "terminal_map", String[]))
             family = real_family == :crd ? :load_current :
+                     real_family == :crg ? :generator_current :
                      real_family == :cr_src ? :source_current : :ibr_current
             base = field_policy[family] == :si ? _bmopf_current_base(context, string(get(component, "bus", ""))) : 1.0
             isnothing(base) && continue
@@ -1311,6 +1333,8 @@ function _bmopf_result_voltage_point(
                 entry isa AbstractDict || continue
                 key = if real_family == :crd
                     BMOPFTools.opf_load_current_key(string(id), position)
+                elseif real_family == :crg
+                    BMOPFTools.opf_generator_current_key(string(id), position)
                 elseif real_family == :cr_src
                     BMOPFTools.opf_voltage_source_current_key(string(id), position)
                 else
@@ -1497,6 +1521,7 @@ const _BMOPF_MODEL_FAMILY_TO_RESULT_FAMILY = Dict{Symbol,String}(
     :cr_fr => "line_current", :ci_fr => "line_current",
     :cr_to => "line_current", :ci_to => "line_current",
     :crd => "load_current", :cid => "load_current",
+    :crg => "generator_current", :cig => "generator_current",
     :cr_src => "source_current", :ci_src => "source_current",
     :cri => "ibr_current", :cii => "ibr_current",
     :p_ibr => "ibr_power", :q_ibr => "ibr_power",
@@ -3079,7 +3104,9 @@ function _bmopf_terminal_complex_constitutive_map_report(context)
 end
 
 """Build a real-block passive-network current map from BMOPFTools' public Ybus."""
-function _bmopf_build_passive_network_current_maps(context)
+function _bmopf_build_passive_network_current_maps(context; basis::Symbol = :si)
+    basis in (:si, :model, :pu) || throw(ArgumentError("basis must be :si, :model, or :pu"))
+    requested_model_basis = basis in (:model, :pu)
     network = BMOPFTools.opf_network(context)
     ybus = try
         BMOPFTools.ybus_passive(network)
@@ -3090,6 +3117,23 @@ function _bmopf_build_passive_network_current_maps(context)
     n > 0 || return NLPDiagnostics.PortConstitutiveMap{Float64}[]
     G = real.(Matrix(ybus.Y))
     B = imag.(Matrix(ybus.Y))
+    voltage_bases = Float64[]
+    current_bases = Float64[]
+    if requested_model_basis
+        for node in ybus.nodes
+            voltage_base = _bmopf_voltage_base(context, string(node[1]))
+            current_base = _bmopf_current_base(context, string(node[1]))
+            (voltage_base isa Real && isfinite(voltage_base) && voltage_base > 0 &&
+             current_base isa Real && isfinite(current_base) && current_base > 0) ||
+                return NLPDiagnostics.PortConstitutiveMap{Float64}[]
+            push!(voltage_bases, Float64(voltage_base))
+            push!(current_bases, Float64(current_base))
+        end
+        scale = [voltage_bases[column] / current_bases[row]
+                 for row in eachindex(current_bases), column in eachindex(voltage_bases)]
+        G .*= scale
+        B .*= scale
+    end
     matrix = zeros(Float64, 2n, 2n)
     matrix[1:n, 1:n] .= G
     matrix[1:n, n+1:2n] .= -B
@@ -3100,7 +3144,8 @@ function _bmopf_build_passive_network_current_maps(context)
         ["$(node[1])/$(node[2])" for node in ybus.nodes],
     ]
     return [NLPDiagnostics.PortConstitutiveMap(
-        :network, "passive_ybus", "passive_current_from_voltage",
+        :network, "passive_ybus", requested_model_basis ?
+            "passive_current_from_voltage_model" : "passive_current_from_voltage",
         ["voltage_real", "voltage_imag"], labels, matrix;
         equation_labels = vcat(
             ["current_real/$(node[1])/$(node[2])" for node in ybus.nodes],
@@ -3110,23 +3155,27 @@ function _bmopf_build_passive_network_current_maps(context)
             "source" => "BMOPFTools.ybus_passive",
             "map_role" => "passive_network_current",
             "quantity" => "current_from_voltage",
-            "units" => "A_from_V_SI",
+            "units" => requested_model_basis ? "p.u._current_from_p.u._voltage" : "A_from_V_SI",
             "node_count" => string(n),
             "nonzero_count" => string(SparseArrays.nnz(ybus.Y)),
-            "coordinate_basis" => "SI voltage/current",
+            "coordinate_basis" => requested_model_basis ? "public per-unit bases" : "SI voltage/current",
+            "voltage_base_count" => string(length(voltage_bases)),
+            "current_base_count" => string(length(current_bases)),
         ),
     )]
 end
 
 """Return the passive-network current-from-voltage map, when Ybus is available."""
-function _bmopf_passive_network_current_maps(context)
+function _bmopf_passive_network_current_maps(context; basis::Symbol = :si)
     _bmopf_context_model(context)
-    return _bmopf_build_passive_network_current_maps(context)
+    return _bmopf_build_passive_network_current_maps(context; basis = basis)
 end
 
 """Validate passive-network current maps and report public-Ybus coverage limits."""
-function _bmopf_passive_network_current_map_report(context)
-    maps = _bmopf_build_passive_network_current_maps(context)
+function _bmopf_passive_network_current_map_report(context; basis::Symbol = :si)
+    basis in (:si, :model, :pu) || throw(ArgumentError("basis must be :si, :model, or :pu"))
+    requested_model_basis = basis in (:model, :pu)
+    maps = _bmopf_build_passive_network_current_maps(context; basis = basis)
     report = NLPDiagnostics._component_port_constitutive_map_findings(maps)
     report.metadata[:bmopf_passive_network_current_map_count] = string(length(maps))
     report.metadata[:bmopf_passive_network_current_map_basis] = "BMOPFTools.ybus_passive"
@@ -3134,7 +3183,7 @@ function _bmopf_passive_network_current_map_report(context)
         metadata = first(maps).metadata
         report.metadata[:bmopf_passive_network_node_count] = get(metadata, "node_count", "0")
         report.metadata[:bmopf_passive_network_nonzero_count] = get(metadata, "nonzero_count", "0")
-        if !isnothing(BMOPFTools.opf_bases(context))
+        if !requested_model_basis && !isnothing(BMOPFTools.opf_bases(context))
             push!(report, NLPDiagnostics.Finding(:bmopf_passive_network_map_si_units_on_pu_model;
                 severity = NLPDiagnostics.SeverityWarning,
                 domain = NLPDiagnostics.RepresentationalIssue,
@@ -3149,6 +3198,16 @@ function _bmopf_passive_network_current_map_report(context)
                 suggested_actions = ["Apply bus/current base conversion before comparing this map with p.u. Jacobian coefficients."],
             ))
         end
+    elseif requested_model_basis
+        push!(report, NLPDiagnostics.Finding(:bmopf_passive_network_model_basis_unavailable;
+            severity = NLPDiagnostics.SeverityWarning,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.StructuralProof,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "A model-basis passive Ybus map could not be assembled because one or more public bus voltage/current bases are missing or invalid.",
+            why_it_matters = "The SI passive map remains available, but p.u. Jacobian comparisons would be dimensionally ambiguous without explicit bases.",
+            suggested_actions = ["Declare finite positive public voltage and current bases for every Ybus node, or request basis=:si and retain the unit conversion boundary."],
+        ))
     else
         push!(report, NLPDiagnostics.Finding(:bmopf_passive_network_map_unavailable;
             severity = NLPDiagnostics.SeverityInfo,
@@ -3162,6 +3221,1553 @@ function _bmopf_passive_network_current_map_report(context)
     end
     return report
 end
+
+function _bmopf_current_law_fingerprint(component_type::Symbol, component_id::String,
+                                        record::AbstractDict, terminals::Vector{String};
+                                        control_profile = nothing)
+    metadata = Dict{String,String}(
+        "source" => "BMOPFTools public network schema",
+        "configuration" => uppercase(string(get(record, "configuration", "unknown"))),
+    )
+    bus = get(record, "bus", nothing)
+    bus !== nothing && (metadata["bus"] = string(bus))
+    if component_type == :load
+        model = lowercase(string(get(record, "model", "constant_power")))
+        known = model in ("constant_power", "constant_current", "constant_impedance", "zip", "exponential")
+        family = known ? Symbol(model) : :unknown_load_model
+        differentiability = model in ("constant_current", "constant_impedance") ? :smooth :
+            model == "constant_power" ? :smooth_away_from_zero :
+            model in ("zip", "exponential") ? :model_dependent : :unknown
+        singularity = model == "constant_power" ? :zero_voltage :
+            model in ("zip", "exponential") ? :operating_point_dependent : :none
+        metadata["model"] = model
+        return NLPDiagnostics.CurrentLawFingerprint(
+            component_type, component_id, family, terminals,
+            differentiability, singularity, metadata,
+        )
+    elseif component_type == :generator
+        metadata["dispatch_law"] = "bilinear_power_from_voltage_current"
+        metadata["configuration"] = uppercase(string(get(record, "configuration", "WYE")))
+        return NLPDiagnostics.CurrentLawFingerprint(
+            component_type, component_id, :dispatch_power, terminals,
+            :smooth_away_from_zero, :zero_voltage, metadata,
+        )
+    elseif component_type == :ibr
+        topology = lowercase(string(get(record, "inverter_topology_type",
+                                      get(record, "topology", "unknown"))))
+        control = lowercase(string(get(record, "control_mode", get(record, "mode", "unknown"))))
+        metadata["inverter_topology_type"] = topology
+        metadata["control_mode"] = control
+        profile_id = get(record, "control_profile", nothing)
+        profile_id isa AbstractString && (metadata["control_profile"] = string(profile_id))
+        if control_profile isa AbstractDict
+            pf = get(control_profile, "power_factor", nothing)
+            vv = get(control_profile, "volt_var", nothing)
+            vw = get(control_profile, "volt_watt", nothing)
+            sharing = get(control_profile, "power_sharing", nothing)
+            if pf isa AbstractDict && get(pf, "pf", nothing) isa Real &&
+               abs(Float64(get(pf, "pf", 0.0))) > 1.0e-9
+                metadata["control_mode"] = "constant_power_factor"
+                metadata["equation"] = "sign(pf)*Q + tan(acos(abs(pf)))*P = 0"
+                metadata["power_factor"] = string(get(pf, "pf", 0.0))
+                return NLPDiagnostics.CurrentLawFingerprint(
+                    component_type, component_id, :constant_power_factor, terminals,
+                    :smooth_away_from_zero, :zero_voltage, metadata,
+                )
+            elseif vv isa AbstractDict || vw isa AbstractDict
+                metadata["control_mode"] = "voltage_droop"
+                metadata["equation"] = "Q=fVV(|U|), P<=fVW(|U|)"
+                vv isa AbstractDict && (metadata["volt_var_breakpoint_count"] =
+                    string(length(get(vv, "breakpoints", Any[]))))
+                vw isa AbstractDict && (metadata["volt_watt_breakpoint_count"] =
+                    string(length(get(vw, "breakpoints", Any[]))))
+                return NLPDiagnostics.CurrentLawFingerprint(
+                    component_type, component_id, :voltage_droop, terminals,
+                    :piecewise_smoothed, :operating_point_dependent, metadata,
+                )
+            elseif sharing isa AbstractDict
+                metadata["control_mode"] = "power_sharing"
+                metadata["equation"] = "plugin_owned_power_sharing"
+                return NLPDiagnostics.CurrentLawFingerprint(
+                    component_type, component_id, :power_sharing, terminals,
+                    :model_dependent, :operating_point_dependent, metadata,
+                )
+            end
+        end
+        metadata["equation"] = "bilinear_power_from_voltage_current"
+        return NLPDiagnostics.CurrentLawFingerprint(
+            component_type, component_id, :ibr_box_dispatch, terminals,
+            :smooth_away_from_zero, :zero_voltage, metadata,
+        )
+    elseif component_type in (:shunt, :capacitor)
+        metadata["law"] = "linear_admittance"
+        return NLPDiagnostics.CurrentLawFingerprint(
+            component_type, component_id, :linear_admittance, terminals,
+            :smooth, :none, metadata,
+        )
+    elseif component_type == :voltage_source
+        metadata["law"] = "ideal_voltage_boundary"
+        return NLPDiagnostics.CurrentLawFingerprint(
+            component_type, component_id, :ideal_voltage_source, terminals,
+            :unknown, :boundary, metadata,
+        )
+    end
+    return NLPDiagnostics.CurrentLawFingerprint(
+        component_type, component_id, :unknown, terminals,
+        :unknown, :unknown, metadata,
+    )
+end
+
+"""Return static current-law fingerprints from public BMOPFTools metadata."""
+function _bmopf_current_law_fingerprints(context)
+    network = BMOPFTools.opf_network(context)
+    profiles = get(network, "control_profile", Dict())
+    fingerprints = NLPDiagnostics.CurrentLawFingerprint[]
+    for (family, component_type) in _BMOPF_ATTACHMENT_FAMILIES
+        table = get(network, family, Dict())
+        table isa AbstractDict || continue
+        for (identifier, record) in sort!(collect(table); by = entry -> string(first(entry)))
+            record isa AbstractDict || continue
+            endpoint = _bmopf_attachment_endpoints(record)
+            terminals = isnothing(endpoint) ? String[] : endpoint[2]
+            control_profile = if component_type == :ibr
+                profile_id = get(record, "control_profile", nothing)
+                profile_id isa AbstractString ? get(profiles, profile_id, nothing) : nothing
+            else
+                nothing
+            end
+            push!(fingerprints, _bmopf_current_law_fingerprint(
+                component_type, string(identifier), record, terminals;
+                control_profile,
+            ))
+        end
+    end
+    return fingerprints
+end
+
+"""Report static current-law domains and derivative/singularity hazards."""
+function _bmopf_current_law_report(context)
+    fingerprints = _bmopf_current_law_fingerprints(context)
+    report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:bmopf_current_law_fingerprint_count] = string(length(fingerprints))
+    family_counts = Dict{String,Int}()
+    for item in fingerprints
+        key = string(item.law_family)
+        family_counts[key] = get(family_counts, key, 0) + 1
+        if item.singularity_risk == :zero_voltage
+            push!(report, NLPDiagnostics.Finding(:bmopf_current_law_zero_voltage_singularity;
+                severity = NLPDiagnostics.SeverityWarning,
+                domain = NLPDiagnostics.MathematicalIssue,
+                basis = NLPDiagnostics.StructuralProof,
+                confidence = NLPDiagnostics.ConfidenceCertain,
+                observation = "$(item.component_type) $(item.component_id) uses a power/current law whose current representation is singular or undefined at zero terminal voltage.",
+                why_it_matters = "A zero-voltage initialization or iterate can create undefined current and derivative values even when the network equations are otherwise structurally valid.",
+                evidence = [NLPDiagnostics.Evidence("BMOPFTools current-law fingerprint"; details = [
+                    "component" => "$(item.component_type):$(item.component_id)",
+                    "law_family" => string(item.law_family),
+                    "terminal_count" => string(length(item.terminal_labels)),
+                ])],
+                suggested_actions = ["Use a physically nonzero initialization and enforce a defensible voltage floor before derivative-based analysis."],
+            ))
+        elseif item.singularity_risk == :operating_point_dependent
+            push!(report, NLPDiagnostics.Finding(:bmopf_current_law_operating_point_dependent;
+                severity = NLPDiagnostics.SeverityInfo,
+                domain = NLPDiagnostics.NumericalIssue,
+                basis = NLPDiagnostics.StructuralProof,
+                confidence = NLPDiagnostics.ConfidenceMedium,
+                observation = "$(item.component_type) $(item.component_id) has a voltage-dependent current law whose derivative conditioning depends on the operating point.",
+                why_it_matters = "Low-voltage or extreme-voltage iterates can change the local derivative scale and undermine comparisons across snapshots.",
+                evidence = [NLPDiagnostics.Evidence("BMOPFTools voltage-dependent law"; details = [
+                    "law_family" => string(item.law_family),
+                ])],
+                suggested_actions = ["Profile the derivative at representative operating points and retain the model's voltage-domain assumptions."],
+            ))
+        end
+        if item.differentiability == :unknown
+            push!(report, NLPDiagnostics.Finding(:bmopf_current_law_differentiability_unknown;
+                severity = NLPDiagnostics.SeverityInfo,
+                domain = NLPDiagnostics.RepresentationalIssue,
+                basis = NLPDiagnostics.StructuralProof,
+                confidence = NLPDiagnostics.ConfidenceCertain,
+                observation = "The public schema identifies $(item.component_type) $(item.component_id), but does not expose enough information to certify differentiability of its current law.",
+                why_it_matters = "Derivative-based diagnostics must not assume a smooth current law when control or topology details are plugin-owned.",
+                evidence = [NLPDiagnostics.Evidence("BMOPFTools current-law metadata"; details = [
+                    "law_family" => string(item.law_family),
+                    "metadata" => join(("$(key)=$(value)" for (key, value) in sort!(collect(item.metadata); by = first)), ","),
+                ])],
+                suggested_actions = ["Use BMOPFTools' differentiability report or a domain-specific extension before interpreting current-Jacobian singularity."],
+            ))
+        end
+    end
+    report.metadata[:bmopf_current_law_family_counts] = join(
+        ("$(key)=$(family_counts[key])" for key in sort!(collect(keys(family_counts)))), ",",
+    )
+    return report
+end
+
+function _bmopf_current_law_coefficient(record::AbstractDict, key::String, index::Int, count::Int)
+    value = get(record, key, nothing)
+    value === nothing && return 0.0
+    if value isa AbstractVector
+        length(value) == 1 && return Float64(value[1])
+        length(value) == count && return Float64(value[index])
+        return nothing
+    end
+    return Float64(value)
+end
+
+function _bmopf_current_law_voltage_pairs(context, record::AbstractDict;
+                                          component_type::Symbol = :load)
+    terminals = String.(get(record, "terminal_map", String[]))
+    isempty(terminals) && return Tuple{String,Union{Nothing,String}}[]
+    configuration = uppercase(string(get(record, "configuration", "WYE")))
+    if component_type == :ibr
+        topology = uppercase(string(get(record, "topology", "FOUR_LEG")))
+        if topology == "SINGLE_PHASE" && length(terminals) >= 2
+            return [(terminals[1], terminals[2])]
+        elseif topology == "THREE_LEG"
+            return [(terminals[index], terminals[mod1(index + 1, length(terminals))])
+                    for index in eachindex(terminals)]
+        end
+        configuration = "WYE"
+    end
+    neutral_labels = try
+        Set(string.(BMOPFTools.opf_neutral_labels(context)))
+    catch
+        Set{String}()
+    end
+    if configuration == "DELTA"
+        return [(terminals[index], terminals[mod1(index + 1, length(terminals))])
+                for index in eachindex(terminals)]
+    elseif configuration == "SINGLE_PHASE" && length(terminals) == 2
+        return [(terminals[1], terminals[2])]
+    end
+    phase_positions = [index for (index, terminal) in enumerate(terminals)
+                       if !(terminal in neutral_labels)]
+    isempty(phase_positions) && (phase_positions = collect(eachindex(terminals)))
+    neutral_position = findfirst(terminal -> terminal in neutral_labels, terminals)
+    neutral = isnothing(neutral_position) ? nothing : terminals[neutral_position]
+    return [(terminals[index], neutral) for index in phase_positions]
+end
+
+function _bmopf_current_law_power(
+    record::AbstractDict,
+    index::Int,
+    voltage_magnitude::Float64;
+    voltage_base::Float64 = 1.0,
+)
+    p_nom = get(record, "p_nom", nothing)
+    q_nom = get(record, "q_nom", nothing)
+    p_nom isa AbstractVector || return nothing
+    index <= length(p_nom) || return nothing
+    q_value = q_nom isa AbstractVector ? (index <= length(q_nom) ? q_nom[index] : 0.0) : q_nom
+    q_value isa Real || return nothing
+    p_value = p_nom[index]
+    p_value isa Real || return nothing
+    model = lowercase(string(get(record, "model", "constant_power")))
+    if model == "constant_power"
+        return ComplexF64(p_value, q_value)
+    end
+    vnom = get(record, "v_nom", nothing)
+    vnom_value = if vnom isa AbstractVector
+        index <= length(vnom) ? Float64(vnom[index]) : NaN
+    elseif vnom isa Real
+        Float64(vnom)
+    else
+        NaN
+    end
+    isfinite(voltage_base) && voltage_base > 0.0 || return nothing
+    isfinite(vnom_value) && vnom_value > 0.0 || return nothing
+    # BMOPFTools stores v_nom in SI volts while staged IVR coordinates are
+    # normally p.u.; keep the law evaluation in the same coordinates as the
+    # supplied operating point.
+    vnom_value /= voltage_base
+    ratio = voltage_magnitude / vnom_value
+    if model == "constant_impedance"
+        return ComplexF64(p_value, q_value) * ratio^2
+    elseif model == "constant_current"
+        return ComplexF64(p_value, q_value) * ratio
+    elseif model == "zip"
+        αz = _bmopf_current_law_coefficient(record, "alpha_z", index, length(p_nom))
+        αi = _bmopf_current_law_coefficient(record, "alpha_i", index, length(p_nom))
+        αp = _bmopf_current_law_coefficient(record, "alpha_p", index, length(p_nom))
+        βz = _bmopf_current_law_coefficient(record, "beta_z", index, length(p_nom))
+        βi = _bmopf_current_law_coefficient(record, "beta_i", index, length(p_nom))
+        βp = _bmopf_current_law_coefficient(record, "beta_p", index, length(p_nom))
+        any(isnothing, (αz, αi, αp, βz, βi, βp)) && return nothing
+        no_coefficients = all(get(record, key, nothing) === nothing for key in
+                              ("alpha_z", "alpha_i", "alpha_p", "beta_z", "beta_i", "beta_p"))
+        no_coefficients && (αp = 1.0; βp = 1.0)
+        return ComplexF64(
+            p_value * (αz * ratio^2 + αi * ratio + αp),
+            q_value * (βz * ratio^2 + βi * ratio + βp),
+        )
+    elseif model == "exponential"
+        γp = _bmopf_current_law_coefficient(record, "gamma_p", index, length(p_nom))
+        γq = _bmopf_current_law_coefficient(record, "gamma_q", index, length(p_nom))
+        any(isnothing, (γp, γq)) && return nothing
+        return ComplexF64(p_value * ratio^γp, q_value * ratio^γq)
+    end
+    return nothing
+end
+
+function _bmopf_current_law_current(
+    record::AbstractDict,
+    index::Int,
+    voltage::ComplexF64;
+    voltage_base::Float64 = 1.0,
+)
+    magnitude = abs(voltage)
+    power = _bmopf_current_law_power(record, index, magnitude; voltage_base)
+    power === nothing && return nothing
+    iszero(voltage) && return nothing
+    return conj(power) / conj(voltage)
+end
+
+function _bmopf_current_law_bus_voltage(context, source, bus::String, terminal::String;
+                                        result_units::Symbol, field_units::AbstractDict,
+                                        point_positions::AbstractDict)
+    if source isa NLPDiagnostics.EvaluationPoint
+        point = source
+        real_key = BMOPFTools.opf_bus_voltage_key(bus, terminal)
+        imag_key = BMOPFTools.opf_bus_voltage_key(bus, terminal; component = :imag)
+        real_object = try BMOPFTools.opf_object(context, real_key) catch; nothing end
+        imag_object = try BMOPFTools.opf_object(context, imag_key) catch; nothing end
+        real_object isa JuMP.VariableRef && imag_object isa JuMP.VariableRef || return nothing
+        real_position = get(point_positions, JuMP.index(real_object), nothing)
+        imag_position = get(point_positions, JuMP.index(imag_object), nothing)
+        # Some MOI-backed JuMP models materialize equivalent variable-index
+        # objects during extension loading.  Fall back to value equality so
+        # point provenance remains robust across those wrappers.
+        isnothing(real_position) && (real_position = findfirst(
+            variable -> variable == JuMP.index(real_object), point.variables,
+        ))
+        isnothing(imag_position) && (imag_position = findfirst(
+            variable -> variable == JuMP.index(imag_object), point.variables,
+        ))
+        if isnothing(real_position) || isnothing(imag_position)
+            return nothing
+        end
+        return ComplexF64(point.values[real_position], point.values[imag_position])
+    end
+    source isa AbstractDict || return nothing
+    terminals = get(get(source, "bus", Dict()), bus, nothing)
+    terminals isa AbstractDict || return nothing
+    entry = get(terminals, terminal, nothing)
+    entry isa AbstractDict || return nothing
+    real = get(entry, "vr", nothing)
+    imag = get(entry, "vi", nothing)
+    real isa Real && imag isa Real && isfinite(real) && isfinite(imag) || return nothing
+    policy = _bmopf_result_field_units(result_units, field_units)
+    scale = policy[:bus_voltage] == :si ? _bmopf_voltage_base(context, bus) : 1.0
+    isnothing(scale) && return nothing
+    return ComplexF64(Float64(real) / scale, Float64(imag) / scale)
+end
+
+function _bmopf_current_law_component_current(
+    context,
+    source,
+    component_type::Symbol,
+    component_id::String,
+    conductor::Int,
+    terminal::String;
+    result_units::Symbol,
+    field_units::AbstractDict,
+    point_positions::AbstractDict,
+    bus::String,
+)
+    real_key = if component_type == :generator
+        BMOPFTools.opf_generator_current_key(component_id, conductor)
+    elseif component_type == :ibr
+        BMOPFTools.opf_ibr_current_key(component_id, conductor)
+    else
+        return nothing
+    end
+    imag_key = if component_type == :generator
+        BMOPFTools.opf_generator_current_key(component_id, conductor; component = :imag)
+    else
+        BMOPFTools.opf_ibr_current_key(component_id, conductor; component = :imag)
+    end
+    values = if source isa NLPDiagnostics.EvaluationPoint
+        real_object = try BMOPFTools.opf_object(context, real_key) catch; nothing end
+        imag_object = try BMOPFTools.opf_object(context, imag_key) catch; nothing end
+        real_object isa JuMP.VariableRef && imag_object isa JuMP.VariableRef || return nothing
+        real_position = get(point_positions, JuMP.index(real_object), nothing)
+        imag_position = get(point_positions, JuMP.index(imag_object), nothing)
+        isnothing(real_position) || isnothing(imag_position) ? nothing :
+            (source.values[real_position], source.values[imag_position])
+    elseif source isa AbstractDict
+        section = component_type == :generator ? "generator" : "ibr"
+        component_result = get(get(source, section, Dict()), component_id, nothing)
+        component_result isa AbstractDict || return nothing
+        entry = get(component_result, terminal, nothing)
+        entry isa AbstractDict || return nothing
+        real_field, imag_field = component_type == :generator ? ("crg", "cig") : ("cri", "cii")
+        (get(entry, real_field, nothing), get(entry, imag_field, nothing))
+    else
+        return nothing
+    end
+    values isa Tuple && length(values) == 2 || return nothing
+    real, imag = values
+    real isa Real && imag isa Real && isfinite(real) && isfinite(imag) || return nothing
+    if source isa AbstractDict
+        policy = _bmopf_result_field_units(result_units, field_units)
+        family = component_type == :generator ? :generator_current : :ibr_current
+        scale = policy[family] == :si ? _bmopf_current_base(context, bus) : 1.0
+        isnothing(scale) && return nothing
+        return ComplexF64(Float64(real) / scale, Float64(imag) / scale)
+    end
+    return ComplexF64(Float64(real), Float64(imag))
+end
+
+function _bmopf_current_law_saved_power(context, source, component_type::Symbol,
+                                        component_id::String, terminal::String;
+                                        result_units::Symbol,
+                                        field_units::AbstractDict)
+    source isa AbstractDict || return nothing
+    section = component_type == :generator ? "generator" : "ibr"
+    component_result = get(get(source, section, Dict()), component_id, nothing)
+    component_result isa AbstractDict || return nothing
+    entry = get(component_result, terminal, nothing)
+    entry isa AbstractDict || return nothing
+    p = get(entry, "pg", nothing)
+    q = get(entry, "qg", nothing)
+    p isa Real && q isa Real && isfinite(p) && isfinite(q) || return nothing
+    policy = _bmopf_result_field_units(result_units, field_units)
+    family = component_type == :generator ? :generator_power : :ibr_power
+    scale = policy[family] == :si ? _bmopf_power_base(context) : 1.0
+    isnothing(scale) && return nothing
+    return ComplexF64(Float64(p) / scale, Float64(q) / scale)
+end
+
+function _bmopf_current_law_bilinear_power(voltage::ComplexF64, current::ComplexF64)
+    return ComplexF64(
+        real(voltage) * real(current) + imag(voltage) * imag(current),
+        imag(voltage) * real(current) - real(voltage) * imag(current),
+    )
+end
+
+function _bmopf_current_law_bilinear_jacobian(voltage::ComplexF64, current::ComplexF64)
+    # [P,Q] as a function of [Vᵣ,Vᵢ,Iᵣ,Iᵢ], matching BMOPFTools' native
+    # bilinear equations for generators and IBRs.
+    return Float64[
+        real(current) imag(current) real(voltage) imag(voltage);
+        -imag(current) real(current) imag(voltage) -real(voltage)
+    ]
+end
+
+"""Return the public control-profile object referenced by an IBR record."""
+function _bmopf_current_law_control_profile(context, record::AbstractDict)
+    profile_id = get(record, "control_profile", nothing)
+    profile_id isa AbstractString || return nothing
+    network = BMOPFTools.opf_network(context)
+    profiles = get(network, "control_profile", Dict())
+    profiles isa AbstractDict || return nothing
+    profile = get(profiles, profile_id, nothing)
+    return profile isa AbstractDict ? profile : nothing
+end
+
+_bmopf_curve_log1pexp(x::Float64) = x > 0.0 ? x + log1p(exp(-x)) : log1p(exp(x))
+_bmopf_curve_logistic(x::Float64) = x >= 0.0 ? 1.0 / (1.0 + exp(-x)) :
+    (e = exp(x); e / (1.0 + e))
+
+const _BMOPF_CURVE_RELATIVE_EPSILON_CACHE = IdDict{Any,Float64}()
+
+"""Read the public relative smooth-ReLU setting, with an explicit fallback."""
+function _bmopf_curve_relative_epsilon(context)
+    cached = get(_BMOPF_CURVE_RELATIVE_EPSILON_CACHE, context, nothing)
+    cached isa Float64 && return cached
+    value = 2.0e-3
+    try
+        provenance = BMOPFTools.opf_research_provenance(context)
+        smoothing = get(provenance, "smoothing", Dict())
+        candidate = get(smoothing, "volt_var_watt_relative_epsilon", value)
+        candidate isa Real && isfinite(candidate) && candidate > 0.0 &&
+            (value = Float64(candidate))
+    catch
+        # A staged test context or an older BMOPFTools release may not expose
+        # provenance. Preserve coverage with the documented BMOPFTools default.
+    end
+    _BMOPF_CURVE_RELATIVE_EPSILON_CACHE[context] = value
+    return value
+end
+
+"""Build the public ReLU-sum representation used by BMOPFTools droop curves."""
+function _bmopf_curve_triples(xs::Vector{Float64}, ys::Vector{Float64})
+    length(xs) == length(ys) && length(xs) >= 2 || return nothing
+    all(isfinite, xs) && all(isfinite, ys) || return nothing
+    all(xs[i + 1] > xs[i] for i in 1:(length(xs) - 1)) || return nothing
+    triples = Tuple{Float64,Float64}[]
+    for i in 1:(length(xs) - 1)
+        slope = (ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i])
+        isfinite(slope) || return nothing
+        slope == 0.0 && continue
+        push!(triples, (slope, xs[i]))
+        push!(triples, (-slope, xs[i + 1]))
+    end
+    return (baseline = ys[1], triples = triples)
+end
+
+"""Resolve the exact monitored voltage used by a public IBR curve profile."""
+function _bmopf_controller_monitored_voltage(
+    context,
+    source,
+    record::AbstractDict,
+    curve::AbstractDict,
+    index::Int,
+    point_positions::AbstractDict,
+    result_units::Symbol,
+    field_units::AbstractDict,
+)
+    bus = string(get(record, "bus", ""))
+    pairs = _bmopf_current_law_voltage_pairs(context, record; component_type = :ibr)
+    isempty(pairs) && return nothing
+    phase_terms = String[first(pair) for pair in pairs]
+    neutral_labels = try
+        Set(string.(BMOPFTools.opf_neutral_labels(context)))
+    catch
+        Set{String}()
+    end
+    neutral = findfirst(terminal -> terminal in neutral_labels,
+                        String.(get(record, "terminal_map", String[])))
+    neutral_terminal = isnothing(neutral) ? nothing :
+        String(get(record, "terminal_map", String[])[neutral])
+    vref = uppercase(string(get(curve, "voltage_reference", "PN_PER_PHASE")))
+    quantity = startswith(vref, "PG") ? :PG : startswith(vref, "PP") ? :PP : :PN
+    averaged = endswith(vref, "AVERAGED")
+    # The legacy record-level field overrides the curve suffix exactly as in
+    # BMOPFTools' public builder.
+    if haskey(record, "voltage_aggregation")
+        averaged = uppercase(string(get(record, "voltage_aggregation", "PER_PHASE"))) == "AVERAGE"
+    end
+    topology = uppercase(string(get(record, "topology", "FOUR_LEG")))
+    function magnitude_for(phase_index::Int)
+        phase_index in eachindex(phase_terms) || return nothing
+        positive_terminal = phase_terms[phase_index]
+        negative_terminal = if topology == "SINGLE_PHASE" && quantity != :PG
+            pairs[phase_index][2]
+        elseif quantity == :PN
+            neutral_terminal
+        elseif quantity == :PP && length(phase_terms) >= 2
+            phase_terms[mod1(phase_index + 1, length(phase_terms))]
+        else
+            nothing
+        end
+        positive = _bmopf_current_law_bus_voltage(
+            context, source, bus, positive_terminal;
+            result_units, field_units, point_positions,
+        )
+        positive === nothing && return nothing
+        negative = isnothing(negative_terminal) ? 0.0im :
+            _bmopf_current_law_bus_voltage(
+                context, source, bus, negative_terminal;
+                result_units, field_units, point_positions,
+            )
+        isnothing(negative) && return nothing
+        return abs(positive - negative)
+    end
+    magnitudes = [magnitude_for(phase_index) for phase_index in eachindex(phase_terms)]
+    any(isnothing, magnitudes) && return nothing
+    values = Float64[magnitudes...]
+    value = averaged ? sum(values) / length(values) : values[clamp(index, 1, length(values))]
+    return (value = value, quantity = quantity, averaged = averaged,
+            topology = topology, phase_count = length(phase_terms))
+end
+
+"""Fingerprint one Volt-var/Volt-watt curve at a local terminal magnitude.
+
+The evaluator mirrors BMOPFTools' public ReLU-sum semantics. It intentionally
+reports normalized curve output (before the per-device P/Q base) and the local
+derivative with respect to model voltage units. This is evidence about the
+declared controller profile, not a claim that a proxy terminal magnitude is the
+exact monitored quantity for averaged or phase-to-phase profiles.
+"""
+function _bmopf_controller_curve_metadata(context, record::AbstractDict, index::Int,
+                                          magnitude::Float64, fingerprint,
+                                          voltage_base::Float64;
+                                          monitored_voltage = nothing,
+                                          curve_family::Union{Nothing,String} = nothing)
+    fingerprint.component_type == :ibr || return Dict{String,String}()
+    profile = _bmopf_current_law_control_profile(context, record)
+    profile isa AbstractDict || return Dict{String,String}()
+    family = if curve_family !== nothing
+        curve_family
+    elseif get(profile, "volt_var", nothing) isa AbstractDict
+        "volt_var"
+    elseif get(profile, "volt_watt", nothing) isa AbstractDict
+        "volt_watt"
+    else
+        return Dict{String,String}()
+    end
+    curve = get(profile, family, nothing)
+    curve isa AbstractDict || return Dict{String,String}()
+    metadata = Dict{String,String}(
+        "controller_curve_family" => family,
+        "controller_curve_voltage_reference" => string(get(curve, "voltage_reference", "PN_PER_PHASE")),
+        "controller_curve_voltage_semantics" => isnothing(monitored_voltage) ?
+            "terminal_pair_magnitude_proxy" : "exact_public_monitored_voltage",
+        "controller_curve_profile" => string(get(record, "control_profile", "")),
+    )
+    if !isnothing(monitored_voltage)
+        metadata["controller_curve_monitored_voltage"] = string(monitored_voltage.value)
+        metadata["controller_curve_monitored_voltage_quantity"] = string(monitored_voltage.quantity)
+        metadata["controller_curve_monitored_voltage_aggregation"] =
+            monitored_voltage.averaged ? "AVERAGE" : "PER_PHASE"
+        metadata["controller_curve_monitored_voltage_phase_count"] = string(monitored_voltage.phase_count)
+    end
+    bps_si = get(curve, "breakpoints", Any[])
+    bps_si isa AbstractVector || begin
+        metadata["controller_curve_status"] = "invalid_profile"
+        metadata["controller_curve_reason"] = "breakpoints_not_vector"
+        return metadata
+    end
+    bps = try Float64.(bps_si) catch
+        metadata["controller_curve_status"] = "invalid_profile"
+        metadata["controller_curve_reason"] = "breakpoints_not_numeric"
+        return metadata
+    end
+    xs = bps ./ voltage_base
+    ys = if family == "volt_var"
+        ql = get(curve, "q_limits", Any[])
+        valid_units = get(curve, "q_unit", "VA_FRACTION") == "VA_FRACTION" &&
+            get(curve, "q_ref", "VAR_MAX") == "VAR_MAX"
+        if !(ql isa AbstractVector && length(ql) == 2 && length(xs) == 4 && valid_units)
+            metadata["controller_curve_status"] = "invalid_profile"
+            metadata["controller_curve_reason"] = "volt_var_schema_or_units"
+            return metadata
+        end
+        qvals = try Float64.(ql) catch
+            metadata["controller_curve_status"] = "invalid_profile"
+            metadata["controller_curve_reason"] = "volt_var_limits_not_numeric"
+            return metadata
+        end
+        [qvals[2], 0.0, 0.0, qvals[1]]
+    else
+        pl = get(curve, "p_limits", Any[])
+        ref = string(get(curve, "p_ref", "S_MAX"))
+        valid_units = get(curve, "p_unit", "VA_FRACTION") == "VA_FRACTION" &&
+            ref in ("S_MAX", "P_MAX", "P_AVAILABLE")
+        if !(pl isa AbstractVector && length(pl) == 2 && length(xs) == 2 && valid_units)
+            metadata["controller_curve_status"] = "invalid_profile"
+            metadata["controller_curve_reason"] = "volt_watt_schema_or_units"
+            return metadata
+        end
+        pvals = try Float64.(pl) catch
+            metadata["controller_curve_status"] = "invalid_profile"
+            metadata["controller_curve_reason"] = "volt_watt_limits_not_numeric"
+            return metadata
+        end
+        [pvals[2], pvals[1]]
+    end
+    representation = _bmopf_curve_triples(xs, ys)
+    if representation === nothing || !isfinite(magnitude)
+        metadata["controller_curve_status"] = "invalid_profile"
+        metadata["controller_curve_reason"] = "nonfinite_curve_or_voltage"
+        return metadata
+    end
+    relative_eps = _bmopf_curve_relative_epsilon(context)
+    epsilon = relative_eps * (sum(xs) / length(xs))
+    epsilon > 0.0 && isfinite(epsilon) || begin
+        metadata["controller_curve_status"] = "invalid_profile"
+        metadata["controller_curve_reason"] = "invalid_smoothing_width"
+        return metadata
+    end
+    value = representation.baseline
+    slope = 0.0
+    for (a, knot) in representation.triples
+        z = (magnitude - knot) / epsilon
+        value += a * epsilon * _bmopf_curve_log1pexp(z)
+        slope += a * _bmopf_curve_logistic(z)
+    end
+    distance = minimum(abs(magnitude - knot) for knot in xs)
+    nearest_scale = max(epsilon, minimum(diff(xs)))
+    status = distance <= epsilon ? "breakpoint_proximity" : "finite"
+    metadata["controller_curve_status"] = status
+    metadata["controller_curve_output_normalized"] = string(value)
+    metadata["controller_curve_local_slope"] = string(slope)
+    metadata["controller_curve_breakpoint_distance"] = string(distance)
+    metadata["controller_curve_relative_epsilon"] = string(relative_eps)
+    metadata["controller_curve_smoothing_epsilon"] = string(epsilon)
+    metadata["controller_curve_nearest_breakpoint_scale"] = string(nearest_scale)
+    metadata["controller_curve_breakpoint_count"] = string(length(xs))
+    metadata["controller_curve_index"] = string(index)
+    if family == "volt_var"
+        metadata["controller_curve_output_units"] = "Q/Q_base"
+        metadata["controller_curve_derivative_units"] = "(Q/Q_base)/model_voltage"
+    else
+        metadata["controller_curve_output_units"] = "P/P_base"
+        metadata["controller_curve_derivative_units"] = "(P/P_base)/model_voltage"
+        metadata["controller_curve_reference"] = string(get(curve, "p_ref", "S_MAX"))
+    end
+    return metadata
+end
+
+"""Return the model-unit base used by BMOPFTools for a controller curve."""
+function _bmopf_controller_curve_base(context, record::AbstractDict, index::Int,
+                                      family::String)
+    if family == "volt_var"
+        values = get(record, "s_max", Any[])
+        return values isa AbstractVector && index <= length(values) && values[index] isa Real ?
+            Float64(values[index]) : nothing
+    end
+    curve_profile = _bmopf_current_law_control_profile(context, record)
+    curve = curve_profile isa AbstractDict ? get(curve_profile, family, nothing) : nothing
+    curve isa AbstractDict || return nothing
+    reference = string(get(curve, "p_ref", "S_MAX"))
+    if reference == "S_MAX"
+        values = get(record, "s_max", Any[])
+        return values isa AbstractVector && index <= length(values) && values[index] isa Real ?
+            Float64(values[index]) : nothing
+    elseif reference == "P_MAX"
+        values = get(record, "p_max", Any[])
+        return values isa AbstractVector && index <= length(values) && values[index] isa Real ?
+            Float64(values[index]) : nothing
+    elseif reference == "P_AVAILABLE"
+        available = get(record, "p_avail", nothing)
+        available isa Real || return nothing
+        phase_count = max(length(_bmopf_current_law_voltage_pairs(context, record; component_type = :ibr)), 1)
+        power_base = _bmopf_power_base(context)
+        return Float64(available) / phase_count / (isnothing(power_base) ? 1.0 : power_base)
+    end
+    return nothing
+end
+
+function _bmopf_current_law_operating_point_probes(
+    context,
+    source;
+    result_units::Symbol = :si,
+    field_units::AbstractDict = Dict{Symbol,Symbol}(),
+    voltage_floor::Real = 1.0e-8,
+    derivative_step::Real = 1.0e-6,
+    derivative_norm_limit::Real = 1.0e8,
+    derivative_condition_limit::Real = 1.0e10,
+    controller_residual_tolerance::Real = 1.0e-6,
+)
+    isfinite(voltage_floor) && voltage_floor > 0.0 || throw(ArgumentError("voltage_floor must be finite and positive"))
+    isfinite(derivative_step) && derivative_step > 0.0 || throw(ArgumentError("derivative_step must be finite and positive"))
+    isfinite(controller_residual_tolerance) && controller_residual_tolerance > 0.0 ||
+        throw(ArgumentError("controller_residual_tolerance must be finite and positive"))
+    point_positions = Dict{MOI.VariableIndex,Int}()
+    if source isa NLPDiagnostics.EvaluationPoint
+        point_positions = Dict(variable => index for (index, variable) in enumerate(source.variables))
+    elseif !(source isa AbstractDict)
+        throw(ArgumentError("source must be an EvaluationPoint or saved BMOPF result dictionary"))
+    end
+    network = BMOPFTools.opf_network(context)
+    probes = NLPDiagnostics.CurrentLawOperatingPointProbe[]
+    for (family, component_type) in _BMOPF_ATTACHMENT_FAMILIES
+        table = get(network, family, Dict())
+        table isa AbstractDict || continue
+        for (identifier, raw_record) in sort!(collect(table); by = entry -> string(first(entry)))
+            raw_record isa AbstractDict || continue
+            record = raw_record
+            control_profile = component_type == :ibr ?
+                _bmopf_current_law_control_profile(context, record) : nothing
+            fingerprint = _bmopf_current_law_fingerprint(component_type, string(identifier), record,
+                                                          String.(get(record, "terminal_map", String[]));
+                                                          control_profile)
+            supported_component = component_type in (:load, :generator, :ibr)
+            pairs = supported_component ? _bmopf_current_law_voltage_pairs(
+                context, record; component_type,
+            ) : Tuple{String,Union{Nothing,String}}[]
+            if !supported_component
+                push!(probes, NLPDiagnostics.CurrentLawOperatingPointProbe(
+                    component_type, string(identifier), fingerprint.law_family,
+                    fingerprint.terminal_labels, NaN, NaN, nothing, nothing,
+                    :unsupported, false, Dict("reason" => "exact public operating-point law is not exposed for this component type"),
+                ))
+                continue
+            end
+            for (index, pair) in enumerate(pairs)
+                bus = string(get(record, "bus", ""))
+                positive = _bmopf_current_law_bus_voltage(context, source, bus, pair[1];
+                                                          result_units, field_units, point_positions)
+                negative = isnothing(pair[2]) ? 0.0im : _bmopf_current_law_bus_voltage(
+                    context, source, bus, pair[2]; result_units, field_units, point_positions,
+                )
+                metadata = Dict{String,String}(
+                    "bus" => bus,
+                    "subload_index" => string(index),
+                    "model" => string(get(record, "model", "constant_power")),
+                    "coordinate_units" => source isa NLPDiagnostics.EvaluationPoint ? "model" : string(result_units),
+                    "voltage_floor" => string(Float64(voltage_floor)),
+                    "controller_residual_tolerance" => string(Float64(controller_residual_tolerance)),
+                )
+                labels = isnothing(pair[2]) ? [pair[1], "ground"] : [pair[1], pair[2]]
+                if isnothing(positive) || (!isnothing(pair[2]) && isnothing(negative))
+                    push!(probes, NLPDiagnostics.CurrentLawOperatingPointProbe(
+                        component_type, string(identifier), fingerprint.law_family, labels,
+                        NaN, NaN, nothing, nothing, :missing_voltage, false, metadata,
+                    ))
+                    continue
+                end
+                voltage = ComplexF64(positive - negative)
+                magnitude = abs(voltage)
+                voltage_base = _bmopf_voltage_base(context, bus)
+                isnothing(voltage_base) && (voltage_base = 1.0)
+                if component_type == :ibr && fingerprint.law_family == :voltage_droop
+                    profile = _bmopf_current_law_control_profile(context, record)
+                    curve_families = profile isa AbstractDict ?
+                        [family for family in ("volt_var", "volt_watt")
+                         if get(profile, family, nothing) isa AbstractDict] : String[]
+                    for (curve_index, family) in enumerate(curve_families)
+                        curve = get(profile, family, nothing)
+                        monitored_voltage = curve isa AbstractDict ?
+                            _bmopf_controller_monitored_voltage(
+                                context, source, record, curve, index, point_positions,
+                                result_units, field_units,
+                            ) : nothing
+                        curve_magnitude = isnothing(monitored_voltage) ? magnitude :
+                            monitored_voltage.value
+                        curve_metadata = _bmopf_controller_curve_metadata(
+                            context, record, index, curve_magnitude, fingerprint, voltage_base;
+                            monitored_voltage,
+                            curve_family = family,
+                        )
+                        if curve_index == 1
+                            merge!(metadata, curve_metadata)
+                        else
+                            for (key, value) in curve_metadata
+                                suffix = startswith(key, "controller_curve_") ?
+                                    key[length("controller_curve_") + 1:end] : key
+                                metadata["controller_curve_$(family)_$(suffix)"] = value
+                            end
+                        end
+                    end
+                end
+                if component_type != :load
+                    current = _bmopf_current_law_component_current(
+                        context, source, component_type, string(identifier), index,
+                        pair[1]; result_units, field_units, point_positions, bus,
+                    )
+                    if isnothing(current)
+                        push!(probes, NLPDiagnostics.CurrentLawOperatingPointProbe(
+                            component_type, string(identifier), fingerprint.law_family, labels,
+                            magnitude, NaN, nothing, nothing, :missing_current, false, metadata,
+                        ))
+                        continue
+                    end
+                    metadata["law_equation"] = "P = dVᵣ·Iᵣ + dVᵢ·Iᵢ; Q = dVᵢ·Iᵣ − dVᵣ·Iᵢ"
+                    metadata["derivative_map"] = "bilinear_power_voltage_current_to_p_q"
+                    power = _bmopf_current_law_bilinear_power(voltage, current)
+                    metadata["observed_power_real"] = string(real(power))
+                    metadata["observed_power_imag"] = string(imag(power))
+                    if component_type == :ibr && haskey(fingerprint.metadata, "power_factor")
+                        pf = try parse(Float64, fingerprint.metadata["power_factor"]) catch; NaN end
+                        if isfinite(pf) && abs(pf) > 1.0e-9 && abs(pf) <= 1.0
+                            pf_residual = sign(pf) * imag(power) +
+                                          tan(acos(abs(pf))) * real(power)
+                            metadata["control_equation"] =
+                                "sign(pf)*Q + tan(acos(abs(pf)))*P = 0"
+                            metadata["control_equation_residual"] = string(pf_residual)
+                        end
+                    end
+                    if component_type == :ibr && fingerprint.law_family == :voltage_droop
+                        for family in ("volt_var", "volt_watt")
+                            prefix = family == "volt_var" ? "controller_curve_" :
+                                "controller_curve_$(family)_"
+                            output = get(metadata, "$(prefix)output_normalized", nothing)
+                            base = _bmopf_controller_curve_base(context, record, index, family)
+                            if output isa AbstractString && !isnothing(base)
+                                normalized = try parse(Float64, output) catch; NaN end
+                                if isfinite(normalized) && isfinite(base)
+                                    if family == "volt_var"
+                                        residual = imag(power) - base * normalized
+                                        metadata["controller_curve_volt_var_base"] = string(base)
+                                        metadata["controller_curve_volt_var_expected_q"] = string(base * normalized)
+                                        metadata["controller_curve_volt_var_equation_residual"] = string(residual)
+                                    else
+                                        cap = base * normalized
+                                        violation = real(power) - cap
+                                        metadata["controller_curve_volt_watt_base"] = string(base)
+                                        metadata["controller_curve_volt_watt_cap"] = string(cap)
+                                        metadata["controller_curve_volt_watt_cap_violation"] = string(violation)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    saved_power = _bmopf_current_law_saved_power(
+                        context, source, component_type, string(identifier), pair[1];
+                        result_units, field_units,
+                    )
+                    if !isnothing(saved_power)
+                        residual = power - saved_power
+                        metadata["saved_power_real"] = string(real(saved_power))
+                        metadata["saved_power_imag"] = string(imag(saved_power))
+                        metadata["power_equation_residual_norm"] = string(abs(residual))
+                    end
+                    if magnitude <= voltage_floor
+                        push!(probes, NLPDiagnostics.CurrentLawOperatingPointProbe(
+                            component_type, string(identifier), fingerprint.law_family, labels,
+                            magnitude, abs(current), nothing, nothing, :zero_voltage, false, metadata,
+                        ))
+                        continue
+                    end
+                    jacobian = _bmopf_current_law_bilinear_jacobian(voltage, current)
+                    singular_values = LinearAlgebra.svdvals(jacobian)
+                    derivative_norm = maximum(singular_values)
+                    derivative_condition = iszero(minimum(singular_values)) ? Inf :
+                                          maximum(singular_values) / minimum(singular_values)
+                    metadata["derivative_coordinate_count"] = "4"
+                    status = derivative_norm > derivative_norm_limit ||
+                             derivative_condition > derivative_condition_limit ?
+                             :derivative_amplified : :finite
+                    push!(probes, NLPDiagnostics.CurrentLawOperatingPointProbe(
+                        component_type, string(identifier), fingerprint.law_family, labels,
+                        magnitude, abs(current), derivative_norm, derivative_condition,
+                        status, true, metadata,
+                    ))
+                    continue
+                end
+                if magnitude <= voltage_floor
+                    push!(probes, NLPDiagnostics.CurrentLawOperatingPointProbe(
+                        component_type, string(identifier), fingerprint.law_family, labels,
+                        magnitude, NaN, nothing, nothing, :zero_voltage, false, metadata,
+                    ))
+                    continue
+                end
+                current = _bmopf_current_law_current(record, index, voltage;
+                                                     voltage_base)
+                if current === nothing || !isfinite(real(current)) || !isfinite(imag(current))
+                    push!(probes, NLPDiagnostics.CurrentLawOperatingPointProbe(
+                        component_type, string(identifier), fingerprint.law_family, labels,
+                        magnitude, NaN, nothing, nothing, :nonfinite, false, metadata,
+                    ))
+                    continue
+                end
+                h = max(Float64(derivative_step) * max(1.0, magnitude), sqrt(eps(Float64)))
+                samples = (
+                    _bmopf_current_law_current(record, index, voltage + h; voltage_base),
+                    _bmopf_current_law_current(record, index, voltage - h; voltage_base),
+                    _bmopf_current_law_current(record, index, voltage + im * h; voltage_base),
+                    _bmopf_current_law_current(record, index, voltage - im * h; voltage_base),
+                )
+                # A finite base point can still have a non-finite central
+                # stencil when the perturbation crosses an exact zero or a
+                # model-specific domain boundary. Preserve that as coverage
+                # evidence instead of allowing `nothing` arithmetic to throw.
+                all(value isa Complex && isfinite(real(value)) && isfinite(imag(value)) for value in samples) || begin
+                    push!(probes, NLPDiagnostics.CurrentLawOperatingPointProbe(
+                        component_type, string(identifier), fingerprint.law_family, labels,
+                        magnitude, abs(current), nothing, nothing, :nonfinite, false, metadata,
+                    ))
+                    continue
+                end
+                directional = ComplexF64[
+                    (samples[1] - samples[2]) / (2h),
+                    (samples[3] - samples[4]) / (2h),
+                ]
+                jacobian = [real(directional[1]) real(directional[2]);
+                            imag(directional[1]) imag(directional[2])]
+                singular_values = LinearAlgebra.svdvals(jacobian)
+                derivative_norm = maximum(singular_values)
+                derivative_condition = iszero(minimum(singular_values)) ? Inf :
+                                      maximum(singular_values) / minimum(singular_values)
+                metadata["derivative_step"] = string(h)
+                status = derivative_norm > derivative_norm_limit || derivative_condition > derivative_condition_limit ?
+                         :derivative_amplified : :finite
+                push!(probes, NLPDiagnostics.CurrentLawOperatingPointProbe(
+                    component_type, string(identifier), fingerprint.law_family, labels,
+                    magnitude, abs(current), derivative_norm, derivative_condition,
+                    status, true, metadata,
+                ))
+            end
+        end
+    end
+    return probes
+end
+
+function _bmopf_current_law_operating_point_report(context, source; kwargs...)
+    probes = _bmopf_current_law_operating_point_probes(context, source; kwargs...)
+    report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:bmopf_current_law_operating_point_probe_count] = string(length(probes))
+    status_counts = Dict{String,Int}()
+    for probe in probes
+        status = string(probe.domain_status)
+        status_counts[status] = get(status_counts, status, 0) + 1
+        component = "$(probe.component_type) $(probe.component_id)"
+        curve_entries = Tuple{String,String}[("", get(probe.metadata, "controller_curve_status", ""))]
+        for family in ("volt_var", "volt_watt")
+            push!(curve_entries, (family, get(probe.metadata, "controller_curve_$(family)_status", "")))
+        end
+        for (prefix, curve_status) in curve_entries
+            isempty(curve_status) && continue
+            family = isempty(prefix) ? get(probe.metadata, "controller_curve_family", "controller") : prefix
+            key_prefix = isempty(prefix) ? "controller_curve_" : "controller_curve_$(prefix)_"
+            if curve_status == "breakpoint_proximity"
+                push!(report, NLPDiagnostics.Finding(:bmopf_controller_curve_breakpoint_proximity;
+                    severity = NLPDiagnostics.SeverityWarning,
+                    domain = NLPDiagnostics.NumericalIssue,
+                    basis = NLPDiagnostics.NumericalObservation,
+                    confidence = NLPDiagnostics.ConfidenceHigh,
+                    observation = "$component is evaluated within the declared smoothing width of a $family breakpoint.",
+                    why_it_matters = "The controller derivative is transitioning between curve segments, so small voltage perturbations can change active control sensitivity and solver scaling.",
+                    evidence = [NLPDiagnostics.Evidence("Public controller-curve fingerprint"; details = [
+                        "curve_family" => family,
+                        "breakpoint_distance" => get(probe.metadata, "$(key_prefix)breakpoint_distance", ""),
+                        "smoothing_epsilon" => get(probe.metadata, "$(key_prefix)smoothing_epsilon", ""),
+                        "local_slope" => get(probe.metadata, "$(key_prefix)local_slope", ""),
+                        "voltage_reference" => get(probe.metadata, "$(key_prefix)voltage_reference", ""),
+                    ])],
+                    suggested_actions = ["Inspect nearby solver iterates and retain the smoothed controller derivative when comparing conditioning."],
+                ))
+            elseif curve_status == "invalid_profile"
+                push!(report, NLPDiagnostics.Finding(:bmopf_controller_curve_profile_invalid;
+                    severity = NLPDiagnostics.SeverityWarning,
+                    domain = NLPDiagnostics.RepresentationalIssue,
+                    basis = NLPDiagnostics.StructuralProof,
+                    confidence = NLPDiagnostics.ConfidenceCertain,
+                    observation = "$component declares a $family profile that cannot be evaluated from the public schema.",
+                    why_it_matters = "The model may fall back to box bounds or a different controller law, so a curve-based derivative interpretation would be unsound.",
+                    evidence = [NLPDiagnostics.Evidence("Public controller-curve schema"; details = [
+                        "curve_family" => family,
+                        "reason" => get(probe.metadata, "$(key_prefix)reason", ""),
+                    ])],
+                    suggested_actions = ["Validate breakpoint ordering, limit units, and reference fields against the BMOPFTools control-profile schema."],
+                ))
+            end
+        end
+        residual_tolerance = try
+            parse(Float64, get(probe.metadata, "controller_residual_tolerance", "1.0e-6"))
+        catch
+            1.0e-6
+        end
+        q_residual = try
+            parse(Float64, get(probe.metadata, "controller_curve_volt_var_equation_residual", "NaN"))
+        catch
+            NaN
+        end
+        if isfinite(q_residual) && abs(q_residual) > residual_tolerance
+            push!(report, NLPDiagnostics.Finding(:bmopf_controller_curve_equation_residual;
+                severity = NLPDiagnostics.SeverityWarning,
+                domain = NLPDiagnostics.NumericalIssue,
+                basis = NLPDiagnostics.NumericalObservation,
+                confidence = NLPDiagnostics.ConfidenceHigh,
+                observation = "$component does not satisfy the public Volt-var equality within the configured residual tolerance.",
+                why_it_matters = "The observed reactive power and declared smoothed controller curve disagree after applying the device base, so the saved point may not correspond to the assembled controller equations or may use inconsistent units.",
+                evidence = [NLPDiagnostics.Evidence("Device-base-scaled Volt-var residual"; details = [
+                    "residual" => q_residual,
+                    "tolerance" => residual_tolerance,
+                    "base" => get(probe.metadata, "controller_curve_volt_var_base", ""),
+                    "expected_q" => get(probe.metadata, "controller_curve_volt_var_expected_q", ""),
+                ])],
+                suggested_actions = ["Check saved-result power/current units and compare the point against the BMOPFTools controller constraint residual."],
+            ))
+        end
+        vw_violation = try
+            parse(Float64, get(probe.metadata, "controller_curve_volt_watt_cap_violation", "NaN"))
+        catch
+            NaN
+        end
+        if isfinite(vw_violation) && vw_violation > residual_tolerance
+            push!(report, NLPDiagnostics.Finding(:bmopf_controller_curve_cap_violation;
+                severity = NLPDiagnostics.SeverityWarning,
+                domain = NLPDiagnostics.NumericalIssue,
+                basis = NLPDiagnostics.NumericalObservation,
+                confidence = NLPDiagnostics.ConfidenceHigh,
+                observation = "$component exceeds the public Volt-watt active-power cap at the supplied operating point.",
+                why_it_matters = "The observed active power is above the voltage-dependent controller limit after applying the device base, indicating an inconsistent point, unit mismatch, or violated controller constraint.",
+                evidence = [NLPDiagnostics.Evidence("Device-base-scaled Volt-watt cap"; details = [
+                    "cap_violation" => vw_violation,
+                    "tolerance" => residual_tolerance,
+                    "base" => get(probe.metadata, "controller_curve_volt_watt_base", ""),
+                    "cap" => get(probe.metadata, "controller_curve_volt_watt_cap", ""),
+                ])],
+                suggested_actions = ["Validate the active-power result units and inspect the Volt-watt inequality residual before interpreting solver behavior."],
+            ))
+        end
+        if probe.domain_status == :unsupported || probe.domain_status == :missing_voltage ||
+           probe.domain_status == :missing_current
+            push!(report, NLPDiagnostics.Finding(:bmopf_current_law_operating_point_unavailable;
+                severity = NLPDiagnostics.SeverityInfo,
+                domain = NLPDiagnostics.RepresentationalIssue,
+                basis = NLPDiagnostics.NumericalObservation,
+                confidence = NLPDiagnostics.ConfidenceCertain,
+                observation = "No exact current-law operating-point derivative was available for $component.",
+                why_it_matters = "Static metadata and local derivative evidence must remain separate when a saved result or plugin-owned law does not expose the required voltage or current coordinates.",
+                evidence = [NLPDiagnostics.Evidence("Current-law operating-point coverage"; details = [
+                    "status" => status,
+                    "law_family" => string(probe.law_family),
+                ])],
+                suggested_actions = ["Provide complete terminal voltages or a domain extension with an exact current-law evaluator."],
+            ))
+        elseif probe.domain_status == :zero_voltage
+            push!(report, NLPDiagnostics.Finding(:bmopf_current_law_operating_point_zero_voltage;
+                severity = NLPDiagnostics.SeverityWarning,
+                domain = NLPDiagnostics.MathematicalIssue,
+                basis = NLPDiagnostics.NumericalObservation,
+                confidence = NLPDiagnostics.ConfidenceHigh,
+                observation = "$component is evaluated at terminal voltage magnitude $(probe.voltage_magnitude), at or below the configured voltage floor.",
+                why_it_matters = "The current representation is undefined or singular at this operating point, so derivative-based conclusions cannot be trusted there.",
+                evidence = [NLPDiagnostics.Evidence("Current-law operating-point probe"; details = [
+                    "law_family" => string(probe.law_family),
+                    "terminal_labels" => join(probe.terminal_labels, ","),
+                    "voltage_floor" => get(probe.metadata, "voltage_floor", ""),
+                ])],
+                suggested_actions = ["Use a physically meaningful nonzero initialization or enforce a defensible voltage floor."],
+            ))
+        elseif probe.domain_status == :nonfinite
+            push!(report, NLPDiagnostics.Finding(:bmopf_current_law_operating_point_nonfinite;
+                severity = NLPDiagnostics.SeverityWarning,
+                domain = NLPDiagnostics.NumericalIssue,
+                basis = NLPDiagnostics.NumericalObservation,
+                confidence = NLPDiagnostics.ConfidenceHigh,
+                observation = "$component produced a non-finite current or derivative at the supplied operating point.",
+                why_it_matters = "The local derivative geometry is unavailable; rank and conditioning reports must not treat the missing coordinates as zeros.",
+                evidence = [NLPDiagnostics.Evidence("Current-law operating-point probe"; details = [
+                    "law_family" => string(probe.law_family),
+                    "terminal_labels" => join(probe.terminal_labels, ","),
+                ])],
+                suggested_actions = ["Inspect the saved-result units, voltage-domain assumptions, and model coefficients before running numerical rank analysis."],
+            ))
+        elseif probe.domain_status == :derivative_amplified
+            push!(report, NLPDiagnostics.Finding(:bmopf_current_law_operating_point_derivative_amplification;
+                severity = NLPDiagnostics.SeverityWarning,
+                domain = NLPDiagnostics.NumericalIssue,
+                basis = NLPDiagnostics.NumericalObservation,
+                confidence = NLPDiagnostics.ConfidenceHigh,
+                observation = "$component has an amplified local current-law derivative at the supplied operating point.",
+                why_it_matters = "The local current Jacobian can dominate network derivatives and make solver tolerances and scaling highly operating-point dependent.",
+                evidence = [NLPDiagnostics.Evidence("Current-law derivative probe"; details = [
+                    "law_family" => string(probe.law_family),
+                    "derivative_norm" => string(probe.derivative_norm),
+                    "derivative_condition" => string(probe.derivative_condition),
+                ])],
+                suggested_actions = ["Compare nearby operating points and inspect voltage/current scaling before attributing solver behavior to structural degeneracy."],
+            ))
+        end
+    end
+    report.metadata[:bmopf_current_law_operating_point_status_counts] = join(
+        ("$(key)=$(status_counts[key])" for key in sort!(collect(keys(status_counts)))), ",",
+    )
+    return report
+end
+
+_bmopf_current_law_operating_point_probes_public(context, source; kwargs...) =
+    _bmopf_current_law_operating_point_probes(context, source; kwargs...)
+_bmopf_current_law_operating_point_report_public(context, source; kwargs...) =
+    _bmopf_current_law_operating_point_report(context, source; kwargs...)
+
+function _bmopf_current_law_probe_key(probe::NLPDiagnostics.CurrentLawOperatingPointProbe)
+    return join((
+        string(probe.component_type), probe.component_id, string(probe.law_family),
+        join(probe.terminal_labels, "/"), get(probe.metadata, "subload_index", ""),
+    ), "|")
+end
+
+"""Extract controller-curve observations without treating absent fields as zeros."""
+function _bmopf_controller_curve_snapshot_observations(probe)
+    observations = Dict{String,NamedTuple}()
+    primary_family = get(probe.metadata, "controller_curve_family", nothing)
+    primary_family isa AbstractString && begin
+        observations[String(primary_family)] = (
+            status = get(probe.metadata, "controller_curve_status", ""),
+            semantics = get(probe.metadata, "controller_curve_voltage_semantics", ""),
+            slope = try parse(Float64, get(probe.metadata, "controller_curve_local_slope", "NaN")) catch; NaN end,
+            monitored_voltage = try parse(Float64, get(probe.metadata, "controller_curve_monitored_voltage", "NaN")) catch; NaN end,
+        )
+    end
+    for family in ("volt_var", "volt_watt")
+        prefix = "controller_curve_$(family)_"
+        status = get(probe.metadata, "$(prefix)status", nothing)
+        status isa AbstractString || continue
+        observations[family] = (
+            status = String(status),
+            semantics = String(get(probe.metadata, "$(prefix)voltage_semantics", "")),
+            slope = try parse(Float64, get(probe.metadata, "$(prefix)local_slope", "NaN")) catch; NaN end,
+            monitored_voltage = try parse(Float64, get(probe.metadata, "$(prefix)monitored_voltage", "NaN")) catch; NaN end,
+        )
+    end
+    return observations
+end
+
+function _bmopf_optional_curve_float(metadata, key::String)
+    raw = get(metadata, key, nothing)
+    raw isa AbstractString || return nothing
+    value = try parse(Float64, raw) catch; NaN end
+    return isfinite(value) ? value : nothing
+end
+
+function _bmopf_controller_curve_observation(probe, family::String, prefix::String)
+    metadata = probe.metadata
+    status = Symbol(lowercase(get(metadata, "$(prefix)status", "unknown")))
+    reference = Symbol(lowercase(get(metadata, "$(prefix)voltage_reference", "unknown")))
+    aggregation = uppercase(get(metadata, "$(prefix)monitored_voltage_aggregation", "PER_PHASE")) == "AVERAGE" ?
+        :average : :per_phase
+    semantics = get(metadata, "$(prefix)voltage_semantics", "terminal_pair_magnitude_proxy") ==
+        "exact_public_monitored_voltage" ? :exact_public_monitored_voltage : :terminal_pair_magnitude_proxy
+    expected_key = family == "volt_var" ?
+        "controller_curve_volt_var_expected_q" : "controller_curve_volt_watt_cap"
+    residual_key = family == "volt_var" ?
+        "controller_curve_volt_var_equation_residual" : "controller_curve_volt_watt_cap_violation"
+    return NLPDiagnostics.ControllerCurveOperatingPointObservation(
+        probe.component_type,
+        probe.component_id,
+        Symbol(family),
+        copy(probe.terminal_labels),
+        reference,
+        aggregation,
+        semantics,
+        _bmopf_optional_curve_float(metadata, "$(prefix)monitored_voltage"),
+        _bmopf_optional_curve_float(metadata, "$(prefix)output_normalized"),
+        _bmopf_optional_curve_float(metadata, "$(prefix)local_slope"),
+        _bmopf_optional_curve_float(metadata, "$(prefix)breakpoint_distance"),
+        _bmopf_optional_curve_float(metadata, "$(prefix)smoothing_epsilon"),
+        _bmopf_optional_curve_float(metadata,
+            family == "volt_var" ? "controller_curve_volt_var_base" : "controller_curve_volt_watt_base"),
+        _bmopf_optional_curve_float(metadata, expected_key),
+        family == "volt_var" ? _bmopf_optional_curve_float(metadata, residual_key) : nothing,
+        family == "volt_watt" ? _bmopf_optional_curve_float(metadata, residual_key) : nothing,
+        status,
+        copy(metadata),
+    )
+end
+
+function _bmopf_controller_curve_operating_point_observations(
+    context,
+    source;
+    kwargs...,
+)
+    probes = _bmopf_current_law_operating_point_probes(context, source; kwargs...)
+    observations = NLPDiagnostics.ControllerCurveOperatingPointObservation[]
+    for probe in probes
+        primary_family = get(probe.metadata, "controller_curve_family", nothing)
+        primary_family isa AbstractString && push!(observations,
+            _bmopf_controller_curve_observation(probe, String(primary_family), "controller_curve_"),
+        )
+        for family in ("volt_var", "volt_watt")
+            prefix = "controller_curve_$(family)_"
+            haskey(probe.metadata, "$(prefix)status") || continue
+            family == primary_family && continue
+            push!(observations, _bmopf_controller_curve_observation(probe, family, prefix))
+        end
+    end
+    return observations
+end
+
+_bmopf_controller_curve_operating_point_observations_public(context, source; kwargs...) =
+    _bmopf_controller_curve_operating_point_observations(context, source; kwargs...)
+
+"""Compare current-law operating-point evidence without treating missing probes as zeros."""
+function _bmopf_current_law_operating_point_persistence(
+    context,
+    sources;
+    minimum_snapshots::Integer = 2,
+    derivative_scale_change_factor::Real = 10.0,
+    condition_change_factor::Real = 10.0,
+    result_units::Symbol = :si,
+    field_units::AbstractDict = Dict{Symbol,Symbol}(),
+    voltage_floor::Real = 1.0e-8,
+    derivative_step::Real = 1.0e-6,
+    derivative_norm_limit::Real = 1.0e8,
+    derivative_condition_limit::Real = 1.0e10,
+    controller_residual_tolerance::Real = 1.0e-6,
+)
+    minimum_snapshots >= 2 || throw(ArgumentError("minimum_snapshots must be at least two"))
+    derivative_scale_change_factor >= 1.0 || throw(ArgumentError("derivative_scale_change_factor must be at least one"))
+    condition_change_factor >= 1.0 || throw(ArgumentError("condition_change_factor must be at least one"))
+    sources isa AbstractVector || throw(ArgumentError("sources must be a vector of explicit points or saved results"))
+    report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:stage] = "bmopf_current_law_operating_point_persistence"
+    report.metadata[:bmopf_current_law_operating_point_snapshot_count] = string(length(sources))
+    report.metadata[:bmopf_current_law_operating_point_snapshot_labels] = join(
+        (source isa NLPDiagnostics.EvaluationPoint ? source.label : "saved_result_$(index)"
+         for (index, source) in enumerate(sources)), ",",
+    )
+    report.metadata[:bmopf_current_law_operating_point_minimum_snapshots] = string(minimum_snapshots)
+    report.metadata[:bmopf_current_law_operating_point_derivative_scale_change_factor] = string(derivative_scale_change_factor)
+    report.metadata[:bmopf_current_law_operating_point_condition_change_factor] = string(condition_change_factor)
+    if length(sources) < minimum_snapshots
+        push!(report, NLPDiagnostics.Finding(:bmopf_current_law_operating_point_persistence_unavailable;
+            severity = NLPDiagnostics.SeverityInfo,
+            domain = NLPDiagnostics.NumericalIssue,
+            basis = NLPDiagnostics.NumericalObservation,
+            confidence = NLPDiagnostics.ConfidenceHigh,
+            observation = "Only $(length(sources)) current-law operating-point snapshot(s) were supplied.",
+            why_it_matters = "Derivative persistence requires repeated, explicitly supplied operating points; a single local observation cannot distinguish a persistent hazard from point-specific behavior.",
+            evidence = [NLPDiagnostics.Evidence("Current-law persistence availability"; details = [
+                "snapshot_count" => length(sources),
+                "minimum_snapshots" => minimum_snapshots,
+            ])],
+            suggested_actions = ["Supply at least two coordinate-aligned points or saved results from the operating region of interest."],
+        ))
+        return report
+    end
+    probe_sets = [
+        _bmopf_current_law_operating_point_probes(context, source;
+            result_units, field_units, voltage_floor, derivative_step,
+            derivative_norm_limit, derivative_condition_limit,
+            controller_residual_tolerance,
+        ) for source in sources
+    ]
+    key_set = Set{String}()
+    for probes in probe_sets, probe in probes
+        push!(key_set, _bmopf_current_law_probe_key(probe))
+    end
+    keys = sort!(collect(key_set))
+    report.metadata[:bmopf_current_law_operating_point_key_count] = string(length(keys))
+    changed_status_count = 0
+    changed_scale_count = 0
+    changed_condition_count = 0
+    changed_curve_status_count = 0
+    changed_curve_coverage_count = 0
+    changed_curve_slope_count = 0
+    for key in keys
+        aligned = Union{Nothing,NLPDiagnostics.CurrentLawOperatingPointProbe}[]
+        for probes in probe_sets
+            index = findfirst(probe -> _bmopf_current_law_probe_key(probe) == key, probes)
+            push!(aligned, isnothing(index) ? nothing : probes[index])
+        end
+        present = [probe for probe in aligned if !isnothing(probe)]
+        statuses = unique(string(probe.domain_status) for probe in present)
+        if length(statuses) > 1
+            changed_status_count += 1
+            push!(report, NLPDiagnostics.Finding(:bmopf_current_law_operating_point_domain_status_changed;
+                severity = NLPDiagnostics.SeverityWarning,
+                domain = NLPDiagnostics.NumericalIssue,
+                basis = NLPDiagnostics.NumericalObservation,
+                confidence = NLPDiagnostics.ConfidenceHigh,
+                observation = "Current-law probe '$key' changes domain status across supplied operating points ($(join(statuses, ", "))).",
+                why_it_matters = "A transition between finite, zero-voltage, non-finite, or unavailable states can dominate solver behavior and must not be summarized as one persistent rank or scaling conclusion.",
+                evidence = [NLPDiagnostics.Evidence("Current-law status persistence"; details = [
+                    "snapshot_count" => length(sources),
+                    "present_snapshot_count" => length(present),
+                    "statuses" => join(statuses, ","),
+                ])],
+                suggested_actions = ["Inspect the affected snapshots and retain their point labels before attributing the transition to a formulation defect."],
+            ))
+        end
+        curve_keys = Set{String}()
+        curve_snapshots = Dict{String,Vector{NamedTuple}}()
+        for probe in present
+            for (family, observation) in _bmopf_controller_curve_snapshot_observations(probe)
+                push!(curve_keys, family)
+                push!(get!(curve_snapshots, family, NamedTuple[]), observation)
+            end
+        end
+        for family in sort!(collect(curve_keys))
+            snapshots = curve_snapshots[family]
+            curve_statuses = unique(String(snapshot.status) for snapshot in snapshots
+                                    if !isempty(String(snapshot.status)))
+            if length(curve_statuses) > 1
+                changed_curve_status_count += 1
+                push!(report, NLPDiagnostics.Finding(:bmopf_controller_curve_status_changed;
+                    severity = NLPDiagnostics.SeverityWarning,
+                    domain = NLPDiagnostics.NumericalIssue,
+                    basis = NLPDiagnostics.NumericalObservation,
+                    confidence = NLPDiagnostics.ConfidenceHigh,
+                    observation = "Controller curve '$family' for probe '$key' changes status across supplied operating points ($(join(curve_statuses, ", "))).",
+                    why_it_matters = "Breakpoint proximity and profile coverage can change along solver iterates, so one local controller derivative must not be treated as persistent.",
+                    evidence = [NLPDiagnostics.Evidence("Controller-curve persistence"; details = [
+                        "curve_family" => family,
+                        "statuses" => join(curve_statuses, ","),
+                        "snapshot_count" => length(snapshots),
+                    ])],
+                    suggested_actions = ["Retain the iterate labels and compare controller slopes on each side of the transition."],
+                ))
+            end
+            curve_semantics = unique(String(snapshot.semantics) for snapshot in snapshots
+                                     if !isempty(String(snapshot.semantics)))
+            if length(curve_semantics) > 1
+                changed_curve_coverage_count += 1
+                push!(report, NLPDiagnostics.Finding(:bmopf_controller_curve_monitor_coverage_changed;
+                    severity = NLPDiagnostics.SeverityInfo,
+                    domain = NLPDiagnostics.RepresentationalIssue,
+                    basis = NLPDiagnostics.NumericalObservation,
+                    confidence = NLPDiagnostics.ConfidenceHigh,
+                    observation = "Controller curve '$family' for probe '$key' changes monitor-coverage semantics across supplied operating points.",
+                    why_it_matters = "Exact monitored-voltage evidence and proxy evidence should not be combined into one unconditional controller conclusion.",
+                    evidence = [NLPDiagnostics.Evidence("Controller monitor coverage persistence"; details = [
+                        "curve_family" => family,
+                        "semantics" => join(curve_semantics, ","),
+                    ])],
+                    suggested_actions = ["Inspect missing terminal coordinates or profile-reference changes before comparing curve sensitivities."],
+                ))
+            end
+            slopes = [snapshot.slope for snapshot in snapshots if isfinite(snapshot.slope)]
+            if length(slopes) >= minimum_snapshots
+                slope_ratio = maximum(abs.(slopes)) / max(minimum(abs.(slopes)), eps(Float64))
+                if slope_ratio >= derivative_scale_change_factor
+                    changed_curve_slope_count += 1
+                    push!(report, NLPDiagnostics.Finding(:bmopf_controller_curve_slope_changed;
+                        severity = NLPDiagnostics.SeverityWarning,
+                        domain = NLPDiagnostics.NumericalIssue,
+                        basis = NLPDiagnostics.NumericalObservation,
+                        confidence = NLPDiagnostics.ConfidenceHigh,
+                        observation = "Controller curve '$family' for probe '$key' changes local slope by a factor of $(round(slope_ratio; sigdigits = 4)).",
+                        why_it_matters = "The controller contribution to the Jacobian can change substantially even when the current-law family and voltage domain remain finite.",
+                        evidence = [NLPDiagnostics.Evidence("Controller-curve slope persistence"; details = [
+                            "minimum_absolute_slope" => minimum(abs.(slopes)),
+                            "maximum_absolute_slope" => maximum(abs.(slopes)),
+                            "change_factor" => slope_ratio,
+                        ])],
+                        suggested_actions = ["Compare the curve slope with network row/column scaling and retain the smoothed derivative semantics."],
+                    ))
+                end
+            end
+        end
+        if length(present) < minimum_snapshots
+            push!(report, NLPDiagnostics.Finding(:bmopf_current_law_operating_point_persistence_partial;
+                severity = NLPDiagnostics.SeverityInfo,
+                domain = NLPDiagnostics.RepresentationalIssue,
+                basis = NLPDiagnostics.NumericalObservation,
+                confidence = NLPDiagnostics.ConfidenceHigh,
+                observation = "Current-law probe '$key' is present at only $(length(present)) of $(length(sources)) snapshots.",
+                why_it_matters = "Persistence cannot be certified when a component or terminal pair is absent from one or more snapshots.",
+                evidence = [NLPDiagnostics.Evidence("Current-law probe alignment"; details = [
+                    "snapshot_count" => length(sources),
+                    "present_snapshot_count" => length(present),
+                ])],
+                suggested_actions = ["Use a stable component registry and preserve complete terminal voltage records at every snapshot."],
+            ))
+            continue
+        end
+        finite = [probe for probe in present if probe.finite &&
+                  !isnothing(probe.derivative_norm) && isfinite(probe.derivative_norm) &&
+                  !isnothing(probe.derivative_condition) && isfinite(probe.derivative_condition)]
+        if length(finite) < minimum_snapshots
+            continue
+        end
+        derivative_values = [probe.derivative_norm for probe in finite]
+        condition_values = [probe.derivative_condition for probe in finite]
+        derivative_ratio = maximum(derivative_values) / max(minimum(derivative_values), eps(Float64))
+        condition_ratio = maximum(condition_values) / max(minimum(condition_values), eps(Float64))
+        if derivative_ratio >= derivative_scale_change_factor
+            changed_scale_count += 1
+            push!(report, NLPDiagnostics.Finding(:bmopf_current_law_operating_point_derivative_scale_changed;
+                severity = NLPDiagnostics.SeverityWarning,
+                domain = NLPDiagnostics.NumericalIssue,
+                basis = NLPDiagnostics.NumericalObservation,
+                confidence = NLPDiagnostics.ConfidenceHigh,
+                observation = "Current-law probe '$key' changes local derivative scale by a factor of $(round(derivative_ratio; sigdigits = 4)) across the supplied points.",
+                why_it_matters = "Operating-point-dependent derivative scale can alter row/column scaling, rank thresholds, and solver tolerance semantics without proving a structural defect.",
+                evidence = [NLPDiagnostics.Evidence("Current-law derivative-scale persistence"; details = [
+                    "minimum_derivative_norm" => minimum(derivative_values),
+                    "maximum_derivative_norm" => maximum(derivative_values),
+                    "change_factor" => derivative_ratio,
+                ])],
+                suggested_actions = ["Compare physical voltage/current scales and repeat the probe over a controlled operating region."],
+            ))
+        end
+        if condition_ratio >= condition_change_factor
+            changed_condition_count += 1
+            push!(report, NLPDiagnostics.Finding(:bmopf_current_law_operating_point_conditioning_changed;
+                severity = NLPDiagnostics.SeverityWarning,
+                domain = NLPDiagnostics.NumericalIssue,
+                basis = NLPDiagnostics.NumericalObservation,
+                confidence = NLPDiagnostics.ConfidenceHigh,
+                observation = "Current-law probe '$key' changes local derivative conditioning by a factor of $(round(condition_ratio; sigdigits = 4)) across the supplied points.",
+                why_it_matters = "Changing local anisotropy can make one operating point appear well behaved while another produces a poorly scaled current Jacobian.",
+                evidence = [NLPDiagnostics.Evidence("Current-law conditioning persistence"; details = [
+                    "minimum_condition" => minimum(condition_values),
+                    "maximum_condition" => maximum(condition_values),
+                    "change_factor" => condition_ratio,
+                ])],
+                suggested_actions = ["Inspect the real/imaginary current derivative directions and compare them with the network-coordinate scaling."],
+            ))
+        end
+    end
+    report.metadata[:bmopf_current_law_operating_point_changed_status_count] = string(changed_status_count)
+    report.metadata[:bmopf_current_law_operating_point_changed_scale_count] = string(changed_scale_count)
+    report.metadata[:bmopf_current_law_operating_point_changed_condition_count] = string(changed_condition_count)
+    report.metadata[:bmopf_controller_curve_changed_status_count] = string(changed_curve_status_count)
+    report.metadata[:bmopf_controller_curve_changed_coverage_count] = string(changed_curve_coverage_count)
+    report.metadata[:bmopf_controller_curve_changed_slope_count] = string(changed_curve_slope_count)
+    return report
+end
+
+_bmopf_current_law_operating_point_persistence_public(context, sources; kwargs...) =
+    _bmopf_current_law_operating_point_persistence(context, sources; kwargs...)
+
+function _bmopf_current_law_operating_point_trace(
+    context,
+    trace::NLPDiagnostics.SolverIterationTrace;
+    phase::Union{Nothing,Symbol} = nothing,
+    max_points::Union{Nothing,Integer} = nothing,
+    result_units::Symbol = :si,
+    field_units::AbstractDict = Dict{Symbol,Symbol}(),
+    voltage_floor::Real = 1.0e-8,
+    derivative_step::Real = 1.0e-6,
+    derivative_norm_limit::Real = 1.0e8,
+    derivative_condition_limit::Real = 1.0e10,
+    controller_residual_tolerance::Real = 1.0e-6,
+    minimum_snapshots::Integer = 2,
+    derivative_scale_change_factor::Real = 10.0,
+    condition_change_factor::Real = 10.0,
+)
+    isnothing(phase) || phase in (:regular, :restoration, :robust) ||
+        throw(ArgumentError("phase must be nothing, :regular, :restoration, or :robust"))
+    if !isnothing(max_points)
+        max_points >= 1 || throw(ArgumentError("max_points must be positive when supplied"))
+    end
+    candidates = [binding for binding in trace.bindings
+                  if isnothing(phase) || binding.record.phase == phase]
+    selected = if isnothing(max_points) || length(candidates) <= max_points
+        candidates
+    else
+        indices = unique(round.(Int, range(1, length(candidates); length = max_points)))
+        candidates[indices]
+    end
+    metadata = Dict{String,String}(
+        "stage" => "bmopf_current_law_operating_point_trace",
+        "trace_record_count" => string(length(trace.records)),
+        "trace_captured_binding_count" => string(length(trace.bindings)),
+        "trace_phase_filter" => isnothing(phase) ? "all" : string(phase),
+        "trace_candidate_binding_count" => string(length(candidates)),
+        "trace_selected_binding_count" => string(length(selected)),
+        "trace_unselected_binding_count" => string(length(candidates) - length(selected)),
+        "trace_max_points" => isnothing(max_points) ? "unlimited" : string(max_points),
+        "trace_selected_labels" => join((binding.point.label for binding in selected), ","),
+        "trace_selected_iterations" => join((string(binding.record.iteration) for binding in selected), ","),
+    )
+    snapshot_reports = NLPDiagnostics.DiagnosticReport[]
+    probes = Vector{Vector{NLPDiagnostics.CurrentLawOperatingPointProbe}}()
+    for binding in selected
+        point_probes = _bmopf_current_law_operating_point_probes(
+            context, binding.point;
+            result_units, field_units, voltage_floor, derivative_step,
+            derivative_norm_limit, derivative_condition_limit,
+            controller_residual_tolerance,
+        )
+        push!(probes, point_probes)
+        push!(snapshot_reports, _bmopf_current_law_operating_point_report(
+            context, binding.point;
+            result_units, field_units, voltage_floor, derivative_step,
+            derivative_norm_limit, derivative_condition_limit,
+            controller_residual_tolerance,
+        ))
+    end
+    persistence_report = if isempty(selected)
+        report = NLPDiagnostics.DiagnosticReport()
+        push!(report, NLPDiagnostics.Finding(:bmopf_current_law_operating_point_trace_unavailable;
+            severity = NLPDiagnostics.SeverityInfo,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.NumericalObservation,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "No captured solver iteration binding with an EvaluationPoint was available for current-law probing.",
+            why_it_matters = "Solver metrics alone do not identify BMOPFTools model coordinates, so current-law domain and derivative evidence cannot be attached to an iterate.",
+            suggested_actions = ["Enable explicit primal capture for the solver callback, or supply staged EvaluationPoints separately."],
+        ))
+        report
+    else
+        _bmopf_current_law_operating_point_persistence(
+            context, [binding.point for binding in selected];
+            result_units, field_units, voltage_floor, derivative_step,
+            derivative_norm_limit, derivative_condition_limit,
+            minimum_snapshots, derivative_scale_change_factor,
+            condition_change_factor,
+        )
+    end
+    metadata["trace_persistence_finding_count"] = string(length(persistence_report.findings))
+    return NLPDiagnostics.CurrentLawOperatingPointTrace(
+        trace, NLPDiagnostics.IterationPointBinding[selected...], probes,
+        snapshot_reports, persistence_report, metadata,
+    )
+end
+
+_bmopf_current_law_operating_point_trace_public(context, trace; kwargs...) =
+    _bmopf_current_law_operating_point_trace(context, trace; kwargs...)
 
 """Validate bus and component attachment port declarations for a staged context."""
 function _bmopf_terminal_port_connection_report(context)
@@ -3185,6 +4791,36 @@ function _bmopf_terminal_port_connection_report(context)
         ))
     end
     return report
+end
+
+"""Return the declared BMOPF component/bus port assembly summary."""
+function _bmopf_terminal_port_assembly(context)
+    ports = _bmopf_terminal_port_metadata(context)
+    connections = _bmopf_terminal_port_connections(context)
+    return NLPDiagnostics.port_network_assembly_summary(ports, connections)
+end
+
+"""Report BMOPF port assembly connected components and endpoint validity."""
+function _bmopf_terminal_port_assembly_report(context)
+    ports = _bmopf_terminal_port_metadata(context)
+    connections = _bmopf_terminal_port_connections(context)
+    report = NLPDiagnostics._component_port_assembly_findings(ports, connections)
+    endpoint_report = NLPDiagnostics._component_port_connection_findings(ports, connections)
+    append!(report.findings, endpoint_report.findings)
+    merge!(report.metadata, endpoint_report.metadata)
+    return report
+end
+
+"""Return static nonlinear-current law fingerprints from BMOPFTools metadata."""
+function _bmopf_current_law_fingerprints_public(context)
+    _bmopf_context_model(context)
+    return _bmopf_current_law_fingerprints(context)
+end
+
+"""Report static nonlinear-current law domains and derivative hazards."""
+function _bmopf_current_law_report_public(context)
+    _bmopf_context_model(context)
+    return _bmopf_current_law_report(context)
 end
 
 """
@@ -3226,6 +4862,7 @@ function _bmopf_terminal_port_report(context)
         NLPDiagnostics._component_port_coordinate_map_findings(ports, maps; model_variables = variables),
         NLPDiagnostics._component_port_coordinate_semantics_findings(ports, semantics, maps),
         NLPDiagnostics._component_port_connection_findings(ports, connections),
+        NLPDiagnostics._component_port_assembly_findings(ports, connections),
         _bmopf_terminal_port_connection_report(context),
     )
         append!(report.findings, partial.findings)
@@ -3295,6 +4932,7 @@ function _bmopf_analyze_opf(
     lifecycle_report = _bmopf_opf_lifecycle_report(context)
     registry_report = _bmopf_opf_registry_report(context)
     component_report = _bmopf_component_report(context)
+    current_law_report = _bmopf_current_law_report(context)
     coordinate_scale_report = isnothing(point) ? nothing :
         _bmopf_terminal_port_coordinate_scale_report(context, point)
     append!(report.findings, physical_report.findings)
@@ -3307,6 +4945,7 @@ function _bmopf_analyze_opf(
     append!(report.findings, lifecycle_report.findings)
     append!(report.findings, registry_report.findings)
     append!(report.findings, component_report.findings)
+    append!(report.findings, current_law_report.findings)
     !isnothing(coordinate_scale_report) && append!(report.findings, coordinate_scale_report.findings)
     for (key, value) in physical_report.metadata
         report.metadata[key] = value
@@ -3320,6 +4959,7 @@ function _bmopf_analyze_opf(
     merge!(report.metadata, lifecycle_report.metadata)
     merge!(report.metadata, registry_report.metadata)
     merge!(report.metadata, component_report.metadata)
+    merge!(report.metadata, current_law_report.metadata)
     !isnothing(coordinate_scale_report) && merge!(report.metadata, coordinate_scale_report.metadata)
     report.metadata[:bmopf_opf_context] = "BMOPFTools staged OPF context"
     report.metadata[:bmopf_opf_lifecycle] = string(BMOPFTools.opf_lifecycle(context))
@@ -3330,7 +4970,7 @@ function _bmopf_analyze_opf(
         string(length(candidate_modes))
     report.metadata[:bmopf_port_physical_modes_enabled] = string(include_port_physical_modes)
     report.metadata[:bmopf_port_physical_modes_applied] = string(length(port_physical_modes))
-    report.metadata[:stages] *= ",bmopf_terminals,bmopf_terminal_ports,bmopf_terminal_port_physical_modes,bmopf_terminal_constitutive_maps,bmopf_terminal_complex_constitutive_maps,bmopf_passive_network_current_maps,bmopf_floating_neutral_candidates,bmopf_opf_lifecycle,bmopf_opf_registry,bmopf_components"
+    report.metadata[:stages] *= ",bmopf_terminals,bmopf_terminal_ports,bmopf_terminal_port_physical_modes,bmopf_terminal_constitutive_maps,bmopf_terminal_complex_constitutive_maps,bmopf_passive_network_current_maps,bmopf_current_laws,bmopf_floating_neutral_candidates,bmopf_opf_lifecycle,bmopf_opf_registry,bmopf_components"
     !isnothing(coordinate_scale_report) && (report.metadata[:stages] *= ",bmopf_terminal_coordinate_scales")
     return report
 end

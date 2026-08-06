@@ -16,7 +16,7 @@ conversion policy from the saved-file choice, override suffixes with
 
 using JSON
 
-const _ALL_SI = "bus_voltage=si,line_current=si,load_current=si,source_current=si,ibr_current=si,ibr_power=si,switch_current=si,ground_current=si"
+const _ALL_SI = "bus_voltage=si,line_current=si,load_current=si,generator_current=si,generator_power=si,source_current=si,ibr_current=si,ibr_power=si,switch_current=si,ground_current=si"
 const _POLICIES = Dict{String,NamedTuple}(
     "si" => (result_units = "si", field_units = ""),
     "pu" => (result_units = "pu", field_units = ""),

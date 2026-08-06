@@ -123,3 +123,73 @@ Fixed-transformer phase-aware maps are available through
 matrix over real and imaginary terminal ports and apply the declared phase
 rotation; the scalar maps remain available for compatibility and structural
 incidence analysis.
+
+Declared component/bus attachments can be assembled into a structural graph
+with `bmopf_terminal_port_assembly(context)`. Its connected components are
+evidence about the port declarations only; disconnected groups are not
+automatically classified as physical islands or errors.
+
+The first current-side constitutive contract is also available through
+`bmopf_passive_network_current_maps(context)`. It wraps BMOPFTools' public
+passive Ybus as `I = YV` in SI units and records node ordering, nonzero count,
+and exact structural rank. Nonlinear device current laws and p.u. conversion
+are intentionally separate: the report flags a p.u./SI mismatch rather than
+silently rescaling coefficients. Passing `basis=:model` applies public bus
+voltage/current bases to produce p.u.-to-p.u. coefficients when every node is
+covered; otherwise the conversion is reported as unavailable.
+
+Current-law fingerprints provide the first static nonlinear-device boundary:
+they preserve public load-model names, dispatch/control metadata, terminal
+scope, differentiability status, and singularity risk. They are metadata
+evidence, not reconstructed equations. Exact equations remain plugin-owned,
+but a public control profile can still support a conservative family
+classification without pretending that its derivative implementation has been
+recovered.
+
+The public BMOPFTools IBR profile metadata now refines that boundary: constant
+power-factor, voltage-droop, power-sharing, and box-dispatch families retain
+their declared topology and control-profile evidence. Generator fingerprints
+retain the bilinear voltage/current power equation. These classifications are
+structural metadata evidence; exact control-law derivatives remain an optional
+domain-extension responsibility.
+
+The operating-point layer is exposed through
+`bmopf_current_law_operating_point_probes(context, source)` and its report
+counterpart. A source can be an explicit staged `EvaluationPoint` (including a
+synthetic zero probe or a completed BMOPFTools start) or a saved result
+dictionary. Public load equations are evaluated at each declared terminal
+pair; the adapter records voltage/current magnitude, a guarded local current
+Jacobian estimate, derivative conditioning, and domain status. Zero voltage and
+non-finite derivatives are observations attached to that point, not proof that
+the complete network is infeasible. Generator and IBR records additionally use
+the public bilinear voltage/current-to-power equations when their current
+coordinates are present, retaining observed power and saved-result residuals.
+Public Volt-var/Volt-watt profiles now receive an exact profile-level
+softplus/ReLU-sum fingerprint (normalized output, local slope, breakpoint
+distance, and smoothing width) using the same stable semantics as BMOPFTools.
+The adapter also resolves the declared monitored-voltage quantity (`PG`, `PN`,
+or `PP`) and per-phase/average aggregation from public bus coordinates,
+including the legacy record-level aggregation override. Each probe records
+whether this was exact monitor coverage or a terminal-pair proxy, so averaged
+and phase-to-phase semantics are inspectable rather than inferred. If `s_max`,
+`p_max`, or `p_avail` supplies the declared device base, the probe also records
+the base-scaled Volt-var equality residual and Volt-watt cap violation.
+
+Typed controller observations are available through
+`bmopf_controller_curve_operating_point_observations(context, source)` and can
+be serialized with `controller_curve_operating_point_observation_data`.
+
+Across several explicitly supplied snapshots,
+`bmopf_current_law_operating_point_persistence(context, sources)` aligns the
+same component and terminal pair and reports status transitions, derivative
+scale changes, and conditioning changes. This comparison preserves partial
+coverage and unavailable plugin-owned laws; it is local numerical evidence,
+not a global conditioning theorem.
+
+Captured solver primal iterates can be passed through
+`bmopf_current_law_operating_point_trace(context, trace)`. Selection is
+explicit (phase filtering and an optional point budget), and every returned
+probe retains its callback iteration label. A metric-only trace is not promoted
+to a coordinate point: the helper reports the missing-primal coverage boundary
+instead of reconstructing values from solver logs. For MadNLP this boundary is
+also available as the explicit `madnlp_primal_capture_capability()` report.

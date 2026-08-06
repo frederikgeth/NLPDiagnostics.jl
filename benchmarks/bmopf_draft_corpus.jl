@@ -32,7 +32,7 @@ using SHA
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
-const _RUNNER_VERSION = "bmopf-draft-corpus-v8"
+const _RUNNER_VERSION = "bmopf-draft-corpus-v9"
 
 const _DEFAULT_CASES = [
     "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
@@ -70,7 +70,7 @@ function _result_field_units()
         family = Symbol(lowercase(strip(parts[1])))
         unit = Symbol(lowercase(strip(parts[2])))
         unit in (:si, :pu, :model) || error("NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS unit must be si, pu, or model, got '$unit'")
-        family in (:bus_voltage, :line_current, :load_current, :source_current,
+        family in (:bus_voltage, :line_current, :load_current, :generator_current, :generator_power, :source_current,
                    :ibr_current, :ibr_power, :switch_current, :ground_current) ||
             error("unknown NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS family '$family'")
         haskey(units, family) && error("duplicate NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS family '$family'")
@@ -195,6 +195,37 @@ function _env_flag(name; default = false)
     raw in ("1", "true", "yes", "on") && return true
     raw in ("0", "false", "no", "off") && return false
     error("$name must be a boolean (true/false), got '$raw'")
+end
+
+function _controller_curve_profile_data(context, point)
+    observations = NLPDiagnostics.bmopf_controller_curve_operating_point_observations(
+        context, point; result_units = :model,
+    )
+    families = sort!(collect(Set(string(observation.curve_family) for observation in observations)))
+    statuses = sort!(collect(Set(string(observation.status) for observation in observations)))
+    semantics = sort!(collect(Set(string(observation.monitor_semantics) for observation in observations)))
+    exact_count = count(
+        observation -> observation.monitor_semantics == :exact_public_monitored_voltage,
+        observations,
+    )
+    proxy_count = count(
+        observation -> observation.monitor_semantics == :terminal_pair_magnitude_proxy,
+        observations,
+    )
+    return Dict{String,Any}(
+        "observations" => NLPDiagnostics.controller_curve_operating_point_observation_data(observations),
+        "observation_count" => length(observations),
+        "families" => families,
+        "statuses" => statuses,
+        "monitor_semantics" => semantics,
+        "exact_monitor_count" => exact_count,
+        "proxy_monitor_count" => proxy_count,
+        "equation_residual_count" => count(observation -> !isnothing(observation.equation_residual), observations),
+        "cap_violation_count" => count(
+            observation -> !isnothing(observation.cap_violation) && observation.cap_violation > 0.0,
+            observations,
+        ),
+    )
 end
 
 function _bmopf_integrity_preflight(network)
@@ -374,6 +405,10 @@ function main()
                           by = finding -> (-Int(finding.severity), string(finding.code)))
                 end
                 profile_data = NLPDiagnostics.profile_result_data(profile_run.result)
+                controller_curve_data = _controller_curve_profile_data(
+                    profile_run.context, profile_run.result.profile.evaluation.point,
+                )
+                profile_data["bmopf_controller_curve_observations"] = controller_curve_data
                 profile_data["bmopf_constraint_feasibility_field_attribution"] =
                     NLPDiagnostics.report_data(
                         NLPDiagnostics.bmopf_constraint_feasibility_field_attribution(

@@ -99,6 +99,91 @@ function _trace_summary(trace)
     )
 end
 
+"""Summarize controller-curve persistence evidence retained beside a trace."""
+function _current_law_trace_summary(current_law_trace)
+    current_law_trace isa AbstractDict || return Dict{String,Any}(
+        "available" => false,
+    )
+    persistence = get(current_law_trace, "persistence_report", Dict())
+    persistence isa AbstractDict || (persistence = Dict())
+    metadata = get(persistence, "metadata", Dict())
+    metadata isa AbstractDict || (metadata = Dict())
+    finding_codes = _count_codes(persistence)
+    controller_snapshots = get(current_law_trace, "controller_curve_snapshots", Any[])
+    controller_snapshots isa AbstractVector || (controller_snapshots = Any[])
+    family_counts = Dict{String,Int}()
+    status_counts = Dict{String,Int}()
+    semantics_counts = Dict{String,Int}()
+    slopes = Float64[]
+    breakpoint_distances = Float64[]
+    residuals = Float64[]
+    observation_count = 0
+    for snapshot in controller_snapshots
+        snapshot isa AbstractDict || continue
+        observations = get(snapshot, "observations", Any[])
+        observations isa AbstractVector || continue
+        for observation in observations
+            observation isa AbstractDict || continue
+            observation_count += 1
+            for (field, destination) in (
+                ("curve_family", family_counts),
+                ("status", status_counts),
+                ("monitor_semantics", semantics_counts),
+            )
+                value = get(observation, field, nothing)
+                value === nothing && continue
+                key = String(value)
+                destination[key] = get(destination, key, 0) + 1
+            end
+            for (field, destination) in (
+                ("local_slope", slopes),
+                ("breakpoint_distance", breakpoint_distances),
+                ("equation_residual", residuals),
+            )
+                value = get(observation, field, nothing)
+                value isa Number || continue
+                isfinite(Float64(value)) || continue
+                push!(destination, field == "equation_residual" ? abs(Float64(value)) : Float64(value))
+            end
+        end
+    end
+    result = Dict{String,Any}(
+        "available" => true,
+        "selected_binding_count" => get(
+            get(current_law_trace, "metadata", Dict()),
+            "trace_selected_binding_count", nothing,
+        ),
+        "snapshot_count" => get(metadata,
+            "bmopf_current_law_operating_point_snapshot_count", nothing),
+        "controller_curve_status_changes" => get(metadata,
+            "bmopf_controller_curve_changed_status_count", "0"),
+        "controller_curve_coverage_changes" => get(metadata,
+            "bmopf_controller_curve_changed_coverage_count", "0"),
+        "controller_curve_slope_changes" => get(metadata,
+            "bmopf_controller_curve_changed_slope_count", "0"),
+        "finding_codes" => finding_codes,
+        "controller_curve_snapshot_count" => length(controller_snapshots),
+        "controller_curve_observation_count" => observation_count,
+        "controller_curve_family_counts" => family_counts,
+        "controller_curve_status_counts" => status_counts,
+        "controller_curve_monitor_semantics_counts" => semantics_counts,
+        "controller_curve_local_slope" => _metric_summary(slopes),
+        "controller_curve_breakpoint_distance" => _metric_summary(breakpoint_distances),
+        "controller_curve_absolute_equation_residual" => _metric_summary(residuals),
+    )
+    return result
+end
+
+function _metric_summary(values::AbstractVector{<:Real})
+    isempty(values) && return nothing
+    return Dict{String,Any}(
+        "sample_count" => length(values),
+        "minimum" => minimum(values),
+        "mean" => sum(values) / length(values),
+        "maximum" => maximum(values),
+    )
+end
+
 function _finding_rows(finding)
     rows = Set{Int}()
     for evidence in get(finding, "evidence", Any[])
@@ -300,6 +385,14 @@ function main()
     family_perturbation_termination_counts = Dict{String,Int}()
     family_perturbation_by_family = Dict{String,Any}()
     bmopf_profile_finding_codes = Dict{String,Int}()
+    controller_curve_trace_finding_codes = Dict{String,Int}()
+    controller_curve_trace_status_changes = Int[]
+    controller_curve_trace_coverage_changes = Int[]
+    controller_curve_trace_slope_changes = Int[]
+    controller_curve_trace_observation_counts = Int[]
+    controller_curve_trace_family_counts = Dict{String,Int}()
+    controller_curve_trace_status_counts = Dict{String,Int}()
+    controller_curve_trace_semantics_counts = Dict{String,Int}()
     iteration_counts = Int[]
     for entry in get(index, "cases", Any[])
         name = String(get(entry, "name", "unknown"))
@@ -331,6 +424,41 @@ function main()
             trace = get(record, "iteration_trace", Dict{String,Any}())
             trace_summary = _trace_summary(trace)
             summary["trace"] = trace_summary
+            controller_curve_trace = _current_law_trace_summary(
+                get(record, "current_law_trace", nothing),
+            )
+            summary["current_law_trace"] = controller_curve_trace
+            if get(controller_curve_trace, "available", false)
+                _merge_counts!(controller_curve_trace_finding_codes,
+                    get(controller_curve_trace, "finding_codes", Dict()))
+                raw_observation_count = get(controller_curve_trace,
+                    "controller_curve_observation_count", nothing)
+                try
+                    raw_observation_count !== nothing && push!(
+                        controller_curve_trace_observation_counts,
+                        parse(Int, string(raw_observation_count)),
+                    )
+                catch
+                end
+                for (field, destination) in (
+                    ("controller_curve_family_counts", controller_curve_trace_family_counts),
+                    ("controller_curve_status_counts", controller_curve_trace_status_counts),
+                    ("controller_curve_monitor_semantics_counts", controller_curve_trace_semantics_counts),
+                )
+                    _merge_counts!(destination, get(controller_curve_trace, field, Dict()))
+                end
+                for (key, destination) in (
+                    ("controller_curve_status_changes", controller_curve_trace_status_changes),
+                    ("controller_curve_coverage_changes", controller_curve_trace_coverage_changes),
+                    ("controller_curve_slope_changes", controller_curve_trace_slope_changes),
+                )
+                    raw = get(controller_curve_trace, key, nothing)
+                    try
+                        raw !== nothing && push!(destination, parse(Int, string(raw)))
+                    catch
+                    end
+                end
+            end
             push!(iteration_counts, Int(get(trace_summary, "record_count", 0)))
             solver_profile = get(record, "solver_profile", Dict{String,Any}())
             nested_profile = get(solver_profile, "solver_profile", Dict{String,Any}())
@@ -441,6 +569,14 @@ function main()
         "solver_result_finding_codes" => trace_finding_codes,
         "bmopf_context_finding_codes" => bmopf_finding_codes,
         "bmopf_profile_finding_codes" => bmopf_profile_finding_codes,
+        "controller_curve_trace_finding_codes" => controller_curve_trace_finding_codes,
+        "controller_curve_trace_status_changes" => _metric_summary(controller_curve_trace_status_changes),
+        "controller_curve_trace_coverage_changes" => _metric_summary(controller_curve_trace_coverage_changes),
+        "controller_curve_trace_slope_changes" => _metric_summary(controller_curve_trace_slope_changes),
+        "controller_curve_trace_observation_counts" => _metric_summary(controller_curve_trace_observation_counts),
+        "controller_curve_trace_family_counts" => controller_curve_trace_family_counts,
+        "controller_curve_trace_status_counts" => controller_curve_trace_status_counts,
+        "controller_curve_trace_monitor_semantics_counts" => controller_curve_trace_semantics_counts,
         "failure_category_counts" => failure_category_counts,
         "solver_log_evidence_case_count" => solver_log_evidence_case_count,
         "solver_log_observation_count" => solver_log_observation_count,

@@ -114,11 +114,82 @@ function _bmopf_integrity_preflight(network)
     )
 end
 
-function _multiconductor_contract_data(context)
+function _multiconductor_contract_data(context; operating_source = nothing)
     voltage_ports = NLPDiagnostics.bmopf_terminal_port_metadata(context)
     voltage_maps = NLPDiagnostics.bmopf_terminal_port_coordinate_maps(context)
     voltage_connections = NLPDiagnostics.bmopf_terminal_port_connections(context)
     voltage_report = NLPDiagnostics.bmopf_terminal_port_report(context)
+    port_assembly = NLPDiagnostics.bmopf_terminal_port_assembly(context)
+    port_assembly_report = NLPDiagnostics.bmopf_terminal_port_assembly_report(context)
+    current_laws = NLPDiagnostics.bmopf_current_law_fingerprints(context)
+    current_law_report = NLPDiagnostics.bmopf_current_law_report(context)
+    operating_probes = isnothing(operating_source) ?
+        NLPDiagnostics.CurrentLawOperatingPointProbe[] :
+        NLPDiagnostics.bmopf_current_law_operating_point_probes(context, operating_source;
+            result_units = :model,
+        )
+    operating_report = isnothing(operating_source) ?
+        NLPDiagnostics.DiagnosticReport() :
+        NLPDiagnostics.bmopf_current_law_operating_point_report(context, operating_source;
+            result_units = :model,
+        )
+    controller_curve_observations = isnothing(operating_source) ?
+        NLPDiagnostics.ControllerCurveOperatingPointObservation[] :
+        NLPDiagnostics.bmopf_controller_curve_operating_point_observations(
+            context, operating_source; result_units = :model,
+        )
+    controller_curve_families = String[]
+    controller_curve_statuses = String[]
+    controller_curve_semantics = String[]
+    controller_curve_breakpoint_proximity_count = 0
+    controller_curve_invalid_profile_count = 0
+    controller_curve_exact_monitor_count = 0
+    controller_curve_proxy_monitor_count = 0
+    controller_curve_equation_residual_count = 0
+    controller_curve_cap_violation_count = 0
+    for probe in operating_probes
+        metadata = probe.metadata
+        family = get(metadata, "controller_curve_family", nothing)
+        family isa AbstractString && push!(controller_curve_families, String(family))
+        status = get(metadata, "controller_curve_status", nothing)
+        status isa AbstractString && begin
+            push!(controller_curve_statuses, String(status))
+            status == "breakpoint_proximity" && (controller_curve_breakpoint_proximity_count += 1)
+            status == "invalid_profile" && (controller_curve_invalid_profile_count += 1)
+        end
+        semantics = get(metadata, "controller_curve_voltage_semantics", nothing)
+        semantics isa AbstractString && begin
+            push!(controller_curve_semantics, String(semantics))
+            semantics == "exact_public_monitored_voltage" && (controller_curve_exact_monitor_count += 1)
+            semantics == "terminal_pair_magnitude_proxy" && (controller_curve_proxy_monitor_count += 1)
+        end
+        for curve_family in ("volt_var", "volt_watt")
+            prefix = "controller_curve_$(curve_family)_"
+            secondary_status = get(metadata, "$(prefix)status", nothing)
+            secondary_status isa AbstractString || continue
+            push!(controller_curve_families, curve_family)
+            push!(controller_curve_statuses, String(secondary_status))
+            secondary_status == "breakpoint_proximity" && (controller_curve_breakpoint_proximity_count += 1)
+            secondary_status == "invalid_profile" && (controller_curve_invalid_profile_count += 1)
+            secondary_semantics = get(metadata, "$(prefix)voltage_semantics", nothing)
+            secondary_semantics isa AbstractString || continue
+            push!(controller_curve_semantics, String(secondary_semantics))
+            secondary_semantics == "exact_public_monitored_voltage" && (controller_curve_exact_monitor_count += 1)
+            secondary_semantics == "terminal_pair_magnitude_proxy" && (controller_curve_proxy_monitor_count += 1)
+        end
+        q_residual = try
+            parse(Float64, get(metadata, "controller_curve_volt_var_equation_residual", "NaN"))
+        catch
+            NaN
+        end
+        isfinite(q_residual) && (controller_curve_equation_residual_count += 1)
+        cap_violation = try
+            parse(Float64, get(metadata, "controller_curve_volt_watt_cap_violation", "NaN"))
+        catch
+            NaN
+        end
+        isfinite(cap_violation) && cap_violation > 0.0 && (controller_curve_cap_violation_count += 1)
+    end
     current_ports = NLPDiagnostics.bmopf_terminal_current_port_metadata(context)
     current_maps = NLPDiagnostics.bmopf_terminal_current_port_coordinate_maps(context)
     current_report = NLPDiagnostics.bmopf_terminal_current_port_report(context)
@@ -130,11 +201,35 @@ function _multiconductor_contract_data(context)
     complex_constitutive_report = NLPDiagnostics.bmopf_terminal_complex_constitutive_map_report(context)
     passive_current_maps = NLPDiagnostics.bmopf_passive_network_current_maps(context)
     passive_current_report = NLPDiagnostics.bmopf_passive_network_current_map_report(context)
+    passive_current_model_maps = NLPDiagnostics.bmopf_passive_network_current_maps(context; basis = :model)
+    passive_current_model_report = NLPDiagnostics.bmopf_passive_network_current_map_report(context; basis = :model)
     return Dict{String,Any}(
         "voltage_port_count" => length(voltage_ports),
         "voltage_coordinate_map_count" => length(voltage_maps),
         "voltage_connection_count" => length(voltage_connections),
         "voltage_report_finding_count" => length(voltage_report.findings),
+        "port_assembly_component_count" => port_assembly.component_count,
+        "port_assembly_connected_component_count" => port_assembly.connected_component_count,
+        "port_assembly_finding_count" => length(port_assembly_report.findings),
+        "current_law_fingerprint_count" => length(current_laws),
+        "current_law_finding_count" => length(current_law_report.findings),
+        "current_law_families" => sort!(collect(Set(string(item.law_family) for item in current_laws))),
+        "current_law_operating_point_probe_count" => length(operating_probes),
+        "current_law_operating_point_finding_count" => length(operating_report.findings),
+        "current_law_operating_point_statuses" => sort!(collect(Set(string(item.domain_status) for item in operating_probes))),
+        "controller_curve_observation_count" => length(controller_curve_observations),
+        "controller_curve_observations" => NLPDiagnostics.controller_curve_operating_point_observation_data(
+            controller_curve_observations,
+        ),
+        "controller_curve_families" => sort!(collect(Set(controller_curve_families))),
+        "controller_curve_statuses" => sort!(collect(Set(controller_curve_statuses))),
+        "controller_curve_voltage_semantics" => sort!(collect(Set(controller_curve_semantics))),
+        "controller_curve_breakpoint_proximity_count" => controller_curve_breakpoint_proximity_count,
+        "controller_curve_invalid_profile_count" => controller_curve_invalid_profile_count,
+        "controller_curve_exact_monitor_count" => controller_curve_exact_monitor_count,
+        "controller_curve_proxy_monitor_count" => controller_curve_proxy_monitor_count,
+        "controller_curve_equation_residual_count" => controller_curve_equation_residual_count,
+        "controller_curve_cap_violation_count" => controller_curve_cap_violation_count,
         "current_port_count" => length(current_ports),
         "current_coordinate_map_count" => length(current_maps),
         "current_report_finding_count" => length(current_report.findings),
@@ -152,6 +247,9 @@ function _multiconductor_contract_data(context)
         "passive_network_current_map_count" => length(passive_current_maps),
         "passive_network_current_map_finding_count" => length(passive_current_report.findings),
         "passive_network_current_map_ranks" => [LinearAlgebra.rank(map.matrix) for map in passive_current_maps],
+        "passive_network_current_model_map_count" => length(passive_current_model_maps),
+        "passive_network_current_model_map_finding_count" => length(passive_current_model_report.findings),
+        "passive_network_current_model_map_ranks" => [LinearAlgebra.rank(map.matrix) for map in passive_current_model_maps],
     )
 end
 
@@ -198,7 +296,9 @@ function main()
                 ),
             )
             data = NLPDiagnostics.profile_result_data(run.result)
-            multiconductor_contract = _multiconductor_contract_data(run.context)
+            multiconductor_contract = _multiconductor_contract_data(
+                run.context; operating_source = run.result.profile.evaluation.point,
+            )
             evaluation = run.result.profile.evaluation
             variable_count = length(evaluation.point.variables)
             constraint_row_count = length(evaluation.constraint_sources)

@@ -188,6 +188,38 @@ bmopf_terminal_port_coordinate_semantics(context) = _bmopf_extension(:BMOPFTools
 """Optional BMOPFTools staged-OPF component-to-bus port-connection hook."""
 bmopf_terminal_port_connections(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to inspect staged BMOPF port connections")._bmopf_terminal_port_connections(context)
+"""Return the BMOPFTools component/bus port assembly summary."""
+bmopf_terminal_port_assembly(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF port assembly")._bmopf_terminal_port_assembly(context)
+"""Report BMOPFTools port assembly connected components and endpoint validity."""
+bmopf_terminal_port_assembly_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to report staged BMOPF port assembly")._bmopf_terminal_port_assembly_report(context)
+"""Return static BMOPFTools nonlinear-current law fingerprints."""
+bmopf_current_law_fingerprints(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF current laws")._bmopf_current_law_fingerprints_public(context)
+"""Report BMOPFTools nonlinear-current law domains and derivative hazards."""
+bmopf_current_law_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to report staged BMOPF current laws")._bmopf_current_law_report_public(context)
+"""Probe BMOPF current laws at an explicit evaluation point or saved result."""
+bmopf_current_law_operating_point_probes(context, source; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for current-law operating-point probes")._bmopf_current_law_operating_point_probes_public(context, source; kwargs...)
+"""Return typed public Volt-var/Volt-watt observations at one point."""
+bmopf_controller_curve_operating_point_observations(context, source; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for controller-curve observations")._bmopf_controller_curve_operating_point_observations_public(context, source; kwargs...)
+"""Report domain and derivative evidence for BMOPF current laws at one point."""
+bmopf_current_law_operating_point_report(context, source; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for current-law operating-point reports")._bmopf_current_law_operating_point_report_public(context, source; kwargs...)
+"""Compare BMOPF current-law operating-point probes across explicit snapshots."""
+bmopf_current_law_operating_point_persistence(context, sources; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for current-law persistence reports")._bmopf_current_law_operating_point_persistence_public(context, sources; kwargs...)
+"""Probe BMOPF current laws over explicitly captured solver iterates."""
+bmopf_current_law_operating_point_trace(context, trace; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for solver-iterate current-law traces")._bmopf_current_law_operating_point_trace_public(context, trace; kwargs...)
 """Return BMOPFTools rectangular terminal-current coordinate ports."""
 bmopf_terminal_current_port_metadata(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to inspect staged BMOPF current ports")._bmopf_terminal_current_port_metadata(context)
@@ -222,11 +254,11 @@ bmopf_terminal_complex_constitutive_maps(context) = _bmopf_extension(:BMOPFTools
 bmopf_terminal_complex_constitutive_map_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to report phase-aware BMOPF constitutive maps")._bmopf_terminal_complex_constitutive_map_report(context)
 """Return the passive-network current-from-voltage map from public BMOPFTools Ybus."""
-bmopf_passive_network_current_maps(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
-    "BMOPFTools and JuMP support are required to inspect passive network current maps")._bmopf_passive_network_current_maps(context)
+bmopf_passive_network_current_maps(context; basis::Symbol = :si) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect passive network current maps")._bmopf_passive_network_current_maps(context; basis = basis)
 """Validate passive-network current maps and their unit basis."""
-bmopf_passive_network_current_map_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
-    "BMOPFTools and JuMP support are required to report passive network current maps")._bmopf_passive_network_current_map_report(context)
+bmopf_passive_network_current_map_report(context; basis::Symbol = :si) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to report passive network current maps")._bmopf_passive_network_current_map_report(context; basis = basis)
 """Optional BMOPFTools staged-OPF terminal-port validation report hook."""
 bmopf_terminal_port_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to inspect staged BMOPF terminal ports")._bmopf_terminal_port_report(context)

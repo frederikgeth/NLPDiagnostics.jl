@@ -29,7 +29,12 @@ through `bmopf_terminal_current_port_metadata(context)`,
 `bmopf_terminal_current_port_coordinate_semantics(context)`. They use the
 public BMOPFTools current-key registry and deliberately expose only registered
 conductor coordinates; use `bmopf_terminal_current_port_report(context)` to
-inspect coverage. The adapter also declares conservative component-level
+inspect coverage. Assembly evidence is available through
+`bmopf_terminal_port_assembly(context)` and
+`bmopf_terminal_port_assembly_report(context)`. This graph groups declared
+component instances by attachment connections and reports disconnected groups
+as structural evidence; it does not decide whether an island is physically
+valid or whether a skipped port is a modelling error. The adapter also declares conservative component-level
 common-mode expectations for explicit-neutral WYE ports and DELTA ports. Inspect
 them with `bmopf_terminal_port_nullspace_modes(context)` and
 `bmopf_terminal_port_nullspace_mode_report(context)`. These are physical
@@ -52,6 +57,115 @@ finite coefficients. For fixed transformers, use
 map over the ordered ports `[from_real, from_imag, to_real, to_imag]`; its
 report validates the block dimensions and finite-coefficient contract while
 retaining exact structural rank as metadata.
+
+The passive network current contract is exposed through
+`bmopf_passive_network_current_maps(context)`. It wraps the public
+`BMOPFTools.ybus_passive` result as a real block `I = YV` map for lines,
+shunts, capacitors, and passive transformer elements. The map is SI A/V
+evidence and deliberately excludes nonlinear load, generator, and IBR current
+laws. On p.u. staged models the report emits a unit-basis warning until an
+explicit bus/current-base conversion is supplied. Request
+`basis=:model` (or `:pu`) to apply the public per-bus voltage/current bases;
+missing or invalid bases produce a finding rather than a partial conversion.
+
+Static nonlinear-current fingerprints are available through
+`bmopf_current_law_fingerprints(context)` and
+`bmopf_current_law_report(context)`. Public load models are classified as
+constant-power/current/impedance, ZIP, or exponential; generators are marked
+as dispatch-power current laws; shunts/capacitors as linear admittances; and
+IBR controls are classified conservatively from any public control profile.
+Exact IBR equations remain plugin-owned. Constant-power and dispatch-power
+families carry a mathematically grounded zero-voltage singularity warning.
+Unknown differentiability is retained as an explicit finding rather than
+being inferred from variable names.
+
+Generator fingerprints now retain the public bilinear
+`P/Q = (V_r,V_i)·(I_r,I_i)` dispatch equation and configuration. IBRs are
+refined from their public control-profile metadata: constant-PF laws,
+voltage-droop laws, power-sharing profiles, and box-dispatch fallbacks are
+classified separately, with topology, profile, breakpoint, and differentiability
+evidence retained. This is a law-family classification; it does not claim that
+the full plugin control implementation is available to the generic core.
+
+Operating-point probes are available through
+`bmopf_current_law_operating_point_probes(context, source)` and
+`bmopf_current_law_operating_point_report(context, source)`. `source` may be a
+complete `EvaluationPoint` in staged model coordinates or a saved BMOPF result
+dictionary. For public load models, the adapter evaluates the documented
+constant-power/current/impedance, ZIP, and exponential laws and estimates the
+local real 2-by-2 current Jacobian by a guarded central difference. Missing
+terminal coordinates, zero-voltage evaluations, non-finite currents, and
+amplified local derivatives are reported separately. This is numerical
+evidence at the supplied point; it does not replace the static fingerprint and
+does not claim that plugin-owned controller derivatives are smooth. Generator
+and IBR records now also use the public bilinear power equations
+`P = dVᵣ·Iᵣ + dVᵢ·Iᵢ` and `Q = dVᵢ·Iᵣ − dVᵣ·Iᵢ`: probes retain observed P/Q,
+saved-result equation residuals, and a 2-by-4 voltage/current-to-power
+derivative fingerprint. Constant-power-factor IBRs also retain the local
+power-factor equation residual when the profile is valid. Missing current
+coordinates remain explicit coverage evidence rather than being treated as
+zero. Voltage-droop profiles also receive a controller-curve fingerprint:
+the public Volt-var/Volt-watt breakpoint schema is validated, its normalized
+softplus value and local slope are evaluated with the same stable
+`log1pexp`/logistic semantics as BMOPFTools, and the nearest-breakpoint
+distance and smoothing width are retained. The adapter now resolves the public
+monitored-voltage reference (`PG`, `PN`, or `PP`, including `_AVERAGED`) from
+the saved or staged rectangular bus coordinates, and records whether the
+measurement is exact public monitor coverage or a terminal-pair proxy. Legacy
+IBR-level `voltage_aggregation` overrides are preserved. The benchmark contract
+also aggregates curve families, statuses, breakpoint-proximity counts, and
+monitor-coverage semantics per case. When the public device base is available,
+probes additionally report device-base-scaled Volt-var equality residuals and
+Volt-watt cap violations; reports distinguish these numerical observations
+from static profile validation.
+
+Downstream tooling can consume typed observations directly with
+`bmopf_controller_curve_operating_point_observations(context, source)`. Each
+`ControllerCurveOperatingPointObservation` carries the curve family, monitor
+semantics, normalized output, local slope, breakpoint distance, device base,
+and equality/cap evidence without requiring consumers to parse metadata keys.
+The draft-corpus runner stores these observations inside each profile record
+and the corpus summarizer aggregates their family, status, and exact-versus-
+proxy coverage counts, so controller-rich cases can be compared without
+re-running model inspection.
+`summarize_bmopf_controller_campaign.jl` adds descriptive slope,
+breakpoint-distance, residual, and per-component persistence summaries for
+saved-result campaigns; its output deliberately keeps coverage and numerical
+variation separate from any physical interpretation.
+
+For multiple explicit snapshots, use
+`bmopf_current_law_operating_point_persistence(context, sources)`. It aligns
+component, law-family, terminal-pair, and subload identities, then reports
+domain-status transitions and large changes in local derivative scale or
+conditioning. Missing probes remain partial-coverage findings; they are never
+treated as zero derivatives. Persistence is comparative numerical evidence,
+not a global condition bound or a physical failure certificate.
+The saved-result persistence harness also preserves typed controller
+observations at every mapped time point and reports controller status,
+monitor-coverage, and slope-change findings alongside rank and active-set
+persistence.
+
+For solver callbacks that captured primal vectors, use
+`bmopf_current_law_operating_point_trace(context, trace)`. The helper selects
+captured `IterationPointBinding`s by phase and an optional deterministic
+`max_points` budget, runs the same operating-point probes, and retains the
+solver iteration labels beside each snapshot. It also returns a persistence
+report across the selected iterates. Metric-only traces (including the current
+MadNLP callback path) remain in the source trace but produce an explicit
+coverage finding; no iterate is reconstructed from log text. The boundary is
+inspectable directly with `madnlp_primal_capture_capability()`, which records
+why the current public callback is metric-only and what evidence is needed
+before coordinate capture can be enabled.
+
+With `NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS=true`, the solver-trace runner also
+stores typed controller observations for each selected primal iterate. The
+solver-trace summarizer keeps their family, status, monitor semantics, slope,
+breakpoint, and residual distributions beside the solver-phase summary.
+
+The solver-trace summarizer also retains controller-curve persistence evidence:
+status transitions, exact/proxy monitor-coverage transitions, slope changes,
+and associated finding codes are summarized separately from generic solver
+iteration counts.
 
 The physical bus voltage base remains declaration evidence
 (`physical_voltage_base_V` and the semantics description); it is deliberately
@@ -509,8 +623,8 @@ post-build/pre-KCL hook; callers must use only lifecycle stages legal at that
 point.
 
 `bmopf_result_voltage_point(context, result; result_units = :si)` maps public
-rectangular bus-voltage records plus line, load, voltage-source, IBR, switch,
-and ground current records. `result_units=:si` converts physical values through
+rectangular bus-voltage records plus line, load, generator, voltage-source,
+IBR, switch, and ground current records. `result_units=:si` converts physical values through
 public per-bus voltage/current bases; `result_units=:pu` and `:model` accept
 already-scaled coordinates. The function returns mapped, registered,
 unresolved, and fallback counts by semantic family. Coordinates not represented
@@ -523,8 +637,9 @@ Because BMOPF result files can be mixed-unit exports, callers may override the
 global default per semantic family with `field_units`, for example
 `field_units = Dict(:bus_voltage => :si, :line_current => :pu,
 :ibr_power => :model)`. Supported families are `bus_voltage`, `line_current`,
-`load_current`, `source_current`, `ibr_current`, `ibr_power`, `switch_current`,
-and `ground_current`; omitted families inherit `result_units`. The normalized
+`load_current`, `generator_current`, `generator_power`, `source_current`,
+`ibr_current`, `ibr_power`, `switch_current`, and `ground_current`; omitted
+families inherit `result_units`. The normalized
 policy is retained in the mapping and report metadata, so the unit convention
 used by a numerical probe is inspectable rather than inferred from a filename.
 

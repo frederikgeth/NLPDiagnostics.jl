@@ -71,6 +71,14 @@ function madnlp_iteration_trace_callback(args...; kwargs...)
     ))
 end
 
+"""Report whether the loaded MadNLP callback exposes safe primal coordinates."""
+function madnlp_primal_capture_capability(args...; kwargs...)
+    throw(ArgumentError(
+        "NLPDiagnostics' MadNLP extension is unavailable. Load MadNLP before " *
+        "checking callback primal-capture capability.",
+    ))
+end
+
 function ipopt_optimize_with_iteration_trace!(model; kwargs...)
     throw(ArgumentError(
         "NLPDiagnostics' Ipopt iteration-capture extension is unavailable. " *
@@ -1332,6 +1340,67 @@ function iteration_trace_data(trace::SolverIterationTrace)
         "segments" => segment_data,
         "bindings" => binding_data,
     )
+end
+
+"""Serialize a BMOPF current-law trace without solver-internal objects."""
+function current_law_operating_point_trace_data(
+    trace::CurrentLawOperatingPointTrace,
+)
+    finite_or_nothing(value) = value isa Real && !isfinite(value) ? nothing : value
+    probe_data = [[Dict{String,Any}(
+        "component_type" => string(probe.component_type),
+        "component_id" => probe.component_id,
+        "law_family" => string(probe.law_family),
+        "terminal_labels" => copy(probe.terminal_labels),
+        "voltage_magnitude" => finite_or_nothing(probe.voltage_magnitude),
+        "current_magnitude" => finite_or_nothing(probe.current_magnitude),
+        "derivative_norm" => finite_or_nothing(probe.derivative_norm),
+        "derivative_condition" => finite_or_nothing(probe.derivative_condition),
+        "domain_status" => string(probe.domain_status),
+        "finite" => probe.finite,
+        "metadata" => copy(probe.metadata),
+    ) for probe in snapshot] for snapshot in trace.probes]
+    binding_data = [Dict{String,Any}(
+        "iteration" => binding.record.iteration,
+        "phase" => string(binding.record.phase),
+        "segment" => binding.segment,
+        "selector" => string(binding.selector),
+        "label" => binding.point.label,
+    ) for binding in trace.bindings]
+    return Dict{String,Any}(
+        "metadata" => copy(trace.metadata),
+        "source_trace" => iteration_trace_data(trace.trace),
+        "selected_bindings" => binding_data,
+        "probe_snapshots" => probe_data,
+        "snapshot_reports" => [report_data(report) for report in trace.snapshot_reports],
+        "persistence_report" => report_data(trace.persistence_report),
+    )
+end
+
+"""Serialize typed controller-curve operating-point observations."""
+function controller_curve_operating_point_observation_data(
+    observations::AbstractVector{<:ControllerCurveOperatingPointObservation},
+)
+    return [Dict{String,Any}(
+        "component_type" => string(observation.component_type),
+        "component_id" => observation.component_id,
+        "curve_family" => string(observation.curve_family),
+        "terminal_labels" => copy(observation.terminal_labels),
+        "voltage_reference" => string(observation.voltage_reference),
+        "aggregation" => string(observation.aggregation),
+        "monitor_semantics" => string(observation.monitor_semantics),
+        "monitored_voltage" => observation.monitored_voltage,
+        "output_normalized" => observation.output_normalized,
+        "local_slope" => observation.local_slope,
+        "breakpoint_distance" => observation.breakpoint_distance,
+        "smoothing_epsilon" => observation.smoothing_epsilon,
+        "device_base" => observation.device_base,
+        "expected_output" => observation.expected_output,
+        "equation_residual" => observation.equation_residual,
+        "cap_violation" => observation.cap_violation,
+        "status" => string(observation.status),
+        "metadata" => copy(observation.metadata),
+    ) for observation in observations]
 end
 
 """Run point diagnostics for a retained trace and annotate its provenance."""

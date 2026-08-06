@@ -14,6 +14,12 @@ Example:
 NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT=/path/to/BMOPFDraftData/benchmarks \
 NLPDIAGNOSTICS_BMOPF_CASES=ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json \
 julia --project=work/benchmark-environment benchmarks/bmopf_solver_trace.jl
+
+Set `NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS=true` to retain primal callback
+vectors and serialize current-law probes. `NLPDIAGNOSTICS_BMOPF_TRACE_PROBE_MAX_POINTS`
+limits the selected iterate snapshots (zero means unlimited), while
+`NLPDIAGNOSTICS_BMOPF_TRACE_PROBE_PHASE` optionally selects `regular`,
+`restoration`, or `robust` callbacks.
 """
 
 using NLPDiagnostics
@@ -33,7 +39,7 @@ end
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
-const _RUNNER_VERSION = "bmopf-solver-trace-v4"
+const _RUNNER_VERSION = "bmopf-solver-trace-v6"
 const _DEFAULT_CASES = [
     "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
 ]
@@ -53,6 +59,15 @@ function _env_int(name, default)
     end
     value >= 0 || error("$name must be nonnegative")
     return value
+end
+
+function _trace_probe_phase()
+    raw = lowercase(strip(get(ENV, "NLPDIAGNOSTICS_BMOPF_TRACE_PROBE_PHASE", "")))
+    isempty(raw) && return nothing
+    raw in ("regular", "restoration", "robust") || error(
+        "NLPDIAGNOSTICS_BMOPF_TRACE_PROBE_PHASE must be regular, restoration, robust, or empty",
+    )
+    return Symbol(raw)
 end
 
 function _option_value(raw::AbstractString)
@@ -348,6 +363,38 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                 "model_variable_count" => variable_count)
         end
         run = _solve_with_trace(model, solver_name; capture_points)
+        trace_probe_max_points = _env_int(
+            "NLPDIAGNOSTICS_BMOPF_TRACE_PROBE_MAX_POINTS", 32,
+        )
+        trace_probe_max_points == 0 && (trace_probe_max_points = nothing)
+        current_law_trace_data = if capture_points || solver_name == "madnlp"
+            current_law_trace = NLPDiagnostics.bmopf_current_law_operating_point_trace(
+                context, run.trace;
+                phase = _trace_probe_phase(), max_points = trace_probe_max_points,
+            )
+            serialized_trace = NLPDiagnostics.current_law_operating_point_trace_data(current_law_trace)
+            if capture_points && !isempty(current_law_trace.bindings)
+                controller_curve_snapshots = Any[]
+                for binding in current_law_trace.bindings
+                    point = binding.point
+                    observations = NLPDiagnostics.bmopf_controller_curve_operating_point_observations(
+                        context, point; result_units = :model,
+                    )
+                    push!(controller_curve_snapshots, Dict{String,Any}(
+                        "iteration" => binding.record.iteration,
+                        "phase" => string(binding.record.phase),
+                        "segment" => binding.segment,
+                        "label" => binding.point.label,
+                        "observation_count" => length(observations),
+                        "observations" => NLPDiagnostics.controller_curve_operating_point_observation_data(observations),
+                    ))
+                end
+                serialized_trace["controller_curve_snapshots"] = controller_curve_snapshots
+            end
+            serialized_trace
+        else
+            nothing
+        end
         solver_log_evidence = capture_logs ?
             _solver_log_evidence(solver_name, solver_log_path) : nothing
         trace_data = NLPDiagnostics.iteration_trace_data(run.trace)
@@ -408,6 +455,7 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "kcl_allocations" => kcl_timing.bytes,
             "integrity_preflight" => preflight,
             "iteration_trace" => trace_data,
+            "current_law_trace" => current_law_trace_data,
             "solver_profile" => solver_data,
             "bmopf_profile" => bmopf_data,
             "family_perturbations" => family_perturbations,
@@ -499,6 +547,8 @@ function main()
         "runner_version" => _RUNNER_VERSION,
         "benchmark_root" => abspath(root), "solver" => solver_name,
         "capture_points" => capture_points,
+        "trace_probe_max_points" => get(ENV, "NLPDIAGNOSTICS_BMOPF_TRACE_PROBE_MAX_POINTS", "32"),
+        "trace_probe_phase" => get(ENV, "NLPDIAGNOSTICS_BMOPF_TRACE_PROBE_PHASE", ""),
         "capture_logs" => _env_flag("NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS"),
         "solver_options" => solver_options,
         "per_unit" => per_unit,

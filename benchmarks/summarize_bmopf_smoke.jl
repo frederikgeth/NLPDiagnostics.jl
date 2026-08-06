@@ -169,6 +169,17 @@ function main()
     multiconductor_constitutive_ranks = Float64[]
     multiconductor_complex_constitutive_ranks = Float64[]
     multiconductor_passive_current_ranks = Float64[]
+    multiconductor_passive_current_model_ranks = Float64[]
+    multiconductor_current_law_families = Dict{String,Int}()
+    multiconductor_current_law_operating_statuses = Dict{String,Int}()
+    multiconductor_controller_curve_families = Dict{String,Int}()
+    multiconductor_controller_curve_statuses = Dict{String,Int}()
+    multiconductor_controller_curve_semantics = Dict{String,Int}()
+    controller_curve_profile_case_count = 0
+    controller_curve_profile_observation_counts = Float64[]
+    controller_curve_profile_families = Dict{String,Int}()
+    controller_curve_profile_statuses = Dict{String,Int}()
+    controller_curve_profile_semantics = Dict{String,Int}()
     multiconductor_physical_mode_categories = Dict{String,Int}()
     for entry in index["cases"]
         record_path = joinpath(output_dir, entry["result_file"])
@@ -254,11 +265,15 @@ function main()
                 contract_finding_count = 0
                 for field in (
                     "voltage_report_finding_count",
+                    "port_assembly_finding_count",
+                    "current_law_finding_count",
+                    "current_law_operating_point_finding_count",
                     "current_report_finding_count",
                     "physical_mode_finding_count",
                     "constitutive_map_finding_count",
                     "complex_constitutive_map_finding_count",
                     "passive_network_current_map_finding_count",
+                    "passive_network_current_model_map_finding_count",
                 )
                     raw = get(multiconductor_contract, field, nothing)
                     raw isa Number || continue
@@ -272,6 +287,17 @@ function main()
                     "voltage_port_count",
                     "voltage_coordinate_map_count",
                     "voltage_connection_count",
+                    "port_assembly_component_count",
+                    "port_assembly_connected_component_count",
+                    "current_law_fingerprint_count",
+                    "current_law_operating_point_probe_count",
+                    "controller_curve_observation_count",
+                    "controller_curve_breakpoint_proximity_count",
+                    "controller_curve_invalid_profile_count",
+                    "controller_curve_exact_monitor_count",
+                    "controller_curve_proxy_monitor_count",
+                    "controller_curve_equation_residual_count",
+                    "controller_curve_cap_violation_count",
                     "current_port_count",
                     "current_coordinate_map_count",
                     "current_skipped_count",
@@ -279,6 +305,7 @@ function main()
                     "constitutive_map_count",
                     "complex_constitutive_map_count",
                     "passive_network_current_map_count",
+                    "passive_network_current_model_map_count",
                 )
                     raw = get(multiconductor_contract, field, nothing)
                     raw isa Number || continue
@@ -309,12 +336,60 @@ function main()
                         push!(multiconductor_passive_current_ranks, Float64(rank))
                     end
                 end
+                passive_model_ranks = get(multiconductor_contract, "passive_network_current_model_map_ranks", Any[])
+                if passive_model_ranks isa AbstractVector
+                    for rank in passive_model_ranks
+                        rank isa Number || continue
+                        isfinite(Float64(rank)) || continue
+                        push!(multiconductor_passive_current_model_ranks, Float64(rank))
+                    end
+                end
                 categories = get(multiconductor_contract, "physical_mode_categories", Any[])
                 if categories isa AbstractVector
                     for category in categories
                         key = String(category)
                         multiconductor_physical_mode_categories[key] =
                             get(multiconductor_physical_mode_categories, key, 0) + 1
+                    end
+                end
+                law_families = get(multiconductor_contract, "current_law_families", Any[])
+                if law_families isa AbstractVector
+                    for family in law_families
+                        key = String(family)
+                        multiconductor_current_law_families[key] =
+                            get(multiconductor_current_law_families, key, 0) + 1
+                    end
+                end
+                operating_statuses = get(multiconductor_contract, "current_law_operating_point_statuses", Any[])
+                if operating_statuses isa AbstractVector
+                    for status in operating_statuses
+                        key = String(status)
+                        multiconductor_current_law_operating_statuses[key] =
+                            get(multiconductor_current_law_operating_statuses, key, 0) + 1
+                    end
+                end
+                curve_families = get(multiconductor_contract, "controller_curve_families", Any[])
+                if curve_families isa AbstractVector
+                    for family in curve_families
+                        key = String(family)
+                        multiconductor_controller_curve_families[key] =
+                            get(multiconductor_controller_curve_families, key, 0) + 1
+                    end
+                end
+                curve_statuses = get(multiconductor_contract, "controller_curve_statuses", Any[])
+                if curve_statuses isa AbstractVector
+                    for status in curve_statuses
+                        key = String(status)
+                        multiconductor_controller_curve_statuses[key] =
+                            get(multiconductor_controller_curve_statuses, key, 0) + 1
+                    end
+                end
+                curve_semantics = get(multiconductor_contract, "controller_curve_voltage_semantics", Any[])
+                if curve_semantics isa AbstractVector
+                    for semantics in curve_semantics
+                        key = String(semantics)
+                        multiconductor_controller_curve_semantics[key] =
+                            get(multiconductor_controller_curve_semantics, key, 0) + 1
                     end
                 end
             end
@@ -334,6 +409,27 @@ function main()
             summary["floating_neutral_candidate_mode_count"] = candidate_modes
             if analysis_mode != "structural" && haskey(record, "profile")
                 profile_case_count += 1
+                controller_curve_profile = get(profile, "bmopf_controller_curve_observations", nothing)
+                if controller_curve_profile isa AbstractDict
+                    controller_curve_profile_case_count += 1
+                    observation_count = get(controller_curve_profile, "observation_count", nothing)
+                    observation_count isa Number && push!(
+                        controller_curve_profile_observation_counts,
+                        Float64(observation_count),
+                    )
+                    for (field, destination) in (
+                        ("families", controller_curve_profile_families),
+                        ("statuses", controller_curve_profile_statuses),
+                        ("monitor_semantics", controller_curve_profile_semantics),
+                    )
+                        values = get(controller_curve_profile, field, Any[])
+                        values isa AbstractVector || continue
+                        for value in values
+                            key = String(value)
+                            destination[key] = get(destination, key, 0) + 1
+                        end
+                    end
+                end
                 catalog = get(profile, "bmopf_result_field_catalog", nothing)
                 catalog isa AbstractDict && (result_field_catalog_cases += 1)
                 attribution = get(profile,
@@ -579,7 +675,27 @@ function main()
                 "mean" => sum(multiconductor_passive_current_ranks) / length(multiconductor_passive_current_ranks),
                 "maximum" => maximum(multiconductor_passive_current_ranks),
             ),
+            "passive_network_current_model_map_rank_summary" => isempty(multiconductor_passive_current_model_ranks) ? nothing : Dict(
+                "sample_count" => length(multiconductor_passive_current_model_ranks),
+                "minimum" => minimum(multiconductor_passive_current_model_ranks),
+                "mean" => sum(multiconductor_passive_current_model_ranks) / length(multiconductor_passive_current_model_ranks),
+                "maximum" => maximum(multiconductor_passive_current_model_ranks),
+            ),
             "physical_mode_category_case_counts" => _sorted_counts(multiconductor_physical_mode_categories),
+            "current_law_family_case_counts" => _sorted_counts(multiconductor_current_law_families),
+            "current_law_operating_point_status_case_counts" => _sorted_counts(multiconductor_current_law_operating_statuses),
+            "controller_curve_family_case_counts" => _sorted_counts(multiconductor_controller_curve_families),
+            "controller_curve_status_case_counts" => _sorted_counts(multiconductor_controller_curve_statuses),
+            "controller_curve_voltage_semantics_case_counts" => _sorted_counts(multiconductor_controller_curve_semantics),
+        ),
+        "controller_curve_profile_counts" => Dict(
+            "cases_with_profile_data" => controller_curve_profile_case_count,
+            "observation_count_summary" => _metric_summaries(Dict(
+                "observations_per_case" => controller_curve_profile_observation_counts,
+            )),
+            "family_case_counts" => _sorted_counts(controller_curve_profile_families),
+            "status_case_counts" => _sorted_counts(controller_curve_profile_statuses),
+            "monitor_semantics_case_counts" => _sorted_counts(controller_curve_profile_semantics),
         ),
         "resume" => get(index, "resume", false),
         "force" => get(index, "force", false),

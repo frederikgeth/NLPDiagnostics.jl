@@ -127,8 +127,10 @@ function _persistence_view(path)
     jacobian = get(report, "jacobian_rank_persistence", Dict())
     component = get(report, "component_rank_persistence", Dict())
     component_capability = get(report, "component_rank_capability", Dict())
+    controller = get(report, "controller_curve_persistence", Dict())
     jacobian_codes = _count_codes(jacobian)
     capability_codes = _count_codes(component_capability)
+    controller_codes = _count_codes(controller)
     return Dict{String,Any}(
         "report_path" => path,
         "benchmark_root" => get(report, "benchmark_root", nothing),
@@ -139,6 +141,9 @@ function _persistence_view(path)
         "dense_rank_max_entries" => get(report, "dense_rank_max_entries", nothing),
         "model_variable_count" => get(report, "model_variable_count", nothing),
         "mapping" => _mapping_summary(report),
+        "controller_curve_snapshots" => get(report, "controller_curve_snapshots", Any[]),
+        "controller_curve_persistence" => _report_view(report, "controller_curve_persistence"),
+        "controller_curve_finding_code_counts" => controller_codes,
         "active_set" => _active_set_summary(report),
         "jacobian" => _report_view(report, "jacobian_rank_persistence"),
         "component" => _report_view(report, "component_rank_persistence"),
@@ -153,6 +158,9 @@ function _persistence_view(path)
             "left_nullspace_persistent" => get(jacobian_codes, "jacobian_left_nullspace_persistent", 0),
             "left_nullspace_not_persistent" => get(jacobian_codes, "jacobian_left_nullspace_not_persistent", 0),
             "scaling_changing" => get(jacobian_codes, "jacobian_scaling_changing", 0),
+            "controller_status_changed" => get(controller_codes, "bmopf_controller_curve_status_changed", 0),
+            "controller_monitor_coverage_changed" => get(controller_codes, "bmopf_controller_curve_monitor_coverage_changed", 0),
+            "controller_slope_changed" => get(controller_codes, "bmopf_controller_curve_slope_changed", 0),
         ),
     )
 end

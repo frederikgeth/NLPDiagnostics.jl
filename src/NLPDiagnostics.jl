@@ -46,6 +46,12 @@ export ComponentPortMetadata
 export PortNullspaceMode
 export PortNullspaceModeSemantics
 export PortConnectionMetadata
+export PortAssemblySummary
+export CurrentLawFingerprint
+export CurrentLawOperatingPointProbe
+export ControllerCurveOperatingPointObservation
+export CurrentLawOperatingPointTrace
+export port_network_assembly_summary
 export PortConstitutiveMap
 export PortTopologyNullspace
 export PortCoordinateMap
@@ -244,9 +250,12 @@ export bind_iteration_points
 export capture_iteration!
 export iteration_trace
 export iteration_trace_data
+export current_law_operating_point_trace_data
+export controller_curve_operating_point_observation_data
 export analyze_iteration_trace
 export ipopt_iteration_trace_capture
 export madnlp_iteration_trace_callback
+export madnlp_primal_capture_capability
 export ipopt_optimize_with_iteration_trace!
 export madnlp_optimize_with_iteration_trace!
 export ipopt_profile_with_iteration_trace!
@@ -339,6 +348,15 @@ export bmopf_terminal_port_metadata
 export bmopf_terminal_port_coordinate_maps
 export bmopf_terminal_port_coordinate_semantics
 export bmopf_terminal_port_connections
+export bmopf_terminal_port_assembly
+export bmopf_terminal_port_assembly_report
+export bmopf_current_law_fingerprints
+export bmopf_current_law_report
+export bmopf_current_law_operating_point_probes
+export bmopf_controller_curve_operating_point_observations
+export bmopf_current_law_operating_point_report
+export bmopf_current_law_operating_point_persistence
+export bmopf_current_law_operating_point_trace
 export bmopf_terminal_port_report
 export bmopf_terminal_port_coordinate_scale_report
 export bmopf_terminal_current_port_metadata
@@ -1608,6 +1626,80 @@ function _component_port_connection_findings(
                 suggested_actions = ["Declare finite connection-map coefficients."],
             ))
         end
+    end
+    return report
+end
+
+"""Return a stable component-level assembly graph summary for declared ports."""
+function port_network_assembly_summary(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    connections::AbstractVector{<:PortConnectionMetadata},
+)
+    node_key(component_type, component_id) = "$(component_type):$(component_id)"
+    node_set = Set{String}()
+    for port in ports
+        push!(node_set, node_key(port.component_type, port.component_id))
+    end
+    adjacency = Dict{String,Set{String}}()
+    for node in node_set
+        adjacency[node] = Set{String}()
+    end
+    for connection in connections
+        from = node_key(connection.from_component_type, connection.from_component_id)
+        to = node_key(connection.to_component_type, connection.to_component_id)
+        push!(node_set, from)
+        push!(node_set, to)
+        push!(get!(adjacency, from, Set{String}()), to)
+        push!(get!(adjacency, to, Set{String}()), from)
+    end
+    nodes = sort!(collect(node_set))
+    components = Vector{Vector{String}}()
+    visited = Set{String}()
+    for root in nodes
+        root in visited && continue
+        stack = [root]
+        group = String[]
+        while !isempty(stack)
+            current = pop!(stack)
+            current in visited && continue
+            push!(visited, current)
+            push!(group, current)
+            append!(stack, setdiff(collect(get(adjacency, current, Set{String}())), visited))
+        end
+        push!(components, sort!(group))
+    end
+    sort!(components; by = group -> first(group))
+    return PortAssemblySummary(
+        true, nothing, length(ports), length(connections), length(nodes),
+        length(components), nodes, components,
+    )
+end
+
+"""Report structural issues and connected-component evidence for port assembly."""
+function _component_port_assembly_findings(
+    ports::AbstractVector{<:ComponentPortMetadata},
+    connections::AbstractVector{<:PortConnectionMetadata},
+)
+    summary = port_network_assembly_summary(ports, connections)
+    report = DiagnosticReport()
+    report.metadata[:component_port_assembly_port_count] = string(summary.port_count)
+    report.metadata[:component_port_assembly_connection_count] = string(summary.connection_count)
+    report.metadata[:component_port_assembly_component_count] = string(summary.component_count)
+    report.metadata[:component_port_assembly_connected_component_count] = string(summary.connected_component_count)
+    report.metadata[:component_port_assembly_components] = join(
+        (join(group, "|") for group in summary.connected_components), ";",
+    )
+    if summary.connected_component_count > 1
+        push!(report, Finding(:component_port_assembly_disconnected;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Declared port attachments form $(summary.connected_component_count) disconnected component groups.",
+            why_it_matters = "Disconnected port groups may represent physical islands, intentionally separate subsystems, or incomplete attachment declarations; this graph alone does not distinguish them.",
+            evidence = [Evidence("Port assembly connected components"; details = [
+                "components" => join((join(group, "|") for group in summary.connected_components), ";"),
+            ])],
+            suggested_actions = ["Compare the groups with the intended network islands and inspect skipped or missing attachment ports before interpreting disconnectedness physically."],
+        ))
     end
     return report
 end

@@ -65,6 +65,10 @@ if Base.find_package("MadNLP") !== nothing
         @test isapprox(last(trace.records).objective, JuMP.objective_value(model);
             rtol = 1.0e-8,
         )
+        capability = NLPDiagnostics.madnlp_primal_capture_capability()
+        @test capability.metadata[:primal_callback] == "unavailable"
+        @test count(finding -> finding.code == :madnlp_primal_capture_unavailable,
+                    capability.findings) == 1
     end
 end
 
@@ -269,6 +273,244 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test all(size(connection.connection_matrix) == (2, 2) for connection in attachment_connections)
     @test all(connection.metadata["role"] == "attachment" for connection in attachment_connections)
     @test isempty(NLPDiagnostics.bmopf_terminal_port_report(attachment_context).findings)
+    attachment_assembly = NLPDiagnostics.bmopf_terminal_port_assembly(attachment_context)
+    @test attachment_assembly.available
+    @test attachment_assembly.component_count == 2
+    @test attachment_assembly.connected_component_count == 1
+    @test isempty(NLPDiagnostics.bmopf_terminal_port_assembly_report(attachment_context).findings)
+    current_laws = NLPDiagnostics.bmopf_current_law_fingerprints(attachment_context)
+    @test length(current_laws) == 1
+    @test only(current_laws).law_family == :constant_power
+    @test length(findings(
+        NLPDiagnostics.bmopf_current_law_report(attachment_context),
+        :bmopf_current_law_zero_voltage_singularity,
+    )) == 1
+    probe_net = deepcopy(attachment_net)
+    probe_net["load"]["load"] = merge(probe_net["load"]["load"], Dict{String,Any}(
+        "model" => "constant_power", "p_nom" => [2.0], "q_nom" => [0.0],
+    ))
+    probe_context = TestBMOPFContext(
+        model, probe_net, objects, (v_base = Dict("bus" => 1.0),),
+    )
+    saved_voltage = Dict{String,Any}(
+        "bus" => Dict{String,Any}(
+            "bus" => Dict{String,Any}(
+                "a" => Dict{String,Any}("vr" => 1.0, "vi" => 0.0),
+                "n" => Dict{String,Any}("vr" => 0.0, "vi" => 0.0),
+            ),
+        ),
+    )
+    probes = NLPDiagnostics.bmopf_current_law_operating_point_probes(
+        probe_context, saved_voltage,
+    )
+    @test length(probes) == 1
+    @test only(probes).domain_status == :finite
+    @test only(probes).current_magnitude ≈ 2.0
+    @test only(probes).derivative_norm !== nothing
+    @test isempty(NLPDiagnostics.bmopf_current_law_operating_point_report(
+        probe_context, saved_voltage,
+    ).findings)
+    point_source = NLPDiagnostics.EvaluationPoint(
+        MOI.get(JuMP.backend(model), MOI.ListOfVariableIndices()),
+        [variable == JuMP.index(vr_a) ? 1.0 :
+         variable == JuMP.index(vr_n) ? 0.0 :
+         variable == JuMP.index(vi_a) ? 0.0 :
+         variable == JuMP.index(vi_n) ? 0.0 : 0.0
+         for variable in MOI.get(JuMP.backend(model), MOI.ListOfVariableIndices())],
+    )
+    point_probes = NLPDiagnostics.bmopf_current_law_operating_point_probes(
+        probe_context, point_source,
+    )
+    @test only(point_probes).domain_status == :finite
+    zero_voltage = deepcopy(saved_voltage)
+    zero_voltage["bus"]["bus"]["a"]["vr"] = 0.0
+    zero_report = NLPDiagnostics.bmopf_current_law_operating_point_report(
+        probe_context, zero_voltage,
+    )
+    @test length(findings(zero_report, :bmopf_current_law_operating_point_zero_voltage)) == 1
+    stencil_boundary = deepcopy(saved_voltage)
+    stencil_boundary["bus"]["bus"]["a"]["vr"] = 1.0e-6
+    stencil_probes = NLPDiagnostics.bmopf_current_law_operating_point_probes(
+        probe_context, stencil_boundary; voltage_floor = 1.0e-8,
+    )
+    @test only(stencil_probes).domain_status == :nonfinite
+    persistence_report = NLPDiagnostics.bmopf_current_law_operating_point_persistence(
+        probe_context, [saved_voltage, zero_voltage],
+    )
+    @test length(findings(
+        persistence_report, :bmopf_current_law_operating_point_domain_status_changed,
+    )) == 1
+    @test persistence_report.metadata[:bmopf_current_law_operating_point_snapshot_count] == "2"
+    @test persistence_report.metadata[:bmopf_current_law_operating_point_snapshot_labels] ==
+          "saved_result_1,saved_result_2"
+    iterate_trace_capture = NLPDiagnostics.IterationTraceCapture()
+    NLPDiagnostics.capture_iteration!(
+        iterate_trace_capture,
+        NLPDiagnostics.SolverIterationRecord(
+            :ipopt_callback, 1, 1, :regular, 0.0, 1.0, 1.0, nothing, 1.0, "iter-1",
+        );
+        point = point_source,
+    )
+    zero_point = NLPDiagnostics.EvaluationPoint(
+        point_source.variables, zeros(length(point_source.variables)); label = "iter-2-zero",
+    )
+    NLPDiagnostics.capture_iteration!(
+        iterate_trace_capture,
+        NLPDiagnostics.SolverIterationRecord(
+            :ipopt_callback, 2, 2, :regular, 0.0, 1.0, 1.0, nothing, 1.0, "iter-2",
+        );
+        point = zero_point,
+    )
+    iterate_trace = NLPDiagnostics.iteration_trace(iterate_trace_capture)
+    current_law_trace = NLPDiagnostics.bmopf_current_law_operating_point_trace(
+        probe_context, iterate_trace,
+    )
+    @test length(current_law_trace.bindings) == 2
+    @test length(current_law_trace.probes) == 2
+    @test current_law_trace.metadata["trace_selected_binding_count"] == "2"
+    @test length(findings(
+        current_law_trace.persistence_report,
+        :bmopf_current_law_operating_point_domain_status_changed,
+    )) == 1
+    current_law_trace_data = NLPDiagnostics.current_law_operating_point_trace_data(
+        current_law_trace,
+    )
+    @test current_law_trace_data["metadata"]["trace_record_count"] == "2"
+    @test length(current_law_trace_data["probe_snapshots"]) == 2
+    ibr_net = deepcopy(probe_net)
+    ibr_net["ibr"] = Dict{String,Any}(
+        "inv" => Dict{String,Any}(
+            "bus" => "bus", "terminal_map" => ["a", "n"],
+            "topology" => "SINGLE_PHASE", "control_profile" => "pf_profile",
+        ),
+    )
+    ibr_net["control_profile"] = Dict{String,Any}(
+        "pf_profile" => Dict{String,Any}(
+            "power_factor" => Dict{String,Any}("pf" => 0.9),
+        ),
+    )
+    ibr_laws = NLPDiagnostics.bmopf_current_law_fingerprints(
+        TestBMOPFContext(model, ibr_net, objects, nothing),
+    )
+    ibr_fingerprint = only(filter(item -> item.component_type == :ibr, ibr_laws))
+    @test ibr_fingerprint.law_family == :constant_power_factor
+    @test ibr_fingerprint.differentiability == :smooth_away_from_zero
+    @test ibr_fingerprint.metadata["control_mode"] == "constant_power_factor"
+    device_net = deepcopy(probe_net)
+    device_net["generator"] = Dict{String,Any}(
+        "g" => Dict{String,Any}(
+            "bus" => "bus", "terminal_map" => ["a", "n"],
+            "configuration" => "WYE",
+        ),
+    )
+    device_net["ibr"] = Dict{String,Any}(
+        "inv" => Dict{String,Any}(
+            "bus" => "bus", "terminal_map" => ["a", "n"],
+            "topology" => "SINGLE_PHASE",
+        ),
+    )
+    device_result = deepcopy(saved_voltage)
+    device_result["generator"] = Dict{String,Any}(
+        "g" => Dict{String,Any}(
+            "a" => Dict{String,Any}("crg" => 1.0, "cig" => 0.0, "pg" => 1.0, "qg" => 0.0),
+        ),
+    )
+    device_result["ibr"] = Dict{String,Any}(
+        "inv" => Dict{String,Any}(
+            "a" => Dict{String,Any}("cri" => 0.5, "cii" => 0.0, "pg" => 0.5, "qg" => 0.0),
+        ),
+    )
+    device_probes = NLPDiagnostics.bmopf_current_law_operating_point_probes(
+        TestBMOPFContext(model, device_net, objects, nothing), device_result;
+        result_units = :pu,
+    )
+    generator_probe = only(filter(item -> item.component_type == :generator, device_probes))
+    ibr_probe = only(filter(item -> item.component_type == :ibr, device_probes))
+    @test generator_probe.domain_status == :finite
+    @test generator_probe.metadata["derivative_map"] ==
+          "bilinear_power_voltage_current_to_p_q"
+    @test generator_probe.metadata["power_equation_residual_norm"] == "0.0"
+    @test ibr_probe.domain_status == :finite
+    @test ibr_probe.current_magnitude ≈ 0.5
+    droop_net = deepcopy(device_net)
+    droop_net["ibr"]["inv"]["control_profile"] = "droop_profile"
+    droop_net["ibr"]["inv"]["s_max"] = [1.0]
+    droop_net["ibr"]["inv"]["p_max"] = [1.0]
+    droop_net["control_profile"] = Dict{String,Any}(
+        "droop_profile" => Dict{String,Any}(
+            "volt_var" => Dict{String,Any}(
+                "breakpoints" => [0.90, 0.98, 1.02, 1.10],
+                "q_limits" => [-1.0, 1.0],
+                "q_unit" => "VA_FRACTION", "q_ref" => "VAR_MAX",
+            ),
+            "volt_watt" => Dict{String,Any}(
+                "breakpoints" => [0.90, 1.10],
+                "p_limits" => [0.0, 1.0],
+                "p_unit" => "VA_FRACTION", "p_ref" => "S_MAX",
+            ),
+        ),
+    )
+    droop_result = deepcopy(device_result)
+    droop_result["bus"]["bus"]["a"]["vr"] = 0.98
+    droop_context = TestBMOPFContext(
+        model, droop_net, objects, (v_base = Dict("bus" => 1.0),),
+    )
+    droop_probes = NLPDiagnostics.bmopf_current_law_operating_point_probes(
+        droop_context, droop_result; result_units = :pu,
+    )
+    droop_probe = only(filter(item -> item.component_type == :ibr, droop_probes))
+    @test droop_probe.law_family == :voltage_droop
+    @test droop_probe.metadata["controller_curve_family"] == "volt_var"
+    @test droop_probe.metadata["controller_curve_voltage_semantics"] == "exact_public_monitored_voltage"
+    @test parse(Float64, droop_probe.metadata["controller_curve_monitored_voltage"]) ≈ 0.98
+    @test droop_probe.metadata["controller_curve_monitored_voltage_quantity"] == "PN"
+    @test droop_probe.metadata["controller_curve_status"] == "breakpoint_proximity"
+    @test droop_probe.metadata["controller_curve_volt_watt_status"] == "finite"
+    @test haskey(droop_probe.metadata, "controller_curve_volt_watt_local_slope")
+    @test haskey(droop_probe.metadata, "controller_curve_volt_var_equation_residual")
+    @test haskey(droop_probe.metadata, "controller_curve_volt_watt_cap")
+    droop_observations = NLPDiagnostics.bmopf_controller_curve_operating_point_observations(
+        droop_context, droop_result; result_units = :pu,
+    )
+    @test Set(observation.curve_family for observation in droop_observations) ==
+          Set([:volt_var, :volt_watt])
+    volt_var_observation = only(filter(
+        observation -> observation.curve_family == :volt_var, droop_observations,
+    ))
+    @test volt_var_observation.monitor_semantics == :exact_public_monitored_voltage
+    @test volt_var_observation.device_base ≈ 1.0
+    @test volt_var_observation.equation_residual isa Union{Nothing,Float64}
+    serialized_observations = NLPDiagnostics.controller_curve_operating_point_observation_data(
+        droop_observations,
+    )
+    @test length(serialized_observations) == 2
+    @test serialized_observations[1]["curve_family"] in ("volt_var", "volt_watt")
+    @test parse(Float64, droop_probe.metadata["controller_curve_smoothing_epsilon"]) > 0.0
+    @test parse(Float64, droop_probe.metadata["controller_curve_local_slope"]) isa Float64
+    droop_report = NLPDiagnostics.bmopf_current_law_operating_point_report(
+        droop_context, droop_result; result_units = :pu,
+    )
+    @test length(findings(droop_report, :bmopf_controller_curve_breakpoint_proximity)) == 1
+    averaged_net = deepcopy(droop_net)
+    averaged_net["control_profile"]["droop_profile"]["volt_var"]["voltage_reference"] = "PN_AVERAGED"
+    averaged_context = TestBMOPFContext(
+        model, averaged_net, objects, (v_base = Dict("bus" => 1.0),),
+    )
+    averaged_probe = only(filter(
+        item -> item.component_type == :ibr,
+        NLPDiagnostics.bmopf_current_law_operating_point_probes(
+            averaged_context, droop_result; result_units = :pu,
+        ),
+    ))
+    @test averaged_probe.metadata["controller_curve_monitored_voltage_aggregation"] == "AVERAGE"
+    @test averaged_probe.metadata["controller_curve_monitored_voltage_phase_count"] == "1"
+    droop_result_2 = deepcopy(droop_result)
+    droop_result_2["bus"]["bus"]["a"]["vr"] = 1.0
+    droop_persistence = NLPDiagnostics.bmopf_current_law_operating_point_persistence(
+        droop_context, [droop_result, droop_result_2]; result_units = :pu,
+    )
+    @test parse(Int, droop_persistence.metadata[:bmopf_controller_curve_changed_status_count]) >= 1
+    @test length(findings(droop_persistence, :bmopf_controller_curve_status_changed)) >= 1
     @test isempty(NLPDiagnostics.bmopf_terminal_port_report(context).findings)
     broken_attachment_net = deepcopy(attachment_net)
     broken_attachment_net["load"]["load"]["terminal_map"] = ["missing", "n"]
@@ -348,6 +590,9 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test length(transformer_connections) == 8
     @test count(connection -> connection.from_component_id == "wye_delta:tx", transformer_connections) == 4
     @test count(connection -> connection.from_component_id == "n_winding:multi", transformer_connections) == 4
+    transformer_assembly = NLPDiagnostics.bmopf_terminal_port_assembly(transformer_context)
+    @test transformer_assembly.component_count == 4
+    @test transformer_assembly.connected_component_count == 1
     permuted = only(filter(
         connection -> connection.from_component_id == "wye_delta:tx" && connection.from_port_id == "to_real",
         transformer_connections,
@@ -396,6 +641,24 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     shifted_complex_map = only(NLPDiagnostics.bmopf_terminal_complex_constitutive_maps(transformer_context))
     @test maximum(abs, shifted_complex_map.matrix[1:2, 7:8]) > 0.0
     delete!(transformer_net["transformer"]["wye_delta"]["tx"], "phase_shift_degrees")
+    passive_current_maps = NLPDiagnostics.bmopf_passive_network_current_maps(transformer_context)
+    @test length(passive_current_maps) == 1
+    @test passive_current_maps[1].metadata["map_role"] == "passive_network_current"
+    @test size(passive_current_maps[1].matrix, 1) == size(passive_current_maps[1].matrix, 2)
+    @test isempty(NLPDiagnostics.bmopf_passive_network_current_map_report(transformer_context).findings)
+    pu_transformer_context = TestBMOPFContext(
+        transformer_model, transformer_net, transformer_objects,
+        (v_base = Dict("high" => 100.0, "low" => 10.0),
+         i_base = Dict("high" => 10.0, "low" => 1.0)),
+    )
+    pu_passive_maps = NLPDiagnostics.bmopf_passive_network_current_maps(
+        pu_transformer_context; basis = :model,
+    )
+    @test length(pu_passive_maps) == 1
+    @test pu_passive_maps[1].metadata["units"] == "p.u._current_from_p.u._voltage"
+    @test isempty(NLPDiagnostics.bmopf_passive_network_current_map_report(
+        pu_transformer_context; basis = :model,
+    ).findings)
     @test_throws DimensionMismatch NLPDiagnostics.PortConstitutiveMap(
         :transformer, "tx", "bad_map", ["from_real"], [["a", "b"]],
         zeros(1, 1);
@@ -548,6 +811,8 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     field_catalog = NLPDiagnostics.bmopf_result_field_catalog()
     @test field_catalog["catalog_version"] == "bmopf-result-field-catalog-v1"
     @test field_catalog["families"]["bus_voltage"]["base_kind"] == "voltage"
+    @test field_catalog["families"]["generator_current"]["physical_unit"] == "A"
+    @test field_catalog["families"]["generator_power"]["base_kind"] == "power"
     @test field_catalog["families"]["ibr_power"]["physical_unit"] == "W"
     feasibility_attribution = NLPDiagnostics.bmopf_constraint_feasibility_field_attribution(
         per_unit_context, saved_profile.profile; mapping = saved_profile.mapping,

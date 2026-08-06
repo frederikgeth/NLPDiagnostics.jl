@@ -138,6 +138,25 @@ function NLPDiagnostics.madnlp_iteration_trace_callback(
     return callback, capture
 end
 
+"""Explain the current public MadNLP callback-coordinate boundary."""
+function NLPDiagnostics.madnlp_primal_capture_capability()
+    report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:solver] = "MadNLP"
+    report.metadata[:metric_callback] = "available"
+    report.metadata[:primal_callback] = "unavailable"
+    push!(report, NLPDiagnostics.Finding(:madnlp_primal_capture_unavailable;
+        severity = NLPDiagnostics.SeverityInfo,
+        domain = NLPDiagnostics.RepresentationalIssue,
+        basis = NLPDiagnostics.StructuralProof,
+        confidence = NLPDiagnostics.ConfidenceCertain,
+        observation = "MadNLP's public intermediate callback exposes iteration metrics but no stable public primal-vector accessor.",
+        why_it_matters = "Current-law and Jacobian diagnostics require model-coordinate values; reconstructing them from objective or infeasibility metrics would create unsupported evidence.",
+        suggested_actions = ["Supply explicit EvaluationPoint bindings or saved result dictionaries for coordinate diagnostics.",
+                             "If MadNLP publishes a supported callback primal accessor, add it at this extension boundary before enabling automatic capture."],
+    ))
+    return report
+end
+
 """
     NLPDiagnostics.madnlp_optimize_with_iteration_trace!(model)
 

@@ -602,6 +602,78 @@ struct PortConnectionMetadata{T<:AbstractFloat}
     metadata::Dict{String,String}
 end
 
+"""Structural connected-component summary of a declared port assembly graph."""
+struct PortAssemblySummary
+    available::Bool
+    reason::Union{Nothing,String}
+    port_count::Int
+    connection_count::Int
+    component_count::Int
+    connected_component_count::Int
+    nodes::Vector{String}
+    connected_components::Vector{Vector{String}}
+end
+
+"""Static fingerprint of a plugin-declared nonlinear current law."""
+struct CurrentLawFingerprint
+    component_type::Symbol
+    component_id::String
+    law_family::Symbol
+    terminal_labels::Vector{String}
+    differentiability::Symbol
+    singularity_risk::Symbol
+    metadata::Dict{String,String}
+end
+
+"""One operating-point observation of a plugin-declared current law.
+
+The voltage and current magnitudes use the coordinate convention declared by
+the caller. `derivative_norm` is a local real 2-by-2 finite-difference estimate
+of the complex current map; it is evidence about the supplied point, not a
+certificate about the full nonlinear model.
+"""
+struct CurrentLawOperatingPointProbe
+    component_type::Symbol
+    component_id::String
+    law_family::Symbol
+    terminal_labels::Vector{String}
+    voltage_magnitude::Float64
+    current_magnitude::Float64
+    derivative_norm::Union{Nothing,Float64}
+    derivative_condition::Union{Nothing,Float64}
+    domain_status::Symbol
+    finite::Bool
+    metadata::Dict{String,String}
+end
+
+"""Typed operating-point fingerprint for one public Volt-var/Volt-watt curve.
+
+The observation keeps controller semantics separate from the generic current-law
+probe. `equation_residual` is used for Volt-var equality evidence, while
+`cap_violation` is used for Volt-watt inequality evidence. Missing values are
+represented as `nothing`, never as zero.
+"""
+struct ControllerCurveOperatingPointObservation
+    component_type::Symbol
+    component_id::String
+    curve_family::Symbol
+    terminal_labels::Vector{String}
+    voltage_reference::Symbol
+    aggregation::Symbol
+    monitor_semantics::Symbol
+    monitored_voltage::Union{Nothing,Float64}
+    output_normalized::Union{Nothing,Float64}
+    local_slope::Union{Nothing,Float64}
+    breakpoint_distance::Union{Nothing,Float64}
+    smoothing_epsilon::Union{Nothing,Float64}
+    device_base::Union{Nothing,Float64}
+    expected_output::Union{Nothing,Float64}
+    equation_residual::Union{Nothing,Float64}
+    cap_violation::Union{Nothing,Float64}
+    status::Symbol
+    metadata::Dict{String,String}
+end
+
 """A plugin-declared linear constitutive map over one or more named ports.
 
 The matrix acts on the concatenated terminal coordinates listed in
@@ -1678,6 +1750,22 @@ struct SolverIterationTrace
     records::Vector{SolverIterationRecord}
     bindings::Vector{IterationPointBinding}
     segments::Vector{SolverIterationSegment}
+end
+
+"""Current-law probes aligned with explicitly captured solver iterates.
+
+Only trace bindings that contain an `EvaluationPoint` are included. Metric-only
+solver rows remain in `trace` but cannot be turned into model coordinates.
+`persistence_report` compares the selected snapshots and retains the same
+coverage caveat when fewer than two points are available.
+"""
+struct CurrentLawOperatingPointTrace
+    trace::SolverIterationTrace
+    bindings::Vector{IterationPointBinding}
+    probes::Vector{Vector{CurrentLawOperatingPointProbe}}
+    snapshot_reports::Vector{DiagnosticReport}
+    persistence_report::DiagnosticReport
+    metadata::Dict{String,String}
 end
 
 """Mutable collector for solver callbacks that expose iteration records."""

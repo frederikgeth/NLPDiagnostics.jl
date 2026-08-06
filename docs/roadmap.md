@@ -277,9 +277,45 @@ claim a network gauge. Transformer vector-group labels, delta orientation,
 ratio/tap evidence, and phase-shift coverage warnings are now retained by the
 constitutive-map adapter. Fixed-transformer phase-aware real-block maps now
 apply declared complex phase rotations, while the original separated maps
-remain available as structural incidence evidence. Constitutive current maps,
-device admittance/current laws, and network-level port assembly remain the next
-multiconductor ticket. The generic
+remain available as structural incidence evidence. The first current-side
+contract now wraps BMOPFTools' public passive Ybus as an SI `I = YV` map and
+reports p.u. conversion boundaries explicitly; an opt-in `basis=:model` path
+now applies complete public bus voltage/current bases. The declared
+attachment graph now has an inspectable connected-component assembly summary;
+disconnected groups remain representational evidence. Static nonlinear-current
+fingerprints now classify public device metadata, including zero-voltage and
+unknown-differentiability hazards. Public load equations now also have guarded
+operating-point probes from explicit staged points or saved result dictionaries,
+including local current-Jacobian scale/conditioning and separate zero-voltage
+and non-finite coverage findings. Static generator and IBR fingerprints now
+retain the generator bilinear voltage/current law and conservatively classify
+public constant-power-factor, voltage-droop, power-sharing, and box-dispatch
+profiles. Multi-point operating-point persistence is exposed for aligned load
+probes, reporting status transitions, derivative-scale changes, conditioning
+changes, and partial coverage without treating unavailable probes as zeros.
+The public generator/IBR bilinear power maps are now evaluated at saved-result
+and explicit-point coordinates, with observed P/Q, saved-result equation
+residuals, and voltage/current-to-power derivative fingerprints. Captured
+Ipopt primal iterates can now be selected by phase/budget and passed through
+the same probes with solver labels and persistence evidence; metric-only
+MadNLP traces remain explicitly unavailable for coordinate diagnostics. Public
+Volt-var/Volt-watt profiles now also receive stable softplus/ReLU-sum
+operating-point fingerprints (normalized output, local slope, smoothing width,
+and breakpoint proximity). The adapter now resolves public PG/PN/PP monitored
+voltages and per-phase/average aggregation from bus coordinates, retaining an
+exact-versus-proxy coverage label and benchmark-level curve/status aggregates.
+Controller residuals for public Volt-var/Volt-watt profiles are now recorded
+when declared device bases are available; remaining work is optional
+domain-specific monitor maps for nonstandard controllers and richer benchmark
+aggregation. Persistence now compares controller status, monitor-coverage, and
+local slope changes across explicit snapshots and captured traces, with the
+solver-trace summarizer retaining those categories separately. The
+`ControllerCurveOperatingPointObservation` record now provides a stable typed
+consumer boundary for profile-level observations, including monitor semantics,
+normalized output, local slope, breakpoint distance, device base, and residual
+evidence. The draft-corpus runner now persists these records and summarizes
+controller-rich BMOPF cases by family, status, and monitor-coverage semantics.
+The generic
 `PortConstitutiveMap` contract and BMOPFTools adapter are now implemented for
 device WYE/DELTA coil incidence, fixed-transformer ideal winding coupling, and
 n-winding per-winding coil incidence. These maps preserve vector-group and
@@ -537,6 +573,22 @@ existing profile report's finding set.
 Saved-result persistence artifacts now retain that capability report beside
 the numerical component-persistence report, and the persistence/campaign
 summarizers aggregate its finding codes separately from rank fingerprints.
+Saved-result persistence now also retains typed Volt-var/Volt-watt observations
+for every mapped time point and exposes controller status, monitor-coverage,
+and slope-change findings in the persistence summary. This keeps controller
+transitions aligned with the same time-series evidence used for rank and active
+set persistence.
+The controller campaign summarizer now reports family/status/coverage counts,
+breakpoint-distance and residual distributions, and per-component slope-change
+evidence without a composite score. Initial five-point 30-bus comparisons show
+stable exact coverage and finite statuses in both LN and LG populations, but
+substantially different slope ranges; this is a useful numerical fingerprint,
+not yet a physical diagnosis.
+Ipopt solver traces with captured primal points now retain the same typed
+controller observations per selected iterate. A bounded four-iterate LG trace
+produced 224 exact observations across both curve families, finite statuses,
+and 21 local-slope-change findings; its maximum Volt-var equality residual was
+reported separately as iterate-feasibility evidence.
 The ordinary BMOPF profile context now also carries declaration coverage and
 capability-finding counts as metadata, without flattening the standalone
 capability finding into the existing context finding set.
