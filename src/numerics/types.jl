@@ -602,6 +602,24 @@ struct PortConnectionMetadata{T<:AbstractFloat}
     metadata::Dict{String,String}
 end
 
+"""A plugin-declared linear constitutive map over one or more named ports.
+
+The matrix acts on the concatenated terminal coordinates listed in
+`port_terminal_labels`; its rows are labeled equations or coil coordinates.
+Unlike `PortConnectionMetadata`, this map is not interpreted as a network
+equality or a topology edge.
+"""
+struct PortConstitutiveMap{T<:AbstractFloat}
+    component_type::Symbol
+    component_id::String
+    map_id::String
+    port_ids::Vector{String}
+    port_terminal_labels::Vector{Vector{String}}
+    matrix::Matrix{T}
+    equation_labels::Vector{String}
+    metadata::Dict{String,String}
+end
+
 """Nullspace of explicitly declared port-connection equations."""
 struct PortTopologyNullspace{T<:AbstractFloat}
     available::Bool
@@ -1035,6 +1053,44 @@ function PortConnectionMetadata(
         from_component_type, string(from_component_id), string(from_port_id),
         to_component_type, string(to_component_id), string(to_port_id),
         T.(connection_matrix), Dict(string(key) => string(value) for (key, value) in metadata),
+    )
+end
+
+function PortConstitutiveMap(
+    component_type::Symbol, component_id, map_id,
+    port_ids::AbstractVector,
+    port_terminal_labels::AbstractVector{<:AbstractVector},
+    matrix::AbstractMatrix{<:Real};
+    equation_labels::AbstractVector = String[],
+    metadata::AbstractDict = Dict{String,String}(),
+)
+    all(!isempty(strip(string(value))) for value in (component_type, component_id, map_id)) ||
+        throw(ArgumentError("port constitutive-map identities must be nonempty"))
+    length(port_ids) == length(port_terminal_labels) ||
+        throw(DimensionMismatch("port ids and terminal-label groups must have equal length"))
+    ids = string.(port_ids)
+    all(!isempty(strip(id)) for id in ids) ||
+        throw(ArgumentError("port constitutive-map port ids must be nonempty"))
+    length(unique(ids)) == length(ids) ||
+        throw(ArgumentError("port constitutive-map port ids must be unique"))
+    labels = [string.(collect(group)) for group in port_terminal_labels]
+    all(!isempty(label) for group in labels for label in group) ||
+        throw(ArgumentError("port constitutive-map terminal labels must be nonempty"))
+    expected_columns = sum(length, labels; init = 0)
+    size(matrix, 2) == expected_columns ||
+        throw(DimensionMismatch("constitutive-map columns must match concatenated port terminal coordinates"))
+    equations = isempty(equation_labels) ?
+        ["equation$(index)" for index in axes(matrix, 1)] : string.(equation_labels)
+    length(equations) == size(matrix, 1) ||
+        throw(DimensionMismatch("constitutive-map equation labels must match matrix rows"))
+    all(!isempty(strip(label)) for label in equations) ||
+        throw(ArgumentError("port constitutive-map equation labels must be nonempty"))
+    all(isfinite, matrix) || throw(ArgumentError("port constitutive-map matrix must be finite"))
+    T = float(eltype(matrix))
+    return PortConstitutiveMap{T}(
+        component_type, string(component_id), string(map_id), ids, labels,
+        T.(matrix), equations,
+        Dict(string(key) => string(value) for (key, value) in metadata),
     )
 end
 

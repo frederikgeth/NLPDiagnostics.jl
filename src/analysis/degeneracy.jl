@@ -141,6 +141,14 @@ bmopf_result_field_catalog() = _bmopf_extension(:BMOPFToolsJuMPExt,
 bmopf_constraint_feasibility_field_attribution(context, result; kwargs...) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP support are required for BMOPF feasibility-field attribution")._bmopf_constraint_feasibility_field_attribution(context, result; kwargs...)
+"""Return the BMOPFTools semantic family/index for every evaluated scalar row."""
+bmopf_constraint_semantic_row_map(context, evaluation) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF constraint-row semantics")._bmopf_constraint_semantic_row_map(context, evaluation)
+"""Run a local Jacobian row-family perturbation using BMOPFTools semantics."""
+bmopf_analyze_jacobian_row_family_perturbations(context, evaluation; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF Jacobian row-family perturbations")._bmopf_analyze_jacobian_row_family_perturbations(context, evaluation; kwargs...)
 """Build a labeled profile case and qualification report from a saved BMOPF result."""
 bmopf_saved_result_profile_case(name, context, result; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to profile a saved BMOPF result")._bmopf_saved_result_profile_case(name, context, result; kwargs...)
@@ -177,6 +185,48 @@ bmopf_terminal_port_coordinate_maps(context) = _bmopf_extension(:BMOPFToolsJuMPE
 """Optional BMOPFTools staged-OPF terminal-coordinate semantics hook."""
 bmopf_terminal_port_coordinate_semantics(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to inspect staged BMOPF terminal ports")._bmopf_terminal_port_coordinate_semantics(context)
+"""Optional BMOPFTools staged-OPF component-to-bus port-connection hook."""
+bmopf_terminal_port_connections(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF port connections")._bmopf_terminal_port_connections(context)
+"""Return BMOPFTools rectangular terminal-current coordinate ports."""
+bmopf_terminal_current_port_metadata(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF current ports")._bmopf_terminal_current_port_metadata(context)
+"""Return explicit BMOPFTools terminal-current to MOI-variable maps."""
+bmopf_terminal_current_port_coordinate_maps(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF current maps")._bmopf_terminal_current_port_coordinate_maps(context)
+"""Return physical semantics for BMOPFTools terminal-current coordinates."""
+bmopf_terminal_current_port_coordinate_semantics(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF current semantics")._bmopf_terminal_current_port_coordinate_semantics(context)
+"""Validate BMOPFTools terminal-current port coverage."""
+bmopf_terminal_current_port_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to report staged BMOPF current-port coverage")._bmopf_terminal_current_port_report(context)
+"""Return BMOPFTools expected physical terminal-port null modes."""
+bmopf_terminal_port_nullspace_modes(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF physical port modes")._bmopf_terminal_port_nullspace_modes(context)
+"""Return semantic labels for BMOPFTools physical terminal-port null modes."""
+bmopf_terminal_port_nullspace_mode_semantics(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF physical port-mode semantics")._bmopf_terminal_port_nullspace_mode_semantics(context)
+"""Report BMOPFTools physical terminal-port mode declarations."""
+bmopf_terminal_port_nullspace_mode_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to report staged BMOPF physical port modes")._bmopf_terminal_port_nullspace_mode_report(context)
+"""Return BMOPFTools-derived linear constitutive voltage maps."""
+bmopf_terminal_constitutive_maps(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect staged BMOPF constitutive maps")._bmopf_terminal_constitutive_maps(context)
+"""Validate BMOPFTools constitutive-map dimensions and coefficients."""
+bmopf_terminal_constitutive_map_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to report staged BMOPF constitutive maps")._bmopf_terminal_constitutive_map_report(context)
+"""Return phase-aware complex transformer constitutive maps as real block matrices."""
+bmopf_terminal_complex_constitutive_maps(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect phase-aware BMOPF constitutive maps")._bmopf_terminal_complex_constitutive_maps(context)
+"""Validate phase-aware complex transformer constitutive maps."""
+bmopf_terminal_complex_constitutive_map_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to report phase-aware BMOPF constitutive maps")._bmopf_terminal_complex_constitutive_map_report(context)
+"""Return the passive-network current-from-voltage map from public BMOPFTools Ybus."""
+bmopf_passive_network_current_maps(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to inspect passive network current maps")._bmopf_passive_network_current_maps(context)
+"""Validate passive-network current maps and their unit basis."""
+bmopf_passive_network_current_map_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to report passive network current maps")._bmopf_passive_network_current_map_report(context)
 """Optional BMOPFTools staged-OPF terminal-port validation report hook."""
 bmopf_terminal_port_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to inspect staged BMOPF terminal ports")._bmopf_terminal_port_report(context)

@@ -99,6 +99,161 @@ function _trace_summary(trace)
     )
 end
 
+function _finding_rows(finding)
+    rows = Set{Int}()
+    for evidence in get(finding, "evidence", Any[])
+        details = get(evidence, "details", Dict())
+        details isa AbstractDict || continue
+        for key in ("support_rows", "rows", "equality_rows")
+            raw = get(details, key, nothing)
+            raw isa AbstractString || continue
+            for token in split(raw, ',')
+                parsed = tryparse(Int, strip(token))
+                isnothing(parsed) || push!(rows, parsed)
+            end
+        end
+    end
+    return rows
+end
+
+function _rank_semantic_family_counts(result_report, semantic_rows)
+    counts = Dict{String,Dict{String,Int}}()
+    semantic_rows isa AbstractDict || return counts
+    for finding in get(result_report, "findings", Any[])
+        code = String(get(finding, "code", "unknown"))
+        rows = _finding_rows(finding)
+        isempty(rows) && continue
+        family_counts = get!(counts, code, Dict{String,Int}())
+        for row in rows
+            descriptor = get(semantic_rows, string(row), nothing)
+            descriptor isa AbstractDict || continue
+            family = String(get(descriptor, "constraint_family", "unregistered_constraint"))
+            family_counts[family] = get(family_counts, family, 0) + 1
+        end
+    end
+    return counts
+end
+
+function _profile_finding_codes(profile)
+    counts = Dict{String,Int}()
+    profile isa AbstractDict || return counts
+    reports = get(profile, "reports", Dict())
+    reports isa AbstractDict || return counts
+    for report in values(reports)
+        _merge_counts!(counts, _count_codes(report))
+    end
+    return counts
+end
+
+function _rank_profile_findings(profile)
+    profile isa AbstractDict || return Any[]
+    reports = get(profile, "reports", Dict())
+    reports isa AbstractDict || return Any[]
+    findings = Any[]
+    for report in values(reports)
+        report isa AbstractDict || continue
+        for finding in get(report, "findings", Any[])
+            code = String(get(finding, "code", ""))
+            (startswith(code, "candidate_") || startswith(code, "unexpected_") ||
+             occursin("rank", code) || startswith(code, "zero_jacobian")) || continue
+            push!(findings, finding)
+        end
+    end
+    return findings
+end
+
+function _row_family_perturbation_summary(report)
+    report isa AbstractDict || return Dict{String,Any}()
+    metadata = get(report, "metadata", Dict())
+    metadata isa AbstractDict || (metadata = Dict())
+    counts = _count_codes(report)
+    families = Dict{String,Int}()
+    for finding in get(report, "findings", Any[])
+        code = String(get(finding, "code", "unknown"))
+        code in (
+            "jacobian_row_family_perturbation_rank_effect",
+            "jacobian_row_family_perturbation_no_rank_effect",
+            "jacobian_row_family_perturbation_sparse_pattern_effect",
+            "jacobian_row_family_perturbation_sparse_pattern_no_rank_effect",
+            "jacobian_row_family_perturbation_unavailable",
+        ) || continue
+        for evidence in get(finding, "evidence", Any[])
+            details = get(evidence, "details", Dict())
+            details isa AbstractDict || continue
+            family = get(details, "family", nothing)
+            isnothing(family) || (families[String(family)] = get(families, String(family), 0) + 1)
+        end
+    end
+    return Dict{String,Any}(
+        "baseline_rank_available" => get(metadata, "baseline_rank_available", nothing),
+        "baseline_rank" => get(metadata, "baseline_rank", nothing),
+        "baseline_right_nullity" => get(metadata, "baseline_right_nullity", nothing),
+        "row_family_count" => get(metadata, "row_family_count", nothing),
+        "rank_effect_family_count" => get(metadata, "rank_effect_family_count", nothing),
+        "no_rank_effect_family_count" => get(metadata, "no_rank_effect_family_count", nothing),
+        "sparse_pattern_effect_family_count" => get(metadata, "sparse_pattern_effect_family_count", nothing),
+        "sparse_pattern_no_rank_effect_family_count" => get(metadata, "sparse_pattern_no_rank_effect_family_count", nothing),
+        "finding_codes" => counts,
+        "family_counts" => families,
+    )
+end
+
+function _family_perturbation_case_summary(record)
+    variants = get(record, "family_perturbations", Any[])
+    variants isa AbstractVector || return Dict{String,Any}()
+    status_counts = Dict{String,Int}()
+    termination_counts = Dict{String,Int}()
+    by_family = Dict{String,Any}()
+    baseline_trace = _trace_summary(get(record, "iteration_trace", Dict()))
+    baseline_profile = get(record, "solver_profile", Dict())
+    baseline_nested = baseline_profile isa AbstractDict ?
+        get(baseline_profile, "solver_profile", Dict()) : Dict()
+    baseline_postmortem = baseline_nested isa AbstractDict ?
+        get(baseline_nested, "postmortem", Dict()) : Dict()
+    baseline_termination = baseline_postmortem isa AbstractDict ?
+        String(get(baseline_postmortem, "termination", "unknown")) : "unknown"
+    baseline_iteration_count = _integer_value(get(baseline_trace, "record_count", 0))
+    for variant in variants
+        variant isa AbstractDict || continue
+        family = String(get(variant, "family", "unknown"))
+        status = String(get(variant, "status", "unknown"))
+        status_counts[status] = get(status_counts, status, 0) + 1
+        solver_profile = get(variant, "solver_profile", Dict())
+        nested = solver_profile isa AbstractDict ?
+            get(solver_profile, "solver_profile", Dict()) : Dict()
+        postmortem = nested isa AbstractDict ? get(nested, "postmortem", Dict()) : Dict()
+        termination = postmortem isa AbstractDict ?
+            String(get(postmortem, "termination", "unknown")) : "unknown"
+        termination_counts[termination] = get(termination_counts, termination, 0) + 1
+        row_summary = _row_family_perturbation_summary(
+            get(variant, "bmopf_row_family_perturbation_report", nothing),
+        )
+        variant_trace = _trace_summary(get(variant, "iteration_trace", Dict()))
+        variant_iteration_count = _integer_value(get(variant_trace, "record_count", 0))
+        by_family[family] = Dict{String,Any}(
+            "status" => status,
+            "termination" => termination,
+            "iteration_count" => variant_iteration_count,
+            "iteration_delta_vs_baseline" => variant_iteration_count - baseline_iteration_count,
+            "termination_changed_vs_baseline" => termination != baseline_termination,
+            "model_variable_count" => get(variant, "model_variable_count", nothing),
+            "row_family_perturbation" => row_summary,
+            "error" => get(variant, "error", nothing),
+        )
+    end
+    return Dict{String,Any}(
+        "variant_count" => length(variants),
+        "baseline" => Dict{String,Any}(
+            "termination" => baseline_termination,
+            "iteration_count" => baseline_trace["record_count"],
+            "model_variable_count" => get(record, "model_variable_count", nothing),
+        ),
+        "status_counts" => status_counts,
+        "termination_counts" => termination_counts,
+        "by_family" => by_family,
+    )
+end
+
 function _failure_categories(record, nested_profile, trace_summary)
     categories = String[]
     postmortem = get(nested_profile, "postmortem", nothing)
@@ -138,6 +293,13 @@ function main()
     solver_log_finding_codes = Dict{String,Int}()
     solver_log_iteration_count = 0
     solver_log_iteration_segment_count = 0
+    rank_semantic_family_counts = Dict{String,Dict{String,Int}}()
+    row_family_perturbation_code_counts = Dict{String,Int}()
+    row_family_perturbation_family_counts = Dict{String,Int}()
+    family_perturbation_status_counts = Dict{String,Int}()
+    family_perturbation_termination_counts = Dict{String,Int}()
+    family_perturbation_by_family = Dict{String,Any}()
+    bmopf_profile_finding_codes = Dict{String,Int}()
     iteration_counts = Int[]
     for entry in get(index, "cases", Any[])
         name = String(get(entry, "name", "unknown"))
@@ -150,10 +312,19 @@ function main()
         status_counts[status] = get(status_counts, status, 0) + 1
         summary = Dict{String,Any}(entry)
         summary["status"] = status
+        family_perturbation = _family_perturbation_case_summary(record)
+        summary["family_perturbation"] = family_perturbation
+        _merge_counts!(family_perturbation_status_counts,
+            get(family_perturbation, "status_counts", Dict()))
+        _merge_counts!(family_perturbation_termination_counts,
+            get(family_perturbation, "termination_counts", Dict()))
+        for (family, details) in get(family_perturbation, "by_family", Dict())
+            family_perturbation_by_family[family] = details
+        end
         for key in ("solver", "solver_options", "per_unit", "model_coordinate_units",
                     "solver_objective_convention", "objective_comparison_reference",
                     "bmopf_extracted_result_convention", "environment_fingerprint",
-                    "sweep_label", "capture_logs")
+                    "sweep_label", "run_id", "replicate_index", "capture_logs")
             haskey(record, key) && (summary[key] = record[key])
         end
         if status == "ok"
@@ -179,11 +350,47 @@ function main()
             _merge_counts!(trace_finding_codes, summary["solver_result_finding_codes"])
             bmopf_profile = get(record, "bmopf_profile", nothing)
             if bmopf_profile isa AbstractDict
+                profile_codes = _profile_finding_codes(
+                    get(bmopf_profile, "profile", nothing),
+                )
+                summary["bmopf_profile_finding_codes"] = profile_codes
+                _merge_counts!(bmopf_profile_finding_codes, profile_codes)
+                profile_rank_report = Dict{String,Any}(
+                    "findings" => _rank_profile_findings(
+                        get(bmopf_profile, "profile", nothing),
+                    ),
+                )
+                semantic_families = _rank_semantic_family_counts(
+                    Dict{String,Any}(
+                        "findings" => vcat(
+                            get(result_report, "findings", Any[]),
+                            get(profile_rank_report, "findings", Any[]),
+                        ),
+                    ),
+                    get(bmopf_profile, "bmopf_constraint_semantic_rows", nothing),
+                )
+                summary["solver_rank_semantic_family_counts"] = semantic_families
+                for (code, families) in semantic_families
+                    aggregate = get!(rank_semantic_family_counts, code, Dict{String,Int}())
+                    _merge_counts!(aggregate, families)
+                end
+                perturbation = get(
+                    bmopf_profile, "bmopf_row_family_perturbation_report", nothing,
+                )
+                perturbation_summary = _row_family_perturbation_summary(perturbation)
+                summary["bmopf_row_family_perturbation"] = perturbation_summary
+                _merge_counts!(row_family_perturbation_code_counts,
+                    get(perturbation_summary, "finding_codes", Dict()))
+                _merge_counts!(row_family_perturbation_family_counts,
+                    get(perturbation_summary, "family_counts", Dict()))
                 context_report = get(bmopf_profile, "bmopf_context_report", nothing)
                 summary["bmopf_context_finding_codes"] = _count_codes(context_report)
                 _merge_counts!(bmopf_finding_codes, summary["bmopf_context_finding_codes"])
             else
                 summary["bmopf_context_finding_codes"] = Dict{String,Int}()
+                summary["bmopf_profile_finding_codes"] = Dict{String,Int}()
+                summary["solver_rank_semantic_family_counts"] = Dict{String,Dict{String,Int}}()
+                summary["bmopf_row_family_perturbation"] = Dict{String,Any}()
             end
         end
         solver_log = get(record, "solver_log_evidence", nothing)
@@ -223,6 +430,9 @@ function main()
         "solver" => get(index, "solver", nothing),
         "environment" => get(index, "environment", nothing),
         "environment_fingerprint" => get(index, "environment_fingerprint", nothing),
+        "family_perturbations_enabled" => get(index, "family_perturbations_enabled", false),
+        "family_perturbation_families" => get(index, "family_perturbation_families", Any[]),
+        "family_perturbation_max_iter" => get(index, "family_perturbation_max_iter", nothing),
         "status_counts" => status_counts,
         "successful_case_count" => get(status_counts, "ok", 0),
         "iteration_count_total" => sum(iteration_counts; init = 0),
@@ -230,12 +440,19 @@ function main()
         "iteration_count_maximum" => isempty(iteration_counts) ? nothing : maximum(iteration_counts),
         "solver_result_finding_codes" => trace_finding_codes,
         "bmopf_context_finding_codes" => bmopf_finding_codes,
+        "bmopf_profile_finding_codes" => bmopf_profile_finding_codes,
         "failure_category_counts" => failure_category_counts,
         "solver_log_evidence_case_count" => solver_log_evidence_case_count,
         "solver_log_observation_count" => solver_log_observation_count,
         "solver_log_finding_codes" => solver_log_finding_codes,
         "solver_log_iteration_count" => solver_log_iteration_count,
         "solver_log_iteration_segment_count" => solver_log_iteration_segment_count,
+        "solver_rank_semantic_family_counts" => rank_semantic_family_counts,
+        "bmopf_row_family_perturbation_code_counts" => row_family_perturbation_code_counts,
+        "bmopf_row_family_perturbation_family_counts" => row_family_perturbation_family_counts,
+        "family_perturbation_status_counts" => family_perturbation_status_counts,
+        "family_perturbation_termination_counts" => family_perturbation_termination_counts,
+        "family_perturbation_by_family" => family_perturbation_by_family,
         "cases" => cases,
     )
     write(summary_path, JSON.json(payload))

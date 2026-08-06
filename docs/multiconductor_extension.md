@@ -76,3 +76,50 @@ The scalar PowerModels `:va` bridge is intentionally not a multiconductor port
 adapter: it exposes angle coordinates, not terminal voltage phasors. A future
 adapter must declare voltage/current coordinates explicitly for each supported
 formulation before using this contract.
+
+The BMOPFTools staged adapter now supplies the first concrete attachment slice:
+bus voltage ports plus explicit component-to-bus ports for loads, generators,
+voltage sources, shunts, capacitors, IBRs, switches, and line endpoints. Each
+attachment has a terminal-to-model-variable map, rectangular voltage
+semantics, and a finite embedding matrix into the owning bus terminal order.
+These are shared-coordinate declarations only. They do not assert equality of
+the two endpoints of a line or transformer, and they do not manufacture
+constitutive equations. Use `bmopf_terminal_port_connections(context)` to
+inspect the attachment maps and `bmopf_terminal_port_report(context)` to see
+skipped or unmapped endpoints. Transformer winding attachments (including
+fixed- and n-winding records) are included in this slice. Rectangular
+terminal-current ports are available through
+`bmopf_terminal_current_port_metadata(context)`, with matching coordinate maps,
+unit semantics, and a non-mutating coverage report. Device current ports retain
+only the conductor coordinates that BMOPFTools actually registers; an omitted
+neutral current is therefore represented as a shorter declared port rather than
+reported as a false missing coordinate. Conservative physical component-mode
+declarations are now available through
+`bmopf_terminal_port_nullspace_modes(context)` and their semantic labels through
+`bmopf_terminal_port_nullspace_mode_semantics(context)`. The current slice
+declares explicit-neutral WYE and DELTA common-mode expectations only where the
+network metadata supports them; grounding, vector-group maps, KCL, and compiled
+equations may remove those directions. Use
+`bmopf_terminal_port_nullspace_mode_report(context)` for declaration evidence,
+or opt into comparison with a numerical Jacobian using
+`bmopf_analyze_opf(...; include_port_physical_modes = true)`. Constitutive
+current maps remain the next adapter slice.
+
+The generic core also now carries `PortConstitutiveMap`. This is intentionally
+separate from `PortConnectionMetadata`: it records labeled linear equations
+over one or more named ports and is never interpreted as a network equality.
+The BMOPFTools adapter exposes device WYE/DELTA terminal-to-coil incidence,
+fixed-transformer ideal winding coupling (with ratio/tap and vector-group
+metadata), and n-winding per-winding coil incidence through
+`bmopf_terminal_constitutive_maps(context)`. Use
+`bmopf_terminal_constitutive_map_report(context)` to validate dimensions,
+finite coefficients, and map identities before using these maps in a physical
+or numerical analysis. Declared transformer vector-group labels, delta
+orientation, and phase shifts are retained as metadata. A nonzero phase shift
+is reported explicitly as unrepresented by the current separated real/imaginary
+map, so it cannot be mistaken for a complete complex transformer equation.
+Fixed-transformer phase-aware maps are available through
+`bmopf_terminal_complex_constitutive_maps(context)`. They use a real block
+matrix over real and imaginary terminal ports and apply the declared phase
+rotation; the scalar maps remain available for compatibility and structural
+incidence analysis.

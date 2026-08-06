@@ -17,6 +17,42 @@ For staged IVR models, `bmopf_terminal_port_metadata`,
 bus-voltage port. SI coordinates are labelled `V`. Per-unit coordinates are
 labelled `p.u.` with model-coordinate nominal scale one.
 
+The staged adapter also exposes explicit component-to-bus attachment ports for
+native device terminal maps and line endpoints. Use
+`bmopf_terminal_port_connections(context)` to inspect the finite terminal-order
+embeddings. These declarations describe shared coordinate ownership only; they
+do not equate the two ends of a line or transformer and do not replace their
+constitutive equations. Fixed- and n-winding transformer winding attachments
+are included as separate ports. Current-coordinate declarations are available
+through `bmopf_terminal_current_port_metadata(context)`,
+`bmopf_terminal_current_port_coordinate_maps(context)`, and
+`bmopf_terminal_current_port_coordinate_semantics(context)`. They use the
+public BMOPFTools current-key registry and deliberately expose only registered
+conductor coordinates; use `bmopf_terminal_current_port_report(context)` to
+inspect coverage. The adapter also declares conservative component-level
+common-mode expectations for explicit-neutral WYE ports and DELTA ports. Inspect
+them with `bmopf_terminal_port_nullspace_modes(context)` and
+`bmopf_terminal_port_nullspace_mode_report(context)`. These are physical
+expectations, not proof of a compiled-model gauge; pass
+`include_port_physical_modes = true` to `bmopf_analyze_opf` to compare their
+projected directions with observed Jacobian nullspaces. Constitutive current
+maps remain separate adapter work.
+
+Constitutive voltage maps are available separately from topology connections:
+`bmopf_terminal_constitutive_maps(context)` returns labeled linear maps for
+device WYE/DELTA coil incidence, fixed-transformer ideal winding coupling, and
+n-winding coil incidence. The maps retain ratio, tap, delta-roll, winding, and
+configuration metadata and are not silently treated as endpoint equalities.
+Declared vector-group phase shifts are preserved as metadata; the report emits
+an explicit representational warning when a nonzero shift is present because
+the current separated real/imaginary maps do not apply complex phase rotation.
+`bmopf_terminal_constitutive_map_report(context)` checks their dimensions and
+finite coefficients. For fixed transformers, use
+`bmopf_terminal_complex_constitutive_maps(context)` for a phase-aware real block
+map over the ordered ports `[from_real, from_imag, to_real, to_imag]`; its
+report validates the block dimensions and finite-coefficient contract while
+retaining exact structural rank as metadata.
+
 The physical bus voltage base remains declaration evidence
 (`physical_voltage_base_V` and the semantics description); it is deliberately
 not substituted for the p.u. coordinate scale. This distinction prevents a
@@ -105,6 +141,22 @@ model-key families. Profiled saved-result benchmark records also carry
 `bmopf_constraint_feasibility_field_attribution`, which reports the registered
 families in each violated row's evaluated Jacobian support. This is structural
 support evidence, not a claim that one field family caused the violation.
+The same report now checks BMOPFTools' registered `:constraint` keys. Registered
+rows receive a semantic family and instance (for example `kcl_r/(bus,terminal)`)
+in `constraint_support`; rows without a public registration are explicitly
+labelled `unregistered_constraint`. This is an intentional API boundary: the
+adapter never infers device or physical meaning from JuMP variable names. The
+serialized metadata separates registered and unregistered violated-row counts
+and aggregates both constraint families and instances. Each row also carries
+component candidates derived from those registered variable families (for
+example `bus/79` or `ibr/pv_2`); these are localization evidence, not a claim
+that a candidate component caused the residual.
+The BMOPFTools adapter now registers IBR phase constraints under stable families
+such as `ibr_p_lower`, `ibr_p_upper`, `ibr_q_volt_var`, `ibr_power_circle`, and
+`ibr_power_link_p/q`. This makes the IBR power-policy findings directly
+inspectable. Bus voltage/angle/sequence limits and line current thermal cones
+are also registered when those limits are present; custom model-hook equations
+remain an explicit registration boundary.
 By default, `bmopf_profile_case` also appends BMOPFTools' public
 `opf_differentiability_report` to `context_report`. This preserves engine-owned
 nonsmooth-operator, dynamic-branch, unsupported-parameter, active-set, and
@@ -152,7 +204,17 @@ zero-coordinate probe; that probe never writes starts and must not be
 interpreted as a physically meaningful voltage initialization.
 Run `benchmarks/summarize_bmopf_smoke.jl <output-directory>` after a corpus
 execution to produce `summary.json`, including point-policy provenance and
-per-case/aggregate finding-code counts.
+per-case/aggregate finding-code counts. The summary also aggregates the
+multiconductor contract block: port/map/mode counts, adapter finding cases,
+physical-mode category coverage, and constitutive-map rank statistics. Missing
+contract blocks are tolerated so older smoke records remain readable.
+
+Each smoke record also contains a `multiconductor_contract` block with
+voltage/current port counts, attachment coverage, physical-mode categories,
+constitutive-map counts/ranks (including phase-aware complex transformer
+blocks), and independent adapter finding counts. This is structural metadata
+only; the smoke runner does not materialize dense Jacobians for this contract
+block.
 
 Both BMOPF runners record the scalar model dimensions and the product of
 variables and scalar constraint rows. Their dense rank/SVD analyses are guarded
@@ -242,14 +304,66 @@ directories and a `matrix_index.json`; summarize each directory independently,
 then compare them with `compare_bmopf_solver_traces.jl`. This keeps solver
 startup timeouts, objective conventions, log evidence, and environment
 fingerprints visible instead of collapsing them into a benchmark score.
+For repeatability experiments, use
+`benchmarks/launch_bmopf_perturbation_repeats.jl` with
+`NLPDIAGNOSTICS_BMOPF_REPLICATES=2` (or more). Each replicate receives a
+stable `run_id` and `replicate_index`, its own matrix directory, and a bounded
+process log. Run
+`benchmarks/summarize_bmopf_perturbation_repeats.jl <repeat-output>` to align
+solver/case/family variants across replicates. The report separately exposes
+baseline termination inconsistency and repeated variant changes; a repeated
+change is evidence of an observed pattern, not a causal or physical claim.
+To aggregate several repeat outputs across a selected corpus, run
+`benchmarks/summarize_bmopf_perturbation_corpus.jl <repeat-summary-1.json>
+<repeat-summary-2.json> [corpus-summary.json]`. It reports family recurrence,
+iteration-delta distributions, sparse-rank observation counts, and
+solver-agreement/disagreement per case and family. It now aligns baseline
+terminations, variant terminations, iteration-direction changes, and
+repeatability signatures for each solver pair. Solver disagreement is retained
+as evidence rather than averaged away. The corpus output also emits structured
+findings with severity, confidence, evidence, and suggested actions for
+recurring sparse effects and solver-dependent outcomes.
 `summarize_bmopf_solver_matrix.jl <matrix-output>` automates that final step:
 it creates missing per-solver summaries, writes pairwise comparison artifacts,
 and records any summary/comparison subprocess error in `matrix_summary.json`.
+For a controlled model-level perturbation matrix, set
+`NLPDIAGNOSTICS_BMOPF_RUN_FAMILY_PERTURBATIONS=true` together with a bounded
+`NLPDIAGNOSTICS_BMOPF_PERTURBATION_FAMILIES` list and run the same launcher.
+The matrix manifest propagates those settings and
+`matrix_summary.json` adds `family_perturbation_matrix`, including each
+solver/case/family pair, termination and iteration deltas, sparse/local rank
+evidence, and descriptive repeatability counts. These variants replace a
+native family builder with a no-op and rebuild KCL; they are intentionally
+incomplete formulations for sensitivity experiments, not valid physical
+models or causal proofs. Keep the list small and use a separate output
+directory when collecting this evidence.
 Use `summarize_bmopf_campaign.jl <corpus-summary.json> <matrix-summary.json>`
 to combine corpus and solver evidence. Set
 `NLPDIAGNOSTICS_BMOPF_ADDITIONAL_CORPUS_SUMMARIES` to a comma-separated list
 of additional corpus summaries; their structural, context, integrity, and
 generic fingerprints are aggregated while each source remains separate.
+Set `NLPDIAGNOSTICS_BMOPF_PERTURBATION_SUMMARIES` to one or more outputs from
+`summarize_bmopf_perturbation_corpus.jl` to retain corpus-level perturbation
+findings in the combined campaign report. They remain in a separate
+`perturbation_corpus` namespace and are not merged into generic or solver
+finding counts.
+For a normalized, source-aware view over these reports, run
+`benchmarks/summarize_bmopf_evidence_ledger.jl report1.json report2.json
+[ledger.json]`. The ledger preserves each finding record and adds stable
+identities, source counts, severity/confidence distributions, and recurrence
+across source reports. It is an evidence index, not a score.
+Compare two ledgers with
+`benchmarks/compare_bmopf_evidence_ledgers.jl baseline-ledger.json
+current-ledger.json [comparison.json]`. The comparison classifies finding
+identities as new, resolved, persistent, or distribution-changed and retains
+the source paths behind each transition. It also checks case, solver, family,
+environment, and selected analysis-budget provenance; incompatible ledgers are
+flagged as conditional comparisons rather than silently treated as regressions.
+Each new ledger also emits a canonical `campaign_provenance` object and
+SHA-256 `campaign_fingerprint`. The fingerprint includes selected cases,
+solvers, perturbation families, environment fingerprints, and analysis-budget
+values. Missing provenance is reported as unknown; it is never silently
+treated as compatible.
 Set `NLPDIAGNOSTICS_BMOPF_PERSISTENCE_SUMMARIES` to one or more comma-separated
 outputs from `summarize_bmopf_persistence.jl` to include cross-point rank,
 nullspace, scaling, mapping, and availability fingerprints in the same
@@ -456,6 +570,34 @@ magnitudes from saved rectangular voltages using the engine-declared neutral
 labels and key reference mode. A missing or ambiguous declared reference is
 left unmapped; the adapter never guesses from terminal or variable names.
 
+The same public constraint registry now covers native load real/reactive power
+equations (`load_power_real`/`load_power_imag`), source P/Q bounds,
+generator P/Q bounds, line current thermal cones, and line apparent-power
+links/circles when those declarations are present in the network. Constraint
+keys retain the device identifier and phase/end index, so a violated row can
+be attributed to an engine equation or operational limit without relying on a
+JuMP construction name. Custom model hooks can publish the same evidence with
+`BMOPFTools.register_opf_constraint!(ctx, family, index, cref)`; hooks that do
+not do so remain explicitly `unregistered_constraint`.
+
+Transformer and n-winding builders use the registry for coil apparent-power
+links/circles, current thermal limits, and the principal voltage/current
+coupling rows. Keys include transformer id, side/winding, and phase index;
+specialized internal branches that are not yet individually named remain
+visible as ordinary unregistered rows rather than being guessed from JuMP
+construction order.
+
+Benchmark summaries preserve two distinct coverage measures: violated rows
+with semantic labels, and all evaluated scalar constraint rows with labels.
+The model-wide measure is emitted as `model_constraint_row_count_total`, with
+registered/unregistered totals and a family map. This prevents a feasible
+saved point from hiding registry gaps and is surfaced by the campaign validator
+as `constraint_semantic_registry_model_coverage`.
+Solver-trace records additionally retain `bmopf_constraint_semantic_rows`, a
+row-number-to-family/index map for the evaluated point. The solver-trace
+summarizer uses it to correlate rank-loss, nullspace, and zero-Jacobian-row
+evidence with registered equation families without guessing from JuMP names.
+
 The adapter accepts `result_units=:si` for physical SI values and
 `result_units=:pu` (or the backward-compatible `:model`) for already-scaled
 per-unit/model coordinates. The draft corpus runner exposes this adapter as
@@ -551,3 +693,15 @@ Set `NLPDIAGNOSTICS_BMOPF_INCLUDE_FLOATING_NEUTRAL_CANDIDATES=true` on a
 structural or profile corpus run to retain BMOPFTools' explicit floating-neutral
 candidate modes. These are physical expectations attached to the report; they
 are not automatic claims that the observed Jacobian has those null directions.
+
+The solver-trace runner also supports controlled model-level family
+perturbations. Set `NLPDIAGNOSTICS_BMOPF_RUN_FAMILY_PERTURBATIONS=true` and
+select families with
+`NLPDIAGNOSTICS_BMOPF_PERTURBATION_FAMILIES=load,generator,ibr`; each selected
+family is rebuilt through an explicit no-op `OpfDeviceBuilder`, KCL is then
+re-enforced, and the variant is solved independently. Use
+`NLPDIAGNOSTICS_BMOPF_PERTURBATION_MAX_ITER` to bound variant work. The output
+retains baseline and per-family status, termination, iteration, semantic-row,
+and numerical-profile evidence. These variants deliberately represent
+formulation perturbations, not valid physical network models, so differences
+are causal tests of the formulation fingerprint only.

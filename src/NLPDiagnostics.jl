@@ -46,6 +46,7 @@ export ComponentPortMetadata
 export PortNullspaceMode
 export PortNullspaceModeSemantics
 export PortConnectionMetadata
+export PortConstitutiveMap
 export PortTopologyNullspace
 export PortCoordinateMap
 export PortCoordinateSemantics
@@ -177,6 +178,7 @@ export stable_reformulation_plan
 export analyze_stable_reformulation_plan
 export analyze_initialization
 export analyze_numerical
+export analyze_jacobian_row_family_perturbations
 export analyze_jacobian_rank_persistence
 export analyze_jacobian_scaling_persistence
 export analyze_jacobian_derivative_provenance_persistence
@@ -322,6 +324,8 @@ export bmopf_result_voltage_point
 export bmopf_result_mapping_report
 export bmopf_result_field_catalog
 export bmopf_constraint_feasibility_field_attribution
+export bmopf_constraint_semantic_row_map
+export bmopf_analyze_jacobian_row_family_perturbations
 export bmopf_saved_result_profile_case
 export bmopf_profile_saved_result
 export bmopf_coordinate_probe_point
@@ -334,8 +338,22 @@ export bmopf_analyze_component_rank_persistence
 export bmopf_terminal_port_metadata
 export bmopf_terminal_port_coordinate_maps
 export bmopf_terminal_port_coordinate_semantics
+export bmopf_terminal_port_connections
 export bmopf_terminal_port_report
 export bmopf_terminal_port_coordinate_scale_report
+export bmopf_terminal_current_port_metadata
+export bmopf_terminal_current_port_coordinate_maps
+export bmopf_terminal_current_port_coordinate_semantics
+export bmopf_terminal_current_port_report
+export bmopf_terminal_port_nullspace_modes
+export bmopf_terminal_port_nullspace_mode_semantics
+export bmopf_terminal_port_nullspace_mode_report
+export bmopf_terminal_constitutive_maps
+export bmopf_terminal_constitutive_map_report
+export bmopf_terminal_complex_constitutive_maps
+export bmopf_terminal_complex_constitutive_map_report
+export bmopf_passive_network_current_maps
+export bmopf_passive_network_current_map_report
 export bmopf_floating_neutral_candidate_modes
 export bmopf_floating_neutral_candidate_report
 export bmopf_opf_lifecycle_report
@@ -1456,6 +1474,77 @@ function _component_port_mode_coordinate_projection_findings(
                                 ["Document the direction as intentionally internal, or supply a different coordinate convention if it should be observable."],
         ))
     end
+    return report
+end
+
+function _component_port_constitutive_map_findings(
+    maps::AbstractVector{<:PortConstitutiveMap},
+)
+    report = DiagnosticReport()
+    seen = Set{Tuple{Symbol,String,String}}()
+    for item in maps
+        key = (item.component_type, item.component_id, item.map_id)
+        if key in seen
+            push!(report, Finding(:component_port_constitutive_map_duplicate;
+                severity = SeverityWarning, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Constitutive map :$(item.map_id) is declared more than once for $(item.component_type) $(item.component_id).",
+                why_it_matters = "Duplicate map identities make transformer/device constitutive evidence ambiguous when reports are composed.",
+                evidence = [Evidence("Duplicate constitutive-map identity"; details = [
+                    "component_type" => item.component_type,
+                    "component_id" => item.component_id,
+                    "map_id" => item.map_id,
+                ])],
+                suggested_actions = ["Retain one map per component/map identity or give alternative formulations distinct map IDs."],
+            ))
+        end
+        push!(seen, key)
+        expected_columns = sum(length, item.port_terminal_labels; init = 0)
+        if size(item.matrix, 2) != expected_columns
+            push!(report, Finding(:component_port_constitutive_map_dimension_mismatch;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Constitutive map :$(item.map_id) has $(size(item.matrix, 2)) columns but its named ports contain $expected_columns terminal coordinates.",
+                why_it_matters = "A constitutive map cannot be assembled over named ports when its coordinate dimensions disagree.",
+                evidence = [Evidence("Constitutive-map dimensions"; details = [
+                    "component_type" => item.component_type,
+                    "component_id" => item.component_id,
+                    "map_id" => item.map_id,
+                    "matrix_size" => size(item.matrix),
+                ])],
+                suggested_actions = ["Align matrix columns with the concatenated terminal-label groups."],
+            ))
+        end
+        if length(item.equation_labels) != size(item.matrix, 1)
+            push!(report, Finding(:component_port_constitutive_map_equation_dimension_mismatch;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Constitutive map :$(item.map_id) has $(size(item.matrix, 1)) rows but $(length(item.equation_labels)) equation labels.",
+                why_it_matters = "Row-level evidence cannot be attributed to constitutive equations when row labels are incomplete.",
+                evidence = [Evidence("Constitutive-map equation labels"; details = [
+                    "component_type" => item.component_type,
+                    "component_id" => item.component_id,
+                    "map_id" => item.map_id,
+                ])],
+                suggested_actions = ["Provide one stable equation label per constitutive-map row."],
+            ))
+        end
+        all(isfinite, item.matrix) || push!(report, Finding(:component_port_constitutive_map_nonfinite;
+            severity = SeverityError, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Constitutive map :$(item.map_id) contains non-finite coefficients.",
+            why_it_matters = "Non-finite constitutive coefficients cannot support structural or numerical diagnostics.",
+            evidence = [Evidence("Constitutive-map coefficients"; details = [
+                "component_type" => item.component_type,
+                "component_id" => item.component_id,
+                "map_id" => item.map_id,
+            ])],
+            suggested_actions = ["Use finite, explicitly scaled map coefficients or omit the map until its units are known."],
+        ))
+        map_rank = isempty(item.matrix) ? 0 : LinearAlgebra.rank(Matrix(item.matrix))
+        report.metadata[Symbol("constitutive_map_rank_", item.component_type, "_", item.component_id, "_", item.map_id)] = string(map_rank)
+    end
+    report.metadata[:component_port_constitutive_map_count] = string(length(maps))
     return report
 end
 

@@ -9,6 +9,17 @@ separate namespaces.
 
 using JSON
 
+function _int(value, default = 0)
+    value isa Integer && return Int(value)
+    value isa Number && return Int(value)
+    value isa AbstractString || return default
+    try
+        return parse(Int, value)
+    catch
+        return default
+    end
+end
+
 function _load(path)
     isfile(path) || error("summary file is missing: $path")
     value = JSON.parsefile(path)
@@ -39,6 +50,7 @@ function _structural_view(summary)
         "aggregate_context_finding_codes" => get(summary, "aggregate_context_finding_codes", Dict()),
         "aggregate_initialization_finding_codes" => get(summary, "aggregate_initialization_finding_codes", Dict()),
         "aggregate_integrity_finding_codes" => get(summary, "aggregate_integrity_finding_codes", Dict()),
+        "feasibility_field_attribution_counts" => get(summary, "feasibility_field_attribution_counts", Dict()),
     )
 end
 
@@ -54,6 +66,11 @@ function _solver_view(summary)
         "failure_category_counts" => get(summary, "failure_category_counts", Dict()),
         "solver_result_finding_codes" => get(summary, "solver_result_finding_codes", Dict()),
         "bmopf_context_finding_codes" => get(summary, "bmopf_context_finding_codes", Dict()),
+        "bmopf_profile_finding_codes" => get(summary, "bmopf_profile_finding_codes", Dict()),
+        "solver_rank_semantic_family_counts" => get(summary, "solver_rank_semantic_family_counts", Dict()),
+        "family_perturbation_status_counts" => get(summary, "family_perturbation_status_counts", Dict()),
+        "family_perturbation_termination_counts" => get(summary, "family_perturbation_termination_counts", Dict()),
+        "family_perturbation_by_family" => get(summary, "family_perturbation_by_family", Dict()),
         "solver_log_finding_codes" => get(summary, "solver_log_finding_codes", Dict()),
         "solver_log_evidence_case_count" => get(summary, "solver_log_evidence_case_count", 0),
         "solver_log_iteration_count" => get(summary, "solver_log_iteration_count", 0),
@@ -87,6 +104,24 @@ function _persistence_view(summary)
     )
 end
 
+function _perturbation_view(summary)
+    return Dict{String,Any}(
+        "summary_path" => nothing,
+        "runner_version" => get(summary, "runner_version", nothing),
+        "source_summaries" => get(summary, "source_summaries", Any[]),
+        "pair_count" => get(summary, "pair_count", 0),
+        "family_count" => get(summary, "family_count", 0),
+        "by_family" => get(summary, "by_family", Dict()),
+        "solver_agreement_pair_count" => get(summary, "solver_agreement_pair_count", 0),
+        "solver_agreement_count" => get(summary, "solver_agreement_count", 0),
+        "solver_disagreement_count" => get(summary, "solver_disagreement_count", 0),
+        "baseline_solver_disagreement_count" => get(summary, "baseline_solver_disagreement_count", 0),
+        "variant_termination_disagreement_count" => get(summary, "variant_termination_disagreement_count", 0),
+        "iteration_direction_disagreement_count" => get(summary, "iteration_direction_disagreement_count", 0),
+        "findings" => get(summary, "findings", Any[]),
+    )
+end
+
 function _merge_code_maps(summaries, field)
     merged = Dict{String,Int}()
     for summary in summaries
@@ -98,6 +133,21 @@ function _merge_code_maps(summaries, field)
         end
     end
     return Dict(code => merged[code] for code in sort!(collect(keys(merged))))
+end
+
+function _merge_nested_count_maps(summaries, outer_field, inner_field)
+    merged = Dict{String,Int}()
+    for summary in summaries
+        outer = get(summary, outer_field, Dict())
+        outer isa AbstractDict || continue
+        nested = get(outer, inner_field, Dict())
+        nested isa AbstractDict || continue
+        for (key, count) in nested
+            count isa Number || continue
+            merged[String(key)] = get(merged, String(key), 0) + Int(count)
+        end
+    end
+    return Dict(key => merged[key] for key in sort!(collect(keys(merged))))
 end
 
 function main()
@@ -136,6 +186,20 @@ function main()
         push!(persistence_views, view)
     end
     !isempty(persistence_views) && (persistence = first(persistence_views))
+    perturbation_paths = filter(!isempty, strip.(split(
+        get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_SUMMARIES", ""), ',';
+    )))
+    perturbation = nothing
+    additional_perturbation = Dict{String,Any}()
+    perturbation_views = Any[]
+    for raw_path in perturbation_paths
+        path = abspath(raw_path)
+        view = _perturbation_view(_load(path))
+        view["summary_path"] = path
+        additional_perturbation[path] = view
+        push!(perturbation_views, view)
+    end
+    !isempty(perturbation_views) && (perturbation = first(perturbation_views))
     matrix = nothing
     solver_views = Dict{String,Any}()
     comparisons = Dict{String,Any}()
@@ -148,6 +212,10 @@ function main()
             "cases" => get(matrix_data, "cases", Any[]),
             "child_timeout_seconds" => get(matrix_data, "child_timeout_seconds", nothing),
             "summary_errors" => get(matrix_data, "summary_errors", Dict()),
+            "family_perturbations_enabled" => get(matrix_data, "family_perturbations_enabled", false),
+            "family_perturbation_families" => get(matrix_data, "family_perturbation_families", Any[]),
+            "family_perturbation_max_iter" => get(matrix_data, "family_perturbation_max_iter", nothing),
+            "family_perturbation_matrix" => get(matrix_data, "family_perturbation_matrix", Dict()),
         )
         for (solver, summary) in get(matrix_data, "solver_summaries", Dict())
             view = _solver_view(summary)
@@ -189,9 +257,25 @@ function main()
                 corpus_views, "aggregate_generic_finding_codes",
             ),
         ),
+        "constraint_registry_aggregates" => Dict(
+            "model_constraint_row_count_total" => sum(
+                _int(get(get(view, "feasibility_field_attribution_counts", Dict()),
+                         "model_constraint_row_count_total", 0)) for view in corpus_views),
+            "model_registered_constraint_row_count_total" => sum(
+                _int(get(get(view, "feasibility_field_attribution_counts", Dict()),
+                         "model_registered_constraint_row_count_total", 0)) for view in corpus_views),
+            "model_unregistered_constraint_row_count_total" => sum(
+                _int(get(get(view, "feasibility_field_attribution_counts", Dict()),
+                         "model_unregistered_constraint_row_count_total", 0)) for view in corpus_views),
+            "model_constraint_family_row_counts" => _merge_nested_count_maps(
+                corpus_views, "feasibility_field_attribution_counts",
+                "model_constraint_family_row_counts"),
+        ),
         "solver_matrix" => matrix,
         "persistence" => persistence,
         "additional_persistence" => additional_persistence,
+        "perturbation_corpus" => perturbation,
+        "additional_perturbation_corpus" => additional_perturbation,
         "persistence_fingerprint_aggregates" => Dict(
             "observed_fingerprint_totals" => _merge_code_maps(
                 persistence_views, "observed_fingerprint_totals",

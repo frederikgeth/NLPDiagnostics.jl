@@ -14,6 +14,7 @@ using BMOPFTools
 using JuMP
 using Ipopt # together with JuMP, activates BMOPFTools' public staged OPF extension
 using JSON
+using LinearAlgebra
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
@@ -113,6 +114,47 @@ function _bmopf_integrity_preflight(network)
     )
 end
 
+function _multiconductor_contract_data(context)
+    voltage_ports = NLPDiagnostics.bmopf_terminal_port_metadata(context)
+    voltage_maps = NLPDiagnostics.bmopf_terminal_port_coordinate_maps(context)
+    voltage_connections = NLPDiagnostics.bmopf_terminal_port_connections(context)
+    voltage_report = NLPDiagnostics.bmopf_terminal_port_report(context)
+    current_ports = NLPDiagnostics.bmopf_terminal_current_port_metadata(context)
+    current_maps = NLPDiagnostics.bmopf_terminal_current_port_coordinate_maps(context)
+    current_report = NLPDiagnostics.bmopf_terminal_current_port_report(context)
+    physical_modes = NLPDiagnostics.bmopf_terminal_port_nullspace_modes(context)
+    physical_mode_report = NLPDiagnostics.bmopf_terminal_port_nullspace_mode_report(context)
+    constitutive_maps = NLPDiagnostics.bmopf_terminal_constitutive_maps(context)
+    constitutive_report = NLPDiagnostics.bmopf_terminal_constitutive_map_report(context)
+    complex_constitutive_maps = NLPDiagnostics.bmopf_terminal_complex_constitutive_maps(context)
+    complex_constitutive_report = NLPDiagnostics.bmopf_terminal_complex_constitutive_map_report(context)
+    passive_current_maps = NLPDiagnostics.bmopf_passive_network_current_maps(context)
+    passive_current_report = NLPDiagnostics.bmopf_passive_network_current_map_report(context)
+    return Dict{String,Any}(
+        "voltage_port_count" => length(voltage_ports),
+        "voltage_coordinate_map_count" => length(voltage_maps),
+        "voltage_connection_count" => length(voltage_connections),
+        "voltage_report_finding_count" => length(voltage_report.findings),
+        "current_port_count" => length(current_ports),
+        "current_coordinate_map_count" => length(current_maps),
+        "current_report_finding_count" => length(current_report.findings),
+        "current_skipped_count" => parse(Int, current_report.metadata[:bmopf_terminal_current_port_skipped_count]),
+        "physical_mode_count" => length(physical_modes),
+        "physical_mode_finding_count" => length(physical_mode_report.findings),
+        "physical_mode_categories" => sort!(collect(Set(string(item.category) for item in
+                                                         NLPDiagnostics.bmopf_terminal_port_nullspace_mode_semantics(context)))),
+        "constitutive_map_count" => length(constitutive_maps),
+        "constitutive_map_finding_count" => length(constitutive_report.findings),
+        "constitutive_map_ranks" => [LinearAlgebra.rank(map.matrix) for map in constitutive_maps],
+        "complex_constitutive_map_count" => length(complex_constitutive_maps),
+        "complex_constitutive_map_finding_count" => length(complex_constitutive_report.findings),
+        "complex_constitutive_map_ranks" => [LinearAlgebra.rank(map.matrix) for map in complex_constitutive_maps],
+        "passive_network_current_map_count" => length(passive_current_maps),
+        "passive_network_current_map_finding_count" => length(passive_current_report.findings),
+        "passive_network_current_map_ranks" => [LinearAlgebra.rank(map.matrix) for map in passive_current_maps],
+    )
+end
+
 function main()
     root = get(ENV, "NLPDIAGNOSTICS_BMOPF_FIXTURE_ROOT", "")
     isempty(root) && error(
@@ -156,6 +198,7 @@ function main()
                 ),
             )
             data = NLPDiagnostics.profile_result_data(run.result)
+            multiconductor_contract = _multiconductor_contract_data(run.context)
             evaluation = run.result.profile.evaluation
             variable_count = length(evaluation.point.variables)
             constraint_row_count = length(evaluation.constraint_sources)
@@ -175,6 +218,7 @@ function main()
                 "jacobian_dense_entry_count" => jacobian_entries,
                 "rank_max_dense_entries" => dense_entry_limit,
                 "dense_rank_analysis_eligible" => jacobian_entries <= dense_entry_limit,
+                "multiconductor_contract" => multiconductor_contract,
                 "build_seconds" => run.build_seconds,
                 "build_allocations" => run.build_allocations,
                 "kcl_seconds" => run.kcl_seconds,
@@ -191,6 +235,7 @@ function main()
                 "jacobian_dense_entry_count" => jacobian_entries,
                 "rank_max_dense_entries" => dense_entry_limit,
                 "dense_rank_analysis_eligible" => jacobian_entries <= dense_entry_limit,
+                "multiconductor_contract" => multiconductor_contract,
                 "generic_finding_count" => generic_findings,
                 "context_finding_count" => context_findings,
                 "build_seconds" => run.build_seconds, "kcl_seconds" => run.kcl_seconds,

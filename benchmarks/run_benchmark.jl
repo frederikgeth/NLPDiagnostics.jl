@@ -51,7 +51,9 @@ child_env["JULIA_NUM_PRECOMPILE_TASKS"] = get(
 )
 
 julia = Base.julia_cmd()
-command = `$julia --startup-file=no --project=$project $script $(script_args...)`
+# Build the command from argv explicitly. Interpolating a splatted vector into
+# a command literal can concatenate adjacent arguments on newer Julia releases.
+command = Cmd(vcat(julia.exec, ["--startup-file=no", "--project=$project", script], script_args))
 println("benchmark project: $project")
 println("benchmark depot: $depot")
 println("benchmark script: $script")
@@ -59,5 +61,7 @@ try
     run(setenv(command, child_env))
 catch error
     error isa Base.ProcessFailedException || rethrow()
-    exit(error.process.exitcode)
+    processes = getproperty(error, :procs)
+    isempty(processes) && exit(1)
+    exit(processes[end].exitcode)
 end

@@ -86,6 +86,12 @@ function _run_pair(script, project, root, output_root, solver, relative, timeout
             "process_exit_code" => exit_code,
             "process_timeout" => timed_out,
             "process_log" => basename(process_log),
+            "family_perturbations_enabled" => get(record, "family_perturbations_enabled", nothing),
+            "family_perturbation_families" => get(record, "family_perturbation_families", Any[]),
+            "family_perturbation_max_iter" => get(record, "family_perturbation_max_iter", nothing),
+            "run_id" => get(record, "run_id", get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_ID", "default")),
+            "replicate_index" => get(record, "replicate_index", get(ENV, "NLPDIAGNOSTICS_BMOPF_REPLICATE_INDEX", "1")),
+            "environment_fingerprint" => get(record, "environment_fingerprint", nothing),
         )
     end
     return Dict{String,Any}(
@@ -98,6 +104,11 @@ function _run_pair(script, project, root, output_root, solver, relative, timeout
         "process_exit_code" => exit_code,
         "process_timeout" => timed_out,
         "process_log" => basename(process_log),
+        "family_perturbations_enabled" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_FAMILY_PERTURBATIONS", "false"),
+        "family_perturbation_families" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_FAMILIES", ""),
+        "family_perturbation_max_iter" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_MAX_ITER", "100"),
+        "run_id" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_ID", "default"),
+        "replicate_index" => get(ENV, "NLPDIAGNOSTICS_BMOPF_REPLICATE_INDEX", "1"),
     )
 end
 
@@ -142,18 +153,38 @@ function main()
             "solver" => solver,
             "capture_logs" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS", "false"),
             "capture_points" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS", "false"),
+            "family_perturbations_enabled" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_FAMILY_PERTURBATIONS", "false"),
+            "family_perturbation_families" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_FAMILIES", ""),
+            "family_perturbation_max_iter" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_MAX_ITER", "100"),
+            "run_id" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_ID", "default"),
+            "replicate_index" => get(ENV, "NLPDIAGNOSTICS_BMOPF_REPLICATE_INDEX", "1"),
+            "environment_fingerprint" => begin
+                fingerprints = [get(entry, "environment_fingerprint", nothing) for entry in solver_entries]
+                available = filter(!isnothing, fingerprints)
+                isempty(available) ? nothing : first(available)
+            end,
             "child_timeout_seconds" => timeout_seconds,
             "cases" => solver_entries,
         )))
     end
     write(joinpath(output_root, "matrix_index.json"), JSON.json(Dict(
-        "runner_version" => "bmopf-solver-matrix-v1",
+        "runner_version" => "bmopf-solver-matrix-v2",
         "benchmark_root" => abspath(root),
         "solvers" => unique(solvers),
         "cases" => cases,
         "child_timeout_seconds" => timeout_seconds,
         "capture_logs" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS", "false"),
         "capture_points" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS", "false"),
+        "family_perturbations_enabled" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_FAMILY_PERTURBATIONS", "false"),
+        "family_perturbation_families" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_FAMILIES", ""),
+            "family_perturbation_max_iter" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_MAX_ITER", "100"),
+            "run_id" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_ID", "default"),
+            "replicate_index" => get(ENV, "NLPDIAGNOSTICS_BMOPF_REPLICATE_INDEX", "1"),
+            "environment_fingerprint" => begin
+                fingerprints = [get(entry, "environment_fingerprint", nothing) for entry in entries]
+                available = filter(!isnothing, fingerprints)
+                isempty(available) ? nothing : first(available)
+            end,
         "environment" => Dict(
             "julia_version" => string(VERSION),
             "julia_executable" => string(Base.julia_cmd()),

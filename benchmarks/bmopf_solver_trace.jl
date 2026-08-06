@@ -33,7 +33,7 @@ end
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
-const _RUNNER_VERSION = "bmopf-solver-trace-v3"
+const _RUNNER_VERSION = "bmopf-solver-trace-v4"
 const _DEFAULT_CASES = [
     "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
 ]
@@ -151,6 +151,112 @@ function _apply_solver_options(model, options)
     return model
 end
 
+function _perturbation_families()
+    enabled = _env_flag("NLPDIAGNOSTICS_BMOPF_RUN_FAMILY_PERTURBATIONS")
+    enabled || return Symbol[]
+    raw = filter(!isempty, strip.(split(
+        get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_FAMILIES",
+            "load,generator,ibr,shunt,capacitor,grounding"), ',';
+    )))
+    families = Symbol.(lowercase.(raw))
+    isempty(families) && error(
+        "NLPDIAGNOSTICS_BMOPF_PERTURBATION_FAMILIES must not be empty when family perturbations are enabled",
+    )
+    return unique(families)
+end
+
+function _family_omission_build_spec(family::Symbol)
+    builder = BMOPFTools.OpfDeviceBuilder(
+        :nlpdiagnostics_family_perturbation,
+        (context, ids) -> nothing,
+    )
+    return BMOPFTools.OpfBuildSpec(
+        family_builders = Dict(family => builder),
+    )
+end
+
+function _family_perturbation_record(
+    network, family::Symbol, solver_name, per_unit, solver_options,
+    capture_points, max_variables, dense_entry_limit, perturbation_max_iter,
+)
+    started = time()
+    try
+        build_timing = @timed BMOPFTools.build_opf_model(network;
+            optimizer = _solver_optimizer(solver_name), add_objective = true,
+            per_unit = per_unit,
+            build_spec = _family_omission_build_spec(family),
+        )
+        context = build_timing.value
+        kcl_timing = @timed BMOPFTools.enforce_kcl!(context)
+        model = BMOPFTools.opf_model(context)
+        perturbation_options = copy(solver_options)
+        haskey(perturbation_options, "max_iter") ||
+            (perturbation_options["max_iter"] = perturbation_max_iter)
+        _apply_solver_options(model, perturbation_options)
+        backend = JuMP.backend(model)
+        variable_count = length(MOI.get(backend, MOI.ListOfVariableIndices()))
+        if variable_count > max_variables
+            return Dict{String,Any}(
+                "status" => "skipped_solver_size_guard",
+                "family" => string(family),
+                "perturbation_mode" => "replace_native_family_builder_with_noop",
+                "perturbation_scope" => "all_components_in_family",
+                "model_variable_count" => variable_count,
+                "max_solver_variables" => max_variables,
+                "build_seconds" => build_timing.time,
+                "kcl_seconds" => kcl_timing.time,
+                "wall_seconds" => time() - started,
+            )
+        end
+        run = _solve_with_trace(model, solver_name; capture_points)
+        record = Dict{String,Any}(
+            "status" => "ok",
+            "family" => string(family),
+            "perturbation_mode" => "replace_native_family_builder_with_noop",
+            "perturbation_scope" => "all_components_in_family",
+            "kcl_rebuilt_after_perturbation" => true,
+            "model_variable_count" => variable_count,
+            "build_seconds" => build_timing.time,
+            "build_allocations" => build_timing.bytes,
+            "kcl_seconds" => kcl_timing.time,
+            "kcl_allocations" => kcl_timing.bytes,
+            "wall_seconds" => time() - started,
+            "solver_options" => perturbation_options,
+            "iteration_trace" => NLPDiagnostics.iteration_trace_data(run.trace),
+            "solver_profile" => NLPDiagnostics.profile_result_data(run),
+        )
+        if !isnothing(run.result.case)
+            bmopf = NLPDiagnostics.bmopf_profile_case(context, run.result.case;
+                include_initialization = false,
+                rank_max_dense_entries = dense_entry_limit,
+                jacobian_rank_tolerance_sweep_max_dense_entries = dense_entry_limit,
+            )
+            record["bmopf_profile"] = NLPDiagnostics.profile_result_data(bmopf)
+            evaluation = run.result.profile.evaluation
+            record["bmopf_constraint_semantic_rows"] =
+                NLPDiagnostics.bmopf_constraint_semantic_row_map(context, evaluation)
+            record["bmopf_row_family_perturbation_report"] =
+                NLPDiagnostics.report_data(
+                    NLPDiagnostics.bmopf_analyze_jacobian_row_family_perturbations(
+                        context, evaluation; max_dense_entries = dense_entry_limit,
+                    ),
+                )
+        else
+            record["bmopf_profile"] = nothing
+        end
+        return record
+    catch error
+        return Dict{String,Any}(
+            "status" => "error",
+            "family" => string(family),
+            "perturbation_mode" => "replace_native_family_builder_with_noop",
+            "perturbation_scope" => "all_components_in_family",
+            "wall_seconds" => time() - started,
+            "error" => sprint(showerror, error, catch_backtrace()),
+        )
+    end
+end
+
 function _truncate_log(text, limit = 100_000)
     length(text) <= limit && return text
     return text[1:limit] * "\n...[truncated]..."
@@ -191,13 +297,15 @@ end
 
 function _case_record(root, relative, solver_name, output_dir, max_variables,
                       capture_points, dense_entry_limit, environment_fingerprint,
-                      solver_options, per_unit)
+                      solver_options, per_unit, perturbation_max_iter)
     path = joinpath(root, relative)
     name = replace(replace(relative, '/' => "__"), ".bmopf.json" => "")
     result_path = joinpath(output_dir, "$name.json")
     solver_log_path = joinpath(output_dir, "$name.log")
     capture_logs = _env_flag("NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS")
     sweep_label = get(ENV, "NLPDIAGNOSTICS_BMOPF_SWEEP_LABEL", "")
+    run_id = get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_ID", "default")
+    replicate_index = get(ENV, "NLPDIAGNOSTICS_BMOPF_REPLICATE_INDEX", "1")
     preflight = nothing
     log_configuration_error = nothing
     try
@@ -227,6 +335,8 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                 "solver_options" => solver_options,
                 "per_unit" => per_unit,
                 "sweep_label" => sweep_label,
+                "run_id" => run_id,
+                "replicate_index" => replicate_index,
                 "capture_logs" => capture_logs,
                 "integrity_preflight" => preflight,
                 "solver_log_path" => solver_log_path,
@@ -250,8 +360,29 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                 rank_max_dense_entries = dense_entry_limit,
                 jacobian_rank_tolerance_sweep_max_dense_entries = dense_entry_limit,
             )
-            NLPDiagnostics.profile_result_data(bmopf)
+            serialized = NLPDiagnostics.profile_result_data(bmopf)
+            serialized["bmopf_constraint_semantic_rows"] =
+                NLPDiagnostics.bmopf_constraint_semantic_row_map(
+                    context, run.result.profile.evaluation,
+                )
+            serialized["bmopf_row_family_perturbation_report"] =
+                NLPDiagnostics.report_data(
+                    NLPDiagnostics.bmopf_analyze_jacobian_row_family_perturbations(
+                        context, run.result.profile.evaluation;
+                        max_dense_entries = dense_entry_limit,
+                    ),
+                )
+            serialized
         end
+        perturbation_families = _perturbation_families()
+        family_perturbations = isempty(perturbation_families) ?
+            Dict{String,Any}[] : [
+                _family_perturbation_record(
+                    network, family, solver_name, per_unit, solver_options,
+                    capture_points, max_variables, dense_entry_limit,
+                    perturbation_max_iter,
+                ) for family in perturbation_families
+            ]
         payload = Dict{String,Any}(
             "status" => "ok", "snapshot" => relative,
             "snapshot_path" => abspath(path), "solver" => solver_name,
@@ -259,6 +390,8 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "solver_options" => solver_options,
             "per_unit" => per_unit,
             "sweep_label" => sweep_label,
+            "run_id" => run_id,
+            "replicate_index" => replicate_index,
             "model_coordinate_units" => per_unit ? "per-unit" : "SI/model-native",
             "solver_objective_convention" => solver_name == "madnlp" ?
                 "unscaled model objective via MadNLP.unpack_obj" :
@@ -268,6 +401,7 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "capture_points" => capture_points,
             "capture_logs" => capture_logs,
             "model_variable_count" => variable_count,
+            "run_id" => run_id, "replicate_index" => replicate_index,
             "build_seconds" => build_timing.time,
             "build_allocations" => build_timing.bytes,
             "kcl_seconds" => kcl_timing.time,
@@ -276,6 +410,10 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "iteration_trace" => trace_data,
             "solver_profile" => solver_data,
             "bmopf_profile" => bmopf_data,
+            "family_perturbations" => family_perturbations,
+            "family_perturbations_enabled" => !isempty(perturbation_families),
+            "family_perturbation_families" => string.(perturbation_families),
+            "family_perturbation_max_iter" => perturbation_max_iter,
             "solver_result_constraint_row_count" => isnothing(run.result.profile) ?
                 nothing : length(run.result.profile.evaluation.constraint_sources),
             "solver_log_evidence" => solver_log_evidence,
@@ -300,6 +438,8 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "solver_options" => solver_options,
             "per_unit" => per_unit,
             "sweep_label" => sweep_label,
+            "run_id" => run_id,
+            "replicate_index" => replicate_index,
             "capture_logs" => capture_logs,
             "error" => message, "integrity_preflight" => preflight,
             "solver_log_evidence" => capture_logs ?
@@ -324,22 +464,33 @@ function main()
     solver_name = _solver_name()
     max_variables = _env_int("NLPDIAGNOSTICS_BMOPF_SOLVE_MAX_VARIABLES", 2_000)
     dense_entry_limit = _env_int("NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES", 250_000)
+    perturbation_max_iter = _env_int(
+        "NLPDIAGNOSTICS_BMOPF_PERTURBATION_MAX_ITER", 100,
+    )
     capture_points = _env_flag("NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS")
     per_unit = _env_flag("NLPDIAGNOSTICS_BMOPF_PER_UNIT"; default = true)
+    perturbation_families = _perturbation_families()
     solver_options = _solver_options()
     environment = _benchmark_environment()
     environment_fingerprint = _benchmark_environment_fingerprint(environment)
     sweep_label = get(ENV, "NLPDIAGNOSTICS_BMOPF_SWEEP_LABEL", "")
+    run_id = get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_ID", "default")
+    replicate_index = get(ENV, "NLPDIAGNOSTICS_BMOPF_REPLICATE_INDEX", "1")
     cases = _selected_cases(root)
     index = Dict{String,Any}[]
     for relative in cases
         entry = _case_record(root, relative, solver_name, output_dir,
             max_variables, capture_points, dense_entry_limit,
-            environment_fingerprint, solver_options, per_unit)
+            environment_fingerprint, solver_options, per_unit,
+            perturbation_max_iter)
         entry["environment_fingerprint"] = environment_fingerprint
         entry["solver_options"] = solver_options
         entry["per_unit"] = per_unit
+        entry["family_perturbations_enabled"] = !isempty(perturbation_families)
+        entry["family_perturbation_families"] = string.(perturbation_families)
         entry["sweep_label"] = sweep_label
+        entry["run_id"] = run_id
+        entry["replicate_index"] = replicate_index
         push!(index, entry)
         println("$(entry["name"]): $(entry["status"]) solver=$solver_name " *
             "iterations=$(get(entry, "iteration_count", "n/a"))")
@@ -351,11 +502,16 @@ function main()
         "capture_logs" => _env_flag("NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS"),
         "solver_options" => solver_options,
         "per_unit" => per_unit,
+        "family_perturbations_enabled" => !isempty(perturbation_families),
+        "family_perturbation_families" => string.(perturbation_families),
+        "family_perturbation_max_iter" => perturbation_max_iter,
         "max_solver_variables" => max_variables,
         "rank_max_dense_entries" => dense_entry_limit,
         "environment" => environment,
         "environment_fingerprint" => environment_fingerprint,
         "sweep_label" => sweep_label,
+        "run_id" => run_id,
+        "replicate_index" => replicate_index,
         "cases" => index,
     )))
     println("wrote solver-trace evidence to $output_dir")

@@ -154,6 +154,16 @@ function _validate_campaign(path, summary)
                         _int(get(attribution, "cases_with_attribution", 0)) : 0
     attribution_unsupported = attribution isa AbstractDict ?
                               _int(get(attribution, "unsupported_row_count_total", 0)) : 0
+    semantic_registered = attribution isa AbstractDict ?
+                          _int(get(attribution, "registered_constraint_row_count_total", 0)) : 0
+    semantic_unregistered = attribution isa AbstractDict ?
+                            _int(get(attribution, "unregistered_constraint_row_count_total", 0)) : 0
+    semantic_model_rows = attribution isa AbstractDict ?
+                          _int(get(attribution, "model_constraint_row_count_total", 0)) : 0
+    semantic_model_registered = attribution isa AbstractDict ?
+                                _int(get(attribution, "model_registered_constraint_row_count_total", 0)) : 0
+    semantic_model_unregistered = attribution isa AbstractDict ?
+                                  _int(get(attribution, "model_unregistered_constraint_row_count_total", 0)) : 0
     catalog_ready = profile_cases == 0 || catalog_cases >= profile_cases
     attribution_ready = profile_cases == 0 || attribution_cases >= profile_cases
     !catalog_ready && push!(findings, _finding("result_field_catalog_missing", "warning",
@@ -175,22 +185,77 @@ function _validate_campaign(path, summary)
         Dict("unsupported_row_count_total" => attribution_unsupported);
         suggested_action = "Inspect derivative failures and preserve the attribution's derivative-method provenance before assigning family meaning."
     ))
+    semantic_ready = profile_cases == 0 || attribution_cases >= profile_cases
+    semantic_unregistered > 0 && push!(findings, _finding(
+        "constraint_semantic_registry_boundary", "warning",
+        "Some violated rows are not represented by a registered BMOPFTools constraint key.",
+        Dict("registered_constraint_row_count_total" => semantic_registered,
+             "unregistered_constraint_row_count_total" => semantic_unregistered);
+        suggested_action = "Treat registered semantic labels as authoritative only for those rows; add public constraint registrations before assigning device-level physical meaning to the remainder."
+    ))
+    semantic_model_unregistered > 0 && push!(findings, _finding(
+        "constraint_semantic_registry_model_boundary", "warning",
+        "The evaluated model contains scalar constraint rows without a registered BMOPFTools semantic key.",
+        Dict("model_constraint_row_count_total" => semantic_model_rows,
+             "model_registered_constraint_row_count_total" => semantic_model_registered,
+             "model_unregistered_constraint_row_count_total" => semantic_model_unregistered),
+        suggested_action = "Use the registered-family counts for scoped interpretation and extend BMOPFTools registrations before making whole-model device claims."
+    ))
+    semantic_model_ready = profile_cases == 0 ||
+                           (semantic_model_rows > 0 && semantic_model_unregistered == 0)
+
+    readiness = Dict{String,Any}(
+        "generic_observations" => errors == 0 && integrity_errors == 0 &&
+                                  case_count > 0 && environment isa AbstractString && !isempty(environment),
+        "saved_result_interpretation" => saved_model_ready,
+        "saved_result_full_export_interpretation" => saved_export_ready,
+        "dense_rank_interpretation" => dense_ready,
+        "physical_component_rank_interpretation" => physical_ready,
+        "result_field_catalog" => catalog_ready,
+        "feasibility_field_attribution" => attribution_ready,
+        "constraint_semantic_attribution" => semantic_ready,
+        "constraint_semantic_registry_model_coverage" => semantic_model_ready,
+    )
+    perturbation_corpus = get(summary, "perturbation_corpus", nothing)
+    if perturbation_corpus isa AbstractDict
+        perturbation_report = _validate_perturbation_corpus(path, perturbation_corpus)
+        readiness["perturbation_corpus"] = get(
+            get(perturbation_report, "readiness", Dict()), "corpus_observations", false,
+        )
+        append!(findings, get(perturbation_report, "findings", Any[]))
+    end
+    if haskey(summary, "family_perturbation_status_counts") ||
+       haskey(summary, "family_perturbations_enabled")
+        perturbation_status = get(summary, "family_perturbation_status_counts", Dict())
+        perturbation_status isa AbstractDict || (perturbation_status = Dict())
+        variant_count = sum(_int(value) for value in values(perturbation_status))
+        variant_errors = _int(get(perturbation_status, "error", 0))
+        raw_enabled = get(summary, "family_perturbations_enabled", false)
+        enabled = raw_enabled === true ||
+            lowercase(string(raw_enabled)) in ("true", "1", "yes", "on")
+        if enabled && variant_count == 0
+            push!(findings, _finding("family_perturbation_empty", "warning",
+                "Family perturbations were enabled but no variant records were completed.",
+                Dict("status_counts" => perturbation_status);
+                suggested_action = "Inspect the per-case solver-trace records and child-process timeout evidence."))
+        end
+        variant_errors > 0 && push!(findings, _finding(
+            "family_perturbation_variant_errors", "warning",
+            "Some model-level family perturbation variants ended with execution errors.",
+            Dict("error_variant_count" => variant_errors,
+                 "status_counts" => perturbation_status);
+            suggested_action = "Treat family comparisons as partial until the failed variants are inspected or explicitly excluded."))
+        readiness["model_family_perturbation"] = enabled &&
+            variant_count > 0 && variant_errors == 0
+        readiness["model_family_perturbation_variant_count"] = variant_count
+    end
 
     return Dict{String,Any}(
         "summary_path" => path,
         "case_count" => case_count,
         "error_case_count" => errors,
         "skipped_case_count" => skipped,
-        "readiness" => Dict(
-            "generic_observations" => errors == 0 && integrity_errors == 0 &&
-                                      case_count > 0 && environment isa AbstractString && !isempty(environment),
-            "saved_result_interpretation" => saved_model_ready,
-            "saved_result_full_export_interpretation" => saved_export_ready,
-            "dense_rank_interpretation" => dense_ready,
-            "physical_component_rank_interpretation" => physical_ready,
-            "result_field_catalog" => catalog_ready,
-            "feasibility_field_attribution" => attribution_ready,
-        ),
+        "readiness" => readiness,
         "findings" => findings,
     )
 end
@@ -267,6 +332,41 @@ function _validate_solver_matrix(path, matrix)
     end
     comparison_count == 0 && push!(findings, _finding("solver_matrix_no_pairs", "warning",
         "The solver matrix has no paired comparison records.", Dict("summary_path" => path)))
+    family_matrix = get(matrix, "family_perturbation_matrix", nothing)
+    family_readiness = Dict{String,Any}()
+    if family_matrix isa AbstractDict || haskey(matrix, "family_perturbations_enabled")
+        family_matrix = family_matrix isa AbstractDict ? family_matrix : Dict{String,Any}()
+        raw_enabled = get(matrix, "family_perturbations_enabled", false)
+        enabled = raw_enabled === true || lowercase(string(raw_enabled)) in ("true", "1", "yes", "on")
+        variants = _int(get(family_matrix, "variant_count", 0))
+        status_counts = get(family_matrix, "status_counts", Dict())
+        status_counts isa AbstractDict || (status_counts = Dict())
+        variant_errors = _int(get(status_counts, "error", 0))
+        families = get(family_matrix, "by_family", Dict())
+        family_count = families isa AbstractDict ? length(families) : 0
+        enabled && variants == 0 && push!(findings, _finding(
+            "solver_matrix_family_perturbation_empty", "warning",
+            "Family perturbations were enabled in the solver matrix but no paired variants were summarized.",
+            Dict("variant_count" => variants, "status_counts" => status_counts);
+            suggested_action = "Inspect child records and per-solver summaries before interpreting matrix evidence."
+        ))
+        variant_errors > 0 && push!(findings, _finding(
+            "solver_matrix_family_perturbation_errors", "warning",
+            "Some family-perturbation variants ended with execution errors.",
+            Dict("error_variant_count" => variant_errors, "status_counts" => status_counts);
+            suggested_action = "Treat the matrix perturbation evidence as partial until failed variants are explained."
+        ))
+        repeatability = get(family_matrix, "repeatability", Dict())
+        repeatability isa AbstractDict || (repeatability = Dict())
+        repeated_families = count(value -> _int(get(value, "observations", 0)) >= 2,
+                                  values(repeatability))
+        family_readiness["enabled"] = enabled
+        family_readiness["variant_count"] = variants
+        family_readiness["family_count"] = family_count
+        family_readiness["repeatable_family_count"] = repeated_families
+        family_readiness["matrix_available"] = enabled && variants > 0 && variant_errors == 0
+        family_readiness["repeatability_observed"] = repeated_families > 0
+    end
     return Dict{String,Any}(
         "summary_path" => path,
         "solver_count" => solver_count,
@@ -275,7 +375,183 @@ function _validate_solver_matrix(path, matrix)
         "readiness" => Dict(
             "solver_matrix_success" => solver_count > 0 && successful == solver_count,
             "solver_matrix_alignment" => comparison_count > 0,
+            "family_perturbation_matrix" => get(family_readiness, "matrix_available", false),
+            "family_perturbation_repeatability" => get(family_readiness, "repeatability_observed", false),
         ),
+        "family_perturbation" => family_readiness,
+        "findings" => findings,
+    )
+end
+
+function _validate_repeat_summary(path, summary)
+    findings = Any[]
+    observations = _int(get(summary, "observation_count", 0))
+    artifact_errors = get(summary, "artifact_errors", Any[])
+    artifact_errors isa AbstractVector || (artifact_errors = Any[])
+    baseline_inconsistency = _int(get(summary, "baseline_inconsistency_count", 0))
+    repeatable = _int(get(summary, "repeatable_termination_change_count", 0))
+    observations == 0 && push!(findings, _finding(
+        "perturbation_repeat_summary_empty", "warning",
+        "The repeat summary contains no completed family-perturbation observations.",
+        Dict("summary_path" => path);
+        suggested_action = "Run at least two explicitly identified replicates and preserve their matrix summaries."
+    ))
+    !isempty(artifact_errors) && push!(findings, _finding(
+        "perturbation_repeat_artifact_errors", "warning",
+        "One or more repeat artifacts are missing or failed before summarization.",
+        Dict("artifact_error_count" => length(artifact_errors), "artifacts" => artifact_errors);
+        suggested_action = "Inspect per-replicate process logs before generalizing repeatability."
+    ))
+    baseline_inconsistency > 0 && push!(findings, _finding(
+        "perturbation_repeat_baseline_inconsistent", "warning",
+        "Some solver/case/family pairs changed baseline termination across replicates.",
+        Dict("baseline_inconsistency_count" => baseline_inconsistency);
+        suggested_action = "Treat variant deltas as conditional on solver baseline behavior until the baseline is stabilized."
+    ))
+    repeat_count = _int(get(summary, "replicate_count", 0))
+    stable_pairs = _int(get(summary, "stable_termination_pair_count", 0))
+    readiness = Dict{String,Any}(
+        "repeat_artifacts_complete" => isempty(artifact_errors) && observations > 0,
+        "baseline_consistency" => baseline_inconsistency == 0,
+        "repeatability_observed" => repeat_count >= 2 && (repeatable > 0 || stable_pairs > 0),
+        "stable_termination_pair_count" => stable_pairs,
+        "replicate_count" => repeat_count,
+        "observation_count" => observations,
+    )
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "readiness" => readiness,
+        "baseline_inconsistency_count" => baseline_inconsistency,
+        "repeatable_termination_change_count" => repeatable,
+        "findings" => findings,
+    )
+end
+
+function _validate_perturbation_corpus(path, summary)
+    findings = Any[]
+    pairs = _int(get(summary, "pair_count", 0))
+    families = _int(get(summary, "family_count", 0))
+    source_errors = _int(get(summary, "source_error_count", 0))
+    disagreements = _int(get(summary, "solver_disagreement_count", 0))
+    baseline_disagreements = _int(get(summary, "baseline_solver_disagreement_count", 0))
+    variant_disagreements = _int(get(summary, "variant_termination_disagreement_count", 0))
+    direction_disagreements = _int(get(summary, "iteration_direction_disagreement_count", 0))
+    repeatability_unavailable = _int(get(summary, "repeatability_unavailable_count", 0))
+    pairs == 0 && push!(findings, _finding(
+        "perturbation_corpus_empty", "warning",
+        "The corpus summary contains no solver/case/family pairs.",
+        Dict("summary_path" => path);
+        suggested_action = "Select multiple completed repeat summaries before interpreting recurrence."
+    ))
+    source_errors > 0 && push!(findings, _finding(
+        "perturbation_corpus_source_errors", "warning",
+        "Some source repeat summaries contain missing or failed artifacts.",
+        Dict("source_error_count" => source_errors);
+        suggested_action = "Inspect the source repeat manifests and process logs."
+    ))
+    disagreements > 0 && push!(findings, _finding(
+        "perturbation_corpus_solver_disagreement", "warning",
+        "Solvers disagree on repeated perturbation behavior for some case/family pairs.",
+        Dict("solver_disagreement_count" => disagreements);
+        suggested_action = "Keep solver-specific evidence separate and avoid treating disagreement as a physical conclusion."
+    ))
+    baseline_disagreements > 0 && push!(findings, _finding(
+        "perturbation_corpus_baseline_solver_disagreement", "warning",
+        "Solvers produced different baseline termination signatures for some case/family pairs.",
+        Dict("baseline_solver_disagreement_count" => baseline_disagreements);
+        suggested_action = "Keep solver-specific baselines separate before attributing variant deltas to the formulation."
+    ))
+    variant_disagreements > 0 && push!(findings, _finding(
+        "perturbation_corpus_variant_solver_disagreement", "warning",
+        "Solvers produced different variant termination signatures for some case/family pairs.",
+        Dict("variant_termination_disagreement_count" => variant_disagreements);
+        suggested_action = "Inspect per-solver traces and residual evidence; do not average variant outcomes."
+    ))
+    direction_disagreements > 0 && push!(findings, _finding(
+        "perturbation_corpus_iteration_direction_disagreement", "warning",
+        "Solvers disagree on the direction of iteration-count change for some case/family pairs.",
+        Dict("iteration_direction_disagreement_count" => direction_disagreements);
+        suggested_action = "Report solver-specific iteration sensitivity rather than a solver-independent effect."
+    ))
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "pair_count" => pairs, "family_count" => families,
+        "structured_findings" => get(summary, "findings", Any[]),
+        "readiness" => Dict(
+            "corpus_observations" => pairs > 0 && families > 0 && source_errors == 0,
+            "solver_agreement_available" => _int(get(summary, "solver_agreement_pair_count", 0)) > 0,
+            "solver_disagreement_free" => disagreements == 0,
+            "repeatability_available_pair_count" => max(
+                0, _int(get(summary, "solver_agreement_pair_count", 0)) - repeatability_unavailable,
+            ),
+            "baseline_solver_alignment" => baseline_disagreements == 0,
+            "variant_solver_alignment" => variant_disagreements == 0,
+            "iteration_direction_alignment" => direction_disagreements == 0,
+        ),
+        "findings" => findings,
+    )
+end
+
+function _validate_evidence_ledger(path, ledger)
+    findings = Any[]
+    sources = _int(get(ledger, "source_count", 0))
+    records = _int(get(ledger, "finding_count", 0))
+    identities = _int(get(ledger, "identity_count", 0))
+    sources == 0 && push!(findings, _finding(
+        "evidence_ledger_no_sources", "warning",
+        "The evidence ledger contains no source reports.", Dict("summary_path" => path);
+        suggested_action = "Provide corpus, validation, or campaign reports explicitly."
+    ))
+    records == 0 && push!(findings, _finding(
+        "evidence_ledger_empty", "warning",
+        "The evidence ledger contains no findings.", Dict("summary_path" => path);
+        suggested_action = "Treat an empty ledger as absence of recorded findings, not proof of a clean model."
+    ))
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "source_count" => sources, "finding_count" => records,
+        "identity_count" => identities,
+        "readiness" => Dict("ledger_available" => sources > 0,
+                            "findings_available" => records > 0),
+        "findings" => findings,
+    )
+end
+
+function _validate_evidence_ledger_comparison(path, comparison)
+    findings = Any[]
+    identities = _int(get(comparison, "identity_count", 0))
+    changed = _int(get(comparison, "distribution_changed_count", 0))
+    compatibility = get(comparison, "compatibility", Dict())
+    compatibility isa AbstractDict || (compatibility = Dict())
+    compatibility_status = String(get(compatibility, "status", "unknown"))
+    identities == 0 && push!(findings, _finding(
+        "evidence_ledger_comparison_empty", "warning",
+        "The ledger comparison contains no finding identities.", Dict("summary_path" => path);
+        suggested_action = "Compare ledgers produced from comparable campaigns."
+    ))
+    changed > 0 && push!(findings, _finding(
+        "evidence_ledger_distribution_changes", "warning",
+        "Some persistent finding identities changed severity or confidence distributions.",
+        Dict("distribution_changed_count" => changed);
+        suggested_action = "Inspect source-level evidence before attributing changes to the model or solver."
+    ))
+    compatibility_status == "incompatible" && push!(findings, _finding(
+        "evidence_ledger_campaign_incompatible", "warning",
+        "The compared ledgers have incompatible campaign provenance.",
+        compatibility;
+        suggested_action = "Compare ledgers only after aligning selected cases, solvers, families, and environment fingerprints."
+    ))
+    compatibility_status == "unknown" && push!(findings, _finding(
+        "evidence_ledger_campaign_compatibility_unknown", "info",
+        "Some ledger compatibility fields are unavailable.",
+        compatibility;
+        suggested_action = "Regenerate ledgers with explicit provenance metadata."
+    ))
+    return Dict{String,Any}(
+        "summary_path" => path, "identity_count" => identities,
+        "readiness" => Dict("comparison_available" => identities > 0,
+                            "distribution_stability" => changed == 0,
+                            "campaign_compatibility" => compatibility_status == "compatible"),
         "findings" => findings,
     )
 end
@@ -286,12 +562,28 @@ function main()
     campaign_reports = Any[]
     comparison_reports = Any[]
     solver_matrix_reports = Any[]
+    repeat_reports = Any[]
+    perturbation_corpus_reports = Any[]
+    evidence_ledger_reports = Any[]
+    evidence_ledger_comparison_reports = Any[]
     all_findings = Any[]
     environments = Any[]
     for raw_path in ARGS[2:end]
         path = abspath(raw_path)
         summary = _load(path)
-        if haskey(summary, "solver_summaries") && haskey(summary, "comparisons")
+        if startswith(String(get(summary, "runner_version", "")), "bmopf-evidence-ledger-comparison-")
+            report = _validate_evidence_ledger_comparison(path, summary)
+            push!(evidence_ledger_comparison_reports, report)
+        elseif startswith(String(get(summary, "runner_version", "")), "bmopf-evidence-ledger-")
+            report = _validate_evidence_ledger(path, summary)
+            push!(evidence_ledger_reports, report)
+        elseif startswith(String(get(summary, "runner_version", "")), "bmopf-perturbation-corpus-")
+            report = _validate_perturbation_corpus(path, summary)
+            push!(perturbation_corpus_reports, report)
+        elseif haskey(summary, "repeat_index") && haskey(summary, "by_pair")
+            report = _validate_repeat_summary(path, summary)
+            push!(repeat_reports, report)
+        elseif haskey(summary, "solver_summaries") && haskey(summary, "comparisons")
             report = _validate_solver_matrix(path, summary)
             push!(solver_matrix_reports, report)
         elseif haskey(summary, "missing_left_case_count") || haskey(summary, "paired_case_count")
@@ -322,6 +614,10 @@ function main()
         "campaign_reports" => campaign_reports,
         "comparison_reports" => comparison_reports,
         "solver_matrix_reports" => solver_matrix_reports,
+        "perturbation_repeat_reports" => repeat_reports,
+        "perturbation_corpus_reports" => perturbation_corpus_reports,
+        "evidence_ledger_reports" => evidence_ledger_reports,
+        "evidence_ledger_comparison_reports" => evidence_ledger_comparison_reports,
         "findings" => all_findings,
         "interpretation" => "Trust-gate validation only; warnings identify unavailable or conditional evidence and are not model-quality scores.",
     )

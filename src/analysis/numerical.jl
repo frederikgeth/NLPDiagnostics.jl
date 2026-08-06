@@ -75,6 +75,247 @@ function jacobian_scale_summary(evaluation::NumericalEvaluation{T}) where {T}
 end
 
 """
+    analyze_jacobian_row_family_perturbations(evaluation, row_labels; kwargs...)
+
+Compare the local Jacobian rank after removing each labelled row family in
+turn. `row_labels` may be an aligned vector, or a dictionary keyed by the
+one-based evaluation row number. Dictionary values may be strings, symbols, or
+metadata dictionaries containing `constraint_family`; this makes the generic
+routine usable with domain-plugin row maps without importing their types.
+
+This is a linearized, point-local perturbation. It does not delete constraints
+from a model, re-solve the problem, or establish that a family is causally
+responsible for a solver failure. A changed rank is evidence about the
+recorded Jacobian only.
+"""
+function analyze_jacobian_row_family_perturbations(
+    evaluation::NumericalEvaluation{T},
+    row_labels;
+    families = nothing,
+    scaling::Symbol = :none,
+    relative_tolerance::Real = max(
+        length(evaluation.constraint_sources), length(evaluation.point.variables), 1,
+    ) * eps(T),
+    max_dense_entries::Integer = 4_000_000,
+) where {T<:AbstractFloat}
+    row_count = length(evaluation.constraint_sources)
+    labels = Vector{String}(undef, row_count)
+    label_value(value) = begin
+        if value isa AbstractDict
+            raw = get(value, "constraint_family",
+                      get(value, :constraint_family, "unclassified_row"))
+            return String(raw)
+        end
+        return string(value isa Symbol ? value : value)
+    end
+    if row_labels isa AbstractDict
+        for row in 1:row_count
+            value = get(row_labels, row, get(row_labels, string(row), "unclassified_row"))
+            labels[row] = label_value(value)
+        end
+    else
+        length(row_labels) == row_count || throw(ArgumentError(
+            "row_labels must have one entry per evaluated Jacobian row",
+        ))
+        for row in 1:row_count
+            labels[row] = label_value(row_labels[row])
+        end
+    end
+    unique_labels = sort!(unique(labels))
+    if !isnothing(families)
+        requested = Set(string(value isa Symbol ? value : value) for value in families)
+        unique_labels = [label for label in unique_labels if label in requested]
+    end
+
+    report = DiagnosticReport()
+    report.metadata[:stage] = "jacobian_row_family_perturbations"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:row_family_count] = string(length(unique_labels))
+    report.metadata[:row_count] = string(row_count)
+    report.metadata[:scaling] = string(scaling)
+    report.metadata[:relative_tolerance] = string(relative_tolerance)
+    report.metadata[:max_dense_entries] = string(max_dense_entries)
+    if isempty(unique_labels)
+        report.metadata[:baseline_rank_available] = "false"
+        report.metadata[:baseline_rank_reason] = "no labelled rows"
+        return report
+    end
+
+    baseline = jacobian_rank_estimate(evaluation;
+        scaling = scaling,
+        relative_tolerance = relative_tolerance,
+        max_dense_entries = max_dense_entries,
+        compute_vectors = false,
+    )
+    baseline_sparse = sparse_jacobian_pattern_estimate(evaluation)
+    report.metadata[:baseline_rank_available] = string(baseline.available)
+    report.metadata[:baseline_rank] = baseline.available ? string(baseline.rank) : "unavailable"
+    report.metadata[:baseline_left_nullity] = baseline.available ? string(baseline.left_nullity) : "unavailable"
+    report.metadata[:baseline_right_nullity] = baseline.available ? string(baseline.right_nullity) : "unavailable"
+    if !baseline.available
+        report.metadata[:baseline_rank_reason] = something(baseline.reason, "unavailable")
+    end
+    report.metadata[:baseline_sparse_pattern_available] = string(baseline_sparse.available)
+    report.metadata[:baseline_sparse_pattern_rank_upper_bound] =
+        baseline_sparse.available ? string(baseline_sparse.rank_upper_bound) : "unavailable"
+
+    for label in unique_labels
+        removed = findall(==(label), labels)
+        retained = [row for row in 1:row_count if !(row in removed)]
+        affected = copy(evaluation.constraint_sources[removed])
+        if isempty(retained)
+            push!(report, Finding(:jacobian_row_family_perturbation_unavailable;
+                severity = SeverityInfo, domain = NumericalIssue,
+                basis = NumericalObservation, confidence = ConfidenceHigh,
+                observation = "Jacobian family '$label' contains every evaluated row, so the retained perturbation has no rows.",
+                why_it_matters = "A zero-row Jacobian cannot distinguish whether the removed family supplied independent equations.",
+                evidence = [Evidence("Jacobian family perturbation"; details = [
+                    "family" => label, "removed_rows" => length(removed),
+                    "retained_rows" => 0, "point" => evaluation.point.label,
+                ])], affected = affected,
+                suggested_actions = ["Use a point with at least one retained equation family before interpreting family rank effects."],
+            ))
+            continue
+        end
+        perturbed = _jacobian_row_subset_evaluation(evaluation, retained)
+        estimate = jacobian_rank_estimate(perturbed;
+            scaling = scaling,
+            relative_tolerance = relative_tolerance,
+            max_dense_entries = max_dense_entries,
+            compute_vectors = false,
+        )
+        sparse_estimate = sparse_jacobian_pattern_estimate(perturbed)
+        if (!baseline.available || !estimate.available) &&
+           baseline_sparse.available && sparse_estimate.available
+            rank_delta = sparse_estimate.rank_upper_bound -
+                         baseline_sparse.rank_upper_bound
+            code = iszero(rank_delta) ?
+                :jacobian_row_family_perturbation_sparse_pattern_no_rank_effect :
+                :jacobian_row_family_perturbation_sparse_pattern_effect
+            push!(report, Finding(code;
+                severity = SeverityInfo, domain = NumericalIssue,
+                basis = StructuralProof, confidence = ConfidenceMedium,
+                observation = iszero(rank_delta) ?
+                    "Removing Jacobian row family '$label' leaves the sparse nonzero-pattern rank upper bound unchanged at $(baseline_sparse.rank_upper_bound)." :
+                    "Removing Jacobian row family '$label' changes the sparse nonzero-pattern rank upper bound from $(baseline_sparse.rank_upper_bound) to $(sparse_estimate.rank_upper_bound).",
+                why_it_matters = "This is a structural perturbation of the observed derivative sparsity pattern used as a guarded fallback when dense numerical rank is unavailable; equality with full dimension does not certify numerical rank.",
+                evidence = [Evidence("Sparse Jacobian row-family perturbation"; details = [
+                    "family" => label,
+                    "removed_rows" => join(removed, ","),
+                    "retained_rows" => length(retained),
+                    "baseline_rank_upper_bound" => baseline_sparse.rank_upper_bound,
+                    "perturbed_rank_upper_bound" => sparse_estimate.rank_upper_bound,
+                    "rank_upper_bound_delta" => rank_delta,
+                    "baseline_dense_available" => baseline.available,
+                    "perturbed_dense_available" => estimate.available,
+                    "zero_tolerance" => baseline_sparse.zero_tolerance,
+                    "point" => evaluation.point.label,
+                ])], affected = affected,
+                suggested_actions = [
+                    "Treat this as structural pattern evidence and compare with sparse-QR or guarded dense rank on a smaller scope.",
+                    "Repeat at another operating point before assigning a physical or causal interpretation.",
+                ],
+            ))
+            continue
+        end
+        if !baseline.available || !estimate.available
+            push!(report, Finding(:jacobian_row_family_perturbation_unavailable;
+                severity = SeverityInfo, domain = NumericalIssue,
+                basis = NumericalObservation, confidence = ConfidenceHigh,
+                observation = "The local Jacobian rank perturbation for family '$label' is unavailable.",
+                why_it_matters = "No rank change is inferred when either the baseline or retained Jacobian exceeds the explicit numerical-evidence guard.",
+                evidence = [Evidence("Jacobian family perturbation availability"; details = [
+                    "family" => label, "removed_rows" => length(removed),
+                    "retained_rows" => length(retained),
+                    "baseline_available" => baseline.available,
+                    "baseline_reason" => something(baseline.reason, ""),
+                    "perturbed_available" => estimate.available,
+                    "perturbed_reason" => something(estimate.reason, ""),
+                ])], affected = affected,
+                suggested_actions = ["Increase the explicit dense-rank guard only when the model size makes that safe, or use sparse rank evidence separately."],
+            ))
+            continue
+        end
+        rank_delta = estimate.rank - baseline.rank
+        left_delta = estimate.left_nullity - baseline.left_nullity
+        right_delta = estimate.right_nullity - baseline.right_nullity
+        code = iszero(rank_delta) ?
+            :jacobian_row_family_perturbation_no_rank_effect :
+            :jacobian_row_family_perturbation_rank_effect
+        observation = if iszero(rank_delta)
+            "Removing Jacobian row family '$label' leaves the estimated local rank unchanged at $(baseline.rank)."
+        else
+            "Removing Jacobian row family '$label' changes the estimated local rank from $(baseline.rank) to $(estimate.rank)."
+        end
+        push!(report, Finding(code;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = LocalInference, confidence = ConfidenceMedium,
+            observation = observation,
+            why_it_matters = "This isolates the contribution of the labelled rows in the recorded local linearization; it is not a model re-solve or a causal proof of redundancy or physical degeneracy.",
+            evidence = [Evidence("Controlled Jacobian row-family perturbation"; details = [
+                "family" => label,
+                "removed_rows" => join(removed, ","),
+                "retained_rows" => length(retained),
+                "baseline_rank" => baseline.rank,
+                "perturbed_rank" => estimate.rank,
+                "rank_delta" => rank_delta,
+                "baseline_left_nullity" => baseline.left_nullity,
+                "perturbed_left_nullity" => estimate.left_nullity,
+                "left_nullity_delta" => left_delta,
+                "baseline_right_nullity" => baseline.right_nullity,
+                "perturbed_right_nullity" => estimate.right_nullity,
+                "right_nullity_delta" => right_delta,
+                "scaling" => scaling,
+                "relative_tolerance" => relative_tolerance,
+                "point" => evaluation.point.label,
+            ])], affected = affected,
+            suggested_actions = [
+                "Repeat the perturbation at another operating point and with an explicit scaling convention.",
+                "If a causal formulation test is required, rebuild or re-solve a model with this family disabled rather than interpreting this local screen as a deletion experiment.",
+            ],
+        ))
+    end
+    report.metadata[:rank_effect_family_count] = string(length(findings(
+        report; code = :jacobian_row_family_perturbation_rank_effect,
+    )))
+    report.metadata[:no_rank_effect_family_count] = string(length(findings(
+        report; code = :jacobian_row_family_perturbation_no_rank_effect,
+    )))
+    report.metadata[:sparse_pattern_effect_family_count] = string(length(findings(
+        report; code = :jacobian_row_family_perturbation_sparse_pattern_effect,
+    )))
+    report.metadata[:sparse_pattern_no_rank_effect_family_count] = string(length(findings(
+        report; code = :jacobian_row_family_perturbation_sparse_pattern_no_rank_effect,
+    )))
+    return report
+end
+
+function _jacobian_row_subset_evaluation(
+    evaluation::NumericalEvaluation{T}, rows::AbstractVector{<:Integer},
+) where {T<:AbstractFloat}
+    selected = Int.(rows)
+    row_map = Dict(old => new for (new, old) in enumerate(selected))
+    entries = JacobianEntry{T}[
+        JacobianEntry(row_map[entry.row], entry.column, entry.value)
+        for entry in evaluation.jacobian_entries if haskey(row_map, entry.row)
+    ]
+    return NumericalEvaluation{T}(
+        evaluation.point,
+        evaluation.objective_value,
+        evaluation.objective_source,
+        copy(evaluation.objective_gradient),
+        copy(evaluation.constraint_values[selected]),
+        copy(evaluation.constraint_sources[selected]),
+        entries,
+        copy(evaluation.jacobian_row_methods[selected]),
+        copy(evaluation.capabilities),
+        copy(evaluation.failures),
+        copy(evaluation.call_statistics),
+        evaluation.objective_gradient_method,
+    )
+end
+
+"""
     analyze_iterative_right_nullspace_probe(evaluation; ...)
 
 Run the explicit sparse-matvec candidate-direction probe and turn its output

@@ -5,6 +5,7 @@ import JuMP
 import NLPDiagnostics
 import MathOptInterface
 import LinearAlgebra
+import SparseArrays
 
 const MOI = MathOptInterface
 
@@ -41,6 +42,772 @@ function _bmopf_terminal_variables(context, bus::String, terminals::Vector{Strin
         push!(variables, JuMP.index(object))
     end
     return variables
+end
+
+const _BMOPF_ATTACHMENT_FAMILIES = (
+    ("load", :load),
+    ("generator", :generator),
+    ("voltage_source", :voltage_source),
+    ("shunt", :shunt),
+    ("capacitor", :capacitor),
+    ("ibr", :ibr),
+    ("switch", :switch),
+)
+
+"""Return a device's declared terminal map and owning bus, if available."""
+function _bmopf_attachment_endpoints(device)
+    device isa AbstractDict || return nothing
+    bus = get(device, "bus", nothing)
+    bus === nothing && return nothing
+    terminals = get(device, "terminal_map", nothing)
+    terminals === nothing && return nothing
+    return (string(bus), string.(terminals))
+end
+
+"""Build a finite embedding from a device terminal order into a bus terminal order."""
+function _bmopf_terminal_embedding(bus_terminals, device_terminals)
+    matrix = zeros(Float64, length(bus_terminals), length(device_terminals))
+    positions = Dict(string(terminal) => index for (index, terminal) in enumerate(bus_terminals))
+    for (column, terminal) in enumerate(device_terminals)
+        row = get(positions, string(terminal), 0)
+        iszero(row) && return nothing
+        matrix[row, column] = 1.0
+    end
+    return matrix
+end
+
+"""Append one component attachment port and its bus connection for each rectangular component."""
+function _bmopf_append_attachment_port!(ports, maps, semantics, connections, skipped,
+                                        context, component_type::Symbol,
+                                        component_id::String, port_role::String,
+                                        bus::String, device_terminals::Vector{String})
+    buses = Dict(_bmopf_bus_terminals(context))
+    bus_terminals = get(buses, bus, nothing)
+    if isnothing(bus_terminals) || isempty(device_terminals)
+        push!(skipped, "$(component_type):$(component_id):$(port_role)")
+        return
+    end
+    embedding = _bmopf_terminal_embedding(bus_terminals, device_terminals)
+    if isnothing(embedding)
+        push!(skipped, "$(component_type):$(component_id):$(port_role)")
+        return
+    end
+    per_unit = !isnothing(BMOPFTools.opf_bases(context))
+    unit = per_unit ? "p.u." : "V"
+    for component in (:real, :imag)
+        port_id = "$(port_role)_$(component)"
+        variables = MOI.VariableIndex[]
+        for terminal in device_terminals
+            object = BMOPFTools.opf_object(
+                context, BMOPFTools.opf_bus_voltage_key(bus, terminal; component = component),
+            )
+            object isa JuMP.VariableRef || begin
+                push!(skipped, "$(component_type):$(component_id):$(port_id)")
+                variables = MOI.VariableIndex[]
+                break
+            end
+            push!(variables, JuMP.index(object))
+        end
+        length(variables) == length(device_terminals) || continue
+        metadata = Dict{String,String}(
+            "source" => "BMOPFTools public terminal map",
+            "port_role" => port_role,
+            "bus" => bus,
+            "attachment" => "bus terminal coordinate sharing",
+        )
+        push!(ports, NLPDiagnostics.ComponentPortMetadata(
+            component_type, component_id, port_id;
+            terminal_labels = device_terminals,
+            mode_labels = device_terminals,
+            variables = variables,
+            connection_matrix = Matrix{Float64}(LinearAlgebra.I, length(device_terminals), length(device_terminals)),
+            metadata = metadata,
+        ))
+        push!(maps, NLPDiagnostics.PortCoordinateMap(
+            component_type, component_id, port_id, variables;
+            terminal_to_variable = Matrix{Float64}(LinearAlgebra.I, length(device_terminals), length(device_terminals)),
+            description = "BMOPFTools $(component_type) $(component_id) $(port_role) rectangular $(component) terminal map",
+        ))
+        push!(semantics, NLPDiagnostics.PortCoordinateSemantics(
+            component_type, component_id, port_id;
+            quantity = :voltage,
+            representation = _bmopf_representation(component),
+            units = Dict("voltage" => unit),
+            nominal_scale = per_unit ? 1.0 : nothing,
+            description = "BMOPFTools $(component_type) $(component_id) $(port_role) terminal voltage attached to bus $(bus)",
+        ))
+        push!(connections, NLPDiagnostics.PortConnectionMetadata(
+            component_type, component_id, port_id,
+            :bus, bus, _bmopf_port_id(component),
+            embedding,
+            Dict{String,String}(
+                "source" => "BMOPFTools public terminal map",
+                "role" => "attachment",
+                "bus" => bus,
+                "terminal_labels" => join(device_terminals, ","),
+            ),
+        ))
+    end
+end
+
+"""Collect explicitly declared component-to-bus attachment ports.
+
+These maps describe shared terminal coordinates only. They do not assert that
+branch endpoint voltages are equal, and therefore are not used as constitutive
+equations for lines or transformers.
+"""
+function _bmopf_attachment_port_declarations(context)
+    network = BMOPFTools.opf_network(context)
+    ports = NLPDiagnostics.ComponentPortMetadata{Float64}[]
+    maps = NLPDiagnostics.PortCoordinateMap{Float64}[]
+    semantics = NLPDiagnostics.PortCoordinateSemantics[]
+    connections = NLPDiagnostics.PortConnectionMetadata{Float64}[]
+    skipped = String[]
+    for (family, component_type) in _BMOPF_ATTACHMENT_FAMILIES
+        table = get(network, family, Dict())
+        table isa AbstractDict || continue
+        for (identifier, device) in sort!(collect(table); by = entry -> string(first(entry)))
+            endpoint = _bmopf_attachment_endpoints(device)
+            isnothing(endpoint) && continue
+            bus, terminals = endpoint
+            _bmopf_append_attachment_port!(ports, maps, semantics, connections, skipped,
+                                           context, component_type, string(identifier),
+                                           "terminal", bus, terminals)
+        end
+    end
+    # Lines expose two endpoint maps. They are attachment ports, not a claim
+    # that the line's two terminal voltages are identical.
+    line_table = get(network, "line", Dict())
+    if line_table isa AbstractDict
+        for (identifier, line) in sort!(collect(line_table); by = entry -> string(first(entry)))
+            line isa AbstractDict || continue
+            for (role, bus_key, map_key) in (("from", "bus_from", "terminal_map_from"),
+                                             ("to", "bus_to", "terminal_map_to"))
+                bus = get(line, bus_key, nothing)
+                terminals = get(line, map_key, nothing)
+                (bus === nothing || terminals === nothing) && continue
+                _bmopf_append_attachment_port!(ports, maps, semantics, connections, skipped,
+                                               context, :line, string(identifier), role,
+                                               string(bus), string.(terminals))
+            end
+        end
+    end
+    # Transformers expose winding/end terminal maps. They are attachment
+    # declarations only: the transformer's voltage/current constitutive map is
+    # not represented as an equality between its two bus endpoints.
+    transformer_table = get(network, "transformer", Dict())
+    if transformer_table isa AbstractDict
+        for (subtype, records) in sort!(collect(transformer_table); by = entry -> string(first(entry)))
+            records isa AbstractDict || continue
+            for (identifier, transformer) in sort!(collect(records); by = entry -> string(first(entry)))
+                transformer isa AbstractDict || continue
+                component_id = "$(subtype):$(identifier)"
+                if string(subtype) == "n_winding"
+                    windings = get(transformer, "windings", Any[])
+                    windings isa AbstractVector || continue
+                    for (winding_index, winding) in enumerate(windings)
+                        winding isa AbstractDict || continue
+                        bus = get(winding, "bus", nothing)
+                        terminals = get(winding, "terminal_map", nothing)
+                        (bus === nothing || terminals === nothing) && continue
+                        _bmopf_append_attachment_port!(
+                            ports, maps, semantics, connections, skipped, context,
+                            :transformer, component_id, "winding$(winding_index)",
+                            string(bus), string.(terminals),
+                        )
+                    end
+                else
+                    for (role, bus_key, map_key) in (("from", "bus_from", "terminal_map_from"),
+                                                     ("to", "bus_to", "terminal_map_to"))
+                        bus = get(transformer, bus_key, nothing)
+                        terminals = get(transformer, map_key, nothing)
+                        (bus === nothing || terminals === nothing) && continue
+                        _bmopf_append_attachment_port!(
+                            ports, maps, semantics, connections, skipped, context,
+                            :transformer, component_id, role,
+                            string(bus), string.(terminals),
+                        )
+                    end
+                end
+            end
+        end
+    end
+    return (ports = ports, maps = maps, semantics = semantics,
+            connections = connections, skipped = skipped)
+end
+
+"""Resolve the physical winding/configuration label for one attachment port."""
+function _bmopf_attachment_configuration(network, port)
+    component_type = port.component_type
+    if component_type in (:load, :generator, :voltage_source, :shunt, :capacitor, :ibr)
+        record = get(get(network, string(component_type), Dict()), port.component_id, nothing)
+        record isa AbstractDict || return nothing
+        return uppercase(string(get(record, "configuration", "WYE")))
+    elseif component_type == :transformer
+        pieces = split(port.component_id, ":"; limit = 2)
+        length(pieces) == 2 || return nothing
+        subtype, identifier = pieces
+        records = get(get(network, "transformer", Dict()), subtype, Dict())
+        record = get(records, identifier, nothing)
+        record isa AbstractDict || return nothing
+        role = first(split(port.port_id, "_"))
+        if subtype == "n_winding" && startswith(role, "winding")
+            index_text = replace(role, "winding" => "")
+            index = tryparse(Int, index_text)
+            isnothing(index) && return nothing
+            windings = get(record, "windings", Any[])
+            1 <= index <= length(windings) || return nothing
+            winding = windings[index]
+            winding isa AbstractDict || return nothing
+            return uppercase(string(get(winding, "configuration", "WYE")))
+        elseif subtype == "wye_delta"
+            return role == "to" ? "DELTA" : "WYE"
+        elseif subtype == "delta_wye"
+            return role == "from" ? "DELTA" : "WYE"
+        end
+        return "WYE"
+    end
+    return nothing
+end
+
+"""Declare conservative expected hidden voltage modes for supported port semantics.
+
+These are physical expectations, not claims about a compiled model's nullspace:
+delta and wye terminal constitutive relations can be invariant to a common
+voltage shift, while grounding and network connectivity may remove that mode.
+"""
+function _bmopf_terminal_port_nullspace_declarations(context)
+    network = BMOPFTools.opf_network(context)
+    ports = _bmopf_terminal_port_metadata(context)
+    modes = NLPDiagnostics.PortNullspaceMode{Float64}[]
+    semantics = NLPDiagnostics.PortNullspaceModeSemantics[]
+    for port in ports
+        port.component_type == :bus && continue
+        (endswith(port.port_id, "_real") || endswith(port.port_id, "_imag")) || continue
+        configuration = _bmopf_attachment_configuration(network, port)
+        configuration in ("WYE", "DELTA") || continue
+        labels = port.terminal_labels
+        length(labels) >= 2 || continue
+        # WYE common-mode declarations are restricted to explicitly represented
+        # neutral terminals. DELTA relations are line-to-line by construction.
+        has_neutral = any(lowercase(label) in ("n", "neutral") for label in labels)
+        configuration == "WYE" && !has_neutral && continue
+        name = configuration == "DELTA" ? :delta_common_mode : :wye_common_mode
+        category = configuration == "DELTA" ? :delta_common_mode : :common_mode
+        description = configuration == "DELTA" ?
+            "Expected common voltage-shift direction of a DELTA terminal constitutive relation; vector-group and network connections may remove it." :
+            "Expected common voltage-shift direction of a WYE terminal constitutive relation with an explicit neutral; grounding and KCL may remove it."
+        push!(modes, NLPDiagnostics.PortNullspaceMode(
+            port.component_type, port.component_id, port.port_id, :terminal,
+            ones(Float64, length(labels)); name = name, description = description,
+        ))
+        push!(semantics, NLPDiagnostics.PortNullspaceModeSemantics(
+            port.component_type, port.component_id, port.port_id, name;
+            category = category, description = description,
+        ))
+    end
+    return (modes = modes, semantics = semantics)
+end
+
+"""Return a terminal-to-coil incidence matrix for a declared winding."""
+function _bmopf_winding_incidence_matrix(terminals::Vector{String}, configuration::String;
+                                         delta_roll::Int = -1)
+    n = length(terminals)
+    phases = [index for index in eachindex(terminals)
+              if lowercase(terminals[index]) ∉ ("n", "neutral")]
+    isempty(phases) && return nothing
+    matrix = zeros(Float64, length(phases), n)
+    if configuration == "WYE"
+        neutral = findfirst(index -> lowercase(terminals[index]) in ("n", "neutral"), eachindex(terminals))
+        for (row, phase) in enumerate(phases)
+            matrix[row, phase] = 1.0
+            !isnothing(neutral) && (matrix[row, neutral] = -1.0)
+        end
+    elseif configuration == "DELTA"
+        length(phases) >= 2 || return nothing
+        delta_roll in (-1, 1) || return nothing
+        for (row, phase_position) in enumerate(eachindex(phases))
+            other_position = mod1(phase_position + delta_roll, length(phases))
+            matrix[row, phases[phase_position]] = 1.0
+            matrix[row, phases[other_position]] = -1.0
+        end
+    else
+        return nothing
+    end
+    return matrix
+end
+
+function _bmopf_transformer_coil_ratio(transformer::AbstractDict, subtype::String)
+    v_from = get(transformer, "v_nom_from", nothing)
+    v_to = get(transformer, "v_nom_to", nothing)
+    (v_from isa Real && v_to isa Real && isfinite(v_from) && isfinite(v_to) && v_from > 0 && v_to > 0) || return nothing
+    tap = get(transformer, "tap", 1.0)
+    tap isa Real && isfinite(tap) && tap > 0 || return nothing
+    nominal = Float64(v_from) / Float64(v_to) * Float64(tap)
+    subtype == "wye_delta" && return nominal / sqrt(3.0)
+    subtype == "delta_wye" && return 1.0 / (nominal * sqrt(3.0))
+    return nominal
+end
+
+"""Return a declared transformer vector-group label when one is available."""
+function _bmopf_transformer_vector_group(transformer::AbstractDict, subtype::String)
+    for key in ("vector_group", "vector_group_label", "connection")
+        value = get(transformer, key, nothing)
+        value isa AbstractString && !isempty(strip(value)) && return uppercase(strip(value))
+    end
+    return uppercase(subtype)
+end
+
+"""Return an explicitly declared transformer phase shift in degrees, if present."""
+function _bmopf_transformer_phase_shift(transformer::AbstractDict)
+    for key in ("phase_shift_degrees", "phase_shift_deg", "phase_shift")
+        value = get(transformer, key, nothing)
+        value isa Real && isfinite(value) && return Float64(value)
+    end
+    return 0.0
+end
+
+"""Resolve a delta orientation without inventing one from an invalid value."""
+function _bmopf_transformer_delta_roll(transformer::AbstractDict, default::Int)
+    value = get(transformer, "delta_roll", default)
+    value isa Real || return (default, false)
+    roll = Int(value)
+    return roll in (-1, 1) ? (roll, true) : (default, false)
+end
+
+"""Build constitutive voltage maps from BMOPFTools terminal/configuration metadata."""
+function _bmopf_build_terminal_constitutive_maps(context)
+    network = BMOPFTools.opf_network(context)
+    ports = _bmopf_terminal_port_metadata(context)
+    port_keys = Set((port.component_type, port.component_id, port.port_id) for port in ports)
+    maps = NLPDiagnostics.PortConstitutiveMap{Float64}[]
+    add_map!(component_type, component_id, map_id, port_ids, labels, matrix, equations, metadata) = begin
+        all((component_type, component_id, port_id) in port_keys for port_id in port_ids) || return
+        push!(maps, NLPDiagnostics.PortConstitutiveMap(
+            component_type, component_id, map_id, port_ids, labels, matrix;
+            equation_labels = equations, metadata = metadata,
+        ))
+    end
+
+    for (family, component_type) in _BMOPF_ATTACHMENT_FAMILIES
+        table = get(network, family, Dict())
+        table isa AbstractDict || continue
+        for (identifier, device) in sort!(collect(table); by = entry -> string(first(entry)))
+            endpoint = _bmopf_attachment_endpoints(device)
+            isnothing(endpoint) && continue
+            _, terminals = endpoint
+            configuration = uppercase(string(get(device, "configuration", "WYE")))
+            configuration in ("WYE", "DELTA") || continue
+            roll = Int(get(device, "delta_roll", -1))
+            incidence = _bmopf_winding_incidence_matrix(terminals, configuration; delta_roll = roll)
+            isnothing(incidence) && continue
+            labels = [string.(terminals)]
+            for component in ("real", "imag")
+                add_map!(component_type, string(identifier),
+                         "terminal_voltage_to_coil_voltage_$(component)",
+                         ["terminal_$(component)"], labels, incidence,
+                         ["coil_$(index)" for index in axes(incidence, 1)],
+                         Dict("source" => "BMOPFTools public terminal/configuration metadata",
+                              "map_role" => "constitutive",
+                              "configuration" => configuration,
+                              "delta_roll" => string(roll),
+                              "coordinate_component" => component))
+            end
+        end
+    end
+
+    transformer_table = get(network, "transformer", Dict())
+    if transformer_table isa AbstractDict
+        for (subtype, records) in sort!(collect(transformer_table); by = entry -> string(first(entry)))
+            records isa AbstractDict || continue
+            for (identifier, transformer) in sort!(collect(records); by = entry -> string(first(entry)))
+                transformer isa AbstractDict || continue
+                component_id = "$(subtype):$(identifier)"
+                if string(subtype) == "n_winding"
+                    windings = get(transformer, "windings", Any[])
+                    windings isa AbstractVector || continue
+                    for (winding_index, winding) in enumerate(windings)
+                        winding isa AbstractDict || continue
+                        terminals = string.(get(winding, "terminal_map", String[]))
+                        configuration = uppercase(string(get(winding, "configuration", "WYE")))
+                        roll = Int(get(winding, "delta_roll", -1))
+                        incidence = _bmopf_winding_incidence_matrix(terminals, configuration; delta_roll = roll)
+                        isnothing(incidence) && continue
+                        labels = [terminals]
+                        for component in ("real", "imag")
+                            add_map!(:transformer, component_id,
+                                     "winding$(winding_index)_coil_incidence_$(component)",
+                                     ["winding$(winding_index)_$(component)"], labels, incidence,
+                                     ["coil_$(index)" for index in axes(incidence, 1)],
+                                     Dict("source" => "BMOPFTools public transformer winding metadata",
+                                         "map_role" => "constitutive",
+                                          "configuration" => configuration,
+                                          "delta_roll" => string(roll),
+                                          "vector_group" => uppercase(string(get(winding, "vector_group", configuration))),
+                                          "winding" => string(winding_index),
+                                          "coordinate_component" => component))
+                        end
+                    end
+                elseif string(subtype) in ("wye_delta", "delta_wye", "single_phase")
+                    from_terminals = string.(get(transformer, "terminal_map_from", String[]))
+                    to_terminals = string.(get(transformer, "terminal_map_to", String[]))
+                    isempty(from_terminals) && continue
+                    isempty(to_terminals) && continue
+                    ratio = _bmopf_transformer_coil_ratio(transformer, string(subtype))
+                    isnothing(ratio) && continue
+                    vector_group = _bmopf_transformer_vector_group(transformer, string(subtype))
+                    phase_shift = _bmopf_transformer_phase_shift(transformer)
+                    single_phase = string(subtype) == "single_phase"
+                    wye_is_from = string(subtype) != "delta_wye"
+                    wye_terminals = wye_is_from ? from_terminals : to_terminals
+                    delta_terminals = wye_is_from ? to_terminals : from_terminals
+                    wye_matrix = _bmopf_winding_incidence_matrix(wye_terminals, "WYE")
+                    default_roll = wye_is_from ? 1 : -1
+                    delta_roll, delta_roll_declared = _bmopf_transformer_delta_roll(transformer, default_roll)
+                    delta_matrix = _bmopf_winding_incidence_matrix(
+                        delta_terminals, single_phase ? "WYE" : "DELTA";
+                        delta_roll = delta_roll,
+                    )
+                    (isnothing(wye_matrix) || isnothing(delta_matrix)) && continue
+                    rows = min(size(wye_matrix, 1), size(delta_matrix, 1))
+                    rows > 0 || continue
+                    matrix = zeros(Float64, rows, length(from_terminals) + length(to_terminals))
+                    if wye_is_from
+                        matrix[:, 1:length(from_terminals)] .= wye_matrix[1:rows, :]
+                        matrix[:, length(from_terminals)+1:end] .= -ratio .* delta_matrix[1:rows, :]
+                    else
+                        matrix[:, 1:length(from_terminals)] .= -ratio .* delta_matrix[1:rows, :]
+                        matrix[:, length(from_terminals)+1:end] .= wye_matrix[1:rows, :]
+                    end
+                    labels = [from_terminals, to_terminals]
+                    for component in ("real", "imag")
+                        add_map!(:transformer, component_id,
+                                 "ideal_winding_coupling_$(component)",
+                                 ["from_$(component)", "to_$(component)"], labels, matrix,
+                                 ["ideal_coil_$(index)" for index in 1:rows],
+                                 Dict("source" => "BMOPFTools public transformer schema",
+                                      "map_role" => "constitutive",
+                                      "subtype" => string(subtype),
+                                      "vector_group" => vector_group,
+                                      "wye_side" => wye_is_from ? "from" : "to",
+                                      "coil_ratio_wye_to_delta" => string(ratio),
+                                      "phase_shift_degrees" => string(phase_shift),
+                                      "phase_shift_applied" => "false",
+                                      "delta_roll" => string(delta_roll),
+                                      "delta_roll_declared" => string(delta_roll_declared),
+                                      "coordinate_component" => component))
+                    end
+                end
+            end
+        end
+    end
+    return maps
+end
+
+"""Build phase-aware real block maps for fixed transformer voltage coupling."""
+function _bmopf_build_terminal_complex_constitutive_maps(context)
+    network = BMOPFTools.opf_network(context)
+    ports = _bmopf_terminal_port_metadata(context)
+    port_keys = Set((port.component_type, port.component_id, port.port_id) for port in ports)
+    maps = NLPDiagnostics.PortConstitutiveMap{Float64}[]
+    add_map!(component_id, port_ids, labels, matrix, equations, metadata) = begin
+        all((:transformer, component_id, port_id) in port_keys for port_id in port_ids) || return
+        push!(maps, NLPDiagnostics.PortConstitutiveMap(
+            :transformer, component_id, "ideal_winding_coupling_complex",
+            port_ids, labels, matrix;
+            equation_labels = equations, metadata = metadata,
+        ))
+    end
+    transformer_table = get(network, "transformer", Dict())
+    transformer_table isa AbstractDict || return maps
+    for (subtype, records) in sort!(collect(transformer_table); by = entry -> string(first(entry)))
+        string(subtype) in ("wye_delta", "delta_wye", "single_phase") || continue
+        records isa AbstractDict || continue
+        for (identifier, transformer) in sort!(collect(records); by = entry -> string(first(entry)))
+            transformer isa AbstractDict || continue
+            from_terminals = string.(get(transformer, "terminal_map_from", String[]))
+            to_terminals = string.(get(transformer, "terminal_map_to", String[]))
+            isempty(from_terminals) && continue
+            isempty(to_terminals) && continue
+            ratio = _bmopf_transformer_coil_ratio(transformer, string(subtype))
+            isnothing(ratio) && continue
+            single_phase = string(subtype) == "single_phase"
+            wye_is_from = string(subtype) != "delta_wye"
+            wye_terminals = wye_is_from ? from_terminals : to_terminals
+            delta_terminals = wye_is_from ? to_terminals : from_terminals
+            wye_matrix = _bmopf_winding_incidence_matrix(wye_terminals, "WYE")
+            default_roll = wye_is_from ? 1 : -1
+            delta_roll, delta_roll_declared = _bmopf_transformer_delta_roll(transformer, default_roll)
+            delta_matrix = _bmopf_winding_incidence_matrix(
+                delta_terminals, single_phase ? "WYE" : "DELTA";
+                delta_roll = delta_roll,
+            )
+            (isnothing(wye_matrix) || isnothing(delta_matrix)) && continue
+            rows = min(size(wye_matrix, 1), size(delta_matrix, 1))
+            rows > 0 || continue
+            phase = deg2rad(_bmopf_transformer_phase_shift(transformer))
+            cosine, sine = cos(phase), sin(phase)
+            from_real = zeros(Float64, rows, length(from_terminals))
+            from_imag = zeros(Float64, rows, length(from_terminals))
+            to_real = zeros(Float64, rows, length(to_terminals))
+            to_imag = zeros(Float64, rows, length(to_terminals))
+            if wye_is_from
+                from_real .= wye_matrix[1:rows, :]
+                to_real .= -ratio .* cosine .* delta_matrix[1:rows, :]
+                to_imag .= ratio .* sine .* delta_matrix[1:rows, :]
+            else
+                from_real .= -ratio .* cosine .* delta_matrix[1:rows, :]
+                from_imag .= ratio .* sine .* delta_matrix[1:rows, :]
+                to_real .= wye_matrix[1:rows, :]
+            end
+            matrix = zeros(Float64, 2 * rows,
+                            2 * (length(from_terminals) + length(to_terminals)))
+            from_real_range = 1:length(from_terminals)
+            from_imag_range = (length(from_terminals) + 1):(2 * length(from_terminals))
+            to_offset = 2 * length(from_terminals)
+            to_real_range = (to_offset + 1):(to_offset + length(to_terminals))
+            to_imag_range = (to_offset + length(to_terminals) + 1):(to_offset + 2 * length(to_terminals))
+            matrix[1:rows, from_real_range] .= from_real
+            matrix[1:rows, from_imag_range] .= -from_imag
+            matrix[rows+1:end, from_real_range] .= from_imag
+            matrix[rows+1:end, from_imag_range] .= from_real
+            matrix[1:rows, to_real_range] .= to_real
+            matrix[1:rows, to_imag_range] .= -to_imag
+            matrix[rows+1:end, to_real_range] .= to_imag
+            matrix[rows+1:end, to_imag_range] .= to_real
+            component_id = "$(subtype):$(identifier)"
+            vector_group = _bmopf_transformer_vector_group(transformer, string(subtype))
+            phase_shift = _bmopf_transformer_phase_shift(transformer)
+            add_map!(component_id,
+                     ["from_real", "from_imag", "to_real", "to_imag"],
+                     [from_terminals, from_terminals, to_terminals, to_terminals],
+                     matrix,
+                     vcat(["ideal_coil_$(index)_real" for index in 1:rows],
+                          ["ideal_coil_$(index)_imag" for index in 1:rows]),
+                     Dict("source" => "BMOPFTools public transformer schema",
+                          "map_role" => "constitutive_complex",
+                          "subtype" => string(subtype),
+                          "vector_group" => vector_group,
+                          "wye_side" => wye_is_from ? "from" : "to",
+                          "coil_ratio_wye_to_delta" => string(ratio),
+                          "phase_shift_degrees" => string(phase_shift),
+                          "phase_shift_applied" => "true",
+                          "delta_roll" => string(delta_roll),
+                          "delta_roll_declared" => string(delta_roll_declared),
+                          "coordinate_components" => "real_imag_block"))
+        end
+    end
+    return maps
+end
+
+"""Append one rectangular current port when all of its public registry entries exist."""
+function _bmopf_append_current_port!(ports, maps, semantics, skipped, context,
+                                     component_type::Symbol, component_id::String,
+                                     registry_id::String, port_role::String,
+                                     bus::String, terminal_labels::Vector{String},
+                                     terminal_count::Int, key_builder)
+    terminal_count > 0 || return
+    per_unit = !isnothing(BMOPFTools.opf_bases(context))
+    current_base = _bmopf_current_base(context, bus)
+    unit = per_unit ? "p.u." : "A"
+    for component in (:real, :imag)
+        variables = MOI.VariableIndex[]
+        for conductor in 1:terminal_count
+            key = key_builder(registry_id, conductor; component = component)
+            object = try
+                BMOPFTools.opf_object(context, key)
+            catch
+                nothing
+            end
+            if !(object isa JuMP.VariableRef)
+                push!(skipped, "$(component_type):$(component_id):$(port_role)_current_$(component)")
+                variables = MOI.VariableIndex[]
+                break
+            end
+            push!(variables, JuMP.index(object))
+        end
+        length(variables) == terminal_count || continue
+        port_id = "$(port_role)_current_$(component)"
+        metadata = Dict{String,String}(
+            "source" => "BMOPFTools public current registry",
+            "quantity" => "current",
+            "port_role" => port_role,
+            "bus" => bus,
+            "coordinate_component" => string(component),
+        )
+        !isnothing(current_base) && (metadata["physical_current_base_A"] = string(current_base))
+        identity = Matrix{Float64}(LinearAlgebra.I, terminal_count, terminal_count)
+        push!(ports, NLPDiagnostics.ComponentPortMetadata(
+            component_type, component_id, port_id;
+            terminal_labels = terminal_labels[1:terminal_count],
+            mode_labels = terminal_labels[1:terminal_count],
+            variables = variables,
+            connection_matrix = identity,
+            metadata = metadata,
+        ))
+        push!(maps, NLPDiagnostics.PortCoordinateMap(
+            component_type, component_id, port_id, variables;
+            terminal_to_variable = identity,
+            description = "BMOPFTools $(component_type) $(component_id) $(port_role) rectangular $(component) terminal-current map",
+        ))
+        push!(semantics, NLPDiagnostics.PortCoordinateSemantics(
+            component_type, component_id, port_id;
+            quantity = :current,
+            representation = _bmopf_representation(component),
+            units = Dict("current" => unit),
+            nominal_scale = per_unit ? 1.0 : nothing,
+            description = "BMOPFTools $(component_type) $(component_id) $(port_role) terminal current",
+        ))
+    end
+end
+
+"""Count contiguous real/imag current coordinates exposed by a public key builder."""
+function _bmopf_available_current_count(context, registry_id::String,
+                                        key_builder, maximum::Int)
+    count = 0
+    for conductor in 1:maximum
+        available = true
+        for component in (:real, :imag)
+            key = key_builder(registry_id, conductor; component = component)
+            object = try
+                BMOPFTools.opf_object(context, key)
+            catch
+                nothing
+            end
+            available &= object isa JuMP.VariableRef
+        end
+        available || break
+        count += 1
+    end
+    return count
+end
+
+"""Collect current-coordinate ports from BMOPFTools' public variable-key registry.
+
+Current ports intentionally have no voltage-style connection matrix: endpoint
+currents participate in KCL/constitutive equations, so declaring their
+coordinates is useful evidence but does not assert equality across a component.
+"""
+function _bmopf_current_port_declarations(context)
+    network = BMOPFTools.opf_network(context)
+    ports = NLPDiagnostics.ComponentPortMetadata{Float64}[]
+    maps = NLPDiagnostics.PortCoordinateMap{Float64}[]
+    semantics = NLPDiagnostics.PortCoordinateSemantics[]
+    skipped = String[]
+    buses = Dict(_bmopf_bus_terminals(context))
+    terminal_count(bus, terminals) = length(get(buses, string(bus), String[])) > 0 ?
+        length(string.(terminals)) : 0
+
+    for (identifier, line) in sort!(collect(get(network, "line", Dict())); by = entry -> string(first(entry)))
+        line isa AbstractDict || continue
+        for (role, bus_key, map_key, side) in (("from", "bus_from", "terminal_map_from", :from),
+                                                ("to", "bus_to", "terminal_map_to", :to))
+            bus = get(line, bus_key, nothing)
+            terminals = get(line, map_key, nothing)
+            (bus === nothing || terminals === nothing) && continue
+            n = terminal_count(bus, terminals)
+            n > 0 || continue
+            builder = (id, conductor; component = :real) ->
+                BMOPFTools.opf_line_current_key(id, conductor; side = side, component = component)
+            available = _bmopf_available_current_count(context, string(identifier), builder, n)
+            available > 0 || continue
+            _bmopf_append_current_port!(ports, maps, semantics, skipped, context,
+                                        :line, string(identifier), string(identifier), role,
+                                        string(bus), string.(terminals), available, builder)
+        end
+    end
+
+    for (family, component_type, key_function) in (
+        ("load", :load, BMOPFTools.opf_load_current_key),
+        ("generator", :generator, BMOPFTools.opf_generator_current_key),
+        ("voltage_source", :voltage_source, BMOPFTools.opf_voltage_source_current_key),
+        ("ibr", :ibr, BMOPFTools.opf_ibr_current_key),
+    )
+        table = get(network, family, Dict())
+        table isa AbstractDict || continue
+        for (identifier, device) in sort!(collect(table); by = entry -> string(first(entry)))
+            endpoint = _bmopf_attachment_endpoints(device)
+            isnothing(endpoint) && continue
+            bus, terminals = endpoint
+            n = terminal_count(bus, terminals)
+            n > 0 || continue
+            builder = (id, conductor; component = :real) -> key_function(id, conductor; component = component)
+            n = _bmopf_available_current_count(context, string(identifier), builder, max(n, 1))
+            n > 0 || continue
+            _bmopf_append_current_port!(ports, maps, semantics, skipped, context,
+                                        component_type, string(identifier), string(identifier),
+                                        "terminal", bus, string.(terminals), n, builder)
+        end
+    end
+
+    switch_table = get(network, "switch", Dict())
+    if switch_table isa AbstractDict
+        for (identifier, switch) in sort!(collect(switch_table); by = entry -> string(first(entry)))
+            switch isa AbstractDict || continue
+            for (role, bus_key, map_key) in (("from", "bus_from", "terminal_map_from"),
+                                              ("to", "bus_to", "terminal_map_to"))
+                bus = get(switch, bus_key, nothing)
+                terminals = get(switch, map_key, nothing)
+                (bus === nothing || terminals === nothing) && continue
+                n = terminal_count(bus, terminals)
+                n > 0 || continue
+                builder = (id, conductor; component = :real) ->
+                    BMOPFTools.opf_switch_current_key(id, conductor; component = component)
+                n = _bmopf_available_current_count(context, string(identifier), builder, max(n, 1))
+                n > 0 || continue
+                _bmopf_append_current_port!(ports, maps, semantics, skipped, context,
+                                            :switch, string(identifier), string(identifier), role,
+                                            string(bus), string.(terminals), n, builder)
+            end
+        end
+    end
+
+    transformer_table = get(network, "transformer", Dict())
+    if transformer_table isa AbstractDict
+        for (subtype, records) in sort!(collect(transformer_table); by = entry -> string(first(entry)))
+            records isa AbstractDict || continue
+            for (identifier, transformer) in sort!(collect(records); by = entry -> string(first(entry)))
+                transformer isa AbstractDict || continue
+                component_id = "$(subtype):$(identifier)"
+                if string(subtype) == "n_winding"
+                    windings = get(transformer, "windings", Any[])
+                    windings isa AbstractVector || continue
+                    for (winding_index, winding) in enumerate(windings)
+                        winding isa AbstractDict || continue
+                        bus = get(winding, "bus", nothing)
+                        terminals = get(winding, "terminal_map", nothing)
+                        (bus === nothing || terminals === nothing) && continue
+                        n = terminal_count(bus, terminals)
+                        n > 0 || continue
+                        builder = (id, conductor; component = :real) ->
+                            BMOPFTools.opf_nwinding_current_key(id, winding_index, conductor; component = component)
+                        n = _bmopf_available_current_count(context, string(identifier), builder, max(n, 1))
+                        n > 0 || continue
+                        _bmopf_append_current_port!(ports, maps, semantics, skipped, context,
+                                                    :transformer, component_id, string(identifier),
+                                                    "winding$(winding_index)", string(bus), string.(terminals), n, builder)
+                    end
+                else
+                    for (role, bus_key, map_key, side) in (("from", "bus_from", "terminal_map_from", :from),
+                                                            ("to", "bus_to", "terminal_map_to", :to))
+                        bus = get(transformer, bus_key, nothing)
+                        terminals = get(transformer, map_key, nothing)
+                        (bus === nothing || terminals === nothing) && continue
+                        n = terminal_count(bus, terminals)
+                        n > 0 || continue
+                        builder = (id, conductor; component = :real) ->
+                            BMOPFTools.opf_transformer_current_key(id, side, conductor; component = component)
+                        n = _bmopf_available_current_count(context, string(identifier), builder, max(n, 1))
+                        n > 0 || continue
+                        _bmopf_append_current_port!(ports, maps, semantics, skipped, context,
+                                                    :transformer, component_id, string(identifier), role,
+                                                    string(bus), string.(terminals), n, builder)
+                    end
+                end
+            end
+        end
+    end
+    return (ports = ports, maps = maps, semantics = semantics, skipped = skipped)
 end
 
 _bmopf_port_id(component::Symbol) = component == :real ? "voltage_real" : "voltage_imag"
@@ -793,6 +1560,111 @@ function _bmopf_row_field_support(evaluation, row, variable_descriptors)
     return families, instances, devices, entries
 end
 
+function _bmopf_constraint_result_descriptors(context)
+    result = Dict{Tuple{Int,Union{Nothing,Int}},Dict{String,String}}()
+    for key in BMOPFTools.opf_object_keys(context; kind = :constraint)
+        object = try
+            BMOPFTools.opf_object(context, key)
+        catch
+            nothing
+        end
+        object isa JuMP.ConstraintRef || continue
+        index = JuMP.index(object)
+        index isa MOI.ConstraintIndex || continue
+        index_text = isnothing(key.index) ? "?" : sprint(show, key.index)
+        result[(index.value, nothing)] = Dict{String,String}(
+            "constraint_family" => string(key.family),
+            "constraint_index" => index_text,
+            "registered" => "true",
+        )
+    end
+    return result
+end
+
+function _bmopf_row_constraint_support(activity, constraint_descriptors)
+    source = activity.source
+    descriptor = get(constraint_descriptors, (source.index, source.subindex), nothing)
+    isnothing(descriptor) && (descriptor = get(
+        constraint_descriptors, (source.index, nothing), nothing,
+    ))
+    isnothing(descriptor) && return Dict{String,String}(
+        "constraint_family" => "unregistered_constraint",
+        "constraint_index" => "?",
+        "registered" => "false",
+    )
+    return descriptor
+end
+
+"""Return a compact semantic map for every evaluated scalar constraint row."""
+function _bmopf_constraint_semantic_row_map(context, evaluation)
+    descriptors = _bmopf_constraint_result_descriptors(context)
+    rows = Dict{String,Any}()
+    for (row, source) in enumerate(evaluation.constraint_sources)
+        descriptor = get(descriptors, (source.index, source.subindex), nothing)
+        isnothing(descriptor) && (descriptor = get(
+            descriptors, (source.index, nothing), nothing,
+        ))
+        if isnothing(descriptor)
+            rows[string(row)] = Dict{String,Any}(
+                "constraint_family" => "unregistered_constraint",
+                "constraint_index" => "?",
+                "registered" => false,
+            )
+        else
+            rows[string(row)] = Dict{String,Any}(
+                "constraint_family" => descriptor["constraint_family"],
+                "constraint_index" => descriptor["constraint_index"],
+                "registered" => true,
+            )
+        end
+    end
+    return rows
+end
+
+"""Run the generic local Jacobian row-family perturbation with BMOPF labels."""
+function _bmopf_analyze_jacobian_row_family_perturbations(
+    context, evaluation; kwargs...
+)
+    labels = _bmopf_constraint_semantic_row_map(context, evaluation)
+    report = NLPDiagnostics.analyze_jacobian_row_family_perturbations(
+        evaluation, labels; kwargs...
+    )
+    report.metadata[:bmopf_row_family_label_source] =
+        "BMOPFTools public constraint registry"
+    report.metadata[:bmopf_semantic_row_count] = string(length(labels))
+    report.metadata[:bmopf_semantic_registered_row_count] = string(count(
+        descriptor -> descriptor isa AbstractDict &&
+            get(descriptor, "registered", false) == true,
+        values(labels),
+    ))
+    return report
+end
+
+const _BMOPF_RESULT_FAMILY_COMPONENT_KIND = Dict{String,String}(
+    "bus_voltage" => "bus",
+    "line_current" => "line",
+    "load_current" => "load",
+    "source_current" => "voltage_source",
+    "ibr_current" => "ibr",
+    "ibr_power" => "ibr",
+    "ibr_voltage_magnitude" => "ibr",
+    "switch_current" => "switch",
+    "ground_current" => "ground",
+)
+
+function _bmopf_component_support(devices)
+    components = Dict{String,Int}()
+    for (device, count) in devices
+        parts = split(device, "/"; limit = 2)
+        length(parts) == 2 || continue
+        family, identifier = parts
+        kind = get(_BMOPF_RESULT_FAMILY_COMPONENT_KIND, family, "unknown")
+        component = string(kind, "/", identifier)
+        components[component] = get(components, component, 0) + count
+    end
+    return components
+end
+
 function _bmopf_family_count_string(counts)
     return join(("$(key)=$(value)" for (key, value) in
                  sort!(collect(counts); by = first)), ",")
@@ -830,6 +1702,7 @@ function _bmopf_constraint_feasibility_field_attribution(
     report.metadata[:bmopf_result_field_catalog_version] = "bmopf-result-field-catalog-v1"
     report.metadata[:bmopf_feasibility_attribution_complete] = string(summary.complete)
     variable_descriptors = _bmopf_variable_result_descriptors(context)
+    constraint_descriptors = _bmopf_constraint_result_descriptors(context)
     violations = filter(activity -> activity.classification == :violated,
                         summary.activities)
     family_rows = Dict{String,Int}()
@@ -837,8 +1710,31 @@ function _bmopf_constraint_feasibility_field_attribution(
     field_instances = Dict{String,Int}()
     device_instances = Dict{String,Int}()
     derivative_methods = Dict{String,Int}()
+    constraint_family_rows = Dict{String,Int}()
+    constraint_instances = Dict{String,Int}()
+    model_constraint_family_rows = Dict{String,Int}()
+    model_registered_rows = 0
+    model_unregistered_rows = 0
+    component_candidates = Dict{String,Int}()
     row_records = Any[]
     unsupported_rows = 0
+    registered_rows = 0
+    # Count semantic coverage over every scalar row represented by the
+    # evaluated model, not only rows that happen to be violated.  This keeps
+    # the registry boundary visible even when a saved point is feasible.
+    for activity in summary.activities
+        constraint_support = _bmopf_row_constraint_support(
+            activity, constraint_descriptors,
+        )
+        family = constraint_support["constraint_family"]
+        model_constraint_family_rows[family] =
+            get(model_constraint_family_rows, family, 0) + 1
+        if constraint_support["registered"] == "true"
+            model_registered_rows += 1
+        else
+            model_unregistered_rows += 1
+        end
+    end
     for activity in violations
         method = activity.row <= length(evaluation.jacobian_row_methods) ?
                  string(evaluation.jacobian_row_methods[activity.row]) : "unavailable"
@@ -857,6 +1753,23 @@ function _bmopf_constraint_feasibility_field_attribution(
         for (device, count) in devices
             device_instances[device] = get(device_instances, device, 0) + 1
         end
+        constraint_support = _bmopf_row_constraint_support(
+            activity, constraint_descriptors,
+        )
+        constraint_family = constraint_support["constraint_family"]
+        constraint_family_rows[constraint_family] =
+            get(constraint_family_rows, constraint_family, 0) + 1
+        constraint_instance = string(
+            constraint_family, "/", constraint_support["constraint_index"],
+        )
+        constraint_instances[constraint_instance] =
+            get(constraint_instances, constraint_instance, 0) + 1
+        constraint_support["registered"] == "true" && (registered_rows += 1)
+        components = _bmopf_component_support(devices)
+        for (component, count) in components
+            component_candidates[component] =
+                get(component_candidates, component, 0) + count
+        end
         push!(row_records, Dict{String,Any}(
             "row" => activity.row,
             "source" => NLPDiagnostics.entity_data(activity.source),
@@ -868,6 +1781,8 @@ function _bmopf_constraint_feasibility_field_attribution(
             "field_family_support" => support,
             "field_instances" => sort!(collect(keys(instances))),
             "device_instances" => sort!(collect(keys(devices))),
+            "component_candidates" => sort!(collect(keys(components))),
+            "constraint_support" => constraint_support,
         ))
     end
     report.metadata[:bmopf_feasibility_attribution_violation_count] = string(length(violations))
@@ -882,6 +1797,24 @@ function _bmopf_constraint_feasibility_field_attribution(
         _bmopf_family_count_string(field_instances)
     report.metadata[:bmopf_feasibility_attribution_device_counts] =
         _bmopf_family_count_string(device_instances)
+    report.metadata[:bmopf_feasibility_attribution_constraint_family_row_counts] =
+        _bmopf_family_count_string(constraint_family_rows)
+    report.metadata[:bmopf_feasibility_attribution_constraint_instance_counts] =
+        _bmopf_family_count_string(constraint_instances)
+    report.metadata[:bmopf_feasibility_attribution_component_candidate_counts] =
+        _bmopf_family_count_string(component_candidates)
+    report.metadata[:bmopf_feasibility_attribution_registered_constraint_row_count] =
+        string(registered_rows)
+    report.metadata[:bmopf_feasibility_attribution_unregistered_constraint_row_count] =
+        string(length(violations) - registered_rows)
+    report.metadata[:bmopf_feasibility_attribution_model_constraint_row_count] =
+        string(length(summary.activities))
+    report.metadata[:bmopf_feasibility_attribution_model_registered_constraint_row_count] =
+        string(model_registered_rows)
+    report.metadata[:bmopf_feasibility_attribution_model_unregistered_constraint_row_count] =
+        string(model_unregistered_rows)
+    report.metadata[:bmopf_feasibility_attribution_model_constraint_family_row_counts] =
+        _bmopf_family_count_string(model_constraint_family_rows)
     power_base = _bmopf_power_base(context)
     report.metadata[:bmopf_feasibility_attribution_power_base] =
         isnothing(power_base) ? "unavailable" : string(power_base)
@@ -905,6 +1838,15 @@ function _bmopf_constraint_feasibility_field_attribution(
             "jacobian_method_counts" => _bmopf_family_count_string(derivative_methods),
             "field_instance_counts" => _bmopf_family_count_string(field_instances),
             "device_counts" => _bmopf_family_count_string(device_instances),
+            "constraint_family_row_counts" => _bmopf_family_count_string(constraint_family_rows),
+            "constraint_instance_counts" => _bmopf_family_count_string(constraint_instances),
+            "component_candidate_counts" => _bmopf_family_count_string(component_candidates),
+            "registered_constraint_row_count" => registered_rows,
+            "unregistered_constraint_row_count" => length(violations) - registered_rows,
+            "model_constraint_row_count" => length(summary.activities),
+            "model_registered_constraint_row_count" => model_registered_rows,
+            "model_unregistered_constraint_row_count" => model_unregistered_rows,
+            "model_constraint_family_row_counts" => _bmopf_family_count_string(model_constraint_family_rows),
             "power_base" => power_base,
             "catalog_version" => "bmopf-result-field-catalog-v1",
             "row_records" => sprint(show, row_records),
@@ -1918,6 +2860,8 @@ function _bmopf_terminal_port_metadata(context)
             ))
         end
     end
+    attachment = _bmopf_attachment_port_declarations(context)
+    append!(ports, attachment.ports)
     return ports
 end
 
@@ -1936,6 +2880,8 @@ function _bmopf_terminal_port_coordinate_maps(context)
             ))
         end
     end
+    attachment = _bmopf_attachment_port_declarations(context)
+    append!(maps, attachment.maps)
     return maps
 end
 
@@ -1967,7 +2913,278 @@ function _bmopf_terminal_port_coordinate_semantics(context)
             ))
         end
     end
+    attachment = _bmopf_attachment_port_declarations(context)
+    append!(semantics, attachment.semantics)
     return semantics
+end
+
+"""Return BMOPFTools component-to-bus terminal attachment maps."""
+function _bmopf_terminal_port_connections(context)
+    _bmopf_context_model(context)
+    return _bmopf_attachment_port_declarations(context).connections
+end
+
+"""Return BMOPFTools rectangular terminal-current coordinate ports."""
+function _bmopf_terminal_current_port_metadata(context)
+    _bmopf_context_model(context)
+    return _bmopf_current_port_declarations(context).ports
+end
+
+"""Return explicit terminal-current to MOI-variable maps."""
+function _bmopf_terminal_current_port_coordinate_maps(context)
+    _bmopf_context_model(context)
+    return _bmopf_current_port_declarations(context).maps
+end
+
+"""Return physical semantics for BMOPFTools terminal-current coordinates."""
+function _bmopf_terminal_current_port_coordinate_semantics(context)
+    _bmopf_context_model(context)
+    return _bmopf_current_port_declarations(context).semantics
+end
+
+"""Validate BMOPFTools terminal-current port coverage without physical inference."""
+function _bmopf_terminal_current_port_report(context)
+    owner = _bmopf_context_model(context)
+    owner isa JuMP.Model || throw(ArgumentError("BMOPFTools.opf_model(context) did not return a JuMP.Model"))
+    declaration = _bmopf_current_port_declarations(context)
+    variables = MOI.get(JuMP.backend(owner), MOI.ListOfVariableIndices())
+    report = NLPDiagnostics._component_port_metadata_findings(
+        declaration.ports; model_variables = variables,
+    )
+    for partial in (
+        NLPDiagnostics._component_port_coordinate_map_findings(
+            declaration.ports, declaration.maps; model_variables = variables,
+        ),
+        NLPDiagnostics._component_port_coordinate_semantics_findings(
+            declaration.ports, declaration.semantics, declaration.maps,
+        ),
+    )
+        append!(report.findings, partial.findings)
+        merge!(report.metadata, partial.metadata)
+    end
+    report.metadata[:bmopf_terminal_current_port_count] = string(length(declaration.ports))
+    report.metadata[:bmopf_terminal_current_port_coordinate_map_count] = string(length(declaration.maps))
+    report.metadata[:bmopf_terminal_current_port_coordinate_semantics_count] = string(length(declaration.semantics))
+    report.metadata[:bmopf_terminal_current_port_skipped_count] = string(length(declaration.skipped))
+    if !isempty(declaration.skipped)
+        push!(report, NLPDiagnostics.Finding(:bmopf_terminal_current_port_unavailable;
+            severity = NLPDiagnostics.SeverityInfo,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.StructuralProof,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "$(length(declaration.skipped)) BMOPFTools terminal-current coordinate port(s) could not be mapped to registered variables.",
+            why_it_matters = "Current-port coverage is incomplete; no physical conclusion is made about the affected component or its KCL equations.",
+            evidence = [NLPDiagnostics.Evidence("BMOPFTools current registry coverage"; details = [
+                "skipped_ports" => join(sort!(unique(declaration.skipped)), ","),
+            ])],
+            suggested_actions = ["Inspect the component family and public current-key registry before interpreting current-port diagnostics."],
+        ))
+    end
+    return report
+end
+
+"""Return BMOPFTools expected physical terminal-port null-mode declarations."""
+function _bmopf_terminal_port_nullspace_modes(context)
+    _bmopf_context_model(context)
+    return _bmopf_terminal_port_nullspace_declarations(context).modes
+end
+
+"""Return BMOPFTools semantic labels for expected terminal-port null modes."""
+function _bmopf_terminal_port_nullspace_mode_semantics(context)
+    _bmopf_context_model(context)
+    return _bmopf_terminal_port_nullspace_declarations(context).semantics
+end
+
+"""Report physical terminal-port mode declarations without treating them as observations."""
+function _bmopf_terminal_port_nullspace_mode_report(context)
+    declaration = _bmopf_terminal_port_nullspace_declarations(context)
+    report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:bmopf_terminal_port_expected_mode_count] = string(length(declaration.modes))
+    report.metadata[:bmopf_terminal_port_expected_mode_semantics_count] = string(length(declaration.semantics))
+    report.metadata[:bmopf_terminal_port_expected_mode_basis] = "physical expectation"
+    semantic_report = NLPDiagnostics._component_port_nullspace_mode_semantic_findings(
+        declaration.modes, declaration.semantics,
+    )
+    append!(report.findings, semantic_report.findings)
+    merge!(report.metadata, semantic_report.metadata)
+    if !isempty(declaration.modes)
+        push!(report, NLPDiagnostics.Finding(:bmopf_terminal_port_physical_mode_declarations;
+            severity = NLPDiagnostics.SeverityInfo,
+            domain = NLPDiagnostics.PhysicalIssue,
+            basis = NLPDiagnostics.PhysicalExpectation,
+            confidence = NLPDiagnostics.ConfidenceMedium,
+            observation = "BMOPFTools declares $(length(declaration.modes)) expected physical terminal-port null mode(s).",
+            why_it_matters = "These directions identify component-level common-mode or delta invariance candidates; they do not prove a network or compiled-model nullspace.",
+            evidence = [NLPDiagnostics.Evidence("BMOPFTools terminal-port physical mode declarations"; details = [
+                "mode_names" => join((string(something(mode.name, :unnamed)) for mode in declaration.modes), ","),
+            ])],
+            suggested_actions = ["Pass the declarations through `bmopf_analyze_opf(...; include_port_physical_modes = true)` and compare them with observed Jacobian nullspaces."],
+        ))
+    end
+    return report
+end
+
+"""Return BMOPFTools-derived linear constitutive voltage maps."""
+function _bmopf_terminal_constitutive_maps(context)
+    _bmopf_context_model(context)
+    return _bmopf_build_terminal_constitutive_maps(context)
+end
+
+"""Validate BMOPFTools constitutive-map dimensions and finite coefficients."""
+function _bmopf_terminal_constitutive_map_report(context)
+    maps = _bmopf_build_terminal_constitutive_maps(context)
+    report = NLPDiagnostics._component_port_constitutive_map_findings(maps)
+    shifted = String[]
+    for map in maps
+        raw = get(map.metadata, "phase_shift_degrees", "0")
+        phase_shift = try
+            parse(Float64, raw)
+        catch
+            0.0
+        end
+        isfinite(phase_shift) && abs(phase_shift) > sqrt(eps(Float64)) || continue
+        push!(shifted, "$(map.component_type):$(map.component_id):$(map.map_id)=$(phase_shift)deg")
+    end
+    report.metadata[:bmopf_terminal_constitutive_map_phase_shift_count] = string(length(unique(shifted)))
+    if !isempty(shifted)
+        push!(report, NLPDiagnostics.Finding(:bmopf_terminal_constitutive_map_phase_shift_unrepresented;
+            severity = NLPDiagnostics.SeverityWarning,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.StructuralProof,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "$(length(unique(shifted))) transformer constitutive map(s) carry a nonzero declared phase shift that is not applied to the separated real/imaginary map coefficients.",
+            why_it_matters = "The map remains useful incidence and ratio evidence, but it must not be interpreted as the complete phase-shifted complex transformer equation.",
+            evidence = [NLPDiagnostics.Evidence("BMOPFTools transformer phase-shift metadata"; details = [
+                "maps" => join(sort!(unique(shifted)), ","),
+            ])],
+            suggested_actions = ["Use the declared vector-group and phase-shift metadata when assembling a complex constitutive map, or treat the current map as a zero-phase structural approximation."],
+        ))
+    end
+    return report
+end
+
+"""Return phase-aware complex (real block) transformer constitutive maps."""
+function _bmopf_terminal_complex_constitutive_maps(context)
+    _bmopf_context_model(context)
+    return _bmopf_build_terminal_complex_constitutive_maps(context)
+end
+
+"""Validate phase-aware complex transformer constitutive maps."""
+function _bmopf_terminal_complex_constitutive_map_report(context)
+    maps = _bmopf_build_terminal_complex_constitutive_maps(context)
+    report = NLPDiagnostics._component_port_constitutive_map_findings(maps)
+    report.metadata[:bmopf_terminal_complex_constitutive_map_count] = string(length(maps))
+    report.metadata[:bmopf_terminal_complex_constitutive_map_phase_aware] = "true"
+    return report
+end
+
+"""Build a real-block passive-network current map from BMOPFTools' public Ybus."""
+function _bmopf_build_passive_network_current_maps(context)
+    network = BMOPFTools.opf_network(context)
+    ybus = try
+        BMOPFTools.ybus_passive(network)
+    catch
+        return NLPDiagnostics.PortConstitutiveMap{Float64}[]
+    end
+    n = length(ybus.nodes)
+    n > 0 || return NLPDiagnostics.PortConstitutiveMap{Float64}[]
+    G = real.(Matrix(ybus.Y))
+    B = imag.(Matrix(ybus.Y))
+    matrix = zeros(Float64, 2n, 2n)
+    matrix[1:n, 1:n] .= G
+    matrix[1:n, n+1:2n] .= -B
+    matrix[n+1:2n, 1:n] .= B
+    matrix[n+1:2n, n+1:2n] .= G
+    labels = [
+        ["$(node[1])/$(node[2])" for node in ybus.nodes],
+        ["$(node[1])/$(node[2])" for node in ybus.nodes],
+    ]
+    return [NLPDiagnostics.PortConstitutiveMap(
+        :network, "passive_ybus", "passive_current_from_voltage",
+        ["voltage_real", "voltage_imag"], labels, matrix;
+        equation_labels = vcat(
+            ["current_real/$(node[1])/$(node[2])" for node in ybus.nodes],
+            ["current_imag/$(node[1])/$(node[2])" for node in ybus.nodes],
+        ),
+        metadata = Dict(
+            "source" => "BMOPFTools.ybus_passive",
+            "map_role" => "passive_network_current",
+            "quantity" => "current_from_voltage",
+            "units" => "A_from_V_SI",
+            "node_count" => string(n),
+            "nonzero_count" => string(SparseArrays.nnz(ybus.Y)),
+            "coordinate_basis" => "SI voltage/current",
+        ),
+    )]
+end
+
+"""Return the passive-network current-from-voltage map, when Ybus is available."""
+function _bmopf_passive_network_current_maps(context)
+    _bmopf_context_model(context)
+    return _bmopf_build_passive_network_current_maps(context)
+end
+
+"""Validate passive-network current maps and report public-Ybus coverage limits."""
+function _bmopf_passive_network_current_map_report(context)
+    maps = _bmopf_build_passive_network_current_maps(context)
+    report = NLPDiagnostics._component_port_constitutive_map_findings(maps)
+    report.metadata[:bmopf_passive_network_current_map_count] = string(length(maps))
+    report.metadata[:bmopf_passive_network_current_map_basis] = "BMOPFTools.ybus_passive"
+    if !isempty(maps)
+        metadata = first(maps).metadata
+        report.metadata[:bmopf_passive_network_node_count] = get(metadata, "node_count", "0")
+        report.metadata[:bmopf_passive_network_nonzero_count] = get(metadata, "nonzero_count", "0")
+        if !isnothing(BMOPFTools.opf_bases(context))
+            push!(report, NLPDiagnostics.Finding(:bmopf_passive_network_map_si_units_on_pu_model;
+                severity = NLPDiagnostics.SeverityWarning,
+                domain = NLPDiagnostics.RepresentationalIssue,
+                basis = NLPDiagnostics.StructuralProof,
+                confidence = NLPDiagnostics.ConfidenceCertain,
+                observation = "The passive Ybus map is expressed in SI A/V while the staged model declares per-unit bases.",
+                why_it_matters = "The map remains valid as physical network evidence but cannot be inserted into p.u. model equations without explicit base conversion.",
+                evidence = [NLPDiagnostics.Evidence("BMOPFTools Ybus units"; details = [
+                    "map_units" => "A_from_V_SI",
+                    "model_basis" => "per-unit",
+                ])],
+                suggested_actions = ["Apply bus/current base conversion before comparing this map with p.u. Jacobian coefficients."],
+            ))
+        end
+    else
+        push!(report, NLPDiagnostics.Finding(:bmopf_passive_network_map_unavailable;
+            severity = NLPDiagnostics.SeverityInfo,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.StructuralProof,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "BMOPFTools did not provide a nonempty passive Ybus map for this staged context.",
+            why_it_matters = "No passive current-from-voltage conclusion is available; nonlinear device current laws remain outside this generic map.",
+            suggested_actions = ["Inspect the public network schema and model lifecycle before interpreting missing passive current evidence."],
+        ))
+    end
+    return report
+end
+
+"""Validate bus and component attachment port declarations for a staged context."""
+function _bmopf_terminal_port_connection_report(context)
+    attachment = _bmopf_attachment_port_declarations(context)
+    report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:bmopf_terminal_attachment_port_count] = string(length(attachment.ports))
+    report.metadata[:bmopf_terminal_attachment_connection_count] = string(length(attachment.connections))
+    report.metadata[:bmopf_terminal_attachment_skipped_count] = string(length(attachment.skipped))
+    if !isempty(attachment.skipped)
+        push!(report, NLPDiagnostics.Finding(:bmopf_terminal_attachment_port_unavailable;
+            severity = NLPDiagnostics.SeverityInfo,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.StructuralProof,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "$(length(attachment.skipped)) BMOPFTools terminal attachment port(s) could not be mapped to registered bus-voltage coordinates.",
+            why_it_matters = "The multiconductor port graph is intentionally incomplete for these endpoints; no topology or nullspace conclusion is made for them.",
+            evidence = [NLPDiagnostics.Evidence("BMOPFTools terminal attachment coverage"; details = [
+                "skipped_ports" => join(sort!(unique(attachment.skipped)), ","),
+            ])],
+            suggested_actions = ["Inspect terminal-map labels and ensure the staged public voltage registry covers every declared endpoint."],
+        ))
+    end
+    return report
 end
 
 """
@@ -2002,11 +3219,14 @@ function _bmopf_terminal_port_report(context)
     ports = _bmopf_terminal_port_metadata(context)
     maps = _bmopf_terminal_port_coordinate_maps(context)
     semantics = _bmopf_terminal_port_coordinate_semantics(context)
+    connections = _bmopf_terminal_port_connections(context)
     variables = MOI.get(JuMP.backend(owner), MOI.ListOfVariableIndices())
     report = NLPDiagnostics._component_port_metadata_findings(ports; model_variables = variables)
     for partial in (
         NLPDiagnostics._component_port_coordinate_map_findings(ports, maps; model_variables = variables),
         NLPDiagnostics._component_port_coordinate_semantics_findings(ports, semantics, maps),
+        NLPDiagnostics._component_port_connection_findings(ports, connections),
+        _bmopf_terminal_port_connection_report(context),
     )
         append!(report.findings, partial.findings)
         merge!(report.metadata, partial.metadata)
@@ -2014,6 +3234,7 @@ function _bmopf_terminal_port_report(context)
     report.metadata[:bmopf_terminal_port_count] = string(length(ports))
     report.metadata[:bmopf_terminal_port_coordinate_map_count] = string(length(maps))
     report.metadata[:bmopf_terminal_port_coordinate_semantics_count] = string(length(semantics))
+    report.metadata[:bmopf_terminal_port_connection_count] = string(length(connections))
     return report
 end
 
@@ -2026,12 +3247,15 @@ BMOPFTools' public terminal/grounding findings for the same prepared network.
 may request Jacobian, rank, nullspace, scaling, and degeneracy stages. The same
 point also checks declared BMOPF terminal-coordinate scales. The BMOPF portion
 remains structural physical evidence; it does not turn a floating-neutral data
-finding into a proven model-coordinate gauge.
+finding into a proven model-coordinate gauge. Set
+`include_port_physical_modes = true` to project conservative WYE/DELTA
+component-port common-mode expectations into the expected-mode comparison.
 """
 function _bmopf_analyze_opf(
     context;
     point::Union{Nothing,NLPDiagnostics.EvaluationPoint} = nothing,
     include_floating_neutral_candidates::Bool = false,
+    include_port_physical_modes::Bool = false,
     expected_modes::Union{Nothing,AbstractVector{<:NLPDiagnostics.ExpectedNullspaceMode}} = nothing,
     kwargs...,
 )
@@ -2042,10 +3266,20 @@ function _bmopf_analyze_opf(
     candidate_modes = include_floating_neutral_candidates ?
                       _bmopf_floating_neutral_candidate_modes(context) :
                       NLPDiagnostics.ExpectedNullspaceMode[]
-    resolved_expected_modes = if isnothing(expected_modes)
-        isempty(candidate_modes) ? nothing : candidate_modes
+    port_physical_modes = if include_port_physical_modes
+        declaration = _bmopf_terminal_port_nullspace_declarations(context)
+        NLPDiagnostics.port_component_expected_nullspace_modes(
+            _bmopf_terminal_port_metadata(context), declaration.modes,
+            _bmopf_terminal_port_coordinate_maps(context),
+        )
     else
-        vcat(expected_modes, candidate_modes)
+        NLPDiagnostics.ExpectedNullspaceMode[]
+    end
+    resolved_expected_modes = if isnothing(expected_modes)
+        isempty(candidate_modes) && isempty(port_physical_modes) ? nothing :
+            vcat(candidate_modes, port_physical_modes)
+    else
+        vcat(expected_modes, candidate_modes, port_physical_modes)
     end
     report = isnothing(resolved_expected_modes) ?
              NLPDiagnostics.analyze(JuMP.backend(owner); point = point, kwargs...) :
@@ -2053,6 +3287,10 @@ function _bmopf_analyze_opf(
                                     expected_modes = resolved_expected_modes)
     physical_report = NLPDiagnostics.bmopf_terminal_report(BMOPFTools.opf_network(context))
     port_report = _bmopf_terminal_port_report(context)
+    physical_mode_report = _bmopf_terminal_port_nullspace_mode_report(context)
+    constitutive_map_report = _bmopf_terminal_constitutive_map_report(context)
+    complex_constitutive_map_report = _bmopf_terminal_complex_constitutive_map_report(context)
+    passive_network_current_map_report = _bmopf_passive_network_current_map_report(context)
     candidate_report = _bmopf_floating_neutral_candidate_report(context)
     lifecycle_report = _bmopf_opf_lifecycle_report(context)
     registry_report = _bmopf_opf_registry_report(context)
@@ -2061,6 +3299,10 @@ function _bmopf_analyze_opf(
         _bmopf_terminal_port_coordinate_scale_report(context, point)
     append!(report.findings, physical_report.findings)
     append!(report.findings, port_report.findings)
+    include_port_physical_modes && append!(report.findings, physical_mode_report.findings)
+    append!(report.findings, constitutive_map_report.findings)
+    append!(report.findings, complex_constitutive_map_report.findings)
+    append!(report.findings, passive_network_current_map_report.findings)
     append!(report.findings, candidate_report.findings)
     append!(report.findings, lifecycle_report.findings)
     append!(report.findings, registry_report.findings)
@@ -2070,6 +3312,10 @@ function _bmopf_analyze_opf(
         report.metadata[key] = value
     end
     merge!(report.metadata, port_report.metadata)
+    include_port_physical_modes && merge!(report.metadata, physical_mode_report.metadata)
+    merge!(report.metadata, constitutive_map_report.metadata)
+    merge!(report.metadata, complex_constitutive_map_report.metadata)
+    merge!(report.metadata, passive_network_current_map_report.metadata)
     merge!(report.metadata, candidate_report.metadata)
     merge!(report.metadata, lifecycle_report.metadata)
     merge!(report.metadata, registry_report.metadata)
@@ -2082,7 +3328,9 @@ function _bmopf_analyze_opf(
         string(include_floating_neutral_candidates)
     report.metadata[:bmopf_floating_neutral_candidate_modes_applied] =
         string(length(candidate_modes))
-    report.metadata[:stages] *= ",bmopf_terminals,bmopf_terminal_ports,bmopf_floating_neutral_candidates,bmopf_opf_lifecycle,bmopf_opf_registry,bmopf_components"
+    report.metadata[:bmopf_port_physical_modes_enabled] = string(include_port_physical_modes)
+    report.metadata[:bmopf_port_physical_modes_applied] = string(length(port_physical_modes))
+    report.metadata[:stages] *= ",bmopf_terminals,bmopf_terminal_ports,bmopf_terminal_port_physical_modes,bmopf_terminal_constitutive_maps,bmopf_terminal_complex_constitutive_maps,bmopf_passive_network_current_maps,bmopf_floating_neutral_candidates,bmopf_opf_lifecycle,bmopf_opf_registry,bmopf_components"
     !isnothing(coordinate_scale_report) && (report.metadata[:stages] *= ",bmopf_terminal_coordinate_scales")
     return report
 end

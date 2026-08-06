@@ -253,7 +253,154 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test all(length(port.terminal_labels) == 2 for port in ports)
     @test length(NLPDiagnostics.bmopf_terminal_port_coordinate_maps(context)) == 2
     @test length(NLPDiagnostics.bmopf_terminal_port_coordinate_semantics(context)) == 2
+    attachment_net = deepcopy(net)
+    attachment_net["load"] = Dict{String,Any}(
+        "load" => Dict{String,Any}(
+            "bus" => "bus", "terminal_map" => ["a", "n"],
+            "configuration" => "WYE",
+        ),
+    )
+    attachment_context = TestBMOPFContext(model, attachment_net, objects, nothing)
+    attachment_ports = NLPDiagnostics.bmopf_terminal_port_metadata(attachment_context)
+    @test length(attachment_ports) == 4
+    @test count(port -> port.component_type == :load, attachment_ports) == 2
+    attachment_connections = NLPDiagnostics.bmopf_terminal_port_connections(attachment_context)
+    @test length(attachment_connections) == 2
+    @test all(size(connection.connection_matrix) == (2, 2) for connection in attachment_connections)
+    @test all(connection.metadata["role"] == "attachment" for connection in attachment_connections)
+    @test isempty(NLPDiagnostics.bmopf_terminal_port_report(attachment_context).findings)
     @test isempty(NLPDiagnostics.bmopf_terminal_port_report(context).findings)
+    broken_attachment_net = deepcopy(attachment_net)
+    broken_attachment_net["load"]["load"]["terminal_map"] = ["missing", "n"]
+    broken_attachment_context = TestBMOPFContext(model, broken_attachment_net, objects, nothing)
+    broken_attachment_report = NLPDiagnostics.bmopf_terminal_port_report(broken_attachment_context)
+    @test length(findings(broken_attachment_report, :bmopf_terminal_attachment_port_unavailable)) == 1
+    @test broken_attachment_report.metadata[:bmopf_terminal_attachment_skipped_count] == "1"
+
+    transformer_model = JuMP.Model()
+    JuMP.@variable(transformer_model, vr_high[1:2])
+    JuMP.@variable(transformer_model, vi_high[1:2])
+    JuMP.@variable(transformer_model, vr_low[1:2])
+    JuMP.@variable(transformer_model, vi_low[1:2])
+    JuMP.@variable(transformer_model, cr_xf_from[1:2])
+    JuMP.@variable(transformer_model, ci_xf_from[1:2])
+    JuMP.@variable(transformer_model, cr_xf_to[1:2])
+    JuMP.@variable(transformer_model, ci_xf_to[1:2])
+    JuMP.@variable(transformer_model, cr_nw[1:4])
+    JuMP.@variable(transformer_model, ci_nw[1:4])
+    transformer_objects = Dict{BMOPFTools.OpfModelKey,Any}(
+        BMOPFTools.opf_bus_voltage_key("high", "a") => vr_high[1],
+        BMOPFTools.opf_bus_voltage_key("high", "b") => vr_high[2],
+        BMOPFTools.opf_bus_voltage_key("high", "a"; component = :imag) => vi_high[1],
+        BMOPFTools.opf_bus_voltage_key("high", "b"; component = :imag) => vi_high[2],
+        BMOPFTools.opf_bus_voltage_key("low", "a") => vr_low[1],
+        BMOPFTools.opf_bus_voltage_key("low", "b") => vr_low[2],
+        BMOPFTools.opf_bus_voltage_key("low", "a"; component = :imag) => vi_low[1],
+        BMOPFTools.opf_bus_voltage_key("low", "b"; component = :imag) => vi_low[2],
+        BMOPFTools.opf_transformer_current_key("tx", :from, 1) => cr_xf_from[1],
+        BMOPFTools.opf_transformer_current_key("tx", :from, 2) => cr_xf_from[2],
+        BMOPFTools.opf_transformer_current_key("tx", :to, 1) => cr_xf_to[1],
+        BMOPFTools.opf_transformer_current_key("tx", :to, 2) => cr_xf_to[2],
+        BMOPFTools.opf_transformer_current_key("tx", :from, 1; component = :imag) => ci_xf_from[1],
+        BMOPFTools.opf_transformer_current_key("tx", :from, 2; component = :imag) => ci_xf_from[2],
+        BMOPFTools.opf_transformer_current_key("tx", :to, 1; component = :imag) => ci_xf_to[1],
+        BMOPFTools.opf_transformer_current_key("tx", :to, 2; component = :imag) => ci_xf_to[2],
+        BMOPFTools.opf_nwinding_current_key("multi", 1, 1) => cr_nw[1],
+        BMOPFTools.opf_nwinding_current_key("multi", 1, 2) => cr_nw[2],
+        BMOPFTools.opf_nwinding_current_key("multi", 2, 1) => cr_nw[3],
+        BMOPFTools.opf_nwinding_current_key("multi", 2, 2) => cr_nw[4],
+        BMOPFTools.opf_nwinding_current_key("multi", 1, 1; component = :imag) => ci_nw[1],
+        BMOPFTools.opf_nwinding_current_key("multi", 1, 2; component = :imag) => ci_nw[2],
+        BMOPFTools.opf_nwinding_current_key("multi", 2, 1; component = :imag) => ci_nw[3],
+        BMOPFTools.opf_nwinding_current_key("multi", 2, 2; component = :imag) => ci_nw[4],
+    )
+    transformer_net = Dict{String,Any}(
+        "bus" => Dict{String,Any}(
+            "high" => Dict{String,Any}("terminal_names" => ["a", "b"]),
+            "low" => Dict{String,Any}("terminal_names" => ["a", "b"]),
+        ),
+        "transformer" => Dict{String,Any}(
+            "wye_delta" => Dict{String,Any}(
+                "tx" => Dict{String,Any}(
+                    "bus_from" => "high", "bus_to" => "low",
+                    "terminal_map_from" => ["a", "b"],
+                    "terminal_map_to" => ["b", "a"],
+                    "v_nom_from" => 12_470.0, "v_nom_to" => 480.0,
+                    "s_rating" => 100_000.0,
+                ),
+            ),
+            "n_winding" => Dict{String,Any}(
+                "multi" => Dict{String,Any}(
+                    "windings" => [
+                        Dict{String,Any}("bus" => "high", "terminal_map" => ["a", "b"], "configuration" => "WYE"),
+                        Dict{String,Any}("bus" => "low", "terminal_map" => ["a", "b"], "configuration" => "DELTA"),
+                    ],
+                ),
+            ),
+        ),
+    )
+    transformer_context = TestBMOPFContext(
+        transformer_model, transformer_net, transformer_objects, nothing,
+    )
+    transformer_ports = NLPDiagnostics.bmopf_terminal_port_metadata(transformer_context)
+    @test count(port -> port.component_type == :transformer, transformer_ports) == 8
+    transformer_connections = NLPDiagnostics.bmopf_terminal_port_connections(transformer_context)
+    @test length(transformer_connections) == 8
+    @test count(connection -> connection.from_component_id == "wye_delta:tx", transformer_connections) == 4
+    @test count(connection -> connection.from_component_id == "n_winding:multi", transformer_connections) == 4
+    permuted = only(filter(
+        connection -> connection.from_component_id == "wye_delta:tx" && connection.from_port_id == "to_real",
+        transformer_connections,
+    ))
+    @test permuted.connection_matrix == [0.0 1.0; 1.0 0.0]
+    @test isempty(NLPDiagnostics.bmopf_terminal_port_report(transformer_context).findings)
+    current_ports = NLPDiagnostics.bmopf_terminal_current_port_metadata(transformer_context)
+    @test length(current_ports) == 8
+    @test all(port.metadata["quantity"] == "current" for port in current_ports)
+    @test length(NLPDiagnostics.bmopf_terminal_current_port_coordinate_maps(transformer_context)) == 8
+    @test all(item.units["current"] == "A" for item in
+              NLPDiagnostics.bmopf_terminal_current_port_coordinate_semantics(transformer_context))
+    @test isempty(NLPDiagnostics.bmopf_terminal_current_port_report(transformer_context).findings)
+    physical_modes = NLPDiagnostics.bmopf_terminal_port_nullspace_modes(transformer_context)
+    @test length(physical_modes) == 4
+    @test all(mode.name == :delta_common_mode for mode in physical_modes)
+    @test all(length(mode.direction) == 2 for mode in physical_modes)
+    physical_mode_semantics = NLPDiagnostics.bmopf_terminal_port_nullspace_mode_semantics(transformer_context)
+    @test length(physical_mode_semantics) == 4
+    @test all(item.category == :delta_common_mode for item in physical_mode_semantics)
+    physical_mode_report = NLPDiagnostics.bmopf_terminal_port_nullspace_mode_report(transformer_context)
+    @test physical_mode_report.metadata[:bmopf_terminal_port_expected_mode_count] == "4"
+    @test isempty(findings(physical_mode_report, :component_port_nullspace_mode_semantics_unaligned))
+    constitutive_maps = NLPDiagnostics.bmopf_terminal_constitutive_maps(transformer_context)
+    @test length(constitutive_maps) == 6
+    @test all(map.metadata["map_role"] == "constitutive" for map in constitutive_maps)
+    @test all(size(map.matrix, 2) == sum(length, map.port_terminal_labels; init = 0) for map in constitutive_maps)
+    fixed_map = only(filter(map -> map.component_id == "wye_delta:tx" && map.map_id == "ideal_winding_coupling_real", constitutive_maps))
+    @test size(fixed_map.matrix) == (2, 4)
+    @test fixed_map.metadata["vector_group"] == "WYE_DELTA"
+    @test fixed_map.metadata["phase_shift_applied"] == "false"
+    @test isempty(NLPDiagnostics.bmopf_terminal_constitutive_map_report(transformer_context).findings)
+    complex_maps = NLPDiagnostics.bmopf_terminal_complex_constitutive_maps(transformer_context)
+    @test length(complex_maps) == 1
+    complex_map = only(complex_maps)
+    @test size(complex_map.matrix) == (4, 8)
+    @test complex_map.metadata["map_role"] == "constitutive_complex"
+    @test complex_map.metadata["phase_shift_applied"] == "true"
+    @test isempty(NLPDiagnostics.bmopf_terminal_complex_constitutive_map_report(transformer_context).findings)
+    @test maximum(abs, complex_map.matrix[1:2, 5:8]) > 0.0
+    @test maximum(abs, complex_map.matrix[1:2, 7:8]) == 0.0
+    transformer_net["transformer"]["wye_delta"]["tx"]["phase_shift_degrees"] = 30.0
+    shifted_report = NLPDiagnostics.bmopf_terminal_constitutive_map_report(transformer_context)
+    @test length(findings(shifted_report, :bmopf_terminal_constitutive_map_phase_shift_unrepresented)) == 1
+    @test shifted_report.metadata[:bmopf_terminal_constitutive_map_phase_shift_count] == "2"
+    shifted_complex_map = only(NLPDiagnostics.bmopf_terminal_complex_constitutive_maps(transformer_context))
+    @test maximum(abs, shifted_complex_map.matrix[1:2, 7:8]) > 0.0
+    delete!(transformer_net["transformer"]["wye_delta"]["tx"], "phase_shift_degrees")
+    @test_throws DimensionMismatch NLPDiagnostics.PortConstitutiveMap(
+        :transformer, "tx", "bad_map", ["from_real"], [["a", "b"]],
+        zeros(1, 1);
+        equation_labels = ["equation"],
+    )
     per_unit_context = TestBMOPFContext(
         model, net, objects, (v_base = Dict("bus" => 230.0),),
     )
@@ -415,6 +562,30 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
                  :bmopf_feasibility_attribution_device_counts)
     @test haskey(feasibility_attribution.metadata,
                  :bmopf_feasibility_attribution_power_base)
+    @test haskey(feasibility_attribution.metadata,
+                 :bmopf_feasibility_attribution_constraint_family_row_counts)
+    @test haskey(feasibility_attribution.metadata,
+                 :bmopf_feasibility_attribution_unregistered_constraint_row_count)
+    @test haskey(feasibility_attribution.metadata,
+                 :bmopf_feasibility_attribution_model_constraint_row_count)
+    @test haskey(feasibility_attribution.metadata,
+                 :bmopf_feasibility_attribution_model_constraint_family_row_counts)
+    @test haskey(feasibility_attribution.metadata,
+                 :bmopf_feasibility_attribution_component_candidate_counts)
+    semantic_rows = NLPDiagnostics.bmopf_constraint_semantic_row_map(
+        per_unit_context, saved_profile.profile.profile.evaluation,
+    )
+    @test length(semantic_rows) == length(saved_profile.profile.profile.evaluation.constraint_sources)
+    @test all(haskey(value, "constraint_family") for value in values(semantic_rows))
+    semantic_perturbation_report =
+        NLPDiagnostics.bmopf_analyze_jacobian_row_family_perturbations(
+            per_unit_context, saved_profile.profile.profile.evaluation;
+            max_dense_entries = 1,
+        )
+    @test semantic_perturbation_report.metadata[:stage] ==
+          "jacobian_row_family_perturbations"
+    @test semantic_perturbation_report.metadata[:bmopf_semantic_row_count] ==
+          string(length(semantic_rows))
     if isdefined(BMOPFTools, :opf_ibr_voltage_magnitude_key)
         magnitude_model = JuMP.Model()
         JuMP.@variable(magnitude_model, m_vr_a)
@@ -525,6 +696,7 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test report.metadata[:bmopf_opf_context] == "BMOPFTools staged OPF context"
     @test report.metadata[:bmopf_opf_lifecycle] == "kcl_finalized"
     @test occursin("bmopf_terminal_ports", report.metadata[:stages])
+    @test occursin("bmopf_terminal_complex_constitutive_maps", report.metadata[:stages])
 
     floating_net = Dict{String,Any}(
         "bus" => Dict{String,Any}(
@@ -5599,6 +5771,40 @@ end
         @test length(
             findings(sparse_scaled_report, :sparse_qr_pivot_scale_spread),
         ) == 1
+
+        family_model = new_model()
+        family_x, family_y = MOI.add_variables(family_model, 2)
+        MOI.add_constraint(family_model,
+            F([T(1.0, family_x)], 0.0), MOI.EqualTo(0.0))
+        MOI.add_constraint(family_model,
+            F([T(2.0, family_x)], 0.0), MOI.EqualTo(0.0))
+        MOI.add_constraint(family_model,
+            F([T(1.0, family_y)], 0.0), MOI.EqualTo(0.0))
+        MOI.add_constraint(family_model,
+            F(T[], 0.0), MOI.EqualTo(0.0))
+        family_evaluation = NLPDiagnostics.evaluate_numerical(
+            family_model, [0.0, 0.0],
+        )
+        family_report = NLPDiagnostics.analyze_jacobian_row_family_perturbations(
+            family_evaluation,
+            Dict(1 => Dict("constraint_family" => "dependent"),
+                 2 => Dict("constraint_family" => "dependent"),
+                 3 => Dict("constraint_family" => "independent"),
+                 4 => Dict("constraint_family" => "zero"));
+            max_dense_entries = 16,
+        )
+        @test family_report.metadata[:baseline_rank] == "2"
+        @test family_report.metadata[:rank_effect_family_count] == "2"
+        @test family_report.metadata[:no_rank_effect_family_count] == "1"
+        @test length(findings(
+            family_report, :jacobian_row_family_perturbation_rank_effect,
+        )) == 2
+        @test length(findings(
+            family_report, :jacobian_row_family_perturbation_no_rank_effect,
+        )) == 1
+        @test_throws ArgumentError NLPDiagnostics.analyze_jacobian_row_family_perturbations(
+            evaluation, ["only one row"],
+        )
     end
 
     @testset "Jacobian rank tolerance sweep is explicit" begin

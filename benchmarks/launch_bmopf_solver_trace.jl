@@ -59,6 +59,21 @@ function _run_child(script, project, output_dir, relative, timeout_seconds)
         catch
             Base.kill(process)
         end
+        # A Julia child can be inside native solver/JIT code when the timeout
+        # fires and may not service SIGTERM promptly.  Do not let the parent
+        # block forever in `wait(process)`: give it a short grace period, then
+        # escalate to SIGKILL and retain the timeout evidence in the index.
+        grace_deadline = time() + min(10.0, max(1.0, timeout_seconds / 20))
+        while Base.process_running(process) && time() < grace_deadline
+            sleep(0.1)
+        end
+        if Base.process_running(process)
+            try
+                Base.kill(process, Base.SIGKILL)
+            catch
+                Base.kill(process)
+            end
+        end
     end
     wait(process)
     exit_code = timed_out ? nothing : process.exitcode
@@ -72,6 +87,14 @@ function _run_child(script, project, output_dir, relative, timeout_seconds)
             "result_file" => result_file,
             "status" => get(record, "status", "unknown"),
             "solver" => get(record, "solver", get(ENV, "NLPDIAGNOSTICS_BMOPF_SOLVER", "unknown")),
+            "environment_fingerprint" => get(record, "environment_fingerprint", nothing),
+            "solver_options" => get(record, "solver_options", Dict()),
+            "per_unit" => get(record, "per_unit", nothing),
+            "capture_points" => get(record, "capture_points", nothing),
+            "capture_logs" => get(record, "capture_logs", nothing),
+            "family_perturbations_enabled" => get(record, "family_perturbations_enabled", nothing),
+            "family_perturbation_families" => get(record, "family_perturbation_families", Any[]),
+            "family_perturbation_max_iter" => get(record, "family_perturbation_max_iter", nothing),
             "process_exit_code" => exit_code,
             "process_log" => basename(process_log),
             "process_timeout" => timed_out,
@@ -115,8 +138,21 @@ function main()
         "child_timeout_seconds" => timeout_seconds,
         "benchmark_root" => abspath(root),
         "solver" => get(ENV, "NLPDIAGNOSTICS_BMOPF_SOLVER", "unknown"),
+        "environment_fingerprint" => isempty(entries) ? nothing :
+            get(first(entries), "environment_fingerprint", nothing),
+        "solver_options" => isempty(entries) ? Dict() :
+            get(first(entries), "solver_options", Dict()),
         "capture_points" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS", "false"),
         "capture_logs" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS", "false"),
+        "family_perturbations_enabled" => get(
+            ENV, "NLPDIAGNOSTICS_BMOPF_RUN_FAMILY_PERTURBATIONS", "false",
+        ),
+        "family_perturbation_families" => get(
+            ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_FAMILIES", "",
+        ),
+        "family_perturbation_max_iter" => get(
+            ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_MAX_ITER", "100",
+        ),
         "environment" => Dict(
             "julia_version" => string(VERSION),
             "julia_executable" => string(Base.julia_cmd()),

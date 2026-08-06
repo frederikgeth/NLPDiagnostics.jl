@@ -146,6 +146,11 @@ work for coupled geometries outside this generic coverage.
   transparent aggregate-to-aggregate formulation comparison including
   availability-aware numerical metrics and declared task context; broader
   memory-footprint and allocation-source attribution remain future work).
+- Point-local controlled Jacobian row-family perturbations are implemented.
+  They remove one labelled row family at a time from the recorded linearization,
+  recompute guarded rank/nullity estimates, and retain the removed rows,
+  scaling, tolerance, and availability guard as evidence. This is deliberately
+  not a model deletion or re-solve and cannot by itself establish causality.
 
 ## Auxiliary feasibility foundation
 
@@ -254,6 +259,38 @@ The concrete multiconductor declaration boundary is recorded in
 port-coordinate nominal scales: direct terminal maps yield map-adjusted
 point-local scale checks and static shared-coordinate consistency checks, while
 mixed maps remain explicitly unavailable to generic scalar scaling.
+The BMOPFTools staged adapter now provides an attachment-level port slice:
+native device terminal maps and line endpoints are represented as explicit
+component-to-bus ports with rectangular voltage coordinate maps, semantics,
+and finite embedding matrices. Fixed- and n-winding transformer winding
+attachments are covered as well. Rectangular current ports for lines, native
+devices, switches, and transformers are now exposed from the public current-key
+registry with explicit maps, unit semantics, and coverage reports; omitted
+neutral current coordinates are represented as shorter registered ports. This
+is deliberately not a constitutive or network-equality model. Physical
+expected port-mode declarations (common mode, neutral, delta, and transformer
+vector-group semantics) are now partially implemented: explicit-neutral WYE and
+DELTA terminal ports expose named common-mode expectations and semantic
+categories, with opt-in projection into `bmopf_analyze_opf` for comparison
+against numerical nullspaces. These remain physical expectations and do not
+claim a network gauge. Transformer vector-group labels, delta orientation,
+ratio/tap evidence, and phase-shift coverage warnings are now retained by the
+constitutive-map adapter. Fixed-transformer phase-aware real-block maps now
+apply declared complex phase rotations, while the original separated maps
+remain available as structural incidence evidence. Constitutive current maps,
+device admittance/current laws, and network-level port assembly remain the next
+multiconductor ticket. The generic
+`PortConstitutiveMap` contract and BMOPFTools adapter are now implemented for
+device WYE/DELTA coil incidence, fixed-transformer ideal winding coupling, and
+n-winding per-winding coil incidence. These maps preserve vector-group and
+ratio/tap metadata while remaining distinct from topology connections.
+
+The smoke benchmark now records the multiconductor contract alongside solver-
+independent profiling evidence: voltage/current port coverage, physical-mode
+declarations, constitutive-map ranks, and independent adapter findings. The
+test suite also includes broken attachment and malformed-map fixtures, so
+coverage failures are retained as representational evidence rather than being
+silently converted into physical diagnoses.
 
 The first BMOPFTools staged-OPF adapter is also implemented. It translates
 public terminal/grounding evidence, validates registered rectangular terminal
@@ -301,6 +338,10 @@ An explicit local bootstrap helper now develops the sibling BMOPFTools checkout
 and instantiates/precompiles the benchmark stack in the ignored
 `work/benchmark-environment` project, keeping the solver-independent package
 environment unchanged.
+The depot-safe `run_benchmark.jl` launcher now constructs child argv
+explicitly and extracts Julia 1.12 process failures through the current
+`procs` field, so multi-argument benchmark scripts and nonzero child exits
+remain reproducible on current Julia releases.
 An opt-in `bmopf_solver_trace.jl` runner now covers the complementary live-solve
 workflow for selected small snapshots: it records Ipopt/MadNLP callback traces,
 the final-result profile, BMOPFTools context evidence, and environment
@@ -346,6 +387,54 @@ outcomes.
 `summarize_bmopf_solver_matrix.jl` now materializes missing per-solver
 summaries and pairwise comparison artifacts from that manifest, retaining
 summary or comparison subprocess failures as explicit campaign evidence.
+The matrix launcher and summarizer also propagate controlled model-level
+family perturbations. `family_perturbation_matrix` aligns each completed
+solver/case/family variant with its baseline, retaining termination and
+iteration deltas, local sparse-rank evidence, variant errors, and descriptive
+repeatability counts. These no-op family replacements are deliberately
+incomplete formulations for sensitivity experiments, not physical
+counterfactuals or causal proofs.
+Repeated perturbation matrices now carry explicit run identifiers and
+replicate indices. The repeat summarizer checks baseline termination
+consistency before reporting repeated variant changes, so solver instability is
+not silently attributed to the formulation. This is the minimum provenance
+layer required before learning from multi-snapshot BMOPF profiling campaigns.
+The corpus summarizer now aggregates multiple repeat outputs by family and
+case, retaining iteration-delta distributions, sparse-rank recurrence, and
+solver agreement/disagreement. This creates a descriptive evidence layer for
+the first benchmark-learning campaigns without turning formulation omissions
+into causal or physical scores.
+Cross-solver alignment now compares baseline and variant termination sets,
+iteration-direction signatures, and repeatability labels for the same
+case/family pair. Distinct disagreement categories are retained so solver
+dependence is visible rather than averaged into a single effect.
+Corpus perturbation reports now emit structured findings with severity,
+confidence, evidence, and suggested actions. Recurring sparse-pattern effects
+are marked as local numerical observations, while solver-dependent termination
+and iteration behavior is explicitly surfaced as conditional evidence.
+The combined BMOPF campaign report can now retain these corpus perturbation
+findings in a separate namespace, keeping benchmark-derived evidence distinct
+from generic structural and solver-result fingerprints.
+An evidence-ledger summarizer now normalizes findings from corpus, validation,
+repeat, and campaign reports while preserving source paths, confidence,
+severity, and recurrence identities. This provides a stable input for future
+benchmark regression and learning workflows without collapsing evidence into a
+score.
+Ledger comparison now classifies identities as new, resolved, persistent, or
+distribution-changed, preserving the source paths and evidence behind each
+transition. This is the first regression-oriented layer for comparing future
+BMOPF campaigns safely.
+Comparisons now also gate on campaign provenance: selected cases, solvers,
+families, environment fingerprints, and available analysis budgets are
+compared explicitly. Missing or incompatible provenance is reported as
+conditional evidence rather than a silent regression. New ledgers also emit a
+canonical campaign-provenance object and hash fingerprint, so future
+provenance fields cannot silently bypass the compatibility gate.
+An initial three-snapshot, two-replicate Ipopt smoke produced six completed
+`load` variants with zero baseline inconsistencies, stable termination across
+replicates, and recurring local sparse-pattern effects. This is useful
+profiling evidence, but remains solver- and family-scoped until cross-solver
+and larger-corpus campaigns are run.
 `summarize_bmopf_campaign.jl` combines those solver summaries with one or more
 structural/profile corpus summaries while preserving source-specific evidence
 and emitting aggregate recurring-fingerprint counts.
@@ -504,6 +593,75 @@ base (`1e6`), so this observation does not by itself identify a bad base or a
 causal IBR field error. It does establish the next benchmark boundary: inspect
 the per-device P/Q residuals and the exact constraint metadata before making a
 physical interpretation.
+The next semantic layer now uses BMOPFTools' public constraint registry. KCL
+rows are labelled by their registered `kcl_r`/`kcl_i` family and bus-terminal
+instance; device and operational-limit rows that the engine has not registered
+remain explicitly `unregistered_constraint`. Campaign summaries and validation
+preserve this registry boundary, so a benchmark can distinguish “the violated
+row is semantically identified” from “the row only has numerical Jacobian
+support.”
+In the current 30-bus saved-result smoke pair, all 405 `pu` and all 17
+`pu_all_si` violations are still unregistered rows; this is an honest result,
+not a failed attribution. It identifies the next BMOPFTools integration task:
+register the device-limit and IBR P/Q constraint families before treating those
+rows as physical component diagnoses.
+In parallel, the attribution now emits component candidates from variable
+support (`bus/…`, `line/…`, `load/…`, `ibr/…`, and related families). This gives
+the debugger a useful localization layer immediately while stronger engine-side
+constraint registrations are developed; candidate components are always
+reported as support evidence rather than causal diagnoses.
+The first engine-side registration slice is now implemented on the
+`codex/nlpdiagnostics-constraint-registrations` BMOPFTools branch: IBR phase
+P/Q bounds, Volt-Watt/Volt-Var laws, apparent-power circles, auxiliary P/Q
+links, and native load P/Q equations are registered with stable semantic keys.
+On the affected saved-result case, this raises semantic coverage from 0 to
+280/405 violated rows for the `pu` policy; the corrected `pu_all_si` case is
+17/17 semantically identified, with `ibr_power_circle` accounting for 11 rows.
+Source/generator bound registration and line apparent-power registration are
+now wired through the same public registry for cases that declare those
+devices or ratings. Switch voltage-coupling/current/apparent-power rows and
+line angle bounds now use the same registry. A public
+`BMOPFTools.register_opf_constraint!` helper also makes custom model-hook
+registration explicit and collision-checked; hooks that do not use it remain
+an intentional `unregistered_constraint` boundary.
+
+The transformer slice is now in place as well: native YY, center-tap, Yd/Dy,
+autotransformer, and open-delta regulator coil apparent-power rows and current
+thermal limits are registered, together with the principal voltage/current
+coupling equations. N-winding coil limits use the same stable key scheme. The
+remaining transformer work is deeper equation-family coverage for specialized
+internal branches, not a loss of device identity.
+
+The smoke summarizer now reports both violated-row attribution and whole-model
+constraint-registry coverage. The latter counts every evaluated scalar row and
+its registered/unregistered family split, so a feasible saved point cannot make
+registry gaps disappear. The validator exposes this as a separate readiness
+gate (`constraint_semantic_registry_model_coverage`) and keeps partial coverage
+as a warning rather than a score.
+On the regenerated 30-bus saved-result smoke case this reports 844 evaluated
+scalar rows: 604 registered (71.6%) and 240 unregistered. The remaining rows
+are chiefly KCL families (`kcl_r`/`kcl_i`) and other native equations whose
+engine-side keys are still pending; this is a coverage measurement, not an
+assertion that the formulation is wrong.
+
+BMOPFTools semantic row maps now feed the generic point-local Jacobian
+row-family perturbation screen. Solver-trace records retain the resulting
+report and summaries aggregate rank-effect, no-rank-effect, and unavailable
+families separately. This provides a controlled linearized experiment for
+prioritizing equation families before attempting a more expensive build- or
+solver-level perturbation; it remains numerical/local evidence rather than a
+causal model diagnosis.
+
+The solver-trace benchmark now also supports opt-in model-level family
+perturbations. Each variant rebuilds the network with one BMOPFTools native
+device family replaced by an explicit no-op builder, re-enforces KCL, and
+solves independently under a bounded iteration budget. Variant status,
+termination, iteration count, solver options, and the resulting numerical
+profile are retained beside the baseline. This is a formulation perturbation,
+not a physical counterfactual: omitting a family changes the model and can
+create an intentionally incomplete network. It is therefore suitable for
+causal *testing of the formulation fingerprint*, not for interpreting the
+variant as a valid engineering model.
 
 ## Solver postmortem foundation
 
@@ -607,3 +765,30 @@ codes separately from solver-result and BMOPFTools context evidence. A
 depot-safe `run_benchmark.jl` launcher provides a writable compiled-cache
 overlay for restricted environments, and the generic failure harness uses the
 same provenance-preserving pattern.
+The isolated solver-trace launcher now propagates the child environment
+fingerprint, solver options, unit convention, and capture flags into both the
+case records and the top-level index, so postmortem summaries can be validated
+for reproducibility rather than treated as anonymous solver output.
+The first three 30-bus Ipopt traces (two LN points and one LG point) all reached
+`locally_optimal` in 17--19 iterations, while retaining persistent local rank
+loss, zero-Jacobian-row evidence, and compact-coordinate nullspace candidates.
+This is an initial profiling observation, not a claim that the cases are
+mathematically defective; the next step is to correlate these fingerprints with
+registered equation families and repeat them under MadNLP or controlled model
+perturbations.
+Solver-trace records now retain a row-to-semantic-family map, and the trace
+summarizer reports family counts for rank/nullspace findings. On the 30-bus LN
+case, the Ipopt two-row dependence maps to `ibr_p_lower`/`ibr_p_upper`, while
+the persistent rank-loss fingerprint spans KCL, IBR power-link/circle/limit,
+load-equation, and unregistered families. A dense final-point MadNLP run also
+reached `locally_optimal` and reproduced a rank-loss fingerprint across the
+same broad family groups, although MadNLP's public callback does not expose
+primal iterate bindings. This is cross-solver evidence of a formulation-wide
+fingerprint, not a causal diagnosis.
+As a first controlled scaling perturbation, the same Ipopt case was rebuilt in
+SI/model-native coordinates. It still reached `locally_optimal` (15 versus 17
+per-unit iterations), retained the same KCL/IBR/load/unregistered rank-loss
+families, and introduced a large-row-scale-spread finding. The changed
+iteration count and scale warning are numerical observations; the repeated
+family fingerprint is stronger evidence that the underlying degeneracy is not
+created solely by the per-unit coordinate choice.

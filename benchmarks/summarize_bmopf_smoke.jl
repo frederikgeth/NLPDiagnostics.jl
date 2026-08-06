@@ -151,9 +151,25 @@ function main()
     feasibility_attribution_unsupported_rows = 0
     feasibility_attribution_family_rows = Dict{String,Int}()
     feasibility_attribution_jacobian_methods = Dict{String,Int}()
+    feasibility_attribution_constraint_families = Dict{String,Int}()
+    feasibility_attribution_constraint_instances = Dict{String,Int}()
+    feasibility_attribution_components = Dict{String,Int}()
+    feasibility_attribution_registered_rows = 0
+    feasibility_attribution_unregistered_rows = 0
+    feasibility_attribution_model_rows = 0
+    feasibility_attribution_model_registered_rows = 0
+    feasibility_attribution_model_unregistered_rows = 0
+    feasibility_attribution_model_constraint_families = Dict{String,Int}()
     result_field_catalog_cases = 0
     aggregate_stage_seconds = Dict{String,Vector{Float64}}()
     aggregate_stage_allocations = Dict{String,Vector{Float64}}()
+    multiconductor_case_count = 0
+    multiconductor_finding_cases = 0
+    multiconductor_metric_values = Dict{String,Vector{Float64}}()
+    multiconductor_constitutive_ranks = Float64[]
+    multiconductor_complex_constitutive_ranks = Float64[]
+    multiconductor_passive_current_ranks = Float64[]
+    multiconductor_physical_mode_categories = Dict{String,Int}()
     for entry in index["cases"]
         record_path = joinpath(output_dir, entry["result_file"])
         record = JSON.parsefile(record_path)
@@ -231,6 +247,77 @@ function main()
             summary["generic_finding_attributes"] = generic_attributes
             summary["context_finding_attributes"] = context_attributes
             summary["initialization_finding_attributes"] = initialization_attributes
+            multiconductor_contract = get(record, "multiconductor_contract", nothing)
+            if multiconductor_contract isa AbstractDict
+                multiconductor_case_count += 1
+                summary["multiconductor_contract"] = multiconductor_contract
+                contract_finding_count = 0
+                for field in (
+                    "voltage_report_finding_count",
+                    "current_report_finding_count",
+                    "physical_mode_finding_count",
+                    "constitutive_map_finding_count",
+                    "complex_constitutive_map_finding_count",
+                    "passive_network_current_map_finding_count",
+                )
+                    raw = get(multiconductor_contract, field, nothing)
+                    raw isa Number || continue
+                    count = Int(raw)
+                    contract_finding_count += count
+                    bucket = get!(multiconductor_metric_values, field, Float64[])
+                    push!(bucket, Float64(count))
+                end
+                contract_finding_count > 0 && (multiconductor_finding_cases += 1)
+                for field in (
+                    "voltage_port_count",
+                    "voltage_coordinate_map_count",
+                    "voltage_connection_count",
+                    "current_port_count",
+                    "current_coordinate_map_count",
+                    "current_skipped_count",
+                    "physical_mode_count",
+                    "constitutive_map_count",
+                    "complex_constitutive_map_count",
+                    "passive_network_current_map_count",
+                )
+                    raw = get(multiconductor_contract, field, nothing)
+                    raw isa Number || continue
+                    bucket = get!(multiconductor_metric_values, field, Float64[])
+                    push!(bucket, Float64(raw))
+                end
+                ranks = get(multiconductor_contract, "constitutive_map_ranks", Any[])
+                if ranks isa AbstractVector
+                    for rank in ranks
+                        rank isa Number || continue
+                        isfinite(Float64(rank)) || continue
+                        push!(multiconductor_constitutive_ranks, Float64(rank))
+                    end
+                end
+                complex_ranks = get(multiconductor_contract, "complex_constitutive_map_ranks", Any[])
+                if complex_ranks isa AbstractVector
+                    for rank in complex_ranks
+                        rank isa Number || continue
+                        isfinite(Float64(rank)) || continue
+                        push!(multiconductor_complex_constitutive_ranks, Float64(rank))
+                    end
+                end
+                passive_ranks = get(multiconductor_contract, "passive_network_current_map_ranks", Any[])
+                if passive_ranks isa AbstractVector
+                    for rank in passive_ranks
+                        rank isa Number || continue
+                        isfinite(Float64(rank)) || continue
+                        push!(multiconductor_passive_current_ranks, Float64(rank))
+                    end
+                end
+                categories = get(multiconductor_contract, "physical_mode_categories", Any[])
+                if categories isa AbstractVector
+                    for category in categories
+                        key = String(category)
+                        multiconductor_physical_mode_categories[key] =
+                            get(multiconductor_physical_mode_categories, key, 0) + 1
+                    end
+                end
+            end
             report_metadata = if analysis_mode == "structural"
                 get(record["report"], "metadata", Dict{String,Any}())
             else
@@ -275,6 +362,56 @@ function main()
                         "bmopf_feasibility_attribution_jacobian_method_counts", ""))
                         feasibility_attribution_jacobian_methods[method] =
                             get(feasibility_attribution_jacobian_methods, method, 0) + count
+                    end
+                    for (family, count) in _parse_count_map(get(metadata,
+                        "bmopf_feasibility_attribution_constraint_family_row_counts", ""))
+                        feasibility_attribution_constraint_families[family] =
+                            get(feasibility_attribution_constraint_families, family, 0) + count
+                    end
+                    for (instance, count) in _parse_count_map(get(metadata,
+                        "bmopf_feasibility_attribution_constraint_instance_counts", ""))
+                        feasibility_attribution_constraint_instances[instance] =
+                            get(feasibility_attribution_constraint_instances, instance, 0) + count
+                    end
+                    for (component, count) in _parse_count_map(get(metadata,
+                        "bmopf_feasibility_attribution_component_candidate_counts", ""))
+                        feasibility_attribution_components[component] =
+                            get(feasibility_attribution_components, component, 0) + count
+                    end
+                    feasibility_attribution_registered_rows += try
+                        parse(Int, string(get(metadata,
+                            "bmopf_feasibility_attribution_registered_constraint_row_count", "0")))
+                    catch
+                        0
+                    end
+                    feasibility_attribution_unregistered_rows += try
+                        parse(Int, string(get(metadata,
+                            "bmopf_feasibility_attribution_unregistered_constraint_row_count", "0")))
+                    catch
+                        0
+                    end
+                    feasibility_attribution_model_rows += try
+                        parse(Int, string(get(metadata,
+                            "bmopf_feasibility_attribution_model_constraint_row_count", "0")))
+                    catch
+                        0
+                    end
+                    feasibility_attribution_model_registered_rows += try
+                        parse(Int, string(get(metadata,
+                            "bmopf_feasibility_attribution_model_registered_constraint_row_count", "0")))
+                    catch
+                        0
+                    end
+                    feasibility_attribution_model_unregistered_rows += try
+                        parse(Int, string(get(metadata,
+                            "bmopf_feasibility_attribution_model_unregistered_constraint_row_count", "0")))
+                    catch
+                        0
+                    end
+                    for (family, count) in _parse_count_map(get(metadata,
+                        "bmopf_feasibility_attribution_model_constraint_family_row_counts", ""))
+                        feasibility_attribution_model_constraint_families[family] =
+                            get(feasibility_attribution_model_constraint_families, family, 0) + count
                     end
                     summary["feasibility_field_attribution"] = attribution
                 end
@@ -408,6 +545,41 @@ function main()
             "unsupported_row_count_total" => feasibility_attribution_unsupported_rows,
             "family_row_counts" => _sorted_counts(feasibility_attribution_family_rows),
             "jacobian_method_counts" => _sorted_counts(feasibility_attribution_jacobian_methods),
+            "constraint_family_row_counts" => _sorted_counts(feasibility_attribution_constraint_families),
+            "constraint_instance_counts" => _sorted_counts(feasibility_attribution_constraint_instances),
+            "component_candidate_counts" => _sorted_counts(feasibility_attribution_components),
+            "registered_constraint_row_count_total" => feasibility_attribution_registered_rows,
+            "unregistered_constraint_row_count_total" => feasibility_attribution_unregistered_rows,
+            "model_constraint_row_count_total" => feasibility_attribution_model_rows,
+            "model_registered_constraint_row_count_total" => feasibility_attribution_model_registered_rows,
+            "model_unregistered_constraint_row_count_total" => feasibility_attribution_model_unregistered_rows,
+            "model_constraint_family_row_counts" => _sorted_counts(feasibility_attribution_model_constraint_families),
+            "model_registered_constraint_fraction" => feasibility_attribution_model_rows == 0 ? nothing :
+                feasibility_attribution_model_registered_rows / feasibility_attribution_model_rows,
+        ),
+        "multiconductor_contract_counts" => Dict(
+            "cases_with_contract_data" => multiconductor_case_count,
+            "cases_with_contract_findings" => multiconductor_finding_cases,
+            "metric_summaries" => _metric_summaries(multiconductor_metric_values),
+            "constitutive_map_rank_summary" => isempty(multiconductor_constitutive_ranks) ? nothing : Dict(
+                "sample_count" => length(multiconductor_constitutive_ranks),
+                "minimum" => minimum(multiconductor_constitutive_ranks),
+                "mean" => sum(multiconductor_constitutive_ranks) / length(multiconductor_constitutive_ranks),
+                "maximum" => maximum(multiconductor_constitutive_ranks),
+            ),
+            "complex_constitutive_map_rank_summary" => isempty(multiconductor_complex_constitutive_ranks) ? nothing : Dict(
+                "sample_count" => length(multiconductor_complex_constitutive_ranks),
+                "minimum" => minimum(multiconductor_complex_constitutive_ranks),
+                "mean" => sum(multiconductor_complex_constitutive_ranks) / length(multiconductor_complex_constitutive_ranks),
+                "maximum" => maximum(multiconductor_complex_constitutive_ranks),
+            ),
+            "passive_network_current_map_rank_summary" => isempty(multiconductor_passive_current_ranks) ? nothing : Dict(
+                "sample_count" => length(multiconductor_passive_current_ranks),
+                "minimum" => minimum(multiconductor_passive_current_ranks),
+                "mean" => sum(multiconductor_passive_current_ranks) / length(multiconductor_passive_current_ranks),
+                "maximum" => maximum(multiconductor_passive_current_ranks),
+            ),
+            "physical_mode_category_case_counts" => _sorted_counts(multiconductor_physical_mode_categories),
         ),
         "resume" => get(index, "resume", false),
         "force" => get(index, "force", false),
