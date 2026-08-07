@@ -844,6 +844,26 @@ as `trusted_solver_point_coverage`; incomplete coverage remains a warning and
 keeps the campaign useful for initialization-scoped numerical observations,
 but blocks physical or cross-case claims that require complete solver points.
 
+For an explicit repeatability and point-persistence calibration, run
+`benchmarks/launch_bmopf_point_calibration.jl`. By default it profiles the
+engine start, the adjacent SI saved result, and the adjacent PU saved result
+twice each in isolated Julia processes. Select a smaller policy set with
+`NLPDIAGNOSTICS_BMOPF_CALIBRATION_POINTS=engine_start,saved_si`, set the repeat
+count with `NLPDIAGNOSTICS_BMOPF_CALIBRATION_REPETITIONS`, and use the ordinary
+BMOPF case selectors. Dense rank analysis defaults to disabled in this launcher.
+
+Run `benchmarks/summarize_bmopf_point_calibration.jl
+<calibration_index.json>` to compare exact finding identities. Static,
+expression, and reformulation reports are checked as point-invariant stages;
+numerical, active-set, and degeneracy changes are reported as local evidence.
+The summary retains repeated point fingerprints, registry coverage, saved-result
+mapping completeness, provenance, environment fingerprints, and the dense-work
+budget. Pass its output to `benchmarks/validate_bmopf_campaign.jl` before using
+the observations in the evidence ledger. A stable local finding is empirical
+persistence across the sampled points, not a global or physical proof.
+Same-point readiness requires both one exact point fingerprint and identical
+finding identities in every report stage across repetitions.
+
 Solver-trace campaigns apply the same boundary to their final solver result
 and to optional callback iterates. Metric-only traces remain valid when
 callback coordinates were not requested, while physical or cross-case claims

@@ -1239,6 +1239,42 @@ end
     )
 end
 
+@testset "BMOPF point calibration benchmark contracts" begin
+    benchmark_directory = joinpath(@__DIR__, "..", "benchmarks")
+    scripts = (
+        "launch_bmopf_point_calibration.jl",
+        "summarize_bmopf_point_calibration.jl",
+        "validate_bmopf_campaign.jl",
+        "summarize_bmopf_evidence_ledger.jl",
+    )
+    for script in scripts
+        source = read(joinpath(benchmark_directory, script), String)
+        @test Meta.parseall(source) isa Expr
+    end
+    launcher = read(
+        joinpath(benchmark_directory, "launch_bmopf_point_calibration.jl"),
+        String,
+    )
+    summary = read(
+        joinpath(benchmark_directory, "summarize_bmopf_point_calibration.jl"),
+        String,
+    )
+    @test occursin("bmopf-point-calibration-launcher-v1", launcher)
+    @test occursin("NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES\"] = \"0\"", launcher)
+    @test occursin("bmopf-point-calibration-v1", summary)
+    @test occursin("point_invariant_stage_stability", summary)
+    @test occursin("same_point_fingerprint_stability", summary)
+    @test occursin("same_point_finding_stability", summary)
+    @test occursin("saved_result_mapping_complete", summary)
+    ledger = read(
+        joinpath(benchmark_directory, "summarize_bmopf_evidence_ledger.jl"),
+        String,
+    )
+    @test occursin("\"evaluation_points\"", ledger)
+    @test occursin("\"basis_counts\"", ledger)
+    @test occursin("\"domain_counts\"", ledger)
+end
+
 @testset "renderer-neutral report data" begin
     entity = NLPDiagnostics.EntityRef(
         :constraint,

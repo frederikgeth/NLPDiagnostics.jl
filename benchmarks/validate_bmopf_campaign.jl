@@ -1266,6 +1266,110 @@ function _validate_policy_matrix_manifest(path, manifest)
     )
 end
 
+function _validate_point_calibration(path, summary)
+    findings = Any[]
+    case_count = _int(get(summary, "case_count", 0))
+    observation_count = _int(get(summary, "observation_count", 0))
+    run_failures = _int(get(summary, "run_failure_count", 0))
+    trusted_saved = _int(get(summary, "trusted_saved_case_count", 0))
+    invariant_repeat = _int(get(
+        summary, "point_invariant_repeat_failure_count", 0,
+    ))
+    same_point_repeat = _int(get(
+        summary, "same_point_repeat_failure_count", invariant_repeat,
+    ))
+    point_fingerprint_repeat = _int(get(
+        summary, "point_fingerprint_repeat_failure_count", 0,
+    ))
+    invariant_cross_point = _int(get(
+        summary, "point_invariant_cross_point_change_count", 0,
+    ))
+    local_cross_point = _int(get(
+        summary, "point_local_cross_point_change_count", 0,
+    ))
+    registry_complete = get(summary, "registry_complete", false) === true
+    environments = get(summary, "environment_fingerprints", Any[])
+    environments isa AbstractVector || (environments = Any[])
+    run_failures > 0 && push!(findings, _finding(
+        "point_calibration_child_failure", "error",
+        "Point calibration contains failed child runs or failed case records.",
+        Dict("run_failure_count" => run_failures);
+        suggested_action = "Repair and rerun failed children before interpreting recurrence or point persistence."
+    ))
+    case_count == 0 && push!(findings, _finding(
+        "point_calibration_cases_empty", "error",
+        "Point calibration contains no aligned cases.",
+        Dict("observation_count" => observation_count);
+        suggested_action = "Check the benchmark root and case selectors, then regenerate the calibration campaign."
+    ))
+    length(unique(environments)) > 1 && push!(findings, _finding(
+        "point_calibration_environment_mismatch", "warning",
+        "Point calibration combines more than one environment fingerprint.",
+        Dict("environment_fingerprints" => environments);
+        suggested_action = "Align Julia and package revisions before attributing changes to evaluation points."
+    ))
+    !registry_complete && push!(findings, _finding(
+        "point_calibration_registry_incomplete", "warning",
+        "At least one calibrated observation lacks complete semantic row coverage.",
+        Dict("observation_count" => observation_count);
+        suggested_action = "Resolve uncovered rows before interpreting persistence by equation family."
+    ))
+    invariant_repeat > 0 && push!(findings, _finding(
+        "point_calibration_repeatability_failure", "warning",
+        "Nominally point-invariant stages changed across repeated runs.",
+        Dict("changed_stage_count" => invariant_repeat);
+        suggested_action = "Inspect randomized probes, ordering, and environment provenance before trusting recurrence."
+    ))
+    same_point_repeat > invariant_repeat && push!(findings, _finding(
+        "point_calibration_same_point_finding_drift", "warning",
+        "Point-local or auxiliary report stages changed across repeated runs at one exact point.",
+        Dict("changed_stage_count" => same_point_repeat,
+             "point_invariant_changed_stage_count" => invariant_repeat);
+        suggested_action = "Resolve nondeterminism before interpreting same-point recurrence."
+    ))
+    point_fingerprint_repeat > 0 && push!(findings, _finding(
+        "point_calibration_point_fingerprint_drift", "error",
+        "Repeated observations for one policy did not use one exact evaluation point.",
+        Dict("changed_policy_count" => point_fingerprint_repeat);
+        suggested_action = "Align saved-result and initialization point sources before comparing findings."
+    ))
+    invariant_cross_point > 0 && push!(findings, _finding(
+        "point_calibration_invariant_stage_changed", "warning",
+        "Nominally point-invariant stages changed across evaluation points.",
+        Dict("changed_stage_count" => invariant_cross_point);
+        suggested_action = "Remove hidden point dependence or reclassify the affected stage before calling its findings structural."
+    ))
+    local_cross_point > 0 && push!(findings, _finding(
+        "point_calibration_local_finding_changed", "info",
+        "Point-local findings changed across calibrated evaluation points.",
+        Dict("changed_stage_count" => local_cross_point);
+        suggested_action = "Retain these as local numerical observations and inspect the exact finding-identity deltas."
+    ))
+    trusted_saved < case_count && push!(findings, _finding(
+        "point_calibration_trusted_saved_point_missing", "warning",
+        "Some calibrated cases lack a completely mapped saved solver point.",
+        Dict("case_count" => case_count,
+             "trusted_saved_case_count" => trusted_saved);
+        suggested_action = "Add complete saved solver results before making physical persistence claims."
+    ))
+    readiness = get(summary, "readiness", Dict())
+    readiness isa AbstractDict || (readiness = Dict())
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "case_count" => case_count,
+        "observation_count" => observation_count,
+        "run_failure_count" => run_failures,
+        "trusted_saved_case_count" => trusted_saved,
+        "point_invariant_repeat_failure_count" => invariant_repeat,
+        "same_point_repeat_failure_count" => same_point_repeat,
+        "point_fingerprint_repeat_failure_count" => point_fingerprint_repeat,
+        "point_invariant_cross_point_change_count" => invariant_cross_point,
+        "point_local_cross_point_change_count" => local_cross_point,
+        "readiness" => readiness,
+        "findings" => findings,
+    )
+end
+
 function _validate_solver_matrix(path, matrix)
     findings = Any[]
     process_health = get(matrix, "process_health", nothing)
@@ -1762,6 +1866,7 @@ function main()
     campaign_reports = Any[]
     comparison_reports = Any[]
     policy_matrix_reports = Any[]
+    point_calibration_reports = Any[]
     solver_matrix_reports = Any[]
     controller_reports = Any[]
     solver_trace_reports = Any[]
@@ -1827,6 +1932,9 @@ function main()
         elseif startswith(report_version, "bmopf-result-policy-matrix-summary-")
             report = _validate_policy_matrix(path, summary)
             push!(policy_matrix_reports, report)
+        elseif startswith(report_version, "bmopf-point-calibration-")
+            report = _validate_point_calibration(path, summary)
+            push!(point_calibration_reports, report)
         elseif startswith(runner_version, "bmopf-result-policy-matrix-")
             report = _validate_policy_matrix_manifest(path, summary)
             push!(policy_matrix_reports, report)
@@ -1858,6 +1966,7 @@ function main()
         "campaign_reports" => campaign_reports,
         "comparison_reports" => comparison_reports,
         "policy_matrix_reports" => policy_matrix_reports,
+        "point_calibration_reports" => point_calibration_reports,
         "solver_matrix_reports" => solver_matrix_reports,
         "controller_reports" => controller_reports,
         "solver_trace_reports" => solver_trace_reports,

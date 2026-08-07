@@ -32,7 +32,9 @@ function _string_list(value)
     value isa AbstractString && return filter(!isempty, strip.(split(value, ',')))
     value isa AbstractVector && return filter(!isempty, String[
         item isa AbstractString ? String(item) :
-        item isa AbstractDict ? String(get(item, "name", get(item, "snapshot", ""))) :
+        item isa AbstractDict ? String(get(
+            item, "name", get(item, "case", get(item, "snapshot", "")),
+        )) :
         string(item) for item in value
     ])
     return [String(value)]
@@ -56,6 +58,7 @@ function _source_type(report)
     startswith(version, "bmopf-persistence-summary-") && return "saved_result_persistence_summary"
     startswith(version, "bmopf-saved-result-profile-comparison-") && return "saved_result_profile_comparison"
     startswith(version, "bmopf-result-policy-matrix-summary-") && return "result_policy_matrix"
+    startswith(version, "bmopf-point-calibration-") && return "point_calibration"
     startswith(version, "bmopf-evidence-ledger-comparison-") && return "evidence_ledger_comparison"
     startswith(version, "bmopf-evidence-ledger-") && return "evidence_ledger"
     return "unknown"
@@ -65,6 +68,7 @@ function _provenance(report)
     cases = _string_list(get(report, "cases", get(report, "case_summaries", Any[])))
     solvers = _string_list(get(report, "solvers", Any[]))
     families = _string_list(get(report, "family_perturbation_families", Any[]))
+    evaluation_points = _string_list(get(report, "points", Any[]))
     by_family = _dict(get(report, "by_family", nothing))
     if isempty(cases) && !isempty(by_family)
         cases = unique(vcat([_string_list(get(_dict(value), "cases", Any[])) for value in values(by_family)]...))
@@ -87,11 +91,15 @@ function _provenance(report)
     return Dict{String,Any}(
         "cases" => sort!(unique(cases)), "solvers" => sort!(unique(solvers)),
         "families" => sort!(unique(families)),
+        "evaluation_points" => sort!(unique(evaluation_points)),
         "environment_fingerprints" => sort!(unique(environment_fingerprints)),
+        "readiness" => get(report, "readiness", nothing),
         "analysis_budget" => Dict(
             "rank_max_dense_entries" => get(report, "rank_max_dense_entries", nothing),
             "dense_rank_case_counts" => get(report, "dense_rank_case_counts", nothing),
-            "replicate_count" => get(report, "replicate_count", nothing),
+            "replicate_count" => get(
+                report, "replicate_count", get(report, "repetitions", nothing),
+            ),
             "family_perturbation_max_iter" => get(report, "family_perturbation_max_iter", nothing),
             "child_timeout_seconds" => get(report, "child_timeout_seconds", nothing),
             "capture_logs" => get(report, "capture_logs", nothing),
@@ -130,6 +138,7 @@ function _campaign_provenance(source_types)
     cases = String[]
     solvers = String[]
     families = String[]
+    evaluation_points = String[]
     environments = String[]
     budgets = Any[]
     for source in source_types
@@ -137,6 +146,9 @@ function _campaign_provenance(source_types)
         append!(cases, _string_list(get(provenance, "cases", Any[])))
         append!(solvers, _string_list(get(provenance, "solvers", Any[])))
         append!(families, _string_list(get(provenance, "families", Any[])))
+        append!(evaluation_points, _string_list(get(
+            provenance, "evaluation_points", Any[],
+        )))
         append!(environments, _string_list(get(provenance, "environment_fingerprints", Any[])))
         budget = get(provenance, "analysis_budget", nothing)
         budget isa AbstractDict && push!(budgets, _canonical(budget))
@@ -146,6 +158,7 @@ function _campaign_provenance(source_types)
         "cases" => sort!(unique(cases)),
         "solvers" => sort!(unique(solvers)),
         "families" => sort!(unique(families)),
+        "evaluation_points" => sort!(unique(evaluation_points)),
         "environment_fingerprints" => sort!(unique(environments)),
         "analysis_budgets" => sort!(unique_budgets),
     )
@@ -172,6 +185,8 @@ function _append_findings!(records, report, path, scope, findings)
             "scope" => scope,
             "severity" => get(finding, "severity", "unknown"),
             "confidence" => get(finding, "confidence", "unknown"),
+            "basis" => get(finding, "basis", nothing),
+            "domain" => get(finding, "domain", nothing),
             "category" => get(finding, "category", nothing),
             "observation" => get(finding, "observation", nothing),
             "evidence" => evidence,
@@ -266,7 +281,9 @@ function main()
             "identity" => identity, "code" => record["code"],
             "count" => 0, "source_count" => 0, "source_paths" => String[],
             "source_types" => String[], "severity_counts" => Dict{String,Int}(),
-            "confidence_counts" => Dict{String,Int}(), "records" => Any[],
+            "confidence_counts" => Dict{String,Int}(),
+            "basis_counts" => Dict{String,Int}(),
+            "domain_counts" => Dict{String,Int}(), "records" => Any[],
         ))
         aggregate["count"] += 1
         path = String(record["source_path"])
@@ -278,6 +295,8 @@ function main()
         source_type in aggregate["source_types"] || push!(aggregate["source_types"], source_type)
         _count!(aggregate["severity_counts"], record["severity"])
         _count!(aggregate["confidence_counts"], record["confidence"])
+        isnothing(record["basis"]) || _count!(aggregate["basis_counts"], record["basis"])
+        isnothing(record["domain"]) || _count!(aggregate["domain_counts"], record["domain"])
         push!(aggregate["records"], record)
     end
     for aggregate in values(by_identity)

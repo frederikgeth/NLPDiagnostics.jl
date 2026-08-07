@@ -1529,6 +1529,37 @@ medium BMOPF profiles with the coverage gate attached, establish which findings
 are stable across initialization and solver points, and reserve dense rank or
 nullspace claims for cases within the declared algebra budget.
 
+That phase now has a dedicated point-calibration harness. The launcher runs
+isolated, repeated profiles at the BMOPFTools engine start and at explicitly
+unit-labelled saved solver results. The summarizer compares exact finding
+identity counts, rather than scores, and separates stages expected to be point
+invariant (`static`, `expressions`, and `reformulation`) from point-local
+numerical, active-set, and degeneracy observations. It retains point and
+environment fingerprints, provenance, saved-result mapping completeness,
+all-row registry coverage, and the dense-analysis budget for every observation.
+Campaign validation treats failed repetitions, mixed environments, uncovered
+rows, invariant-stage drift, and missing fully mapped saved points as separate
+readiness failures or qualifications.
+
+The next empirical gate is therefore concrete: first establish same-point
+repeatability and start-versus-saved-point persistence on a small LN/LG set with
+dense algebra disabled; then repeat on a stratified medium set; only then enable
+dense rank/nullspace analysis on cases whose declared Jacobian budget permits
+it. Agreement of point-local findings remains observed persistence, not proof
+of a global mathematical or physical property.
+
+The first calibrated 30-bus LG case has now cleared that small-case gate. Four
+isolated observations (two engine starts and two saved-SI results) had identical
+environment fingerprints, complete 844/844 semantic row coverage, exact
+within-point finding recurrence, and a completely mapped trusted saved point.
+All point-invariant stages were unchanged across points. The active-set and
+numerical stages changed in eight exact finding identities: most notably, the
+saved result removed 56 feasibility violations and the zero-Jacobian-row
+warning, while exposing a large row-scale-spread warning. Dense algebra stayed
+disabled for the 844-by-704 Jacobian (594,176 potential dense entries). These
+are local observations from one fixture, but they demonstrate that the harness
+can distinguish initialization artifacts from persistent model structure.
+
 Saved-result component matching is now exact as well (`pv_1` no longer matches
 `pv_10`). A fresh one-case SI/PU matrix reports 56 registered controller
 violation crosswalks and zero registry-boundary cases. Its remaining warning

@@ -231,3 +231,33 @@ descriptive summaries in `stage_timing` and `stage_allocations`.
 Both measures include Julia compilation and garbage-collector effects unless
 callers warm up comparable cases. They are local scaling evidence, not
 solver-performance measurements or complexity guarantees.
+
+## BMOPF point calibration
+
+Use `benchmarks/launch_bmopf_point_calibration.jl` to distinguish same-point
+repeatability from persistence between BMOPFTools starts and saved solver
+points. A representative bounded invocation is:
+
+```sh
+NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT=/path/to/benchmarks \
+NLPDIAGNOSTICS_BMOPF_CASES=ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json \
+NLPDIAGNOSTICS_BMOPF_CALIBRATION_POINTS=engine_start,saved_si \
+NLPDIAGNOSTICS_BMOPF_CALIBRATION_REPETITIONS=2 \
+NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES=0 \
+julia --project=/path/to/BMOPFTools.jl/test \
+    benchmarks/launch_bmopf_point_calibration.jl
+
+julia --project=. benchmarks/summarize_bmopf_point_calibration.jl \
+    /path/to/output/calibration_index.json
+julia --project=. benchmarks/validate_bmopf_campaign.jl \
+    /path/to/output/validation.json \
+    /path/to/output/calibration_summary.json
+```
+
+The engine-start point may be coordinate-complete because missing starts were
+explicitly filled, but it remains initialization provenance rather than a
+physical state. A saved point clears the calibration trust gate only when every
+model coordinate is mapped, with no fallback, unmapped registered coordinate,
+or unregistered model coordinate. Point-invariant report stages should repeat
+exactly; changes in numerical, active-set, or degeneracy findings are expected
+to remain local observations.
