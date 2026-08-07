@@ -853,6 +853,37 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     )
     @test length(semantic_rows) == length(saved_profile.profile.profile.evaluation.constraint_sources)
     @test all(haskey(value, "constraint_family") for value in values(semantic_rows))
+    registered_constraint_signatures = Dict{Tuple{Int,String,String},String}()
+    for key in BMOPFTools.opf_object_keys(per_unit_context; kind = :constraint)
+        object = try
+            BMOPFTools.opf_object(per_unit_context, key)
+        catch
+            nothing
+        end
+        object isa JuMP.ConstraintRef || continue
+        index = JuMP.index(object)
+        index isa MOI.ConstraintIndex || continue
+        function_type, set_type = string.(typeof(index).parameters)
+        registered_constraint_signatures[(index.value, function_type, set_type)] =
+            string(key.family)
+    end
+    matched_registered_signatures = Set{Tuple{Int,String,String}}()
+    for (row, source) in enumerate(
+        saved_profile.profile.profile.evaluation.constraint_sources,
+    )
+        isnothing(source.function_type) && continue
+        isnothing(source.set_type) && continue
+        signature = (source.index, source.function_type, source.set_type)
+        haskey(registered_constraint_signatures, signature) || continue
+        push!(matched_registered_signatures, signature)
+        @test semantic_rows[string(row)]["constraint_family"] ==
+              registered_constraint_signatures[signature]
+    end
+    @test matched_registered_signatures == Set(keys(registered_constraint_signatures))
+    @test all(
+        haskey(value, "constraint_function_type") &&
+        haskey(value, "constraint_set_type") for value in values(semantic_rows)
+    )
     semantic_perturbation_report =
         NLPDiagnostics.bmopf_analyze_jacobian_row_family_perturbations(
             per_unit_context, saved_profile.profile.profile.evaluation;

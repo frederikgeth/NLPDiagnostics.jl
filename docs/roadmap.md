@@ -1462,3 +1462,15 @@ occurs before a result JSON exists: exit codes, timeout and wait-error counts,
 and preserved process-log coverage are reported separately. Validation exposes
 `solver_process_health` and emits an explicit process-exit finding, so a crash
 or forced termination cannot be mistaken for an ordinary solver termination.
+The saved-result SI/PU policy matrix now applies the same operational boundary:
+each policy child inherits the in-place package load path, wait failures are
+retained, and the matrix manifest is written after every policy. Its summary
+and validator expose `policy_process_health`, so a partial unit-policy matrix
+cannot be interpreted as a complete paired comparison merely because earlier
+children finished.
+The Ipopt/MadNLP solver matrix now follows the same boundary. Solver children
+inherit the local checkout, per-solver indexes and the top-level matrix
+manifest are written incrementally, and native wait/timeout evidence is
+retained. Matrix readiness requires successful solver children, healthy
+process status, and trusted solver-result coverage for every solver; an absent
+MadNLP result cannot be treated as a comparison with an empty trace.

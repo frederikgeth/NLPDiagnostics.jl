@@ -93,6 +93,10 @@ end
 
 function _policy_provenance(entries)
     status_counts = Dict{String,Int}()
+    process_timeout_count = 0
+    process_exit_count = 0
+    process_wait_error_count = 0
+    process_log_count = 0
     environment_fingerprints = String[]
     missing_child_indexes = String[]
     policy_views = Any[]
@@ -100,6 +104,15 @@ function _policy_provenance(entries)
         entry isa AbstractDict || continue
         status = String(get(entry, "status", "unknown"))
         status_counts[status] = get(status_counts, status, 0) + 1
+        get(entry, "process_timeout", false) === true && (process_timeout_count += 1)
+        status == "process_exit" && (process_exit_count += 1)
+        wait_error = get(entry, "process_wait_error", nothing)
+        !(wait_error === nothing || isempty(String(wait_error))) &&
+            (process_wait_error_count += 1)
+        process_log = get(entry, "process_log", nothing)
+        output_directory = get(entry, "output_directory", nothing)
+        process_log isa AbstractString && output_directory isa AbstractString &&
+            isfile(joinpath(output_directory, process_log)) && (process_log_count += 1)
         fingerprint = get(entry, "child_environment_fingerprint", nothing)
         fingerprint isa AbstractString && !isempty(fingerprint) && push!(environment_fingerprints, String(fingerprint))
         get(entry, "child_index_available", false) === true ||
@@ -115,11 +128,21 @@ function _policy_provenance(entries)
             "child_index_available" => get(entry, "child_index_available", false),
             "child_case_count" => get(entry, "child_case_count", 0),
             "child_status_counts" => get(entry, "child_status_counts", Dict()),
+            "process_exit_code" => get(entry, "process_exit_code", nothing),
+            "process_timeout" => get(entry, "process_timeout", false),
+            "process_wait_error" => get(entry, "process_wait_error", nothing),
+            "process_log" => process_log,
         ))
     end
     return Dict{String,Any}(
         "policies" => policy_views,
         "status_counts" => status_counts,
+        "process_health" => Dict(
+            "process_timeout_count" => process_timeout_count,
+            "process_exit_count" => process_exit_count,
+            "process_wait_error_count" => process_wait_error_count,
+            "process_log_count" => process_log_count,
+        ),
         "environment_fingerprints" => sort!(unique(environment_fingerprints)),
         "missing_child_indexes" => sort!(unique(missing_child_indexes)),
     )
@@ -169,10 +192,13 @@ function main()
     end
     policy_provenance = _policy_provenance(all_entries)
     controller_matrix = _controller_matrix_summary(pairs)
+    process_health = get(policy_provenance, "process_health", Dict())
     summary = Dict{String,Any}(
         "report_version" => "bmopf-result-policy-matrix-summary-v4",
+        "runner_version" => get(matrix, "runner_version", nothing),
         "matrix_index" => matrix_path,
         "output_root" => output_root,
+        "environment" => get(matrix, "environment", nothing),
         "policy_count" => length(all_entries),
         "successful_policy_count" => length(entries),
         "failed_policy_count" => length(all_entries) - length(entries),
@@ -187,6 +213,9 @@ function main()
             "child_indexes_available" => !isempty(all_entries) &&
                                          all(get(entry, "child_index_available", false) === true for entry in all_entries),
             "policy_environment_compatible" => length(policy_provenance["environment_fingerprints"]) <= 1,
+            "policy_process_health" => _int(get(process_health, "process_timeout_count", 0)) == 0 &&
+                                        _int(get(process_health, "process_exit_count", 0)) == 0 &&
+                                        _int(get(process_health, "process_wait_error_count", 0)) == 0,
             "pairwise_comparisons_available" => !isempty(pairs),
             "controller_observations_available" => _int(get(controller_matrix, "controller_observation_case_count", 0)) > 0,
         ),

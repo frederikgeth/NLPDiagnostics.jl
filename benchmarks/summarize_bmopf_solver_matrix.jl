@@ -239,6 +239,10 @@ function _compact_summary(summary)
         "solver_log_observation_count" => get(summary, "solver_log_observation_count", 0),
         "solver_log_iteration_count" => get(summary, "solver_log_iteration_count", 0),
         "solver_log_finding_codes" => get(summary, "solver_log_finding_codes", Dict()),
+        "trusted_point_selection_counts" => get(summary, "trusted_point_selection_counts", Dict()),
+        "source_snapshot_counts" => get(summary, "source_snapshot_counts", Dict()),
+        "source_schema_coverage" => get(summary, "source_schema_coverage", Dict()),
+        "process_health_counts" => get(summary, "process_health_counts", Dict()),
         "family_perturbations_enabled" => get(summary, "family_perturbations_enabled", false),
         "family_perturbation_families" => get(summary, "family_perturbation_families", Any[]),
         "family_perturbation_status_counts" => get(summary, "family_perturbation_status_counts", Dict()),
@@ -316,6 +320,31 @@ function main()
     output_path = length(ARGS) == 2 ? abspath(ARGS[2]) : joinpath(root, "matrix_summary.json")
     child_indexes_available = Dict{String,Bool}()
     child_status_counts = Dict{String,Any}()
+    process_health = Dict{String,Int}(
+        "process_exit_count" => 0,
+        "process_timeout_count" => 0,
+        "process_wait_error_count" => 0,
+        "nonzero_process_exit_count" => 0,
+        "process_log_count" => 0,
+    )
+    for entry in get(index, "entries", Any[])
+        entry isa AbstractDict || continue
+        get(entry, "status", "") == "process_exit" &&
+            (process_health["process_exit_count"] += 1)
+        get(entry, "process_timeout", false) === true &&
+            (process_health["process_timeout_count"] += 1)
+        wait_error = get(entry, "process_wait_error", nothing)
+        !(wait_error === nothing || isempty(String(wait_error))) &&
+            (process_health["process_wait_error_count"] += 1)
+        exit_code = get(entry, "process_exit_code", nothing)
+        exit_code isa Number && exit_code != 0 &&
+            (process_health["nonzero_process_exit_count"] += 1)
+        log_path = get(entry, "process_log", nothing)
+        output_directory = get(entry, "output_directory", nothing)
+        log_path isa AbstractString && output_directory isa AbstractString &&
+            isfile(joinpath(output_directory, log_path)) &&
+            (process_health["process_log_count"] += 1)
+    end
     for solver in solvers
         child_index_path = joinpath(root, solver, "index.json")
         available = isfile(child_index_path)
@@ -343,6 +372,19 @@ function main()
     )
     comparisons_available = !isempty(comparisons) &&
         all(get(comparison, "status", "unknown") == "ok" for comparison in values(comparisons))
+    trusted_solver_results = !isempty(solvers) && all(begin
+        summary = get(full_summaries, solver, Dict())
+        counts = _as_dict(get(summary, "trusted_point_selection_counts", nothing))
+        successful = _int(get(summary, "successful_case_count", 0))
+        successful > 0 &&
+            (_int(get(counts, "successful_cases_with_trusted_solver_result_points", 0)) == successful &&
+             _int(get(counts, "successful_cases_with_incomplete_solver_result_points", 0)) == 0 &&
+             _int(get(counts, "successful_cases_missing_solver_result_trust_metadata", 0)) == 0)
+    end for solver in solvers)
+    solver_process_health = process_health["process_exit_count"] == 0 &&
+                            process_health["process_timeout_count"] == 0 &&
+                            process_health["process_wait_error_count"] == 0 &&
+                            process_health["nonzero_process_exit_count"] == 0
     write(output_path, JSON.json(Dict(
         "runner_version" => get(index, "runner_version", nothing),
         "matrix_index" => index_path,
@@ -365,8 +407,11 @@ function main()
             "solver_children_successful" => !isempty(solvers) && all_child_cases_successful,
             "pairwise_comparisons_available" => comparisons_available,
             "summary_errors_absent" => isempty(summary_errors),
+            "trusted_solver_result_points" => trusted_solver_results,
+            "solver_process_health" => solver_process_health,
         ),
         "child_status_counts" => child_status_counts,
+        "process_health" => process_health,
     )))
     println("wrote BMOPF solver matrix summary to $output_path")
 end

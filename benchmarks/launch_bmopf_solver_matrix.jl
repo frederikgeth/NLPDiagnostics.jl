@@ -41,10 +41,54 @@ function _record_termination(record)
     return get(postmortem, "termination", "unknown")
 end
 
+function _child_index(root, solver, timeout_seconds, project, entries)
+    return Dict(
+        "runner_version" => "bmopf-solver-matrix-child-index-v2",
+        "benchmark_root" => root,
+        "solver" => solver,
+        "child_timeout_seconds" => timeout_seconds,
+        "environment" => Dict(
+            "julia_version" => string(VERSION),
+            "julia_executable" => string(Base.julia_cmd()),
+            "project" => project,
+            "local_package_load_path" => normpath(joinpath(@__DIR__, "..")),
+        ),
+        "cases" => entries,
+    )
+end
+
+function _matrix_index(root, output_root, project, solvers, cases, timeout_seconds, entries)
+    return Dict(
+        "runner_version" => "bmopf-solver-matrix-v3",
+        "benchmark_root" => root,
+        "output_root" => output_root,
+        "solvers" => solvers,
+        "cases" => cases,
+        "child_timeout_seconds" => timeout_seconds,
+        "capture_logs" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS", "false"),
+        "capture_points" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS", "false"),
+        "family_perturbations_enabled" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_FAMILY_PERTURBATIONS", "false"),
+        "family_perturbation_families" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_FAMILIES", ""),
+        "family_perturbation_max_iter" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_MAX_ITER", "100"),
+        "run_id" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_ID", "default"),
+        "replicate_index" => get(ENV, "NLPDIAGNOSTICS_BMOPF_REPLICATE_INDEX", "1"),
+        "environment" => Dict(
+            "julia_version" => string(VERSION),
+            "julia_executable" => string(Base.julia_cmd()),
+            "project" => project,
+            "local_package_load_path" => normpath(joinpath(@__DIR__, "..")),
+        ),
+        "entries" => entries,
+    )
+end
+
 function _run_pair(script, project, root, output_root, solver, relative, timeout_seconds)
     solver_dir = joinpath(output_root, solver)
     mkpath(solver_dir)
     child_env = copy(ENV)
+    repository_root = normpath(joinpath(@__DIR__, ".."))
+    existing_load_path = get(child_env, "JULIA_LOAD_PATH", "@")
+    child_env["JULIA_LOAD_PATH"] = string(repository_root, ':', existing_load_path)
     child_env["NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT"] = root
     child_env["NLPDIAGNOSTICS_BMOPF_CASES"] = relative
     child_env["NLPDIAGNOSTICS_BMOPF_SOLVER"] = solver
@@ -69,9 +113,25 @@ function _run_pair(script, project, root, output_root, solver, relative, timeout
         catch
             Base.kill(process)
         end
+        grace_deadline = time() + min(10.0, max(1.0, timeout_seconds / 20))
+        while Base.process_running(process) && time() < grace_deadline
+            sleep(0.1)
+        end
+        if Base.process_running(process)
+            try Base.kill(process, Base.SIGKILL) catch; Base.kill(process) end
+        end
     end
-    wait(process)
-    exit_code = timed_out ? nothing : process.exitcode
+    wait_error = nothing
+    try
+        wait(process)
+    catch error
+        wait_error = sprint(showerror, error)
+    end
+    exit_code = if timed_out
+        nothing
+    else
+        try process.exitcode catch; nothing end
+    end
     result_file = "$(_case_name(relative)).json"
     result_path = joinpath(solver_dir, result_file)
     if isfile(result_path)
@@ -85,6 +145,7 @@ function _run_pair(script, project, root, output_root, solver, relative, timeout
             "termination" => _record_termination(record),
             "process_exit_code" => exit_code,
             "process_timeout" => timed_out,
+            "process_wait_error" => wait_error,
             "process_log" => basename(process_log),
             "family_perturbations_enabled" => get(record, "family_perturbations_enabled", nothing),
             "family_perturbation_families" => get(record, "family_perturbation_families", Any[]),
@@ -103,6 +164,7 @@ function _run_pair(script, project, root, output_root, solver, relative, timeout
         "termination" => timed_out ? "process_timeout" : "process_exit",
         "process_exit_code" => exit_code,
         "process_timeout" => timed_out,
+        "process_wait_error" => wait_error,
         "process_log" => basename(process_log),
         "family_perturbations_enabled" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_FAMILY_PERTURBATIONS", "false"),
         "family_perturbation_families" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_FAMILIES", ""),
@@ -137,62 +199,32 @@ function main()
     project = isempty(project) ? Base.active_project() : abspath(project)
     timeout_seconds = _timeout_seconds()
     entries = Dict{String,Any}[]
+    matrix_index_path = joinpath(output_root, "matrix_index.json")
     for solver in unique(solvers), relative in cases
         entry = _run_pair(script, project, abspath(root), output_root,
                           solver, relative, timeout_seconds)
         push!(entries, entry)
+        for selected_solver in unique(solvers)
+            solver_entries = [item for item in entries if item["solver"] == selected_solver]
+            mkpath(joinpath(output_root, selected_solver))
+            write(joinpath(output_root, selected_solver, "index.json"), JSON.json(
+                _child_index(abspath(root), selected_solver, timeout_seconds, project, solver_entries),
+            ))
+        end
+        write(matrix_index_path, JSON.json(_matrix_index(abspath(root), output_root,
+            project, unique(solvers), cases, timeout_seconds, entries)))
         println("$(solver)/$(_case_name(relative)): $(entry["status"]) " *
                 "timeout=$(entry["process_timeout"])")
     end
     for solver in unique(solvers)
         solver_entries = [entry for entry in entries if entry["solver"] == solver]
-        solver_dir = joinpath(output_root, solver)
-        write(joinpath(solver_dir, "index.json"), JSON.json(Dict(
-            "runner_version" => "bmopf-solver-matrix-child-index-v1",
-            "benchmark_root" => abspath(root),
-            "solver" => solver,
-            "capture_logs" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS", "false"),
-            "capture_points" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS", "false"),
-            "family_perturbations_enabled" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_FAMILY_PERTURBATIONS", "false"),
-            "family_perturbation_families" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_FAMILIES", ""),
-            "family_perturbation_max_iter" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_MAX_ITER", "100"),
-            "run_id" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_ID", "default"),
-            "replicate_index" => get(ENV, "NLPDIAGNOSTICS_BMOPF_REPLICATE_INDEX", "1"),
-            "environment_fingerprint" => begin
-                fingerprints = [get(entry, "environment_fingerprint", nothing) for entry in solver_entries]
-                available = filter(!isnothing, fingerprints)
-                isempty(available) ? nothing : first(available)
-            end,
-            "child_timeout_seconds" => timeout_seconds,
-            "cases" => solver_entries,
-        )))
+        write(joinpath(output_root, solver, "index.json"), JSON.json(
+            _child_index(abspath(root), solver, timeout_seconds, project, solver_entries),
+        ))
     end
-    write(joinpath(output_root, "matrix_index.json"), JSON.json(Dict(
-        "runner_version" => "bmopf-solver-matrix-v2",
-        "benchmark_root" => abspath(root),
-        "solvers" => unique(solvers),
-        "cases" => cases,
-        "child_timeout_seconds" => timeout_seconds,
-        "capture_logs" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS", "false"),
-        "capture_points" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS", "false"),
-        "family_perturbations_enabled" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_FAMILY_PERTURBATIONS", "false"),
-        "family_perturbation_families" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_FAMILIES", ""),
-            "family_perturbation_max_iter" => get(ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_MAX_ITER", "100"),
-            "run_id" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_ID", "default"),
-            "replicate_index" => get(ENV, "NLPDIAGNOSTICS_BMOPF_REPLICATE_INDEX", "1"),
-            "environment_fingerprint" => begin
-                fingerprints = [get(entry, "environment_fingerprint", nothing) for entry in entries]
-                available = filter(!isnothing, fingerprints)
-                isempty(available) ? nothing : first(available)
-            end,
-        "environment" => Dict(
-            "julia_version" => string(VERSION),
-            "julia_executable" => string(Base.julia_cmd()),
-            "project" => project,
-        ),
-        "entries" => entries,
-    )))
-    println("wrote BMOPF solver matrix manifest to $output_root/matrix_index.json")
+    write(matrix_index_path, JSON.json(_matrix_index(abspath(root), output_root,
+        project, unique(solvers), cases, timeout_seconds, entries)))
+    println("wrote BMOPF solver matrix manifest to $matrix_index_path")
 end
 
 main()

@@ -1047,6 +1047,27 @@ function _validate_policy_matrix(path, matrix)
     pairs isa AbstractVector || (pairs = Any[])
     provenance = get(matrix, "policy_provenance", Dict())
     provenance isa AbstractDict || (provenance = Dict())
+    process_health = get(provenance, "process_health", nothing)
+    policy_process_health = false
+    if process_health isa AbstractDict
+        timeouts = _int(get(process_health, "process_timeout_count", 0))
+        exits = _int(get(process_health, "process_exit_count", 0))
+        wait_errors = _int(get(process_health, "process_wait_error_count", 0))
+        policy_process_health = timeouts == 0 && exits == 0 && wait_errors == 0
+        (timeouts > 0 || exits > 0 || wait_errors > 0) && push!(findings, _finding(
+            "policy_matrix_process_health_failed", "error",
+            "One or more unit-policy children timed out or terminated abnormally.",
+            Dict("process_health" => process_health);
+            suggested_action = "Inspect each policy process log and rerun the incomplete policies before comparing unit-policy deltas."
+        ))
+    else
+        push!(findings, _finding(
+            "policy_matrix_process_health_missing", "warning",
+            "The policy-matrix summary does not contain child-process health fields.",
+            Dict("summary_path" => path);
+            suggested_action = "Regenerate the matrix with the current isolated policy launcher and summarizer."
+        ))
+    end
     status_counts = get(provenance, "status_counts", Dict())
     status_counts isa AbstractDict || (status_counts = Dict())
     failed_children = sum(_int(value, 0) for (status, value) in status_counts
@@ -1152,7 +1173,8 @@ function _validate_policy_matrix(path, matrix)
             "registry_boundary_case_count" => get(controller_matrix, "registry_boundary_case_count", 0),
         ),
         "readiness" => Dict("policy_matrix_alignment" => !isempty(pairs) && comparison_errors == 0,
-                            "controller_curve_policy_matrix" => controller_cases > 0),
+                            "controller_curve_policy_matrix" => controller_cases > 0,
+                            "policy_process_health" => policy_process_health),
         "findings" => findings,
     )
 end
@@ -1218,9 +1240,32 @@ end
 
 function _validate_solver_matrix(path, matrix)
     findings = Any[]
+    process_health = get(matrix, "process_health", nothing)
+    solver_process_health = false
+    if process_health isa AbstractDict
+        timeouts = _int(get(process_health, "process_timeout_count", 0))
+        exits = _int(get(process_health, "process_exit_count", 0))
+        wait_errors = _int(get(process_health, "process_wait_error_count", 0))
+        nonzero = _int(get(process_health, "nonzero_process_exit_count", 0))
+        solver_process_health = timeouts == 0 && exits == 0 && wait_errors == 0 && nonzero == 0
+        !solver_process_health && push!(findings, _finding(
+            "solver_matrix_process_health_failed", "error",
+            "One or more solver-matrix children timed out or terminated abnormally.",
+            Dict("process_health" => process_health);
+            suggested_action = "Inspect per-solver process logs and rerun incomplete solver/snapshot pairs before interpreting comparisons."
+        ))
+    else
+        push!(findings, _finding(
+            "solver_matrix_process_health_missing", "warning",
+            "The solver-matrix summary does not contain child-process health fields.",
+            Dict("summary_path" => path);
+            suggested_action = "Regenerate the matrix with the current isolated solver launcher and summarizer."
+        ))
+    end
     solver_summaries = get(matrix, "solver_summaries", Dict())
     solver_count = length(solver_summaries)
     successful = 0
+    trusted_solver_results = 0
     for (solver, summary) in solver_summaries
         statuses = get(summary, "status_counts", Dict())
         ok = _int(get(statuses, "ok", 0))
@@ -1228,6 +1273,14 @@ function _validate_solver_matrix(path, matrix)
         ok == 0 && push!(findings, _finding("solver_matrix_no_success", "error",
             "Solver $(solver) produced no successful case in the matrix.",
             Dict("solver" => String(solver), "status_counts" => statuses)))
+        trust = get(summary, "trusted_point_selection_counts", nothing)
+        if trust isa AbstractDict
+            trusted = _int(get(trust, "successful_cases_with_trusted_solver_result_points", 0))
+            incomplete = _int(get(trust, "successful_cases_with_incomplete_solver_result_points", 0))
+            missing = _int(get(trust, "successful_cases_missing_solver_result_trust_metadata", 0))
+            ok > 0 && trusted == ok && incomplete == 0 && missing == 0 &&
+                (trusted_solver_results += 1)
+        end
     end
     comparisons = get(matrix, "comparisons", Dict())
     comparison_count = 0
@@ -1315,6 +1368,8 @@ function _validate_solver_matrix(path, matrix)
         "readiness" => Dict(
             "solver_matrix_success" => solver_count > 0 && successful == solver_count,
             "solver_matrix_alignment" => comparison_count > 0,
+            "solver_process_health" => solver_process_health,
+            "trusted_solver_result_points" => solver_count > 0 && trusted_solver_results == solver_count,
             "family_perturbation_matrix" => get(family_readiness, "matrix_available", false),
             "family_perturbation_repeatability" => get(family_readiness, "repeatability_observed", false),
         ),

@@ -66,10 +66,34 @@ function _selected_policies()
     return unique(raw)
 end
 
+function _manifest(root, output_root, project, timeout_seconds, result_suffixes, entries)
+    return Dict(
+        "runner_version" => "bmopf-result-policy-matrix-v4",
+        "benchmark_root" => root,
+        "output_root" => output_root,
+        "child_timeout_seconds" => timeout_seconds,
+        "policy_result_suffix_overrides" => result_suffixes,
+        "policies" => entries,
+        "environment_fingerprints" => sort!(unique(filter(value -> value isa AbstractString,
+            [get(entry, "child_environment_fingerprint", nothing) for entry in entries]))),
+        "cases" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASES", ""),
+        "case_selection" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASE_SELECTION", ""),
+        "environment" => Dict(
+            "julia_version" => string(VERSION),
+            "julia_executable" => string(Base.julia_cmd()),
+            "project" => project,
+            "local_package_load_path" => normpath(joinpath(@__DIR__, "..")),
+        ),
+    )
+end
+
 function _run_policy(script, project, root, output_root, name, spec, timeout_seconds, result_suffixes)
     output_dir = joinpath(output_root, name)
     mkpath(output_dir)
     child_env = copy(ENV)
+    repository_root = normpath(joinpath(@__DIR__, ".."))
+    existing_load_path = get(child_env, "JULIA_LOAD_PATH", "@")
+    child_env["JULIA_LOAD_PATH"] = string(repository_root, ':', existing_load_path)
     child_env["NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT"] = root
     child_env["NLPDIAGNOSTICS_BMOPF_OUTPUT_DIR"] = output_dir
     child_env["NLPDIAGNOSTICS_BMOPF_POINT_POLICY"] = "saved_result"
@@ -96,9 +120,25 @@ function _run_policy(script, project, root, output_root, name, spec, timeout_sec
     if Base.process_running(process)
         timed_out = true
         try Base.kill(process, Base.SIGTERM) catch; Base.kill(process) end
+        grace_deadline = time() + min(10.0, max(1.0, timeout_seconds / 20))
+        while Base.process_running(process) && time() < grace_deadline
+            sleep(0.1)
+        end
+        if Base.process_running(process)
+            try Base.kill(process, Base.SIGKILL) catch; Base.kill(process) end
+        end
     end
-    wait(process)
-    result_code = timed_out ? nothing : process.exitcode
+    wait_error = nothing
+    try
+        wait(process)
+    catch error
+        wait_error = sprint(showerror, error)
+    end
+    result_code = if timed_out
+        nothing
+    else
+        try process.exitcode catch; nothing end
+    end
     child_index_path = joinpath(output_dir, "index.json")
     child_index = if isfile(child_index_path)
         try
@@ -128,7 +168,9 @@ function _run_policy(script, project, root, output_root, name, spec, timeout_sec
         "process_log" => basename(process_log),
         "process_timeout" => timed_out,
         "process_exit_code" => result_code,
-        "status" => timed_out ? "process_timeout" : result_code == 0 ? "ok" : "process_exit",
+        "process_wait_error" => wait_error,
+        "status" => timed_out ? "process_timeout" :
+            (!isnothing(wait_error) || result_code != 0 ? "process_exit" : "ok"),
         "child_index_available" => isfile(child_index_path) && !isempty(child_index),
         "child_runner_version" => get(child_index, "runner_version", nothing),
         "child_environment_fingerprint" => get(child_index, "environment_fingerprint", nothing),
@@ -153,25 +195,17 @@ function main()
     timeout_seconds = _timeout_seconds()
     result_suffixes = _result_suffixes()
     entries = Dict{String,Any}[]
+    index_path = joinpath(output_root, "matrix_index.json")
     for name in _selected_policies()
         entry = _run_policy(script, project, root, output_root, name, _POLICIES[name], timeout_seconds, result_suffixes)
         push!(entries, entry)
+        write(index_path, JSON.json(_manifest(root, output_root, project,
+            timeout_seconds, result_suffixes, entries)))
         println("$name: $(entry["status"]) timeout=$(entry["process_timeout"])")
     end
-    manifest = Dict{String,Any}(
-        "runner_version" => "bmopf-result-policy-matrix-v3",
-        "benchmark_root" => root,
-        "output_root" => output_root,
-        "child_timeout_seconds" => timeout_seconds,
-        "policy_result_suffix_overrides" => result_suffixes,
-        "policies" => entries,
-        "environment_fingerprints" => sort!(unique(filter(value -> value isa AbstractString,
-            [get(entry, "child_environment_fingerprint", nothing) for entry in entries]))),
-        "cases" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASES", ""),
-        "case_selection" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASE_SELECTION", ""),
-    )
-    write(joinpath(output_root, "matrix_index.json"), JSON.json(manifest))
-    println("wrote BMOPF result-policy matrix manifest to $(joinpath(output_root, "matrix_index.json"))")
+    write(index_path, JSON.json(_manifest(root, output_root, project,
+        timeout_seconds, result_suffixes, entries)))
+    println("wrote BMOPF result-policy matrix manifest to $index_path")
 end
 
 main()

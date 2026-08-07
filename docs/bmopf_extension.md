@@ -832,6 +832,14 @@ produce no result JSON: exit, timeout, wait-error, and process-log counts are
 reported separately. The validator exposes `solver_process_health` and emits
 an explicit process-exit finding, keeping native crashes distinct from solver
 termination statuses.
+The saved-result SI/PU policy matrix follows the same rule: children inherit
+the local checkout, wait failures are preserved, and `matrix_index.json` is
+updated after each policy. The policy summary and validator expose
+`policy_process_health` before allowing pairwise unit-policy interpretation.
+The Ipopt/MadNLP solver matrix now uses the same incremental manifests and
+process-health checks. Readiness requires each solver to produce at least one
+successful trusted solver-result profile; a native MadNLP exit remains an
+explicit matrix failure rather than being compared as an empty solver trace.
 
 In the first registry-aware 30-bus LN/LG SI-versus-PU run, both children
 completed under one environment fingerprint and each retained 56 finite exact
