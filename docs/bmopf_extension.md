@@ -701,13 +701,15 @@ magnitudes from saved rectangular voltages using the engine-declared neutral
 labels and key reference mode. A missing or ambiguous declared reference is
 left unmapped; the adapter never guesses from terminal or variable names.
 
-The same public constraint registry now covers native load real/reactive power
-equations (`load_power_real`/`load_power_imag`), source P/Q bounds,
-generator P/Q bounds, line current thermal cones, and line apparent-power
-links/circles when those declarations are present in the network. Constraint
-keys retain the device identifier and phase/end index, so a violated row can
-be attributed to an engine equation or operational limit without relying on a
-JuMP construction name. Custom model hooks can publish the same evidence with
+The same public constraint registry now covers AC KCL, line real/imaginary KVL,
+ground and source voltage references, monitored-voltage magnitude definitions
+and nonnegative bounds, native load real/reactive power equations
+(`load_power_real`/`load_power_imag`), source P/Q bounds, generator P/Q bounds,
+line current thermal cones, and line apparent-power links/circles when those
+declarations are present in the network. Constraint keys retain the device,
+bus/terminal, phase, winding, or line-end index as appropriate, so a violated
+row can be attributed to an engine equation or operational limit without
+relying on a JuMP construction name. Custom model hooks can publish the same evidence with
 `BMOPFTools.register_opf_constraint!(ctx, family, index, cref)`; hooks that do
 not do so remain explicitly `unregistered_constraint`.
 
@@ -728,6 +730,15 @@ Solver-trace records additionally retain `bmopf_constraint_semantic_rows`, a
 row-number-to-family/index map for the evaluated point. The solver-trace
 summarizer uses it to correlate rank-loss, nullspace, and zero-Jacobian-row
 evidence with registered equation families without guessing from JuMP names.
+Rows also retain the JuMP construction name when one exists, strictly as
+debugging provenance; semantic classification continues to come only from the
+public BMOPFTools key.
+
+On the regenerated 30-bus LN controller fixture, this map covers all 844 scalar
+rows: 240 KCL, 232 line KVL, 112 monitored-voltage definition/bound, 280 native
+device/control, and 8 voltage-reference rows. Other formulations remain subject
+to the model-wide coverage gate; this fixture result is not generalized to
+custom hooks, DC models, or an untested transformer subtype.
 
 The adapter accepts `result_units=:si` for physical SI values and
 `result_units=:pu` (or the backward-compatible `:model`) for already-scaled
@@ -845,8 +856,10 @@ Constraint-row semantics now key MOI constraints by integer index, function
 type, and set type. This prevents unrelated constraint types with the same
 integer value from overwriting one another. In the fresh 30-bus trace, all 28
 Volt-var and 28 Volt-watt constraints are registered and every observed
-controller violation crosswalks successfully. Other unregistered native rows
-remain explicitly outside that claim.
+controller violation crosswalks successfully. After the subsequent native-row
+registry pass, the same fixture has 844 registered rows and zero unregistered
+rows; other formulations still pass through the explicit coverage gate rather
+than inheriting that result by assumption.
 
 Saved-result controller crosswalks also match quoted component index fields,
 so identifiers such as `pv_1` and `pv_10` cannot alias. The regenerated SI/PU
@@ -987,11 +1000,11 @@ model-native LG Ipopt trace has six Volt-var residual exceedances localized to
 six `ibr:pv_*:volt_var` curves. This is a coordinate-conditioned numerical
 observation; it is not yet evidence of a faulty device or a causal unit error.
 Solver-trace controller violations now cross-reference the BMOPFTools semantic
-row map by component and curve family. In the model-native LG trace, two of the
-six residual-bearing curves match registered `ibr_q_volt_var` rows, while four
-have no matching registered row in the evaluated model. The validator retains
-this as a registry-coverage boundary rather than silently treating the
-unmatched residuals as physical device failures.
+row map by component and curve family. An older model-native LG artifact had
+two of six residual-bearing curves matched to registered `ibr_q_volt_var` rows
+and four unmatched; that preserved result remains a registry-coverage boundary.
+Fresh traces built after the typed-MOI and engine-registry fixes must be used
+before interpreting that historical mismatch as current behavior.
 Paired solver-trace comparisons now summarize registry coverage on both sides.
 For the matched LG coordinate comparison, the per-unit trace has no residual
 crosswalk entries, while the model-native trace has two registered and four

@@ -882,8 +882,17 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test matched_registered_signatures == Set(keys(registered_constraint_signatures))
     @test all(
         haskey(value, "constraint_function_type") &&
-        haskey(value, "constraint_set_type") for value in values(semantic_rows)
+        haskey(value, "constraint_set_type") &&
+        haskey(value, "constraint_name") for value in values(semantic_rows)
     )
+    unregistered_semantic_rows = [
+        value for value in values(semantic_rows)
+        if get(value, "registered", false) != true
+    ]
+    @test length(unregistered_semantic_rows) == 1
+    @test only(unregistered_semantic_rows)["constraint_family"] ==
+          "unregistered_constraint"
+    @test only(unregistered_semantic_rows)["constraint_name"] == ""
     semantic_perturbation_report =
         NLPDiagnostics.bmopf_analyze_jacobian_row_family_perturbations(
             per_unit_context, saved_profile.profile.profile.evaluation;

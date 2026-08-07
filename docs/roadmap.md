@@ -1032,11 +1032,11 @@ its registered/unregistered family split, so a feasible saved point cannot make
 registry gaps disappear. The validator exposes this as a separate readiness
 gate (`constraint_semantic_registry_model_coverage`) and keeps partial coverage
 as a warning rather than a score.
-On the regenerated 30-bus saved-result smoke case this reports 844 evaluated
-scalar rows: 604 registered (71.6%) and 240 unregistered. The remaining rows
-are chiefly KCL families (`kcl_r`/`kcl_i`) and other native equations whose
-engine-side keys are still pending; this is a coverage measurement, not an
-assertion that the formulation is wrong.
+An earlier regenerated 30-bus saved-result smoke case reported 604 of 844 rows
+registered. After adding construction-time KCL, line-KVL, voltage-reference,
+and monitored-magnitude keys, the fresh isolated trace reports 844 of 844 rows
+registered. Both artifacts remain useful: the first records the former API
+boundary, while the latter proves its closure for this specific formulation.
 
 BMOPFTools semantic row maps now feed the generic point-local Jacobian
 row-family perturbation screen. Solver-trace records retain the resulting
@@ -1481,8 +1481,21 @@ but the registry map previously keyed constraints by that integer alone. The
 map now includes function and set types and carries them in serialized row
 evidence. A fresh 30-bus trace maps all 28 Volt-var and all 28 Volt-watt rows;
 the short trace's 11 controller violations all crosswalk to registered rows.
-The whole model still has 352 unregistered rows out of 844, so this closes the
-controller boundary, not the broader KCL/native-equation registry project.
+The engine registry has since been extended at construction time for AC KCL,
+line KVL, source/ground voltage references, monitored-voltage magnitude
+definitions and bounds, and the native device equations and limits already
+covered by the staged builders. The regenerated 30-bus LN trace now maps all
+844 scalar rows to public semantic keys (844 registered, zero unregistered):
+240 KCL rows, 232 line-voltage-drop rows, 112 monitored-voltage rows, 280
+device/control rows, and 8 voltage-reference rows. This is a proven coverage
+fact for that formulation and fixture, not yet a universal claim for DC,
+custom-hook, or less frequently exercised auxiliary formulations.
+
+The next registry work is therefore fixture-diversity rather than more inference:
+run representative transformer, voltage-dependent-load, DC-network, and custom
+extension models through the same all-row audit, then add construction-time
+keys for any genuine gaps. NLPDiagnostics will continue to report uncovered
+rows explicitly and will not infer physical families from JuMP names.
 
 Saved-result component matching is now exact as well (`pv_1` no longer matches
 `pv_10`). A fresh one-case SI/PU matrix reports 56 registered controller

@@ -1639,6 +1639,9 @@ function _bmopf_constraint_source_key(source; subindex = source.subindex)
     )
 end
 
+_bmopf_constraint_source_name(source) =
+    isnothing(source.name) ? "" : String(source.name)
+
 function _bmopf_constraint_result_descriptors(context)
     result = Dict{
         Tuple{Int,String,String,Union{Nothing,Int}},
@@ -1658,6 +1661,7 @@ function _bmopf_constraint_result_descriptors(context)
         result[(index.value, function_type, set_type, nothing)] = Dict{String,String}(
             "constraint_family" => string(key.family),
             "constraint_index" => index_text,
+            "constraint_name" => JuMP.name(object),
             "constraint_function_type" => function_type,
             "constraint_set_type" => set_type,
             "registered" => "true",
@@ -1678,6 +1682,7 @@ function _bmopf_row_constraint_support(activity, constraint_descriptors)
     isnothing(descriptor) && return Dict{String,String}(
         "constraint_family" => "unregistered_constraint",
         "constraint_index" => "?",
+        "constraint_name" => _bmopf_constraint_source_name(source),
         "registered" => "false",
     )
     return descriptor
@@ -1699,6 +1704,7 @@ function _bmopf_constraint_semantic_row_map(context, evaluation)
             rows[string(row)] = Dict{String,Any}(
                 "constraint_family" => "unregistered_constraint",
                 "constraint_index" => "?",
+                "constraint_name" => _bmopf_constraint_source_name(source),
                 "constraint_function_type" => source.function_type,
                 "constraint_set_type" => source.set_type,
                 "registered" => false,
@@ -1707,6 +1713,7 @@ function _bmopf_constraint_semantic_row_map(context, evaluation)
             rows[string(row)] = Dict{String,Any}(
                 "constraint_family" => descriptor["constraint_family"],
                 "constraint_index" => descriptor["constraint_index"],
+                "constraint_name" => descriptor["constraint_name"],
                 "constraint_function_type" => descriptor["constraint_function_type"],
                 "constraint_set_type" => descriptor["constraint_set_type"],
                 "registered" => true,
