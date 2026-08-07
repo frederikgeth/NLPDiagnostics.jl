@@ -176,6 +176,11 @@ function main()
     feasibility_attribution_model_registered_rows = 0
     feasibility_attribution_model_unregistered_rows = 0
     feasibility_attribution_model_constraint_families = Dict{String,Int}()
+    registry_coverage_cases = 0
+    registry_coverage_rows = 0
+    registry_coverage_registered_rows = 0
+    registry_coverage_unregistered_rows = 0
+    registry_coverage_registered_families = Dict{String,Int}()
     result_field_catalog_cases = 0
     aggregate_stage_seconds = Dict{String,Vector{Float64}}()
     aggregate_stage_allocations = Dict{String,Vector{Float64}}()
@@ -464,6 +469,36 @@ function main()
                 end
                 catalog = get(profile, "bmopf_result_field_catalog", nothing)
                 catalog isa AbstractDict && (result_field_catalog_cases += 1)
+                registry_coverage = get(profile,
+                    "bmopf_constraint_registry_coverage", nothing)
+                if registry_coverage isa AbstractDict
+                    registry_coverage_cases += 1
+                    metadata = get(registry_coverage, "metadata", Dict())
+                    registry_coverage_rows += try
+                        parse(Int, string(get(metadata,
+                            "bmopf_constraint_registry_row_count", "0")))
+                    catch
+                        0
+                    end
+                    registry_coverage_registered_rows += try
+                        parse(Int, string(get(metadata,
+                            "bmopf_constraint_registry_registered_row_count", "0")))
+                    catch
+                        0
+                    end
+                    registry_coverage_unregistered_rows += try
+                        parse(Int, string(get(metadata,
+                            "bmopf_constraint_registry_unregistered_row_count", "0")))
+                    catch
+                        0
+                    end
+                    for (family, count) in _parse_count_map(get(metadata,
+                        "bmopf_constraint_registry_registered_family_row_counts", ""))
+                        registry_coverage_registered_families[family] =
+                            get(registry_coverage_registered_families, family, 0) + count
+                    end
+                    summary["constraint_registry_coverage"] = registry_coverage
+                end
                 attribution = get(profile,
                     "bmopf_constraint_feasibility_field_attribution", nothing)
                 if attribution isa AbstractDict
@@ -667,6 +702,16 @@ function main()
             "coverage_maximum" => isempty(component_rank_capability_coverages) ? nothing : maximum(component_rank_capability_coverages),
         ),
         "result_field_catalog_case_count" => result_field_catalog_cases,
+        "constraint_registry_coverage_counts" => Dict(
+            "cases_with_coverage" => registry_coverage_cases,
+            "constraint_row_count_total" => registry_coverage_rows,
+            "registered_constraint_row_count_total" => registry_coverage_registered_rows,
+            "unregistered_constraint_row_count_total" => registry_coverage_unregistered_rows,
+            "registered_constraint_family_row_counts" =>
+                _sorted_counts(registry_coverage_registered_families),
+            "registered_constraint_fraction" => registry_coverage_rows == 0 ? nothing :
+                registry_coverage_registered_rows / registry_coverage_rows,
+        ),
         "feasibility_field_attribution_counts" => Dict(
             "cases_with_attribution" => feasibility_attribution_cases,
             "violation_row_count_total" => feasibility_attribution_violation_rows,

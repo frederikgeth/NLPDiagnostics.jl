@@ -27,6 +27,27 @@ function _load(path)
     return value
 end
 
+function _normalized_registry_counts(summary)
+    direct = get(summary, "constraint_registry_coverage_counts", Dict())
+    if direct isa AbstractDict &&
+       _int(get(direct, "cases_with_coverage", 0)) > 0
+        return direct
+    end
+    legacy = get(summary, "feasibility_field_attribution_counts", Dict())
+    legacy isa AbstractDict || return Dict{String,Any}()
+    return Dict{String,Any}(
+        "cases_with_coverage" => get(legacy, "cases_with_attribution", 0),
+        "constraint_row_count_total" =>
+            get(legacy, "model_constraint_row_count_total", 0),
+        "registered_constraint_row_count_total" =>
+            get(legacy, "model_registered_constraint_row_count_total", 0),
+        "unregistered_constraint_row_count_total" =>
+            get(legacy, "model_unregistered_constraint_row_count_total", 0),
+        "registered_constraint_family_row_counts" =>
+            get(legacy, "model_constraint_family_row_counts", Dict()),
+    )
+end
+
 function _structural_view(summary)
     return Dict{String,Any}(
         "summary_path" => nothing,
@@ -51,6 +72,7 @@ function _structural_view(summary)
         "aggregate_context_finding_codes" => get(summary, "aggregate_context_finding_codes", Dict()),
         "aggregate_initialization_finding_codes" => get(summary, "aggregate_initialization_finding_codes", Dict()),
         "aggregate_integrity_finding_codes" => get(summary, "aggregate_integrity_finding_codes", Dict()),
+        "constraint_registry_coverage_counts" => _normalized_registry_counts(summary),
         "feasibility_field_attribution_counts" => get(summary, "feasibility_field_attribution_counts", Dict()),
     )
 end
@@ -259,18 +281,21 @@ function main()
             ),
         ),
         "constraint_registry_aggregates" => Dict(
+            "case_count" => sum(
+                _int(get(get(view, "constraint_registry_coverage_counts", Dict()),
+                         "cases_with_coverage", 0)) for view in corpus_views),
             "model_constraint_row_count_total" => sum(
-                _int(get(get(view, "feasibility_field_attribution_counts", Dict()),
-                         "model_constraint_row_count_total", 0)) for view in corpus_views),
+                _int(get(get(view, "constraint_registry_coverage_counts", Dict()),
+                         "constraint_row_count_total", 0)) for view in corpus_views),
             "model_registered_constraint_row_count_total" => sum(
-                _int(get(get(view, "feasibility_field_attribution_counts", Dict()),
-                         "model_registered_constraint_row_count_total", 0)) for view in corpus_views),
+                _int(get(get(view, "constraint_registry_coverage_counts", Dict()),
+                         "registered_constraint_row_count_total", 0)) for view in corpus_views),
             "model_unregistered_constraint_row_count_total" => sum(
-                _int(get(get(view, "feasibility_field_attribution_counts", Dict()),
-                         "model_unregistered_constraint_row_count_total", 0)) for view in corpus_views),
+                _int(get(get(view, "constraint_registry_coverage_counts", Dict()),
+                         "unregistered_constraint_row_count_total", 0)) for view in corpus_views),
             "model_constraint_family_row_counts" => _merge_nested_count_maps(
-                corpus_views, "feasibility_field_attribution_counts",
-                "model_constraint_family_row_counts"),
+                corpus_views, "constraint_registry_coverage_counts",
+                "registered_constraint_family_row_counts"),
         ),
         "solver_matrix" => matrix,
         "persistence" => persistence,

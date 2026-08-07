@@ -918,6 +918,16 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test only(findings(complete_registry_coverage,
                         :bmopf_constraint_registry_coverage)).severity ==
           NLPDiagnostics.SeverityInfo
+    complete_registry_data = NLPDiagnostics.report_data(
+        complete_registry_coverage,
+    )
+    @test complete_registry_data["metadata"][
+        "bmopf_constraint_registry_unregistered_row_count"] == "0"
+    @test only(complete_registry_data["findings"])["code"] ==
+          "bmopf_constraint_registry_coverage"
+    @test only(complete_registry_data["findings"])["confidence"] == "certain"
+    @test only(complete_registry_data["findings"])["basis"] ==
+          "structural_proof"
     semantic_perturbation_report =
         NLPDiagnostics.bmopf_analyze_jacobian_row_family_perturbations(
             per_unit_context, saved_profile.profile.profile.evaluation;

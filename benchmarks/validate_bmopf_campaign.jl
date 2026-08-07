@@ -192,23 +192,40 @@ function _validate_campaign(path, summary)
         ))
     end
     catalog_cases = _int(get(summary, "result_field_catalog_case_count", 0))
+    registry = get(summary, "constraint_registry_coverage_counts", nothing)
+    registry_cases = registry isa AbstractDict ?
+                     _int(get(registry, "cases_with_coverage", 0)) : 0
+    registry_rows = registry isa AbstractDict ?
+                    _int(get(registry, "constraint_row_count_total", 0)) : 0
+    registry_registered = registry isa AbstractDict ?
+                          _int(get(registry, "registered_constraint_row_count_total", 0)) : 0
+    registry_unregistered = registry isa AbstractDict ?
+                            _int(get(registry, "unregistered_constraint_row_count_total", 0)) : 0
     attribution = get(summary, "feasibility_field_attribution_counts", nothing)
     attribution_cases = attribution isa AbstractDict ?
                         _int(get(attribution, "cases_with_attribution", 0)) : 0
     attribution_unsupported = attribution isa AbstractDict ?
                               _int(get(attribution, "unsupported_row_count_total", 0)) : 0
-    semantic_registered = attribution isa AbstractDict ?
-                          _int(get(attribution, "registered_constraint_row_count_total", 0)) : 0
-    semantic_unregistered = attribution isa AbstractDict ?
-                            _int(get(attribution, "unregistered_constraint_row_count_total", 0)) : 0
-    semantic_model_rows = attribution isa AbstractDict ?
-                          _int(get(attribution, "model_constraint_row_count_total", 0)) : 0
-    semantic_model_registered = attribution isa AbstractDict ?
-                                _int(get(attribution, "model_registered_constraint_row_count_total", 0)) : 0
-    semantic_model_unregistered = attribution isa AbstractDict ?
-                                  _int(get(attribution, "model_unregistered_constraint_row_count_total", 0)) : 0
+    has_registry_evidence = registry_cases > 0
+    semantic_registered = has_registry_evidence ? registry_registered :
+        (attribution isa AbstractDict ?
+         _int(get(attribution, "registered_constraint_row_count_total", 0)) : 0)
+    semantic_unregistered = has_registry_evidence ? registry_unregistered :
+        (attribution isa AbstractDict ?
+         _int(get(attribution, "unregistered_constraint_row_count_total", 0)) : 0)
+    semantic_model_rows = has_registry_evidence ? registry_rows :
+        (attribution isa AbstractDict ?
+         _int(get(attribution, "model_constraint_row_count_total", 0)) : 0)
+    semantic_model_registered = has_registry_evidence ? registry_registered :
+        (attribution isa AbstractDict ?
+         _int(get(attribution, "model_registered_constraint_row_count_total", 0)) : 0)
+    semantic_model_unregistered = has_registry_evidence ? registry_unregistered :
+        (attribution isa AbstractDict ?
+         _int(get(attribution, "model_unregistered_constraint_row_count_total", 0)) : 0)
     catalog_ready = profile_cases == 0 || catalog_cases >= profile_cases
     attribution_ready = profile_cases == 0 || attribution_cases >= profile_cases
+    registry_ready = profile_cases == 0 || registry_cases == 0 ||
+                     registry_cases >= profile_cases
     !catalog_ready && push!(findings, _finding("result_field_catalog_missing", "warning",
         "Some profile cases do not carry the explicit BMOPF result-field catalog.",
         Dict("profile_case_count" => profile_cases,
@@ -222,15 +239,26 @@ function _validate_campaign(path, summary)
              "attribution_case_count" => attribution_cases);
         suggested_action = "Regenerate profiles with field-attribution enabled before comparing policy feasibility deltas."
     ))
+    !registry_ready && push!(findings, _finding(
+        "constraint_registry_coverage_missing", "warning",
+        "Only part of the profile campaign carries the standalone all-row constraint-registry report.",
+        Dict("profile_case_count" => profile_cases,
+             "registry_coverage_case_count" => registry_cases);
+        suggested_action = "Regenerate the mixed campaign so every profile carries bmopf_constraint_registry_coverage before making whole-campaign semantic claims."
+    ))
     attribution_unsupported > 0 && push!(findings, _finding(
         "feasibility_field_attribution_support_incomplete", "warning",
         "Some violated rows have no usable Jacobian support entry for family attribution.",
         Dict("unsupported_row_count_total" => attribution_unsupported);
         suggested_action = "Inspect derivative failures and preserve the attribution's derivative-method provenance before assigning family meaning."
     ))
-    semantic_ready = profile_cases == 0 || attribution_cases >= profile_cases
+    semantic_ready = profile_cases == 0 ||
+                     (has_registry_evidence ? registry_cases >= profile_cases :
+                      attribution_cases >= profile_cases)
     semantic_unregistered > 0 && push!(findings, _finding(
         "constraint_semantic_registry_boundary", "warning",
+        has_registry_evidence ?
+        "Some evaluated rows are not represented by a registered BMOPFTools constraint key." :
         "Some violated rows are not represented by a registered BMOPFTools constraint key.",
         Dict("registered_constraint_row_count_total" => semantic_registered,
              "unregistered_constraint_row_count_total" => semantic_unregistered);

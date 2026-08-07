@@ -536,6 +536,12 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                 NLPDiagnostics.bmopf_constraint_semantic_row_map(
                     context, run.result.profile.evaluation,
                 )
+            serialized["bmopf_constraint_registry_coverage"] =
+                NLPDiagnostics.report_data(
+                    NLPDiagnostics.bmopf_constraint_registry_coverage_report(
+                        context, run.result.profile.evaluation,
+                    ),
+                )
             serialized["bmopf_row_family_perturbation_report"] =
                 NLPDiagnostics.report_data(
                     NLPDiagnostics.bmopf_analyze_jacobian_row_family_perturbations(

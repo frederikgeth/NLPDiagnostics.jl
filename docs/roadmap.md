@@ -1509,11 +1509,25 @@ unregistered row came from BMOPFTools or a caller extension. Caller-added rows
 should use `BMOPFTools.register_opf_constraint!`; their names remain provenance,
 not semantic evidence.
 
-The remaining registry work is rare-builder and extension coverage: exercise
-DC droop, explicit DC loads/sources and oriented voltage bands, transformer
-thermal auxiliaries, and a registered custom extension through persisted
-NLPDiagnostics profiles. Coverage must remain a per-formulation gate rather
-than a package-wide assertion.
+The rare-builder registry pass now covers DC droop, explicit DC loads and
+sources, oriented line-to-neutral and line-to-line DC voltage bands,
+transformer thermal/apparent-power auxiliaries, and switch thermal auxiliaries.
+That pass exposed late-added native current-box bounds which were invisible to
+the original declaration-time registry; BMOPFTools now synchronizes such bounds
+before KCL finalization. These fixtures have an exact all-row identity audit.
+
+Registry coverage is now persisted as its own diagnostic report in both corpus
+profiles and solver-trace BMOPF profiles. Smoke summaries aggregate its total,
+registered, unregistered, and per-family row counts; campaign validation uses
+that direct evidence when available and retains the feasibility-attribution
+metadata only as a backward-compatible fallback. A registered caller-extension
+row is serialized with complete structural coverage in the adapter tests.
+Coverage remains a per-formulation gate rather than a package-wide assertion.
+
+The next phase is empirical calibration: regenerate representative small and
+medium BMOPF profiles with the coverage gate attached, establish which findings
+are stable across initialization and solver points, and reserve dense rank or
+nullspace claims for cases within the declared algebra budget.
 
 Saved-result component matching is now exact as well (`pv_1` no longer matches
 `pv_10`). A fresh one-case SI/PU matrix reports 56 registered controller
