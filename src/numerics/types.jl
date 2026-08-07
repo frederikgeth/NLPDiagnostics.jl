@@ -102,6 +102,7 @@ function _evaluation_point_data(point::EvaluationPoint)
         "label" => point.label,
         "variables" => [variable.value for variable in point.variables],
         "values" => copy(point.values),
+        "fingerprint" => evaluation_point_fingerprint(point),
         "provenance" => Dict{String,Any}(
             "kind" => string(point.provenance.kind),
             "source" => point.provenance.source,

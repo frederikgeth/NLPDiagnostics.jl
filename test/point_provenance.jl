@@ -36,6 +36,7 @@ import NLPDiagnostics
         ),
     ))
     data = NLPDiagnostics._evaluation_point_data(synthetic)
+    @test data["fingerprint"] == NLPDiagnostics.evaluation_point_fingerprint(synthetic)
     @test data["provenance"]["kind"] == "SyntheticSmokePoint"
     @test data["provenance"]["source"] == "calibration smoke"
     @test data["provenance"]["metadata"]["policy"] == "constant zero"

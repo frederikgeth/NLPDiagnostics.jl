@@ -58,6 +58,14 @@ This guard does not reject the numerical observation; it prevents a convenient
 coordinate vector from being mistaken for a physically meaningful operating
 state.
 
+Every model, evaluation point, and numerical evaluator source also receives a
+stable SHA-256 fingerprint. `model_fingerprint(model)` is based on the copied
+public MOI snapshot; `evaluation_point_fingerprint(point)` includes coordinate
+order, values, label, and typed provenance; and
+`evaluation_source_fingerprint(evaluation)` includes capabilities, derivative
+methods, and captured failures. These are identity and reproducibility
+records, not cryptographic claims about the physical model.
+
 ## Capability adapters
 
 `evaluator_capabilities(model)` discovers three public MOI numerical sources:
@@ -121,6 +129,71 @@ right-nullspace, left-nullspace, or spectrum probe against a complete set of
 `iterative_*_probe_dimension` keywords used by `analyze`. Missing starts still
 stop before numerical probing; the debugger never invents values merely to run
 a large-model screen.
+
+## Directional Jacobian cross-checks
+
+`analyze_jacobian_directional_crosscheck(model, evaluation)` compares recorded
+Jacobian products with central finite differences of nearby constraint values.
+It uses deterministic coordinate and dense directions and labels both
+perturbed sides as `PerturbedPoint` provenance. The check is opt-in because it
+requires additional model evaluations:
+
+```julia
+crosscheck = analyze_jacobian_directional_crosscheck(
+    model,
+    evaluation;
+    direction_count = 3,
+    relative_step = cbrt(eps(Float64)),
+)
+```
+
+`jacobian_directional_crosscheck_mismatch` is local numerical evidence, not a
+diagnosis of an automatic-differentiation defect. Truncation, cancellation,
+nonsmoothness, and domain crossings are competing explanations. The separate
+`jacobian_directional_crosscheck_domain_limited` finding records unavailable
+perturbed sides without filling them with zeros. The combined `analyze` and
+`profile_case` entry points expose the same check through their explicit
+`check_jacobian_directional_crosscheck` switch and tolerance keywords.
+When an MOI NLP evaluator advertises `:JacVec`, the check also compares its
+direct product with the stored sparse Jacobian product. Its availability and
+source are retained in report metadata; an unavailable product is never
+silently reconstructed as a certified operator result.
+
+`analyze_objective_gradient_directional_crosscheck(model, evaluation)` applies
+the same evidence discipline to the objective gradient. It compares
+`dot(∇f, d)` with central differences of the objective value, and reports
+`objective_gradient_directional_crosscheck_unavailable` when the objective or
+its gradient is missing, non-finite, or domain-limited. The combined and
+profile APIs expose this through `check_objective_gradient_directional_crosscheck`.
+
+`analyze_hessian_vector_crosscheck(model, hessian)` applies the same local
+calibration to the Hessian of the Lagrangian. It compares the stored Hessian
+product with central differences of the Lagrangian gradient and, when the
+NLPBlock advertises `:HessVec` and the supplied multipliers belong to that
+block, compares the direct MOI product as well:
+
+```julia
+hessian = evaluate_lagrangian_hessian(
+    model,
+    evaluation.point;
+    objective_weight = 1.0,
+    constraint_multipliers = multipliers,
+)
+hessian_check = analyze_hessian_vector_crosscheck(model, hessian)
+```
+
+The `hessian_vector_crosscheck_mismatch` and
+`hessian_vector_crosscheck_domain_limited` findings preserve the same
+distinction between local inconsistency and unavailable evidence. The
+combined and profile APIs expose this through
+`check_hessian_vector_crosscheck`; dense finite-difference Hessians remain
+guarded by `hessian_vector_crosscheck_max_finite_difference_variables`.
+
+For calibration cases, `analyze_derivative_crosscheck_scale_sweep` repeats
+the enabled checks over a caller-supplied list of perturbation scales. A
+scale-persistent mismatch is reported separately from a scale-sensitive one;
+the latter is often evidence of cancellation, truncation, nonsmoothness, or a
+domain boundary rather than a single implementation defect.
 
 ## Sparse derivative semantics
 

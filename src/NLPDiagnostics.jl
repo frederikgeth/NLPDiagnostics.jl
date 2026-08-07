@@ -5,6 +5,7 @@ module NLPDiagnostics
 import MathOptInterface as MOI
 using LinearAlgebra
 using SparseArrays
+using SHA
 
 include("reports/types.jl")
 include("reports/text.jl")
@@ -14,6 +15,7 @@ include("ir/structural_roles.jl")
 include("ir/incidence_graph.jl")
 include("numerics/types.jl")
 include("numerics/evaluator.jl")
+include("numerics/fingerprints.jl")
 include("numerics/degeneracy.jl")
 include("numerics/hessian.jl")
 include("numerics/activity.jl")
@@ -25,6 +27,7 @@ include("analysis/expressions.jl")
 include("analysis/static.jl")
 include("analysis/structure.jl")
 include("analysis/numerical.jl")
+include("analysis/crosscheck.jl")
 include("analysis/activity.jl")
 include("analysis/degeneracy.jl")
 include("analysis/profiling.jl")
@@ -96,6 +99,13 @@ export EvaluationPointKind
 export EvaluationPointProvenance
 export UserPoint, InitializationPoint, CompletedInitializationPoint
 export SolverIteratePoint, SolverResultPoint, PerturbedPoint, SyntheticSmokePoint
+export model_fingerprint
+export evaluation_point_fingerprint
+export evaluation_source_fingerprint
+export analyze_jacobian_directional_crosscheck
+export analyze_objective_gradient_directional_crosscheck
+export analyze_hessian_vector_crosscheck
+export analyze_derivative_crosscheck_scale_sweep
 export EvaluatorCapabilities
 export ExpressionDomainIssue
 export ExpressionDerivativeIssue
@@ -4726,6 +4736,24 @@ function analyze(
     rank_absolute_tolerance::Real = 0.0,
     rank_matrix_norm::Symbol = :frobenius,
     rank_max_dense_entries::Integer = 4_000_000,
+    check_jacobian_directional_crosscheck::Bool = false,
+    jacobian_directional_crosscheck_direction_count::Integer = 3,
+    jacobian_directional_crosscheck_relative_step::Real = cbrt(eps(Float64)),
+    jacobian_directional_crosscheck_absolute_tolerance::Real = 0.0,
+    jacobian_directional_crosscheck_relative_tolerance::Real = sqrt(eps(Float64)),
+    check_objective_gradient_directional_crosscheck::Bool = false,
+    objective_gradient_directional_crosscheck_direction_count::Integer = 3,
+    objective_gradient_directional_crosscheck_relative_step::Real = cbrt(eps(Float64)),
+    objective_gradient_directional_crosscheck_absolute_tolerance::Real = 0.0,
+    objective_gradient_directional_crosscheck_relative_tolerance::Real = sqrt(eps(Float64)),
+    check_hessian_vector_crosscheck::Bool = false,
+    hessian_vector_crosscheck_direction_count::Integer = 3,
+    hessian_vector_crosscheck_relative_step::Real = cbrt(eps(Float64)),
+    hessian_vector_crosscheck_absolute_tolerance::Real = 0.0,
+    hessian_vector_crosscheck_relative_tolerance::Real = sqrt(eps(Float64)),
+    hessian_vector_crosscheck_objective_weight::Real = 1.0,
+    hessian_vector_crosscheck_constraint_multipliers::Union{Nothing,AbstractVector{<:Real}} = nothing,
+    hessian_vector_crosscheck_max_finite_difference_variables::Integer = 100,
     check_initialization::Bool = false,
     check_active_set::Bool = false,
     check_coupled_set_qualification::Bool = false,
@@ -4790,6 +4818,10 @@ function analyze(
     !isnothing(jacobian_rank_tolerance_sweep_tolerances) &&
         isnothing(point) && isnothing(evaluation) && !check_initialization && throw(ArgumentError(
             "jacobian rank tolerance sweep requires an explicit point or supplied evaluation",
+        ))
+    check_hessian_vector_crosscheck &&
+        isnothing(point) && isnothing(evaluation) && !check_initialization && throw(ArgumentError(
+            "Hessian-vector cross-check requires an explicit point or supplied evaluation",
         ))
     !isnothing(solver_log) && isnothing(solver_name) && isnothing(postmortem) &&
         throw(ArgumentError(
@@ -4976,6 +5008,58 @@ function analyze(
         append!(report.findings, component_rank_report.findings)
         merge!(report.metadata, component_rank_report.metadata)
         stages *= ",numerical"
+        if check_jacobian_directional_crosscheck
+            crosscheck_report = analyze_jacobian_directional_crosscheck(
+                model,
+                numerical_evaluation;
+                direction_count = jacobian_directional_crosscheck_direction_count,
+                relative_step = jacobian_directional_crosscheck_relative_step,
+                absolute_tolerance = jacobian_directional_crosscheck_absolute_tolerance,
+                relative_tolerance = jacobian_directional_crosscheck_relative_tolerance,
+                cache = cache,
+            )
+            append!(report.findings, crosscheck_report.findings)
+            merge!(report.metadata, crosscheck_report.metadata)
+            stages *= ",jacobian_directional_crosscheck"
+        end
+        if check_objective_gradient_directional_crosscheck
+            objective_crosscheck_report = analyze_objective_gradient_directional_crosscheck(
+                model,
+                numerical_evaluation;
+                direction_count = objective_gradient_directional_crosscheck_direction_count,
+                relative_step = objective_gradient_directional_crosscheck_relative_step,
+                absolute_tolerance = objective_gradient_directional_crosscheck_absolute_tolerance,
+                relative_tolerance = objective_gradient_directional_crosscheck_relative_tolerance,
+                cache = cache,
+            )
+            append!(report.findings, objective_crosscheck_report.findings)
+            merge!(report.metadata, objective_crosscheck_report.metadata)
+            stages *= ",objective_gradient_directional_crosscheck"
+        end
+        if check_hessian_vector_crosscheck
+            multipliers = isnothing(hessian_vector_crosscheck_constraint_multipliers) ?
+                zeros(eltype(numerical_evaluation.point.values), length(numerical_evaluation.constraint_sources)) :
+                hessian_vector_crosscheck_constraint_multipliers
+            hessian = evaluate_lagrangian_hessian(
+                model,
+                numerical_evaluation.point;
+                objective_weight = hessian_vector_crosscheck_objective_weight,
+                constraint_multipliers = multipliers,
+                max_finite_difference_variables = hessian_vector_crosscheck_max_finite_difference_variables,
+            )
+            hessian_crosscheck_report = analyze_hessian_vector_crosscheck(
+                model,
+                hessian;
+                direction_count = hessian_vector_crosscheck_direction_count,
+                relative_step = hessian_vector_crosscheck_relative_step,
+                absolute_tolerance = hessian_vector_crosscheck_absolute_tolerance,
+                relative_tolerance = hessian_vector_crosscheck_relative_tolerance,
+                cache = cache,
+            )
+            append!(report.findings, hessian_crosscheck_report.findings)
+            merge!(report.metadata, hessian_crosscheck_report.metadata)
+            stages *= ",hessian_vector_crosscheck"
+        end
         if !isnothing(iterative_right_nullspace_probe_dimension)
             probe_report = analyze_iterative_right_nullspace_probe(
                 numerical_evaluation;

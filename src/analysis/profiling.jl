@@ -22,6 +22,7 @@ function _profile_case_data(case::ProfileCase)
         "metadata" => _profile_sorted_data(case.metadata),
         "expected_evidence" => string.(case.expected_evidence),
         "point" => _evaluation_point_data(case.point),
+        "point_fingerprint" => evaluation_point_fingerprint(case.point),
     )
 end
 
@@ -331,6 +332,24 @@ function profile_case(
     rank_relative_tolerance::Real =
         max(length(case.point.variables), 1) * eps(T),
     rank_max_dense_entries::Integer = 4_000_000,
+    check_jacobian_directional_crosscheck::Bool = false,
+    jacobian_directional_crosscheck_direction_count::Integer = 3,
+    jacobian_directional_crosscheck_relative_step::Real = cbrt(eps(T)),
+    jacobian_directional_crosscheck_absolute_tolerance::Real = 0.0,
+    jacobian_directional_crosscheck_relative_tolerance::Real = sqrt(eps(T)),
+    check_objective_gradient_directional_crosscheck::Bool = false,
+    objective_gradient_directional_crosscheck_direction_count::Integer = 3,
+    objective_gradient_directional_crosscheck_relative_step::Real = cbrt(eps(T)),
+    objective_gradient_directional_crosscheck_absolute_tolerance::Real = 0.0,
+    objective_gradient_directional_crosscheck_relative_tolerance::Real = sqrt(eps(T)),
+    check_hessian_vector_crosscheck::Bool = false,
+    hessian_vector_crosscheck_direction_count::Integer = 3,
+    hessian_vector_crosscheck_relative_step::Real = cbrt(eps(T)),
+    hessian_vector_crosscheck_absolute_tolerance::Real = 0.0,
+    hessian_vector_crosscheck_relative_tolerance::Real = sqrt(eps(T)),
+    hessian_vector_crosscheck_objective_weight::Real = 1.0,
+    hessian_vector_crosscheck_constraint_multipliers::Union{Nothing,AbstractVector{<:Real}} = nothing,
+    hessian_vector_crosscheck_max_finite_difference_variables::Integer = 100,
     jacobian_condition_threshold::Real = 1.0e10,
     feasibility_tolerance::Real = sqrt(eps(T)),
     active_tolerance::Real = sqrt(eps(T)),
@@ -470,6 +489,73 @@ function profile_case(
             ),
         )
         _append_profile_probe!(numerical_report, sweep_report)
+    end
+
+    if check_jacobian_directional_crosscheck
+        crosscheck_report = _profile_stage!(
+            timings,
+            allocations,
+            :jacobian_directional_crosscheck,
+            () -> analyze_jacobian_directional_crosscheck(
+                model,
+                evaluation;
+                direction_count = jacobian_directional_crosscheck_direction_count,
+                relative_step = jacobian_directional_crosscheck_relative_step,
+                absolute_tolerance = jacobian_directional_crosscheck_absolute_tolerance,
+                relative_tolerance = jacobian_directional_crosscheck_relative_tolerance,
+                cache = cache,
+            ),
+        )
+        _append_profile_probe!(numerical_report, crosscheck_report)
+    end
+    if check_objective_gradient_directional_crosscheck
+        objective_crosscheck_report = _profile_stage!(
+            timings,
+            allocations,
+            :objective_gradient_directional_crosscheck,
+            () -> analyze_objective_gradient_directional_crosscheck(
+                model,
+                evaluation;
+                direction_count = objective_gradient_directional_crosscheck_direction_count,
+                relative_step = objective_gradient_directional_crosscheck_relative_step,
+                absolute_tolerance = objective_gradient_directional_crosscheck_absolute_tolerance,
+                relative_tolerance = objective_gradient_directional_crosscheck_relative_tolerance,
+                cache = cache,
+            ),
+        )
+        _append_profile_probe!(numerical_report, objective_crosscheck_report)
+    end
+    if check_hessian_vector_crosscheck
+        multipliers = isnothing(hessian_vector_crosscheck_constraint_multipliers) ?
+            zeros(T, length(evaluation.constraint_sources)) :
+            hessian_vector_crosscheck_constraint_multipliers
+        hessian_report = _profile_stage!(
+            timings,
+            allocations,
+            :hessian_evaluation,
+            () -> evaluate_lagrangian_hessian(
+                model,
+                case.point;
+                objective_weight = hessian_vector_crosscheck_objective_weight,
+                constraint_multipliers = multipliers,
+                max_finite_difference_variables = hessian_vector_crosscheck_max_finite_difference_variables,
+            ),
+        )
+        hessian_crosscheck_report = _profile_stage!(
+            timings,
+            allocations,
+            :hessian_vector_crosscheck,
+            () -> analyze_hessian_vector_crosscheck(
+                model,
+                hessian_report;
+                direction_count = hessian_vector_crosscheck_direction_count,
+                relative_step = hessian_vector_crosscheck_relative_step,
+                absolute_tolerance = hessian_vector_crosscheck_absolute_tolerance,
+                relative_tolerance = hessian_vector_crosscheck_relative_tolerance,
+                cache = cache,
+            ),
+        )
+        _append_profile_probe!(numerical_report, hessian_crosscheck_report)
     end
 
     active_set_report = _profile_stage!(timings, allocations, :active_set, () -> analyze_active_set(

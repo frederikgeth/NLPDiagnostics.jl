@@ -7,6 +7,7 @@ authors = ["NLPDiagnostics contributors"]
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [weakdeps]
@@ -26,6 +27,7 @@ BMOPFToolsJuMPExt = ["BMOPFTools", "JuMP"]
 
 [compat]
 JSON = "1"
+SHA = "0.7"
 Ipopt = "1"
 JuMP = "1.20"
 MadNLP = "0.8, 0.9, 0.10"

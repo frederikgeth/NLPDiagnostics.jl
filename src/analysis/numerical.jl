@@ -2330,6 +2330,11 @@ function _analyze_numerical_evaluation(
     report.metadata[:evaluation_point_provenance_source] = point.provenance.source
     report.metadata[:evaluation_point_provenance_complete] =
         string(point.provenance.complete)
+    report.metadata[:model_fingerprint] = model_fingerprint(model)
+    report.metadata[:evaluation_point_fingerprint] =
+        evaluation_point_fingerprint(point)
+    report.metadata[:evaluation_source_fingerprint] =
+        evaluation_source_fingerprint(evaluation)
     report.metadata[:evaluation_variable_count] =
         string(length(point.variables))
     report.metadata[:evaluated_constraint_row_count] =

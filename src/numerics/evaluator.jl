@@ -33,7 +33,10 @@ function evaluator_capabilities(evaluator::MOI.AbstractNLPEvaluator)
             length(_NUMERICAL_FEATURE_ORDER) + 1,
         ),
     )
-    requested = filter(feature -> feature in available, [:Grad, :Jac])
+    requested = filter(
+        feature -> feature in available,
+        [:Grad, :Jac, :JacVec, :HessVec],
+    )
     return EvaluatorCapabilities(
         :nlp_block,
         string(typeof(evaluator)),

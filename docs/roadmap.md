@@ -166,6 +166,29 @@ but the gate remains open until completion policies stop using unjustified
 fallback values, model/source hashes are retained, derivative cross-checks are
 calibrated, and the BMOPF scientific corpus has trusted operating points.
 
+Second implementation increment: model snapshots, explicit points, and
+evaluator derivative paths now carry stable SHA-256 fingerprints into
+numerical, profile, trace, and point-serialization records. An opt-in
+deterministic directional Jacobian cross-check compares recorded products with
+central finite differences, classifies mismatches as local numerical evidence,
+and preserves domain-limited perturbations as unavailable evidence. This is an
+early calibration tool; it does not yet establish derivative correctness across
+operator boundaries or replace a Jacobian-vector-product backend.
+
+The same cross-check layer now covers objective gradients. Combined and profile
+analysis can independently compare `∇f` directional products with nearby
+objective values, preserving missing or non-finite sides as domain-limited
+evidence. This closes the first-value/first-derivative calibration loop for
+small cases. MOI `:JacVec` is now requested when advertised and directly
+compared against stored sparse products. Hessian-of-the-Lagrangian products now
+have an opt-in cross-check against finite differences of the Lagrangian
+gradient and, where representable, direct MOI `:HessVec` products. These are
+still local consistency observations; multi-scale, truth-labelled boundary
+statistics now have a deterministic scale-sweep summary that distinguishes
+scale-persistent disagreement from truncation- or domain-sensitive behavior.
+Truth-labelled boundary statistics and solver-iterate coverage remain the next
+numerical-kernel items.
+
 ### Trust gate C: solver-consistent local optimality and postmortem evidence
 
 The package should explain solver behaviour by correlating model evidence with
