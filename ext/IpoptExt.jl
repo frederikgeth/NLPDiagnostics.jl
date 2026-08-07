@@ -140,7 +140,14 @@ function NLPDiagnostics.ipopt_iteration_trace_capture(
             values = [MOI.get(model, MOI.CallbackVariablePrimal(model), variable)
                       for variable in variables]
             NLPDiagnostics.EvaluationPoint(variables, values;
-                label = "ipopt-callback-iteration-$(Int(iter_count))")
+                label = "ipopt-callback-iteration-$(Int(iter_count))",
+                provenance = NLPDiagnostics.EvaluationPointProvenance(
+                    NLPDiagnostics.SolverIteratePoint;
+                    source = "Ipopt.CallbackVariablePrimal",
+                    complete = true,
+                    metadata = Dict("iteration" => Int(iter_count)),
+                ),
+            )
         else
             nothing
         end

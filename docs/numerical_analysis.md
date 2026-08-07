@@ -122,6 +122,13 @@ dense SVD only when the complete Jacobian fits the explicit dense-work guard.
 It records the point, scaling mode, relative and absolute thresholds, singular
 values, rank, left/right nullities, and nullspace bases in original model
 coordinates. It never turns an unavailable derivative row into a zero row.
+`RankPolicy` is the typed form of these numerical semantics. It records the
+backend, scaling, relative and absolute tolerance, residual-normalization norm,
+dense-work guard, null-vector policy, and provenance. Pass it positionally to
+`jacobian_rank_estimate` or `sparse_qr_rank_estimate`; the historical keyword
+forms construct an equivalent policy and remain supported. The combined
+`analyze` entry point exposes the same controls as `rank_relative_tolerance`,
+`rank_absolute_tolerance`, `rank_matrix_norm`, and `rank_max_dense_entries`.
 
 `analyze_numerical` compares both unscaled and row/column-normalized estimates.
 It reports a numerical rank deficiency only when rank is below
@@ -929,11 +936,16 @@ objective quality.
 
 ## Sparse QR rank estimate
 
-`sparse_qr_rank_estimate(evaluation)` uses sparse QR diagonal pivots to give a
-local rank estimate without forming the dense Jacobian required by the guarded
-SVD path. Its threshold and pivots are retained explicitly. It is a numerical
-estimate, not a nullspace calculation or a proof of exact rank; the sparse
-pattern matching estimate remains the separate structural upper bound.
+`sparse_qr_rank_estimate(evaluation)` uses Julia's SuiteSparseQR-backed sparse
+factorization to give a local rank estimate without forming the dense Jacobian
+required by the guarded SVD path. Its method, row and column permutations,
+threshold, pivots, matrix norm, and policy are retained explicitly. On matrices
+within its separate dense-evidence guard, it also records the relative
+factorization residual for the permuted `Q*R` reconstruction. Exceeding that
+guard withholds only the residual; it does not densify the matrix or make the
+sparse rank estimate unavailable. This is a numerical estimate, not a
+nullspace calculation or a proof of exact rank; the sparse pattern matching
+estimate remains the separate structural upper bound.
 When the dense SVD is unavailable, a deficient sparse-QR estimate is reported
 as `sparse_qr_jacobian_rank_deficiency` with medium confidence; it is never
 presented as an exact rank proof.
@@ -975,13 +987,17 @@ warning, not a numerical condition estimate.
 `iterative_right_nullspace_estimate(evaluation)` is an explicit, opt-in
 sparse-matvec probe for one candidate right direction with a small Jacobian
 residual. It uses normalized shifted `J'J` products and records both the
-returned residual and whether its direction iteration stabilized. It does not
+returned residual, the selected matrix norm, the dimensionless backward
+residual `norm(J*v)/(norm(J)*norm(v))`, and whether its direction iteration
+stabilized. It does not
 claim a nullspace, its dimension, or exact rank: use the guarded dense SVD when
 such a local numerical statement is required. The deterministic seed makes the
 candidate reproducible, while its residual keeps the evidence inspectable.
 `iterative_right_nullspace_subspace_estimate(evaluation, dimension)` provides
 the analogous block probe when several candidate directions are useful; it
-returns orthonormal columns and a residual for each column. Neither API is
+returns orthonormal columns and raw and dimensionless residuals for each
+column. The left probe records `norm(J'*u)/(norm(J)*norm(u))` analogously.
+Neither API is
 used implicitly by `analyze_numerical`, because a requested candidate subspace
 must not be confused with an inferred nullity.
 `analyze_iterative_right_nullspace_probe(evaluation; ...)` is the corresponding

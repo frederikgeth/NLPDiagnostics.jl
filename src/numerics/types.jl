@@ -1,3 +1,47 @@
+@enum EvaluationPointKind begin
+    UserPoint
+    InitializationPoint
+    CompletedInitializationPoint
+    SolverIteratePoint
+    SolverResultPoint
+    PerturbedPoint
+    SyntheticSmokePoint
+end
+
+"""Typed origin and completeness evidence for one numerical point."""
+struct EvaluationPointProvenance
+    kind::EvaluationPointKind
+    source::String
+    complete::Bool
+    metadata::Dict{String,String}
+end
+
+function EvaluationPointProvenance(
+    kind::EvaluationPointKind = UserPoint;
+    source::AbstractString = "user",
+    complete::Bool = true,
+    metadata::AbstractDict = Dict{String,String}(),
+)
+    isempty(strip(source)) && throw(ArgumentError("point provenance source must not be empty"))
+    return EvaluationPointProvenance(
+        kind,
+        String(source),
+        complete,
+        Dict(string(key) => string(value) for (key, value) in metadata),
+    )
+end
+
+function Base.:(==)(left::EvaluationPointProvenance, right::EvaluationPointProvenance)
+    return left.kind == right.kind && left.source == right.source &&
+           left.complete == right.complete && left.metadata == right.metadata
+end
+
+
+function Base.hash(provenance::EvaluationPointProvenance, seed::UInt)
+    metadata = sort!(collect(provenance.metadata); by = first)
+    return hash((provenance.kind, provenance.source, provenance.complete, metadata), seed)
+end
+
 """
     EvaluationPoint(variables, values; label = "user")
 
@@ -11,41 +55,59 @@ struct EvaluationPoint{T<:AbstractFloat}
     variables::Vector{MOI.VariableIndex}
     values::Vector{T}
     label::String
+    provenance::EvaluationPointProvenance
 
     function EvaluationPoint(
         variables::AbstractVector{MOI.VariableIndex},
         values::AbstractVector{<:Real};
         label::AbstractString = "user",
+        provenance::EvaluationPointProvenance = EvaluationPointProvenance(),
     )
         length(variables) == length(values) ||
             throw(DimensionMismatch("variable and value lengths differ"))
         length(unique(variables)) == length(variables) ||
             throw(ArgumentError("evaluation-point variables must be unique"))
         T = isempty(values) ? Float64 : float(promote_type(map(typeof, values)...))
-        return new{T}(collect(variables), T.(values), String(label))
+        return new{T}(collect(variables), T.(values), String(label), provenance)
     end
 
     function EvaluationPoint{T}(
         variables::AbstractVector{MOI.VariableIndex},
         values::AbstractVector{<:Real},
         label::AbstractString = "user",
+        provenance::EvaluationPointProvenance = EvaluationPointProvenance(),
     ) where {T<:AbstractFloat}
         length(variables) == length(values) ||
             throw(DimensionMismatch("variable and value lengths differ"))
         length(unique(variables)) == length(variables) ||
             throw(ArgumentError("evaluation-point variables must be unique"))
-        return new{T}(collect(variables), T.(values), String(label))
+        return new{T}(collect(variables), T.(values), String(label), provenance)
     end
 end
 
 function Base.:(==)(left::EvaluationPoint, right::EvaluationPoint)
     return left.variables == right.variables &&
            left.values == right.values &&
-           left.label == right.label
+           left.label == right.label &&
+           left.provenance == right.provenance
 end
 
 function Base.hash(point::EvaluationPoint, seed::UInt)
-    return hash((point.variables, point.values, point.label), seed)
+    return hash((point.variables, point.values, point.label, point.provenance), seed)
+end
+
+function _evaluation_point_data(point::EvaluationPoint)
+    return Dict{String,Any}(
+        "label" => point.label,
+        "variables" => [variable.value for variable in point.variables],
+        "values" => copy(point.values),
+        "provenance" => Dict{String,Any}(
+            "kind" => string(point.provenance.kind),
+            "source" => point.provenance.source,
+            "complete" => point.provenance.complete,
+            "metadata" => Dict(point.provenance.metadata),
+        ),
+    )
 end
 
 """
@@ -57,15 +119,17 @@ function evaluation_point(
     model::MOI.ModelLike,
     values::AbstractVector{<:Real};
     label::AbstractString = "user",
+    provenance::EvaluationPointProvenance = EvaluationPointProvenance(),
 )
     variables = MOI.get(model, MOI.ListOfVariableIndices())
-    return EvaluationPoint(variables, values; label = label)
+    return EvaluationPoint(variables, values; label = label, provenance = provenance)
 end
 
 function evaluation_point(
     model::MOI.ModelLike,
     values::AbstractDict{MOI.VariableIndex,<:Real};
     label::AbstractString = "user",
+    provenance::EvaluationPointProvenance = EvaluationPointProvenance(),
 )
     variables = MOI.get(model, MOI.ListOfVariableIndices())
     missing_variables = filter(variable -> !haskey(values, variable), variables)
@@ -79,6 +143,7 @@ function evaluation_point(
         variables,
         [values[variable] for variable in variables];
         label = label,
+        provenance = provenance,
     )
 end
 

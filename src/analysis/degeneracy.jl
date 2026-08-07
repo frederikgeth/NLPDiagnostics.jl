@@ -331,6 +331,7 @@ function _selected_jacobian_submatrix_evaluation(
         collect(evaluation.point.variables[columns]),
         T.(evaluation.point.values[columns]),
         evaluation.point.label,
+        evaluation.point.provenance,
     )
     return NumericalEvaluation{T}(
         point,

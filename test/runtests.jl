@@ -19,6 +19,7 @@ mutable struct TestNLPEvaluator <: MOI.AbstractNLPEvaluator
 end
 
 include("rank_calibration.jl")
+include("point_provenance.jl")
 
 if Base.find_package("Ipopt") !== nothing
     import Ipopt

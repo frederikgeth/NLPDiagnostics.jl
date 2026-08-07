@@ -21,11 +21,7 @@ function _profile_case_data(case::ProfileCase)
         "tags" => string.(case.tags),
         "metadata" => _profile_sorted_data(case.metadata),
         "expected_evidence" => string.(case.expected_evidence),
-        "point" => Dict(
-            "label" => case.point.label,
-            "variables" => [variable.value for variable in case.point.variables],
-            "values" => copy(case.point.values),
-        ),
+        "point" => _evaluation_point_data(case.point),
     )
 end
 

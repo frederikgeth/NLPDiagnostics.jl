@@ -1019,6 +1019,13 @@ function _point_evidence(point::EvaluationPoint)
         "Numerical evaluation point";
         details = [
             "label" => point.label,
+            "provenance_kind" => point.provenance.kind,
+            "provenance_source" => point.provenance.source,
+            "provenance_complete" => point.provenance.complete,
+            "provenance_metadata" => join(
+                ("$(key)=$(value)" for (key, value) in sort!(collect(point.provenance.metadata); by = first)),
+                ",",
+            ),
             "variable_count" => length(point.variables),
             "variable_order_preview" =>
                 join((variable.value for variable in variables), ","),
@@ -2240,6 +2247,10 @@ function _analyze_numerical_evaluation(
     )
     report.metadata[:stage] = "numerical"
     report.metadata[:evaluation_point_label] = point.label
+    report.metadata[:evaluation_point_provenance_kind] = string(point.provenance.kind)
+    report.metadata[:evaluation_point_provenance_source] = point.provenance.source
+    report.metadata[:evaluation_point_provenance_complete] =
+        string(point.provenance.complete)
     report.metadata[:evaluation_variable_count] =
         string(length(point.variables))
     report.metadata[:evaluated_constraint_row_count] =

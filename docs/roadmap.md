@@ -112,6 +112,17 @@ Exit criteria:
 - large-model runs have explicit work and memory guards and never densify an
   unbounded BMOPF network matrix.
 
+First implementation increment: `RankPolicy` now types backend, scaling,
+relative and absolute tolerance, matrix norm, work guard, vector policy, and
+provenance. The SuiteSparseQR-backed path preserves row/column permutations
+and, under a separate dense-evidence guard, a relative factorization residual.
+Iterative left/right candidates now carry dimensionless backward residuals,
+and a 91-assertion calibration corpus covers exact, rectangular, zero,
+clustered, ill-conditioned, scale-sensitive, and absolute-threshold cases.
+This does not complete the gate: a standard Golub--Kahan operator backend,
+MOI `:JacVec` integration, broader adversarial matrices, and calibrated
+false-positive/false-negative summaries remain outstanding.
+
 ### Trust gate B: evaluation-point and derivative provenance
 
 No numerical or physical result is more trustworthy than its evaluation point.

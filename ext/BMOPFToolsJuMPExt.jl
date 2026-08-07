@@ -1144,7 +1144,17 @@ function _bmopf_start_completion_point(
         end
         push!(values, start isa Real && isfinite(start) ? Float64(start) : Float64(missing_value))
     end
-    return NLPDiagnostics.EvaluationPoint(variables, values; label = label)
+    return NLPDiagnostics.EvaluationPoint(
+        variables,
+        values;
+        label = label,
+        provenance = NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.CompletedInitializationPoint;
+            source = "BMOPFTools partial-start completion",
+            complete = true,
+            metadata = Dict("missing_value" => missing_value),
+        ),
+    )
 end
 
 """
@@ -1375,7 +1385,21 @@ function _bmopf_result_voltage_point(
         end
     end
     return (
-        point = NLPDiagnostics.EvaluationPoint(variables, values; label = label),
+        point = NLPDiagnostics.EvaluationPoint(
+            variables,
+            values;
+            label = label,
+            provenance = NLPDiagnostics.EvaluationPointProvenance(
+                NLPDiagnostics.SolverResultPoint;
+                source = "BMOPFTools saved result mapping",
+                complete = mapped == length(variables),
+                metadata = Dict(
+                    "mapped_coordinate_count" => mapped,
+                    "fallback_coordinate_count" => length(variables) - mapped,
+                    "fallback_value" => fallback_value,
+                ),
+            ),
+        ),
         mapped_coordinate_count = mapped,
         # Retained for source compatibility; this now counts voltage and public
         # current coordinates, so new callers should use mapped_coordinate_count.
@@ -2044,6 +2068,12 @@ function _bmopf_coordinate_probe_point(
     variables = MOI.get(JuMP.backend(owner), MOI.ListOfVariableIndices())
     return NLPDiagnostics.EvaluationPoint(variables, fill(Float64(value), length(variables));
         label = label,
+        provenance = NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.SyntheticSmokePoint;
+            source = "BMOPFTools constant-coordinate probe",
+            complete = true,
+            metadata = Dict("constant_value" => value),
+        ),
     )
 end
 

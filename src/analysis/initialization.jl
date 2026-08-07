@@ -24,6 +24,11 @@ function initialization_point(
         variables,
         Real[something(value) for value in values];
         label = label,
+        provenance = EvaluationPointProvenance(
+            InitializationPoint;
+            source = "MOI.VariablePrimalStart",
+            complete = true,
+        ),
     )
 end
 

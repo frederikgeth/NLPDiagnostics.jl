@@ -144,6 +144,12 @@ function solver_result_point(
         variables,
         Real[something(value) for value in values];
         label = label,
+        provenance = EvaluationPointProvenance(
+            SolverResultPoint;
+            source = "MOI.VariablePrimal",
+            complete = true,
+            metadata = Dict("result_index" => index),
+        ),
     )
 end
 
@@ -1326,11 +1332,7 @@ function iteration_trace_data(trace::SolverIterationTrace)
         "iteration" => binding.record.iteration,
         "segment" => binding.segment,
         "selector" => string(binding.selector),
-        "point" => Dict(
-            "label" => binding.point.label,
-            "variables" => [variable.value for variable in binding.point.variables],
-            "values" => copy(binding.point.values),
-        ),
+        "point" => _evaluation_point_data(binding.point),
     ) for binding in trace.bindings]
     return Dict{String,Any}(
         "record_count" => length(trace.records),

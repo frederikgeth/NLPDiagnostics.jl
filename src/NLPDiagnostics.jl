@@ -92,6 +92,8 @@ export EvidenceBasis
 export EvaluationCache
 export EvaluationFailure
 export EvaluationPoint
+export EvaluationPointKind
+export EvaluationPointProvenance
 export EvaluatorCapabilities
 export ExpressionDomainIssue
 export ExpressionDerivativeIssue
@@ -4718,6 +4720,10 @@ function analyze(
     unit_circle_radius_tolerance::Real = 1.0e-6,
     numeric_type::Union{Nothing,Type{<:AbstractFloat}} = nothing,
     strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
+    rank_relative_tolerance::Union{Nothing,Real} = nothing,
+    rank_absolute_tolerance::Real = 0.0,
+    rank_matrix_norm::Symbol = :frobenius,
+    rank_max_dense_entries::Integer = 4_000_000,
     check_initialization::Bool = false,
     check_active_set::Bool = false,
     check_coupled_set_qualification::Bool = false,
@@ -4942,6 +4948,10 @@ function analyze(
         nothing
     end
     if !isnothing(numerical_evaluation)
+        resolved_rank_relative_tolerance = isnothing(rank_relative_tolerance) ?
+            max(length(numerical_evaluation.point.variables), 1) *
+                eps(eltype(numerical_evaluation.point.values)) :
+            rank_relative_tolerance
         numerical_report = analyze_numerical(
             model,
             numerical_evaluation;
@@ -4949,6 +4959,10 @@ function analyze(
             component_scale_mismatch_factor = component_scale_mismatch_factor,
             numeric_type = selected_numeric_type,
             strict_domain_proximity_threshold = strict_domain_proximity_threshold,
+            rank_relative_tolerance = resolved_rank_relative_tolerance,
+            rank_absolute_tolerance = rank_absolute_tolerance,
+            rank_matrix_norm = rank_matrix_norm,
+            rank_max_dense_entries = rank_max_dense_entries,
         )
         append!(report.findings, numerical_report.findings)
         merge!(report.metadata, numerical_report.metadata)
