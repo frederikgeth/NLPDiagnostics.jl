@@ -154,6 +154,18 @@ Exit criteria:
 - derivative cross-checks distinguish implementation defects, finite-
   difference truncation/cancellation, nondifferentiability, and domain failure.
 
+First implementation increment: every `EvaluationPoint` now carries typed
+origin, source, completeness, and metadata. Model starts, completed BMOPF
+starts, saved results, Ipopt callback iterates, and BMOPF coordinate probes are
+tagged at capture time; persisted profile and trace data retain the tag.
+Synthetic profile cases also promote default user provenance from their
+explicit `:synthetic` tag. Numerical reports limit point-local physical
+findings from synthetic, artificially completed, or incomplete points to
+low-confidence heuristic evidence. This establishes the confidence boundary,
+but the gate remains open until completion policies stop using unjustified
+fallback values, model/source hashes are retained, derivative cross-checks are
+calibrated, and the BMOPF scientific corpus has trusted operating points.
+
 ### Trust gate C: solver-consistent local optimality and postmortem evidence
 
 The package should explain solver behaviour by correlating model evidence with

@@ -2909,6 +2909,7 @@ function analyze_active_set(
         string(recovery.complementarity_residual)
     report.metadata[:objective_gradient_method] =
         string(evaluation.objective_gradient_method)
+    _apply_point_provenance_guard!(report, evaluation.point)
     sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
 end

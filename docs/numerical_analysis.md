@@ -10,14 +10,25 @@ An evaluation point contains:
 
 - the exact `MOI.VariableIndex` order;
 - values converted to a common floating-point type; and
-- a user-visible label such as `"initialization"` or `"failed iterate 17"`.
+- a user-visible label such as `"initialization"` or `"failed iterate 17"`; and
+- typed provenance recording its origin, source, completeness, and optional
+  policy metadata.
 
 The order must equal `MOI.ListOfVariableIndices`. This matters because an
 `AbstractNLPEvaluator` defines its callback coordinates in precisely that
 order.
 
 ```julia
-point = evaluation_point(model, [1.0, 2.0]; label = "initialization")
+provenance = EvaluationPointProvenance(
+    InitializationPoint;
+    source = "application initialization policy",
+)
+point = evaluation_point(
+    model,
+    [1.0, 2.0];
+    label = "initialization",
+    provenance = provenance,
+)
 evaluation = evaluate_numerical(model, point)
 summary = jacobian_scale_summary(evaluation)
 report = analyze(model; point = point)
@@ -30,6 +41,22 @@ model; all numerical findings are tied to the supplied evaluation object.
 
 A dictionary keyed by `MOI.VariableIndex` may be used instead of an ordered
 vector. Missing variables are rejected.
+
+The built-in origins distinguish user points, model starts, artificially
+completed starts, captured solver iterates, solver results, perturbations, and
+synthetic smoke points. Initialization and solver adapters assign these types
+at capture time. A `ProfileCase` carrying the explicit `:synthetic` tag also
+converts an otherwise default user point to `SyntheticSmokePoint` provenance,
+so persisted corpus data cannot disguise a constructed point as user input.
+
+Point provenance limits interpretation as well as documenting it. Numerical
+reports expose the kind, source, and completeness in metadata and evidence.
+When a point is synthetic, artificially completed, or incomplete, any
+point-local physical finding is reduced to low-confidence heuristic evidence
+and the report records `physical_interpretation_limited_by_point_provenance`.
+This guard does not reject the numerical observation; it prevents a convenient
+coordinate vector from being mistaken for a physically meaningful operating
+state.
 
 ## Capability adapters
 

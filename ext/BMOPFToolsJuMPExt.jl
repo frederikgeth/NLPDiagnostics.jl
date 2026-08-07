@@ -1115,7 +1115,7 @@ function _bmopf_set_start_values!(
 end
 
 """
-    bmopf_start_completion_point(context; missing_value = 0.0,
+    bmopf_start_completion_point(context; missing_value,
         label = "bmopf-partial-starts-completed") -> EvaluationPoint
 
 Create a complete point from exact BMOPF `VariablePrimalStart` values, replacing
@@ -1127,7 +1127,7 @@ evidence.
 """
 function _bmopf_start_completion_point(
     context;
-    missing_value::Real = 0.0,
+    missing_value::Real,
     label::AbstractString = "bmopf-partial-starts-completed",
 )
     isfinite(missing_value) || throw(ArgumentError("missing_value must be finite"))
@@ -1136,13 +1136,19 @@ function _bmopf_start_completion_point(
     backend = JuMP.backend(owner)
     variables = MOI.get(backend, MOI.ListOfVariableIndices())
     values = Float64[]
+    missing_variables = MOI.VariableIndex[]
     for variable in variables
         start = try
             MOI.get(backend, MOI.VariablePrimalStart(), variable)
         catch
             nothing
         end
-        push!(values, start isa Real && isfinite(start) ? Float64(start) : Float64(missing_value))
+        if start isa Real && isfinite(start)
+            push!(values, Float64(start))
+        else
+            push!(values, Float64(missing_value))
+            push!(missing_variables, variable)
+        end
     end
     return NLPDiagnostics.EvaluationPoint(
         variables,
@@ -1152,7 +1158,14 @@ function _bmopf_start_completion_point(
             NLPDiagnostics.CompletedInitializationPoint;
             source = "BMOPFTools partial-start completion",
             complete = true,
-            metadata = Dict("missing_value" => missing_value),
+            metadata = Dict(
+                "missing_value" => missing_value,
+                "filled_coordinate_count" => length(missing_variables),
+                "filled_variable_indices" => join(
+                    (variable.value for variable in missing_variables),
+                    ",",
+                ),
+            ),
         ),
     )
 end
@@ -5002,6 +5015,12 @@ function _bmopf_analyze_opf(
     report.metadata[:bmopf_port_physical_modes_applied] = string(length(port_physical_modes))
     report.metadata[:stages] *= ",bmopf_terminals,bmopf_terminal_ports,bmopf_terminal_port_physical_modes,bmopf_terminal_constitutive_maps,bmopf_terminal_complex_constitutive_maps,bmopf_passive_network_current_maps,bmopf_current_laws,bmopf_floating_neutral_candidates,bmopf_opf_lifecycle,bmopf_opf_registry,bmopf_components"
     !isnothing(coordinate_scale_report) && (report.metadata[:stages] *= ",bmopf_terminal_coordinate_scales")
+    !isnothing(point) &&
+        NLPDiagnostics._apply_point_provenance_guard!(report, point)
+    sort!(
+        report.findings;
+        by = finding -> (-Int(finding.severity), string(finding.code)),
+    )
     return report
 end
 

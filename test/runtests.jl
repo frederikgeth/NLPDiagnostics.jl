@@ -708,9 +708,16 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test length(findings(rank_capability_report, :bmopf_component_expected_rank_unavailable)) == 1
     @test isnothing(NLPDiagnostics.bmopf_initialization_point(context))
     @test_throws ArgumentError NLPDiagnostics.bmopf_set_start_values!(context)
-    completed_starts = NLPDiagnostics.bmopf_start_completion_point(context)
+    @test_throws UndefKeywordError NLPDiagnostics.bmopf_start_completion_point(context)
+    completed_starts = NLPDiagnostics.bmopf_start_completion_point(
+        context;
+        missing_value = 0.0,
+    )
     @test completed_starts.label == "bmopf-partial-starts-completed"
     @test completed_starts.values == zeros(8)
+    @test completed_starts.provenance.kind ==
+          NLPDiagnostics.CompletedInitializationPoint
+    @test completed_starts.provenance.metadata["filled_coordinate_count"] == "8"
     saved_result = Dict{String,Any}(
         "bus" => Dict{String,Any}(
             "bus" => Dict{String,Any}(

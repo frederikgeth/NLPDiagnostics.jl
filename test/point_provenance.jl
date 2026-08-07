@@ -55,8 +55,85 @@ import NLPDiagnostics
           "calibration smoke"
     @test report.metadata[:evaluation_point_provenance_complete] == "true"
     point_evidence = NLPDiagnostics._point_evidence(synthetic)
-    @test ("provenance_kind" => NLPDiagnostics.SyntheticSmokePoint) in
+    @test ("provenance_kind" => "SyntheticSmokePoint") in
           point_evidence.details
+
+    guarded_report = NLPDiagnostics.DiagnosticReport([
+        NLPDiagnostics.Finding(
+            :synthetic_physical_candidate;
+            severity = NLPDiagnostics.SeverityWarning,
+            domain = NLPDiagnostics.PhysicalIssue,
+            basis = NLPDiagnostics.PhysicalExpectation,
+            confidence = NLPDiagnostics.ConfidenceHigh,
+            observation = "A point-local physical mode appears present.",
+            why_it_matters = "This is a provenance-guard regression fixture.",
+            evidence = [point_evidence],
+        ),
+    ], Dict{Symbol,String}())
+    NLPDiagnostics._apply_point_provenance_guard!(guarded_report, synthetic)
+    guarded = only(NLPDiagnostics.findings(
+        guarded_report;
+        code = :synthetic_physical_candidate,
+    ))
+    @test guarded.confidence == NLPDiagnostics.ConfidenceLow
+    @test guarded.basis == NLPDiagnostics.HeuristicInterpretation
+    @test length(NLPDiagnostics.findings(
+        guarded_report;
+        code = :physical_interpretation_limited_by_point_provenance,
+    )) == 1
+    @test guarded_report.metadata[
+        :evaluation_point_physical_confidence_guarded_count
+    ] == "1"
+    NLPDiagnostics._apply_point_provenance_guard!(guarded_report, synthetic)
+    @test guarded_report.metadata[
+        :evaluation_point_physical_confidence_guarded_count
+    ] == "1"
+    @test count(
+        finding -> finding.code ==
+                   :physical_interpretation_limited_by_point_provenance,
+        guarded_report.findings,
+    ) == 1
+
+    synthetic_case = NLPDiagnostics.ProfileCase(
+        "synthetic fixture",
+        default_point;
+        tags = [:synthetic],
+    )
+    @test synthetic_case.point.provenance.kind ==
+          NLPDiagnostics.SyntheticSmokePoint
+    @test synthetic_case.point.provenance.source == "ProfileCase :synthetic tag"
+    @test synthetic_case.point.provenance.metadata["profile_case"] ==
+          "synthetic fixture"
+
+    completed = NLPDiagnostics.evaluation_point(
+        model,
+        [0.0];
+        label = "completed initialization",
+        provenance = NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.CompletedInitializationPoint;
+            source = "test completion policy",
+            metadata = Dict("filled_coordinates" => "1"),
+        ),
+    )
+    completed_report = NLPDiagnostics.DiagnosticReport([
+        NLPDiagnostics.Finding(
+            :completed_physical_candidate;
+            severity = NLPDiagnostics.SeverityWarning,
+            domain = NLPDiagnostics.PhysicalIssue,
+            basis = NLPDiagnostics.PhysicalExpectation,
+            confidence = NLPDiagnostics.ConfidenceHigh,
+            observation = "A point-local physical mode appears present.",
+            why_it_matters = "This is a completed-point guard fixture.",
+            evidence = [NLPDiagnostics._point_evidence(completed)],
+        ),
+    ], Dict{Symbol,String}())
+    NLPDiagnostics._apply_point_provenance_guard!(completed_report, completed)
+    completed_finding = only(NLPDiagnostics.findings(
+        completed_report;
+        code = :completed_physical_candidate,
+    ))
+    @test completed_finding.confidence == NLPDiagnostics.ConfidenceLow
+    @test completed_finding.basis == NLPDiagnostics.HeuristicInterpretation
 
     @test_throws ArgumentError NLPDiagnostics.EvaluationPointProvenance(
         NLPDiagnostics.UserPoint;

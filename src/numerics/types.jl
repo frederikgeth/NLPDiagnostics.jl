@@ -43,13 +43,14 @@ function Base.hash(provenance::EvaluationPointProvenance, seed::UInt)
 end
 
 """
-    EvaluationPoint(variables, values; label = "user")
+    EvaluationPoint(variables, values; label = "user", provenance = EvaluationPointProvenance())
 
 A numerical point whose coordinate order is explicit and stable.
 
 Every cached value and derivative is attached to an `EvaluationPoint`. This
 prevents numerical evidence from being accidentally compared across different
-variable orders or iterates.
+variable orders or iterates. Its typed provenance records how the point was
+obtained and whether every required coordinate was present.
 """
 struct EvaluationPoint{T<:AbstractFloat}
     variables::Vector{MOI.VariableIndex}
@@ -1443,6 +1444,26 @@ function ProfileCase(
     tags::AbstractVector{Symbol} = Symbol[],
     metadata::AbstractDict = Dict{String,String}(),
 ) where {T<:AbstractFloat}
+    resolved_tags = unique!(collect(tags))
+    resolved_point = point
+    if :synthetic in resolved_tags &&
+       point.provenance.kind == UserPoint &&
+       point.provenance.source == "user"
+        resolved_point = EvaluationPoint{T}(
+            point.variables,
+            point.values,
+            point.label,
+            EvaluationPointProvenance(
+                SyntheticSmokePoint;
+                source = "ProfileCase :synthetic tag",
+                complete = point.provenance.complete,
+                metadata = merge(
+                    point.provenance.metadata,
+                    Dict("profile_case" => String(name)),
+                ),
+            ),
+        )
+    end
     return ProfileCase{T}(
         String(name),
         String(description),
@@ -1452,9 +1473,9 @@ function ProfileCase(
         String(scale),
         isnothing(solver) ? nothing : String(solver),
         unique!(collect(expected_evidence)),
-        unique!(collect(tags)),
+        resolved_tags,
         Dict(string(key) => string(value) for (key, value) in metadata),
-        point,
+        resolved_point,
     )
 end
 

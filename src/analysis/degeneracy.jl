@@ -1270,6 +1270,7 @@ function analyze_degeneracy(
         string(count(==(:component), port_summary.candidate_origins))
     report.metadata[:port_topology_expected_nullspace_mode_count] =
         string(count(==(:topology), port_summary.candidate_origins))
+    _apply_point_provenance_guard!(report, evaluation.point)
     sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
     return report
 end

@@ -488,6 +488,10 @@ function profile_case(
         max_dense_entries = rank_max_dense_entries,
     ))
 
+    _apply_point_provenance_guard!(numerical_report, case.point)
+    _apply_point_provenance_guard!(active_set_report, case.point)
+    _apply_point_provenance_guard!(degeneracy_report, case.point)
+
     return ProfileResult{T}(
         case,
         evaluation,

@@ -628,6 +628,10 @@ constructor and labels the point accordingly. It must be interpreted as a
 mixed engine-start/default-zero probe, never as a physically feasible state or
 as the model's observed complete initialization. Run the retained
 initialization report to see the original missing-start evidence.
+The `missing_value` keyword is required: this API has no implicit fill value.
+Its provenance records the fill value, number of filled coordinates, and their
+MOI variable indices. The resulting `CompletedInitializationPoint` remains
+subject to the physical-confidence guard even when all coordinates are finite.
 `bmopf_set_start_values!` is for callers using BMOPFTools' lower-level staged
 construction before that stage has run. The optional `prepare_context` callback
 in `bmopf_build_and_profile` and `bmopf_build_and_analyze_opf` is a generic

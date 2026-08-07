@@ -94,6 +94,8 @@ export EvaluationFailure
 export EvaluationPoint
 export EvaluationPointKind
 export EvaluationPointProvenance
+export UserPoint, InitializationPoint, CompletedInitializationPoint
+export SolverIteratePoint, SolverResultPoint, PerturbedPoint, SyntheticSmokePoint
 export EvaluatorCapabilities
 export ExpressionDomainIssue
 export ExpressionDerivativeIssue
@@ -5233,6 +5235,8 @@ function analyze(
     end
     report.metadata[:stage] = "combined"
     report.metadata[:stages] = stages
+    !isnothing(numerical_evaluation) &&
+        _apply_point_provenance_guard!(report, numerical_evaluation.point)
     sort!(
         report.findings;
         by = finding -> (-Int(finding.severity), string(finding.code)),

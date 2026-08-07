@@ -1036,6 +1036,85 @@ function _point_evidence(point::EvaluationPoint)
     )
 end
 
+function _apply_point_provenance_guard!(
+    report::DiagnosticReport,
+    point::EvaluationPoint,
+)
+    limited = point.provenance.kind in
+              (SyntheticSmokePoint, CompletedInitializationPoint) ||
+              !point.provenance.complete
+    limited || return report
+    guarded = 0
+    for index in eachindex(report.findings)
+        finding = report.findings[index]
+        finding.domain == PhysicalIssue || continue
+        any(evidence -> evidence.summary == "Numerical evaluation point", finding.evidence) ||
+            continue
+        any(
+            evidence -> evidence.summary ==
+                        "Evaluation-point provenance confidence guard",
+            finding.evidence,
+        ) && continue
+        report.findings[index] = Finding(
+            finding.code;
+            severity = finding.severity,
+            domain = finding.domain,
+            basis = HeuristicInterpretation,
+            confidence = ConfidenceLow,
+            observation = finding.observation,
+            why_it_matters = finding.why_it_matters,
+            evidence = vcat(
+                finding.evidence,
+                [Evidence("Evaluation-point provenance confidence guard"; details = [
+                    "kind" => point.provenance.kind,
+                    "source" => point.provenance.source,
+                    "complete" => point.provenance.complete,
+                ])],
+            ),
+            suggested_actions = unique(vcat(
+                finding.suggested_actions,
+                ["Repeat the physical interpretation at a complete initialization, solver iterate, or solver-result point."],
+            )),
+            affected = finding.affected,
+        )
+        guarded += 1
+    end
+    existing_guarded = try
+        parse(
+            Int,
+            get(
+                report.metadata,
+                :evaluation_point_physical_confidence_guarded_count,
+                "0",
+            ),
+        )
+    catch
+        0
+    end
+    total_guarded = existing_guarded + guarded
+    report.metadata[:evaluation_point_physical_confidence_guarded_count] =
+        string(total_guarded)
+    if guarded > 0
+        filter!(
+            finding -> finding.code !=
+                       :physical_interpretation_limited_by_point_provenance,
+            report.findings,
+        )
+        push!(report, Finding(
+            :physical_interpretation_limited_by_point_provenance;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = StructuralProof,
+            confidence = ConfidenceCertain,
+            observation = "$total_guarded point-local physical finding(s) were limited to low-confidence heuristic evidence because the evaluation point is synthetic, artificially completed, or incomplete.",
+            why_it_matters = "A complete coordinate vector is not necessarily a physically meaningful initialization or operating point.",
+            evidence = [_point_evidence(point)],
+            suggested_actions = ["Repeat at a complete initialization, captured solver iterate, or solver result before assigning physical confidence."],
+        ))
+    end
+    return report
+end
+
 function _operating_point_domain_issues(
     model_snapshot::ModelSnapshot,
     point::EvaluationPoint,
@@ -2331,6 +2410,7 @@ function _analyze_numerical_evaluation(
         key == :stage && continue
         report.metadata[key] = value
     end
+    _apply_point_provenance_guard!(report, point)
     sort!(
         report.findings;
         by = finding -> (-Int(finding.severity), string(finding.code)),
