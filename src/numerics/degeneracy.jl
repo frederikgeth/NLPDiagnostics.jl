@@ -1,6 +1,23 @@
 const _JACOBIAN_INCOMPLETE_METHODS =
     (:unavailable, :partial_central_finite_difference)
 
+function _matrix_norm(matrix, kind::Symbol)
+    kind == :frobenius && return norm(matrix)
+    kind == :one && return opnorm(matrix, 1)
+    kind == :infinity && return opnorm(matrix, Inf)
+    throw(ArgumentError("unsupported matrix norm $kind"))
+end
+
+function _relative_residual(
+    residual::T,
+    matrix_norm::T,
+    direction_norm::T,
+) where {T<:AbstractFloat}
+    denominator = matrix_norm * direction_norm
+    iszero(denominator) && return iszero(residual) ? zero(T) : T(Inf)
+    return residual / denominator
+end
+
 function _combined_jacobian_matrix(evaluation::NumericalEvaluation{T}) where {T}
     matrix = zeros(
         T,
@@ -49,8 +66,7 @@ end
 
 function _unavailable_rank_estimate(
     evaluation::NumericalEvaluation{T},
-    scaling::Symbol,
-    relative_tolerance::T,
+    policy::RankPolicy{T},
     reason::AbstractString,
 ) where {T}
     rows = length(evaluation.constraint_sources)
@@ -59,16 +75,17 @@ function _unavailable_rank_estimate(
         false,
         String(reason),
         evaluation.point,
+        policy,
         :dense_svd,
-        scaling,
+        policy.scaling,
         rows,
         columns,
         0,
         rows,
         columns,
         T[],
-        relative_tolerance,
-        zero(T),
+        policy.relative_tolerance,
+        policy.absolute_tolerance,
         nothing,
         ones(T, rows),
         ones(T, columns),
@@ -117,33 +134,87 @@ end
 function sparse_qr_rank_estimate(
     evaluation::NumericalEvaluation{T};
     relative_tolerance::Real = max(length(evaluation.constraint_sources), length(evaluation.point.variables), 1) * eps(T),
+    absolute_tolerance::Real = zero(T),
     scaling::Symbol = :none,
+    matrix_norm::Symbol = :frobenius,
+    max_dense_entries::Integer = 100_000,
+    provenance::Symbol = :default,
 ) where {T<:AbstractFloat}
+    policy = RankPolicy(
+        T;
+        backend = :sparse_qr,
+        scaling,
+        relative_tolerance,
+        absolute_tolerance,
+        matrix_norm,
+        max_dense_entries,
+        compute_vectors = false,
+        provenance,
+    )
+    return sparse_qr_rank_estimate(evaluation, policy)
+end
+
+function sparse_qr_rank_estimate(
+    evaluation::NumericalEvaluation{T},
+    policy::RankPolicy{T},
+) where {T<:AbstractFloat}
+    policy.backend == :sparse_qr ||
+        throw(ArgumentError("sparse_qr_rank_estimate requires a :sparse_qr RankPolicy"))
     rows, columns = length(evaluation.constraint_sources), length(evaluation.point.variables)
-    tolerance = convert(T, relative_tolerance)
-    tolerance >= zero(T) || throw(ArgumentError("relative_tolerance must be nonnegative"))
-    scaling in (:none, :row, :column, :row_column) ||
-        throw(ArgumentError("scaling must be :none, :row, :column, or :row_column"))
     pattern = sparse_jacobian_pattern_estimate(evaluation)
-    !pattern.available && return SparseQRRankEstimate{T}(false, pattern.reason, evaluation.point, scaling, rows, columns, 0, T[], tolerance, zero(T), nothing)
+    unavailable(reason) = SparseQRRankEstimate{T}(
+        false, reason, evaluation.point, policy, :suitesparse_qr,
+        policy.scaling, rows, columns, 0, T[], policy.relative_tolerance,
+        policy.absolute_tolerance, nothing, nothing, Int[], Int[], nothing,
+        nothing,
+    )
+    !pattern.available && return unavailable(pattern.reason)
     matrix = _combined_sparse_jacobian_matrix(evaluation)
     try
-        if scaling in (:row, :row_column)
-            row_norms = [norm(matrix[row, :], Inf) for row in 1:rows]
+        if policy.scaling in (:row, :row_column)
+            row_norms = [norm(matrix[row, :]) for row in 1:rows]
             matrix = spdiagm(0 => T[iszero(value) ? one(T) : inv(value) for value in row_norms]) * matrix
         end
-        if scaling in (:column, :row_column)
-            column_norms = [norm(matrix[:, column], Inf) for column in 1:columns]
+        if policy.scaling in (:column, :row_column)
+            column_norms = [norm(matrix[:, column]) for column in 1:columns]
             matrix = matrix * spdiagm(0 => T[iszero(value) ? one(T) : inv(value) for value in column_norms])
         end
         factorization = qr(matrix)
         pivots = T.(abs.(diag(factorization.R)))
-        threshold = isempty(pivots) ? zero(T) : tolerance * maximum(pivots)
+        threshold = isempty(pivots) ? policy.absolute_tolerance : max(
+            policy.absolute_tolerance,
+            policy.relative_tolerance * maximum(pivots),
+        )
         retained = filter(value -> value > threshold, pivots)
         proxy = isempty(retained) ? nothing : maximum(retained) / minimum(retained)
-        return SparseQRRankEstimate{T}(true, nothing, evaluation.point, scaling, rows, columns, length(retained), pivots, tolerance, threshold, proxy)
+        norm_value = T(_matrix_norm(matrix, policy.matrix_norm))
+        row_permutation = Int.(factorization.prow)
+        column_permutation = Int.(factorization.pcol)
+        relative_factorization_residual = nothing
+        residual_reason = nothing
+        if rows * columns <= policy.max_dense_entries
+            try
+                permuted = Matrix(matrix[row_permutation, column_permutation])
+                reconstructed = Matrix(factorization.Q) * Matrix(factorization.R)
+                residual = T(norm(permuted - reconstructed))
+                relative_factorization_residual = _relative_residual(
+                    residual, norm_value, one(T),
+                )
+            catch error
+                residual_reason = "factorization residual unavailable: $(sprint(showerror, error))"
+            end
+        else
+            residual_reason = "factorization residual dense guard exceeded: $(rows * columns) > $(policy.max_dense_entries)"
+        end
+        return SparseQRRankEstimate{T}(
+            true, nothing, evaluation.point, policy, :suitesparse_qr,
+            policy.scaling, rows, columns, length(retained), pivots,
+            policy.relative_tolerance, threshold, proxy, norm_value,
+            row_permutation, column_permutation,
+            relative_factorization_residual, residual_reason,
+        )
     catch error
-        return SparseQRRankEstimate{T}(false, sprint(showerror, error), evaluation.point, scaling, rows, columns, 0, T[], tolerance, zero(T), nothing)
+        return unavailable(sprint(showerror, error))
     end
 end
 
@@ -166,6 +237,7 @@ function iterative_right_nullspace_estimate(
     evaluation::NumericalEvaluation{T};
     iterations::Integer = 100,
     convergence_tolerance::Real = sqrt(eps(T)),
+    matrix_norm::Symbol = :frobenius,
 ) where {T<:AbstractFloat}
     iterations > 0 || throw(ArgumentError("iterations must be positive"))
     tolerance = convert(T, convergence_tolerance)
@@ -174,13 +246,15 @@ function iterative_right_nullspace_estimate(
     rows = length(evaluation.constraint_sources)
     columns = length(evaluation.point.variables)
     unavailable(reason) = IterativeNullspaceEstimate{T}(
-        false, reason, evaluation.point, 0, false, T[], nothing,
+        false, reason, evaluation.point, 0, false, T[], nothing, nothing,
+        nothing,
     )
     columns > 0 || return unavailable("Jacobian has no variable columns")
     pattern = sparse_jacobian_pattern_estimate(evaluation)
     pattern.available || return unavailable(pattern.reason)
 
     matrix = _combined_sparse_jacobian_matrix(evaluation)
+    norm_value = T(_matrix_norm(matrix, matrix_norm))
     direction = T[sin(T(index)) for index in 1:columns]
     direction_norm = norm(direction)
     isfinite(direction_norm) && !iszero(direction_norm) ||
@@ -220,9 +294,10 @@ function iterative_right_nullspace_estimate(
     end
     residual = norm(matrix * direction)
     isfinite(residual) || return unavailable("candidate residual became non-finite")
+    relative_residual = _relative_residual(residual, norm_value, norm(direction))
     return IterativeNullspaceEstimate{T}(
         true, nothing, evaluation.point, completed_iterations, converged,
-        direction, residual,
+        direction, residual, norm_value, relative_residual,
     )
 end
 
@@ -240,6 +315,7 @@ function iterative_right_nullspace_subspace_estimate(
     dimension::Integer;
     iterations::Integer = 100,
     convergence_tolerance::Real = sqrt(eps(T)),
+    matrix_norm::Symbol = :frobenius,
 ) where {T<:AbstractFloat}
     dimension > 0 || throw(ArgumentError("dimension must be positive"))
     iterations > 0 || throw(ArgumentError("iterations must be positive"))
@@ -250,7 +326,7 @@ function iterative_right_nullspace_subspace_estimate(
     columns = length(evaluation.point.variables)
     unavailable(reason) = IterativeNullspaceSubspaceEstimate{T}(
         false, reason, evaluation.point, Int(dimension), 0, false,
-        zeros(T, columns, 0), T[], nothing,
+        zeros(T, columns, 0), T[], nothing, T[], nothing,
     )
     columns > 0 || return unavailable("Jacobian has no variable columns")
     dimension <= columns ||
@@ -258,6 +334,7 @@ function iterative_right_nullspace_subspace_estimate(
     pattern = sparse_jacobian_pattern_estimate(evaluation)
     pattern.available || return unavailable(pattern.reason)
     matrix = _combined_sparse_jacobian_matrix(evaluation)
+    norm_value = T(_matrix_norm(matrix, matrix_norm))
     seed = T[
         sin(T(row * (column + 1))) + cos(T((row + 1) * column)) for
         row in 1:columns, column in 1:dimension
@@ -307,9 +384,14 @@ function iterative_right_nullspace_subspace_estimate(
     end
     residuals = T[norm(matrix * directions[:, column]) for column in 1:dimension]
     all(isfinite, residuals) || return unavailable("candidate residual became non-finite")
+    relative_residuals = T[
+        _relative_residual(residuals[column], norm_value, norm(view(directions, :, column)))
+        for column in 1:dimension
+    ]
     return IterativeNullspaceSubspaceEstimate{T}(
         true, nothing, evaluation.point, Int(dimension), completed_iterations,
-        converged, directions, residuals, subspace_change,
+        converged, directions, residuals, norm_value, relative_residuals,
+        subspace_change,
     )
 end
 
@@ -326,6 +408,7 @@ function iterative_left_nullspace_subspace_estimate(
     dimension::Integer;
     iterations::Integer = 100,
     convergence_tolerance::Real = sqrt(eps(T)),
+    matrix_norm::Symbol = :frobenius,
 ) where {T<:AbstractFloat}
     dimension > 0 || throw(ArgumentError("dimension must be positive"))
     iterations > 0 || throw(ArgumentError("iterations must be positive"))
@@ -335,7 +418,7 @@ function iterative_left_nullspace_subspace_estimate(
     rows = length(evaluation.constraint_sources)
     unavailable(reason) = IterativeLeftNullspaceSubspaceEstimate{T}(
         false, reason, evaluation.point, Int(dimension), 0, false,
-        zeros(T, rows, 0), T[], nothing,
+        zeros(T, rows, 0), T[], nothing, T[], nothing,
     )
     rows > 0 || return unavailable("Jacobian has no constraint rows")
     dimension <= rows ||
@@ -343,6 +426,7 @@ function iterative_left_nullspace_subspace_estimate(
     pattern = sparse_jacobian_pattern_estimate(evaluation)
     pattern.available || return unavailable(pattern.reason)
     matrix = _combined_sparse_jacobian_matrix(evaluation)
+    norm_value = T(_matrix_norm(matrix, matrix_norm))
     seed = T[
         sin(T(row * (column + 1))) + cos(T((row + 1) * column)) for
         row in 1:rows, column in 1:dimension
@@ -392,9 +476,14 @@ function iterative_left_nullspace_subspace_estimate(
     end
     residuals = T[norm(adjoint(matrix) * directions[:, column]) for column in 1:dimension]
     all(isfinite, residuals) || return unavailable("candidate residual became non-finite")
+    relative_residuals = T[
+        _relative_residual(residuals[column], norm_value, norm(view(directions, :, column)))
+        for column in 1:dimension
+    ]
     return IterativeLeftNullspaceSubspaceEstimate{T}(
         true, nothing, evaluation.point, Int(dimension), completed_iterations,
-        converged, directions, residuals, subspace_change,
+        converged, directions, residuals, norm_value, relative_residuals,
+        subspace_change,
     )
 end
 
@@ -560,26 +649,38 @@ function jacobian_rank_estimate(
             length(evaluation.point.variables),
             1,
         ) * eps(T),
+    absolute_tolerance::Real = zero(T),
+    matrix_norm::Symbol = :frobenius,
     max_dense_entries::Integer = 4_000_000,
     compute_vectors::Bool = true,
+    provenance::Symbol = :default,
 ) where {T<:AbstractFloat}
-    scaling in (:none, :row, :column, :row_column) || throw(
-        ArgumentError(
-            "scaling must be :none, :row, :column, or :row_column",
-        ),
+    policy = RankPolicy(
+        T;
+        backend = :dense_svd,
+        scaling,
+        relative_tolerance,
+        absolute_tolerance,
+        matrix_norm,
+        max_dense_entries,
+        compute_vectors,
+        provenance,
     )
-    converted_tolerance = convert(T, relative_tolerance)
-    converted_tolerance >= zero(T) ||
-        throw(ArgumentError("relative_tolerance must be nonnegative"))
-    max_dense_entries >= 0 ||
-        throw(ArgumentError("max_dense_entries must be nonnegative"))
+    return jacobian_rank_estimate(evaluation, policy)
+end
+
+function jacobian_rank_estimate(
+    evaluation::NumericalEvaluation{T},
+    policy::RankPolicy{T},
+) where {T<:AbstractFloat}
+    policy.backend == :dense_svd ||
+        throw(ArgumentError("jacobian_rank_estimate requires a :dense_svd RankPolicy"))
     rows = length(evaluation.constraint_sources)
     columns = length(evaluation.point.variables)
-    rows * columns <= max_dense_entries || return _unavailable_rank_estimate(
+    rows * columns <= policy.max_dense_entries || return _unavailable_rank_estimate(
         evaluation,
-        scaling,
-        converted_tolerance,
-        "dense Jacobian would contain $(rows * columns) entries, exceeding guard $max_dense_entries",
+        policy,
+        "dense Jacobian would contain $(rows * columns) entries, exceeding guard $(policy.max_dense_entries)",
     )
     incomplete_rows = findall(
         method -> method in _JACOBIAN_INCOMPLETE_METHODS,
@@ -587,29 +688,27 @@ function jacobian_rank_estimate(
     )
     isempty(incomplete_rows) || return _unavailable_rank_estimate(
         evaluation,
-        scaling,
-        converted_tolerance,
+        policy,
         "Jacobian rows $(join(incomplete_rows, ',')) are incomplete",
     )
     matrix = _combined_jacobian_matrix(evaluation)
     all(isfinite, matrix) || return _unavailable_rank_estimate(
         evaluation,
-        scaling,
-        converted_tolerance,
+        policy,
         "Jacobian contains non-finite combined entries",
     )
 
     row_scaling = ones(T, rows)
     column_scaling = ones(T, columns)
     scaled = copy(matrix)
-    if scaling in (:row, :row_column)
+    if policy.scaling in (:row, :row_column)
         for row in axes(scaled, 1)
             row_norm = norm(view(scaled, row, :))
             iszero(row_norm) || (row_scaling[row] = inv(row_norm))
         end
         scaled .*= row_scaling
     end
-    if scaling in (:column, :row_column)
+    if policy.scaling in (:column, :row_column)
         for column in axes(scaled, 2)
             column_norm = norm(view(scaled, :, column))
             iszero(column_norm) || (column_scaling[column] = inv(column_norm))
@@ -619,25 +718,26 @@ function jacobian_rank_estimate(
 
     if iszero(rows) || iszero(columns)
         right_nullspace =
-            compute_vectors && iszero(rows) ? Matrix{T}(I, columns, columns) :
+            policy.compute_vectors && iszero(rows) ? Matrix{T}(I, columns, columns) :
             zeros(T, columns, 0)
         left_nullspace =
-            compute_vectors && iszero(columns) ? Matrix{T}(I, rows, rows) :
+            policy.compute_vectors && iszero(columns) ? Matrix{T}(I, rows, rows) :
             zeros(T, rows, 0)
         return JacobianRankEstimate{T}(
             true,
             nothing,
             evaluation.point,
+            policy,
             :dense_svd,
-            scaling,
+            policy.scaling,
             rows,
             columns,
             0,
             rows,
             columns,
             T[],
-            converted_tolerance,
-            zero(T),
+            policy.relative_tolerance,
+            policy.absolute_tolerance,
             nothing,
             row_scaling,
             column_scaling,
@@ -648,7 +748,10 @@ function jacobian_rank_estimate(
 
     factorization = svd(scaled; full = true)
     singular_values = T.(factorization.S)
-    threshold = converted_tolerance * maximum(singular_values; init = zero(T))
+    threshold = max(
+        policy.absolute_tolerance,
+        policy.relative_tolerance * maximum(singular_values; init = zero(T)),
+    )
     estimated_rank = count(value -> value > threshold, singular_values)
     left_nullity = rows - estimated_rank
     right_nullity = columns - estimated_rank
@@ -663,7 +766,7 @@ function jacobian_rank_estimate(
     end
     left_nullspace = zeros(T, rows, 0)
     right_nullspace = zeros(T, columns, 0)
-    if compute_vectors
+    if policy.compute_vectors
         left_nullspace =
             Matrix(factorization.U[:, (estimated_rank + 1):rows])
         left_nullspace .*= row_scaling
@@ -677,15 +780,16 @@ function jacobian_rank_estimate(
         true,
         nothing,
         evaluation.point,
+        policy,
         :dense_svd,
-        scaling,
+        policy.scaling,
         rows,
         columns,
         estimated_rank,
         left_nullity,
         right_nullity,
         singular_values,
-        converted_tolerance,
+        policy.relative_tolerance,
         threshold,
         condition_estimate,
         row_scaling,

@@ -25,8 +25,86 @@ function _relative_difference(left, right)
 end
 
 function _case_map(summary)
-    return Dict(String(get(case, "name", "unknown")) => case
-                for case in get(summary, "cases", Any[]))
+    result = Dict{String,Any}()
+    for case in get(summary, "cases", Any[])
+        case isa AbstractDict || continue
+        key = get(case, "name", get(case, "snapshot", get(case, "relative", "unknown")))
+        result[String(key)] = case
+    end
+    return result
+end
+
+function _controller_trace_compare(left, right)
+    left_trace = _as_dict(get(left, "current_law_trace", nothing))
+    right_trace = _as_dict(get(right, "current_law_trace", nothing))
+    pair(name) = Dict(
+        "left" => get(left_trace, name, nothing),
+        "right" => get(right_trace, name, nothing),
+    )
+    numeric_pair(name) = begin
+        left_value = get(left_trace, name, nothing)
+        right_value = get(right_trace, name, nothing)
+        Dict(
+            "left" => left_value,
+            "right" => right_value,
+            "delta_right_minus_left" => _delta(left_value, right_value),
+        )
+    end
+    function registry_view(trace)
+        crosswalk = _as_dict(get(trace,
+            "controller_curve_violation_registry_crosswalk", nothing))
+        status_counts = Dict{String,Int}()
+        components_by_status = Dict{String,Vector{String}}()
+        for (component, raw_entry) in crosswalk
+            entry = _as_dict(raw_entry)
+            status = String(get(entry, "status", "unknown"))
+            status_counts[status] = get(status_counts, status, 0) + 1
+            push!(get!(components_by_status, status, String[]), String(component))
+        end
+        for components in values(components_by_status)
+            sort!(components)
+        end
+        return Dict{String,Any}(
+            "available" => !isempty(crosswalk),
+            "status_counts" => status_counts,
+            "components_by_status" => components_by_status,
+            "crosswalk" => crosswalk,
+        )
+    end
+    return Dict{String,Any}(
+        "available" => pair("available"),
+        "snapshot_count" => numeric_pair("controller_curve_snapshot_count"),
+        "observation_count" => numeric_pair("controller_curve_observation_count"),
+        "family_counts" => pair("controller_curve_family_counts"),
+        "status_counts" => pair("controller_curve_status_counts"),
+        "monitor_semantics_counts" => pair("controller_curve_monitor_semantics_counts"),
+        "status_changes" => numeric_pair("controller_curve_status_changes"),
+        "coverage_changes" => numeric_pair("controller_curve_coverage_changes"),
+        "slope_changes" => numeric_pair("controller_curve_slope_changes"),
+        "finding_codes" => pair("finding_codes"),
+        "local_slope" => pair("controller_curve_local_slope"),
+        "breakpoint_distance" => pair("controller_curve_breakpoint_distance"),
+        "absolute_equation_residual" => pair("controller_curve_absolute_equation_residual"),
+        "snapshot_metrics" => pair("controller_curve_snapshot_metrics"),
+        "transition_metrics" => pair("controller_curve_transition_metrics"),
+        "equation_residual_violation_counts" => pair(
+            "controller_curve_equation_residual_violation_count",
+        ),
+        "cap_violation_counts" => pair("controller_curve_cap_violation_count"),
+        "equation_residual_violation_components" => pair(
+            "controller_curve_equation_residual_violation_components",
+        ),
+        "cap_violation_components" => pair(
+            "controller_curve_cap_violation_components",
+        ),
+        "violation_registry_crosswalk" => pair(
+            "controller_curve_violation_registry_crosswalk",
+        ),
+        "violation_registry" => Dict(
+            "left" => registry_view(left_trace),
+            "right" => registry_view(right_trace),
+        ),
+    )
 end
 
 function _compare_case(left, right)
@@ -66,6 +144,7 @@ function _compare_case(left, right)
             "final_dual_infeasibility" => Dict("left" => get(left_trace, "final_dual_infeasibility", nothing), "right" => get(right_trace, "final_dual_infeasibility", nothing)),
             "phase_counts" => Dict("left" => get(left_trace, "phase_counts", Dict()), "right" => get(right_trace, "phase_counts", Dict())),
         ),
+        "controller_curve_trace" => _controller_trace_compare(left, right),
         "solver_log" => Dict(
             "available" => Dict(
                 "left" => get(left, "solver_log_available", false),

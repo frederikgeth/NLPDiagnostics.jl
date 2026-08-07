@@ -416,6 +416,10 @@ function main()
                         ),
                     )
                 evaluation = profile_run.result.profile.evaluation
+                profile_data["bmopf_constraint_semantic_rows"] =
+                    NLPDiagnostics.bmopf_constraint_semantic_row_map(
+                        profile_run.context, evaluation,
+                    )
                 variables = length(evaluation.point.variables)
                 rows = length(evaluation.constraint_sources)
                 findings = sum(length(report["findings"]) for report in values(profile_data["profile"]["reports"]))

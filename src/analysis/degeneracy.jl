@@ -885,16 +885,54 @@ function _expected_nullspace_mode_findings(
     for mode in modes
         direction = zeros(T, length(comparison.free_variable_columns))
         unavailable_variables = Int[]
+        aligned_variable_count = 0
+        unavailable_coefficient_squared = zero(T)
+        aligned_coefficient_squared = zero(T)
         for (variable, coefficient) in zip(mode.variables, mode.direction)
             column = get(point_columns, variable, 0)
             local_column = get(local_columns, column, 0)
             if iszero(local_column)
                 push!(unavailable_variables, variable.value)
+                unavailable_coefficient_squared += convert(T, coefficient)^2
             else
                 direction[local_column] += convert(T, coefficient)
+                aligned_variable_count += 1
+                aligned_coefficient_squared += convert(T, coefficient)^2
             end
         end
         if !isempty(unavailable_variables) || iszero(norm(direction))
+            total_coefficient_norm = sqrt(
+                max(zero(T), aligned_coefficient_squared + unavailable_coefficient_squared),
+            )
+            aligned_fraction = iszero(total_coefficient_norm) ? zero(T) :
+                               sqrt(aligned_coefficient_squared) / total_coefficient_norm
+            if !isempty(unavailable_variables) && !iszero(norm(direction))
+                push!(
+                    findings,
+                    Finding(
+                        :expected_nullspace_mode_partial_alignment;
+                        severity = SeverityInfo,
+                        domain = RepresentationalIssue,
+                        basis = StructuralProof,
+                        confidence = ConfidenceCertain,
+                        observation = "Expected nullspace mode :$(mode.name) retains $(aligned_variable_count) aligned variable component(s), while $(length(unavailable_variables)) component(s) lie outside the free-coordinate scope.",
+                        why_it_matters = "The projected direction can be inspected, but dropping non-free components changes the declared mode and must not be treated as an observed physical gauge.",
+                        evidence = [Evidence("Partial expected-nullspace alignment"; details = [
+                            "mode" => mode.name,
+                            "aligned_variable_count" => aligned_variable_count,
+                            "unaligned_variable_count" => length(unavailable_variables),
+                            "unaligned_variable_indices" => join(unavailable_variables, ","),
+                            "aligned_coefficient_fraction" => aligned_fraction,
+                            "aligned_coefficient_norm" => sqrt(aligned_coefficient_squared),
+                            "unaligned_coefficient_norm" => sqrt(unavailable_coefficient_squared),
+                        ])],
+                        suggested_actions = [
+                            "Inspect the terminal-to-model map and fixed-coordinate declarations before comparing the projected direction.",
+                            "Only compare the full declared mode after all of its coordinates are represented in the free model scope.",
+                        ],
+                    ),
+                )
+            end
             push!(
                 findings,
                 Finding(
@@ -908,6 +946,9 @@ function _expected_nullspace_mode_findings(
                     evidence = [Evidence("Expected nullspace alignment"; details = [
                         "mode" => mode.name,
                         "unaligned_variable_indices" => join(unavailable_variables, ","),
+                        "aligned_variable_count" => aligned_variable_count,
+                        "unaligned_variable_count" => length(unavailable_variables),
+                        "aligned_coefficient_fraction" => aligned_fraction,
                     ])],
                     suggested_actions = [
                         "Declare the mode in free evaluation-point coordinates or provide plugin-specific alignment logic.",

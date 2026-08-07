@@ -370,11 +370,14 @@ function analyze_iterative_right_nullspace_probe(
     scale = max(one(T), something(scale_summary.largest_finite_row_norm, zero(T)))
     report.metadata[:iterative_probe_residual_scale] = string(scale)
     report.metadata[:iterative_probe_residual_norms] = join(probe.residual_norms, ",")
+    report.metadata[:iterative_probe_matrix_norm] = string(probe.matrix_norm)
+    report.metadata[:iterative_probe_relative_residual_norms] =
+        join(probe.relative_residual_norms, ",")
     reported = 0
     for column in axes(probe.directions, 2)
         direction = view(probe.directions, :, column)
         residual = probe.residual_norms[column]
-        relative_residual = residual / scale
+        relative_residual = probe.relative_residual_norms[column]
         relative_residual <= residual_tolerance || continue
         magnitude = maximum(abs, direction; init = zero(T))
         support = iszero(magnitude) ? Int[] :
@@ -389,6 +392,8 @@ function analyze_iterative_right_nullspace_probe(
             evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse candidate direction"; details = [
                 "direction" => column, "residual_norm" => residual,
                 "residual_scale" => scale, "relative_residual" => relative_residual,
+                "matrix_norm" => probe.matrix_norm,
+                "relative_residual_definition" => "norm(J*v)/(norm(J)*norm(v))",
                 "relative_tolerance" => residual_tolerance,
                 "iterations" => probe.iterations, "converged" => probe.converged,
                 "support_variables" => join((variable.value for variable in variables), ","),
@@ -408,6 +413,8 @@ function analyze_iterative_right_nullspace_probe(
             why_it_matters = "This does not establish local full rank: the finite probe budget and initial subspace can miss small directions.",
             evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse probe residuals"; details = [
                 "residual_norms" => join(probe.residual_norms, ","), "residual_scale" => scale,
+                "matrix_norm" => probe.matrix_norm,
+                "relative_residual_norms" => join(probe.relative_residual_norms, ","),
                 "relative_tolerance" => residual_tolerance, "converged" => probe.converged,
             ])],
             suggested_actions = ["Increase the explicit probe dimension or iteration budget, or use guarded dense rank analysis when feasible."],
@@ -471,11 +478,14 @@ function analyze_iterative_left_nullspace_probe(
     scale = max(one(T), something(scale_summary.largest_finite_column_norm, zero(T)))
     report.metadata[:iterative_left_probe_residual_scale] = string(scale)
     report.metadata[:iterative_left_probe_residual_norms] = join(probe.residual_norms, ",")
+    report.metadata[:iterative_left_probe_matrix_norm] = string(probe.matrix_norm)
+    report.metadata[:iterative_left_probe_relative_residual_norms] =
+        join(probe.relative_residual_norms, ",")
     reported = 0
     for column in axes(probe.directions, 2)
         direction = view(probe.directions, :, column)
         residual = probe.residual_norms[column]
-        relative_residual = residual / scale
+        relative_residual = probe.relative_residual_norms[column]
         relative_residual <= residual_tolerance || continue
         magnitude = maximum(abs, direction; init = zero(T))
         support = iszero(magnitude) ? Int[] :
@@ -490,6 +500,8 @@ function analyze_iterative_left_nullspace_probe(
             evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse candidate left direction"; details = [
                 "direction" => column, "residual_norm" => residual,
                 "residual_scale" => scale, "relative_residual" => relative_residual,
+                "matrix_norm" => probe.matrix_norm,
+                "relative_residual_definition" => "norm(J'*u)/(norm(J)*norm(u))",
                 "relative_tolerance" => residual_tolerance,
                 "iterations" => probe.iterations, "converged" => probe.converged,
                 "support_constraints" => join((constraint.index for constraint in constraints), ","),
@@ -509,6 +521,8 @@ function analyze_iterative_left_nullspace_probe(
             why_it_matters = "This does not establish local row independence: the finite probe budget and initial subspace can miss small directions.",
             evidence = [_point_evidence(evaluation.point), Evidence("Iterative sparse left probe residuals"; details = [
                 "residual_norms" => join(probe.residual_norms, ","), "residual_scale" => scale,
+                "matrix_norm" => probe.matrix_norm,
+                "relative_residual_norms" => join(probe.relative_residual_norms, ","),
                 "relative_tolerance" => residual_tolerance, "converged" => probe.converged,
             ])],
             suggested_actions = ["Increase the explicit probe dimension or iteration budget, or use guarded dense left-nullspace analysis when feasible."],
@@ -816,8 +830,7 @@ function _iterative_probe_persistence_report(
     for index in available_indices
         probe = probes[index]
         evaluation = evaluations[index]
-        scale = _iterative_probe_persistence_scale(evaluation, side)
-        retained = findall(residual -> residual / scale <= tolerance, probe.residual_norms)
+        retained = findall(residual -> residual <= tolerance, probe.relative_residual_norms)
         push!(candidate_subspaces, probe.directions[:, retained])
         push!(dimensions, length(retained))
         push!(converged, probe.converged)
@@ -1582,6 +1595,9 @@ function _rank_evidence(estimate::JacobianRankEstimate)
             "left_nullity" => estimate.left_nullity,
             "right_nullity" => estimate.right_nullity,
             "relative_tolerance" => estimate.relative_tolerance,
+            "policy_absolute_tolerance" => estimate.policy.absolute_tolerance,
+            "policy_matrix_norm" => estimate.policy.matrix_norm,
+            "policy_provenance" => estimate.policy.provenance,
             "absolute_threshold" => estimate.absolute_threshold,
             "largest_singular_value" => singular_maximum,
             "smallest_singular_value" => singular_minimum,
@@ -1647,7 +1663,20 @@ function _rank_findings(
                 basis = NumericalObservation, confidence = ConfidenceMedium,
                 observation = "Sparse QR estimates local Jacobian rank $(sparse_qr.rank), below maximum rank $(min(sparse_qr.rows, sparse_qr.columns)).",
                 why_it_matters = "This numerical pivot estimate complements the structural pattern bound but does not provide singular values or null vectors.",
-                evidence = [_point_evidence(evaluation.point), Evidence("Sparse QR diagonal pivots"; details = ["rank" => sparse_qr.rank, "threshold" => sparse_qr.absolute_threshold, "relative_tolerance" => sparse_qr.relative_tolerance, "pivot_count" => length(sparse_qr.diagonal_pivots)])],
+                evidence = [_point_evidence(evaluation.point), Evidence("Sparse QR diagonal pivots"; details = [
+                    "method" => sparse_qr.method,
+                    "rank" => sparse_qr.rank,
+                    "threshold" => sparse_qr.absolute_threshold,
+                    "relative_tolerance" => sparse_qr.relative_tolerance,
+                    "absolute_tolerance" => sparse_qr.policy.absolute_tolerance,
+                    "pivot_count" => length(sparse_qr.diagonal_pivots),
+                    "matrix_norm" => sparse_qr.matrix_norm,
+                    "matrix_norm_kind" => sparse_qr.policy.matrix_norm,
+                    "row_permutation" => join(sparse_qr.row_permutation, ","),
+                    "column_permutation" => join(sparse_qr.column_permutation, ","),
+                    "factorization_relative_residual" => sparse_qr.factorization_relative_residual,
+                    "factorization_residual_reason" => sparse_qr.factorization_residual_reason,
+                ])],
                 suggested_actions = ["Inspect sparse-QR pivots and, where feasible, confirm with guarded dense SVD or iterative methods."],
                 affected = affected,
             ))
@@ -1809,6 +1838,8 @@ function _dense_sparse_qr_rank_crosscheck_findings(
             "scaled_agree" => scaled_agree,
             "dense_relative_tolerance" => dense.relative_tolerance,
             "sparse_qr_relative_tolerance" => sparse.relative_tolerance,
+            "sparse_qr_absolute_tolerance" => sparse.policy.absolute_tolerance,
+            "sparse_qr_factorization_relative_residual" => sparse.factorization_relative_residual,
         ])],
         affected = affected,
         suggested_actions = agreement ?
@@ -2089,6 +2120,8 @@ function _analyze_numerical_evaluation(
     strict_domain_proximity_threshold::Union{Nothing,Real} = nothing,
     rank_relative_tolerance::Real =
         max(length(evaluation.point.variables), 1) * eps(T),
+    rank_absolute_tolerance::Real = zero(T),
+    rank_matrix_norm::Symbol = :frobenius,
     rank_max_dense_entries::Integer = 4_000_000,
     jacobian_condition_threshold::Real = 1.0e10,
     component_scale_mismatch_factor::Real = 1.0e3,
@@ -2105,23 +2138,35 @@ function _analyze_numerical_evaluation(
         evaluation;
         scaling = :none,
         relative_tolerance = rank_relative_tolerance,
+        absolute_tolerance = rank_absolute_tolerance,
+        matrix_norm = rank_matrix_norm,
         max_dense_entries = rank_max_dense_entries,
+        provenance = :analyze_numerical,
     )
     scaled_rank = jacobian_rank_estimate(
         evaluation;
         scaling = :row_column,
         relative_tolerance = rank_relative_tolerance,
+        absolute_tolerance = rank_absolute_tolerance,
+        matrix_norm = rank_matrix_norm,
         max_dense_entries = rank_max_dense_entries,
+        provenance = :analyze_numerical,
     )
     sparse_pattern = sparse_jacobian_pattern_estimate(evaluation)
     sparse_qr = sparse_qr_rank_estimate(
         evaluation;
         relative_tolerance = rank_relative_tolerance,
+        absolute_tolerance = rank_absolute_tolerance,
+        matrix_norm = rank_matrix_norm,
+        provenance = :analyze_numerical,
     )
     scaled_sparse_qr = sparse_qr_rank_estimate(
         evaluation;
         relative_tolerance = rank_relative_tolerance,
+        absolute_tolerance = rank_absolute_tolerance,
         scaling = :row_column,
+        matrix_norm = rank_matrix_norm,
+        provenance = :analyze_numerical,
     )
     model_snapshot = snapshot(model)
     report = DiagnosticReport()
@@ -2223,6 +2268,14 @@ function _analyze_numerical_evaluation(
     report.metadata[:jacobian_rank] = string(unscaled_rank.rank)
     report.metadata[:jacobian_rank_scaling] = string(unscaled_rank.scaling)
     report.metadata[:jacobian_rank_available] = string(unscaled_rank.available)
+    report.metadata[:jacobian_rank_relative_tolerance] =
+        string(unscaled_rank.policy.relative_tolerance)
+    report.metadata[:jacobian_rank_absolute_tolerance] =
+        string(unscaled_rank.policy.absolute_tolerance)
+    report.metadata[:jacobian_rank_matrix_norm_kind] =
+        string(unscaled_rank.policy.matrix_norm)
+    report.metadata[:jacobian_rank_policy_provenance] =
+        string(unscaled_rank.policy.provenance)
     report.metadata[:sparse_jacobian_pattern_available] =
         string(sparse_pattern.available)
     report.metadata[:sparse_jacobian_pattern_rank_upper_bound] =
@@ -2232,6 +2285,18 @@ function _analyze_numerical_evaluation(
     report.metadata[:sparse_qr_rank_scaling] = string(sparse_qr.scaling)
     report.metadata[:sparse_qr_row_column_rank] = string(scaled_sparse_qr.rank)
     report.metadata[:sparse_qr_condition_proxy] = string(sparse_qr.condition_proxy)
+    report.metadata[:sparse_qr_method] = string(sparse_qr.method)
+    report.metadata[:sparse_qr_absolute_tolerance] =
+        string(sparse_qr.policy.absolute_tolerance)
+    report.metadata[:sparse_qr_matrix_norm_kind] = string(sparse_qr.policy.matrix_norm)
+    report.metadata[:sparse_qr_matrix_norm] = string(sparse_qr.matrix_norm)
+    report.metadata[:sparse_qr_row_permutation] = join(sparse_qr.row_permutation, ",")
+    report.metadata[:sparse_qr_column_permutation] =
+        join(sparse_qr.column_permutation, ",")
+    report.metadata[:sparse_qr_factorization_relative_residual] =
+        string(sparse_qr.factorization_relative_residual)
+    report.metadata[:sparse_qr_factorization_residual_reason] =
+        string(sparse_qr.factorization_residual_reason)
     report.metadata[:dense_sparse_qr_unscaled_rank_agree] = string(
         unscaled_rank.available && sparse_qr.available &&
         unscaled_rank.rank == sparse_qr.rank,

@@ -118,6 +118,7 @@ function main()
     aggregate_integrity = Dict{String,Int}()
     integrity_error_cases = 0
     integrity_warning_cases = 0
+    source_schema_warning_count = 0
     integrity_finding_cases = 0
     dense_eligible_cases = 0
     dense_skipped_cases = 0
@@ -191,11 +192,13 @@ function main()
             warnings = Int(get(preflight, "warning_count", 0))
             integrity_error_cases += errors > 0
             integrity_warning_cases += warnings > 0
+            source_schema_warning_count += Int(get(preflight, "source_schema_warning_count", 0))
             integrity_finding_cases += Int(get(preflight, "finding_count", 0)) > 0
             summary["integrity_preflight"] = Dict(
                 "error_count" => errors,
                 "warning_count" => warnings,
                 "finding_count" => Int(get(preflight, "finding_count", 0)),
+                "source_schema_warning_count" => Int(get(preflight, "source_schema_warning_count", 0)),
                 "blocking" => Bool(get(preflight, "blocking", false)),
             )
             for finding in get(preflight, "findings", Any[])
@@ -742,6 +745,7 @@ function main()
             "cases_with_errors" => integrity_error_cases,
             "cases_with_warnings" => integrity_warning_cases,
             "cases_with_findings" => integrity_finding_cases,
+            "source_schema_warning_count" => source_schema_warning_count,
         ),
         "aggregate_integrity_finding_codes" => _sorted_counts(aggregate_integrity),
     )

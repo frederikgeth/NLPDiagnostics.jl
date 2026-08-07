@@ -100,7 +100,182 @@ function _trace_summary(trace)
 end
 
 """Summarize controller-curve persistence evidence retained beside a trace."""
-function _current_law_trace_summary(current_law_trace)
+function _finite_float(value)
+    value isa Number || return nothing
+    result = Float64(value)
+    return isfinite(result) ? result : nothing
+end
+
+function _controller_snapshot_metrics(snapshot, iteration_records)
+    snapshot isa AbstractDict || return nothing
+    observations = get(snapshot, "observations", Any[])
+    observations isa AbstractVector || (observations = Any[])
+    slopes = Float64[]
+    breakpoint_distances = Float64[]
+    residuals = Float64[]
+    equation_residual_violation_count = 0
+    cap_violation_count = 0
+    equation_residual_violation_components = Dict{String,Int}()
+    cap_violation_components = Dict{String,Int}()
+    status_counts = Dict{String,Int}()
+    semantics_counts = Dict{String,Int}()
+    for raw_observation in observations
+        observation = raw_observation isa AbstractDict ? raw_observation : Dict{String,Any}()
+        status = get(observation, "status", nothing)
+        status === nothing || begin
+            key = String(status)
+            status_counts[key] = get(status_counts, key, 0) + 1
+        end
+        semantics = get(observation, "monitor_semantics", nothing)
+        semantics === nothing || begin
+            key = String(semantics)
+            semantics_counts[key] = get(semantics_counts, key, 0) + 1
+        end
+        for (field, destination) in (
+            ("local_slope", slopes),
+            ("breakpoint_distance", breakpoint_distances),
+            ("equation_residual", residuals),
+        )
+            value = _finite_float(get(observation, field, nothing))
+            isnothing(value) || push!(destination, field == "equation_residual" ? abs(value) : value)
+        end
+        metadata = get(observation, "metadata", Dict())
+        metadata isa AbstractDict || (metadata = Dict())
+        tolerance = try
+            parse(Float64, String(get(metadata, "controller_residual_tolerance", "1.0e-6")))
+        catch
+            1.0e-6
+        end
+        residual = _finite_float(get(observation, "equation_residual", nothing))
+        component_key = join((
+            get(observation, "component_type", "unknown"),
+            get(observation, "component_id", "unknown"),
+            get(observation, "curve_family", "unknown"),
+        ), ":")
+        !isnothing(residual) && abs(residual) > tolerance && begin
+            equation_residual_violation_count += 1
+            equation_residual_violation_components[component_key] =
+                get(equation_residual_violation_components, component_key, 0) + 1
+        end
+        cap = _finite_float(get(observation, "cap_violation", nothing))
+        !isnothing(cap) && cap > tolerance && begin
+            cap_violation_count += 1
+            cap_violation_components[component_key] =
+                get(cap_violation_components, component_key, 0) + 1
+        end
+    end
+    iteration = get(snapshot, "iteration", nothing)
+    snapshot_phase = get(snapshot, "phase", nothing)
+    snapshot_segment = get(snapshot, "segment", nothing)
+    trace_record = nothing
+    for candidate in iteration_records
+        candidate_iteration = get(candidate, "iteration", nothing)
+        candidate_phase = get(candidate, "phase", nothing)
+        candidate_iteration == iteration &&
+            (isnothing(snapshot_phase) || candidate_phase == snapshot_phase) &&
+            (trace_record = candidate; break)
+    end
+    trace_record isa AbstractDict || (trace_record = Dict{String,Any}())
+    return Dict{String,Any}(
+        "iteration" => iteration,
+        "phase" => snapshot_phase,
+        "segment" => snapshot_segment,
+        "label" => get(snapshot, "label", nothing),
+        "observation_count" => length(observations),
+        "status_counts" => status_counts,
+        "monitor_semantics_counts" => semantics_counts,
+        "local_slope" => _metric_summary(slopes),
+        "breakpoint_distance" => _metric_summary(breakpoint_distances),
+        "absolute_equation_residual" => _metric_summary(residuals),
+        "equation_residual_violation_count" => equation_residual_violation_count,
+        "cap_violation_count" => cap_violation_count,
+        "equation_residual_violation_components" => equation_residual_violation_components,
+        "cap_violation_components" => cap_violation_components,
+        "solver_primal_infeasibility" => get(trace_record, "primal_infeasibility", nothing),
+        "solver_dual_infeasibility" => get(trace_record, "dual_infeasibility", nothing),
+        "solver_objective" => get(trace_record, "objective", nothing),
+        "solver_trace_phase" => get(trace_record, "phase", nothing),
+    )
+end
+
+function _controller_snapshot_transitions(metrics)
+    transitions = Any[]
+    for index in 2:length(metrics)
+        previous = metrics[index - 1]
+        current = metrics[index]
+        function delta(metric, field)
+            left = previous[metric]
+            right = current[metric]
+            left isa AbstractDict && (left = get(left, field, nothing))
+            right isa AbstractDict && (right = get(right, field, nothing))
+            left = _finite_float(left)
+            right = _finite_float(right)
+            return isnothing(left) || isnothing(right) ? nothing : right - left
+        end
+        push!(transitions, Dict{String,Any}(
+            "from_iteration" => get(previous, "iteration", nothing),
+            "to_iteration" => get(current, "iteration", nothing),
+            "from_phase" => get(previous, "phase", nothing),
+            "to_phase" => get(current, "phase", nothing),
+            "local_slope_mean_delta" => delta("local_slope", "mean"),
+            "breakpoint_distance_minimum_delta" => delta("breakpoint_distance", "minimum"),
+            "absolute_equation_residual_maximum_delta" => delta("absolute_equation_residual", "maximum"),
+            "solver_primal_infeasibility_delta" => delta("solver_primal_infeasibility", ""),
+            "solver_dual_infeasibility_delta" => delta("solver_dual_infeasibility", ""),
+        ))
+    end
+    return transitions
+end
+
+function _controller_violation_registry_crosswalk(residual_components,
+                                                   cap_components,
+                                                   semantic_rows)
+    components = union(keys(residual_components), keys(cap_components))
+    result = Dict{String,Any}()
+    for key in sort!(collect(components))
+        parts = split(String(key), ':'; limit = 3)
+        component_type = length(parts) >= 1 ? parts[1] : "unknown"
+        component_id = length(parts) >= 2 ? parts[2] : "unknown"
+        curve_family = length(parts) >= 3 ? parts[3] : "unknown"
+        expected_family = curve_family == "volt_var" ? "ibr_q_volt_var" :
+            curve_family == "volt_watt" ? "ibr_p_volt_watt" : "unknown"
+        matching_rows = String[]
+        registered_rows = String[]
+        if semantic_rows isa AbstractDict
+            for (row, raw_descriptor) in semantic_rows
+                descriptor = raw_descriptor isa AbstractDict ? raw_descriptor : Dict{String,Any}()
+                family = String(get(descriptor, "constraint_family", ""))
+                index = String(get(descriptor, "constraint_index", ""))
+                occursin(expected_family, family) || continue
+                occursin("\"$(component_id)\"", index) || continue
+                row_string = String(row)
+                push!(matching_rows, row_string)
+                registered = get(descriptor, "registered", false)
+                registered === true || lowercase(String(registered)) == "true" || continue
+                push!(registered_rows, row_string)
+            end
+        end
+        status = !(semantic_rows isa AbstractDict) ? "unavailable" :
+            isempty(matching_rows) ? "not_found" :
+            isempty(registered_rows) ? "unregistered" : "registered"
+        result[String(key)] = Dict{String,Any}(
+            "component_type" => component_type,
+            "component_id" => component_id,
+            "curve_family" => curve_family,
+            "expected_constraint_family" => expected_family,
+            "equation_residual_violation_count" => get(residual_components, key, 0),
+            "cap_violation_count" => get(cap_components, key, 0),
+            "matching_row_count" => length(matching_rows),
+            "matching_row_indices" => sort!(matching_rows),
+            "registered_row_indices" => sort!(registered_rows),
+            "status" => status,
+        )
+    end
+    return result
+end
+
+function _current_law_trace_summary(current_law_trace, iteration_trace = nothing,
+                                    semantic_rows = nothing)
     current_law_trace isa AbstractDict || return Dict{String,Any}(
         "available" => false,
     )
@@ -111,12 +286,27 @@ function _current_law_trace_summary(current_law_trace)
     finding_codes = _count_codes(persistence)
     controller_snapshots = get(current_law_trace, "controller_curve_snapshots", Any[])
     controller_snapshots isa AbstractVector || (controller_snapshots = Any[])
+    iteration_records = if iteration_trace isa AbstractDict
+        records = get(iteration_trace, "records", Any[])
+        records isa AbstractVector ? records : Any[]
+    else
+        Any[]
+    end
+    snapshot_metrics = Any[]
+    for snapshot in controller_snapshots
+        metrics = _controller_snapshot_metrics(snapshot, iteration_records)
+        isnothing(metrics) || push!(snapshot_metrics, metrics)
+    end
     family_counts = Dict{String,Int}()
     status_counts = Dict{String,Int}()
     semantics_counts = Dict{String,Int}()
     slopes = Float64[]
     breakpoint_distances = Float64[]
     residuals = Float64[]
+    equation_residual_violation_count = 0
+    cap_violation_count = 0
+    equation_residual_violation_components = Dict{String,Int}()
+    cap_violation_components = Dict{String,Int}()
     observation_count = 0
     for snapshot in controller_snapshots
         snapshot isa AbstractDict || continue
@@ -145,6 +335,30 @@ function _current_law_trace_summary(current_law_trace)
                 isfinite(Float64(value)) || continue
                 push!(destination, field == "equation_residual" ? abs(Float64(value)) : Float64(value))
             end
+            metadata = get(observation, "metadata", Dict())
+            metadata isa AbstractDict || (metadata = Dict())
+            tolerance = try
+                parse(Float64, String(get(metadata, "controller_residual_tolerance", "1.0e-6")))
+            catch
+                1.0e-6
+            end
+            residual = _finite_float(get(observation, "equation_residual", nothing))
+            component_key = join((
+                get(observation, "component_type", "unknown"),
+                get(observation, "component_id", "unknown"),
+                get(observation, "curve_family", "unknown"),
+            ), ":")
+            !isnothing(residual) && abs(residual) > tolerance && begin
+                equation_residual_violation_count += 1
+                equation_residual_violation_components[component_key] =
+                    get(equation_residual_violation_components, component_key, 0) + 1
+            end
+            cap = _finite_float(get(observation, "cap_violation", nothing))
+            !isnothing(cap) && cap > tolerance && begin
+                cap_violation_count += 1
+                cap_violation_components[component_key] =
+                    get(cap_violation_components, component_key, 0) + 1
+            end
         end
     end
     result = Dict{String,Any}(
@@ -170,6 +384,18 @@ function _current_law_trace_summary(current_law_trace)
         "controller_curve_local_slope" => _metric_summary(slopes),
         "controller_curve_breakpoint_distance" => _metric_summary(breakpoint_distances),
         "controller_curve_absolute_equation_residual" => _metric_summary(residuals),
+        "controller_curve_equation_residual_violation_count" => equation_residual_violation_count,
+        "controller_curve_cap_violation_count" => cap_violation_count,
+        "controller_curve_equation_residual_violation_components" => equation_residual_violation_components,
+        "controller_curve_cap_violation_components" => cap_violation_components,
+        "controller_curve_violation_registry_crosswalk" =>
+            _controller_violation_registry_crosswalk(
+                equation_residual_violation_components,
+                cap_violation_components,
+                semantic_rows,
+            ),
+        "controller_curve_snapshot_metrics" => snapshot_metrics,
+        "controller_curve_transition_metrics" => _controller_snapshot_transitions(snapshot_metrics),
     )
     return result
 end
@@ -393,6 +619,12 @@ function main()
     controller_curve_trace_family_counts = Dict{String,Int}()
     controller_curve_trace_status_counts = Dict{String,Int}()
     controller_curve_trace_semantics_counts = Dict{String,Int}()
+    controller_curve_trace_transition_metrics = Any[]
+    controller_curve_trace_equation_residual_violation_counts = Int[]
+    controller_curve_trace_cap_violation_counts = Int[]
+    controller_curve_trace_equation_residual_violation_components = Dict{String,Int}()
+    controller_curve_trace_cap_violation_components = Dict{String,Int}()
+    controller_curve_trace_violation_registry_crosswalk = Dict{String,Any}()
     iteration_counts = Int[]
     for entry in get(index, "cases", Any[])
         name = String(get(entry, "name", "unknown"))
@@ -425,12 +657,39 @@ function main()
             trace_summary = _trace_summary(trace)
             summary["trace"] = trace_summary
             controller_curve_trace = _current_law_trace_summary(
-                get(record, "current_law_trace", nothing),
+                get(record, "current_law_trace", nothing), trace,
+                get(get(record, "bmopf_profile", Dict()),
+                    "bmopf_constraint_semantic_rows", nothing),
             )
             summary["current_law_trace"] = controller_curve_trace
             if get(controller_curve_trace, "available", false)
+                transition_metrics = get(controller_curve_trace,
+                    "controller_curve_transition_metrics", Any[])
+                transition_metrics isa AbstractVector || (transition_metrics = Any[])
+                !isempty(transition_metrics) && push!(
+                    controller_curve_trace_transition_metrics,
+                    Dict("case" => name, "transitions" => transition_metrics),
+                )
                 _merge_counts!(controller_curve_trace_finding_codes,
                     get(controller_curve_trace, "finding_codes", Dict()))
+                push!(controller_curve_trace_equation_residual_violation_counts,
+                    _integer_value(get(controller_curve_trace,
+                        "controller_curve_equation_residual_violation_count", 0)))
+                push!(controller_curve_trace_cap_violation_counts,
+                    _integer_value(get(controller_curve_trace,
+                        "controller_curve_cap_violation_count", 0)))
+                _merge_counts!(controller_curve_trace_equation_residual_violation_components,
+                    get(controller_curve_trace,
+                        "controller_curve_equation_residual_violation_components", Dict()))
+                _merge_counts!(controller_curve_trace_cap_violation_components,
+                    get(controller_curve_trace,
+                        "controller_curve_cap_violation_components", Dict()))
+                for (component, crosswalk) in get(
+                    controller_curve_trace,
+                    "controller_curve_violation_registry_crosswalk", Dict(),
+                )
+                    controller_curve_trace_violation_registry_crosswalk[String(component)] = crosswalk
+                end
                 raw_observation_count = get(controller_curve_trace,
                     "controller_curve_observation_count", nothing)
                 try
@@ -577,6 +836,19 @@ function main()
         "controller_curve_trace_family_counts" => controller_curve_trace_family_counts,
         "controller_curve_trace_status_counts" => controller_curve_trace_status_counts,
         "controller_curve_trace_monitor_semantics_counts" => controller_curve_trace_semantics_counts,
+        "controller_curve_trace_transition_metrics" => controller_curve_trace_transition_metrics,
+        "controller_curve_trace_equation_residual_violation_counts" => _metric_summary(
+            controller_curve_trace_equation_residual_violation_counts,
+        ),
+        "controller_curve_trace_cap_violation_counts" => _metric_summary(
+            controller_curve_trace_cap_violation_counts,
+        ),
+        "controller_curve_trace_equation_residual_violation_components" =>
+            controller_curve_trace_equation_residual_violation_components,
+        "controller_curve_trace_cap_violation_components" =>
+            controller_curve_trace_cap_violation_components,
+        "controller_curve_trace_violation_registry_crosswalk" =>
+            controller_curve_trace_violation_registry_crosswalk,
         "failure_category_counts" => failure_category_counts,
         "solver_log_evidence_case_count" => solver_log_evidence_case_count,
         "solver_log_observation_count" => solver_log_observation_count,

@@ -41,6 +41,31 @@ function _float(value)
     end
 end
 
+function _dict(value)
+    value isa AbstractDict || return Dict{String,Any}()
+    return Dict{String,Any}(String(key) => item for (key, item) in value)
+end
+
+function _count_map(value)
+    result = Dict{String,Int}()
+    value isa AbstractDict || return result
+    for (key, item) in value
+        count = _int(item, 0)
+        count >= 0 && (result[String(key)] = count)
+    end
+    return result
+end
+
+function _metric_value(value; field = "maximum")
+    value isa AbstractDict && return _int(get(value, field, 0), 0)
+    return _int(value, 0)
+end
+
+function _metric_sample_count(value)
+    value isa AbstractDict && return max(0, _int(get(value, "sample_count", 0), 0))
+    return 0
+end
+
 function _finding(code, severity, observation, evidence; suggested_action = nothing)
     result = Dict{String,Any}(
         "code" => code,
@@ -260,6 +285,459 @@ function _validate_campaign(path, summary)
     )
 end
 
+"""Validate typed Volt-var/Volt-watt evidence without interpreting it as a score.
+
+Controller observations are deliberately treated as a separate trust gate. A
+campaign with no controller devices has *missing* coverage, not a clean result;
+proxy voltage semantics are useful but remain conditional evidence.
+"""
+function _validate_controller_report(path, report; scope = "controller_report")
+    findings = Any[]
+    observations = max(0, _int(get(report, "observation_count", 0), 0))
+    statuses = _count_map(get(report, "status_counts", Dict()))
+    semantics = _count_map(get(report, "monitor_semantics_counts", Dict()))
+    finite = get(statuses, "finite", 0)
+    nonfinite = sum(value for (key, value) in statuses
+                    if lowercase(key) in ("nonfinite", "non_finite", "nan", "infinite", "nonfinite_status"); init = 0)
+    invalid = sum(value for (key, value) in statuses
+                  if lowercase(key) in ("invalid_profile", "invalid", "undefined"); init = 0)
+    exact = get(semantics, "exact_public_monitored_voltage", 0)
+    proxy = get(semantics, "terminal_pair_magnitude_proxy", 0)
+    unknown_semantics = max(0, observations - exact - proxy)
+    equation_residual_violations = _int(
+        get(report, "equation_residual_violation_count", 0), 0,
+    )
+    cap_violations = _int(get(report, "cap_violation_count", 0), 0)
+    registry = get(report, "semantic_row_registry", Dict())
+    registry isa AbstractDict || (registry = Dict())
+    registry_status = String(get(registry, "status", "unavailable"))
+    unmatched_registry = _int(get(registry, "unmatched_violation_count", 0), 0)
+
+    observations == 0 && push!(findings, _finding(
+        "controller_curve_coverage_missing", "warning",
+        "No typed controller-curve observations were retained for this report.",
+        Dict("scope" => scope, "observation_count" => observations,
+             "report_path" => path);
+        suggested_action = "Confirm that the selected case contains controller devices and that operating-point capture was enabled."
+    ))
+    nonfinite > 0 && push!(findings, _finding(
+        "controller_curve_nonfinite_observations", "error",
+        "Some controller-curve observations have non-finite numerical status.",
+        Dict("scope" => scope, "nonfinite_observation_count" => nonfinite,
+             "status_counts" => statuses);
+        suggested_action = "Inspect the associated operating point and curve parameters before trusting derivative or solver-trace interpretations."
+    ))
+    invalid > 0 && push!(findings, _finding(
+        "controller_curve_invalid_profiles", "warning",
+        "Some controller curves were classified as invalid profiles.",
+        Dict("scope" => scope, "invalid_profile_count" => invalid,
+             "status_counts" => statuses);
+        suggested_action = "Check breakpoint ordering, smoothing parameters, and device-base metadata."
+    ))
+    proxy > 0 && push!(findings, _finding(
+        "controller_curve_proxy_monitoring", "warning",
+        "Some controller observations use a terminal-pair voltage proxy rather than an exact public monitored-voltage field.",
+        Dict("scope" => scope, "proxy_observation_count" => proxy,
+             "exact_observation_count" => exact, "monitor_semantics_counts" => semantics);
+        suggested_action = "Use proxy observations for numerical triage only until the public monitored-voltage mapping is verified."
+    ))
+    unknown_semantics > 0 && push!(findings, _finding(
+        "controller_curve_monitor_coverage_unknown", "warning",
+        "Some controller observations do not declare their voltage-monitor semantics.",
+        Dict("scope" => scope, "unknown_semantics_count" => unknown_semantics,
+             "monitor_semantics_counts" => semantics);
+        suggested_action = "Regenerate the report with the typed controller observation schema."
+    ))
+    finite < observations && observations > 0 && nonfinite == 0 && push!(findings, _finding(
+        "controller_curve_status_coverage_incomplete", "warning",
+        "Not every retained controller observation has finite status.",
+        Dict("scope" => scope, "observation_count" => observations,
+             "finite_observation_count" => finite, "status_counts" => statuses);
+        suggested_action = "Treat controller evidence as conditional until every observation has an explicit finite or diagnosed status."
+    ))
+    equation_residual_violations > 0 && push!(findings, _finding(
+        "controller_curve_equation_residuals_exceed_tolerance", "warning",
+        "Some device-level Volt-var equation residuals exceed the declared controller tolerance.",
+        Dict("scope" => scope,
+             "equation_residual_violation_count" => equation_residual_violations,
+             "affected_components" => get(report,
+                 "equation_residual_violation_components", Dict()),
+             "residual_tolerance" => get(report, "residual_tolerance", nothing));
+        suggested_action = "Inspect the affected device and exact constraint metadata before interpreting the controller slope or solver residual."
+    ))
+    cap_violations > 0 && push!(findings, _finding(
+        "controller_curve_cap_violations", "warning",
+        "Some device-level Volt-watt cap residuals are positive beyond the configured tolerance.",
+        Dict("scope" => scope, "cap_violation_count" => cap_violations,
+             "affected_components" => get(report, "cap_violation_components", Dict()),
+             "residual_tolerance" => get(report, "residual_tolerance", nothing));
+        suggested_action = "Inspect the affected device's active-power base, cap reference, and registered Volt-watt inequality."
+    ))
+    observations > 0 && registry_status == "unavailable" && push!(findings, _finding(
+        "controller_curve_registry_unavailable", "warning",
+        "Controller observations are present but no semantic-row registry was retained.",
+        Dict("scope" => scope, "observation_count" => observations);
+        suggested_action = "Regenerate the persistence/profile campaign with BMOPFTools semantic-row capture enabled."
+    ))
+    unmatched_registry > 0 && push!(findings, _finding(
+        "controller_curve_registry_boundary", "warning",
+        "Some controller residuals do not match a registered semantic row.",
+        Dict("scope" => scope, "unmatched_violation_count" => unmatched_registry,
+             "components_by_status" => get(registry, "components_by_status", Dict()));
+        suggested_action = "Inspect the affected device/family crosswalk before assigning physical meaning to the residual."
+    ))
+
+    readiness = Dict{String,Any}(
+        "observations_available" => observations > 0,
+        "finite_observations" => observations > 0 && nonfinite == 0 && finite == observations,
+        "exact_monitor_coverage" => observations > 0 && exact == observations,
+        "proxy_monitoring_only" => observations > 0 && proxy == observations,
+        "invalid_profiles_absent" => invalid == 0,
+    )
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "scope" => scope,
+        "observation_count" => observations,
+        "status_counts" => statuses,
+        "monitor_semantics_counts" => semantics,
+        "equation_residual_violation_count" => equation_residual_violations,
+        "cap_violation_count" => cap_violations,
+        "semantic_row_registry" => registry,
+        "equation_residual_violation_components" => get(report,
+            "equation_residual_violation_components", Dict()),
+        "cap_violation_components" => get(report,
+            "cap_violation_components", Dict()),
+        "readiness" => readiness,
+        "findings" => findings,
+    )
+end
+
+function _validate_controller_campaign(path, summary)
+    findings = Any[]
+    reports = get(summary, "reports", Any[])
+    reports isa AbstractVector || (reports = Any[])
+    report_views = Any[]
+    for (index, raw_report) in enumerate(reports)
+        report = raw_report isa AbstractDict ? raw_report : Dict{String,Any}()
+        view = _validate_controller_report(path, report; scope = "report_$index")
+        push!(report_views, view)
+        append!(findings, view["findings"])
+    end
+    isempty(reports) && push!(findings, _finding(
+        "controller_curve_campaign_empty", "warning",
+        "The controller campaign summary contains no report records.",
+        Dict("summary_path" => path);
+        suggested_action = "Provide at least one saved-result or trace report with typed controller snapshots."
+    ))
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "report_count" => length(reports),
+        "reports" => report_views,
+        "readiness" => Dict(
+            "controller_curve_observations" => !isempty(reports) && all(
+                get(get(view, "readiness", Dict()), "observations_available", false)
+                for view in report_views),
+            "controller_curve_finite_observations" => !isempty(reports) && all(
+                get(get(view, "readiness", Dict()), "finite_observations", false)
+                for view in report_views),
+            "controller_curve_exact_monitor_coverage" => !isempty(reports) && all(
+                get(get(view, "readiness", Dict()), "exact_monitor_coverage", false)
+                for view in report_views),
+        ),
+        "findings" => findings,
+    )
+end
+
+function _controller_snapshot_summary(summary)
+    observations = 0
+    statuses = Dict{String,Int}()
+    semantics = Dict{String,Int}()
+    equation_residual_violations = 0
+    cap_violations = 0
+    snapshots = get(summary, "controller_curve_snapshots", Any[])
+    snapshots isa AbstractVector || (snapshots = Any[])
+    for raw_snapshot in snapshots
+        snapshot = raw_snapshot isa AbstractDict ? raw_snapshot : Dict{String,Any}()
+        raw_observations = get(snapshot, "observations", Any[])
+        raw_observations isa AbstractVector || continue
+        for raw_observation in raw_observations
+            observation = raw_observation isa AbstractDict ? raw_observation : Dict{String,Any}()
+            observations += 1
+            status = get(observation, "status", nothing)
+            status === nothing || (key = String(status); statuses[key] = get(statuses, key, 0) + 1)
+            semantics_value = get(observation, "monitor_semantics", nothing)
+            semantics_value === nothing || begin
+                key = String(semantics_value)
+                semantics[key] = get(semantics, key, 0) + 1
+            end
+            metadata = get(observation, "metadata", Dict())
+            metadata isa AbstractDict || (metadata = Dict())
+            tolerance = try
+                parse(Float64, String(get(metadata, "controller_residual_tolerance", "1.0e-6")))
+            catch
+                1.0e-6
+            end
+            residual = _float(get(observation, "equation_residual", nothing))
+            !isnothing(residual) && abs(residual) > tolerance &&
+                (equation_residual_violations += 1)
+            cap = _float(get(observation, "cap_violation", nothing))
+            !isnothing(cap) && cap > tolerance && (cap_violations += 1)
+        end
+    end
+    return Dict{String,Any}(
+        "observation_count" => observations,
+        "status_counts" => statuses,
+        "monitor_semantics_counts" => semantics,
+        "equation_residual_violation_count" => equation_residual_violations,
+        "cap_violation_count" => cap_violations,
+    )
+end
+
+function _validate_solver_trace(path, summary)
+    findings = Any[]
+    observation_summary = get(summary, "controller_curve_trace_observation_counts", nothing)
+    status_counts = _count_map(get(summary, "controller_curve_trace_status_counts", Dict()))
+    semantics = _count_map(get(summary, "controller_curve_trace_monitor_semantics_counts", Dict()))
+    observation_count = _metric_value(observation_summary; field = "maximum")
+    nonfinite = sum(value for (key, value) in status_counts
+                    if lowercase(key) in ("nonfinite", "non_finite", "nan", "infinite", "nonfinite_status"); init = 0)
+    status_changes = _metric_value(get(summary, "controller_curve_trace_status_changes", 0))
+    coverage_changes = _metric_value(get(summary, "controller_curve_trace_coverage_changes", 0))
+    slope_changes = _metric_value(get(summary, "controller_curve_trace_slope_changes", 0))
+    equation_residual_violations = _metric_value(
+        get(summary, "controller_curve_trace_equation_residual_violation_counts", 0),
+    )
+    cap_violations = _metric_value(
+        get(summary, "controller_curve_trace_cap_violation_counts", 0),
+    )
+    crosswalk = get(summary,
+        "controller_curve_trace_violation_registry_crosswalk", Dict())
+    crosswalk isa AbstractDict || (crosswalk = Dict())
+    unregistered_components = String[]
+    unavailable_components = String[]
+    for (component, raw_entry) in crosswalk
+        raw_entry isa AbstractDict || continue
+        status = String(get(raw_entry, "status", "unknown"))
+        status == "unregistered" || status == "not_found" ?
+            push!(unregistered_components, String(component)) : nothing
+        status == "unavailable" && push!(unavailable_components, String(component))
+    end
+    transition_records = get(summary, "controller_curve_trace_transition_metrics", Any[])
+    transition_records isa AbstractVector || (transition_records = Any[])
+    transitions = Any[]
+    for raw_case in transition_records
+        raw_case isa AbstractDict || continue
+        for raw_transition in get(raw_case, "transitions", Any[])
+            raw_transition isa AbstractDict && push!(transitions, raw_transition)
+        end
+    end
+    residual_aligned = count(transition ->
+        ((_float(get(transition, "local_slope_mean_delta", nothing)) !== nothing) &&
+         (_float(get(transition, "solver_primal_infeasibility_delta", nothing)) !== nothing ||
+          _float(get(transition, "solver_dual_infeasibility_delta", nothing)) !== nothing)),
+        transitions,
+    )
+    conventions = String[]
+    for raw_case in get(summary, "cases", Any[])
+        raw_case isa AbstractDict || continue
+        units = get(raw_case, "model_coordinate_units", nothing)
+        units === nothing || push!(conventions, String(units))
+    end
+    conventions = sort!(unique(conventions))
+    observation_count == 0 && push!(findings, _finding(
+        "controller_curve_trace_coverage_missing", "warning",
+        "The solver trace contains no retained typed controller observations.",
+        Dict("summary_path" => path, "observation_counts" => observation_summary);
+        suggested_action = "Enable controller operating-point capture for selected trace bindings."
+    ))
+    nonfinite > 0 && push!(findings, _finding(
+        "controller_curve_trace_nonfinite_observations", "error",
+        "The solver trace contains non-finite typed controller observations.",
+        Dict("summary_path" => path, "nonfinite_observation_count" => nonfinite,
+             "status_counts" => status_counts);
+        suggested_action = "Do not compare trace transitions until the offending operating points are diagnosed."
+    ))
+    status_changes > 0 && push!(findings, _finding(
+        "controller_curve_trace_status_transition", "warning",
+        "Controller curve status changed across solver-trace snapshots.",
+        Dict("summary_path" => path, "status_change_summary" => get(summary, "controller_curve_trace_status_changes", nothing),
+             "finding_codes" => get(summary, "controller_curve_trace_finding_codes", Dict()));
+        suggested_action = "Inspect the corresponding iteration/phase snapshots; a transition is numerical evidence, not a physical diagnosis."
+    ))
+    coverage_changes > 0 && push!(findings, _finding(
+        "controller_curve_trace_coverage_transition", "warning",
+        "Controller monitor coverage changed across solver-trace snapshots.",
+        Dict("summary_path" => path, "coverage_change_summary" => get(summary, "controller_curve_trace_coverage_changes", nothing),
+             "monitor_semantics_counts" => semantics);
+        suggested_action = "Check whether the trace crossed a device activation or mapping boundary."
+    ))
+    slope_changes > 0 && push!(findings, _finding(
+        "controller_curve_trace_slope_transition", "info",
+        "Controller local slopes changed materially across solver-trace snapshots.",
+        Dict("summary_path" => path, "slope_change_summary" => get(summary, "controller_curve_trace_slope_changes", nothing),
+             "finding_codes" => get(summary, "controller_curve_trace_finding_codes", Dict()));
+        suggested_action = "Compare slope transitions with breakpoint distance and solver residuals before attributing convergence effects."
+    ))
+    equation_residual_violations > 0 && push!(findings, _finding(
+        "controller_curve_trace_equation_residuals_exceed_tolerance", "warning",
+        "The solver trace contains device-level Volt-var residuals beyond the declared controller tolerance.",
+        Dict("summary_path" => path,
+             "equation_residual_violation_count" => equation_residual_violations,
+             "affected_components" => get(summary,
+                 "controller_curve_trace_equation_residual_violation_components", Dict()));
+        suggested_action = "Inspect the affected trace snapshots and exact device constraint metadata."
+    ))
+    cap_violations > 0 && push!(findings, _finding(
+        "controller_curve_trace_cap_violations", "warning",
+        "The solver trace contains positive Volt-watt cap residuals beyond tolerance.",
+        Dict("summary_path" => path, "cap_violation_count" => cap_violations,
+             "affected_components" => get(summary,
+                 "controller_curve_trace_cap_violation_components", Dict()));
+        suggested_action = "Check active-power bases and registered Volt-watt inequality semantics before interpreting solver behavior."
+    ))
+    !isempty(unregistered_components) && push!(findings, _finding(
+        "controller_curve_violation_registry_boundary", "warning",
+        "Some localized controller residuals do not map to a registered BMOPFTools constraint row.",
+        Dict("summary_path" => path,
+             "unregistered_or_unmatched_components" => sort!(unregistered_components),
+             "registry_crosswalk" => crosswalk);
+        suggested_action = "Extend or verify BMOPFTools constraint registrations before assigning a physical equation-level interpretation."
+    ))
+    !isempty(unavailable_components) && push!(findings, _finding(
+        "controller_curve_violation_registry_unavailable", "warning",
+        "Localized controller residuals are present, but semantic row metadata was unavailable for the trace.",
+        Dict("summary_path" => path,
+             "components" => sort!(unavailable_components));
+        suggested_action = "Retain the residual as numerical evidence and rerun with the semantic-row map enabled."
+    ))
+    !isempty(transitions) && push!(findings, _finding(
+        "controller_curve_trace_residual_alignment", "info",
+        "Controller transition records retain paired solver residual deltas for local correlation inspection.",
+        Dict("summary_path" => path, "transition_count" => length(transitions),
+             "transitions_with_slope_and_solver_residual_deltas" => residual_aligned,
+             "coordinate_conventions" => conventions);
+        suggested_action = "Inspect transition-level pairs; aligned changes are numerical association evidence, not a causal solver diagnosis."
+    ))
+    length(conventions) > 1 && push!(findings, _finding(
+        "controller_curve_trace_coordinate_conventions_mixed", "warning",
+        "A solver-trace summary mixes model coordinate conventions across cases.",
+        Dict("summary_path" => path, "model_coordinate_units" => conventions);
+        suggested_action = "Compare controller slopes and residuals only after grouping traces by coordinate convention."
+    ))
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "observation_count" => observation_count,
+        "status_counts" => status_counts,
+        "monitor_semantics_counts" => semantics,
+        "coordinate_conventions" => conventions,
+        "transition_count" => length(transitions),
+        "residual_aligned_transition_count" => residual_aligned,
+        "equation_residual_violation_count" => equation_residual_violations,
+        "cap_violation_count" => cap_violations,
+        "violation_registry_crosswalk" => crosswalk,
+        "transition_summaries" => Dict(
+            "status" => get(summary, "controller_curve_trace_status_changes", nothing),
+            "coverage" => get(summary, "controller_curve_trace_coverage_changes", nothing),
+            "slope" => get(summary, "controller_curve_trace_slope_changes", nothing),
+        ),
+        "readiness" => Dict(
+            "controller_curve_trace_observations" => observation_count > 0,
+            "controller_curve_trace_finite_observations" => observation_count > 0 && nonfinite == 0,
+        ),
+        "findings" => findings,
+    )
+end
+
+function _validate_trace_comparison(path, comparison)
+    findings = Any[]
+    records = get(comparison, "comparisons", Any[])
+    records isa AbstractVector || (records = Any[])
+    compared = 0
+    for raw_record in records
+        raw_record isa AbstractDict || continue
+        nested = get(raw_record, "comparison", Dict())
+        nested isa AbstractDict || continue
+        trace = get(nested, "controller_curve_trace", Dict())
+        trace isa AbstractDict || continue
+        compared += 1
+        available = _dict(get(trace, "available", Dict()))
+        left_available = get(available, "left", false) === true
+        right_available = get(available, "right", false) === true
+        (!left_available || !right_available) && push!(findings, _finding(
+            "controller_curve_trace_comparison_coverage_missing", "warning",
+            "A paired solver-trace comparison is missing controller observations on one side.",
+            Dict("case" => get(raw_record, "name", nothing), "available" => available);
+            suggested_action = "Compare traces only after enabling the same controller capture policy on both sides."
+        ))
+        counts = _dict(get(trace, "observation_count", Dict()))
+        left_count = _int(get(counts, "left", 0), 0)
+        right_count = _int(get(counts, "right", 0), 0)
+        left_available && right_available && left_count != right_count && push!(findings, _finding(
+            "controller_curve_trace_comparison_observation_mismatch", "warning",
+            "Paired traces retained different numbers of controller observations.",
+            Dict("case" => get(raw_record, "name", nothing), "left_count" => left_count,
+                 "right_count" => right_count);
+            suggested_action = "Align selected trace bindings before interpreting scale or transition differences."
+        ))
+        slope = _dict(get(trace, "slope_changes", Dict()))
+        coverage = _dict(get(trace, "coverage_changes", Dict()))
+        status = _dict(get(trace, "status_changes", Dict()))
+        any(_int(get(map, side, 0), 0) > 0 for map in (slope, coverage, status) for side in ("left", "right")) && push!(findings, _finding(
+            "controller_curve_trace_comparison_transition", "info",
+            "A paired solver-trace comparison contains controller status, coverage, or slope transitions.",
+            Dict("case" => get(raw_record, "name", nothing), "status_changes" => status,
+                 "coverage_changes" => coverage, "slope_changes" => slope);
+            suggested_action = "Keep transition evidence paired with coordinate-unit conventions and residual traces."
+        ))
+        registry = get(trace, "violation_registry", Dict())
+        registry isa AbstractDict || (registry = Dict())
+        registry_statuses = Dict{String,Any}()
+        registry_boundaries = Dict{String,Any}()
+        for side in ("left", "right")
+            side_view = get(registry, side, Dict())
+            side_view isa AbstractDict || (side_view = Dict())
+            registry_statuses[side] = get(side_view, "status_counts", Dict())
+            components = get(side_view, "components_by_status", Dict())
+            components isa AbstractDict || (components = Dict())
+            boundary_components = vcat(
+                get(components, "unregistered", Any[]),
+                get(components, "not_found", Any[]),
+            )
+            !isempty(boundary_components) && (registry_boundaries[side] = boundary_components)
+        end
+        left_registry = _dict(get(registry_statuses, "left", Dict()))
+        right_registry = _dict(get(registry_statuses, "right", Dict()))
+        left_registry != right_registry && push!(findings, _finding(
+            "controller_curve_trace_registry_coverage_difference", "warning",
+            "Paired traces have different controller-to-constraint registry coverage.",
+            Dict("case" => get(raw_record, "name", nothing),
+                 "left_status_counts" => left_registry,
+                 "right_status_counts" => right_registry,
+                 "boundary_components" => registry_boundaries);
+            suggested_action = "Align semantic-row registration and coordinate conventions before interpreting policy-dependent residual differences."
+        ))
+        !isempty(registry_boundaries) && push!(findings, _finding(
+            "controller_curve_trace_registry_boundary", "warning",
+            "A paired trace contains controller residuals without matching registered constraint rows.",
+            Dict("case" => get(raw_record, "name", nothing),
+                 "boundary_components" => registry_boundaries);
+            suggested_action = "Treat unmatched controller residuals as numerical evidence until the engine-side registry is extended."
+        ))
+    end
+    compared == 0 && push!(findings, _finding(
+        "controller_curve_trace_comparison_missing", "warning",
+        "The solver-trace comparison contains no controller comparison records.",
+        Dict("summary_path" => path);
+        suggested_action = "Regenerate paired traces with typed controller snapshots enabled."
+    ))
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "comparison_count" => compared,
+        "readiness" => Dict("controller_curve_trace_comparison" => compared > 0),
+        "findings" => findings,
+    )
+end
+
 function _validate_comparison(path, comparison)
     findings = Any[]
     missing = _int(get(comparison, "missing_left_case_count", 0)) +
@@ -276,6 +754,73 @@ function _validate_comparison(path, comparison)
         maximum_feasibility_delta = max(maximum_feasibility_delta, abs(delta))
         nonzero_feasibility += !iszero(delta)
     end
+    controller_cases = 0
+    controller_available_cases = 0
+    controller_coverage_mismatch = 0
+    controller_residual_delta = 0
+    controller_cap_delta = 0
+    controller_registry_unavailable = 0
+    controller_registry_boundary = 0
+    for case in cases
+        case isa AbstractDict || continue
+        left_controller = get(case, "left_controller_curve", nothing)
+        right_controller = get(case, "right_controller_curve", nothing)
+        left_controller isa AbstractDict && right_controller isa AbstractDict || continue
+        controller_cases += 1
+        (get(left_controller, "available", false) === true ||
+         get(right_controller, "available", false) === true) && (controller_available_cases += 1)
+        for key in ("observation_count", "exact_monitor_count", "proxy_monitor_count",
+                    "finite_observation_count", "nonfinite_observation_count")
+            _int(get(left_controller, key, 0)) != _int(get(right_controller, key, 0)) &&
+                (controller_coverage_mismatch += 1; break)
+        end
+        controller_residual_delta += abs(_int(get(get(case, "controller_curve_delta_right_minus_left", Dict()),
+                                                  "equation_residual_violation_count_delta_right_minus_left", 0)))
+        controller_cap_delta += abs(_int(get(get(case, "controller_curve_delta_right_minus_left", Dict()),
+                                              "cap_violation_count_delta_right_minus_left", 0)))
+        for side in ("left", "right")
+            controller = side == "left" ? left_controller : right_controller
+            registry = get(controller, "registry", Dict())
+            String(get(registry, "status", "unavailable")) == "unavailable" && (controller_registry_unavailable += 1)
+            status_counts = get(registry, "status_counts", Dict())
+            status_counts isa AbstractDict || (status_counts = Dict())
+            controller_registry_boundary += sum(_int(value, 0) for value in values(status_counts)
+                                                if _int(value, 0) > 0; init = 0)
+        end
+    end
+    controller_cases > 0 && controller_available_cases == 0 && push!(findings, _finding(
+        "saved_result_controller_coverage_missing", "warning",
+        "Paired saved-result policies contain no typed controller observations.",
+        Dict("summary_path" => path, "controller_case_count" => controller_cases);
+        suggested_action = "Regenerate the saved-result profiles with controller operating-point capture enabled."
+    ))
+    controller_cases > 0 && controller_coverage_mismatch > 0 && push!(findings, _finding(
+        "saved_result_controller_coverage_difference", "warning",
+        "Paired saved-result policies retained different controller observation coverage.",
+        Dict("summary_path" => path, "case_count" => controller_cases,
+             "coverage_mismatch_case_count" => controller_coverage_mismatch);
+        suggested_action = "Align controller capture and monitor semantics before interpreting policy-dependent residual or slope deltas."
+    ))
+    controller_cases > 0 && (controller_residual_delta > 0 || controller_cap_delta > 0) && push!(findings, _finding(
+        "saved_result_controller_violation_delta", "warning",
+        "Paired saved-result policies have different controller equation-residual or cap-violation counts.",
+        Dict("summary_path" => path, "controller_case_count" => controller_cases,
+             "absolute_residual_violation_delta" => controller_residual_delta,
+             "absolute_cap_violation_delta" => controller_cap_delta);
+        suggested_action = "Inspect per-case controller residuals, tolerances, and field-unit attribution; this is policy evidence, not a quality score."
+    ))
+    controller_registry_unavailable > 0 && push!(findings, _finding(
+        "saved_result_controller_registry_unavailable", "warning",
+        "Some saved-result controller residuals cannot be cross-referenced to semantic constraint rows.",
+        Dict("summary_path" => path, "unavailable_side_count" => controller_registry_unavailable);
+        suggested_action = "Regenerate the saved-result corpus with semantic-row capture enabled before interpreting controller residuals physically."
+    ))
+    controller_registry_boundary > 0 && push!(findings, _finding(
+        "saved_result_controller_registry_boundary", "warning",
+        "Some saved-result controller residuals have no matching registered semantic row.",
+        Dict("summary_path" => path, "unmatched_violation_count" => controller_registry_boundary);
+        suggested_action = "Inspect the affected component/family crosswalk and extend BMOPFTools registration where appropriate."
+    ))
     missing > 0 && push!(findings, _finding("paired_cases_missing", "error",
         "The paired campaigns do not cover the same snapshot set.",
         Dict("missing_case_count" => missing);
@@ -298,6 +843,181 @@ function _validate_comparison(path, comparison)
         "readiness" => Dict("paired_policy_alignment" => missing == 0 && errors == 0 && pairs > 0),
         "policy_feasibility_agreement" => nonzero_feasibility == 0,
         "nonzero_feasibility_case_count" => nonzero_feasibility,
+        "findings" => findings,
+    )
+end
+
+function _validate_policy_matrix(path, matrix)
+    findings = Any[]
+    pairs = get(matrix, "pairs", Any[])
+    pairs isa AbstractVector || (pairs = Any[])
+    provenance = get(matrix, "policy_provenance", Dict())
+    provenance isa AbstractDict || (provenance = Dict())
+    status_counts = get(provenance, "status_counts", Dict())
+    status_counts isa AbstractDict || (status_counts = Dict())
+    failed_children = sum(_int(value, 0) for (status, value) in status_counts
+                          if String(status) != "ok"; init = 0)
+    missing_indexes = get(provenance, "missing_child_indexes", Any[])
+    missing_indexes isa AbstractVector || (missing_indexes = Any[])
+    failed_children > 0 && push!(findings, _finding(
+        "policy_matrix_child_process_failed", "error",
+        "One or more policy children did not complete successfully.",
+        Dict("status_counts" => status_counts);
+        suggested_action = "Inspect child process logs and rerun failed policy children before interpreting pairwise deltas."
+    ))
+    !isempty(missing_indexes) && push!(findings, _finding(
+        "policy_matrix_child_index_missing", "warning",
+        "One or more policy children have no readable corpus index.",
+        Dict("missing_child_indexes" => missing_indexes);
+        suggested_action = "Treat the matrix as incomplete until every successful child has a case index."
+    ))
+    environments = get(provenance, "environment_fingerprints", Any[])
+    environments isa AbstractVector || (environments = Any[])
+    unique_environments = unique(filter(value -> value isa AbstractString && !isempty(value), environments))
+    length(unique_environments) > 1 && push!(findings, _finding(
+        "policy_matrix_environment_mismatch", "warning",
+        "Policy children were produced under different environment fingerprints.",
+        Dict("environment_fingerprints" => unique_environments);
+        suggested_action = "Align Julia, package, solver, and BMOPFTools revisions before attributing policy deltas to units."
+    ))
+    successful = 0
+    comparison_errors = 0
+    controller_matrix = get(matrix, "controller_curve_policy_matrix", Dict())
+    controller_matrix isa AbstractDict || (controller_matrix = Dict())
+    for pair in pairs
+        pair isa AbstractDict || continue
+        if get(pair, "status", "ok") == "comparison_error"
+            comparison_errors += 1
+            push!(findings, _finding("policy_matrix_comparison_error", "error",
+                "A saved-result policy-matrix pair could not be compared.",
+                Dict("left_policy" => get(pair, "left_policy_name", nothing),
+                     "right_policy" => get(pair, "right_policy_name", nothing),
+                     "error" => get(pair, "error", nothing))))
+            continue
+        end
+        successful += 1
+        pair_cases = get(pair, "cases", Any[])
+        pair_cases isa AbstractVector || (pair_cases = Any[])
+        local_controller = get(pair, "controller_curve_policy_matrix", Dict())
+        local_controller isa AbstractDict || continue
+        residual_delta = _int(get(get(local_controller, "aggregate_count_deltas", Dict()),
+                                  "equation_residual_violation_count_delta_right_minus_left", 0))
+        cap_delta = _int(get(get(local_controller, "aggregate_count_deltas", Dict()),
+                             "cap_violation_count_delta_right_minus_left", 0))
+        (residual_delta != 0 || cap_delta != 0) && push!(findings, _finding(
+            "policy_matrix_controller_violation_delta", "warning",
+            "A saved-result policy pair changes controller residual or cap-violation counts.",
+            Dict("left_policy" => get(pair, "left_policy_name", nothing),
+                 "right_policy" => get(pair, "right_policy_name", nothing),
+                 "equation_residual_violation_delta" => residual_delta,
+                 "cap_violation_delta" => cap_delta);
+            suggested_action = "Inspect the paired case records and tolerance metadata before treating the policy delta as a formulation effect."
+        ))
+    end
+    isempty(pairs) && push!(findings, _finding("policy_matrix_empty", "warning",
+        "The saved-result policy matrix contains no pairwise comparisons.",
+        Dict("summary_path" => path)))
+    controller_cases = _int(get(controller_matrix, "controller_observation_case_count", 0))
+    controller_cases == 0 && push!(findings, _finding("policy_matrix_controller_curve_empty", "warning",
+        "The saved-result policy matrix contains no paired controller observations.",
+        Dict("summary_path" => path);
+        suggested_action = "Regenerate policy profiles with typed controller observations enabled."
+    ))
+    registry_statuses = get(controller_matrix, "registry_status_counts", Dict())
+    registry_statuses isa AbstractDict || (registry_statuses = Dict())
+    registry_violation_statuses = get(controller_matrix, "registry_violation_status_counts", Dict())
+    registry_violation_statuses isa AbstractDict || (registry_violation_statuses = Dict())
+    unavailable_registry = _int(get(registry_statuses, "unavailable", 0), 0)
+    boundary_registry = _int(get(registry_violation_statuses, "not_found", 0), 0) +
+                        _int(get(registry_violation_statuses, "unregistered", 0), 0) +
+                        _int(get(controller_matrix, "registry_boundary_case_count", 0), 0)
+    unavailable_registry > 0 && push!(findings, _finding(
+        "policy_matrix_controller_registry_unavailable", "warning",
+        "Some saved-result policy children do not carry a semantic-row registry.",
+        Dict("registry_status_counts" => registry_statuses);
+        suggested_action = "Regenerate the policy matrix after enabling saved-result semantic-row capture."
+    ))
+    boundary_registry > 0 && push!(findings, _finding(
+        "policy_matrix_controller_registry_boundary", "warning",
+        "Some policy-matrix controller residuals are unmatched to registered semantic rows.",
+        Dict("registry_status_counts" => registry_statuses,
+             "registry_violation_status_counts" => registry_violation_statuses,
+             "registry_boundary_case_count" => get(controller_matrix, "registry_boundary_case_count", 0));
+        suggested_action = "Inspect the component/family crosswalk before assigning physical meaning to the policy delta."
+    ))
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "pair_count" => length(pairs),
+        "successful_pair_count" => successful,
+        "comparison_error_count" => comparison_errors,
+        "controller_curve_policy_matrix" => Dict(
+            "paired_case_count" => _int(get(controller_matrix, "paired_case_count", 0)),
+            "controller_observation_case_count" => controller_cases,
+            "registry_status_counts" => get(controller_matrix, "registry_status_counts", Dict()),
+            "registry_violation_status_counts" => get(controller_matrix, "registry_violation_status_counts", Dict()),
+            "registry_boundary_case_count" => get(controller_matrix, "registry_boundary_case_count", 0),
+        ),
+        "readiness" => Dict("policy_matrix_alignment" => !isempty(pairs) && comparison_errors == 0,
+                            "controller_curve_policy_matrix" => controller_cases > 0),
+        "findings" => findings,
+    )
+end
+
+function _validate_policy_matrix_manifest(path, manifest)
+    findings = Any[]
+    policies = get(manifest, "policies", Any[])
+    policies isa AbstractVector || (policies = Any[])
+    successful = 0
+    missing_indexes = 0
+    for policy in policies
+        policy isa AbstractDict || continue
+        name = get(policy, "policy", nothing)
+        status = String(get(policy, "status", "unknown"))
+        if status == "ok"
+            successful += 1
+        else
+            push!(findings, _finding("policy_matrix_child_process_failed", "error",
+                "A saved-result policy child process did not complete successfully.",
+                Dict("policy" => name, "status" => status,
+                     "process_exit_code" => get(policy, "process_exit_code", nothing),
+                     "process_timeout" => get(policy, "process_timeout", nothing));
+                suggested_action = "Inspect the child process log and rerun the affected policy before comparing policy evidence."
+            ))
+        end
+        available = get(policy, "child_index_available", false) === true
+        !available && (missing_indexes += 1)
+        !available && push!(findings, _finding("policy_matrix_child_index_missing", "warning",
+            "A policy child did not produce a readable corpus index.",
+            Dict("policy" => name, "output_directory" => get(policy, "output_directory", nothing));
+            suggested_action = "Treat the policy result as incomplete until its child index and case statuses are available."
+        ))
+        available && _int(get(policy, "child_case_count", 0), 0) == 0 && push!(findings,
+            _finding("policy_matrix_child_cases_empty", "warning",
+                "A policy child index contains no case records.",
+                Dict("policy" => name, "output_directory" => get(policy, "output_directory", nothing));
+                suggested_action = "Check case selectors and benchmark-root provenance before interpreting the matrix."
+            ))
+    end
+    fingerprints = get(manifest, "environment_fingerprints", Any[])
+    fingerprints isa AbstractVector || (fingerprints = Any[])
+    unique_fingerprints = unique(filter(value -> value isa AbstractString && !isempty(value), fingerprints))
+    length(unique_fingerprints) > 1 && push!(findings, _finding(
+        "policy_matrix_environment_mismatch", "warning",
+        "Policy children were produced under different environment fingerprints.",
+        Dict("environment_fingerprints" => unique_fingerprints);
+        suggested_action = "Align Julia, package, solver, and BMOPFTools revisions before attributing policy deltas to exported units."
+    ))
+    isempty(policies) && push!(findings, _finding("policy_matrix_policies_empty", "error",
+        "The policy-matrix manifest contains no selected policies.", Dict("summary_path" => path)))
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "policy_count" => length(policies),
+        "successful_policy_count" => successful,
+        "missing_child_index_count" => missing_indexes,
+        "environment_fingerprints" => unique_fingerprints,
+        "readiness" => Dict("policy_children_successful" => !isempty(policies) && successful == length(policies),
+                            "child_indexes_available" => !isempty(policies) && missing_indexes == 0,
+                            "environment_compatible" => length(unique_fingerprints) <= 1),
         "findings" => findings,
     )
 end
@@ -367,6 +1087,32 @@ function _validate_solver_matrix(path, matrix)
         family_readiness["matrix_available"] = enabled && variants > 0 && variant_errors == 0
         family_readiness["repeatability_observed"] = repeated_families > 0
     end
+    controller_matrix = get(matrix, "controller_curve_matrix", nothing)
+    controller_readiness = Dict{String,Any}()
+    if controller_matrix isa AbstractDict
+        paired_cases = _int(get(controller_matrix, "paired_case_count", 0), 0)
+        status_counts = get(controller_matrix, "registry_status_counts", Dict())
+        status_counts isa AbstractDict || (status_counts = Dict())
+        unmatched = get(controller_matrix, "unmatched_component_counts", Dict())
+        unmatched isa AbstractDict || (unmatched = Dict())
+        has_unmatched = any(!isempty(get(unmatched, side, Dict())) for side in ("left", "right"))
+        paired_cases == 0 && push!(findings, _finding(
+            "solver_matrix_controller_curve_empty", "warning",
+            "The solver matrix contains no paired controller-trace records.",
+            Dict("controller_curve_matrix" => controller_matrix);
+            suggested_action = "Enable typed controller snapshots for comparable solver-matrix traces."
+        ))
+        has_unmatched && push!(findings, _finding(
+            "solver_matrix_controller_registry_boundary", "warning",
+            "Some solver-matrix controller residuals have no matching registered semantic row.",
+            Dict("unmatched_component_counts" => unmatched,
+                 "registry_status_counts" => status_counts);
+            suggested_action = "Keep matrix conclusions conditional until the affected controller families are registered."
+        ))
+        controller_readiness["paired_case_count"] = paired_cases
+        controller_readiness["registry_boundary_present"] = has_unmatched
+        controller_readiness["controller_matrix_available"] = paired_cases > 0
+    end
     return Dict{String,Any}(
         "summary_path" => path,
         "solver_count" => solver_count,
@@ -379,6 +1125,183 @@ function _validate_solver_matrix(path, matrix)
             "family_perturbation_repeatability" => get(family_readiness, "repeatability_observed", false),
         ),
         "family_perturbation" => family_readiness,
+        "controller_curve_matrix" => controller_readiness,
+        "findings" => findings,
+    )
+end
+
+function _validate_multiconductor_smoke(path, summary)
+    findings = Any[]
+    readiness = get(summary, "readiness", Dict())
+    readiness isa AbstractDict || (readiness = Dict())
+    get(readiness, "all_cases_successful", false) === true || push!(findings,
+        _finding("multiconductor_smoke_incomplete", "error",
+            "The multiconductor smoke summary does not contain successful records for every selected fixture.",
+            Dict("summary_path" => path, "readiness" => readiness);
+            suggested_action = "Inspect the fixture index and rerun failed or missing multiconductor cases."))
+    get(readiness, "dense_budget_explicit", false) === true || push!(findings,
+        _finding("multiconductor_smoke_dense_budget_missing", "warning",
+            "The multiconductor smoke summary does not record an explicit dense-analysis budget.",
+            Dict("summary_path" => path);
+            suggested_action = "Record the dense rank budget before comparing fixture-level numerical evidence."))
+    get(readiness, "source_fixtures_preserved", false) === true || push!(findings,
+        _finding("multiconductor_source_snapshot_missing", "warning",
+            "The campaign does not preserve every source fixture for follow-up schema mapping.",
+            Dict("summary_path" => path,
+                 "source_snapshot_case_count" => get(get(summary, "aggregate", Dict()), "source_snapshot_case_count", 0),
+                 "successful_case_count" => get(get(summary, "aggregate", Dict()), "successful_case_count", 0));
+            suggested_action = "Rerun the smoke campaign with source snapshots preserved before interpreting schema-loss findings."))
+    get(readiness, "port_contract_available", false) === true || push!(findings,
+        _finding("multiconductor_smoke_contract_unavailable", "warning",
+            "One or more successful fixtures lack a multiconductor port contract.",
+            Dict("summary_path" => path);
+            suggested_action = "Treat port maps, constitutive maps, and physical-mode counts as incomplete."))
+    get(readiness, "integrity_preflight_clear", false) === true || push!(findings,
+        _finding("multiconductor_smoke_integrity_error", "error",
+            "The multiconductor smoke campaign contains blocking source-integrity findings.",
+            Dict("summary_path" => path);
+            suggested_action = "Resolve source/import integrity findings before interpreting physical modes."))
+    get(readiness, "physical_metadata_complete", false) === true || begin
+        aggregate = get(summary, "aggregate", Dict())
+        push!(findings, _finding(
+            "multiconductor_physical_schema_loss", "warning",
+            "Dropped source fields may change physical, device-semantic, or operating-point interpretation.",
+            Dict("summary_path" => path,
+                 "physical_metadata_warning_count" => get(aggregate, "physical_metadata_warning_count", 0),
+                 "impact_counts" => get(aggregate, "source_schema_warning_impact_counts", Dict()),
+                 "policy_status_counts" => get(aggregate, "source_schema_warning_policy_status_counts", Dict()),
+                 "field_policies" => get(aggregate, "source_schema_field_policies", Dict()),
+                 "fixture_counts" => get(aggregate, "source_schema_warning_fixture_counts", Dict()));
+            suggested_action = "Restore or explicitly account for affected source fields before treating numerical findings as physical conclusions.",
+        ))
+    end
+    get(readiness, "physical_mode_analysis_available", false) === true || push!(findings,
+        _finding("multiconductor_expected_mode_analysis_unavailable", "warning",
+            "Expected-versus-observed physical-mode analysis is not available for every successful fixture.",
+            Dict("summary_path" => path);
+            suggested_action = "Run the physical-mode analysis for every selected fixture before comparing nullspace semantics."))
+    get(readiness, "expected_observed_mode_comparison", false) === true || push!(findings,
+        _finding("multiconductor_expected_mode_comparison_unavailable", "warning",
+            "The multiconductor campaign does not have complete coordinate-aligned local numerical evidence for its declared physical modes.",
+            Dict("summary_path" => path,
+                 "physical_mode_comparison_status_counts" => get(get(summary, "aggregate", Dict()), "physical_mode_comparison_status_counts", Dict()),
+                 "partial_alignment_mode_count" => get(get(summary, "aggregate", Dict()), "partial_alignment_physical_mode_count", 0));
+            suggested_action = "Treat declared physical modes as plugin expectations; inspect coordinate alignment and dense-rank availability before calling them observed or absent."))
+    if haskey(readiness, "iterative_right_nullspace_probe") &&
+       get(readiness, "iterative_right_nullspace_probe", false) !== true
+        aggregate = get(summary, "aggregate", Dict())
+        push!(findings, _finding(
+            "multiconductor_iterative_probe_unavailable", "warning",
+            "A requested sparse iterative right-nullspace probe was unavailable for one or more fixtures.",
+            Dict("summary_path" => path,
+                 "requested_case_count" => get(aggregate, "iterative_probe_requested_case_count", 0),
+                 "available_case_count" => get(aggregate, "iterative_probe_available_case_count", 0));
+            suggested_action = "Inspect sparse Jacobian provenance and probe failure reasons before interpreting candidate directions.",
+        ))
+    end
+    aggregate = get(summary, "aggregate", Dict())
+    aggregate isa AbstractDict || (aggregate = Dict())
+    _int(get(aggregate, "source_schema_warning_count", 0)) > 0 && push!(findings,
+        _finding("multiconductor_smoke_source_schema_warning", "warning",
+            "The source loader dropped or could not represent fields in one or more fixtures.",
+            Dict("summary_path" => path,
+                 "source_schema_warning_count" => get(aggregate, "source_schema_warning_count", 0),
+                 "field_counts" => get(aggregate, "source_schema_warning_field_counts", Dict()),
+                 "scope_counts" => get(aggregate, "source_schema_warning_scope_counts", Dict()),
+                 "impact_counts" => get(aggregate, "source_schema_warning_impact_counts", Dict()),
+                 "policy_status_counts" => get(aggregate, "source_schema_warning_policy_status_counts", Dict()),
+                 "field_policies" => get(aggregate, "source_schema_field_policies", Dict()),
+                 "fixture_counts" => get(aggregate, "source_schema_warning_fixture_counts", Dict()),
+                 "message_counts" => get(aggregate, "source_schema_warning_message_counts", Dict()));
+            suggested_action = "Inspect the retained source-schema warnings before assigning physical meaning to fixture metadata."))
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "case_count" => _int(get(summary, "case_count", 0)),
+        "aggregate" => get(summary, "aggregate", Dict()),
+        "readiness" => readiness,
+        "findings" => findings,
+    )
+end
+
+function _validate_multiconductor_probe_comparison(path, summary)
+    findings = Any[]
+    readiness = get(summary, "readiness", Dict())
+    readiness isa AbstractDict || (readiness = Dict())
+    paired = _int(get(summary, "paired_case_count", 0))
+    paired == 0 && push!(findings, _finding(
+        "multiconductor_probe_comparison_empty", "warning",
+        "The iterative-probe comparison contains no paired fixtures.",
+        Dict("summary_path" => path);
+        suggested_action = "Compare summaries with explicit common fixture names."
+    ))
+    get(readiness, "paired_case_coverage", false) === true || push!(findings, _finding(
+        "multiconductor_probe_case_coverage_mismatch", "warning",
+        "The iterative-probe comparison does not cover the same fixture set on both sides.",
+        Dict("summary_path" => path);
+        suggested_action = "Treat only explicitly paired fixtures as comparable."
+    ))
+    get(readiness, "environment_compatible", false) === true || push!(findings, _finding(
+        "multiconductor_probe_environment_mismatch", "warning",
+        "The iterative-probe summaries have incompatible environment fingerprints.",
+        Dict("summary_path" => path);
+        suggested_action = "Align the package, Julia, BMOPFTools, and fixture environments before interpreting probe deltas."
+    ))
+    get(readiness, "probe_dimension_aligned", false) === true || push!(findings, _finding(
+        "multiconductor_probe_dimension_mismatch", "warning",
+        "The paired iterative probes requested different subspace dimensions.",
+        Dict("summary_path" => path);
+        suggested_action = "Keep probe dimension fixed when comparing convergence or residual changes."
+    ))
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "paired_case_count" => paired,
+        "readiness" => readiness,
+        "findings" => findings,
+    )
+end
+
+function _validate_operator_fingerprint(path, summary)
+    findings = Any[]
+    readiness = get(summary, "readiness", Dict())
+    readiness isa AbstractDict || (readiness = Dict())
+    case_count = _int(get(summary, "case_count", 0))
+    successful = _int(get(summary, "successful_case_count", 0))
+    errors = _int(get(summary, "error_case_count", 0))
+    case_count == 0 && push!(findings, _finding(
+        "operator_fingerprint_empty", "error",
+        "The operator fingerprint summary contains no cases.",
+        Dict("summary_path" => path);
+        suggested_action = "Run the deterministic operator fingerprint corpus before interpreting its aggregate findings."
+    ))
+    errors > 0 && push!(findings, _finding(
+        "operator_fingerprint_case_errors", "error",
+        "One or more operator fingerprint cases failed during analysis.",
+        Dict("case_count" => case_count, "successful_case_count" => successful,
+             "error_case_count" => errors);
+        suggested_action = "Inspect failed cases and do not treat aggregate operator evidence as complete."
+    ))
+    successful == case_count || push!(findings, _finding(
+        "operator_fingerprint_incomplete", "error",
+        "Not every selected operator fingerprint case completed successfully.",
+        Dict("case_count" => case_count, "successful_case_count" => successful);
+        suggested_action = "Rerun the missing or failed cases with the same package environment."
+    ))
+    for (stage, label) in (("static_stage_complete", "static"),
+                           ("expression_stage_complete", "expression"),
+                           ("initialization_stage_complete", "initialization"))
+        get(readiness, stage, false) === true || push!(findings, _finding(
+            "operator_fingerprint_$(label)_stage_incomplete", "warning",
+            "The operator fingerprint summary does not contain a complete $(label) stage for every successful case.",
+            Dict("summary_path" => path, "readiness" => readiness);
+            suggested_action = "Preserve all three stages before comparing operator fingerprints across models."
+        ))
+    end
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "case_count" => case_count,
+        "successful_case_count" => successful,
+        "finding_code_counts" => get(summary, "finding_code_counts", Dict()),
+        "readiness" => readiness,
         "findings" => findings,
     )
 end
@@ -561,7 +1484,14 @@ function main()
     output_path = abspath(first(ARGS))
     campaign_reports = Any[]
     comparison_reports = Any[]
+    policy_matrix_reports = Any[]
     solver_matrix_reports = Any[]
+    controller_reports = Any[]
+    solver_trace_reports = Any[]
+    trace_comparison_reports = Any[]
+    multiconductor_reports = Any[]
+    multiconductor_probe_comparisons = Any[]
+    operator_reports = Any[]
     repeat_reports = Any[]
     perturbation_corpus_reports = Any[]
     evidence_ledger_reports = Any[]
@@ -571,21 +1501,58 @@ function main()
     for raw_path in ARGS[2:end]
         path = abspath(raw_path)
         summary = _load(path)
-        if startswith(String(get(summary, "runner_version", "")), "bmopf-evidence-ledger-comparison-")
+        runner_version = String(get(summary, "runner_version", ""))
+        report_version = String(get(summary, "report_version", ""))
+        if startswith(runner_version, "bmopf-evidence-ledger-comparison-")
             report = _validate_evidence_ledger_comparison(path, summary)
             push!(evidence_ledger_comparison_reports, report)
-        elseif startswith(String(get(summary, "runner_version", "")), "bmopf-evidence-ledger-")
+        elseif startswith(runner_version, "bmopf-evidence-ledger-")
             report = _validate_evidence_ledger(path, summary)
             push!(evidence_ledger_reports, report)
-        elseif startswith(String(get(summary, "runner_version", "")), "bmopf-perturbation-corpus-")
+        elseif startswith(report_version, "bmopf-controller-campaign-summary-")
+            report = _validate_controller_campaign(path, summary)
+            push!(controller_reports, report)
+        elseif startswith(report_version, "bmopf-saved-result-persistence-") &&
+               haskey(summary, "controller_curve_snapshots")
+            controller_summary = _controller_snapshot_summary(summary)
+            report = _validate_controller_report(path, controller_summary;
+                scope = "saved_result_controller_snapshots")
+            push!(controller_reports, report)
+        elseif startswith(runner_version, "bmopf-solver-trace-")
+            report = _validate_solver_trace(path, summary)
+            push!(solver_trace_reports, report)
+        elseif haskey(summary, "comparisons") && any(
+            raw -> raw isa AbstractDict &&
+                get(raw, "comparison", nothing) isa AbstractDict &&
+                haskey(get(raw, "comparison", Dict()), "controller_curve_trace"),
+            get(summary, "comparisons", Any[]),
+        )
+            report = _validate_trace_comparison(path, summary)
+            push!(trace_comparison_reports, report)
+        elseif startswith(runner_version, "bmopf-perturbation-corpus-")
             report = _validate_perturbation_corpus(path, summary)
             push!(perturbation_corpus_reports, report)
+        elseif startswith(report_version, "bmopf-multiconductor-smoke-summary-")
+            report = _validate_multiconductor_smoke(path, summary)
+            push!(multiconductor_reports, report)
+        elseif startswith(report_version, "bmopf-multiconductor-probe-comparison-")
+            report = _validate_multiconductor_probe_comparison(path, summary)
+            push!(multiconductor_probe_comparisons, report)
+        elseif startswith(report_version, "nlpdiagnostics-operator-fingerprint-summary-")
+            report = _validate_operator_fingerprint(path, summary)
+            push!(operator_reports, report)
         elseif haskey(summary, "repeat_index") && haskey(summary, "by_pair")
             report = _validate_repeat_summary(path, summary)
             push!(repeat_reports, report)
         elseif haskey(summary, "solver_summaries") && haskey(summary, "comparisons")
             report = _validate_solver_matrix(path, summary)
             push!(solver_matrix_reports, report)
+        elseif startswith(runner_version, "bmopf-result-policy-matrix-")
+            report = _validate_policy_matrix_manifest(path, summary)
+            push!(policy_matrix_reports, report)
+        elseif startswith(report_version, "bmopf-result-policy-matrix-summary-")
+            report = _validate_policy_matrix(path, summary)
+            push!(policy_matrix_reports, report)
         elseif haskey(summary, "missing_left_case_count") || haskey(summary, "paired_case_count")
             report = _validate_comparison(path, summary)
             push!(comparison_reports, report)
@@ -613,7 +1580,14 @@ function main()
         "warning_count" => warning_count,
         "campaign_reports" => campaign_reports,
         "comparison_reports" => comparison_reports,
+        "policy_matrix_reports" => policy_matrix_reports,
         "solver_matrix_reports" => solver_matrix_reports,
+        "controller_reports" => controller_reports,
+        "solver_trace_reports" => solver_trace_reports,
+        "trace_comparison_reports" => trace_comparison_reports,
+        "multiconductor_reports" => multiconductor_reports,
+        "multiconductor_probe_comparisons" => multiconductor_probe_comparisons,
+        "operator_reports" => operator_reports,
         "perturbation_repeat_reports" => repeat_reports,
         "perturbation_corpus_reports" => perturbation_corpus_reports,
         "evidence_ledger_reports" => evidence_ledger_reports,

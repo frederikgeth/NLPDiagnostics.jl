@@ -4,6 +4,297 @@ This roadmap orders work by the evidence needed for later claims. A numerical
 or physical interpretation should not be implemented before the structural and
 evaluation layers can expose its supporting evidence.
 
+## 2026 architecture review: consolidate and calibrate
+
+The project remains correctly motivated and its main architectural decisions
+remain sound. In particular, the MOI-native core, optional solver and domain
+extensions, non-mutating default, and separation of mathematical, structural,
+numerical, local, physical, and heuristic evidence should be preserved.
+
+The project has nevertheless crossed an important phase boundary. The generic
+core and the BMOPF research extension now contain enough diagnostic breadth to
+exercise the original vision. The main risk is no longer missing features. It
+is drawing conclusions from numerical kernels, operating points, or domain
+metadata that have not yet been calibrated well enough. Until the trust gates
+below are met, NLPDiagnostics should be described as an advanced research
+prototype rather than a reference diagnostic tool.
+
+The next development phase therefore prioritizes, in order:
+
+1. numerical-kernel validation and certificates;
+2. evaluation-point and derivative provenance;
+3. solver-event correlation at captured iterates;
+4. physically labelled BMOPF calibration cases; and
+5. API, source, test, and benchmark consolidation.
+
+New finding families should be added only when they close a documented gap in
+one of these tracks and arrive with a truth-labelled calibration case.
+
+### Status at the review boundary
+
+The implementation is substantially ahead of the original milestones in
+feature breadth:
+
+- the static, expression, structural, numerical, active-set, degeneracy,
+  initialization, elastic-feasibility, and postmortem layers all have working
+  implementations;
+- Ipopt, MadNLP, PowerModels, and BMOPFTools integrations exist behind optional
+  extension boundaries;
+- the finding model consistently preserves evidence basis, confidence, issue
+  domain, affected entities, and suggested actions;
+- guarded dense analysis, sparse structural matching, sparse QR rank screens,
+  iterative null-direction probes, expected physical modes, and persistence
+  comparisons are available; and
+- the default package test suite passes 1,549 tests at this review boundary.
+
+The remaining gap is scientific validation rather than raw capability. In
+particular:
+
+- guarded dense SVD is a useful small-problem oracle, but sparse QR pivot
+  thresholds and iterative probes are not yet independently calibrated rank or
+  nullity certificates;
+- the current inverse-free small-direction iteration must never be interpreted
+  as proving a nullspace when it has not converged or lacks a residual/error
+  certificate;
+- an observed structural rank is a term-rank statement about the supplied
+  sparsity pattern, not a proof of local or algebraic rank;
+- active-set LICQ, MFCQ, multiplier, and reduced-Hessian findings remain local
+  to the selected active set, scaling, multipliers, and operating point;
+- recent BMOPFTools initialization points are incomplete for the sampled BMOPF
+  cases, while synthetic zero points are suitable only for software smoke
+  tests and must not support physical conclusions; and
+- the public and internal surface has grown large enough that further feature
+  accumulation would make review, testing, and API stabilization harder.
+
+### Trust gate A: numerical rank and nullspace calibration
+
+Treat this as the highest-priority numerical-algebra work.
+
+- Define a typed `RankPolicy` carrying absolute and relative tolerances,
+  scaling, matrix norm, backend, and provenance. Reports must expose the exact
+  policy rather than reconstruct it from loosely related metadata strings.
+- Retain dense SVD as the guarded reference backend for small matrices. Promote
+  the existing sparse `qr` path into a documented rank-revealing backend that
+  preserves column permutations, diagonal/pivot policy, residuals, and
+  conditioning evidence. Julia's SuiteSparseQR-backed factorization is the
+  preferred first backend; a different optional backend is needed only if its
+  required evidence cannot be recovered through the public interface.
+- Use MOI `:JacVec` capabilities where available so large-model probes need not
+  materialize a second Jacobian representation. Preserve whether products were
+  evaluator-provided or derived from stored sparse entries.
+- Replace or supplement the inverse-free normal-operator iteration with a
+  standard operator method built on Golub--Kahan bidiagonalization, such as
+  LSMR/LSQR or a vetted smallest-singular-triplet routine. Do not form `J'J`
+  explicitly.
+- Every candidate right mode `v` must report `norm(J*v)`, `norm(v)`, the matrix
+  norm estimate, and a dimensionless backward-error measure. Left modes must
+  report the analogous `norm(J'*u)` evidence.
+- A claimed subspace must report orthogonality loss, individual residuals,
+  principal-angle stability across repeated seeds or points, and the assumed
+  nullity. Non-convergence produces coverage evidence, not a degeneracy
+  finding.
+- Add tolerance and row/column-scaling sweeps. A mode that appears only under a
+  narrow arbitrary threshold is classified as tolerance-sensitive numerical
+  evidence.
+
+Exit criteria:
+
+- dense SVD, sparse RRQR, and operator backends agree on a curated small-matrix
+  corpus whenever their stated tolerances imply the same numerical rank;
+- disagreements are reproduced and reported as evidence rather than resolved
+  by silently choosing one backend;
+- the corpus includes exact deficiencies, nearly dependent rows and columns,
+  badly scaled full-rank matrices, rectangular systems, cancellation-induced
+  zero derivatives, clustered small singular values, and known left and right
+  nullspaces;
+- false rank-deficiency findings are measured on ill-conditioned but full-rank
+  cases; and
+- large-model runs have explicit work and memory guards and never densify an
+  unbounded BMOPF network matrix.
+
+### Trust gate B: evaluation-point and derivative provenance
+
+No numerical or physical result is more trustworthy than its evaluation point.
+
+- Make point provenance a required typed field with at least `initialization`,
+  `completed_initialization`, `solver_iterate`, `solver_result`, `perturbed`,
+  and `synthetic_smoke` categories.
+- Implement a documented initialization-completion policy that fills only
+  values justified by model bounds, plugin semantics, or an explicit user
+  policy. Never silently replace missing starts with zero.
+- Record feasibility, active-set selection, derivative source, derivative
+  fallback, scaling, and model/source hashes beside every numerical snapshot.
+- Cross-check evaluator Jacobians and Hessians against directional products or
+  finite differences on small, domain-safe calibration cases. A finite-
+  difference disagreement near a nonsmooth point or domain boundary is not by
+  itself proof that automatic derivatives are wrong.
+- Add an optional NLPModels adapter after the MOI path is stable. MOI remains
+  canonical; the adapter broadens access to solver-oriented derivative APIs,
+  counters, Jacobian-vector products, Hessian-vector products, and established
+  test models.
+
+Exit criteria:
+
+- every persisted numerical report identifies exactly how its point was
+  obtained and whether all required variables were present;
+- synthetic-zero reports cannot acquire physical confidence through a plugin;
+- the BMOPF smoke corpus has either complete physical starts or saved feasible
+  solver points for each case used in scientific comparisons; and
+- derivative cross-checks distinguish implementation defects, finite-
+  difference truncation/cancellation, nondifferentiability, and domain failure.
+
+### Trust gate C: solver-consistent local optimality and postmortem evidence
+
+The package should explain solver behaviour by correlating model evidence with
+algorithm events, not merely by parsing termination strings.
+
+- Bind captured iterates to objective, infeasibility, complementarity,
+  Jacobian rank/scaling, active-set, multiplier, and reduced-Hessian snapshots
+  when the solver exposes enough state.
+- For Ipopt, correlate restoration entry, rejected steps, barrier updates,
+  inertia correction, and Hessian regularization with the local model evidence.
+  Preserve unavailable events explicitly when the public callback/log does not
+  expose them.
+- Keep equality-tangent curvature, inferred-active-inequality curvature, and
+  solver KKT inertia as separate evidence channels. Document multiplier sign
+  conventions and the effect of objective/constraint scaling.
+- Distinguish weakly active constraints from strongly active constraints when
+  multiplier and nearby-point evidence supports that distinction. Do not turn
+  a single thresholded active-set snapshot into a global classification.
+- Construct paired formulations whose Jacobians are similarly conditioned but
+  reduced Hessians, inertia corrections, or globalization behaviour differ.
+
+Exit criteria:
+
+- at least one controlled case reproduces each of restoration caused by domain
+  or feasibility difficulty, regularization associated with poor reduced
+  curvature, derivative-check failure, and scaling-sensitive termination;
+- the report can identify what is observed directly from the solver, what is
+  recomputed by NLPDiagnostics, and what is inferred by correlation; and
+- the same formulation is profiled with at least two solver configurations so
+  formulation, derivative-evaluation, linear-solver, and globalization effects
+  are not conflated.
+
+### Trust gate D: BMOPF physical calibration
+
+BMOPF should now be used as a labelled scientific validation corpus, not merely
+as a source of increasingly many fingerprints.
+
+- Freeze a small, reviewable ladder of cases before expanding the corpus:
+  grounded and floating wye, delta circulation, missing or duplicate reference,
+  neutral island, ideal transformer redundancy, zero-impedance branch,
+  current-source cutset, voltage-source loop, sequence ambiguity, controller
+  conflict, and a stressed voltage-collapse family.
+- For every case, record the expected structural rank, expected physical
+  nullspace, parameter-dependent exceptions, admissible operating-point
+  region, and the finding codes that should and should not appear.
+- Preserve source-file hashes and transformations from asset data through
+  PowerIO/BMOPFTools to JuMP/MOI. A source-schema warning, a representational
+  transformation, a physical inconsistency, and a numerical observation must
+  remain separate facts.
+- Compare expected port/component modes with observed local modes using
+  residuals and principal angles. A name or topology match alone is not enough
+  to classify an observed numerical vector as physical.
+- Add formulation pairs such as IVR/SVR/SVP where possible, with positive-
+  sequence and deliberately poor initializations, sequence/angle constraints,
+  and multiple power bases.
+
+Exit criteria:
+
+- the labelled small corpus has reviewed expected outcomes and zero unexplained
+  high-confidence false positives;
+- perturbing a known defect changes the intended finding and leaves unrelated
+  findings stable within documented tolerance;
+- physical conclusions use complete starts or solver points, never only the
+  synthetic zero policy; and
+- dense methods are confined to explicitly small blocks while sparse/operator
+  methods handle the large cases.
+
+### Trust gate E: codebase and API consolidation
+
+This track should run in parallel with the scientific calibration work.
+
+- Split the root module, BMOPFTools extension, monolithic test file, and large
+  benchmark validator by responsibility while preserving behaviour.
+- Define a deliberately small stable API. Put low-level numerical records,
+  plugin construction hooks, benchmark machinery, and research-only probes in
+  documented advanced or experimental namespaces rather than exporting every
+  symbol from the root module.
+- Replace internal stringly typed metadata with typed records and enums where
+  the schema is controlled by NLPDiagnostics. Convert to string-keyed data only
+  at JSON/report boundaries and retain schema versions.
+- Centralize repeated benchmark parsing, policy, hashing, and summary helpers.
+- Audit broad `catch` boundaries. Expected capability failures should return a
+  typed unavailable reason; unexpected exceptions should retain exception type
+  and context and must not be silently converted to `nothing`.
+- Add CI for supported Julia versions, package tests, extension-specific
+  environments, formatting, documentation examples, and quality checks such as
+  Aqua and targeted JET runs. The default test target currently does not cover
+  the Ipopt or MadNLP extensions and must not be presented as doing so.
+- Resolve the project manifest after dependency/compatibility changes and keep
+  reproducible benchmark environments separate from the minimal package test
+  environment.
+
+Exit criteria:
+
+- package, Ipopt, MadNLP, PowerModels, and BMOPFTools test jobs have explicit
+  dependency environments and pass independently;
+- public examples are executed in CI;
+- experimental APIs and finding-code stability policy are documented;
+- no unguarded dense conversion remains on a large-model path; and
+- benchmark artifacts declare schema, package versions, source hashes, point
+  provenance, solver options, and numerical policies.
+
+### Calibration release gate
+
+After trust gates A--E, publish a first calibration report rather than adding
+another broad feature layer. It should include:
+
+- a machine-readable truth table for synthetic and BMOPF cases;
+- false-positive, false-negative, unavailable, and tolerance-sensitive counts
+  by finding family;
+- dense/sparse/operator rank agreement and residual distributions;
+- repeated-run and repeated-point stability;
+- runtime, allocation, and peak-memory scaling; and
+- case studies connecting solver events to mathematical, numerical, physical,
+  or representational causes.
+
+Only after this release gate should automatic reformulation or mutating
+presolve become a major workstream. The first version should produce a
+reversible *reformulation plan* with proof obligations, source-to-transformed
+entity mappings, and postsolve reconstruction. It must remain opt-in and must
+not weaken the package's diagnostic-first identity.
+
+### Scope discipline for the next phase
+
+Do now:
+
+- sparse RRQR and operator-product calibration;
+- complete and typed operating-point provenance;
+- solver-event/model-evidence correlation;
+- truth-labelled BMOPF cases and expected-mode validation;
+- modularization, API tiers, benchmark schemas, and extension CI.
+
+Defer:
+
+- additional domain-specific fingerprints without a failing calibration case;
+- automatic numerical scores or a single model-health grade;
+- large-corpus physical claims before the small truth corpus is reliable; and
+- automatic model modification before reversible mappings and proof
+  obligations exist.
+
+Do not do:
+
+- report an unconverged iterative candidate as a nullspace or rank result;
+- interpret a synthetic-zero smoke point as a representative operating point;
+- infer physical causation from variable names or topology alone;
+- run unguarded dense analysis on large multiconductor models; or
+- erase disagreement between structural, numerical, physical, and solver
+  evidence by collapsing them into one conclusion.
+
+The detailed sections below remain the implementation ledger. When they
+conflict with this review, the trust-gated priorities above take precedence.
+
 ## Implemented foundation
 
 - Public `MOI.ModelLike` snapshot boundary with optional direct JuMP support.
@@ -589,6 +880,11 @@ controller observations per selected iterate. A bounded four-iterate LG trace
 produced 224 exact observations across both curve families, finite statuses,
 and 21 local-slope-change findings; its maximum Volt-var equality residual was
 reported separately as iterate-feasibility evidence.
+The solver-trace comparison now aligns these controller summaries across runs.
+On matched LG traces, per-unit and model-native coordinates preserved exact
+coverage, family counts, and slope-change counts, while slope and breakpoint
+scales changed with the coordinate convention; iteration and residual deltas
+remain separate solver evidence.
 The ordinary BMOPF profile context now also carries declaration coverage and
 capability-finding counts as metadata, without flattening the standalone
 capability finding into the existing context finding set.
@@ -844,3 +1140,235 @@ families, and introduced a large-row-scale-spread finding. The changed
 iteration count and scale warning are numerical observations; the repeated
 family fingerprint is stronger evidence that the underlying degeneracy is not
 created solely by the per-unit coordinate choice.
+
+The next trust-gate increment is complete: typed controller evidence is now
+validated as its own campaign dimension and carried into the evidence ledger.
+Validation distinguishes missing controller coverage, non-finite/invalid
+observations, exact versus proxy monitored-voltage semantics, and solver-trace
+status/coverage/slope transitions. The matched 30-bus LG Ipopt traces retain
+224 finite observations on each coordinate convention and expose 21 slope
+transitions as explicit local numerical findings. This makes the benchmark
+artifacts ready for the next phase: repeated LN/LG and solver-policy profiling,
+with controller transitions correlated against residuals, coordinate units,
+and registered equation families.
+Trace summaries now retain iteration-level transition pairs: controller local
+slope, breakpoint distance, and controller equation residual changes are stored
+next to solver primal/dual infeasibility changes and trace phase. The validator
+reports how many pairs contain both controller and solver deltas, while leaving
+the interpretation explicitly associational. This is the evidence boundary
+needed before comparing larger LN/LG corpora or solver policies.
+The controller consistency layer is now implemented: persistence and trace
+summaries count device-level Volt-var equation residuals and Volt-watt cap
+violations against the declared controller tolerance, retaining affected
+component/family keys. The five-point LN/LG persistence pair has no such
+violations, while the model-native LG trace shows six Volt-var exceedances on
+six IBR curves. The next interpretation step is to compare these localized
+residuals against registered constraint rows and repeated solver-policy traces;
+they remain coordinate-conditioned numerical evidence, not a physical verdict.
+Trace-level controller violations now cross-reference the BMOPFTools semantic
+row map by device and curve family. In the model-native LG trace, two of six
+Volt-var residual-bearing curves match registered `ibr_q_volt_var` rows; four
+have no matching registered row. This establishes the next BMOPFTools
+registration/benchmark boundary while preserving the distinction between a
+numerical residual and a physical diagnosis.
+Paired trace comparisons now carry registry-coverage views for both policies.
+In the matched LG coordinate comparison, the per-unit side has no residual
+crosswalk entries, while the model-native side has two registered and four
+unmatched Volt-var curves. This makes semantic coverage a first-class policy
+comparison dimension alongside slope, breakpoint, and solver-residual changes.
+Solver-matrix summaries now aggregate the same registry crosswalk across all
+paired solver cases, preserving per-side status counts and unmatched component
+identities. This is the campaign-level boundary needed before scaling the
+comparison to broader LN/LG and solver-policy corpora.
+The saved-result policy matrix now preserves controller evidence as well:
+exact/proxy coverage, status and monitor-semantics counts, family counts,
+local slope and breakpoint-distance statistics, equation-residual exceedances,
+and cap violations are retained per case and aggregated across policy pairs.
+When a saved-result record lacks the BMOPFTools semantic-row registry, the
+matrix reports registry coverage as unavailable at this layer; it does not
+guess whether a residual maps to a physical equation. Validation and the
+evidence ledger retain these policy findings as conditional numerical
+observations.
+Persistence summaries expose the same aggregate controller fingerprint across
+time points, so policy comparisons and persistence reports now share one
+coverage/residual vocabulary before solver-trace evidence is introduced.
+The draft-corpus saved-result profile path now captures the BMOPFTools scalar
+constraint semantic-row map. New policy runs can therefore classify residual
+crosswalks as registered or unmatched; legacy records remain explicitly
+unavailable. This is the bridge from numerical controller evidence to the
+engine-side registration boundary without assigning physical causality.
+The persistence path now captures the same map from its staged context, so
+multi-point LN/LG reports can distinguish registered and unmatched controller
+residuals before policy or solver comparisons are generalized.
+Policy-matrix summaries now combine child provenance with pairwise controller
+evidence and expose readiness flags for successful children, complete indexes,
+compatible environments, paired coverage, and controller observation coverage.
+The first registry-aware 30-bus LN/LG SI-versus-PU run completed with both
+children successful, complete indexes, and one shared environment fingerprint.
+Both paired snapshots retained 56 finite exact controller observations. The PU
+side showed 28 Volt-var residual exceedances and 28 Volt-watt cap exceedances
+per snapshot, versus zero on the SI side; across the two cases, 24 violating
+observations cross-referenced registered rows and 88 were unmatched. These are
+coordinate-conditioned numerical and registry observations, not yet a causal
+claim about the export or formulation.
+The four-policy extension localizes the controller fingerprint: `pu_all_si`
+matches SI with zero controller residual/cap deltas on both snapshots, while
+`pu_bus_si` removes all LG violations and leaves five LN Volt-var residual
+exceedances (three unmatched and two registered). Plain PU retains the full
+56-residual/cap delta across the pair. This is controlled evidence that the
+broad field-unit policy, rather than bus-voltage conversion alone, removes the
+observed controller discrepancy; it remains a formulation/export hypothesis
+until field-level attribution and additional cases confirm it.
+The next four time points reinforce the pattern: `pu_all_si` again has zero
+controller deltas, while `pu_bus_si` adds 112 Volt-watt cap exceedances and 14
+Volt-var residual exceedances across LN/LG t02--t03. The residuals concentrate
+in LN t03 (14 residuals; the combined violations have eight registered and 34
+unmatched crosswalk observations),
+whereas the cap discrepancy persists on all four snapshots. Plain PU retains
+the full 28-per-snapshot residual/cap pattern. Across all six selected
+snapshots, broad field conversion remains the only tested policy matching SI
+for these controller checks.
+The paired SI/PU field-ratio report for the same snapshots shows why the
+policy matrix must remain field-aware: `line/s_through` is approximately
+1e-6 in PU/SI magnitude, while `ibr/pg`, `ibr/cri`, and `ibr/cii` are mixed
+scale families. The ratio evidence is retained beside the policy matrix; it
+does not by itself identify which exported field is wrong.
+The policy-matrix launcher now carries child-index provenance into its
+manifest: resolved unit policies, child case-status counts, environment
+fingerprints, and index availability are validated before pairwise evidence is
+trusted. This closes the process-level gap between an apparently successful
+policy child and a comparable saved-result campaign.
+The next scale-up, a four-policy matrix on one 99-bus LN and one 99-bus LG
+snapshot (dense rank disabled), completed with four successful children, a
+complete child index, and one shared environment fingerprint. `pu_all_si`
+again matched SI for controller residual/cap counts, while plain PU added 96
+residual and 96 cap violations across the pair. `pu_bus_si` removed the cap
+delta but retained 43 equation-residual violations, so bus-voltage conversion
+alone is not sufficient on this larger pair. These are repeatable numerical
+observations under the saved-result tolerance policy; the validation report
+keeps them as warnings rather than causal conclusions.
+The 99-bus registry crosswalk was available for all 24 controller snapshots,
+but 498 violating observations were unmatched and 207 matched registered
+semantic rows. That boundary is now visible in the evidence ledger and must be
+resolved or narrowed before assigning component-level physical meaning.
+The paired field-ratio report adds a scale fingerprint: `line/s_through` is
+approximately 1e-6 in PU/SI magnitude, while `ibr/pg`, `ibr/cri`, and `ibr/cii`
+remain mixed-scale; `opt_profile/min_active_multiplier` is roughly
+3.1e-3--4.5e-3 and `max_shadow_price` is about 2.0--2.4. These ratios are
+observations for attribution, not a unit-convention verdict.
+The bounded 538-bus follow-up is now complete: the timed-out `pu_all_si` child
+was rerun with a larger explicit budget, producing four successful children,
+complete indexes, and a shared environment fingerprint. The full matrix
+validation is warning-only because the semantic crosswalk remains incomplete.
+Across the LN/LG pair, plain PU adds 604 residual and 604 cap violations,
+`pu_bus_si` removes the cap delta but leaves 402 residual violations, and
+`pu_all_si` matches SI for both controller counts. These are larger-case
+numerical observations with a clearly recorded registry boundary, not causal
+proof about the formulation.
+The corresponding 538-bus ratio report shows `line/s_through` near 1e-6,
+mixed-scale line-current and IBR families, and much larger policy-dependent
+shadow-price/multiplier ratios; dense rank remains intentionally unavailable.
+
+The first paired solver-policy trace matrix is also complete on a 30-bus LN
+snapshot: Ipopt and MadNLP both terminated successfully under one environment
+fingerprint (19 versus 21 iterations, aligned final objective and residual
+scales). Ipopt supplied 16 controller callback snapshots with 58 Volt-var
+residual exceedances; MadNLP's public callback supplied solver metrics but no
+primal iterate bindings, so its controller snapshot side is explicitly
+unavailable. The solver matrix summary now carries child-index and comparison
+readiness gates, while validation preserves this asymmetry as a warning.
+Repeating the same matrix on matched 30-bus LN/LG snapshots produced four
+successful children under the same fingerprint: Ipopt used 19 iterations on
+each case, while MadNLP used 21 (LN) and 22 (LG). Final objectives remained
+aligned to relative differences below 4e-9. Ipopt retained 58 Volt-var
+residual exceedances on each case; MadNLP remained metric-only, so the
+solver-policy result is a repeatable trace observation with asymmetric
+controller coverage, not evidence that one solver is better.
+
+The multiconductor fixture path is now trust-gated as its own campaign. A
+five-fixture BMOPFTools/OpenDSS smoke run completed with dense analysis
+disabled, all port/current/constitutive contracts available, and 14 physical
+mode declarations. Neutral and delta fixtures expose `common_mode`; the
+wye-delta case also exposes `delta_common_mode` and a phase-aware complex
+constitutive map. The source loader retained 67 schema warnings about dropped
+OpenDSS fields, which are now preserved in the records and surfaced as a
+warning rather than silently disappearing.
+
+The generic operator/domain fingerprint smoke corpus is now executable through
+`benchmarks/operator_fingerprint_smoke.jl`. It covers negative-tail
+`log1exp`, invalid `log`, ratio-based `atan`, `atan2` branch cuts, non-unit
+circular equalities, and partially guarded `logdiffexp`. Each case is checked
+at the static, numerical-expression, and explicit-initialization stages. The
+resulting artifact (`/private/tmp/nlpdiag-operator-fingerprint-smoke.json`)
+records six successful cases, including softplus value/derivative underflow,
+operating-point domain/nonfinite evaluations, `atan` denominator and branch
+risks, the non-unit radius fingerprint, and initialization boundary findings.
+This is a deterministic regression corpus for operator semantics; its
+findings remain evidence, not a model-quality score.
+
+The corpus now has a first-class normalization and trust gate through
+`benchmarks/summarize_operator_fingerprint.jl` and the campaign validator.
+The normalized six-case report is complete across static, expression, and
+initialization stages, validates with zero errors and zero warnings, and can
+be added to the source-aware evidence ledger as `operator_fingerprint`.
+
+The multiconductor smoke path now runs the BMOPFTools physical-mode analysis
+explicitly. Five zero-dense-budget fixtures produced five structural mode
+analyses and 14 declared physical modes, while the summary correctly marks
+local expected-versus-observed comparison as unavailable because the dense
+Jacobian budget is disabled. A one-fixture 5,000-entry dense run demonstrates
+the complementary boundary: numerical rank is available, but two declared
+wye common-mode directions cannot yet be aligned to the free model-coordinate
+scope. This is retained as a coordinate-mapping warning, not misclassified as
+an absent physical mode.
+
+The generic expected-mode comparison now reports partial-alignment details
+before emitting the unaligned boundary: aligned and dropped coordinate counts,
+coefficient norms, and the aligned fraction are preserved as evidence. This
+makes fixed-coordinate restrictions inspectable without silently projecting a
+physical mode and calling the projection an observed gauge.
+
+The multiconductor smoke runner now exposes an opt-in sparse iterative
+right-nullspace probe (`NLPDIAGNOSTICS_BMOPF_ITERATIVE_RIGHT_PROBE_DIMENSION`
+and an iteration budget). A five-fixture run with dimension 2 and 30
+iterations completed all probes without dense rank work: all probes were
+available, none converged within the budget, and none produced a small-
+residual candidate. This is useful negative evidence about the selected
+operating points, not a nullspace certificate.
+
+Probe summaries can now be compared with
+`benchmarks/compare_bmopf_multiconductor_probes.jl`, including fixture
+coverage, environment and dimension compatibility, convergence changes, and
+minimum residual deltas. Comparing the five-fixture 30-iteration and
+200-iteration campaigns is fully paired and trust-valid: none of the probes
+converged, but minimum residual norms decreased on every fixture (roughly
+0.04--0.45 in the recorded residual scale). This is a reproducible sparse
+numerical trend, not evidence of rank loss or a physical nullspace.
+
+Source-schema warnings are now attributable by fixture, scope, field, and
+message rather than only counted. In the
+five-fixture smoke corpus, the 67 retained warnings are concentrated in
+`load` records (44), `voltage source` records (15), and line/linecode records
+(4 each); the most frequent dropped fields are `kv`, `phases`, `vmaxpu`, and
+`vminpu` (11 each). The validator and evidence ledger preserve the complete
+fixture, field, scope, and message maps, so these representational losses can
+be reviewed separately from numerical probe behavior.
+
+The same warnings now have an impact classification and a physical-metadata
+readiness gate. In this corpus, 8 warnings are units-only
+`representational` losses, while 54 are `physical_or_operating_point` and 5
+are `device_semantics` losses. The campaign consequently remains numerically
+usable for contract and probe observations but is not marked ready for
+physical interpretation until those source fields are restored or explicitly
+accounted for.
+
+The report now carries a field-policy crosswalk as well: units are explicitly
+classified as intentionally unsupported provenance, while model fields are
+unsupported device semantics and voltage/topology fields are unsupported
+physical metadata. This turns the warning into an implementation queue rather
+than an undifferentiated import defect.
+
+The smoke runner now preserves a byte-for-byte source snapshot for every
+fixture, recording a relative copy path, SHA-256 digest, byte count, and line
+count in the result and index. The five-fixture rerun preserved all sources,
+so future field-mapping work can be audited against the exact input deck.

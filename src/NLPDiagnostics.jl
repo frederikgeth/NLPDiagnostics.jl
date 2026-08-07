@@ -108,6 +108,7 @@ export IssueDomain
 export IntervalEnclosure
 export JacobianEntry
 export JacobianRankEstimate
+export RankPolicy
 export SparseJacobianPatternEstimate
 export SparseQRRankEstimate
 export IterativeNullspaceEstimate

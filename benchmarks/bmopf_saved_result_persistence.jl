@@ -116,6 +116,14 @@ function main()
             ),
         ))
     end
+    semantic_rows = try
+        owner = BMOPFTools.opf_model(context)
+        backend = JuMP.backend(owner)
+        evaluation = NLPDiagnostics.evaluate_numerical(backend, points[1])
+        NLPDiagnostics.bmopf_constraint_semantic_row_map(context, evaluation)
+    catch
+        nothing
+    end
     active_reports = Any[]
     for (relative, point) in zip(selected, points)
         active = NLPDiagnostics.bmopf_analyze_active_set(
@@ -137,7 +145,7 @@ function main()
     )
     component_capability_report = NLPDiagnostics.bmopf_component_rank_capability_report(context)
     report = Dict{String,Any}(
-        "report_version" => "bmopf-saved-result-persistence-v2",
+        "report_version" => "bmopf-saved-result-persistence-v3",
         "benchmark_root" => root,
         "snapshots" => selected,
         "result_units" => string(result_units),
@@ -146,6 +154,7 @@ function main()
         "model_variable_count" => length(points[1].variables),
         "mapping" => mappings,
         "controller_curve_snapshots" => controller_curve_snapshots,
+        "bmopf_constraint_semantic_rows" => semantic_rows,
         "controller_curve_persistence" => NLPDiagnostics.report_data(controller_curve_persistence),
         "active_set_reports" => active_reports,
         "jacobian_rank_persistence" => NLPDiagnostics.report_data(rank_report),

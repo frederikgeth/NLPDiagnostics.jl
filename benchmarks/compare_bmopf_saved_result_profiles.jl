@@ -104,7 +104,9 @@ end
 
 function _metadata(record, report_key)
     profile = get(record, "profile", Dict())
+    profile isa AbstractDict || return Dict()
     report = get(profile, report_key, Dict())
+    report isa AbstractDict || return Dict()
     metadata = get(report, "metadata", Dict())
     return metadata isa AbstractDict ? metadata : Dict()
 end
@@ -147,6 +149,176 @@ function _policy_metadata(record)
             get(mapping, "bmopf_saved_result_fallback_coordinate_count", nothing),
         ),
     )
+end
+
+const _CONTROLLER_SEMANTIC_FAMILIES = Dict(
+    "volt_var" => "ibr_q_volt_var",
+    "volt_watt" => "ibr_p_volt_watt",
+)
+
+function _controller_registry_crosswalk(record, observations)
+    profile = get(record, "profile", Dict())
+    semantic_rows = profile isa AbstractDict ?
+        get(profile, "bmopf_constraint_semantic_rows", nothing) : nothing
+    semantic_rows isa AbstractDict || return Dict{String,Any}(
+        "status" => "unavailable",
+        "reason" => "saved_result_record_has_no_semantic_row_registry",
+        "status_counts" => Dict{String,Int}(),
+        "components_by_status" => Dict{String,Any}(),
+        "matches" => Any[],
+    )
+    status_counts = Dict{String,Int}()
+    components_by_status = Dict{String,Vector{String}}()
+    matches = Any[]
+    for observation in observations
+        observation isa AbstractDict || continue
+        residual = _float_or_nothing(get(observation, "equation_residual", nothing))
+        metadata = get(observation, "metadata", Dict())
+        metadata isa AbstractDict || (metadata = Dict())
+        tolerance = _float_or_nothing(get(metadata, "controller_residual_tolerance", nothing))
+        cap = _float_or_nothing(get(observation, "cap_violation", nothing))
+        violation = (residual isa Real && tolerance isa Real && abs(residual) > tolerance) ||
+                    (cap isa Real && cap > 0)
+        violation || continue
+        component_id = get(observation, "component_id", nothing)
+        family = get(observation, "curve_family", nothing)
+        component_id isa AbstractString && family isa AbstractString || continue
+        key = "ibr:$(component_id):$(family)"
+        expected_family = get(_CONTROLLER_SEMANTIC_FAMILIES, String(family), nothing)
+        row_matches = String[]
+        if expected_family isa AbstractString
+            for (row, descriptor) in semantic_rows
+                descriptor isa AbstractDict || continue
+                get(descriptor, "constraint_family", nothing) == expected_family || continue
+                index_text = string(get(descriptor, "constraint_index", ""))
+                occursin(String(component_id), index_text) && push!(row_matches, String(row))
+            end
+        end
+        status = isempty(row_matches) ? "not_found" : "registered"
+        status_counts[status] = get(status_counts, status, 0) + 1
+        push!(get!(components_by_status, status, String[]), key)
+        push!(matches, Dict("component" => key, "curve_family" => family,
+                            "expected_constraint_family" => expected_family,
+                            "status" => status, "matching_rows" => row_matches))
+    end
+    return Dict{String,Any}(
+        "status" => "available",
+        "status_counts" => Dict(k => status_counts[k] for k in sort!(collect(keys(status_counts)))),
+        "components_by_status" => Dict(k => sort!(unique(components_by_status[k]))
+                                         for k in sort!(collect(keys(components_by_status)))),
+        "matches" => matches,
+    )
+end
+
+function _controller_profile_summary(record)
+    profile = get(record, "profile", Dict())
+    observations = profile isa AbstractDict ?
+        get(profile, "bmopf_controller_curve_observations", nothing) : nothing
+    observations isa AbstractDict || return Dict{String,Any}(
+        "available" => false,
+        "observation_count" => 0,
+        "exact_monitor_count" => 0,
+        "proxy_monitor_count" => 0,
+        "status_counts" => Dict{String,Int}(),
+        "monitor_semantics_counts" => Dict{String,Int}(),
+        "family_counts" => Dict{String,Int}(),
+        "equation_residual_violation_count" => 0,
+        "cap_violation_count" => 0,
+        "finite_observation_count" => 0,
+        "nonfinite_observation_count" => 0,
+        "local_slope" => Dict("minimum" => nothing, "maximum" => nothing,
+                               "mean" => nothing, "finite_count" => 0),
+        "breakpoint_distance" => Dict("minimum" => nothing, "maximum" => nothing,
+                                       "mean" => nothing, "finite_count" => 0),
+        "registry" => Dict("status" => "unavailable", "reason" => "saved_result_record_has_no_semantic_row_registry"),
+    )
+    status_counts = Dict{String,Int}()
+    semantics_counts = Dict{String,Int}()
+    family_counts = Dict{String,Int}()
+    slopes = Float64[]
+    distances = Float64[]
+    residual_violations = 0
+    cap_violations = 0
+    finite_count = 0
+    nonfinite_count = 0
+    residual_tolerance = nothing
+    raw_observations = get(observations, "observations", Any[])
+    raw_observations isa AbstractVector || (raw_observations = Any[])
+    for raw in raw_observations
+        raw isa AbstractDict || continue
+        status = String(get(raw, "status", "unknown"))
+        status_counts[status] = get(status_counts, status, 0) + 1
+        semantics = get(raw, "monitor_semantics", nothing)
+        semantics isa AbstractString && (semantics_counts[String(semantics)] = get(semantics_counts, String(semantics), 0) + 1)
+        family = get(raw, "curve_family", nothing)
+        family isa AbstractString && (family_counts[String(family)] = get(family_counts, String(family), 0) + 1)
+        status == "finite" ? (finite_count += 1) : (nonfinite_count += 1)
+        slope = _float_or_nothing(get(raw, "local_slope", nothing))
+        slope isa Real && push!(slopes, slope)
+        distance = _float_or_nothing(get(raw, "breakpoint_distance", nothing))
+        distance isa Real && push!(distances, distance)
+        metadata = get(raw, "metadata", Dict())
+        metadata isa AbstractDict || (metadata = Dict())
+        tolerance = _float_or_nothing(get(metadata, "controller_residual_tolerance", nothing))
+        tolerance isa Real && (residual_tolerance = tolerance)
+        residual = _float_or_nothing(get(raw, "equation_residual", nothing))
+        residual isa Real && tolerance isa Real && abs(residual) > tolerance && (residual_violations += 1)
+        cap = _float_or_nothing(get(raw, "cap_violation", nothing))
+        cap isa Real && cap > 0 && (cap_violations += 1)
+    end
+    _stats(values) = isempty(values) ?
+        Dict("minimum" => nothing, "maximum" => nothing, "mean" => nothing, "finite_count" => 0) :
+        Dict("minimum" => minimum(values), "maximum" => maximum(values),
+             "mean" => sum(values) / length(values), "finite_count" => length(values))
+    registry = _controller_registry_crosswalk(record, raw_observations)
+    return Dict{String,Any}(
+        "available" => true,
+        "observation_count" => _int_or_nothing(get(observations, "observation_count", length(raw_observations))),
+        "exact_monitor_count" => _int_or_nothing(get(observations, "exact_monitor_count", 0)),
+        "proxy_monitor_count" => _int_or_nothing(get(observations, "proxy_monitor_count", 0)),
+        "status_counts" => Dict(code => status_counts[code] for code in sort!(collect(keys(status_counts)))),
+        "monitor_semantics_counts" => Dict(code => semantics_counts[code] for code in sort!(collect(keys(semantics_counts)))),
+        "family_counts" => Dict(code => family_counts[code] for code in sort!(collect(keys(family_counts)))),
+        "equation_residual_violation_count" => residual_violations,
+        "cap_violation_count" => cap_violations,
+        "finite_observation_count" => finite_count,
+        "nonfinite_observation_count" => nonfinite_count,
+        "residual_tolerance" => residual_tolerance,
+        "local_slope" => _stats(slopes),
+        "breakpoint_distance" => _stats(distances),
+        "finding_code_counts" => _finding_code_counts(get(observations, "findings", Any[])),
+        "registry" => registry,
+    )
+end
+
+function _controller_delta(left, right)
+    delta = Dict{String,Any}()
+    for key in ("observation_count", "exact_monitor_count", "proxy_monitor_count",
+                "equation_residual_violation_count", "cap_violation_count",
+                "finite_observation_count", "nonfinite_observation_count")
+        lvalue = get(left, key, 0); rvalue = get(right, key, 0)
+        lvalue isa Number && rvalue isa Number && (delta["$(key)_delta_right_minus_left"] = rvalue - lvalue)
+    end
+    delta["status_count_delta_right_minus_left"] = _delta_map(
+        get(left, "status_counts", Dict()), get(right, "status_counts", Dict()))
+    delta["monitor_semantics_count_delta_right_minus_left"] = _delta_map(
+        get(left, "monitor_semantics_counts", Dict()), get(right, "monitor_semantics_counts", Dict()))
+    delta["family_count_delta_right_minus_left"] = _delta_map(
+        get(left, "family_counts", Dict()), get(right, "family_counts", Dict()))
+    for (field, key) in (("local_slope", "mean"), ("breakpoint_distance", "mean"))
+        lvalue = get(get(left, field, Dict()), key, nothing)
+        rvalue = get(get(right, field, Dict()), key, nothing)
+        lvalue isa Number && rvalue isa Number && (delta["$(field)_$(key)_delta_right_minus_left"] = rvalue - lvalue)
+    end
+    delta["finding_code_delta_right_minus_left"] = _delta_map(
+        get(left, "finding_code_counts", Dict()), get(right, "finding_code_counts", Dict()))
+    left_registry = get(left, "registry", Dict())
+    right_registry = get(right, "registry", Dict())
+    delta["registry_status"] = Dict("left" => get(left_registry, "status", "unavailable"),
+                                    "right" => get(right_registry, "status", "unavailable"))
+    delta["registry_status_count_delta_right_minus_left"] = _delta_map(
+        get(left_registry, "status_counts", Dict()), get(right_registry, "status_counts", Dict()))
+    return delta
 end
 
 function _finding_summary(record)
@@ -204,6 +376,8 @@ function _case_comparison(snapshot, left, right)
     right_codes = right_summary["finding_code_counts"]
     left_derivative = left_summary["derivative_fingerprint"]
     right_derivative = right_summary["derivative_fingerprint"]
+    left_controller = _controller_profile_summary(left)
+    right_controller = _controller_profile_summary(right)
     derivative_deltas = Dict{String,Any}()
     for key in ("jacobian_rank", "sparse_qr_rank", "sparse_jacobian_pattern_rank_upper_bound")
         lvalue = get(left_derivative, key, nothing)
@@ -227,8 +401,75 @@ function _case_comparison(snapshot, left, right)
         "feasibility_violation_delta_right_minus_left" => right_summary["constraint_feasibility_violation_count"] - left_summary["constraint_feasibility_violation_count"],
         "scale_finding_delta_right_minus_left" => _delta_map(left_summary["scale_finding_counts"], right_summary["scale_finding_counts"]),
         "derivative_fingerprint_delta" => derivative_deltas,
+        "left_controller_curve" => left_controller,
+        "right_controller_curve" => right_controller,
+        "controller_curve_delta_right_minus_left" => _controller_delta(left_controller, right_controller),
         "finding_code_delta_right_minus_left" => _delta_map(left_codes, right_codes),
     )
+end
+
+function _aggregate_controller_cases(cases)
+    totals = Dict{String,Int}()
+    transitions = Any[]
+    available_case_count = 0
+    registry_statuses = Dict{String,Int}()
+    registry_violation_statuses = Dict{String,Int}()
+    registry_boundaries = Any[]
+    for case in cases
+        left_controller = get(case, "left_controller_curve", Dict())
+        right_controller = get(case, "right_controller_curve", Dict())
+        left_available = left_controller isa AbstractDict && get(left_controller, "available", false) === true
+        right_available = right_controller isa AbstractDict && get(right_controller, "available", false) === true
+        (left_available || right_available) && (available_case_count += 1)
+        for side in ("left", "right")
+            controller = side == "left" ? left_controller : right_controller
+            registry = controller isa AbstractDict ? get(controller, "registry", Dict()) : Dict()
+            status = String(get(registry, "status", "unavailable"))
+            registry_statuses[status] = get(registry_statuses, status, 0) + 1
+            status_counts = get(registry, "status_counts", Dict())
+            status_counts isa AbstractDict || (status_counts = Dict())
+            for (violation_status, count) in status_counts
+                count isa Number || continue
+                registry_violation_statuses[String(violation_status)] =
+                    get(registry_violation_statuses, String(violation_status), 0) + Int(count)
+            end
+            any(value -> value isa Number && value > 0,
+                values(status_counts)) && push!(registry_boundaries, Dict(
+                    "snapshot" => get(case, "snapshot", nothing),
+                    "side" => side,
+                    "status_counts" => status_counts,
+                    "components_by_status" => get(registry, "components_by_status", Dict()),
+                ))
+        end
+        delta = get(case, "controller_curve_delta_right_minus_left", Dict())
+        delta isa AbstractDict || continue
+        for key in ("observation_count_delta_right_minus_left", "exact_monitor_count_delta_right_minus_left",
+                    "proxy_monitor_count_delta_right_minus_left", "equation_residual_violation_count_delta_right_minus_left",
+                    "cap_violation_count_delta_right_minus_left", "finite_observation_count_delta_right_minus_left",
+                    "nonfinite_observation_count_delta_right_minus_left")
+            value = get(delta, key, nothing)
+            value isa Number && (totals[key] = get(totals, key, 0) + Int(value))
+        end
+        status = get(delta, "status_count_delta_right_minus_left", Dict())
+        semantics = get(delta, "monitor_semantics_count_delta_right_minus_left", Dict())
+        families = get(delta, "family_count_delta_right_minus_left", Dict())
+        (!isempty(status) || !isempty(semantics) || !isempty(families)) && push!(transitions, Dict(
+            "snapshot" => get(case, "snapshot", nothing),
+            "status_count_delta_right_minus_left" => status,
+            "monitor_semantics_count_delta_right_minus_left" => semantics,
+            "family_count_delta_right_minus_left" => families,
+        ))
+    end
+    return Dict("case_count" => length(cases),
+                "available_case_count" => available_case_count,
+                "missing_case_count" => length(cases) - available_case_count,
+                "registry_status_counts" => registry_statuses,
+                "registry_violation_status_counts" => registry_violation_statuses,
+                "registry_boundary_cases" => registry_boundaries,
+                "aggregate_count_deltas" => totals,
+                "transition_cases" => transitions,
+                "transition_case_count" => length(transitions),
+                "registry_scope" => "saved_result_record")
 end
 
 function _aggregate_cases(cases)
@@ -305,7 +546,7 @@ function main()
         case["unit_ratio_fingerprint"] = _unit_ratio_case(ratio_report, snapshot)
     end
     report = Dict(
-        "report_version" => "bmopf-saved-result-profile-comparison-v2",
+        "report_version" => "bmopf-saved-result-profile-comparison-v4",
         "left_campaign" => Dict("directory" => left_dir, "runner_version" => get(left_index, "runner_version", nothing), "result_units" => get(left_index, "result_units", nothing), "result_field_units" => get(left_index, "result_field_units", nothing)),
         "right_campaign" => Dict("directory" => right_dir, "runner_version" => get(right_index, "runner_version", nothing), "result_units" => get(right_index, "result_units", nothing), "result_field_units" => get(right_index, "result_field_units", nothing)),
         "paired_case_count" => length(comparisons),
@@ -316,6 +557,7 @@ function main()
         "comparison_error_count" => length(errors),
         "comparison_errors" => errors,
         "aggregate_finding_code_delta_right_minus_left" => _aggregate_cases(comparisons),
+        "controller_curve_policy_matrix" => _aggregate_controller_cases(comparisons),
         "cases" => comparisons,
         "unit_ratio_report_path" => isempty(ratio_path) ? nothing : abspath(ratio_path),
         "unit_ratio_report" => ratio_report,

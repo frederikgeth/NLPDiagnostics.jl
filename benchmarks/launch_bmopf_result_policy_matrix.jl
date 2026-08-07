@@ -99,6 +99,25 @@ function _run_policy(script, project, root, output_root, name, spec, timeout_sec
     end
     wait(process)
     result_code = timed_out ? nothing : process.exitcode
+    child_index_path = joinpath(output_dir, "index.json")
+    child_index = if isfile(child_index_path)
+        try
+            value = JSON.parsefile(child_index_path)
+            value isa AbstractDict ? value : Dict{String,Any}()
+        catch
+            Dict{String,Any}()
+        end
+    else
+        Dict{String,Any}()
+    end
+    child_cases = get(child_index, "cases", Any[])
+    child_cases isa AbstractVector || (child_cases = Any[])
+    child_statuses = Dict{String,Int}()
+    for case in child_cases
+        case isa AbstractDict || continue
+        status = String(get(case, "status", "unknown"))
+        child_statuses[status] = get(child_statuses, status, 0) + 1
+    end
     return Dict{String,Any}(
         "policy" => name,
         "result_units" => spec.result_units,
@@ -110,6 +129,13 @@ function _run_policy(script, project, root, output_root, name, spec, timeout_sec
         "process_timeout" => timed_out,
         "process_exit_code" => result_code,
         "status" => timed_out ? "process_timeout" : result_code == 0 ? "ok" : "process_exit",
+        "child_index_available" => isfile(child_index_path) && !isempty(child_index),
+        "child_runner_version" => get(child_index, "runner_version", nothing),
+        "child_environment_fingerprint" => get(child_index, "environment_fingerprint", nothing),
+        "child_case_count" => length(child_cases),
+        "child_status_counts" => child_statuses,
+        "child_result_units" => get(child_index, "result_units", nothing),
+        "child_result_field_units" => get(child_index, "result_field_units", nothing),
     )
 end
 
@@ -133,12 +159,14 @@ function main()
         println("$name: $(entry["status"]) timeout=$(entry["process_timeout"])")
     end
     manifest = Dict{String,Any}(
-        "runner_version" => "bmopf-result-policy-matrix-v2",
+        "runner_version" => "bmopf-result-policy-matrix-v3",
         "benchmark_root" => root,
         "output_root" => output_root,
         "child_timeout_seconds" => timeout_seconds,
         "policy_result_suffix_overrides" => result_suffixes,
         "policies" => entries,
+        "environment_fingerprints" => sort!(unique(filter(value -> value isa AbstractString,
+            [get(entry, "child_environment_fingerprint", nothing) for entry in entries]))),
         "cases" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASES", ""),
         "case_selection" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASE_SELECTION", ""),
     )

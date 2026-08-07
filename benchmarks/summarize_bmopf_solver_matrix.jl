@@ -22,6 +22,82 @@ function _as_dict(value)
     return Dict{String,Any}(string(k) => v for (k, v) in value)
 end
 
+function _merge_int_counts!(target, source)
+    source isa AbstractDict || return target
+    for (key, value) in source
+        target[String(key)] = get(target, String(key), 0) + _int(value)
+    end
+    return target
+end
+
+"""Aggregate controller transition and registry evidence across solver pairs."""
+function _controller_matrix_summary(comparisons)
+    records = Any[]
+    registry_status_counts = Dict("left" => Dict{String,Int}(),
+                                  "right" => Dict{String,Int}())
+    unmatched_component_counts = Dict("left" => Dict{String,Int}(),
+                                     "right" => Dict{String,Int}())
+    residual_violation_counts = Dict("left" => 0, "right" => 0)
+    cap_violation_counts = Dict("left" => 0, "right" => 0)
+    pair_count = 0
+    for (pair_name, raw_pair) in _as_dict(comparisons)
+        pair = _as_dict(raw_pair)
+        get(pair, "status", "") == "ok" || continue
+        nested = _as_dict(get(pair, "comparison", nothing))
+        for raw_case in get(nested, "comparisons", Any[])
+            case = _as_dict(raw_case)
+            comparison = _as_dict(get(case, "comparison", nothing))
+            trace = _as_dict(get(comparison, "controller_curve_trace", nothing))
+            isempty(trace) && continue
+            pair_count += 1
+            registry = _as_dict(get(trace, "violation_registry", nothing))
+            registry_record = Dict{String,Any}()
+            for side in ("left", "right")
+                side_view = _as_dict(get(registry, side, nothing))
+                statuses = _as_dict(get(side_view, "status_counts", nothing))
+                _merge_int_counts!(registry_status_counts[side], statuses)
+                components = _as_dict(get(side_view, "components_by_status", nothing))
+                unmatched = vcat(get(components, "unregistered", Any[]),
+                                 get(components, "not_found", Any[]))
+                for component in unmatched
+                    key = String(component)
+                    unmatched_component_counts[side][key] =
+                        get(unmatched_component_counts[side], key, 0) + 1
+                end
+                registry_record[side] = Dict(
+                    "status_counts" => statuses,
+                    "unmatched_components" => unmatched,
+                )
+                residual_pair = _as_dict(get(trace,
+                    "equation_residual_violation_counts", nothing))
+                cap_pair = _as_dict(get(trace, "cap_violation_counts", nothing))
+                residual_violation_counts[side] += _int(get(residual_pair, side, 0))
+                cap_violation_counts[side] += _int(get(cap_pair, side, 0))
+            end
+            push!(records, Dict(
+                "pair" => String(pair_name),
+                "case" => get(case, "name", nothing),
+                "registry" => registry_record,
+                "equation_residual_violation_counts" => get(trace,
+                    "equation_residual_violation_counts", Dict()),
+                "cap_violation_counts" => get(trace, "cap_violation_counts", Dict()),
+                "status_changes" => get(trace, "status_changes", Dict()),
+                "coverage_changes" => get(trace, "coverage_changes", Dict()),
+                "slope_changes" => get(trace, "slope_changes", Dict()),
+            ))
+        end
+    end
+    return Dict{String,Any}(
+        "paired_case_count" => pair_count,
+        "registry_status_counts" => registry_status_counts,
+        "unmatched_component_counts" => unmatched_component_counts,
+        "equation_residual_violation_counts" => residual_violation_counts,
+        "cap_violation_counts" => cap_violation_counts,
+        "records" => records,
+        "interpretation" => "Aggregated controller evidence across solver pairs; registry boundaries and residuals remain policy-specific observations, not a quality score.",
+    )
+end
+
 function _enabled(value)
     value === true && return true
     lowercase(string(value)) in ("true", "1", "yes", "on")
@@ -238,6 +314,35 @@ function main()
         end
     end
     output_path = length(ARGS) == 2 ? abspath(ARGS[2]) : joinpath(root, "matrix_summary.json")
+    child_indexes_available = Dict{String,Bool}()
+    child_status_counts = Dict{String,Any}()
+    for solver in solvers
+        child_index_path = joinpath(root, solver, "index.json")
+        available = isfile(child_index_path)
+        child_indexes_available[solver] = available
+        statuses = Dict{String,Int}()
+        if available
+            child_index = try
+                JSON.parsefile(child_index_path)
+            catch
+                Dict{String,Any}()
+            end
+            for entry in get(child_index, "cases", Any[])
+                entry isa AbstractDict || continue
+                status = String(get(entry, "status", "unknown"))
+                statuses[status] = get(statuses, status, 0) + 1
+            end
+        end
+        child_status_counts[solver] = statuses
+    end
+    all_child_cases_successful = all(
+        get(child_indexes_available, solver, false) &&
+        !isempty(get(child_status_counts, solver, Dict())) &&
+        all(String(status) == "ok" for status in keys(get(child_status_counts, solver, Dict())) )
+        for solver in solvers
+    )
+    comparisons_available = !isempty(comparisons) &&
+        all(get(comparison, "status", "unknown") == "ok" for comparison in values(comparisons))
     write(output_path, JSON.json(Dict(
         "runner_version" => get(index, "runner_version", nothing),
         "matrix_index" => index_path,
@@ -253,6 +358,15 @@ function main()
         "family_perturbation_max_iter" => get(index, "family_perturbation_max_iter", nothing),
         "family_perturbation_matrix" => _family_matrix_summary(full_summaries),
         "comparisons" => comparisons,
+        "controller_curve_matrix" => _controller_matrix_summary(comparisons),
+        "readiness" => Dict(
+            "child_indexes_available" => !isempty(solvers) &&
+                                          all(values(child_indexes_available)),
+            "solver_children_successful" => !isempty(solvers) && all_child_cases_successful,
+            "pairwise_comparisons_available" => comparisons_available,
+            "summary_errors_absent" => isempty(summary_errors),
+        ),
+        "child_status_counts" => child_status_counts,
     )))
     println("wrote BMOPF solver matrix summary to $output_path")
 end

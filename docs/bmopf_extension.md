@@ -161,6 +161,9 @@ With `NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS=true`, the solver-trace runner also
 stores typed controller observations for each selected primal iterate. The
 solver-trace summarizer keeps their family, status, monitor semantics, slope,
 breakpoint, and residual distributions beside the solver-phase summary.
+`compare_bmopf_solver_traces.jl` now aligns those controller summaries between
+two traces, so solver iteration differences can be read separately from
+coordinate-scale differences in controller slopes and breakpoint distances.
 
 The solver-trace summarizer also retains controller-curve persistence evidence:
 status transitions, exact/proxy monitor-coverage transitions, slope changes,
@@ -329,6 +332,15 @@ constitutive-map counts/ranks (including phase-aware complex transformer
 blocks), and independent adapter finding counts. This is structural metadata
 only; the smoke runner does not materialize dense Jacobians for this contract
 block.
+The five-fixture run is also summarized by
+`benchmarks/summarize_bmopf_multiconductor_smoke.jl` and passed through the
+campaign trust gate. All five fixtures completed with dense analysis explicitly
+disabled, 14 physical-mode declarations, and 52 adapter-level contract
+findings. Neutral and delta fixtures expose `common_mode`; the wye-delta
+transformer additionally exposes `delta_common_mode` and one phase-aware
+complex constitutive map. The source loader retained 67 PowerIO schema
+warnings about fields dropped from the BMOPF schema, so the validator reports
+a warning even though BMOPFTools integrity preflight has no blocking errors.
 
 Both BMOPF runners record the scalar model dimensions and the product of
 variables and scalar constraint rows. Their dense rank/SVD analyses are guarded
@@ -761,7 +773,15 @@ saved-result suffix for an individual child (for example,
 difference between the SI and PU files themselves.
 `benchmarks/summarize_bmopf_result_policy_matrix.jl matrix_index.json` then
 materializes every pairwise comparison under the matrix directory and emits a
-single summary containing the derivative-rank fingerprints and finding deltas.
+single summary containing derivative-rank fingerprints, controller crosswalks,
+and finding deltas.
+The launcher manifest now records each child corpus index, case-status counts,
+child environment fingerprint, and resolved result-unit policy. Validation
+flags failed children, missing child indexes, empty case sets, and mixed
+environments before policy deltas are interpreted.
+The matrix summary now carries that provenance forward with explicit readiness
+flags for child success, index completeness, environment compatibility,
+pairwise coverage, and controller observations.
 The same matrix has been smoke-tested on representative 99-bus and 538-bus
 LN cases with dense analysis disabled; SI and `pu_all_si` produced matching
 feasibility and sparse-rank fingerprints in both cases.
@@ -779,6 +799,68 @@ Ipopt/MadNLP matrix summaries for successful child processes and paired trace
 records. When `NLPDIAGNOSTICS_BMOPF_UNIT_RATIO_REPORT` is supplied, each paired
 case also retains its nontrivial field-family ratio fingerprints, so a policy
 delta can be inspected alongside the exported fields that differ in scale.
+
+In the first registry-aware 30-bus LN/LG SI-versus-PU run, both children
+completed under one environment fingerprint and each retained 56 finite exact
+controller observations. PU produced 28 Volt-var residual and 28 Volt-watt cap
+exceedances per snapshot while SI produced none. The violating observations
+cross-referenced 24 registered rows and left 88 unmatched across the two
+snapshots. This is a numerical/registry boundary for follow-up, not evidence
+that either policy is physically correct or causally responsible by itself.
+Extending the same campaign to `pu_bus_si` and `pu_all_si` localized the
+effect: `pu_all_si` matched SI with zero controller residual/cap deltas, while
+`pu_bus_si` removed LG violations but left five LN Volt-var residual
+exceedances, three unmatched and two registered. Plain PU retained the full
+56-residual/cap delta across the pair. This supports a field-unit/export
+hypothesis for follow-up, not a causal diagnosis.
+The additional LN/LG t02--t03 campaign reinforces the distinction: `pu_all_si`
+again matches SI, while `pu_bus_si` retains 112 Volt-watt cap exceedances and
+14 Volt-var residual exceedances. The latter concentrate in LN t03; its
+combined violations include eight registered and 34 unmatched crosswalk
+observations. Plain PU retains the full 28-per-snapshot residual/cap pattern.
+The paired field-ratio report for these snapshots also shows `line/s_through`
+near 1e-6 in PU/SI magnitude and mixed-scale `ibr/pg`, `ibr/cri`, and `ibr/cii`
+families. Those ratios are preserved beside the policy comparisons as
+attribution evidence, not as a unit-convention verdict.
+The next scale-up is a four-policy matrix on one 99-bus LN and one 99-bus LG
+snapshot, again with dense rank disabled. All four children completed under a
+single environment fingerprint and complete child indexes. Relative to SI,
+plain PU added 96 controller equation-residual violations and 96 cap
+violations across the pair. `pu_bus_si` removed the cap delta but retained 43
+equation-residual violations, while `pu_all_si` matched SI for both controller
+counts. The campaign validator reports these as policy-delta warnings, not as
+proof of a formulation or export cause.
+The 99-bus semantic-row crosswalk was available for all 24 controller
+snapshots; 207 violating observations matched registered rows and 498 were
+unmatched. The latter is an explicit representational boundary for the
+multiconductor plugin rather than evidence that the unmatched rows are
+physically wrong. Field ratios show `line/s_through` near 1e-6 PU/SI,
+mixed-scale `ibr/pg`, `ibr/cri`, and `ibr/cii`, and policy-dependent multiplier
+ratios; retain the ratio report alongside every interpretation.
+The bounded 538-bus extension is now complete. The timed-out `pu_all_si`
+child was rerun with a larger explicit budget; all four children now have
+complete indexes and one shared environment fingerprint. Validation is
+warning-only because the semantic crosswalk still has unmatched rows. Plain
+PU adds 604 controller residuals and 604 cap violations relative to SI,
+`pu_bus_si` removes the cap delta but leaves 402 residuals, and `pu_all_si`
+matches SI for both controller counts. The ratio report retains
+`line/s_through` near 1e-6, mixed line-current/IBR scales, and large
+shadow-price/multiplier ratios, with dense rank intentionally skipped.
+
+The first paired solver-policy matrix is complete on a 30-bus LN snapshot.
+Ipopt and MadNLP both terminated successfully under one environment
+fingerprint, requiring 19 and 21 iterations respectively, with aligned final
+objective and residual scales. Ipopt supplied 16 controller callback snapshots
+with 58 Volt-var residual exceedances; MadNLP's public callback supplied
+solver metrics but no primal iterate bindings. The solver summary and
+validator retain that asymmetry explicitly rather than treating missing
+MadNLP point data as zero controller evidence.
+Repeating the matrix on matched LN/LG snapshots produced four successful
+children under the same fingerprint: Ipopt used 19 iterations on both cases,
+while MadNLP used 21 (LN) and 22 (LG). Final objectives stayed aligned below
+4e-9 relative difference. Ipopt retained 58 Volt-var residual exceedances on
+each case; MadNLP remained metric-only, so these are repeatable trace
+observations with asymmetric controller coverage, not a solver-quality score.
 
 For time-series evidence on one staged formulation, use
 `benchmarks/bmopf_saved_result_persistence.jl`. It maps multiple saved results
@@ -800,6 +882,13 @@ remain separate observations because the active set can change even when the
 equality-Jacobian rank is stable.
 The persistence summarizer additionally reports active-row intersection,
 union, and transition counts, preserving the row-scope change explicitly.
+It also aggregates typed controller observations across mapped points,
+retaining exact/proxy coverage, family/status distributions, local-slope and
+breakpoint-distance statistics, residual/cap exceedance counts, and the
+explicit saved-result registry boundary.
+Persistence runs now retain the scalar semantic-row map from the staged model;
+the controller campaign summary reports registered versus unmatched residual
+crosswalks alongside the time-series fingerprint.
 In the guarded 538-bus two-point run, 10,120 active rows were common to both
 points and 11,330 appeared in the union; dense active-block rank remained
 explicitly unavailable under the large-model budget.
@@ -820,3 +909,61 @@ retains baseline and per-family status, termination, iteration, semantic-row,
 and numerical-profile evidence. These variants deliberately represent
 formulation perturbations, not valid physical network models, so differences
 are causal tests of the formulation fingerprint only.
+
+Controller evidence is now part of the validation/evidence-ledger boundary.
+`validate_bmopf_campaign.jl` recognizes controller campaign summaries, saved
+result controller snapshots, solver-trace controller summaries, and paired
+trace comparisons. It emits separate findings for missing typed coverage,
+non-finite or invalid observations, proxy monitored-voltage semantics, and
+status/coverage/slope transitions. Exact finite coverage is a readiness gate;
+transitions remain local numerical evidence and are not treated as a physical
+diagnosis. `summarize_bmopf_evidence_ledger.jl` retains these validation
+findings under their controller or trace scopes, so they remain inspectable and
+recurrence can be compared without turning it into a score.
+Solver-trace summaries now retain transition-level records keyed by iteration
+and phase, pairing controller slope, breakpoint-distance, and curve-residual
+deltas with solver primal/dual infeasibility deltas. Paired trace comparisons
+carry these records alongside coordinate-unit conventions; the validator emits
+an informational residual-alignment finding to make the association explicit
+without claiming causality.
+Controller campaign and trace summaries also count device-level Volt-var
+equation residuals and Volt-watt cap violations against the declared tolerance,
+with affected component/family keys retained. In the current artifacts both
+five-point LN/LG persistence campaigns have zero such violations, while the
+model-native LG Ipopt trace has six Volt-var residual exceedances localized to
+six `ibr:pv_*:volt_var` curves. This is a coordinate-conditioned numerical
+observation; it is not yet evidence of a faulty device or a causal unit error.
+Solver-trace controller violations now cross-reference the BMOPFTools semantic
+row map by component and curve family. In the model-native LG trace, two of the
+six residual-bearing curves match registered `ibr_q_volt_var` rows, while four
+have no matching registered row in the evaluated model. The validator retains
+this as a registry-coverage boundary rather than silently treating the
+unmatched residuals as physical device failures.
+Paired solver-trace comparisons now summarize registry coverage on both sides.
+For the matched LG coordinate comparison, the per-unit trace has no residual
+crosswalk entries, while the model-native trace has two registered and four
+unmatched Volt-var curves. The validator reports both the coverage difference
+and the unmatched-component boundary, keeping policy comparisons explicit about
+semantic coverage as well as numerical scale.
+Solver-matrix summaries now aggregate these controller crosswalks across all
+paired solver cases, retaining per-side registered/unmatched counts and
+component identities. The same matrix validation gate flags a registry
+boundary without collapsing it into a solver or model-quality score.
+Saved-result policy comparisons now carry the same controller evidence
+boundary. New draft-corpus profile records also retain the BMOPFTools scalar
+constraint semantic-row map, allowing residual-bearing controller devices to
+be cross-referenced when the registry is available. Each paired record retains
+exact/proxy monitor counts, status and
+monitor-semantics distributions, curve-family counts, local-slope and
+breakpoint-distance summaries, equation-residual exceedances, and Volt-watt
+cap violations. The policy-matrix summary aggregates these deltas and keeps
+the affected transition cases. Older saved-result records without the semantic
+map remain explicitly unavailable rather than being inferred.
+
+The generic operator/domain corpus is also available independently of BMOPF
+through `benchmarks/operator_fingerprint_smoke.jl`. It exercises registered
+operator semantics and explicit starts for `log1exp`, `log`, `atan`, `atan2`,
+non-unit circular equalities, and `logdiffexp`. Use
+`benchmarks/summarize_operator_fingerprint.jl` followed by
+`benchmarks/validate_bmopf_campaign.jl` to normalize and trust-gate the
+result before adding it to `summarize_bmopf_evidence_ledger.jl`.

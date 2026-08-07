@@ -18,6 +18,8 @@ mutable struct TestNLPEvaluator <: MOI.AbstractNLPEvaluator
     requested::Vector{Symbol}
 end
 
+include("rank_calibration.jl")
+
 if Base.find_package("Ipopt") !== nothing
     import Ipopt
 
@@ -6218,6 +6220,35 @@ end
         )
         @test length(
             findings(mismatch_report, :expected_nullspace_mode_not_observed),
+        ) == 1
+
+        partially_aligned = new_model()
+        fixed_coordinate, free_coordinate = MOI.add_variables(partially_aligned, 2)
+        MOI.add_constraint(
+            partially_aligned,
+            fixed_coordinate,
+            MOI.EqualTo(0.0),
+        )
+        MOI.add_constraint(
+            partially_aligned,
+            MOI.ScalarNonlinearFunction(:sin, Any[free_coordinate]),
+            MOI.EqualTo(0.0),
+        )
+        partial_mode = NLPDiagnostics.ExpectedNullspaceMode(
+            :fixed_and_free_coordinates,
+            [fixed_coordinate, free_coordinate],
+            [1.0, 1.0],
+        )
+        partial_mode_report = NLPDiagnostics.analyze_degeneracy(
+            partially_aligned,
+            [0.0, 0.0];
+            expected_modes = [partial_mode],
+        )
+        @test length(
+            findings(partial_mode_report, :expected_nullspace_mode_partial_alignment),
+        ) == 1
+        @test length(
+            findings(partial_mode_report, :expected_nullspace_mode_unaligned),
         ) == 1
 
         extra_freedom = new_model()

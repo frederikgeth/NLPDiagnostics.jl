@@ -193,3 +193,51 @@ probe retains its callback iteration label. A metric-only trace is not promoted
 to a coordinate point: the helper reports the missing-primal coverage boundary
 instead of reconstructing values from solver logs. For MadNLP this boundary is
 also available as the explicit `madnlp_primal_capture_capability()` report.
+
+The BMOPF smoke campaign now invokes `bmopf_analyze_opf(...;
+include_port_physical_modes = true)` for every selected fixture. Its serialized
+`physical_mode_analysis` is summarized as an explicit expected-versus-observed
+mode boundary. With dense analysis disabled, only plugin-declared terminal
+modes are reported; no local numerical comparison is claimed. With an explicit
+small dense budget, rank/nullspace evidence is admitted, but coordinate
+alignment failures remain warnings until terminal maps can be projected onto
+the free model-coordinate scope. The generic degeneracy report now quantifies
+partial alignment (aligned versus dropped mode components and their norm
+fraction) before retaining the stronger unaligned finding, so fixed-coordinate
+restrictions are distinguishable from stale or missing maps.
+
+For larger fixtures, the smoke runner can request a sparse iterative
+right-nullspace probe with `NLPDIAGNOSTICS_BMOPF_ITERATIVE_RIGHT_PROBE_DIMENSION`
+and `NLPDIAGNOSTICS_BMOPF_ITERATIVE_RIGHT_PROBE_ITERATIONS`. The probe uses
+Jacobian products rather than dense rank/SVD and is summarized separately from
+physical-mode comparisons. Availability, convergence, residual candidates, and
+failure reasons are retained; a non-converged or candidate result is never
+promoted to a rank or gauge claim.
+
+Two probe campaigns can be compared with
+`benchmarks/compare_bmopf_multiconductor_probes.jl`. The comparison requires
+matching fixture coverage, environment fingerprints, and probe dimensions,
+then retains per-fixture convergence and residual deltas. It is intended for
+budget sensitivity studies (for example, 30 versus 200 iterations), not for
+turning iterative-probe behavior into a solver or model-quality score.
+
+Source-schema warnings are retained at fixture level and normalized into
+fixture-, field-, scope-, and message-frequency maps by
+`benchmarks/summarize_bmopf_multiconductor_smoke.jl`. This makes repeated
+OpenDSS-to-BMOPF information loss visible (for example, load `kv`, `phases`,
+and voltage-limit fields) without treating dropped metadata as a numerical
+failure. Campaign validation carries the same maps into its finding evidence.
+The summary also classifies each dropped field as representational,
+device-semantic, physical/operating-point, or unknown and exposes
+`readiness["physical_metadata_complete"]`. A successful import with dropped
+physical fields therefore remains usable for structural and numerical
+observations, but is blocked from being treated as a complete physical
+diagnosis.
+The aggregate report also exposes a source-field policy crosswalk with an
+explicit status and remediation action for every observed dropped field. This
+is the handoff point for a future PowerIO/BMOPFTools adapter: fields must move
+from `unsupported_*` to an explicit component or provenance contract before
+the physical readiness gate can close.
+The smoke runner also copies each selected `.dss` deck into its output
+directory and records its digest and size. This makes schema-loss remediation
+reproducible even if the upstream fixture tree changes later.

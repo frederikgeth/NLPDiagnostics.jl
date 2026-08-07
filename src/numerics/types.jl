@@ -125,6 +125,57 @@ struct JacobianEntry{T<:AbstractFloat}
 end
 
 """
+An explicit numerical-rank policy.
+
+`backend` selects the numerical method, while `scaling`, the relative and
+absolute tolerances, and `matrix_norm` define the numerical semantics attached
+to its evidence. `max_dense_entries` is a work guard, not a model-size claim.
+`provenance` records who selected the policy (`:default`, `:user`, a benchmark,
+or a plugin) without promoting the resulting rank to a mathematical fact.
+"""
+struct RankPolicy{T<:AbstractFloat}
+    backend::Symbol
+    scaling::Symbol
+    relative_tolerance::T
+    absolute_tolerance::T
+    matrix_norm::Symbol
+    max_dense_entries::Int
+    compute_vectors::Bool
+    provenance::Symbol
+end
+
+function RankPolicy(
+    ::Type{T} = Float64;
+    backend::Symbol = :dense_svd,
+    scaling::Symbol = :none,
+    relative_tolerance::Real = sqrt(eps(T)),
+    absolute_tolerance::Real = zero(T),
+    matrix_norm::Symbol = :frobenius,
+    max_dense_entries::Integer = 4_000_000,
+    compute_vectors::Bool = true,
+    provenance::Symbol = :user,
+) where {T<:AbstractFloat}
+    backend in (:dense_svd, :sparse_qr) ||
+        throw(ArgumentError("backend must be :dense_svd or :sparse_qr"))
+    scaling in (:none, :row, :column, :row_column) ||
+        throw(ArgumentError("scaling must be :none, :row, :column, or :row_column"))
+    matrix_norm in (:frobenius, :one, :infinity) ||
+        throw(ArgumentError("matrix_norm must be :frobenius, :one, or :infinity"))
+    relative = T(relative_tolerance)
+    absolute = T(absolute_tolerance)
+    isfinite(relative) && relative >= zero(T) ||
+        throw(ArgumentError("relative_tolerance must be finite and nonnegative"))
+    isfinite(absolute) && absolute >= zero(T) ||
+        throw(ArgumentError("absolute_tolerance must be finite and nonnegative"))
+    max_dense_entries >= 0 ||
+        throw(ArgumentError("max_dense_entries must be nonnegative"))
+    return RankPolicy{T}(
+        backend, scaling, relative, absolute, matrix_norm,
+        Int(max_dense_entries), compute_vectors, provenance,
+    )
+end
+
+"""
 A guarded dense-SVD estimate of local Jacobian rank.
 
 `left_nullspace` and `right_nullspace` are expressed in the original
@@ -134,6 +185,7 @@ struct JacobianRankEstimate{T<:AbstractFloat}
     available::Bool
     reason::Union{Nothing,String}
     point::EvaluationPoint{T}
+    policy::RankPolicy{T}
     method::Symbol
     scaling::Symbol
     rows::Int
@@ -171,11 +223,13 @@ struct SparseJacobianPatternEstimate{T<:AbstractFloat}
     unmatched_columns::Vector{Int}
 end
 
-"""Sparse-QR diagonal-pivot local rank estimate without a dense SVD."""
+"""Sparse-QR local rank estimate with inspectable factorization evidence."""
 struct SparseQRRankEstimate{T<:AbstractFloat}
     available::Bool
     reason::Union{Nothing,String}
     point::EvaluationPoint{T}
+    policy::RankPolicy{T}
+    method::Symbol
     scaling::Symbol
     rows::Int
     columns::Int
@@ -184,6 +238,11 @@ struct SparseQRRankEstimate{T<:AbstractFloat}
     relative_tolerance::T
     absolute_threshold::T
     condition_proxy::Union{Nothing,T}
+    matrix_norm::Union{Nothing,T}
+    row_permutation::Vector{Int}
+    column_permutation::Vector{Int}
+    factorization_relative_residual::Union{Nothing,T}
+    factorization_residual_reason::Union{Nothing,String}
 end
 
 """Iterative sparse-matvec probe for one candidate right-null direction."""
@@ -195,6 +254,8 @@ struct IterativeNullspaceEstimate{T<:AbstractFloat}
     converged::Bool
     direction::Vector{T}
     residual_norm::Union{Nothing,T}
+    matrix_norm::Union{Nothing,T}
+    relative_residual_norm::Union{Nothing,T}
 end
 
 """Iterative sparse-matvec probe for a candidate right-null subspace."""
@@ -207,6 +268,8 @@ struct IterativeNullspaceSubspaceEstimate{T<:AbstractFloat}
     converged::Bool
     directions::Matrix{T}
     residual_norms::Vector{T}
+    matrix_norm::Union{Nothing,T}
+    relative_residual_norms::Vector{T}
     subspace_change::Union{Nothing,T}
 end
 
@@ -220,6 +283,8 @@ struct IterativeLeftNullspaceSubspaceEstimate{T<:AbstractFloat}
     converged::Bool
     directions::Matrix{T}
     residual_norms::Vector{T}
+    matrix_norm::Union{Nothing,T}
+    relative_residual_norms::Vector{T}
     subspace_change::Union{Nothing,T}
 end
 

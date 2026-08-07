@@ -122,6 +122,92 @@ function _report_view(report, key)
     )
 end
 
+function _controller_snapshot_summary(report)
+    snapshots = get(report, "controller_curve_snapshots", Any[])
+    snapshots isa AbstractVector || (snapshots = Any[])
+    status_counts = Dict{String,Int}()
+    semantics_counts = Dict{String,Int}()
+    family_counts = Dict{String,Int}()
+    observation_count = 0
+    exact_count = 0
+    proxy_count = 0
+    residual_violations = 0
+    cap_violations = 0
+    finite_count = 0
+    nonfinite_count = 0
+    slopes = Float64[]
+    distances = Float64[]
+    for snapshot in snapshots
+        snapshot isa AbstractDict || continue
+        observations = get(snapshot, "observations", Any[])
+        observations isa AbstractVector || continue
+        observation_count += length(observations)
+        exact_value = _int(get(snapshot, "exact_monitor_count", 0))
+        proxy_value = _int(get(snapshot, "proxy_monitor_count", 0))
+        exact_value isa Int && (exact_count += exact_value)
+        proxy_value isa Int && (proxy_count += proxy_value)
+        for observation in observations
+            observation isa AbstractDict || continue
+            status = String(get(observation, "status", "unknown"))
+            status_counts[status] = get(status_counts, status, 0) + 1
+            status == "finite" ? (finite_count += 1) : (nonfinite_count += 1)
+            semantics = get(observation, "monitor_semantics", nothing)
+            semantics isa AbstractString && (semantics_counts[String(semantics)] = get(semantics_counts, String(semantics), 0) + 1)
+            family = get(observation, "curve_family", nothing)
+            family isa AbstractString && (family_counts[String(family)] = get(family_counts, String(family), 0) + 1)
+            residual = get(observation, "equation_residual", nothing)
+            metadata = get(observation, "metadata", Dict())
+            metadata isa AbstractDict || (metadata = Dict())
+            tolerance = get(metadata, "controller_residual_tolerance", nothing)
+            try
+                residual_value = Float64(residual)
+                tolerance_value = Float64(tolerance)
+                abs(residual_value) > tolerance_value && (residual_violations += 1)
+            catch
+            end
+            try
+                Float64(get(observation, "cap_violation", nothing)) > 0 && (cap_violations += 1)
+            catch
+            end
+            try
+                value = Float64(get(observation, "local_slope", nothing)); isfinite(value) && push!(slopes, value)
+            catch
+            end
+            try
+                value = Float64(get(observation, "breakpoint_distance", nothing)); isfinite(value) && push!(distances, value)
+            catch
+            end
+        end
+    end
+    stats(values) = isempty(values) ? Dict("minimum" => nothing, "maximum" => nothing,
+                                            "mean" => nothing, "finite_count" => 0) :
+        Dict("minimum" => minimum(values), "maximum" => maximum(values),
+             "mean" => sum(values) / length(values), "finite_count" => length(values))
+    return Dict{String,Any}(
+        "snapshot_count" => length(snapshots), "observation_count" => observation_count,
+        "exact_monitor_count" => exact_count, "proxy_monitor_count" => proxy_count,
+        "status_counts" => Dict(k => status_counts[k] for k in sort!(collect(keys(status_counts)))),
+        "monitor_semantics_counts" => Dict(k => semantics_counts[k] for k in sort!(collect(keys(semantics_counts)))),
+        "family_counts" => Dict(k => family_counts[k] for k in sort!(collect(keys(family_counts)))),
+        "finite_observation_count" => finite_count, "nonfinite_observation_count" => nonfinite_count,
+        "equation_residual_violation_count" => residual_violations,
+        "cap_violation_count" => cap_violations,
+        "local_slope" => stats(slopes), "breakpoint_distance" => stats(distances),
+        "registry_status" => "unavailable_at_saved_result_layer",
+    )
+end
+
+function _semantic_registry_summary(report)
+    rows = get(report, "bmopf_constraint_semantic_rows", nothing)
+    rows isa AbstractDict || return Dict("status" => "unavailable", "row_count" => 0,
+                                        "registered_row_count" => 0, "unregistered_row_count" => 0)
+    registered = count(descriptor -> descriptor isa AbstractDict &&
+                       get(descriptor, "registered", false) === true, values(rows))
+    return Dict("status" => "available", "row_count" => length(rows),
+                "registered_row_count" => registered,
+                "unregistered_row_count" => length(rows) - registered)
+end
+
 function _persistence_view(path)
     report = _load(path)
     jacobian = get(report, "jacobian_rank_persistence", Dict())
@@ -142,6 +228,8 @@ function _persistence_view(path)
         "model_variable_count" => get(report, "model_variable_count", nothing),
         "mapping" => _mapping_summary(report),
         "controller_curve_snapshots" => get(report, "controller_curve_snapshots", Any[]),
+        "controller_curve_snapshot_summary" => _controller_snapshot_summary(report),
+        "semantic_row_registry" => _semantic_registry_summary(report),
         "controller_curve_persistence" => _report_view(report, "controller_curve_persistence"),
         "controller_curve_finding_code_counts" => controller_codes,
         "active_set" => _active_set_summary(report),
@@ -170,7 +258,7 @@ function main()
     output_path = abspath(first(ARGS))
     reports = [_persistence_view(abspath(path)) for path in ARGS[2:end]]
     write(output_path, JSON.json(Dict(
-        "report_version" => "bmopf-persistence-summary-v1",
+        "report_version" => "bmopf-persistence-summary-v2",
         "report_count" => length(reports),
         "reports" => reports,
         "interpretation" => "Availability, persistence, nullspace alignment, and scaling observations remain separately attributable; unavailable rank is not rank change.",

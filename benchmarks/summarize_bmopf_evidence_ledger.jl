@@ -30,24 +30,39 @@ end
 function _string_list(value)
     value === nothing && return String[]
     value isa AbstractString && return filter(!isempty, strip.(split(value, ',')))
-    value isa AbstractVector && return String.(value)
+    value isa AbstractVector && return filter(!isempty, String[
+        item isa AbstractString ? String(item) :
+        item isa AbstractDict ? String(get(item, "name", get(item, "snapshot", ""))) :
+        string(item) for item in value
+    ])
     return [String(value)]
 end
 
 function _source_type(report)
-    version = String(get(report, "runner_version", "unknown"))
+    runner_version = String(get(report, "runner_version", ""))
+    report_version = String(get(report, "report_version", ""))
+    version = isempty(runner_version) ? report_version : runner_version
     startswith(version, "bmopf-perturbation-corpus-") && return "perturbation_corpus"
     startswith(version, "bmopf-campaign-validation-") && return "campaign_validation"
     occursin("solver-matrix", lowercase(version)) && return "solver_matrix"
     startswith(version, "bmopf-campaign-summary-") && return "campaign_summary"
     startswith(version, "bmopf-perturbation-repeats-") && return "perturbation_repeats"
+    startswith(version, "bmopf-solver-trace-") && return "solver_trace"
+    startswith(version, "bmopf-multiconductor-smoke-summary-") && return "multiconductor_smoke"
+    startswith(version, "bmopf-multiconductor-probe-comparison-") && return "multiconductor_probe_comparison"
+    startswith(version, "nlpdiagnostics-operator-fingerprint-summary-") && return "operator_fingerprint"
+    startswith(version, "bmopf-controller-campaign-") && return "controller_campaign"
+    startswith(version, "bmopf-saved-result-persistence-") && return "saved_result_persistence"
+    startswith(version, "bmopf-persistence-summary-") && return "saved_result_persistence_summary"
+    startswith(version, "bmopf-saved-result-profile-comparison-") && return "saved_result_profile_comparison"
+    startswith(version, "bmopf-result-policy-matrix-summary-") && return "result_policy_matrix"
     startswith(version, "bmopf-evidence-ledger-comparison-") && return "evidence_ledger_comparison"
     startswith(version, "bmopf-evidence-ledger-") && return "evidence_ledger"
     return "unknown"
 end
 
 function _provenance(report)
-    cases = _string_list(get(report, "cases", Any[]))
+    cases = _string_list(get(report, "cases", get(report, "case_summaries", Any[])))
     solvers = _string_list(get(report, "solvers", Any[]))
     families = _string_list(get(report, "family_perturbation_families", Any[]))
     by_family = _dict(get(report, "by_family", nothing))
@@ -82,6 +97,23 @@ function _provenance(report)
             "capture_logs" => get(report, "capture_logs", nothing),
             "capture_points" => get(report, "capture_points", nothing),
         ),
+    )
+end
+
+function _source_metadata(report)
+    aggregate = _dict(get(report, "aggregate", nothing))
+    haskey(aggregate, "source_schema_warning_count") || return Dict{String,Any}()
+    return Dict{String,Any}(
+        "source_snapshot_case_count" => get(aggregate, "source_snapshot_case_count", 0),
+        "source_schema_warning_count" => get(aggregate, "source_schema_warning_count", 0),
+        "source_schema_warning_field_counts" => get(aggregate, "source_schema_warning_field_counts", Dict()),
+        "source_schema_warning_scope_counts" => get(aggregate, "source_schema_warning_scope_counts", Dict()),
+        "source_schema_warning_impact_counts" => get(aggregate, "source_schema_warning_impact_counts", Dict()),
+        "source_schema_warning_policy_status_counts" => get(aggregate, "source_schema_warning_policy_status_counts", Dict()),
+        "source_schema_field_policies" => get(aggregate, "source_schema_field_policies", Dict()),
+        "source_schema_warning_fixture_counts" => get(aggregate, "source_schema_warning_fixture_counts", Dict()),
+        "source_schema_warning_message_counts" => get(aggregate, "source_schema_warning_message_counts", Dict()),
+        "physical_metadata_warning_count" => get(aggregate, "physical_metadata_warning_count", 0),
     )
 end
 
@@ -164,6 +196,33 @@ function _extract_records(report, path)
         _append_findings!(records, report, path, "repeat_report_$index", get(item, "findings", Any[]))
         _append_findings!(records, report, path, "repeat_report_$(index)_structured", get(item, "structured_findings", Any[]))
     end
+    for (index, item_raw) in enumerate(get(report, "controller_reports", Any[]))
+        item = _dict(item_raw)
+        _append_findings!(records, report, path, "controller_report_$index", get(item, "findings", Any[]))
+        for (nested_index, nested_raw) in enumerate(get(item, "reports", Any[]))
+            nested = _dict(nested_raw)
+            _append_findings!(records, report, path,
+                "controller_report_$(index)_nested_$nested_index", get(nested, "findings", Any[]))
+        end
+    end
+    for (index, item_raw) in enumerate(get(report, "solver_trace_reports", Any[]))
+        item = _dict(item_raw)
+        _append_findings!(records, report, path, "solver_trace_report_$index", get(item, "findings", Any[]))
+    end
+    for (index, item_raw) in enumerate(get(report, "trace_comparison_reports", Any[]))
+        item = _dict(item_raw)
+        _append_findings!(records, report, path, "trace_comparison_report_$index", get(item, "findings", Any[]))
+    end
+    for (index, item_raw) in enumerate(get(report, "policy_matrix_reports", Any[]))
+        item = _dict(item_raw)
+        _append_findings!(records, report, path, "policy_matrix_report_$index", get(item, "findings", Any[]))
+    end
+    # Validation currently stores policy-matrix validation alongside comparison
+    # reports; retain the scope explicitly when the source report is a policy
+    # matrix so its findings remain distinguishable in the ledger.
+    if startswith(String(get(report, "report_version", "")), "bmopf-result-policy-matrix-summary-")
+        _append_findings!(records, report, path, "policy_matrix_summary", get(report, "findings", Any[]))
+    end
     return records
 end
 
@@ -196,7 +255,8 @@ function main()
         report = _load(path)
         push!(source_types, Dict("path" => path, "type" => _source_type(report),
                                 "runner_version" => get(report, "runner_version", nothing),
-                                "provenance" => _provenance(report)))
+                                "provenance" => _provenance(report),
+                                "metadata" => _source_metadata(report)))
         append!(records, _extract_records(report, path))
     end
     by_identity = Dict{String,Any}()

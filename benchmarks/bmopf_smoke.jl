@@ -15,6 +15,7 @@ using JuMP
 using Ipopt # together with JuMP, activates BMOPFTools' public staged OPF extension
 using JSON
 using LinearAlgebra
+using SHA
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
@@ -96,9 +97,23 @@ function _dense_entry_limit()
     return limit
 end
 
+function _optional_positive_integer(name::AbstractString; default = 0)
+    raw = get(ENV, name, string(default))
+    value = try
+        parse(Int, raw)
+    catch
+        error("$name must be a nonnegative integer, got '$raw'")
+    end
+    value >= 0 || error("$name must be nonnegative, got '$raw'")
+    return iszero(value) ? nothing : value
+end
+
 function _bmopf_integrity_preflight(network)
     findings = BMOPFTools.Finding[]
     result = BMOPFTools.integrity_check(network, findings)
+    metadata = network isa AbstractDict ? get(network, "_meta", Dict()) : Dict()
+    source_warnings = metadata isa AbstractDict ? get(metadata, "powerio_warnings", Any[]) : Any[]
+    source_warnings isa AbstractVector || (source_warnings = Any[source_warnings])
     return Dict{String,Any}(
         "error_count" => count(f -> f.severity == BMOPFTools.ERROR, findings),
         "warning_count" => count(f -> f.severity == BMOPFTools.WARNING, findings),
@@ -110,7 +125,25 @@ function _bmopf_integrity_preflight(network)
             "component_id" => f.component_id, "message" => f.message,
             "detail" => f.detail,
         ) for f in findings],
+        "source_schema_warning_count" => length(source_warnings),
+        "source_schema_warnings" => source_warnings,
         "summary" => result,
+    )
+end
+
+function _preserve_source_fixture(path::AbstractString, output_dir::AbstractString, name::AbstractString)
+    source_dir = joinpath(output_dir, "source")
+    mkpath(source_dir)
+    target = joinpath(source_dir, "$(name)-$(basename(path))")
+    cp(path, target; force = true)
+    bytes = read(target)
+    return Dict{String,Any}(
+        "preserved" => true,
+        "source_path" => abspath(path),
+        "copy_path" => relpath(target, output_dir),
+        "sha256" => bytes2hex(SHA.sha256(bytes)),
+        "size_bytes" => length(bytes),
+        "line_count" => count(==(UInt8('\n')), bytes) + (isempty(bytes) || last(bytes) == UInt8('\n') ? 0 : 1),
     )
 end
 
@@ -275,6 +308,13 @@ function main()
     )
     point_policy = lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_POINT_POLICY", "initialization"))
     dense_entry_limit = _dense_entry_limit()
+    iterative_probe_dimension = _optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_ITERATIVE_RIGHT_PROBE_DIMENSION",
+    )
+    iterative_probe_iterations = something(_optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_ITERATIVE_RIGHT_PROBE_ITERATIONS";
+        default = 50,
+    ), 50)
     environment = _benchmark_environment()
     environment_fingerprint = _benchmark_environment_fingerprint(environment)
 
@@ -282,8 +322,10 @@ function main()
         path = joinpath(root, spec.file)
         result_path = joinpath(output_dir, "$(spec.name).json")
         preflight = nothing
+        source_snapshot = Dict{String,Any}("preserved" => false, "source_path" => abspath(path))
         try
             isfile(path) || error("fixture is missing: $path")
+            source_snapshot = _preserve_source_fixture(path, output_dir, spec.name)
             network = BMOPFTools.from_dss(path)
             preflight = _bmopf_integrity_preflight(network)
             run = NLPDiagnostics.bmopf_build_and_profile(network,
@@ -293,6 +335,8 @@ function main()
                     include_initialization = true,
                     rank_max_dense_entries = dense_entry_limit,
                     jacobian_rank_tolerance_sweep_max_dense_entries = dense_entry_limit,
+                    iterative_right_nullspace_probe_dimension = iterative_probe_dimension,
+                    iterative_right_nullspace_probe_iterations = iterative_probe_iterations,
                 ),
             )
             data = NLPDiagnostics.profile_result_data(run.result)
@@ -303,12 +347,33 @@ function main()
             variable_count = length(evaluation.point.variables)
             constraint_row_count = length(evaluation.constraint_sources)
             jacobian_entries = variable_count * constraint_row_count
+            dense_analysis_allowed = dense_entry_limit > 0 &&
+                                     jacobian_entries <= dense_entry_limit
+            physical_mode_analysis = if dense_analysis_allowed
+                NLPDiagnostics.bmopf_analyze_opf(
+                    run.context;
+                    point = evaluation.point,
+                    include_port_physical_modes = true,
+                    check_degeneracy = true,
+                    jacobian_rank_tolerance_sweep_tolerances = [sqrt(eps(Float64))],
+                    jacobian_rank_tolerance_sweep_max_dense_entries = dense_entry_limit,
+                )
+            else
+                NLPDiagnostics.bmopf_analyze_opf(
+                    run.context;
+                    include_port_physical_modes = true,
+                )
+            end
+            physical_mode_analysis_data = NLPDiagnostics.report_data(
+                physical_mode_analysis,
+            )
             generic_findings = sum(length(report["findings"]) for
                 report in values(data["profile"]["reports"]))
             context_findings = length(data["bmopf_context_report"]["findings"])
             payload = Dict{String,Any}(
                 "fixture" => spec.file,
                 "fixture_path" => abspath(path),
+                "source_snapshot" => source_snapshot,
                 "integrity_preflight" => preflight,
                 "tags" => string.(spec.tags),
                 "environment_fingerprint" => environment_fingerprint,
@@ -317,8 +382,11 @@ function main()
                 "scalar_constraint_row_count" => constraint_row_count,
                 "jacobian_dense_entry_count" => jacobian_entries,
                 "rank_max_dense_entries" => dense_entry_limit,
+                "iterative_right_nullspace_probe_dimension" => iterative_probe_dimension,
+                "iterative_right_nullspace_probe_iterations" => iterative_probe_iterations,
                 "dense_rank_analysis_eligible" => jacobian_entries <= dense_entry_limit,
                 "multiconductor_contract" => multiconductor_contract,
+                "physical_mode_analysis" => physical_mode_analysis_data,
                 "build_seconds" => run.build_seconds,
                 "build_allocations" => run.build_allocations,
                 "kcl_seconds" => run.kcl_seconds,
@@ -329,11 +397,14 @@ function main()
             push!(index, Dict(
                 "name" => spec.name, "status" => "ok",
                 "result_file" => basename(result_path),
+                "source_snapshot" => source_snapshot,
                 "point_policy" => point_policy,
                 "model_variable_count" => variable_count,
                 "scalar_constraint_row_count" => constraint_row_count,
                 "jacobian_dense_entry_count" => jacobian_entries,
                 "rank_max_dense_entries" => dense_entry_limit,
+                "iterative_right_nullspace_probe_dimension" => iterative_probe_dimension,
+                "iterative_right_nullspace_probe_iterations" => iterative_probe_iterations,
                 "dense_rank_analysis_eligible" => jacobian_entries <= dense_entry_limit,
                 "multiconductor_contract" => multiconductor_contract,
                 "generic_finding_count" => generic_findings,
@@ -347,12 +418,14 @@ function main()
             message = sprint(showerror, error, catch_backtrace())
             write(result_path, JSON.json(Dict(
                 "fixture" => spec.file, "fixture_path" => abspath(path),
+                "source_snapshot" => source_snapshot,
                 "status" => "error", "error" => message,
                 "integrity_preflight" => preflight,
             )))
             push!(index, Dict(
                 "name" => spec.name, "status" => "error",
                 "result_file" => basename(result_path), "error" => message,
+                "source_snapshot" => source_snapshot,
             ))
             println("$(spec.name): ERROR — $(sprint(showerror, error))")
         end
