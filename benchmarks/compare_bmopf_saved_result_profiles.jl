@@ -191,7 +191,11 @@ function _controller_registry_crosswalk(record, observations)
                 descriptor isa AbstractDict || continue
                 get(descriptor, "constraint_family", nothing) == expected_family || continue
                 index_text = string(get(descriptor, "constraint_index", ""))
-                occursin(String(component_id), index_text) && push!(row_matches, String(row))
+                # Registered BMOPFTools component indices are serialized with
+                # quoted string fields, e.g. ("pv_1", 1). Match that complete
+                # field so `pv_1` cannot be confused with `pv_10` or `pv_11`.
+                occursin("\"$(String(component_id))\"", index_text) &&
+                    push!(row_matches, String(row))
             end
         end
         status = isempty(row_matches) ? "not_found" : "registered"
@@ -433,11 +437,14 @@ function _aggregate_controller_cases(cases)
                 registry_violation_statuses[String(violation_status)] =
                     get(registry_violation_statuses, String(violation_status), 0) + Int(count)
             end
-            any(value -> value isa Number && value > 0,
-                values(status_counts)) && push!(registry_boundaries, Dict(
+            boundary_status_counts = Dict{String,Int}(
+                String(key) => Int(value) for (key, value) in status_counts
+                if String(key) != "registered" && value isa Number && value > 0
+            )
+            !isempty(boundary_status_counts) && push!(registry_boundaries, Dict(
                     "snapshot" => get(case, "snapshot", nothing),
                     "side" => side,
-                    "status_counts" => status_counts,
+                    "status_counts" => boundary_status_counts,
                     "components_by_status" => get(registry, "components_by_status", Dict()),
                 ))
         end

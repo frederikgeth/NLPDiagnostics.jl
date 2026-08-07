@@ -841,6 +841,18 @@ process-health checks. Readiness requires each solver to produce at least one
 successful trusted solver-result profile; a native MadNLP exit remains an
 explicit matrix failure rather than being compared as an empty solver trace.
 
+Constraint-row semantics now key MOI constraints by integer index, function
+type, and set type. This prevents unrelated constraint types with the same
+integer value from overwriting one another. In the fresh 30-bus trace, all 28
+Volt-var and 28 Volt-watt constraints are registered and every observed
+controller violation crosswalks successfully. Other unregistered native rows
+remain explicitly outside that claim.
+
+Saved-result controller crosswalks also match quoted component index fields,
+so identifiers such as `pv_1` and `pv_10` cannot alias. The regenerated SI/PU
+pair retains 56 registered violation matches with no semantic-registry
+boundary; the numerical residual delta remains a policy observation.
+
 In the first registry-aware 30-bus LN/LG SI-versus-PU run, both children
 completed under one environment fingerprint and each retained 56 finite exact
 controller observations. PU produced 28 Volt-var residual and 28 Volt-watt cap

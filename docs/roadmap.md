@@ -1474,3 +1474,18 @@ manifest are written incrementally, and native wait/timeout evidence is
 retained. Matrix readiness requires successful solver children, healthy
 process status, and trusted solver-result coverage for every solver; an absent
 MadNLP result cannot be treated as a comparison with an empty trace.
+
+The controller semantic-row gap was traced to an MOI identity bug in the
+adapter: `ConstraintIndex.value` is unique only within a function/set type,
+but the registry map previously keyed constraints by that integer alone. The
+map now includes function and set types and carries them in serialized row
+evidence. A fresh 30-bus trace maps all 28 Volt-var and all 28 Volt-watt rows;
+the short trace's 11 controller violations all crosswalk to registered rows.
+The whole model still has 352 unregistered rows out of 844, so this closes the
+controller boundary, not the broader KCL/native-equation registry project.
+
+Saved-result component matching is now exact as well (`pv_1` no longer matches
+`pv_10`). A fresh one-case SI/PU matrix reports 56 registered controller
+violation crosswalks and zero registry-boundary cases. Its remaining warning
+is the actual SI/PU controller-residual delta, now separated from registry
+ambiguity.
