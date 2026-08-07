@@ -173,6 +173,24 @@ function _validate_campaign(path, summary)
     end
 
     profile_cases = _int(get(summary, "profile_case_count", 0))
+    trusted_points = get(summary, "trusted_point_selection_counts", nothing)
+    trusted_point_ready = true
+    if trusted_points isa AbstractDict
+        selected_trusted = _int(get(trusted_points,
+            "profile_cases_with_selected_trusted_points", 0))
+        missing_trust_metadata = _int(get(trusted_points,
+            "profile_cases_missing_selection_metadata", 0))
+        trusted_point_ready = profile_cases == 0 ||
+                             (selected_trusted == profile_cases && missing_trust_metadata == 0)
+        !trusted_point_ready && push!(findings, _finding(
+            "trusted_solver_point_coverage_incomplete", "warning",
+            "Not every profiled case has a selected complete solver-iterate or solver-result point.",
+            Dict("profile_case_count" => profile_cases,
+                 "profile_cases_with_selected_trusted_points" => selected_trusted,
+                 "profile_cases_missing_selection_metadata" => missing_trust_metadata),
+            suggested_action = "Use complete solver iterates/results for physical or cross-case claims, or retain the campaign as initialization-scoped evidence."
+        ))
+    end
     catalog_cases = _int(get(summary, "result_field_catalog_case_count", 0))
     attribution = get(summary, "feasibility_field_attribution_counts", nothing)
     attribution_cases = attribution isa AbstractDict ?
@@ -238,6 +256,7 @@ function _validate_campaign(path, summary)
         "physical_component_rank_interpretation" => physical_ready,
         "result_field_catalog" => catalog_ready,
         "feasibility_field_attribution" => attribution_ready,
+        "trusted_solver_point_coverage" => trusted_point_ready,
         "constraint_semantic_attribution" => semantic_ready,
         "constraint_semantic_registry_model_coverage" => semantic_model_ready,
     )

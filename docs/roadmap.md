@@ -1418,3 +1418,17 @@ The smoke runner now preserves a byte-for-byte source snapshot for every
 fixture, recording a relative copy path, SHA-256 digest, byte count, and line
 count in the result and index. The five-fixture rerun preserved all sources,
 so future field-mapping work can be audited against the exact input deck.
+
+Solver-iterate correlation now exposes the same point-level trust boundary at
+the row level: every bound iteration records its point fingerprint, provenance
+kind/source, and completeness in report metadata, and serialized trace
+bindings retain those fields. This makes benchmark aggregation able to
+quarantine synthetic or incomplete points without reopening nested records.
+The next campaign item is to use these fields in an explicit trusted-point
+selector before making physical or cross-case claims.
+
+The first trusted-point selector is now available in the generic core. Its
+default policy admits only complete, finite solver-iterate and solver-result
+points, while retaining all rejected points and reasons for audit. This is a
+selection boundary, not a claim that a solver point is physically correct;
+campaigns still need their own operating-point and metadata readiness gates.

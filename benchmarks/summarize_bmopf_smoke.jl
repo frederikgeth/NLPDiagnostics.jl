@@ -6,6 +6,17 @@
 
 using JSON
 
+function _int(value, default = 0)
+    value isa Integer && return Int(value)
+    value isa Number && return Int(value)
+    value isa AbstractString || return default
+    try
+        return parse(Int, value)
+    catch
+        return default
+    end
+end
+
 function _count_codes(reports)
     counts = Dict{String,Int}()
     for report in values(reports)
@@ -138,6 +149,10 @@ function main()
     skipped_cases = 0
     error_cases = 0
     profile_case_count = 0
+    trusted_point_selected_cases = 0
+    trusted_point_rejected_cases = 0
+    trusted_point_incomplete_cases = 0
+    trusted_point_missing_case_records = 0
     floating_neutral_candidate_cases = 0
     floating_neutral_candidate_modes = 0
     component_rank_capability_cases = 0
@@ -412,6 +427,20 @@ function main()
             summary["floating_neutral_candidate_mode_count"] = candidate_modes
             if analysis_mode != "structural" && haskey(record, "profile")
                 profile_case_count += 1
+                profile_case = get(get(profile, "profile", Dict()), "case", Dict())
+                point_trust = get(profile_case, "point_trust", nothing)
+                if point_trust isa AbstractDict
+                    trust_metadata = get(point_trust, "metadata", Dict())
+                    selected = _int(get(trust_metadata, "selected_count", 0), 0)
+                    rejected = _int(get(trust_metadata, "rejected_count", 0), 0)
+                    selected > 0 && (trusted_point_selected_cases += 1)
+                    rejected > 0 && (trusted_point_rejected_cases += 1)
+                    reasons = String(get(trust_metadata, "rejected_reasons", ""))
+                    occursin("incomplete", lowercase(reasons)) &&
+                        (trusted_point_incomplete_cases += 1)
+                else
+                    trusted_point_missing_case_records += 1
+                end
                 controller_curve_profile = get(profile, "bmopf_controller_curve_observations", nothing)
                 if controller_curve_profile isa AbstractDict
                     controller_curve_profile_case_count += 1
@@ -703,6 +732,12 @@ function main()
         "resume" => get(index, "resume", false),
         "force" => get(index, "force", false),
         "profile_case_count" => profile_case_count,
+        "trusted_point_selection_counts" => Dict(
+            "profile_cases_with_selected_trusted_points" => trusted_point_selected_cases,
+            "profile_cases_with_rejected_points" => trusted_point_rejected_cases,
+            "profile_cases_with_incomplete_selection_metadata" => trusted_point_incomplete_cases,
+            "profile_cases_missing_selection_metadata" => trusted_point_missing_case_records,
+        ),
         "profile_stage_seconds" => _metric_summaries(aggregate_stage_seconds),
         "profile_stage_allocations" => _metric_summaries(aggregate_stage_allocations),
         "skipped_case_count" => skipped_cases,

@@ -58,6 +58,15 @@ This guard does not reject the numerical observation; it prevents a convenient
 coordinate vector from being mistaken for a physically meaningful operating
 state.
 
+For benchmark aggregation, `select_trusted_evaluation_points(points)` provides
+an explicit default policy: only complete, finite `SolverIteratePoint` and
+`SolverResultPoint` values are selected. User, initialization, perturbed,
+synthetic, incomplete, and non-finite points remain in the returned rejection
+list with reasons and fingerprints. Callers can widen `allowed_kinds` when a
+campaign has a documented policy for another provenance class.
+Serialized `ProfileCase` records include the same `point_trust` object, so
+campaign validators can gate interpretation directly from benchmark artifacts.
+
 Every model, evaluation point, and numerical evaluator source also receives a
 stable SHA-256 fingerprint. `model_fingerprint(model)` is based on the copied
 public MOI snapshot; `evaluation_point_fingerprint(point)` includes coordinate
@@ -970,6 +979,10 @@ probe dimension and remains separate from dense rank persistence. When an object
 with the model objective at the supplied point. Potential barrier, penalty,
 scaling, and point-alignment differences remain evidence rather than an
 assumption that the log column is the unmodified model objective.
+Each bound row also records the point fingerprint, provenance kind/source, and
+completeness in report metadata. Serialized trace bindings retain the same
+fields, so benchmark summaries can quarantine synthetic or incomplete points
+without reopening nested point records.
 
 Dense rank persistence also compares left-nullspace geometry. Its
 `rank_persistence_left_nullspace_support_relative` control is forwarded to

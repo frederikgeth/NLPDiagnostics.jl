@@ -97,6 +97,9 @@ export EvaluationFailure
 export EvaluationPoint
 export EvaluationPointKind
 export EvaluationPointProvenance
+export TrustedPointSelection
+export select_trusted_evaluation_points
+export trusted_point_selection_data
 export UserPoint, InitializationPoint, CompletedInitializationPoint
 export SolverIteratePoint, SolverResultPoint, PerturbedPoint, SyntheticSmokePoint
 export model_fingerprint

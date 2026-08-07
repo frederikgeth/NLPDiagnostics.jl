@@ -949,6 +949,8 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     benchmark_data = NLPDiagnostics.profile_result_data(benchmark_result)
     @test haskey(benchmark_data, "profile")
     @test haskey(benchmark_data, "bmopf_context_report")
+    @test haskey(benchmark_data["profile"]["case"], "point_trust")
+    @test benchmark_data["profile"]["case"]["point_trust"]["metadata"]["selected_count"] == "0"
     capability_data = benchmark_data["bmopf_component_rank_capability"]
     @test capability_data["checked"] == true
     @test capability_data["component_count"] == 2
@@ -11958,6 +11960,8 @@ end
         trace_data = NLPDiagnostics.iteration_trace_data(trace)
         @test trace_data["record_count"] == 1
         @test trace_data["binding_count"] == 1
+        @test trace_data["bindings"][1]["point_fingerprint"] ==
+              NLPDiagnostics.evaluation_point_fingerprint(combined_binding.point)
         trace_report = NLPDiagnostics.analyze_iteration_trace(
             combined_model, trace;
             check_degeneracy = false,
@@ -12242,6 +12246,10 @@ end
         )
         @test point_report.metadata[:iteration_1_log_line] == "3"
         @test point_report.metadata[:iteration_1_point_label] == "ipopt-1"
+        @test point_report.metadata[:iteration_1_point_fingerprint] ==
+              NLPDiagnostics.evaluation_point_fingerprint(bindings[1].point)
+        @test point_report.metadata[:iteration_1_point_provenance_kind] == "UserPoint"
+        @test point_report.metadata[:bound_iteration_complete_point_count] == "1"
         @test length(
             findings(point_report, :solver_iteration_primal_residual_mismatch),
         ) == 1

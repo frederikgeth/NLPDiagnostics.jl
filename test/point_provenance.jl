@@ -136,6 +136,37 @@ import NLPDiagnostics
     @test completed_finding.confidence == NLPDiagnostics.ConfidenceLow
     @test completed_finding.basis == NLPDiagnostics.HeuristicInterpretation
 
+    solver_point = NLPDiagnostics.evaluation_point(
+        model,
+        [1.0];
+        label = "solver iterate",
+        provenance = NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.SolverIteratePoint;
+            source = "Ipopt callback",
+        ),
+    )
+    incomplete_solver_point = NLPDiagnostics.evaluation_point(
+        model,
+        [1.0];
+        label = "incomplete solver iterate",
+        provenance = NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.SolverIteratePoint;
+            source = "partial callback",
+            complete = false,
+        ),
+    )
+    selection = NLPDiagnostics.select_trusted_evaluation_points([
+        default_point, synthetic, solver_point, incomplete_solver_point,
+    ])
+    @test length(selection.selected) == 1
+    @test length(selection.rejected) == 3
+    @test selection.metadata["selected_count"] == "1"
+    @test selection.metadata["rejected_count"] == "3"
+    serialized_selection = NLPDiagnostics.trusted_point_selection_data(selection)
+    @test serialized_selection["selected"][1]["fingerprint"] ==
+          NLPDiagnostics.evaluation_point_fingerprint(solver_point)
+    @test serialized_selection["rejected"][1]["reason"] isa String
+
     @test_throws ArgumentError NLPDiagnostics.EvaluationPointProvenance(
         NLPDiagnostics.UserPoint;
         source = " ",

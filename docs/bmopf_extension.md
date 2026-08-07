@@ -803,6 +803,11 @@ Ipopt/MadNLP matrix summaries for successful child processes and paired trace
 records. When `NLPDIAGNOSTICS_BMOPF_UNIT_RATIO_REPORT` is supplied, each paired
 case also retains its nontrivial field-family ratio fingerprints, so a policy
 delta can be inspected alongside the exported fields that differ in scale.
+Profile records now include a `point_trust` object, and the corpus summarizer
+aggregates selected/rejected trusted-point coverage. The validator exposes this
+as `trusted_solver_point_coverage`; incomplete coverage remains a warning and
+keeps the campaign useful for initialization-scoped numerical observations,
+but blocks physical or cross-case claims that require complete solver points.
 
 In the first registry-aware 30-bus LN/LG SI-versus-PU run, both children
 completed under one environment fingerprint and each retained 56 finite exact

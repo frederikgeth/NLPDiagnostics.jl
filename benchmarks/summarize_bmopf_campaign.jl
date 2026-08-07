@@ -42,6 +42,7 @@ function _structural_view(summary)
         "rank_max_dense_entries" => get(summary, "rank_max_dense_entries", nothing),
         "case_count" => length(get(summary, "cases", Any[])),
         "profile_case_count" => get(summary, "profile_case_count", 0),
+        "trusted_point_selection_counts" => get(summary, "trusted_point_selection_counts", Dict()),
         "skipped_case_count" => get(summary, "skipped_case_count", 0),
         "error_case_count" => get(summary, "error_case_count", 0),
         "dense_rank_case_counts" => get(summary, "dense_rank_case_counts", Dict()),

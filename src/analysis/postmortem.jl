@@ -1333,6 +1333,10 @@ function iteration_trace_data(trace::SolverIterationTrace)
         "segment" => binding.segment,
         "selector" => string(binding.selector),
         "point" => _evaluation_point_data(binding.point),
+        "point_fingerprint" => evaluation_point_fingerprint(binding.point),
+        "point_provenance_kind" => string(binding.point.provenance.kind),
+        "point_provenance_source" => binding.point.provenance.source,
+        "point_provenance_complete" => binding.point.provenance.complete,
     ) for binding in trace.bindings]
     return Dict{String,Any}(
         "record_count" => length(trace.records),
@@ -1368,6 +1372,10 @@ function current_law_operating_point_trace_data(
         "segment" => binding.segment,
         "selector" => string(binding.selector),
         "label" => binding.point.label,
+        "point_fingerprint" => evaluation_point_fingerprint(binding.point),
+        "point_provenance_kind" => string(binding.point.provenance.kind),
+        "point_provenance_source" => binding.point.provenance.source,
+        "point_provenance_complete" => binding.point.provenance.complete,
     ) for binding in trace.bindings]
     return Dict{String,Any}(
         "metadata" => copy(trace.metadata),
@@ -1825,6 +1833,19 @@ function analyze_iteration_points(
     report.metadata[:bound_iteration_legacy_selector_count] = string(count(
         binding -> binding.selector == :iteration, bindings,
     ))
+    point_kind_counts = Dict{String,Int}()
+    complete_point_count = 0
+    for binding in bindings
+        kind = string(binding.point.provenance.kind)
+        point_kind_counts[kind] = get(point_kind_counts, kind, 0) + 1
+        complete_point_count += binding.point.provenance.complete ? 1 : 0
+    end
+    report.metadata[:bound_iteration_point_kind_counts] = join((
+        "$(kind)=$(point_kind_counts[kind])" for kind in sort!(collect(keys(point_kind_counts)))
+    ), ",")
+    report.metadata[:bound_iteration_complete_point_count] = string(complete_point_count)
+    report.metadata[:bound_iteration_incomplete_point_count] =
+        string(length(bindings) - complete_point_count)
     legacy_segments_by_iteration = Dict{Int,Set{Int}}()
     for binding in bindings
         binding.selector == :iteration || continue
@@ -1969,6 +1990,14 @@ function analyze_iteration_points(
         report.metadata[Symbol(prefix * "_segment")] = string(binding.segment)
         report.metadata[Symbol(prefix * "_log_line")] = string(binding.record.line)
         report.metadata[Symbol(prefix * "_point_label")] = binding.point.label
+        report.metadata[Symbol(prefix * "_point_fingerprint")] =
+            evaluation_point_fingerprint(binding.point)
+        report.metadata[Symbol(prefix * "_point_provenance_kind")] =
+            string(binding.point.provenance.kind)
+        report.metadata[Symbol(prefix * "_point_provenance_source")] =
+            binding.point.provenance.source
+        report.metadata[Symbol(prefix * "_point_provenance_complete")] =
+            string(binding.point.provenance.complete)
         report.metadata[Symbol(prefix * "_logged_primal_infeasibility")] = string(logged_primal)
         report.metadata[Symbol(prefix * "_recomputed_total_violation")] = string(recomputed_primal)
         report.metadata[Symbol(prefix * "_recomputed_scalar_violation")] = string(scalar_violation)

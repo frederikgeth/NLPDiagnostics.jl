@@ -86,6 +86,72 @@ struct EvaluationPoint{T<:AbstractFloat}
     end
 end
 
+"""Result of applying an explicit trust policy to a collection of points."""
+struct TrustedPointSelection
+    selected::Vector{EvaluationPoint}
+    rejected::Vector{Tuple{EvaluationPoint,String}}
+    metadata::Dict{String,String}
+end
+
+"""
+    select_trusted_evaluation_points(points; kwargs...)
+
+Select complete, finite points with explicitly allowed provenance kinds. The
+default policy admits only solver iterates and solver results; user,
+initialization, perturbed, synthetic, and artificially completed points are
+retained in `rejected` with reasons rather than silently promoted.
+"""
+function select_trusted_evaluation_points(
+    points::AbstractVector{<:EvaluationPoint};
+    allowed_kinds::AbstractVector{EvaluationPointKind} =
+        EvaluationPointKind[SolverIteratePoint, SolverResultPoint],
+    require_complete::Bool = true,
+    require_finite::Bool = true,
+)
+    isempty(allowed_kinds) && throw(ArgumentError("allowed_kinds must not be empty"))
+    allowed = Set(allowed_kinds)
+    selected = EvaluationPoint[]
+    rejected = Tuple{EvaluationPoint,String}[]
+    for point in points
+        reason = if !(point.provenance.kind in allowed)
+            "provenance kind $(point.provenance.kind) is not allowed by the trust policy"
+        elseif require_complete && !point.provenance.complete
+            "point provenance is incomplete"
+        elseif require_finite && any(value -> !isfinite(value), point.values)
+            "point contains non-finite coordinates"
+        else
+            nothing
+        end
+        if isnothing(reason)
+            push!(selected, point)
+        else
+            push!(rejected, (point, reason))
+        end
+    end
+    metadata = Dict{String,String}(
+        "input_count" => string(length(points)),
+        "selected_count" => string(length(selected)),
+        "rejected_count" => string(length(rejected)),
+        "allowed_kinds" => join(string.(sort!(collect(allowed); by = string)), ","),
+        "require_complete" => string(require_complete),
+        "require_finite" => string(require_finite),
+        "selected_fingerprints" => join(evaluation_point_fingerprint.(selected), ","),
+        "rejected_reasons" => join((reason for (_, reason) in rejected), " | "),
+    )
+    return TrustedPointSelection(selected, rejected, metadata)
+end
+
+function trusted_point_selection_data(selection::TrustedPointSelection)
+    return Dict{String,Any}(
+        "metadata" => copy(selection.metadata),
+        "selected" => [_evaluation_point_data(point) for point in selection.selected],
+        "rejected" => [Dict{String,Any}(
+            "point" => _evaluation_point_data(point),
+            "reason" => reason,
+        ) for (point, reason) in selection.rejected],
+    )
+end
+
 function Base.:(==)(left::EvaluationPoint, right::EvaluationPoint)
     return left.variables == right.variables &&
            left.values == right.values &&

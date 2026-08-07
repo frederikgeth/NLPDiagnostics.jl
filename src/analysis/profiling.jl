@@ -10,6 +10,7 @@ _profile_sorted_data(values) = Dict(
 )
 
 function _profile_case_data(case::ProfileCase)
+    point_trust = select_trusted_evaluation_points([case.point])
     return Dict{String,Any}(
         "name" => case.name,
         "description" => case.description,
@@ -23,6 +24,7 @@ function _profile_case_data(case::ProfileCase)
         "expected_evidence" => string.(case.expected_evidence),
         "point" => _evaluation_point_data(case.point),
         "point_fingerprint" => evaluation_point_fingerprint(case.point),
+        "point_trust" => trusted_point_selection_data(point_trust),
     )
 end
 
