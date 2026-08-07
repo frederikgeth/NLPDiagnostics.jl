@@ -809,6 +809,30 @@ as `trusted_solver_point_coverage`; incomplete coverage remains a warning and
 keeps the campaign useful for initialization-scoped numerical observations,
 but blocks physical or cross-case claims that require complete solver points.
 
+Solver-trace campaigns apply the same boundary to their final solver result
+and to optional callback iterates. Metric-only traces remain valid when
+callback coordinates were not requested, while physical or cross-case claims
+require one complete finite solver-result point for every successful case.
+The trace runner also sanitizes NaN/Inf values at its JSON boundary, retaining
+the associated failure metadata instead of dropping the entire benchmark
+record.
+The trace preflight also classifies source-schema losses using the same policy
+as the multiconductor campaign: representational unit losses are retained as
+context, while device-semantic and physical/operating-point losses block the
+`physical_metadata_complete` readiness gate until explicitly mapped.
+
+The isolated solver-trace launcher makes the in-place NLPDiagnostics package
+visible to BMOPFTools child processes and records native child-wait errors.
+Size-guard-only campaigns therefore remain build evidence and are not treated
+as successful solver observations.
+The v2 launcher writes the manifest after each child, so a later native exit
+cannot erase completed case records.
+The trace summarizer also retains process-health evidence for children that
+produce no result JSON: exit, timeout, wait-error, and process-log counts are
+reported separately. The validator exposes `solver_process_health` and emits
+an explicit process-exit finding, keeping native crashes distinct from solver
+termination statuses.
+
 In the first registry-aware 30-bus LN/LG SI-versus-PU run, both children
 completed under one environment fingerprint and each retained 56 finite exact
 controller observations. PU produced 28 Volt-var residual and 28 Volt-watt cap

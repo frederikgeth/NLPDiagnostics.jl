@@ -456,6 +456,57 @@ function _profile_finding_codes(profile)
     return counts
 end
 
+"""Summarize the provenance boundary of one serialized solver profile."""
+function _solver_point_trust_summary(solver_profile, iteration_trace)
+    nested = solver_profile isa AbstractDict ?
+        get(solver_profile, "solver_profile", Dict()) : Dict()
+    case = nested isa AbstractDict ? get(nested, "case", Dict()) : Dict()
+    trust = case isa AbstractDict ? get(case, "point_trust", nothing) : nothing
+    trust_metadata = trust isa AbstractDict ? get(trust, "metadata", Dict()) : Dict()
+    result_selected = trust isa AbstractDict ?
+        _integer_value(get(trust_metadata, "selected_count", 0)) : 0
+    result_rejected = trust isa AbstractDict ?
+        _integer_value(get(trust_metadata, "rejected_count", 0)) : 0
+    result_complete = result_selected == 1 && result_rejected == 0
+
+    bindings = iteration_trace isa AbstractDict ?
+        get(iteration_trace, "bindings", Any[]) : Any[]
+    bindings isa AbstractVector || (bindings = Any[])
+    trusted_iterates = 0
+    incomplete_iterates = 0
+    non_solver_bindings = 0
+    nonfinite_iterates = 0
+    for raw_binding in bindings
+        raw_binding isa AbstractDict || continue
+        kind = String(get(raw_binding, "point_provenance_kind", "unknown"))
+        complete = get(raw_binding, "point_provenance_complete", false) === true
+        point = get(raw_binding, "point", Dict())
+        values = point isa AbstractDict ? get(point, "values", Any[]) : Any[]
+        finite = values isa AbstractVector && all(
+            value -> value isa Number && isfinite(Float64(value)), values,
+        )
+        if kind == "SolverIteratePoint" && complete && finite
+            trusted_iterates += 1
+        elseif kind == "SolverIteratePoint"
+            incomplete_iterates += 1
+            (!finite) && (nonfinite_iterates += 1)
+        else
+            non_solver_bindings += 1
+        end
+    end
+    return Dict{String,Any}(
+        "solver_result_point_trust_metadata_available" => trust isa AbstractDict,
+        "solver_result_point_selected_count" => result_selected,
+        "solver_result_point_rejected_count" => result_rejected,
+        "solver_result_point_trusted" => result_complete,
+        "solver_iterate_binding_count" => length(bindings),
+        "solver_iterate_trusted_binding_count" => trusted_iterates,
+        "solver_iterate_incomplete_binding_count" => incomplete_iterates,
+        "solver_iterate_non_solver_binding_count" => non_solver_bindings,
+        "solver_iterate_nonfinite_binding_count" => nonfinite_iterates,
+    )
+end
+
 function _rank_profile_findings(profile)
     profile isa AbstractDict || return Any[]
     reports = get(profile, "reports", Dict())
@@ -625,18 +676,129 @@ function main()
     controller_curve_trace_equation_residual_violation_components = Dict{String,Int}()
     controller_curve_trace_cap_violation_components = Dict{String,Int}()
     controller_curve_trace_violation_registry_crosswalk = Dict{String,Any}()
+    trusted_solver_result_cases = 0
+    incomplete_solver_result_cases = 0
+    missing_solver_result_trust_cases = 0
+    trusted_solver_iterate_bindings = 0
+    incomplete_solver_iterate_bindings = 0
+    non_solver_trace_bindings = 0
+    nonfinite_solver_iterate_bindings = 0
+    successful_source_snapshot_cases = 0
+    successful_source_snapshot_missing_cases = 0
+    source_snapshot_hashes = Set{String}()
+    source_schema_warning_count = 0
+    physical_metadata_warning_count = 0
+    source_schema_warning_field_counts = Dict{String,Int}()
+    source_schema_warning_scope_counts = Dict{String,Int}()
+    source_schema_warning_impact_counts = Dict{String,Int}()
+    source_schema_warning_policy_status_counts = Dict{String,Int}()
+    successful_physical_metadata_complete_cases = 0
+    successful_physical_metadata_incomplete_cases = 0
+    successful_physical_metadata_missing_cases = 0
+    process_exit_case_count = 0
+    process_timeout_case_count = 0
+    process_wait_error_case_count = 0
+    nonzero_process_exit_case_count = 0
+    process_log_case_count = 0
     iteration_counts = Int[]
     for entry in get(index, "cases", Any[])
         name = String(get(entry, "name", "unknown"))
         result_file = get(entry, "result_file", nothing)
-        result_file isa AbstractString || continue
+        process_log = get(entry, "process_log", nothing)
+        process_log_available = process_log isa AbstractString &&
+                                isfile(joinpath(output_dir, process_log))
+        process_log_available && (process_log_case_count += 1)
+        get(entry, "process_timeout", false) === true &&
+            (process_timeout_case_count += 1)
+        wait_error = get(entry, "process_wait_error", nothing)
+        !(wait_error === nothing || isempty(String(wait_error))) &&
+            (process_wait_error_case_count += 1)
+        exit_code = get(entry, "process_exit_code", nothing)
+        exit_code isa Number && exit_code != 0 &&
+            (nonzero_process_exit_case_count += 1)
+        # An isolated child can terminate in native code before it writes a
+        # result JSON.  Keep that process-health evidence in the summary so
+        # a missing profile is distinguishable from an omitted case.
+        if !(result_file isa AbstractString) || !isfile(joinpath(output_dir, result_file))
+            status = String(get(entry, "status", "unknown"))
+            status_counts[status] = get(status_counts, status, 0) + 1
+            summary = Dict{String,Any}(entry)
+            summary["status"] = status
+            summary["result_file"] = nothing
+            timed_out = get(entry, "process_timeout", false) === true
+            status == "process_exit" && (process_exit_case_count += 1)
+            summary["process_health"] = Dict(
+                "status" => status,
+                "exit_code" => exit_code,
+                "timeout" => timed_out,
+                "wait_error" => wait_error,
+                "process_log" => process_log,
+                "process_log_available" => process_log_available,
+            )
+            push!(cases, summary)
+            continue
+        end
         path = joinpath(output_dir, result_file)
-        isfile(path) || continue
         record = JSON.parsefile(path)
         status = String(get(record, "status", get(entry, "status", "unknown")))
         status_counts[status] = get(status_counts, status, 0) + 1
         summary = Dict{String,Any}(entry)
         summary["status"] = status
+        source_snapshot = get(record, "source_snapshot",
+            get(entry, "source_snapshot", nothing))
+        summary["source_snapshot"] = source_snapshot
+        if status == "ok"
+            preserved = source_snapshot isa AbstractDict &&
+                        get(source_snapshot, "preserved", false) === true &&
+                        !isempty(String(get(source_snapshot, "sha256", "")))
+            if preserved
+                successful_source_snapshot_cases += 1
+                push!(source_snapshot_hashes,
+                    String(get(source_snapshot, "sha256", "")))
+            else
+                successful_source_snapshot_missing_cases += 1
+            end
+        end
+        preflight = get(record, "integrity_preflight", nothing)
+        if preflight isa AbstractDict
+            schema_fields_available = haskey(preflight, "source_schema_warning_count") &&
+                                      haskey(preflight, "physical_metadata_warning_count")
+            warning_count = _integer_value(get(preflight,
+                "source_schema_warning_count", 0))
+            physical_count = _integer_value(get(preflight,
+                "physical_metadata_warning_count", 0))
+            source_schema_warning_count += warning_count
+            physical_metadata_warning_count += physical_count
+            for (field, destination) in (
+                ("source_schema_warning_fields", source_schema_warning_field_counts),
+                ("source_schema_warning_scopes", source_schema_warning_scope_counts),
+                ("source_schema_warning_impacts", source_schema_warning_impact_counts),
+            )
+                values = get(preflight, field, Any[])
+                values isa AbstractVector || continue
+                for value in values
+                    key = String(value)
+                    destination[key] = get(destination, key, 0) + 1
+                end
+            end
+            policies = get(preflight, "source_schema_warning_policies", Any[])
+            policies isa AbstractVector || (policies = Any[policies])
+            for policy in policies
+                policy isa AbstractDict || continue
+                key = String(get(policy, "status", "unknown"))
+                source_schema_warning_policy_status_counts[key] =
+                    get(source_schema_warning_policy_status_counts, key, 0) + 1
+            end
+            if status == "ok"
+                !schema_fields_available ?
+                    (successful_physical_metadata_missing_cases += 1) :
+                physical_count == 0 ?
+                    (successful_physical_metadata_complete_cases += 1) :
+                    (successful_physical_metadata_incomplete_cases += 1)
+            end
+        elseif status == "ok"
+            successful_physical_metadata_missing_cases += 1
+        end
         family_perturbation = _family_perturbation_case_summary(record)
         summary["family_perturbation"] = family_perturbation
         _merge_counts!(family_perturbation_status_counts,
@@ -649,8 +811,21 @@ function main()
         for key in ("solver", "solver_options", "per_unit", "model_coordinate_units",
                     "solver_objective_convention", "objective_comparison_reference",
                     "bmopf_extracted_result_convention", "environment_fingerprint",
-                    "sweep_label", "run_id", "replicate_index", "capture_logs")
+                    "sweep_label", "run_id", "replicate_index", "capture_logs",
+                    "process_exit_code", "process_wait_error", "process_log",
+                    "process_timeout")
             haskey(record, key) && (summary[key] = record[key])
+        end
+        if haskey(entry, "process_exit_code") || haskey(entry, "process_log") ||
+           haskey(entry, "process_timeout") || haskey(entry, "process_wait_error")
+            summary["process_health"] = Dict(
+                "status" => status,
+                "exit_code" => get(entry, "process_exit_code", nothing),
+                "timeout" => get(entry, "process_timeout", false) === true,
+                "wait_error" => get(entry, "process_wait_error", nothing),
+                "process_log" => get(entry, "process_log", nothing),
+                "process_log_available" => process_log_available,
+            )
         end
         if status == "ok"
             trace = get(record, "iteration_trace", Dict{String,Any}())
@@ -721,6 +896,30 @@ function main()
             push!(iteration_counts, Int(get(trace_summary, "record_count", 0)))
             solver_profile = get(record, "solver_profile", Dict{String,Any}())
             nested_profile = get(solver_profile, "solver_profile", Dict{String,Any}())
+            point_trust = _solver_point_trust_summary(solver_profile, trace)
+            summary["point_trust"] = point_trust
+            if get(point_trust, "solver_result_point_trust_metadata_available", false)
+                get(point_trust, "solver_result_point_trusted", false) &&
+                    (trusted_solver_result_cases += 1)
+            else
+                missing_solver_result_trust_cases += 1
+            end
+            if get(point_trust, "solver_result_point_selected_count", 0) != 1 ||
+               get(point_trust, "solver_result_point_rejected_count", 0) != 0
+                incomplete_solver_result_cases += 1
+            end
+            trusted_solver_iterate_bindings += _integer_value(get(
+                point_trust, "solver_iterate_trusted_binding_count", 0,
+            ))
+            incomplete_solver_iterate_bindings += _integer_value(get(
+                point_trust, "solver_iterate_incomplete_binding_count", 0,
+            ))
+            non_solver_trace_bindings += _integer_value(get(
+                point_trust, "solver_iterate_non_solver_binding_count", 0,
+            ))
+            nonfinite_solver_iterate_bindings += _integer_value(get(
+                point_trust, "solver_iterate_nonfinite_binding_count", 0,
+            ))
             summary["failure_categories"] = _failure_categories(
                 record, nested_profile, trace_summary,
             )
@@ -849,6 +1048,38 @@ function main()
             controller_curve_trace_cap_violation_components,
         "controller_curve_trace_violation_registry_crosswalk" =>
             controller_curve_trace_violation_registry_crosswalk,
+        "trusted_point_selection_counts" => Dict(
+            "successful_cases_with_trusted_solver_result_points" => trusted_solver_result_cases,
+            "successful_cases_with_incomplete_solver_result_points" => incomplete_solver_result_cases,
+            "successful_cases_missing_solver_result_trust_metadata" => missing_solver_result_trust_cases,
+            "trusted_solver_iterate_binding_count" => trusted_solver_iterate_bindings,
+            "incomplete_solver_iterate_binding_count" => incomplete_solver_iterate_bindings,
+            "non_solver_trace_binding_count" => non_solver_trace_bindings,
+            "nonfinite_solver_iterate_binding_count" => nonfinite_solver_iterate_bindings,
+        ),
+        "source_snapshot_counts" => Dict(
+            "successful_cases_with_preserved_source_snapshot" => successful_source_snapshot_cases,
+            "successful_cases_missing_source_snapshot" => successful_source_snapshot_missing_cases,
+            "unique_source_snapshot_sha256_count" => length(source_snapshot_hashes),
+        ),
+        "source_schema_coverage" => Dict(
+            "source_schema_warning_count" => source_schema_warning_count,
+            "physical_metadata_warning_count" => physical_metadata_warning_count,
+            "source_schema_warning_field_counts" => source_schema_warning_field_counts,
+            "source_schema_warning_scope_counts" => source_schema_warning_scope_counts,
+            "source_schema_warning_impact_counts" => source_schema_warning_impact_counts,
+            "source_schema_warning_policy_status_counts" => source_schema_warning_policy_status_counts,
+            "successful_cases_with_complete_physical_metadata" => successful_physical_metadata_complete_cases,
+            "successful_cases_with_incomplete_physical_metadata" => successful_physical_metadata_incomplete_cases,
+            "successful_cases_missing_physical_metadata_schema" => successful_physical_metadata_missing_cases,
+        ),
+        "process_health_counts" => Dict(
+            "process_exit_case_count" => process_exit_case_count,
+            "process_timeout_case_count" => process_timeout_case_count,
+            "process_wait_error_case_count" => process_wait_error_case_count,
+            "nonzero_process_exit_case_count" => nonzero_process_exit_case_count,
+            "process_log_case_count" => process_log_case_count,
+        ),
         "failure_category_counts" => failure_category_counts,
         "solver_log_evidence_case_count" => solver_log_evidence_case_count,
         "solver_log_observation_count" => solver_log_observation_count,

@@ -167,6 +167,22 @@ import NLPDiagnostics
           NLPDiagnostics.evaluation_point_fingerprint(solver_point)
     @test serialized_selection["rejected"][1]["reason"] isa String
 
+    solver_result = NLPDiagnostics.evaluation_point(
+        model,
+        [1.0];
+        label = "solver result",
+        provenance = NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.SolverResultPoint;
+            source = "test solver result",
+        ),
+    )
+    serialized_solver_case = NLPDiagnostics._profile_case_data(
+        NLPDiagnostics.ProfileCase("solver result fixture", solver_result),
+    )
+    @test serialized_solver_case["point_trust"]["metadata"]["selected_count"] == "1"
+    @test serialized_solver_case["point_trust"]["selected"][1]["fingerprint"] ==
+          NLPDiagnostics.evaluation_point_fingerprint(solver_result)
+
     @test_throws ArgumentError NLPDiagnostics.EvaluationPointProvenance(
         NLPDiagnostics.UserPoint;
         source = " ",

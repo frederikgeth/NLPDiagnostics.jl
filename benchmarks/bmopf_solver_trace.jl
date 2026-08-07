@@ -39,7 +39,7 @@ end
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
-const _RUNNER_VERSION = "bmopf-solver-trace-v6"
+const _RUNNER_VERSION = "bmopf-solver-trace-v8"
 const _DEFAULT_CASES = [
     "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
 ]
@@ -82,6 +82,26 @@ function _option_value(raw::AbstractString)
     catch
         return value
     end
+end
+
+"""Convert benchmark evidence to strict JSON without hiding non-finite values.
+
+Diagnostic reports may legitimately contain NaN/Inf when a derivative or
+solver callback failed. JSON cannot encode those values portably, so they are
+serialized as `null`; the surrounding finding/status metadata remains intact
+and the summarizers treat null as unavailable rather than finite evidence.
+"""
+function _json_safe(value)
+    value isa AbstractFloat && !isfinite(value) && return nothing
+    value isa AbstractDict && return Dict(
+        string(key) => _json_safe(item) for (key, item) in value
+    )
+    value isa NamedTuple && return Dict(
+        string(key) => _json_safe(getfield(value, key)) for key in keys(value)
+    )
+    value isa Tuple && return [_json_safe(item) for item in value]
+    value isa AbstractArray && return [_json_safe(item) for item in value]
+    return value
 end
 
 function _solver_options()
@@ -132,14 +152,88 @@ function _selected_cases(root)
     return cases
 end
 
+function _schema_warning_field(message)
+    match_result = match(r"`([^`]+)`", String(message))
+    isnothing(match_result) ? nothing : String(match_result.captures[1])
+end
+
+function _schema_warning_scope(message)
+    token = split(String(message), ' '; limit = 2)[1]
+    token = replace(token, ':' => "")
+    isempty(token) ? nothing : token
+end
+
+function _schema_warning_impact(field)
+    field = String(field)
+    field == "units" && return "representational"
+    field == "model" && return "device_semantics"
+    field in ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu") &&
+        return "physical_or_operating_point"
+    return "unknown"
+end
+
+function _schema_warning_policy(field)
+    field = String(field)
+    field == "units" && return Dict{String,Any}(
+        "status" => "intentionally_unsupported",
+        "impact" => "representational",
+        "physical_readiness_blocking" => false,
+        "action" => "Retain source units as provenance; do not infer physical units from the BMOPF record.",
+    )
+    field == "model" && return Dict{String,Any}(
+        "status" => "unsupported_device_semantics",
+        "impact" => "device_semantics",
+        "physical_readiness_blocking" => true,
+        "action" => "Map the source device model into an explicit BMOPF component or plugin contract.",
+    )
+    field in ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu") &&
+        return Dict{String,Any}(
+            "status" => "unsupported_physical_metadata",
+            "impact" => "physical_or_operating_point",
+            "physical_readiness_blocking" => true,
+            "action" => "Preserve and map this field before interpreting physical modes, limits, or operating-point evidence.",
+        )
+    return Dict{String,Any}(
+        "status" => "unclassified_drop",
+        "impact" => "unknown",
+        "physical_readiness_blocking" => true,
+        "action" => "Add an explicit source-to-BMOPF field policy before using the affected record.",
+    )
+end
+
 function _integrity_preflight(network)
     findings = BMOPFTools.Finding[]
     summary = BMOPFTools.integrity_check(network, findings)
+    metadata = network isa AbstractDict ? get(network, "_meta", Dict()) : Dict()
+    raw_warnings = metadata isa AbstractDict ?
+        get(metadata, "powerio_warnings", Any[]) : Any[]
+    raw_warnings isa AbstractVector || (raw_warnings = Any[raw_warnings])
+    warning_messages = String[String(value) for value in raw_warnings]
+    warning_fields = String[field for message in warning_messages for field in
+        (_schema_warning_field(message),) if !isnothing(field)]
+    warning_scopes = String[scope for message in warning_messages for scope in
+        (_schema_warning_scope(message),) if !isnothing(scope)]
+    warning_impacts = String[_schema_warning_impact(field) for field in warning_fields]
+    warning_policies = Dict{String,Any}[_schema_warning_policy(field) for field in warning_fields]
+    physical_warning_count = count(get(policy, "physical_readiness_blocking", true)
+                                   for policy in warning_policies)
+    field_policies = Dict{String,Any}()
+    for (field, policy) in zip(warning_fields, warning_policies)
+        field_policies[field] = policy
+    end
     return Dict{String,Any}(
         "error_count" => count(f -> f.severity == BMOPFTools.ERROR, findings),
         "warning_count" => count(f -> f.severity == BMOPFTools.WARNING, findings),
         "finding_count" => length(findings),
         "blocking" => any(f -> f.severity == BMOPFTools.ERROR, findings),
+        "source_schema_warning_count" => length(warning_messages),
+        "source_schema_warnings" => warning_messages,
+        "source_schema_warning_fields" => warning_fields,
+        "source_schema_warning_scopes" => warning_scopes,
+        "source_schema_warning_impacts" => warning_impacts,
+        "source_schema_warning_policies" => warning_policies,
+        "source_schema_field_policies" => field_policies,
+        "physical_metadata_warning_count" => physical_warning_count,
         "summary" => summary,
         "findings" => [Dict(
             "severity" => string(f.severity), "code" => f.code,
@@ -147,6 +241,28 @@ function _integrity_preflight(network)
             "component_id" => f.component_id, "message" => f.message,
             "detail" => f.detail,
         ) for f in findings],
+    )
+end
+
+"""Preserve the exact input deck used by a solver-trace case."""
+function _preserve_source_snapshot(
+    path::AbstractString,
+    output_dir::AbstractString,
+    name::AbstractString,
+)
+    source_dir = joinpath(output_dir, "source")
+    mkpath(source_dir)
+    target = joinpath(source_dir, "$(name)-$(basename(path))")
+    cp(path, target; force = true)
+    bytes = read(target)
+    return Dict{String,Any}(
+        "preserved" => true,
+        "source_path" => abspath(path),
+        "copy_path" => relpath(target, output_dir),
+        "sha256" => bytes2hex(SHA.sha256(bytes)),
+        "size_bytes" => length(bytes),
+        "line_count" => count(==(UInt8('\n')), bytes) +
+                        (isempty(bytes) || last(bytes) == UInt8('\n') ? 0 : 1),
     )
 end
 
@@ -322,8 +438,12 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
     run_id = get(ENV, "NLPDIAGNOSTICS_BMOPF_RUN_ID", "default")
     replicate_index = get(ENV, "NLPDIAGNOSTICS_BMOPF_REPLICATE_INDEX", "1")
     preflight = nothing
+    source_snapshot = Dict{String,Any}(
+        "preserved" => false, "source_path" => abspath(path),
+    )
     log_configuration_error = nothing
     try
+        source_snapshot = _preserve_source_snapshot(path, output_dir, name)
         network = BMOPFTools.parse_bmopf(path)
         preflight = _integrity_preflight(network)
         preflight["blocking"] && error("BMOPFTools integrity preflight has blocking errors")
@@ -349,18 +469,22 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                 "environment_fingerprint" => environment_fingerprint,
                 "solver_options" => solver_options,
                 "per_unit" => per_unit,
+                "capture_points" => capture_points,
+                "capture_logs" => capture_logs,
                 "sweep_label" => sweep_label,
                 "run_id" => run_id,
                 "replicate_index" => replicate_index,
                 "capture_logs" => capture_logs,
                 "integrity_preflight" => preflight,
+                "source_snapshot" => source_snapshot,
                 "solver_log_path" => solver_log_path,
                 "solver_log_configuration_error" => log_configuration_error,
             )
-            write(result_path, JSON.json(payload))
+            write(result_path, JSON.json(_json_safe(payload)))
             return Dict{String,Any}("name" => name, "snapshot" => relative,
                 "status" => payload["status"], "result_file" => basename(result_path),
-                "model_variable_count" => variable_count)
+                "model_variable_count" => variable_count,
+                "source_snapshot" => source_snapshot)
         end
         run = _solve_with_trace(model, solver_name; capture_points)
         trace_probe_max_points = _env_int(
@@ -436,6 +560,8 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "environment_fingerprint" => environment_fingerprint,
             "solver_options" => solver_options,
             "per_unit" => per_unit,
+            "capture_points" => capture_points,
+            "capture_logs" => capture_logs,
             "sweep_label" => sweep_label,
             "run_id" => run_id,
             "replicate_index" => replicate_index,
@@ -454,6 +580,7 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "kcl_seconds" => kcl_timing.time,
             "kcl_allocations" => kcl_timing.bytes,
             "integrity_preflight" => preflight,
+            "source_snapshot" => source_snapshot,
             "iteration_trace" => trace_data,
             "current_law_trace" => current_law_trace_data,
             "solver_profile" => solver_data,
@@ -468,7 +595,7 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "solver_log_path" => solver_log_path,
             "solver_log_configuration_error" => log_configuration_error,
         )
-        write(result_path, JSON.json(payload))
+        write(result_path, JSON.json(_json_safe(payload)))
         return Dict{String,Any}(
             "name" => name, "snapshot" => relative, "status" => "ok",
             "result_file" => basename(result_path), "solver" => solver_name,
@@ -476,6 +603,7 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "iteration_count" => length(run.trace.records),
             "build_seconds" => build_timing.time, "kcl_seconds" => kcl_timing.time,
             "solver_log_available" => !isnothing(solver_log_evidence),
+            "source_snapshot" => source_snapshot,
         )
     catch error
         message = sprint(showerror, error, catch_backtrace())
@@ -485,20 +613,23 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "environment_fingerprint" => environment_fingerprint,
             "solver_options" => solver_options,
             "per_unit" => per_unit,
+            "capture_points" => capture_points,
             "sweep_label" => sweep_label,
             "run_id" => run_id,
             "replicate_index" => replicate_index,
             "capture_logs" => capture_logs,
             "error" => message, "integrity_preflight" => preflight,
+            "source_snapshot" => source_snapshot,
             "solver_log_evidence" => capture_logs ?
                 _solver_log_evidence(solver_name, solver_log_path) : nothing,
             "solver_log_path" => solver_log_path,
             "solver_log_configuration_error" => log_configuration_error,
         )
-        write(result_path, JSON.json(payload))
+        write(result_path, JSON.json(_json_safe(payload)))
         return Dict{String,Any}(
             "name" => name, "snapshot" => relative, "status" => "error",
             "result_file" => basename(result_path), "error" => message,
+            "source_snapshot" => source_snapshot,
         )
     end
 end

@@ -514,6 +514,173 @@ end
 
 function _validate_solver_trace(path, summary)
     findings = Any[]
+    successful_cases = _int(get(summary, "successful_case_count", 0))
+    process_health = get(summary, "process_health_counts", nothing)
+    runner_version = lowercase(String(get(summary, "runner_version", "")))
+    isolated_runner = occursin("isolated", runner_version)
+    process_health_ready = false
+    if process_health isa AbstractDict
+        process_exits = _int(get(process_health, "process_exit_case_count", 0))
+        process_timeouts = _int(get(process_health, "process_timeout_case_count", 0))
+        wait_errors = _int(get(process_health, "process_wait_error_case_count", 0))
+        nonzero_exits = _int(get(process_health, "nonzero_process_exit_case_count", 0))
+        process_health_ready = process_exits == 0 && process_timeouts == 0 &&
+                               wait_errors == 0 && nonzero_exits == 0
+        process_exits > 0 && push!(findings, _finding(
+            "solver_trace_process_exit", "error",
+            "One or more isolated solver children terminated before producing a result profile.",
+            Dict("process_exit_case_count" => process_exits,
+                 "nonzero_process_exit_case_count" => nonzero_exits,
+                 "process_log_case_count" => _int(get(process_health, "process_log_case_count", 0))),
+            suggested_action = "Inspect the preserved per-case process logs and reduce the case/trace scope before attributing numerical meaning to the campaign."
+        ))
+        process_timeouts > 0 && push!(findings, _finding(
+            "solver_trace_process_timeout", "error",
+            "One or more solver children exceeded the configured isolation timeout.",
+            Dict("process_timeout_case_count" => process_timeouts),
+            suggested_action = "Treat the affected cases as incomplete and inspect native solver output before increasing the timeout."
+        ))
+        wait_errors > 0 && push!(findings, _finding(
+            "solver_trace_process_wait_error", "error",
+            "The launcher could not obtain a normal exit status for one or more solver children.",
+            Dict("process_wait_error_case_count" => wait_errors),
+            suggested_action = "Inspect the process log and launcher index; a native crash or forced termination may have occurred."
+        ))
+    elseif isolated_runner
+        push!(findings, _finding(
+            "solver_trace_process_health_missing", "warning",
+            "The solver-trace summary does not contain isolated child-process health fields.",
+            Dict("summary_path" => path),
+            suggested_action = "Regenerate the campaign with the isolated launcher or current solver-trace summarizer."
+        ))
+    else
+        # In-process traces predate the isolated launcher and have no child
+        # process boundary to validate.  Keep their solver evidence usable,
+        # while making the absence of launcher health explicit in the summary
+        # schema rather than treating it as a solver failure.
+        process_health_ready = true
+    end
+    successful_cases == 0 && push!(findings, _finding(
+        "solver_trace_no_successful_cases", "warning",
+        "The solver-trace campaign contains no successful solver-result profiles.",
+        Dict("summary_path" => path,
+             "status_counts" => get(summary, "status_counts", Dict()));
+        suggested_action = "Treat the campaign as build/guard evidence only; lower the size guard or resolve solver/process failures before interpreting numerical behavior."
+    ))
+    trusted_points = get(summary, "trusted_point_selection_counts", nothing)
+    trusted_result_cases = 0
+    incomplete_result_cases = 0
+    missing_result_trust = 0
+    trusted_iterate_bindings = 0
+    incomplete_iterate_bindings = 0
+    nonfinite_iterate_bindings = 0
+    if trusted_points isa AbstractDict
+        trusted_result_cases = _int(get(trusted_points,
+            "successful_cases_with_trusted_solver_result_points", 0))
+        incomplete_result_cases = _int(get(trusted_points,
+            "successful_cases_with_incomplete_solver_result_points", 0))
+        missing_result_trust = _int(get(trusted_points,
+            "successful_cases_missing_solver_result_trust_metadata", 0))
+        trusted_iterate_bindings = _int(get(trusted_points,
+            "trusted_solver_iterate_binding_count", 0))
+        incomplete_iterate_bindings = _int(get(trusted_points,
+            "incomplete_solver_iterate_binding_count", 0))
+        nonfinite_iterate_bindings = _int(get(trusted_points,
+            "nonfinite_solver_iterate_binding_count", 0))
+    else
+        push!(findings, _finding(
+            "trusted_solver_result_point_coverage_missing", "warning",
+            "The solver-trace summary does not contain the trusted-point coverage fields.",
+            Dict("summary_path" => path);
+            suggested_action = "Regenerate solver-trace summaries with the current point-provenance schema."
+        ))
+    end
+    trusted_result_ready = successful_cases == 0 ||
+                           (trusted_result_cases == successful_cases &&
+                            incomplete_result_cases == 0 && missing_result_trust == 0)
+    !trusted_result_ready && push!(findings, _finding(
+        "trusted_solver_result_point_coverage_incomplete", "warning",
+        "Not every successful solver-trace case has one complete finite solver-result point selected by the trust policy.",
+        Dict("successful_case_count" => successful_cases,
+             "successful_cases_with_trusted_solver_result_points" => trusted_result_cases,
+             "successful_cases_with_incomplete_solver_result_points" => incomplete_result_cases,
+             "successful_cases_missing_solver_result_trust_metadata" => missing_result_trust);
+        suggested_action = "Regenerate the trace campaign with the current serializer, and do not use older or incomplete result records for physical or cross-case claims."
+    ))
+    nonfinite_iterate_bindings > 0 && push!(findings, _finding(
+        "trusted_solver_iterate_nonfinite", "error",
+        "The solver trace contains callback points with non-finite coordinates.",
+        Dict("nonfinite_solver_iterate_binding_count" => nonfinite_iterate_bindings);
+        suggested_action = "Exclude the affected iterate snapshots and inspect the solver callback state before interpreting trace transitions."
+    ))
+    incomplete_iterate_bindings > 0 && push!(findings, _finding(
+        "trusted_solver_iterate_coverage_incomplete", "warning",
+        "Some solver-iterate bindings are incomplete under the point provenance policy.",
+        Dict("incomplete_solver_iterate_binding_count" => incomplete_iterate_bindings);
+        suggested_action = "Use only complete finite callback points for point-local diagnostics; metric-only trace evidence may still be retained."
+    ))
+    source_snapshots = get(summary, "source_snapshot_counts", nothing)
+    source_snapshot_ready = false
+    if source_snapshots isa AbstractDict
+        preserved = _int(get(source_snapshots,
+            "successful_cases_with_preserved_source_snapshot", 0))
+        missing = _int(get(source_snapshots,
+            "successful_cases_missing_source_snapshot", 0))
+        source_snapshot_ready = successful_cases == 0 ||
+                                (preserved == successful_cases && missing == 0)
+        !source_snapshot_ready && push!(findings, _finding(
+            "solver_trace_source_snapshot_coverage_incomplete", "warning",
+            "Some successful solver-trace cases do not preserve the exact input deck used for the run.",
+            Dict("successful_case_count" => successful_cases,
+                 "successful_cases_with_preserved_source_snapshot" => preserved,
+                 "successful_cases_missing_source_snapshot" => missing);
+            suggested_action = "Regenerate the trace campaign with source snapshots enabled before making source-dependent physical claims."
+        ))
+    else
+        push!(findings, _finding(
+            "solver_trace_source_snapshot_coverage_missing", "warning",
+            "The solver-trace summary does not contain source-snapshot coverage fields.",
+            Dict("summary_path" => path);
+            suggested_action = "Regenerate solver-trace summaries with the current reproducibility schema."
+        ))
+    end
+    schema_coverage = get(summary, "source_schema_coverage", nothing)
+    physical_metadata_ready = false
+    if schema_coverage isa AbstractDict
+        physical_warning_count = _int(get(schema_coverage,
+            "physical_metadata_warning_count", 0))
+        complete_cases = _int(get(schema_coverage,
+            "successful_cases_with_complete_physical_metadata", 0))
+        incomplete_cases = _int(get(schema_coverage,
+            "successful_cases_with_incomplete_physical_metadata", 0))
+        missing_schema_cases = _int(get(schema_coverage,
+            "successful_cases_missing_physical_metadata_schema", 0))
+        physical_metadata_ready = successful_cases == 0 ||
+                                  (complete_cases == successful_cases &&
+                                   incomplete_cases == 0 && missing_schema_cases == 0 &&
+                                   physical_warning_count == 0)
+        !physical_metadata_ready && push!(findings, _finding(
+            "solver_trace_physical_metadata_incomplete", "warning",
+            "Some successful solver-trace cases retain dropped or unsupported physical/device metadata.",
+            Dict("successful_case_count" => successful_cases,
+                 "physical_metadata_warning_count" => physical_warning_count,
+                 "successful_cases_with_complete_physical_metadata" => complete_cases,
+                 "successful_cases_with_incomplete_physical_metadata" => incomplete_cases,
+                 "successful_cases_missing_physical_metadata_schema" => missing_schema_cases,
+                 "source_schema_warning_impact_counts" => get(schema_coverage,
+                     "source_schema_warning_impact_counts", Dict()),
+                 "source_schema_warning_policy_status_counts" => get(schema_coverage,
+                     "source_schema_warning_policy_status_counts", Dict()));
+            suggested_action = "Restore or explicitly map the affected source fields before interpreting physical modes, limits, or operating-point behavior."
+        ))
+    else
+        push!(findings, _finding(
+            "solver_trace_physical_metadata_coverage_missing", "warning",
+            "The solver-trace summary does not contain physical-metadata coverage fields.",
+            Dict("summary_path" => path);
+            suggested_action = "Regenerate solver-trace summaries with the current source-schema policy.")
+        )
+    end
     observation_summary = get(summary, "controller_curve_trace_observation_counts", nothing)
     status_counts = _count_map(get(summary, "controller_curve_trace_status_counts", Dict()))
     semantics = _count_map(get(summary, "controller_curve_trace_monitor_semantics_counts", Dict()))
@@ -654,6 +821,7 @@ function _validate_solver_trace(path, summary)
         "equation_residual_violation_count" => equation_residual_violations,
         "cap_violation_count" => cap_violations,
         "violation_registry_crosswalk" => crosswalk,
+        "trusted_point_selection_counts" => trusted_points,
         "transition_summaries" => Dict(
             "status" => get(summary, "controller_curve_trace_status_changes", nothing),
             "coverage" => get(summary, "controller_curve_trace_coverage_changes", nothing),
@@ -662,6 +830,13 @@ function _validate_solver_trace(path, summary)
         "readiness" => Dict(
             "controller_curve_trace_observations" => observation_count > 0,
             "controller_curve_trace_finite_observations" => observation_count > 0 && nonfinite == 0,
+            "trusted_solver_result_point_coverage" => trusted_result_ready,
+            "trusted_solver_iterate_observations" => trusted_iterate_bindings > 0,
+            "trusted_solver_iterate_finite" => nonfinite_iterate_bindings == 0,
+            "source_snapshot_coverage" => source_snapshot_ready,
+            "physical_metadata_complete" => physical_metadata_ready,
+            "solver_result_observations" => successful_cases > 0,
+            "solver_process_health" => process_health_ready,
         ),
         "findings" => findings,
     )
@@ -1520,8 +1695,8 @@ function main()
     for raw_path in ARGS[2:end]
         path = abspath(raw_path)
         summary = _load(path)
-        runner_version = String(get(summary, "runner_version", ""))
-        report_version = String(get(summary, "report_version", ""))
+        runner_version = something(get(summary, "runner_version", nothing), "")
+        report_version = something(get(summary, "report_version", nothing), "")
         if startswith(runner_version, "bmopf-evidence-ledger-comparison-")
             report = _validate_evidence_ledger_comparison(path, summary)
             push!(evidence_ledger_comparison_reports, report)

@@ -1432,3 +1432,33 @@ default policy admits only complete, finite solver-iterate and solver-result
 points, while retaining all rejected points and reasons for audit. This is a
 selection boundary, not a claim that a solver point is physically correct;
 campaigns still need their own operating-point and metadata readiness gates.
+
+The solver-trace campaign now reports that boundary explicitly for every
+successful case: final solver-result coverage is separated from optional
+callback-iterate coverage, and the validator exposes both readiness states.
+Trace records are also written through a strict JSON sanitization boundary, so
+NaN/Inf observations become unavailable values rather than preventing the
+entire benchmark record from being saved. This preserves failure evidence and
+the exact input deck is retained with a digest, byte count, and line count.
+This allows the next campaign pass to use actual solver points instead of
+silently falling back to initialization-scoped profiles.
+
+The solver-trace preflight now carries the same source-schema impact policy as
+the multiconductor smoke campaign. Units-only losses remain representational,
+while dropped device semantics and voltage/topology fields block the physical
+metadata gate. Trace summaries aggregate those fields, scopes, impacts, and
+policy statuses, and validation reports `physical_metadata_complete`
+separately from numerical and point-provenance readiness.
+
+The isolated trace launcher now injects the in-place package load path into
+child processes and preserves child wait errors. A campaign containing only
+size-guard skips is no longer vacuously considered solver-ready: validation
+requires at least one successful solver-result profile before numerical
+interpretation begins.
+Campaign manifests are now written after each child, so a later native solver
+exit cannot erase completed cases from the index.
+Solver-trace summaries now retain child-process health even when a native exit
+occurs before a result JSON exists: exit codes, timeout and wait-error counts,
+and preserved process-log coverage are reported separately. Validation exposes
+`solver_process_health` and emits an explicit process-exit finding, so a crash
+or forced termination cannot be mistaken for an ordinary solver termination.

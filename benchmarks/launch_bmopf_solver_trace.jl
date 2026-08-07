@@ -39,6 +39,13 @@ function _run_child(script, project, output_dir, relative, timeout_seconds)
     child_env = copy(ENV)
     child_env["NLPDIAGNOSTICS_BMOPF_CASES"] = relative
     child_env["NLPDIAGNOSTICS_BMOPF_OUTPUT_DIR"] = output_dir
+    # The benchmark environment is intentionally owned by BMOPFTools, while
+    # this checkout is developed in-place. Make the local package visible to
+    # every child without requiring a user-specific startup file or registry
+    # develop step.
+    repository_root = normpath(joinpath(@__DIR__, ".."))
+    existing_load_path = get(child_env, "JULIA_LOAD_PATH", "@")
+    child_env["JULIA_LOAD_PATH"] = string(repository_root, ':', existing_load_path)
     process_log = joinpath(output_dir, "$(_case_name(relative)).process.log")
     julia = Base.julia_cmd()
     command = isnothing(project) ?
@@ -75,8 +82,24 @@ function _run_child(script, project, output_dir, relative, timeout_seconds)
             end
         end
     end
-    wait(process)
-    exit_code = timed_out ? nothing : process.exitcode
+    wait_error = nothing
+    try
+        wait(process)
+    catch error
+        # Native solver exits can make `wait` throw before a result JSON is
+        # available. Preserve the exception in the campaign index rather than
+        # aborting the parent and losing all cases collected so far.
+        wait_error = sprint(showerror, error)
+    end
+    exit_code = if timed_out
+        nothing
+    else
+        try
+            process.exitcode
+        catch
+            nothing
+        end
+    end
     result_file = "$(_case_name(relative)).json"
     result_path = joinpath(output_dir, result_file)
     if isfile(result_path)
@@ -96,6 +119,7 @@ function _run_child(script, project, output_dir, relative, timeout_seconds)
             "family_perturbation_families" => get(record, "family_perturbation_families", Any[]),
             "family_perturbation_max_iter" => get(record, "family_perturbation_max_iter", nothing),
             "process_exit_code" => exit_code,
+            "process_wait_error" => wait_error,
             "process_log" => basename(process_log),
             "process_timeout" => timed_out,
         )
@@ -107,36 +131,17 @@ function _run_child(script, project, output_dir, relative, timeout_seconds)
         "status" => "process_exit",
         "solver" => get(ENV, "NLPDIAGNOSTICS_BMOPF_SOLVER", "unknown"),
         "process_exit_code" => exit_code,
+        "process_wait_error" => wait_error,
         "process_log" => basename(process_log),
         "process_timeout" => timed_out,
     )
 end
 
-function main()
-    root = get(ENV, "NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT", "")
-    isempty(root) && error("Set NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT first")
-    isdir(root) || error("benchmark root does not exist: $root")
-    output_dir = abspath(get(
-        ENV, "NLPDIAGNOSTICS_BMOPF_OUTPUT_DIR",
-        joinpath(pwd(), "bmopf-solver-trace-isolated-results"),
-    ))
-    mkpath(output_dir)
-    script = abspath(joinpath(@__DIR__, "bmopf_solver_trace.jl"))
-    timeout_seconds = _timeout_seconds()
-    project = get(ENV, "NLPDIAGNOSTICS_BENCHMARK_PROJECT", "")
-    project = isempty(project) ? Base.active_project() : abspath(project)
-    entries = Dict{String,Any}[]
-    for relative in _selected_cases()
-        isabspath(relative) && error("case selections must be relative to the benchmark root")
-        endswith(relative, ".bmopf.json") || error("case is not a .bmopf.json snapshot: $relative")
-        isfile(joinpath(root, relative)) || error("selected snapshot is missing: $(joinpath(root, relative))")
-        push!(entries, _run_child(script, project, output_dir, relative, timeout_seconds))
-        println("$(entries[end]["name"]): $(entries[end]["status"]) exit=$(entries[end]["process_exit_code"])")
-    end
-    write(joinpath(output_dir, "index.json"), JSON.json(Dict(
-        "runner_version" => "bmopf-solver-trace-isolated-v1",
+function _index_data(project, timeout_seconds, entries)
+    return Dict(
+        "runner_version" => "bmopf-solver-trace-isolated-v2",
         "child_timeout_seconds" => timeout_seconds,
-        "benchmark_root" => abspath(root),
+        "benchmark_root" => abspath(get(ENV, "NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT", "")),
         "solver" => get(ENV, "NLPDIAGNOSTICS_BMOPF_SOLVER", "unknown"),
         "environment_fingerprint" => isempty(entries) ? nothing :
             get(first(entries), "environment_fingerprint", nothing),
@@ -157,9 +162,38 @@ function main()
             "julia_version" => string(VERSION),
             "julia_executable" => string(Base.julia_cmd()),
             "project" => project,
+            "local_package_load_path" => normpath(joinpath(@__DIR__, "..")),
         ),
         "cases" => entries,
-    )))
+    )
+end
+
+function main()
+    root = get(ENV, "NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT", "")
+    isempty(root) && error("Set NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT first")
+    isdir(root) || error("benchmark root does not exist: $root")
+    output_dir = abspath(get(
+        ENV, "NLPDIAGNOSTICS_BMOPF_OUTPUT_DIR",
+        joinpath(pwd(), "bmopf-solver-trace-isolated-results"),
+    ))
+    mkpath(output_dir)
+    script = abspath(joinpath(@__DIR__, "bmopf_solver_trace.jl"))
+    timeout_seconds = _timeout_seconds()
+    project = get(ENV, "NLPDIAGNOSTICS_BENCHMARK_PROJECT", "")
+    project = isempty(project) ? Base.active_project() : abspath(project)
+    entries = Dict{String,Any}[]
+    index_path = joinpath(output_dir, "index.json")
+    for relative in _selected_cases()
+        isabspath(relative) && error("case selections must be relative to the benchmark root")
+        endswith(relative, ".bmopf.json") || error("case is not a .bmopf.json snapshot: $relative")
+        isfile(joinpath(root, relative)) || error("selected snapshot is missing: $(joinpath(root, relative))")
+        push!(entries, _run_child(script, project, output_dir, relative, timeout_seconds))
+        # Persist after each child. A later native crash or parent interruption
+        # must not erase completed case records.
+        write(index_path, JSON.json(_index_data(project, timeout_seconds, entries)))
+        println("$(entries[end]["name"]): $(entries[end]["status"]) exit=$(entries[end]["process_exit_code"])")
+    end
+    write(index_path, JSON.json(_index_data(project, timeout_seconds, entries)))
     println("wrote isolated BMOPF solver-trace evidence to $output_dir")
 end
 
