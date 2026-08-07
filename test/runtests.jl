@@ -240,7 +240,7 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     JuMP.@variable(model, vr_load_n)
     JuMP.@variable(model, vi_load_a)
     JuMP.@variable(model, vi_load_n)
-    JuMP.@constraint(model, vr_a == 1)
+    test_constraint = JuMP.@constraint(model, vr_a == 1)
     net = Dict{String,Any}(
         "bus" => Dict{String,Any}(
             "bus" => Dict{String,Any}(
@@ -893,6 +893,31 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test only(unregistered_semantic_rows)["constraint_family"] ==
           "unregistered_constraint"
     @test only(unregistered_semantic_rows)["constraint_name"] == ""
+    registry_coverage = NLPDiagnostics.bmopf_constraint_registry_coverage_report(
+        per_unit_context, saved_profile.profile.profile.evaluation,
+    )
+    @test registry_coverage.metadata[:stage] ==
+          "bmopf_constraint_registry_coverage"
+    @test registry_coverage.metadata[
+        :bmopf_constraint_registry_unregistered_row_count] == "1"
+    @test only(findings(registry_coverage,
+                        :bmopf_constraint_registry_coverage)).severity ==
+          NLPDiagnostics.SeverityWarning
+    registered_objects = copy(objects)
+    registered_objects[BMOPFTools.OpfModelKey(
+        :constraint, :test_voltage_reference, ("bus", "a"))] = test_constraint
+    registered_context = TestBMOPFContext(
+        model, net, registered_objects, (v_base = Dict("bus" => 230.0),),
+    )
+    complete_registry_coverage =
+        NLPDiagnostics.bmopf_constraint_registry_coverage_report(
+            registered_context, saved_profile.profile.profile.evaluation,
+        )
+    @test complete_registry_coverage.metadata[
+        :bmopf_constraint_registry_unregistered_row_count] == "0"
+    @test only(findings(complete_registry_coverage,
+                        :bmopf_constraint_registry_coverage)).severity ==
+          NLPDiagnostics.SeverityInfo
     semantic_perturbation_report =
         NLPDiagnostics.bmopf_analyze_jacobian_row_family_perturbations(
             per_unit_context, saved_profile.profile.profile.evaluation;

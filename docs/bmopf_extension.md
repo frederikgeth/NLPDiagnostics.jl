@@ -740,6 +740,24 @@ device/control, and 8 voltage-reference rows. Other formulations remain subject
 to the model-wide coverage gate; this fixture result is not generalized to
 custom hooks, DC models, or an untested transformer subtype.
 
+The subsequent fixture-diversity pass applies an exact JuMP-constraint-index
+cross-check to constant-impedance and constant-current ZIP loads, all existing
+two-winding transformer subtype fixtures, a three-winding transformer, and both
+shared-bus and resistive-branch DC converter networks. These fixtures now have
+zero unregistered native rows. The added semantic families cover load-voltage
+auxiliary definitions and bounds, n-winding ampere-turn and leakage equations,
+DC branch/port/control/KCL equations, IBR current and DC-link limits, and native
+variable bounds. This is still fixture-local evidence; rare DC controls and
+caller extensions require their own audit.
+
+Use `bmopf_constraint_registry_coverage_report(context, evaluation)` when the
+coverage result itself must be persisted as diagnostic evidence. The report is
+informational when every evaluated row is registered and a representational
+warning otherwise. It gives exact uncovered row numbers and optional JuMP names
+but does not infer semantics or ownership from those names. A plugin constraint
+becomes semantically attributable only after the plugin registers it through
+the public BMOPFTools API.
+
 The adapter accepts `result_units=:si` for physical SI values and
 `result_units=:pu` (or the backward-compatible `:model`) for already-scaled
 per-unit/model coordinates. The draft corpus runner exposes this adapter as

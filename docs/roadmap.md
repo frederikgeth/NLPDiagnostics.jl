@@ -1491,11 +1491,29 @@ device/control rows, and 8 voltage-reference rows. This is a proven coverage
 fact for that formulation and fixture, not yet a universal claim for DC,
 custom-hook, or less frequently exercised auxiliary formulations.
 
-The next registry work is therefore fixture-diversity rather than more inference:
-run representative transformer, voltage-dependent-load, DC-network, and custom
-extension models through the same all-row audit, then add construction-time
-keys for any genuine gaps. NLPDiagnostics will continue to report uncovered
-rows explicitly and will not infer physical families from JuMP names.
+The first fixture-diversity pass is now complete. All-row identity audits cover
+constant-impedance and constant-current ZIP auxiliaries, every existing
+two-winding transformer subtype fixture, the three-winding formulation, and
+shared-bus plus resistive-branch DC converter grids. The audit exposed genuine
+construction-time gaps in load magnitude auxiliaries, n-winding ampere-turn and
+leakage equations, DC branch/port/control/KCL equations, and IBR current/DC-link
+limits; those rows now receive typed keys when constructed. Native variable
+lower and upper bounds are registered uniformly as well. Every JuMP constraint
+in these fixtures now cross-checks against a public registry identity.
+
+NLPDiagnostics now exposes `bmopf_constraint_registry_coverage_report` as a
+standalone structural gate. It reports complete coverage as formulation-local
+information and uncovered rows as representational warnings with exact row and
+construction-name provenance. It deliberately does not guess whether an
+unregistered row came from BMOPFTools or a caller extension. Caller-added rows
+should use `BMOPFTools.register_opf_constraint!`; their names remain provenance,
+not semantic evidence.
+
+The remaining registry work is rare-builder and extension coverage: exercise
+DC droop, explicit DC loads/sources and oriented voltage bands, transformer
+thermal auxiliaries, and a registered custom extension through persisted
+NLPDiagnostics profiles. Coverage must remain a per-formulation gate rather
+than a package-wide assertion.
 
 Saved-result component matching is now exact as well (`pv_1` no longer matches
 `pv_10`). A fresh one-case SI/PU matrix reports 56 registered controller

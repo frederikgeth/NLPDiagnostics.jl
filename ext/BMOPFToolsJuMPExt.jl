@@ -1723,6 +1723,67 @@ function _bmopf_constraint_semantic_row_map(context, evaluation)
     return rows
 end
 
+function _bmopf_constraint_registry_coverage_report(context, evaluation)
+    rows = _bmopf_constraint_semantic_row_map(context, evaluation)
+    registered = Dict{String,Int}()
+    unregistered_names = Dict{String,Int}()
+    unregistered_rows = Int[]
+    for (row_text, descriptor) in rows
+        if get(descriptor, "registered", false) == true
+            family = string(get(descriptor, "constraint_family", "unknown"))
+            registered[family] = get(registered, family, 0) + 1
+        else
+            row = tryparse(Int, row_text)
+            row === nothing || push!(unregistered_rows, row)
+            name = string(get(descriptor, "constraint_name", ""))
+            isempty(name) ||
+                (unregistered_names[name] = get(unregistered_names, name, 0) + 1)
+        end
+    end
+    sort!(unregistered_rows)
+    total = length(rows)
+    registered_count = sum(values(registered); init=0)
+    unregistered_count = total - registered_count
+    report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:stage] = "bmopf_constraint_registry_coverage"
+    report.metadata[:bmopf_constraint_registry_row_count] = string(total)
+    report.metadata[:bmopf_constraint_registry_registered_row_count] =
+        string(registered_count)
+    report.metadata[:bmopf_constraint_registry_unregistered_row_count] =
+        string(unregistered_count)
+    report.metadata[:bmopf_constraint_registry_registered_family_row_counts] =
+        _bmopf_family_count_string(registered)
+    report.metadata[:bmopf_constraint_registry_unregistered_rows] =
+        join(unregistered_rows, ",")
+    report.metadata[:bmopf_constraint_registry_unregistered_name_counts] =
+        _bmopf_family_count_string(unregistered_names)
+    push!(report, NLPDiagnostics.Finding(:bmopf_constraint_registry_coverage;
+        severity = unregistered_count == 0 ?
+            NLPDiagnostics.SeverityInfo : NLPDiagnostics.SeverityWarning,
+        domain = NLPDiagnostics.RepresentationalIssue,
+        basis = NLPDiagnostics.StructuralProof,
+        confidence = NLPDiagnostics.ConfidenceCertain,
+        observation = unregistered_count == 0 ?
+            "All $total evaluated scalar constraint row(s) have public BMOPFTools semantic keys." :
+            "$unregistered_count of $total evaluated scalar constraint row(s) have no public BMOPFTools semantic key.",
+        why_it_matters = unregistered_count == 0 ?
+            "Numerical row evidence can be attributed without guessing from JuMP names; this proves coverage only for this exact built formulation." :
+            "Unregistered rows cannot receive a physical family or component interpretation without guessing. They may be native omissions or caller-added constraints, and this report does not infer which.",
+        evidence = [NLPDiagnostics.Evidence("BMOPFTools constraint registry"; details = [
+            "row_count" => total,
+            "registered_row_count" => registered_count,
+            "unregistered_row_count" => unregistered_count,
+            "registered_family_row_counts" => _bmopf_family_count_string(registered),
+            "unregistered_rows" => join(unregistered_rows, ","),
+            "unregistered_name_counts" => _bmopf_family_count_string(unregistered_names),
+        ])],
+        suggested_actions = unregistered_count == 0 ?
+            ["Retain this coverage gate for every distinct formulation fixture; do not generalize it to untested builders."] :
+            ["If a row belongs to BMOPFTools, register it at construction time with a stable family and component index.", "If a caller or plugin added the row, register it explicitly through BMOPFTools.register_opf_constraint!; use the JuMP name only as provenance."],
+    ))
+    return report
+end
+
 """Run the generic local Jacobian row-family perturbation with BMOPF labels."""
 function _bmopf_analyze_jacobian_row_family_perturbations(
     context, evaluation; kwargs...

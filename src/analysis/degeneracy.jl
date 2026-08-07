@@ -145,6 +145,10 @@ bmopf_constraint_feasibility_field_attribution(context, result; kwargs...) =
 bmopf_constraint_semantic_row_map(context, evaluation) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP support are required for BMOPF constraint-row semantics")._bmopf_constraint_semantic_row_map(context, evaluation)
+"""Report complete public semantic-registry coverage for evaluated BMOPF rows."""
+bmopf_constraint_registry_coverage_report(context, evaluation) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF constraint-registry coverage")._bmopf_constraint_registry_coverage_report(context, evaluation)
 """Run a local Jacobian row-family perturbation using BMOPFTools semantics."""
 bmopf_analyze_jacobian_row_family_perturbations(context, evaluation; kwargs...) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
