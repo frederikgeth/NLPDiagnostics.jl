@@ -863,6 +863,71 @@ the observations in the evidence ledger. A stable local finding is empirical
 persistence across the sampled points, not a global or physical proof.
 Same-point readiness requires both one exact point fingerprint and identical
 finding identities in every report stage across repetitions.
+For multi-case runs, the summary also derives LN/LG bus-count strata and emits
+`cross_case_change_recurrence`. Each entry preserves the exact finding identity,
+stage classification, affected cases and strata, count direction, and aggregate
+delta. Recurrence remains descriptive evidence and is never converted into a
+model-quality score.
+Curated numerical metrics are calibrated separately from finding identities.
+The report retains full-Jacobian rank and sparse-QR agreement, active-set rank
+and DM dimensions, equality-rank/MFCQ metadata, and aligned degeneracy ranks.
+It requires exact same-point metric recurrence and reports recurring
+start-to-saved transitions under `cross_case_metric_change_recurrence`.
+Unchanged metrics are retained separately under
+`cross_case_metric_persistence`, so stable full-Jacobian rank evidence does not
+disappear merely because only deltas are findings.
+Metric extraction is capability-gated. For example, a stored rank sentinel is
+excluded when `jacobian_rank_available=false`; the availability flag itself is
+retained. This prevents a skipped dense analysis from being reported as a
+rank-zero observation.
+
+Current profile records also contain
+`bmopf_jacobian_row_family_scale_attribution`. This is built from the public
+BMOPFTools constraint registry and the evaluated Jacobian, never from JuMP
+constraint or variable names. For every declared equation family it retains
+the row count, combined sparse-entry count, zero/non-finite/unavailable counts,
+row infinity-norm quartiles and extrema, within-family spread, and whether the
+family owns either global row-scale extreme. A small explicit mapping groups
+known public constraint-family prefixes into component families; unknown
+families remain `unclassified` instead of being guessed.
+
+The v2 point-calibration summary requires exact same-point recurrence of this
+evidence and compares it across points. Exact value transitions are stored in
+`cross_case_row_family_scale_recurrence`; a second direction-based aggregation
+groups unequal numeric transitions by constraint family and metric under
+`cross_case_row_family_scale_direction_recurrence`. Unchanged evidence is kept
+in `cross_case_row_family_scale_persistence`. These reports attribute row-scale
+observations, not a sparse-QR condition proxy or solver failure: a family that
+owns the smallest derivative row is not automatically the cause of an ill-
+conditioned KKT system.
+
+For a controlled follow-up, set
+`NLPDIAGNOSTICS_BMOPF_FAMILY_SCALING_EXPERIMENTS` to a comma-separated list of
+public constraint families. The runner then normalizes only the finite nonzero
+rows of each named family to unit infinity norm in a copy of the recorded
+Jacobian and repeats sparse QR. It retains the baseline/scaled rank, pivot-
+spread proxy, ratio, and applied factor range. Zero families are explicitly
+unavailable rather than assigned artificial factors. The intervention is
+fingerprinted and resume-compatible, and repeated calibration requires exact
+same-point recurrence. `cross_case_row_family_scaling_experiment_summary`
+aggregates availability, rank changes, and pivot-proxy direction. This is a
+linearization experiment only: it does not rescale the model, KKT system,
+constraint residuals, or solver tolerances.
+
+When `NLPDIAGNOSTICS_BMOPF_CASES` names several cases, the launcher isolates
+each case in its own child process and output directory. Timeouts and crashes
+therefore qualify only that case, point policy, and repetition; completed
+evidence from the rest of the stratum remains available to the summarizer.
+Set `NLPDIAGNOSTICS_BMOPF_CALIBRATION_RESUME=true` to reuse successful isolated
+children from an existing manifest and rerun only failed or missing children.
+The launcher rejects a resume when the root, project, policies, repetition
+count, case selection, dense-entry budget, or requested family-scaling
+experiment differs; the timeout may be
+increased for retries. A normal process exit is reusable only when its child
+index exists, contains at least one case, and every case status is `ok`.
+Each child records elapsed wall time, its attempt number, and prior failed
+attempts. Attempt logs use distinct filenames so a successful retry cannot
+erase the timeout or exception evidence that motivated it.
 
 Solver-trace campaigns apply the same boundary to their final solver result
 and to optional callback iterates. Metric-only traces remain valid when

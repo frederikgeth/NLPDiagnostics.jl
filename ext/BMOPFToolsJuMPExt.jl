@@ -1723,6 +1723,66 @@ function _bmopf_constraint_semantic_row_map(context, evaluation)
     return rows
 end
 
+const _BMOPF_CONSTRAINT_COMPONENT_FAMILY_PREFIXES = (
+    "kcl_" => "network_balance",
+    "line_" => "line",
+    "load_" => "load",
+    "source_" => "source",
+    "ground_" => "ground",
+    "ibr_" => "ibr",
+    "switch_" => "switch",
+    "transformer_" => "transformer",
+    "n_winding_" => "transformer",
+    "dc_" => "dc_network",
+    "variable_" => "variable_bound",
+)
+
+function _bmopf_constraint_component_family(family::AbstractString)
+    family == "unregistered_constraint" && return "unregistered"
+    for (prefix, component_family) in _BMOPF_CONSTRAINT_COMPONENT_FAMILY_PREFIXES
+        startswith(family, prefix) && return component_family
+    end
+    return "unclassified"
+end
+
+"""Attribute Jacobian row-scale evidence through public BMOPFTools row keys."""
+function _bmopf_jacobian_row_family_scale_attribution(context, evaluation)
+    labels = _bmopf_constraint_semantic_row_map(context, evaluation)
+    attribution = NLPDiagnostics.jacobian_row_family_scale_attribution(
+        evaluation, labels,
+    )
+    attribution["label_source"] = "BMOPFTools public constraint registry"
+    attribution["component_family_source"] =
+        "explicit NLPDiagnostics mapping from BMOPFTools constraint families"
+    component_families = Dict{String,Vector{String}}()
+    for (family, data) in attribution["families"]
+        component_family = _bmopf_constraint_component_family(family)
+        data["component_family"] = component_family
+        push!(get!(component_families, component_family, String[]), family)
+    end
+    attribution["component_families"] = Dict(
+        component => sort!(families) for
+        (component, families) in sort!(collect(component_families); by = first)
+    )
+    attribution["unclassified_family_count"] = count(
+        data -> get(data, "component_family", "unclassified") == "unclassified",
+        values(attribution["families"]),
+    )
+    return attribution
+end
+
+"""Run a controlled Jacobian row-family scaling experiment with BMOPF keys."""
+function _bmopf_jacobian_row_family_scaling_experiment(
+    context, evaluation; kwargs...
+)
+    labels = _bmopf_constraint_semantic_row_map(context, evaluation)
+    result = NLPDiagnostics.jacobian_row_family_scaling_experiment(
+        evaluation, labels; kwargs...,
+    )
+    result["label_source"] = "BMOPFTools public constraint registry"
+    return result
+end
+
 function _bmopf_constraint_registry_coverage_report(context, evaluation)
     rows = _bmopf_constraint_semantic_row_map(context, evaluation)
     registered = Dict{String,Int}()

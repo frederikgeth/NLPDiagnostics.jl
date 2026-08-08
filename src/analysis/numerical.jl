@@ -74,6 +74,275 @@ function jacobian_scale_summary(evaluation::NumericalEvaluation{T}) where {T}
     )
 end
 
+function _jacobian_row_family_labels(row_labels, row_count::Integer)
+    label_value(value) = begin
+        if value isa AbstractDict
+            raw = get(value, "constraint_family",
+                      get(value, :constraint_family, "unclassified_row"))
+            return String(raw)
+        end
+        return string(value isa Symbol ? value : value)
+    end
+    labels = Vector{String}(undef, row_count)
+    if row_labels isa AbstractDict
+        for row in 1:row_count
+            value = get(row_labels, row,
+                        get(row_labels, string(row), "unclassified_row"))
+            labels[row] = label_value(value)
+        end
+    else
+        length(row_labels) == row_count || throw(ArgumentError(
+            "row_labels must have one entry per evaluated Jacobian row",
+        ))
+        for row in 1:row_count
+            labels[row] = label_value(row_labels[row])
+        end
+    end
+    return labels
+end
+
+function _jacobian_scale_quantile(values, probability)
+    isempty(values) && return nothing
+    length(values) == 1 && return first(values)
+    position = one(probability) + probability * (length(values) - 1)
+    lower = floor(Int, position)
+    upper = ceil(Int, position)
+    lower == upper && return values[lower]
+    weight = position - lower
+    return (one(weight) - weight) * values[lower] + weight * values[upper]
+end
+
+"""
+    jacobian_row_family_scale_attribution(evaluation, row_labels)
+
+Attribute evaluated Jacobian row-scale evidence to declared row families.
+The result contains robust infinity-norm summaries, zero/non-finite/unavailable
+row counts, combined sparse-entry counts, and ownership of the global row-scale
+extrema. Duplicate sparse entries are summed exactly as in
+[`jacobian_scale_summary`](@ref).
+
+This is point-local derivative evidence. It identifies which labelled families
+contain large or small derivative rows, but does not claim that a family caused
+a global condition estimate or solver failure.
+"""
+function jacobian_row_family_scale_attribution(
+    evaluation::NumericalEvaluation{T}, row_labels,
+) where {T<:AbstractFloat}
+    row_count = length(evaluation.constraint_sources)
+    labels = _jacobian_row_family_labels(row_labels, row_count)
+    scale = jacobian_scale_summary(evaluation)
+    unavailable = Set(
+        row for (row, method) in enumerate(evaluation.jacobian_row_methods) if
+        method in (:unavailable, :partial_central_finite_difference)
+    )
+    nonfinite = Set(scale.nonfinite_rows)
+    combined = Dict{Tuple{Int,Int},T}()
+    for entry in evaluation.jacobian_entries
+        key = (entry.row, entry.column)
+        combined[key] = get(combined, key, zero(T)) + entry.value
+    end
+    row_entry_counts = zeros(Int, row_count)
+    for ((row, _), value) in combined
+        iszero(value) || (row_entry_counts[row] += 1)
+    end
+    global_min = scale.smallest_positive_row_norm
+    global_max = scale.largest_finite_row_norm
+    families = Dict{String,Any}()
+    for family in sort!(unique(labels))
+        rows = findall(==(family), labels)
+        positive = sort!(T[
+            scale.row_norms[row] for row in rows if
+            !(row in unavailable) && !(row in nonfinite) &&
+            isfinite(scale.row_norms[row]) && scale.row_norms[row] > zero(T)
+        ])
+        zero_rows = [row for row in rows if
+            !(row in unavailable) && !(row in nonfinite) &&
+            iszero(scale.row_norms[row])]
+        minimum_rows = isnothing(global_min) ? Int[] : [
+            row for row in rows if scale.row_norms[row] == global_min
+        ]
+        maximum_rows = isnothing(global_max) ? Int[] : [
+            row for row in rows if scale.row_norms[row] == global_max
+        ]
+        family_min = isempty(positive) ? nothing : first(positive)
+        family_max = isempty(positive) ? nothing : last(positive)
+        families[family] = Dict{String,Any}(
+            "row_count" => length(rows),
+            "finite_positive_row_count" => length(positive),
+            "zero_row_count" => length(zero_rows),
+            "nonfinite_row_count" => count(row -> row in nonfinite, rows),
+            "unavailable_row_count" => count(row -> row in unavailable, rows),
+            "combined_nonzero_entry_count" => sum(row_entry_counts[rows]; init = 0),
+            "smallest_positive_row_norm" => family_min,
+            "row_norm_q25" => _jacobian_scale_quantile(positive, 0.25),
+            "row_norm_median" => _jacobian_scale_quantile(positive, 0.5),
+            "row_norm_q75" => _jacobian_scale_quantile(positive, 0.75),
+            "largest_finite_row_norm" => family_max,
+            "row_scale_ratio" => isnothing(family_min) || isnothing(family_max) ?
+                nothing : family_max / family_min,
+            "owns_global_smallest_positive_row_norm" => !isempty(minimum_rows),
+            "owns_global_largest_finite_row_norm" => !isempty(maximum_rows),
+            "global_minimum_row_indices" => minimum_rows,
+            "global_maximum_row_indices" => maximum_rows,
+        )
+    end
+    return Dict{String,Any}(
+        "report_version" => "jacobian-row-family-scale-attribution-v1",
+        "point_label" => evaluation.point.label,
+        "row_count" => row_count,
+        "family_count" => length(families),
+        "norm" => string(scale.norm),
+        "smallest_positive_row_norm" => global_min,
+        "largest_finite_row_norm" => global_max,
+        "row_scale_ratio" => scale.row_scale_ratio,
+        "global_minimum_families" => sort!([
+            family for (family, data) in families if
+            get(data, "owns_global_smallest_positive_row_norm", false) === true
+        ]),
+        "global_maximum_families" => sort!([
+            family for (family, data) in families if
+            get(data, "owns_global_largest_finite_row_norm", false) === true
+        ]),
+        "families" => families,
+        "interpretation" => "point-local derivative-scale attribution; not causal conditioning evidence",
+    )
+end
+
+function _jacobian_row_rescaled_evaluation(
+    evaluation::NumericalEvaluation{T}, factors::AbstractVector{T},
+) where {T<:AbstractFloat}
+    length(factors) == length(evaluation.constraint_sources) ||
+        throw(ArgumentError("row scale factors must align with evaluated rows"))
+    entries = JacobianEntry{T}[
+        JacobianEntry{T}(entry.row, entry.column,
+                         entry.value * factors[entry.row])
+        for entry in evaluation.jacobian_entries
+    ]
+    return NumericalEvaluation{T}(
+        evaluation.point,
+        evaluation.objective_value,
+        evaluation.objective_source,
+        copy(evaluation.objective_gradient),
+        copy(evaluation.constraint_values),
+        copy(evaluation.constraint_sources),
+        entries,
+        copy(evaluation.jacobian_row_methods),
+        copy(evaluation.capabilities),
+        copy(evaluation.failures),
+        copy(evaluation.call_statistics),
+        evaluation.objective_gradient_method,
+    )
+end
+
+"""
+    jacobian_row_family_scaling_experiment(evaluation, row_labels; families)
+
+Run a controlled, point-local sparse-QR experiment in which the nonzero rows
+of each requested family are individually normalized to unit infinity norm,
+while every other Jacobian row is unchanged. The baseline and perturbed rank
+and retained-pivot spread are returned with explicit scale-factor evidence.
+
+This changes only a recorded linearization. It does not rescale the JuMP/MOI
+model, change feasibility tolerances, rebuild a KKT system, or invoke a solver.
+"""
+function jacobian_row_family_scaling_experiment(
+    evaluation::NumericalEvaluation{T}, row_labels;
+    families,
+    relative_tolerance::Real = max(
+        length(evaluation.constraint_sources), length(evaluation.point.variables), 1,
+    ) * eps(T),
+    max_dense_entries::Integer = 100_000,
+    max_families::Integer = 8,
+) where {T<:AbstractFloat}
+    max_families > 0 || throw(ArgumentError("max_families must be positive"))
+    labels = _jacobian_row_family_labels(
+        row_labels, length(evaluation.constraint_sources),
+    )
+    requested = unique(string(value isa Symbol ? value : value) for value in families)
+    length(requested) <= max_families || throw(ArgumentError(
+        "requested $(length(requested)) families exceeds max_families=$max_families",
+    ))
+    known = Set(labels)
+    unknown = sort!([family for family in requested if !(family in known)])
+    isempty(unknown) || throw(ArgumentError(
+        "unknown row families: $(join(unknown, ", "))",
+    ))
+    baseline = sparse_qr_rank_estimate(
+        evaluation;
+        relative_tolerance,
+        scaling = :none,
+        max_dense_entries,
+        provenance = :row_family_scaling_experiment_baseline,
+    )
+    row_scale = jacobian_scale_summary(evaluation)
+    results = Dict{String,Any}()
+    for family in requested
+        rows = findall(==(family), labels)
+        positive_rows = [row for row in rows if
+            isfinite(row_scale.row_norms[row]) &&
+            row_scale.row_norms[row] > zero(T)]
+        zero_rows = [row for row in rows if iszero(row_scale.row_norms[row])]
+        nonfinite_rows = [row for row in rows if !isfinite(row_scale.row_norms[row])]
+        if isempty(positive_rows)
+            results[family] = Dict{String,Any}(
+                "available" => false,
+                "reason" => "family has no finite positive-norm Jacobian rows",
+                "row_count" => length(rows),
+                "scaled_row_count" => 0,
+                "zero_row_count" => length(zero_rows),
+                "nonfinite_row_count" => length(nonfinite_rows),
+            )
+            continue
+        end
+        factors = ones(T, length(labels))
+        for row in positive_rows
+            factors[row] = inv(row_scale.row_norms[row])
+        end
+        perturbed = sparse_qr_rank_estimate(
+            _jacobian_row_rescaled_evaluation(evaluation, factors);
+            relative_tolerance,
+            scaling = :none,
+            max_dense_entries,
+            provenance = :row_family_scaling_experiment,
+        )
+        baseline_proxy = baseline.condition_proxy
+        perturbed_proxy = perturbed.condition_proxy
+        results[family] = Dict{String,Any}(
+            "available" => baseline.available && perturbed.available,
+            "reason" => baseline.available && perturbed.available ? nothing :
+                something(perturbed.reason, baseline.reason),
+            "row_count" => length(rows),
+            "scaled_row_count" => length(positive_rows),
+            "zero_row_count" => length(zero_rows),
+            "nonfinite_row_count" => length(nonfinite_rows),
+            "minimum_scale_factor" => minimum(factors[positive_rows]),
+            "maximum_scale_factor" => maximum(factors[positive_rows]),
+            "baseline_rank" => baseline.available ? baseline.rank : nothing,
+            "scaled_rank" => perturbed.available ? perturbed.rank : nothing,
+            "rank_delta" => baseline.available && perturbed.available ?
+                perturbed.rank - baseline.rank : nothing,
+            "baseline_condition_proxy" => baseline_proxy,
+            "scaled_condition_proxy" => perturbed_proxy,
+            "condition_proxy_ratio" =>
+                !isnothing(baseline_proxy) && !isnothing(perturbed_proxy) &&
+                baseline_proxy != zero(T) ? perturbed_proxy / baseline_proxy : nothing,
+        )
+    end
+    return Dict{String,Any}(
+        "report_version" => "jacobian-row-family-scaling-experiment-v1",
+        "point_label" => evaluation.point.label,
+        "scaling_intervention" =>
+            "normalize requested finite nonzero rows to unit infinity norm",
+        "baseline_available" => baseline.available,
+        "baseline_rank" => baseline.available ? baseline.rank : nothing,
+        "baseline_condition_proxy" => baseline.condition_proxy,
+        "relative_tolerance" => baseline.relative_tolerance,
+        "families" => results,
+        "interpretation" =>
+            "controlled recorded-Jacobian scaling experiment; not a model rescale or solver/KKT result",
+    )
+end
+
 """
     analyze_jacobian_row_family_perturbations(evaluation, row_labels; kwargs...)
 
@@ -99,28 +368,7 @@ function analyze_jacobian_row_family_perturbations(
     max_dense_entries::Integer = 4_000_000,
 ) where {T<:AbstractFloat}
     row_count = length(evaluation.constraint_sources)
-    labels = Vector{String}(undef, row_count)
-    label_value(value) = begin
-        if value isa AbstractDict
-            raw = get(value, "constraint_family",
-                      get(value, :constraint_family, "unclassified_row"))
-            return String(raw)
-        end
-        return string(value isa Symbol ? value : value)
-    end
-    if row_labels isa AbstractDict
-        for row in 1:row_count
-            value = get(row_labels, row, get(row_labels, string(row), "unclassified_row"))
-            labels[row] = label_value(value)
-        end
-    else
-        length(row_labels) == row_count || throw(ArgumentError(
-            "row_labels must have one entry per evaluated Jacobian row",
-        ))
-        for row in 1:row_count
-            labels[row] = label_value(row_labels[row])
-        end
-    end
+    labels = _jacobian_row_family_labels(row_labels, row_count)
     unique_labels = sort!(unique(labels))
     if !isnothing(families)
         requested = Set(string(value isa Symbol ? value : value) for value in families)

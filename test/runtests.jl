@@ -937,6 +937,21 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
           "jacobian_row_family_perturbations"
     @test semantic_perturbation_report.metadata[:bmopf_semantic_row_count] ==
           string(length(semantic_rows))
+    semantic_scale_attribution =
+        NLPDiagnostics.bmopf_jacobian_row_family_scale_attribution(
+            per_unit_context, saved_profile.profile.profile.evaluation,
+        )
+    @test semantic_scale_attribution["row_count"] == length(semantic_rows)
+    @test semantic_scale_attribution["family_count"] == length(unique(
+        value["constraint_family"] for value in values(semantic_rows)
+    ))
+    @test semantic_scale_attribution["label_source"] ==
+          "BMOPFTools public constraint registry"
+    @test semantic_scale_attribution["unclassified_family_count"] == 0
+    @test all(
+        haskey(data, "component_family") for
+        data in values(semantic_scale_attribution["families"])
+    )
     if isdefined(BMOPFTools, :opf_ibr_voltage_magnitude_key)
         magnitude_model = JuMP.Model()
         JuMP.@variable(magnitude_model, m_vr_a)
@@ -1261,11 +1276,41 @@ end
     )
     @test occursin("bmopf-point-calibration-launcher-v1", launcher)
     @test occursin("NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES\"] = \"0\"", launcher)
-    @test occursin("bmopf-point-calibration-v1", summary)
+    @test occursin("expected_child_count", launcher)
+    @test occursin("case_isolation", launcher)
+    @test occursin("NLPDIAGNOSTICS_BMOPF_CALIBRATION_RESUME", launcher)
+    @test occursin("resume-skip", launcher)
+    @test occursin("previous_attempts", launcher)
+    @test occursin("elapsed_seconds", launcher)
+    @test occursin("child_case_failure", launcher)
+    @test occursin("child_cases_empty", launcher)
+    @test occursin("bmopf-point-calibration-v2", summary)
     @test occursin("point_invariant_stage_stability", summary)
     @test occursin("same_point_fingerprint_stability", summary)
     @test occursin("same_point_finding_stability", summary)
+    @test occursin("same_point_metric_stability", summary)
     @test occursin("saved_result_mapping_complete", summary)
+    @test occursin("cross_case_change_recurrence", summary)
+    @test occursin("cross_case_metric_change_recurrence", summary)
+    @test occursin("cross_case_metric_persistence", summary)
+    @test occursin("row_family_scale_attribution", summary)
+    @test occursin("same_point_row_family_scale_stability", summary)
+    @test occursin("cross_case_row_family_scale_recurrence", summary)
+    @test occursin("cross_case_row_family_scale_direction_recurrence", summary)
+    @test occursin("cross_case_row_family_scale_persistence", summary)
+    @test occursin("_metric_available", summary)
+    @test occursin("stratum_case_counts", summary)
+    corpus = read(
+        joinpath(benchmark_directory, "bmopf_draft_corpus.jl"), String,
+    )
+    @test occursin("bmopf_jacobian_row_family_scale_attribution", corpus)
+    validator = read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    )
+    @test occursin("point_calibration_row_family_scale_attribution_missing", validator)
+    @test occursin("row_family_scaling_experiment", summary)
+    @test occursin("cross_case_row_family_scaling_experiment_summary", summary)
+    @test occursin("point_calibration_row_family_scaling_experiment_missing", validator)
     ledger = read(
         joinpath(benchmark_directory, "summarize_bmopf_evidence_ledger.jl"),
         String,
@@ -6193,6 +6238,49 @@ end
         )) == 1
         @test_throws ArgumentError NLPDiagnostics.analyze_jacobian_row_family_perturbations(
             evaluation, ["only one row"],
+        )
+        family_scales = NLPDiagnostics.jacobian_row_family_scale_attribution(
+            family_evaluation,
+            Dict(1 => Dict("constraint_family" => "dependent"),
+                 2 => Dict("constraint_family" => "dependent"),
+                 3 => Dict("constraint_family" => "independent"),
+                 4 => Dict("constraint_family" => "zero")),
+        )
+        @test family_scales["report_version"] ==
+              "jacobian-row-family-scale-attribution-v1"
+        @test family_scales["row_count"] == 4
+        @test family_scales["family_count"] == 3
+        @test family_scales["global_maximum_families"] == ["dependent"]
+        @test family_scales["global_minimum_families"] ==
+              ["dependent", "independent"]
+        dependent_scales = family_scales["families"]["dependent"]
+        @test dependent_scales["row_count"] == 2
+        @test dependent_scales["combined_nonzero_entry_count"] == 2
+        @test dependent_scales["smallest_positive_row_norm"] == 1.0
+        @test dependent_scales["row_norm_q25"] == 1.25
+        @test dependent_scales["row_norm_median"] == 1.5
+        @test dependent_scales["row_norm_q75"] == 1.75
+        @test dependent_scales["largest_finite_row_norm"] == 2.0
+        @test dependent_scales["row_scale_ratio"] == 2.0
+        @test family_scales["families"]["zero"]["zero_row_count"] == 1
+        scaling_experiment =
+            NLPDiagnostics.jacobian_row_family_scaling_experiment(
+                family_evaluation,
+                ["dependent", "dependent", "independent", "zero"];
+                families = ["dependent", "zero"],
+            )
+        @test scaling_experiment["baseline_available"]
+        @test scaling_experiment["families"]["dependent"]["available"]
+        @test scaling_experiment["families"]["dependent"]["rank_delta"] == 0
+        @test scaling_experiment["families"]["dependent"]["condition_proxy_ratio"] < 1
+        @test !scaling_experiment["families"]["zero"]["available"]
+        @test scaling_experiment["families"]["zero"]["zero_row_count"] == 1
+        @test_throws ArgumentError NLPDiagnostics.jacobian_row_family_scaling_experiment(
+            family_evaluation, ["a", "b", "c", "d"];
+            families = ["missing"],
+        )
+        @test_throws ArgumentError NLPDiagnostics.jacobian_row_family_scale_attribution(
+            family_evaluation, ["only one row"],
         )
     end
 

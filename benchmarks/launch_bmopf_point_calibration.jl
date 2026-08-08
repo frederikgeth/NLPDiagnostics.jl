@@ -49,6 +49,13 @@ function _positive_seconds(name, default)
     return value
 end
 
+function _boolean(name, default = false)
+    raw = lowercase(strip(get(ENV, name, string(default))))
+    raw in ("1", "true", "yes", "on") && return true
+    raw in ("0", "false", "no", "off") && return false
+    error("$name must be boolean, got '$raw'")
+end
+
 function _selected_points()
     raw = filter(!isempty, strip.(split(get(
         ENV, "NLPDIAGNOSTICS_BMOPF_CALIBRATION_POINTS",
@@ -61,6 +68,54 @@ function _selected_points()
         join(sort!(collect(keys(_CALIBRATION_POINTS))), ", "),
     )
     return unique(raw)
+end
+
+function _selected_cases()
+    raw = get(ENV, "NLPDIAGNOSTICS_BMOPF_CASES", "")
+    cases = unique(filter(!isempty, strip.(split(raw, ','))))
+    return isempty(cases) ? Union{Nothing,String}[nothing] :
+           Union{Nothing,String}[String(case) for case in cases]
+end
+
+function _case_slug(case_selector)
+    isnothing(case_selector) && return "selected_corpus"
+    slug = replace(String(case_selector), r"\.bmopf\.json$" => "")
+    return replace(slug, r"[^A-Za-z0-9_.-]+" => "__")
+end
+
+_entry_key(point, replicate, case_selector) =
+    (String(point), Int(replicate), isnothing(case_selector) ? nothing : String(case_selector))
+
+function _entry_key(entry::AbstractDict)
+    return _entry_key(
+        get(entry, "point", ""), get(entry, "replicate", 0),
+        get(entry, "case_selector", nothing),
+    )
+end
+
+function _completed_entry(entry)
+    String(get(entry, "status", "")) == "ok" || return false
+    output_directory = String(get(entry, "output_directory", ""))
+    !isempty(output_directory) &&
+        isfile(joinpath(output_directory, "index.json")) || return false
+    case_count = Int(get(entry, "child_case_count", 0))
+    case_count > 0 || return false
+    statuses = get(entry, "child_status_counts", Dict())
+    statuses isa AbstractDict || return false
+    return Int(get(statuses, "ok", 0)) == case_count
+end
+
+function _attempt_record(entry)
+    return Dict{String,Any}(
+        "attempt" => get(entry, "attempt", 1),
+        "status" => get(entry, "status", "unknown"),
+        "process_timeout" => get(entry, "process_timeout", false),
+        "process_exit_code" => get(entry, "process_exit_code", nothing),
+        "process_wait_error" => get(entry, "process_wait_error", nothing),
+        "elapsed_seconds" => get(entry, "elapsed_seconds", nothing),
+        "child_timeout_seconds" => get(entry, "child_timeout_seconds", nothing),
+        "process_log" => get(entry, "process_log", nothing),
+    )
 end
 
 function _wait_for_process(process, timeout_seconds)
@@ -99,7 +154,7 @@ function _wait_for_process(process, timeout_seconds)
     return timed_out, exit_code, wait_error
 end
 
-function _child_environment(root, output_dir, specification)
+function _child_environment(root, output_dir, specification, case_selector)
     child = copy(ENV)
     repository_root = normpath(joinpath(@__DIR__, ".."))
     child["JULIA_LOAD_PATH"] = string(
@@ -110,6 +165,8 @@ function _child_environment(root, output_dir, specification)
     child["NLPDIAGNOSTICS_BMOPF_POINT_POLICY"] = specification.point_policy
     child["NLPDIAGNOSTICS_BMOPF_ANALYSIS_MODE"] = "profile"
     child["NLPDIAGNOSTICS_BMOPF_FORCE"] = "true"
+    isnothing(case_selector) ||
+        (child["NLPDIAGNOSTICS_BMOPF_CASES"] = String(case_selector))
     haskey(child, "NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES") ||
         (child["NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES"] = "0")
     if isnothing(specification.result_units)
@@ -131,19 +188,27 @@ function _child_environment(root, output_dir, specification)
 end
 
 function _run_child(script, project, root, output_root, point_name,
-                    specification, replicate, timeout_seconds)
-    output_dir = joinpath(output_root, point_name, "replicate_$(replicate)")
+                    specification, replicate, timeout_seconds, case_selector,
+                    attempt)
+    output_dir = joinpath(
+        output_root, point_name, "replicate_$(replicate)",
+        _case_slug(case_selector),
+    )
     mkpath(output_dir)
-    process_log = joinpath(output_dir, "calibration.process.log")
+    process_log = joinpath(output_dir, "calibration.attempt_$(attempt).process.log")
     command = `$(Base.julia_cmd()) --startup-file=no --project=$project $script`
+    started_at = time()
     process = open(process_log, "w+") do io
         run(pipeline(
-            setenv(command, _child_environment(root, output_dir, specification)),
+            setenv(command, _child_environment(
+                root, output_dir, specification, case_selector,
+            )),
             stdout = io, stderr = io,
         ); wait = false)
     end
     timed_out, exit_code, wait_error =
         _wait_for_process(process, timeout_seconds)
+    elapsed_seconds = time() - started_at
     index_path = joinpath(output_dir, "index.json")
     index = if isfile(index_path)
         try
@@ -163,11 +228,21 @@ function _run_child(script, project, root, output_root, point_name,
         status = String(get(case, "status", "unknown"))
         statuses[status] = get(statuses, status, 0) + 1
     end
-    status = timed_out ? "process_timeout" :
-        (!isnothing(wait_error) || exit_code != 0 ? "process_exit" : "ok")
+    status = if timed_out
+        "process_timeout"
+    elseif !isnothing(wait_error) || exit_code != 0
+        "process_exit"
+    elseif isempty(cases)
+        "child_cases_empty"
+    elseif get(statuses, "ok", 0) != length(cases)
+        "child_case_failure"
+    else
+        "ok"
+    end
     return Dict{String,Any}(
         "point" => point_name,
         "replicate" => replicate,
+        "case_selector" => case_selector,
         "point_policy" => specification.point_policy,
         "result_units" => specification.result_units,
         "result_field_units" => specification.result_field_units,
@@ -177,6 +252,10 @@ function _run_child(script, project, root, output_root, point_name,
         "process_timeout" => timed_out,
         "process_exit_code" => exit_code,
         "process_wait_error" => wait_error,
+        "elapsed_seconds" => elapsed_seconds,
+        "child_timeout_seconds" => timeout_seconds,
+        "attempt" => attempt,
+        "previous_attempts" => Any[],
         "status" => status,
         "child_index_available" => !isempty(index),
         "child_runner_version" => get(index, "runner_version", nothing),
@@ -190,7 +269,7 @@ function _run_child(script, project, root, output_root, point_name,
 end
 
 function _manifest(root, output_root, project, points, repetitions,
-                   timeout_seconds, entries)
+                   timeout_seconds, case_selectors, resume, entries)
     return Dict{String,Any}(
         "runner_version" => "bmopf-point-calibration-launcher-v1",
         "benchmark_root" => root,
@@ -199,8 +278,16 @@ function _manifest(root, output_root, project, points, repetitions,
         "points" => points,
         "repetitions" => repetitions,
         "child_timeout_seconds" => timeout_seconds,
+        "case_isolation" => !all(isnothing, case_selectors),
+        "case_selectors" => case_selectors,
+        "resume" => resume,
+        "expected_child_count" =>
+            length(points) * repetitions * length(case_selectors),
         "rank_max_dense_entries" => get(
             ENV, "NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES", "0",
+        ),
+        "family_scaling_experiments" => get(
+            ENV, "NLPDIAGNOSTICS_BMOPF_FAMILY_SCALING_EXPERIMENTS", "",
         ),
         "cases" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASES", ""),
         "case_selection" => get(
@@ -213,6 +300,43 @@ function _manifest(root, output_root, project, points, repetitions,
         ))),
         "runs" => entries,
     )
+end
+
+
+function _resume_entries(manifest_path, root, project, points, repetitions,
+                         case_selectors, rank_max_dense_entries)
+    isfile(manifest_path) || return Dict{String,Any}[]
+    manifest = JSON.parsefile(manifest_path)
+    manifest isa AbstractDict || error("existing calibration manifest is not an object")
+    checks = (
+        "benchmark_root" => root,
+        "project" => project,
+        "points" => points,
+        "repetitions" => repetitions,
+        "case_selectors" => case_selectors,
+        "rank_max_dense_entries" => rank_max_dense_entries,
+        "family_scaling_experiments" => get(
+            ENV, "NLPDIAGNOSTICS_BMOPF_FAMILY_SCALING_EXPERIMENTS", "",
+        ),
+    )
+    for (key, expected) in checks
+        get(manifest, key, nothing) == expected || error(
+            "cannot resume point calibration: existing $key does not match",
+        )
+    end
+    expected_keys = Set(
+        _entry_key(point, replicate, case_selector)
+        for point in points, replicate in 1:repetitions,
+            case_selector in case_selectors
+    )
+    entries = Dict{String,Any}[]
+    for raw in get(manifest, "runs", Any[])
+        raw isa AbstractDict || continue
+        entry = Dict{String,Any}(String(key) => value for (key, value) in raw)
+        _entry_key(entry) in expected_keys || continue
+        push!(entries, entry)
+    end
+    return entries
 end
 
 function main()
@@ -228,30 +352,54 @@ function main()
     project = get(ENV, "NLPDIAGNOSTICS_BENCHMARK_PROJECT", "")
     project = isempty(project) ? Base.active_project() : abspath(project)
     points = _selected_points()
+    case_selectors = _selected_cases()
     repetitions = _positive_integer(
         "NLPDIAGNOSTICS_BMOPF_CALIBRATION_REPETITIONS", 2,
     )
     timeout_seconds = _positive_seconds(
         "NLPDIAGNOSTICS_BMOPF_CALIBRATION_TIMEOUT_SECONDS", 900,
     )
+    resume = _boolean("NLPDIAGNOSTICS_BMOPF_CALIBRATION_RESUME", false)
     script = abspath(joinpath(@__DIR__, "bmopf_draft_corpus.jl"))
-    entries = Dict{String,Any}[]
     manifest_path = joinpath(output_root, "calibration_index.json")
-    for point in points, replicate in 1:repetitions
+    entries = resume ? _resume_entries(
+        manifest_path, root, project, points, repetitions, case_selectors,
+        get(ENV, "NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES", "0"),
+    ) : Dict{String,Any}[]
+    for point in points, replicate in 1:repetitions, case_selector in case_selectors
+        key = _entry_key(point, replicate, case_selector)
+        position = findfirst(entry -> _entry_key(entry) == key, entries)
+        if !isnothing(position) && _completed_entry(entries[position])
+            label = isnothing(case_selector) ? "selected corpus" : case_selector
+            println("$point replicate $replicate $label: resume-skip")
+            continue
+        end
+        previous_attempts = Any[]
+        attempt = 1
+        if !isnothing(position)
+            previous = entries[position]
+            append!(previous_attempts, get(previous, "previous_attempts", Any[]))
+            push!(previous_attempts, _attempt_record(previous))
+            attempt = Int(get(previous, "attempt", 1)) + 1
+            deleteat!(entries, position)
+        end
         entry = _run_child(
             script, project, root, output_root, point,
             _CALIBRATION_POINTS[point], replicate, timeout_seconds,
+            case_selector, attempt,
         )
+        entry["previous_attempts"] = previous_attempts
         push!(entries, entry)
         write(manifest_path, JSON.json(_manifest(
             root, output_root, project, points, repetitions,
-            timeout_seconds, entries,
+            timeout_seconds, case_selectors, resume, entries,
         )))
-        println("$point replicate $replicate: $(entry["status"])")
+        label = isnothing(case_selector) ? "selected corpus" : case_selector
+        println("$point replicate $replicate $label: $(entry["status"])")
     end
     write(manifest_path, JSON.json(_manifest(
         root, output_root, project, points, repetitions,
-        timeout_seconds, entries,
+        timeout_seconds, case_selectors, resume, entries,
     )))
     println("wrote BMOPF point-calibration manifest to $manifest_path")
 end

@@ -1278,6 +1278,22 @@ function _validate_point_calibration(path, summary)
     same_point_repeat = _int(get(
         summary, "same_point_repeat_failure_count", invariant_repeat,
     ))
+    same_point_metric_repeat = _int(get(
+        summary, "same_point_metric_repeat_failure_count", 0,
+    ))
+    same_point_row_family_scale_repeat = _int(get(
+        summary, "same_point_row_family_scale_repeat_failure_count", 0,
+    ))
+    row_family_scale_missing = _int(get(
+        summary, "row_family_scale_missing_observation_count", 0,
+    ))
+    row_family_scaling_experiment_missing = _int(get(
+        summary, "row_family_scaling_experiment_missing_observation_count", 0,
+    ))
+    same_point_row_family_scaling_experiment_repeat = _int(get(
+        summary,
+        "same_point_row_family_scaling_experiment_repeat_failure_count", 0,
+    ))
     point_fingerprint_repeat = _int(get(
         summary, "point_fingerprint_repeat_failure_count", 0,
     ))
@@ -1327,6 +1343,42 @@ function _validate_point_calibration(path, summary)
              "point_invariant_changed_stage_count" => invariant_repeat);
         suggested_action = "Resolve nondeterminism before interpreting same-point recurrence."
     ))
+    same_point_metric_repeat > 0 && push!(findings, _finding(
+        "point_calibration_same_point_metric_drift", "warning",
+        "Curated numerical metrics changed across repeated runs at one exact point.",
+        Dict("changed_stage_count" => same_point_metric_repeat);
+        suggested_action = "Resolve rank-tolerance or numerical-library variability before interpreting metric persistence."
+    ))
+    row_family_scale_missing > 0 && push!(findings, _finding(
+        "point_calibration_row_family_scale_attribution_missing", "warning",
+        "Some calibrated observations lack semantic Jacobian row-family scale attribution.",
+        Dict("missing_observation_count" => row_family_scale_missing,
+             "observation_count" => observation_count);
+        suggested_action = "Regenerate those profiles before attributing global scaling changes to equation families."
+    ))
+    same_point_row_family_scale_repeat > 0 && push!(findings, _finding(
+        "point_calibration_same_point_row_family_scale_drift", "warning",
+        "Semantic Jacobian row-family scale evidence changed at one exact repeated point.",
+        Dict("changed_policy_count" => same_point_row_family_scale_repeat);
+        suggested_action = "Resolve derivative or ordering nondeterminism before interpreting family-level scale changes."
+    ))
+    row_family_scaling_experiment_missing > 0 && push!(findings, _finding(
+        "point_calibration_row_family_scaling_experiment_missing", "warning",
+        "A requested controlled row-family scaling experiment is missing from some observations.",
+        Dict("missing_observation_count" =>
+                 row_family_scaling_experiment_missing,
+             "observation_count" => observation_count);
+        suggested_action = "Regenerate the missing observations with the same explicit family list before comparing interventions."
+    ))
+    same_point_row_family_scaling_experiment_repeat > 0 &&
+        push!(findings, _finding(
+            "point_calibration_same_point_row_family_scaling_experiment_drift",
+            "warning",
+            "A controlled row-family scaling experiment changed at one exact repeated point.",
+            Dict("changed_policy_count" =>
+                     same_point_row_family_scaling_experiment_repeat);
+            suggested_action = "Resolve sparse-factorization or derivative nondeterminism before interpreting the intervention."
+        ))
     point_fingerprint_repeat > 0 && push!(findings, _finding(
         "point_calibration_point_fingerprint_drift", "error",
         "Repeated observations for one policy did not use one exact evaluation point.",
@@ -1362,6 +1414,15 @@ function _validate_point_calibration(path, summary)
         "trusted_saved_case_count" => trusted_saved,
         "point_invariant_repeat_failure_count" => invariant_repeat,
         "same_point_repeat_failure_count" => same_point_repeat,
+        "same_point_metric_repeat_failure_count" => same_point_metric_repeat,
+        "same_point_row_family_scale_repeat_failure_count" =>
+            same_point_row_family_scale_repeat,
+        "row_family_scale_missing_observation_count" =>
+            row_family_scale_missing,
+        "row_family_scaling_experiment_missing_observation_count" =>
+            row_family_scaling_experiment_missing,
+        "same_point_row_family_scaling_experiment_repeat_failure_count" =>
+            same_point_row_family_scaling_experiment_repeat,
         "point_fingerprint_repeat_failure_count" => point_fingerprint_repeat,
         "point_invariant_cross_point_change_count" => invariant_cross_point,
         "point_local_cross_point_change_count" => local_cross_point,

@@ -32,12 +32,17 @@ using SHA
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
-const _RUNNER_VERSION = "bmopf-draft-corpus-v9"
+const _RUNNER_VERSION = "bmopf-draft-corpus-v10"
 
 const _DEFAULT_CASES = [
     "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
     "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
 ]
+
+function _family_scaling_experiment_families()
+    raw = get(ENV, "NLPDIAGNOSTICS_BMOPF_FAMILY_SCALING_EXPERIMENTS", "")
+    return unique(filter(!isempty, strip.(split(raw, ','))))
+end
 
 function _dense_entry_limit()
     raw = get(ENV, "NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES", "250000")
@@ -252,7 +257,7 @@ end
 
 function _case_fingerprint(
     root, relative, point_policy, analysis_mode, dense_entry_limit,
-    include_floating_neutral_candidates,
+    include_floating_neutral_candidates, family_scaling_experiment_families,
     environment_fingerprint = _benchmark_environment_fingerprint(),
 )
     snapshot_path = joinpath(root, relative)
@@ -270,6 +275,7 @@ function _case_fingerprint(
         analysis_mode,
         string(dense_entry_limit),
         string(include_floating_neutral_candidates),
+        join(family_scaling_experiment_families, ","),
         result_units,
         result_field_units,
         result_suffix,
@@ -315,6 +321,8 @@ function main()
         "NLPDIAGNOSTICS_BMOPF_INCLUDE_FLOATING_NEUTRAL_CANDIDATES";
         default = false,
     )
+    family_scaling_experiment_families =
+        _family_scaling_experiment_families()
     resume = _env_flag("NLPDIAGNOSTICS_BMOPF_RESUME")
     force = _env_flag("NLPDIAGNOSTICS_BMOPF_FORCE")
     force && (resume = false)
@@ -326,6 +334,7 @@ function main()
         fingerprint = _case_fingerprint(
             root, relative, point_policy, analysis_mode, dense_entry_limit,
             include_floating_neutral_candidates,
+            family_scaling_experiment_families,
             environment_fingerprint,
         )
         push!(manifest_cases, Dict(
@@ -420,6 +429,17 @@ function main()
                     NLPDiagnostics.bmopf_constraint_semantic_row_map(
                         profile_run.context, evaluation,
                     )
+                profile_data["bmopf_jacobian_row_family_scale_attribution"] =
+                    NLPDiagnostics.bmopf_jacobian_row_family_scale_attribution(
+                        profile_run.context, evaluation,
+                    )
+                if !isempty(family_scaling_experiment_families)
+                    profile_data["bmopf_jacobian_row_family_scaling_experiment"] =
+                        NLPDiagnostics.bmopf_jacobian_row_family_scaling_experiment(
+                            profile_run.context, evaluation;
+                            families = family_scaling_experiment_families,
+                        )
+                end
                 profile_data["bmopf_constraint_registry_coverage"] =
                     NLPDiagnostics.report_data(
                         NLPDiagnostics.bmopf_constraint_registry_coverage_report(

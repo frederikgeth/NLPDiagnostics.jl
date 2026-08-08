@@ -1560,6 +1560,96 @@ disabled for the 844-by-704 Jacobian (594,176 potential dense entries). These
 are local observations from one fixture, but they demonstrate that the harness
 can distinguish initialization artifacts from persistent model structure.
 
+The stratified sparse-only gate has now cleared as well. The corpus contains
+24 isolated observations across 30-, 99-, and 538-bus LN/LG cases: two engine
+starts and two saved-SI points per case. All six cases had exact same-point
+fingerprint, finding, and curated-metric recurrence; complete semantic row
+coverage; completely mapped trusted saved points; aligned environments; and no
+change in any point-invariant stage. Both the summary and validator passed with
+only the informational notice that point-local findings changed.
+
+Eight exact finding changes recurred in all six strata. Saved points removed
+the zero-Jacobian-row finding and 1,520 aggregate initialization feasibility
+violations, introduced a large Jacobian row-scale-spread finding, and changed
+the locally active structural classification from underdetermined to
+overdetermined. The sparse-QR rank remained at full column rank in every case:
+704 for 30-bus, 1,968 for 99-bus, and 11,028 for 538-bus. These observations
+therefore do not support a whole-Jacobian rank-deficiency diagnosis.
+
+The sparse-QR condition proxy is point-sensitive and size/connection-sensitive.
+It changed only slightly on both 30-bus cases and 99-bus LG, but increased by
+about 4.78x on 99-bus LN, 7.22x on 538-bus LG, and 17.68x on 538-bus LN at the
+saved point. This is repeatable local numerical evidence, not yet proof of poor
+physical conditioning: equation-family scaling and unit semantics must be
+attributed before interpreting the LN/LG asymmetry.
+
+The budgeted dense gate also passed on eight observations from the eligible
+30-bus LN/LG pair. Dense rank and sparse QR agree at rank 704 at both starts and
+saved points. The active row count changes from 676 to 732, active-Jacobian rank
+from 648 to 704, equality rank used by the MFCQ screen from 620 to 676, and the
+active DM view from a 556-row/584-variable underdetermined region to a
+520-row/492-variable overdetermined region. The aligned equality-Jacobian rank
+used by degeneracy analysis changes from 436 to 464, while structural matching
+rank remains 668. These quantities describe different aligned views and must
+not be substituted for the full-Jacobian rank.
+
+The campaign also exposed an orchestration failure: grouping several cases in
+one child allowed a slow case to consume the timeout and discard otherwise
+valid evidence. Explicit selections are now isolated per case. Campaigns can
+resume only when root, project, policies, repetitions, and case selection match;
+successful children are reused, while retries retain attempt number, elapsed
+time, and prior failure logs.
+
+Equation-family scale attribution is now implemented and has passed its first
+repeated calibration. The generic routine groups evaluated Jacobian rows by
+caller-provided semantic labels and reports robust row infinity-norm evidence;
+the BMOPFTools adapter supplies those labels only from its public constraint
+registry. The corpus runner persists the evidence and the v2 calibration
+summary checks same-point recurrence, exact cross-point changes, direction-
+based cross-case recurrence, and stable family metrics. The validator now
+requires both attribution coverage and same-point family-scale stability.
+
+Eight fresh 30-bus LN/LG observations passed every readiness gate with zero
+family-scale repeatability failures and complete 844/844 row semantics. The
+line voltage-drop families retain the global largest row norm, about 4.585, at
+both engine and saved points. The new large row-spread warning at the saved
+point is instead attributable to the 28 `ibr_power_circle` rows. At the engine
+start all 28 circle rows have zero derivatives; at the saved point they become
+nonzero but extremely small. Their smallest row norm is about `2.77e-8` in LG
+and `9.35e-9` in LN, producing global row-spread ratios of about `1.66e8` and
+`4.90e8`, respectively. The same transition recurs in both connection
+variants and is exactly repeatable at each point.
+
+This sharpens the earlier numerical interpretation. The saved-point row-scale
+warning is an operating-point effect in a declared IBR apparent-power-circle
+family, while the 30-bus sparse-QR pivot proxy changes only slightly and the
+full Jacobian remains full column rank. It is therefore not evidence of a
+whole-Jacobian singularity, and the enormous raw row-norm ratio must not be
+reported as a condition number. The next controlled experiment should rescale
+only the identified circle rows in the recorded linearization and compare
+sparse-QR and solver/KKT evidence; the same attribution must then be repeated
+on the 99- and 538-bus cases before explaining their larger condition-proxy
+changes.
+
+The first part of that controlled experiment is now complete. A new opt-in
+Jacobian intervention normalizes only explicitly named semantic row families,
+with the experiment policy included in corpus fingerprints and calibration
+resume checks. On eight repeated 30-bus LN/LG observations,
+`ibr_power_circle` normalization was unavailable at the engine starts for the
+correct reason—all 28 rows were exactly zero—and available and exactly
+repeatable at both saved points. It required factors ranging from roughly
+`1.27e3` to `1.07e8` in LN and `2.10e5` to `3.61e7` in LG, yet preserved rank
+704 and reduced the sparse-QR pivot proxy only from about 20.764 to 20.167, a
+ratio of about 0.971 in both cases.
+
+This separates two phenomena that the earlier warning could not. The IBR
+circle family causes the enormous raw row-norm spread at the saved point, but
+normalizing it changes the sparse-QR proxy by less than three percent and does
+not change rank. It is therefore unlikely to explain the larger 99-/538-bus
+condition-proxy increases by itself. The next empirical target is to run the
+same semantic attribution on those cases, identify their minimum-row families,
+and intervene only on recurrent candidates before moving to solver/KKT traces.
+
 Saved-result component matching is now exact as well (`pv_1` no longer matches
 `pv_10`). A fresh one-case SI/PU matrix reports 56 registered controller
 violation crosswalks and zero registry-boundary cases. Its remaining warning
