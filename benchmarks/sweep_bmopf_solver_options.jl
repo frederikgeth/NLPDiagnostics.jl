@@ -45,6 +45,21 @@ function _run(command, environment)
     return true
 end
 
+function _write_manifest(path, root, environment, common_options, entries)
+    write(path, JSON.json(Dict(
+        "runner" => "bmopf_solver_trace.jl",
+        "summary_runner" => "summarize_bmopf_solver_trace.jl",
+        "benchmark_root" => abspath(root),
+        "solver" => get(ENV, "NLPDIAGNOSTICS_BMOPF_SOLVER", "ipopt"),
+        "common_solver_options" => common_options,
+        "cases" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASES", ""),
+        "capture_points" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS", "false"),
+        "environment" => environment,
+        "configurations" => entries,
+    )))
+    return path
+end
+
 function main()
     root = get(ENV, "NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT", "")
     isempty(root) && error("Set NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT first")
@@ -57,13 +72,20 @@ function main()
     summarizer = joinpath(@__DIR__, "summarize_bmopf_solver_trace.jl")
     julia = Base.julia_cmd()
     base_environment = copy(ENV)
+    common_options = strip(get(
+        base_environment, "NLPDIAGNOSTICS_BMOPF_SOLVER_OPTIONS", "",
+    ))
+    manifest_path = joinpath(output_root, "sweep_manifest.json")
+    environment = _benchmark_environment()
     entries = Dict{String,Any}[]
     for spec in _parse_sweep()
         case_output = joinpath(output_root, spec.label)
         mkpath(case_output)
         environment = copy(base_environment)
         environment["NLPDIAGNOSTICS_BMOPF_OUTPUT_DIR"] = case_output
-        environment["NLPDIAGNOSTICS_BMOPF_SOLVER_OPTIONS"] = spec.options
+        environment["NLPDIAGNOSTICS_BMOPF_SOLVER_OPTIONS"] = isempty(common_options) ?
+            spec.options : isempty(spec.options) ? common_options :
+            "$(common_options),$(spec.options)"
         environment["NLPDIAGNOSTICS_BMOPF_SWEEP_LABEL"] = spec.label
         runner_command = `$julia --project=$project $runner`
         status = "ok"
@@ -86,6 +108,8 @@ function main()
         entry = Dict{String,Any}(
             "label" => spec.label,
             "options" => spec.options,
+            "common_options" => common_options,
+            "effective_options" => environment["NLPDIAGNOSTICS_BMOPF_SOLVER_OPTIONS"],
             "status" => status,
             "output_directory" => case_output,
             "summary_file" => isfile(summary_path) ? summary_path : nothing,
@@ -98,20 +122,11 @@ function main()
             entry["environment_fingerprint"] = get(summary, "environment_fingerprint", nothing)
         end
         push!(entries, entry)
+        _write_manifest(manifest_path, root, environment, common_options, entries)
         println("$(spec.label): $status")
     end
-    environment = _benchmark_environment()
-    write(joinpath(output_root, "sweep_manifest.json"), JSON.json(Dict(
-        "runner" => "bmopf_solver_trace.jl",
-        "summary_runner" => "summarize_bmopf_solver_trace.jl",
-        "benchmark_root" => abspath(root),
-        "solver" => get(ENV, "NLPDIAGNOSTICS_BMOPF_SOLVER", "ipopt"),
-        "cases" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASES", ""),
-        "capture_points" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS", "false"),
-        "environment" => environment,
-        "configurations" => entries,
-    )))
-    println("wrote option-sweep manifest to $(joinpath(output_root, "sweep_manifest.json"))")
+    _write_manifest(manifest_path, root, environment, common_options, entries)
+    println("wrote option-sweep manifest to $manifest_path")
 end
 
 main()

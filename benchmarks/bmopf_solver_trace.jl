@@ -61,6 +61,18 @@ function _env_int(name, default)
     return value
 end
 
+function _profile_max_variables()
+    return _env_int("NLPDIAGNOSTICS_BMOPF_PROFILE_MAX_VARIABLES", 0)
+end
+
+function _profile_stage()
+    stage = lowercase(strip(get(ENV, "NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE", "full")))
+    stage in ("full", "context", "trace") || error(
+        "NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE must be full, context, or trace, got '$stage'",
+    )
+    return stage
+end
+
 function _trace_probe_phase()
     raw = lowercase(strip(get(ENV, "NLPDIAGNOSTICS_BMOPF_TRACE_PROBE_PHASE", "")))
     isempty(raw) && return nothing
@@ -70,17 +82,52 @@ function _trace_probe_phase()
     return Symbol(raw)
 end
 
-function _option_value(raw::AbstractString)
+const _IPOPT_REAL_OPTIONS = Set([
+    "acceptable_compl_inf_tol",
+    "acceptable_constr_viol_tol",
+    "acceptable_dual_inf_tol",
+    "acceptable_obj_change_tol",
+    "acceptable_tol",
+    "bound_relax_factor",
+    "compl_inf_tol",
+    "constr_mult_init_max",
+    "constr_viol_tol",
+    "delta",
+    "dual_inf_tol",
+    "eta_phi",
+    "kappa_d",
+    "kappa_sigma",
+    "mu_init",
+    "mu_max",
+    "mu_min",
+    "nlp_scaling_max_gradient",
+    "obj_scaling_factor",
+    "rho",
+    "s_d",
+    "s_phi",
+    "tau_min",
+    "tol",
+])
+
+function _option_value(key::AbstractString, raw::AbstractString)
     value = strip(raw)
-    lowercase(value) in ("true", "false") && return lowercase(value) == "true"
+    string_value = String(value)
+    lowercase(string_value) in ("true", "false") &&
+        return lowercase(string_value) == "true"
+    if lowercase(strip(String(key))) in _IPOPT_REAL_OPTIONS
+        try
+            return parse(Float64, string_value)
+        catch
+        end
+    end
     try
-        return parse(Int, value)
+        return parse(Int, string_value)
     catch
     end
     try
-        return parse(Float64, value)
+        return parse(Float64, string_value)
     catch
-        return value
+        return string_value
     end
 end
 
@@ -115,9 +162,14 @@ function _solver_options()
         )
         key = strip(pair[1])
         isempty(key) && error("solver option keys must not be empty")
-        options[key] = _option_value(pair[2])
+        options[key] = _option_value(key, pair[2])
     end
     return options
+end
+
+function _family_scaling_experiment_families()
+    raw = get(ENV, "NLPDIAGNOSTICS_BMOPF_FAMILY_SCALING_EXPERIMENTS", "")
+    return unique(filter(!isempty, strip.(split(raw, ','))))
 end
 
 function _sha256_file(path)
@@ -266,13 +318,19 @@ function _preserve_source_snapshot(
     )
 end
 
-function _solve_with_trace(model, solver_name; capture_points::Bool)
+function _solve_with_trace(model, solver_name; capture_points::Bool, profile::Bool = true)
     if solver_name == "ipopt"
-        return NLPDiagnostics.ipopt_profile_with_iteration_trace!(model;
-            capture_points,
-        )
+        return profile ?
+            NLPDiagnostics.ipopt_profile_with_iteration_trace!(model;
+                capture_points,
+            ) :
+            (trace = NLPDiagnostics.ipopt_optimize_with_iteration_trace!(model;
+                capture_points,
+            ), result = nothing)
     end
-    return NLPDiagnostics.madnlp_profile_with_iteration_trace!(model)
+    return profile ?
+        NLPDiagnostics.madnlp_profile_with_iteration_trace!(model) :
+        (trace = NLPDiagnostics.madnlp_optimize_with_iteration_trace!(model), result = nothing)
 end
 
 function _apply_solver_options(model, options)
@@ -426,12 +484,22 @@ function _solver_log_evidence(solver_name, path)
     )
 end
 
+"""Persist a small progress marker so partial large-case runs remain inspectable."""
+function _write_case_checkpoint(path, phase; fields = Dict{String,Any}())
+    payload = Dict{String,Any}("phase" => String(phase), "updated_at" => time())
+    merge!(payload, fields)
+    write(path, JSON.json(_json_safe(payload)))
+    return path
+end
+
 function _case_record(root, relative, solver_name, output_dir, max_variables,
                       capture_points, dense_entry_limit, environment_fingerprint,
-                      solver_options, per_unit, perturbation_max_iter)
+                      solver_options, per_unit, perturbation_max_iter,
+                      profile_max_variables, profile_stage)
     path = joinpath(root, relative)
     name = replace(replace(relative, '/' => "__"), ".bmopf.json" => "")
     result_path = joinpath(output_dir, "$name.json")
+    checkpoint_path = joinpath(output_dir, "$name.checkpoint.json")
     solver_log_path = joinpath(output_dir, "$name.log")
     capture_logs = _env_flag("NLPDIAGNOSTICS_BMOPF_CAPTURE_LOGS")
     sweep_label = get(ENV, "NLPDIAGNOSTICS_BMOPF_SWEEP_LABEL", "")
@@ -442,6 +510,10 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
         "preserved" => false, "source_path" => abspath(path),
     )
     log_configuration_error = nothing
+    _write_case_checkpoint(checkpoint_path, "started"; fields = Dict(
+        "name" => name, "snapshot" => relative, "solver" => solver_name,
+        "solver_options" => solver_options, "output_directory" => output_dir,
+    ))
     try
         source_snapshot = _preserve_source_snapshot(path, output_dir, name)
         network = BMOPFTools.parse_bmopf(path)
@@ -481,12 +553,28 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                 "solver_log_configuration_error" => log_configuration_error,
             )
             write(result_path, JSON.json(_json_safe(payload)))
+            _write_case_checkpoint(checkpoint_path, "size_guard_skipped"; fields = Dict(
+                "name" => name, "model_variable_count" => variable_count,
+                "max_solver_variables" => max_variables,
+            ))
             return Dict{String,Any}("name" => name, "snapshot" => relative,
                 "status" => payload["status"], "result_file" => basename(result_path),
                 "model_variable_count" => variable_count,
                 "source_snapshot" => source_snapshot)
         end
-        run = _solve_with_trace(model, solver_name; capture_points)
+        profile_budgeted = profile_stage != "full" ||
+            (profile_max_variables > 0 && variable_count > profile_max_variables)
+        profile_skip_reason = profile_stage == "trace" ?
+            "profile_stage_trace_only" : profile_stage == "context" ?
+            nothing : "profile_skipped_resource_budget"
+        run = _solve_with_trace(model, solver_name;
+            capture_points, profile = !profile_budgeted,
+        )
+        _write_case_checkpoint(checkpoint_path, "solver_complete"; fields = Dict(
+            "name" => name, "model_variable_count" => variable_count,
+            "trace_record_count" => length(run.trace.records),
+            "solver_log_path" => solver_log_path,
+        ))
         trace_probe_max_points = _env_int(
             "NLPDIAGNOSTICS_BMOPF_TRACE_PROBE_MAX_POINTS", 32,
         )
@@ -522,7 +610,86 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
         solver_log_evidence = capture_logs ?
             _solver_log_evidence(solver_name, solver_log_path) : nothing
         trace_data = NLPDiagnostics.iteration_trace_data(run.trace)
+        if profile_budgeted
+            payload = Dict{String,Any}(
+                "status" => profile_stage == "context" ?
+                    "ok_solver_trace_context_profile" :
+                    "ok_solver_trace_profile_skipped",
+                "profile_stage" => profile_stage,
+                "profile_skip_reason" => profile_skip_reason,
+                "profile_max_variables" => profile_max_variables,
+                "profile_stage_requested" => profile_stage,
+                "snapshot" => relative, "snapshot_path" => abspath(path),
+                "solver" => solver_name,
+                "environment_fingerprint" => environment_fingerprint,
+                "solver_options" => solver_options,
+                "per_unit" => per_unit,
+                "capture_points" => capture_points,
+                "capture_logs" => capture_logs,
+                "sweep_label" => sweep_label,
+                "run_id" => run_id, "replicate_index" => replicate_index,
+                "model_coordinate_units" => per_unit ? "per-unit" : "SI/model-native",
+                "solver_objective_convention" => solver_name == "madnlp" ?
+                    "unscaled model objective via MadNLP.unpack_obj" :
+                    "Ipopt callback objective in model units",
+                "objective_comparison_reference" => "recomputed MOI model objective",
+                "model_variable_count" => variable_count,
+                "build_seconds" => build_timing.time,
+                "build_allocations" => build_timing.bytes,
+                "kcl_seconds" => kcl_timing.time,
+                "kcl_allocations" => kcl_timing.bytes,
+                "integrity_preflight" => preflight,
+                "source_snapshot" => source_snapshot,
+                "iteration_trace" => trace_data,
+                "current_law_trace" => current_law_trace_data,
+                "solver_profile" => nothing,
+                "bmopf_profile" => nothing,
+                "bmopf_context_profile" => nothing,
+                "family_perturbations" => Any[],
+                "family_perturbations_enabled" => false,
+                "family_perturbation_families" => String[],
+                "family_scaling_experiment_families" => String[],
+                "solver_result_constraint_row_count" => nothing,
+                "solver_log_evidence" => solver_log_evidence,
+                "solver_log_path" => solver_log_path,
+                "solver_log_configuration_error" => log_configuration_error,
+            )
+            if profile_stage == "context"
+                point = NLPDiagnostics.solver_result_point(model)
+                if isnothing(point)
+                    payload["profile_skip_reason"] = "solver_result_point_unavailable"
+                else
+                    context_report = NLPDiagnostics.bmopf_context_profile_report(context, point;
+                        include_floating_neutral_candidates = _env_flag(
+                            "NLPDIAGNOSTICS_BMOPF_INCLUDE_FLOATING_NEUTRAL_CANDIDATES",
+                        ),
+                    )
+                    payload["bmopf_context_profile"] = NLPDiagnostics.report_data(context_report)
+                    payload["profile_skip_reason"] = nothing
+                end
+            end
+            write(result_path, JSON.json(_json_safe(payload)))
+            _write_case_checkpoint(checkpoint_path, "profile_skipped_resource_budget";
+                fields = Dict(
+                    "name" => name, "profile_max_variables" => profile_max_variables,
+                    "profile_stage" => profile_stage,
+                    "model_variable_count" => variable_count,
+                    "result_file" => basename(result_path),
+                ))
+            return Dict{String,Any}(
+                "name" => name, "snapshot" => relative,
+                "status" => payload["status"], "result_file" => basename(result_path),
+                "solver" => solver_name, "model_variable_count" => variable_count,
+                "iteration_count" => length(run.trace.records),
+                "solver_log_available" => !isnothing(solver_log_evidence),
+                "profile_stage" => payload["profile_stage"],
+                "profile_skip_reason" => payload["profile_skip_reason"],
+            )
+        end
         solver_data = NLPDiagnostics.profile_result_data(run)
+        _write_case_checkpoint(checkpoint_path, "profile_started"; fields = Dict(
+            "name" => name, "trace_record_count" => length(run.trace.records),
+        ))
         bmopf_data = if isnothing(run.result.case)
             nothing
         else
@@ -536,6 +703,18 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                 NLPDiagnostics.bmopf_constraint_semantic_row_map(
                     context, run.result.profile.evaluation,
                 )
+            serialized["bmopf_jacobian_row_family_scale_attribution"] =
+                NLPDiagnostics.bmopf_jacobian_row_family_scale_attribution(
+                    context, run.result.profile.evaluation,
+                )
+            scaling_families = _family_scaling_experiment_families()
+            if !isempty(scaling_families)
+                serialized["bmopf_jacobian_row_family_scaling_experiment"] =
+                    NLPDiagnostics.bmopf_jacobian_row_family_scaling_experiment(
+                        context, run.result.profile.evaluation;
+                        families = scaling_families,
+                    )
+            end
             serialized["bmopf_constraint_registry_coverage"] =
                 NLPDiagnostics.report_data(
                     NLPDiagnostics.bmopf_constraint_registry_coverage_report(
@@ -594,6 +773,8 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "family_perturbations" => family_perturbations,
             "family_perturbations_enabled" => !isempty(perturbation_families),
             "family_perturbation_families" => string.(perturbation_families),
+            "family_scaling_experiment_families" =>
+                _family_scaling_experiment_families(),
             "family_perturbation_max_iter" => perturbation_max_iter,
             "solver_result_constraint_row_count" => isnothing(run.result.profile) ?
                 nothing : length(run.result.profile.evaluation.constraint_sources),
@@ -602,6 +783,10 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "solver_log_configuration_error" => log_configuration_error,
         )
         write(result_path, JSON.json(_json_safe(payload)))
+        _write_case_checkpoint(checkpoint_path, "complete"; fields = Dict(
+            "name" => name, "result_file" => basename(result_path),
+            "trace_record_count" => length(run.trace.records),
+        ))
         return Dict{String,Any}(
             "name" => name, "snapshot" => relative, "status" => "ok",
             "result_file" => basename(result_path), "solver" => solver_name,
@@ -632,6 +817,10 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
             "solver_log_configuration_error" => log_configuration_error,
         )
         write(result_path, JSON.json(_json_safe(payload)))
+        _write_case_checkpoint(checkpoint_path, "error"; fields = Dict(
+            "name" => name, "error" => _truncate_log(message, 4_000),
+            "result_file" => basename(result_path),
+        ))
         return Dict{String,Any}(
             "name" => name, "snapshot" => relative, "status" => "error",
             "result_file" => basename(result_path), "error" => message,
@@ -649,6 +838,8 @@ function main()
     solver_name = _solver_name()
     max_variables = _env_int("NLPDIAGNOSTICS_BMOPF_SOLVE_MAX_VARIABLES", 2_000)
     dense_entry_limit = _env_int("NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES", 250_000)
+    profile_max_variables = _profile_max_variables()
+    profile_stage = _profile_stage()
     perturbation_max_iter = _env_int(
         "NLPDIAGNOSTICS_BMOPF_PERTURBATION_MAX_ITER", 100,
     )
@@ -667,7 +858,15 @@ function main()
         entry = _case_record(root, relative, solver_name, output_dir,
             max_variables, capture_points, dense_entry_limit,
             environment_fingerprint, solver_options, per_unit,
-            perturbation_max_iter)
+            perturbation_max_iter, profile_max_variables, profile_stage)
+        checkpoint_path = joinpath(output_dir, "$(entry["name"]).checkpoint.json")
+        if isfile(checkpoint_path)
+            try
+                entry["checkpoint"] = JSON.parsefile(checkpoint_path)
+            catch
+                entry["checkpoint"] = Dict{String,Any}("phase" => "unreadable")
+            end
+        end
         entry["environment_fingerprint"] = environment_fingerprint
         entry["solver_options"] = solver_options
         entry["per_unit"] = per_unit
@@ -691,9 +890,13 @@ function main()
         "per_unit" => per_unit,
         "family_perturbations_enabled" => !isempty(perturbation_families),
         "family_perturbation_families" => string.(perturbation_families),
+        "family_scaling_experiment_families" =>
+            _family_scaling_experiment_families(),
         "family_perturbation_max_iter" => perturbation_max_iter,
         "max_solver_variables" => max_variables,
         "rank_max_dense_entries" => dense_entry_limit,
+        "profile_max_variables" => profile_max_variables,
+        "profile_stage" => profile_stage,
         "environment" => environment,
         "environment_fingerprint" => environment_fingerprint,
         "sweep_label" => sweep_label,

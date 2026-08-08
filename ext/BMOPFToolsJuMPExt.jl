@@ -2352,6 +2352,9 @@ function _bmopf_profile_context_report(
     return report
 end
 
+_bmopf_context_profile_report(context, point; kwargs...) =
+    _bmopf_profile_context_report(context, point; kwargs...)
+
 """
     bmopf_profile_case(context, case; include_initialization = true,
         include_differentiability = true, ...) -> BMOPFProfileResult

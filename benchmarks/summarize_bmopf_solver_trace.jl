@@ -560,6 +560,76 @@ function _row_family_perturbation_summary(report)
     )
 end
 
+function _row_family_scale_summary(report)
+    report isa AbstractDict || return Dict("available" => false)
+    families = Dict{String,Any}()
+    for (family, details) in get(report, "families", Dict())
+        details isa AbstractDict || continue
+        families[String(family)] = Dict(
+            "component_family" => get(details, "component_family", nothing),
+            "row_count" => get(details, "row_count", nothing),
+            "smallest_positive_row_norm" =>
+                get(details, "smallest_positive_row_norm", nothing),
+            "largest_finite_row_norm" =>
+                get(details, "largest_finite_row_norm", nothing),
+            "row_scale_ratio" => get(details, "row_scale_ratio", nothing),
+            "owns_global_smallest_positive_row_norm" => get(
+                details, "owns_global_smallest_positive_row_norm", false,
+            ),
+            "owns_global_largest_finite_row_norm" => get(
+                details, "owns_global_largest_finite_row_norm", false,
+            ),
+            "zero_row_count" => get(details, "zero_row_count", nothing),
+            "nonfinite_row_count" => get(details, "nonfinite_row_count", nothing),
+            "unavailable_row_count" => get(details, "unavailable_row_count", nothing),
+        )
+    end
+    return Dict(
+        "available" => true,
+        "point_label" => get(report, "point_label", nothing),
+        "row_count" => get(report, "row_count", nothing),
+        "family_count" => get(report, "family_count", nothing),
+        "unclassified_family_count" => get(report, "unclassified_family_count", nothing),
+        "global_maximum_families" => get(report, "global_maximum_families", Any[]),
+        "global_minimum_families" => get(report, "global_minimum_families", Any[]),
+        "largest_finite_row_norm" => get(report, "largest_finite_row_norm", nothing),
+        "smallest_positive_row_norm" => get(report, "smallest_positive_row_norm", nothing),
+        "row_scale_ratio" => get(report, "row_scale_ratio", nothing),
+        "families" => families,
+    )
+end
+
+function _row_family_scaling_case_summary(report)
+    report isa AbstractDict || return Dict("available" => false)
+    families = Dict{String,Any}()
+    for (family, details) in get(report, "families", Dict())
+        details isa AbstractDict || continue
+        families[String(family)] = Dict(
+            "available" => get(details, "available", false),
+            "baseline_rank" => get(details, "baseline_rank", nothing),
+            "scaled_rank" => get(details, "scaled_rank", nothing),
+            "rank_delta" => get(details, "rank_delta", nothing),
+            "baseline_condition_proxy" =>
+                get(details, "baseline_condition_proxy", nothing),
+            "scaled_condition_proxy" =>
+                get(details, "scaled_condition_proxy", nothing),
+            "condition_proxy_ratio" => get(details, "condition_proxy_ratio", nothing),
+            "minimum_scale_factor" => get(details, "minimum_scale_factor", nothing),
+            "maximum_scale_factor" => get(details, "maximum_scale_factor", nothing),
+            "zero_row_count" => get(details, "zero_row_count", nothing),
+            "nonfinite_row_count" => get(details, "nonfinite_row_count", nothing),
+            "reason" => get(details, "reason", nothing),
+        )
+    end
+    return Dict(
+        "available" => true,
+        "baseline_available" => get(report, "baseline_available", false),
+        "baseline_rank" => get(report, "baseline_rank", nothing),
+        "baseline_condition_proxy" => get(report, "baseline_condition_proxy", nothing),
+        "families" => families,
+    )
+end
+
 function _family_perturbation_case_summary(record)
     variants = get(record, "family_perturbations", Any[])
     variants isa AbstractVector || return Dict{String,Any}()
@@ -618,6 +688,9 @@ end
 
 function _failure_categories(record, nested_profile, trace_summary)
     categories = String[]
+    get(record, "status", "") in ("ok_solver_trace_profile_skipped",
+                                    "ok_solver_trace_context_profile") &&
+        push!(categories, "profile_skipped_resource_budget")
     postmortem = get(nested_profile, "postmortem", nothing)
     termination = postmortem isa AbstractDict ?
         String(get(postmortem, "termination", "unknown")) : "unknown"
@@ -633,9 +706,15 @@ function _failure_categories(record, nested_profile, trace_summary)
     get(phase_counts, "restoration", 0) > 0 && push!(categories, "restoration_attempted")
     isempty(categories) && termination in ("locally_optimal", "optimal") &&
         push!(categories, "successful_termination")
-    isempty(categories) && push!(categories, "unclassified")
+    isempty(categories) &&
+        get(record, "status", "") != "ok_solver_trace_context_profile" &&
+        push!(categories, "unclassified")
     return unique(categories)
 end
+
+_has_solver_trace(status) = status in (
+    "ok", "ok_solver_trace_profile_skipped", "ok_solver_trace_context_profile",
+)
 
 function main()
     length(ARGS) in (1, 2) || error(
@@ -661,6 +740,14 @@ function main()
     family_perturbation_status_counts = Dict{String,Int}()
     family_perturbation_termination_counts = Dict{String,Int}()
     family_perturbation_by_family = Dict{String,Any}()
+    family_scale_available_case_count = 0
+    family_scale_unavailable_case_count = 0
+    family_scaling_experiment_available_case_count = 0
+    family_scaling_experiment_unavailable_case_count = 0
+    family_scaling_experiment_rank_change_count = 0
+    family_scaling_experiment_proxy_improved_count = 0
+    family_scaling_experiment_proxy_unchanged_count = 0
+    family_scaling_experiment_proxy_worsened_count = 0
     bmopf_profile_finding_codes = Dict{String,Int}()
     controller_curve_trace_finding_codes = Dict{String,Int}()
     controller_curve_trace_status_changes = Int[]
@@ -700,6 +787,8 @@ function main()
     process_wait_error_case_count = 0
     nonzero_process_exit_case_count = 0
     process_log_case_count = 0
+    profile_incomplete_case_count = 0
+    solver_complete_without_profile_case_count = 0
     iteration_counts = Int[]
     for entry in get(index, "cases", Any[])
         name = String(get(entry, "name", "unknown"))
@@ -720,11 +809,25 @@ function main()
         # result JSON.  Keep that process-health evidence in the summary so
         # a missing profile is distinguishable from an omitted case.
         if !(result_file isa AbstractString) || !isfile(joinpath(output_dir, result_file))
-            status = String(get(entry, "status", "unknown"))
+            checkpoint = get(entry, "checkpoint", nothing)
+            checkpoint isa AbstractDict || (checkpoint = Dict{String,Any}())
+            checkpoint_phase = String(get(checkpoint, "phase", "unknown"))
+            raw_status = String(get(entry, "status", "unknown"))
+            status = checkpoint_phase in ("solver_complete", "profile_started") ?
+                "profile_incomplete_after_solver" : raw_status
             status_counts[status] = get(status_counts, status, 0) + 1
+            if status == "profile_incomplete_after_solver"
+                profile_incomplete_case_count += 1
+                checkpoint_phase == "solver_complete" &&
+                    (solver_complete_without_profile_case_count += 1)
+                failure_category_counts["profile_incomplete_after_solver"] =
+                    get(failure_category_counts, "profile_incomplete_after_solver", 0) + 1
+            end
             summary = Dict{String,Any}(entry)
             summary["status"] = status
             summary["result_file"] = nothing
+            summary["checkpoint"] = checkpoint
+            summary["checkpoint_phase"] = checkpoint_phase
             timed_out = get(entry, "process_timeout", false) === true
             status == "process_exit" && (process_exit_case_count += 1)
             summary["process_health"] = Dict(
@@ -734,6 +837,7 @@ function main()
                 "wait_error" => wait_error,
                 "process_log" => process_log,
                 "process_log_available" => process_log_available,
+                "checkpoint_phase" => checkpoint_phase,
             )
             push!(cases, summary)
             continue
@@ -744,10 +848,15 @@ function main()
         status_counts[status] = get(status_counts, status, 0) + 1
         summary = Dict{String,Any}(entry)
         summary["status"] = status
+        checkpoint = get(entry, "checkpoint", nothing)
+        checkpoint isa AbstractDict && begin
+            summary["checkpoint"] = checkpoint
+            summary["checkpoint_phase"] = get(checkpoint, "phase", nothing)
+        end
         source_snapshot = get(record, "source_snapshot",
             get(entry, "source_snapshot", nothing))
         summary["source_snapshot"] = source_snapshot
-        if status == "ok"
+        if _has_solver_trace(status)
             preserved = source_snapshot isa AbstractDict &&
                         get(source_snapshot, "preserved", false) === true &&
                         !isempty(String(get(source_snapshot, "sha256", "")))
@@ -789,14 +898,14 @@ function main()
                 source_schema_warning_policy_status_counts[key] =
                     get(source_schema_warning_policy_status_counts, key, 0) + 1
             end
-            if status == "ok"
+            if _has_solver_trace(status)
                 !schema_fields_available ?
                     (successful_physical_metadata_missing_cases += 1) :
                 physical_count == 0 ?
                     (successful_physical_metadata_complete_cases += 1) :
                     (successful_physical_metadata_incomplete_cases += 1)
             end
-        elseif status == "ok"
+        elseif _has_solver_trace(status)
             successful_physical_metadata_missing_cases += 1
         end
         family_perturbation = _family_perturbation_case_summary(record)
@@ -812,6 +921,9 @@ function main()
                     "solver_objective_convention", "objective_comparison_reference",
                     "bmopf_extracted_result_convention", "environment_fingerprint",
                     "sweep_label", "run_id", "replicate_index", "capture_logs",
+                    "profile_stage", "profile_stage_requested", "profile_skip_reason",
+                    "profile_max_variables",
+                    "family_scaling_experiment_families",
                     "process_exit_code", "process_wait_error", "process_log",
                     "process_timeout")
             haskey(record, key) && (summary[key] = record[key])
@@ -827,14 +939,16 @@ function main()
                 "process_log_available" => process_log_available,
             )
         end
-        if status == "ok"
+        if _has_solver_trace(status)
             trace = get(record, "iteration_trace", Dict{String,Any}())
             trace_summary = _trace_summary(trace)
             summary["trace"] = trace_summary
+            bmopf_profile_record = get(record, "bmopf_profile", nothing)
+            semantic_rows = bmopf_profile_record isa AbstractDict ?
+                get(bmopf_profile_record, "bmopf_constraint_semantic_rows", nothing) : nothing
             controller_curve_trace = _current_law_trace_summary(
                 get(record, "current_law_trace", nothing), trace,
-                get(get(record, "bmopf_profile", Dict()),
-                    "bmopf_constraint_semantic_rows", nothing),
+                semantic_rows,
             )
             summary["current_law_trace"] = controller_curve_trace
             if get(controller_curve_trace, "available", false)
@@ -895,6 +1009,7 @@ function main()
             end
             push!(iteration_counts, Int(get(trace_summary, "record_count", 0)))
             solver_profile = get(record, "solver_profile", Dict{String,Any}())
+            solver_profile isa AbstractDict || (solver_profile = Dict{String,Any}())
             nested_profile = get(solver_profile, "solver_profile", Dict{String,Any}())
             point_trust = _solver_point_trust_summary(solver_profile, trace)
             summary["point_trust"] = point_trust
@@ -936,6 +1051,36 @@ function main()
             _merge_counts!(trace_finding_codes, summary["solver_result_finding_codes"])
             bmopf_profile = get(record, "bmopf_profile", nothing)
             if bmopf_profile isa AbstractDict
+                family_scale = _row_family_scale_summary(get(
+                    bmopf_profile, "bmopf_jacobian_row_family_scale_attribution", nothing,
+                ))
+                summary["bmopf_jacobian_row_family_scale_attribution"] = family_scale
+                get(family_scale, "available", false) ?
+                    (family_scale_available_case_count += 1) :
+                    (family_scale_unavailable_case_count += 1)
+                scaling_experiment = _row_family_scaling_case_summary(get(
+                    bmopf_profile, "bmopf_jacobian_row_family_scaling_experiment", nothing,
+                ))
+                summary["bmopf_jacobian_row_family_scaling_experiment"] = scaling_experiment
+                if get(scaling_experiment, "available", false)
+                    family_scaling_experiment_available_case_count += 1
+                    for details in values(get(scaling_experiment, "families", Dict()))
+                        details isa AbstractDict || continue
+                        get(details, "available", false) || continue
+                        get(details, "rank_delta", 0) != 0 &&
+                            (family_scaling_experiment_rank_change_count += 1)
+                        ratio = get(details, "condition_proxy_ratio", nothing)
+                        ratio isa Number || continue
+                        ratio < 1 - 1.0e-12 &&
+                            (family_scaling_experiment_proxy_improved_count += 1)
+                        ratio > 1 + 1.0e-12 &&
+                            (family_scaling_experiment_proxy_worsened_count += 1)
+                        abs(ratio - 1) <= 1.0e-12 &&
+                            (family_scaling_experiment_proxy_unchanged_count += 1)
+                    end
+                else
+                    family_scaling_experiment_unavailable_case_count += 1
+                end
                 profile_codes = _profile_finding_codes(
                     get(bmopf_profile, "profile", nothing),
                 )
@@ -973,10 +1118,24 @@ function main()
                 summary["bmopf_context_finding_codes"] = _count_codes(context_report)
                 _merge_counts!(bmopf_finding_codes, summary["bmopf_context_finding_codes"])
             else
+                summary["bmopf_jacobian_row_family_scale_attribution"] =
+                    Dict("available" => false)
+                summary["bmopf_jacobian_row_family_scaling_experiment"] =
+                    Dict("available" => false)
+                family_scale_unavailable_case_count += 1
+                family_scaling_experiment_unavailable_case_count += 1
                 summary["bmopf_context_finding_codes"] = Dict{String,Int}()
                 summary["bmopf_profile_finding_codes"] = Dict{String,Int}()
                 summary["solver_rank_semantic_family_counts"] = Dict{String,Dict{String,Int}}()
                 summary["bmopf_row_family_perturbation"] = Dict{String,Any}()
+            end
+            context_profile = get(record, "bmopf_context_profile", nothing)
+            if context_profile isa AbstractDict
+                summary["bmopf_context_profile"] = context_profile
+                summary["bmopf_context_finding_codes"] = _count_codes(context_profile)
+                _merge_counts!(bmopf_finding_codes, summary["bmopf_context_finding_codes"])
+            else
+                summary["bmopf_context_profile"] = nothing
             end
         end
         solver_log = get(record, "solver_log_evidence", nothing)
@@ -1011,6 +1170,16 @@ function main()
         push!(cases, summary)
     end
     summary_path = length(ARGS) == 2 ? abspath(ARGS[2]) : joinpath(output_dir, "summary.json")
+    family_scaling_families = get(index, "family_scaling_experiment_families", Any[])
+    if isempty(family_scaling_families)
+        for case_summary in cases
+            candidate = get(case_summary, "family_scaling_experiment_families", Any[])
+            if candidate isa AbstractVector && !isempty(candidate)
+                family_scaling_families = candidate
+                break
+            end
+        end
+    end
     payload = Dict{String,Any}(
         "runner_version" => get(index, "runner_version", nothing),
         "solver" => get(index, "solver", nothing),
@@ -1019,8 +1188,25 @@ function main()
         "family_perturbations_enabled" => get(index, "family_perturbations_enabled", false),
         "family_perturbation_families" => get(index, "family_perturbation_families", Any[]),
         "family_perturbation_max_iter" => get(index, "family_perturbation_max_iter", nothing),
+        "family_scaling_experiment_families" => family_scaling_families,
+        "family_scale_attribution_coverage" => Dict(
+            "available_case_count" => family_scale_available_case_count,
+            "unavailable_case_count" => family_scale_unavailable_case_count,
+        ),
+        "family_scaling_experiment_coverage" => Dict(
+            "available_case_count" => family_scaling_experiment_available_case_count,
+            "unavailable_case_count" => family_scaling_experiment_unavailable_case_count,
+            "rank_change_count" => family_scaling_experiment_rank_change_count,
+            "proxy_improved_count" => family_scaling_experiment_proxy_improved_count,
+            "proxy_unchanged_count" => family_scaling_experiment_proxy_unchanged_count,
+            "proxy_worsened_count" => family_scaling_experiment_proxy_worsened_count,
+        ),
         "status_counts" => status_counts,
         "successful_case_count" => get(status_counts, "ok", 0),
+        "solver_trace_case_count" =>
+            get(status_counts, "ok", 0) +
+            get(status_counts, "ok_solver_trace_profile_skipped", 0) +
+            get(status_counts, "ok_solver_trace_context_profile", 0),
         "iteration_count_total" => sum(iteration_counts; init = 0),
         "iteration_count_minimum" => isempty(iteration_counts) ? nothing : minimum(iteration_counts),
         "iteration_count_maximum" => isempty(iteration_counts) ? nothing : maximum(iteration_counts),
@@ -1079,6 +1265,11 @@ function main()
             "process_wait_error_case_count" => process_wait_error_case_count,
             "nonzero_process_exit_case_count" => nonzero_process_exit_case_count,
             "process_log_case_count" => process_log_case_count,
+        ),
+        "profile_completeness" => Dict(
+            "profile_incomplete_after_solver_case_count" => profile_incomplete_case_count,
+            "solver_complete_without_profile_case_count" =>
+                solver_complete_without_profile_case_count,
         ),
         "failure_category_counts" => failure_category_counts,
         "solver_log_evidence_case_count" => solver_log_evidence_case_count,

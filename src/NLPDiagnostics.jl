@@ -345,6 +345,7 @@ export powermodels_analyze_component_rank_persistence
 export bmopf_terminal_report
 export bmopf_analyze_opf
 export bmopf_profile_case
+export bmopf_context_profile_report
 export bmopf_build_and_profile
 export bmopf_initialization_point
 export bmopf_set_start_values!

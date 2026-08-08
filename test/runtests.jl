@@ -1260,6 +1260,11 @@ end
         "launch_bmopf_point_calibration.jl",
         "summarize_bmopf_point_calibration.jl",
         "validate_bmopf_campaign.jl",
+        "bmopf_solver_trace.jl",
+        "launch_bmopf_solver_trace.jl",
+        "summarize_bmopf_solver_trace.jl",
+        "sweep_bmopf_solver_options.jl",
+        "summarize_bmopf_solver_sweep.jl",
         "summarize_bmopf_evidence_ledger.jl",
     )
     for script in scripts
@@ -1311,6 +1316,48 @@ end
     @test occursin("row_family_scaling_experiment", summary)
     @test occursin("cross_case_row_family_scaling_experiment_summary", summary)
     @test occursin("point_calibration_row_family_scaling_experiment_missing", validator)
+    solver_trace = read(
+        joinpath(benchmark_directory, "bmopf_solver_trace.jl"), String,
+    )
+    @test occursin("bmopf_jacobian_row_family_scale_attribution", solver_trace)
+    @test occursin("bmopf_jacobian_row_family_scaling_experiment", solver_trace)
+    @test occursin("_IPOPT_REAL_OPTIONS", solver_trace)
+    @test occursin("profile_started", solver_trace)
+    @test occursin("solver_complete", solver_trace)
+    @test occursin("PROFILE_MAX_VARIABLES", solver_trace)
+    @test occursin("PROFILE_STAGE", solver_trace)
+    @test occursin("ok_solver_trace_profile_skipped", solver_trace)
+    solver_trace_launcher = read(
+        joinpath(benchmark_directory, "launch_bmopf_solver_trace.jl"), String,
+    )
+    @test occursin("family_scaling_experiment_families", solver_trace_launcher)
+    @test occursin("_checkpoint_data", solver_trace_launcher)
+    @test occursin("profile_max_variables", solver_trace_launcher)
+    @test occursin("profile_stage", solver_trace_launcher)
+    solver_trace_summary = read(
+        joinpath(benchmark_directory, "summarize_bmopf_solver_trace.jl"), String,
+    )
+    @test occursin("family_scaling_experiment_coverage", solver_trace_summary)
+    @test occursin("bmopf_jacobian_row_family_scale_attribution", solver_trace_summary)
+    @test occursin("profile_incomplete_after_solver", solver_trace_summary)
+    @test occursin("profile_completeness", solver_trace_summary)
+    @test occursin("checkpoint_phase", solver_trace_summary)
+    @test occursin("solver_trace_case_count", solver_trace_summary)
+    solver_option_sweep = read(
+        joinpath(benchmark_directory, "sweep_bmopf_solver_options.jl"), String,
+    )
+    @test occursin("NLPDIAGNOSTICS_BMOPF_SWEEP", solver_option_sweep)
+    @test occursin("common_options", solver_option_sweep)
+    @test occursin("effective_options", solver_option_sweep)
+    @test occursin("_write_manifest", solver_option_sweep)
+    solver_option_sweep_summary = read(
+        joinpath(benchmark_directory, "summarize_bmopf_solver_sweep.jl"),
+        String,
+    )
+    @test occursin("bmopf-solver-sweep-v1", solver_option_sweep_summary)
+    @test occursin("environment_fingerprints_match", solver_option_sweep_summary)
+    @test occursin("case_matrix", solver_option_sweep_summary)
+    @test occursin("condition_proxy_ratio_delta", solver_option_sweep_summary)
     ledger = read(
         joinpath(benchmark_directory, "summarize_bmopf_evidence_ledger.jl"),
         String,

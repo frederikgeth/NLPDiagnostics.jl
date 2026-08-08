@@ -25,6 +25,16 @@ function _case_name(relative)
     return replace(replace(relative, '/' => "__"), ".bmopf.json" => "")
 end
 
+function _checkpoint_data(output_dir, relative)
+    path = joinpath(output_dir, "$(_case_name(relative)).checkpoint.json")
+    isfile(path) || return nothing
+    try
+        return JSON.parsefile(path)
+    catch
+        return Dict{String,Any}("phase" => "unreadable", "path" => basename(path))
+    end
+end
+
 function _timeout_seconds()
     value = try
         parse(Float64, get(ENV, "NLPDIAGNOSTICS_BMOPF_CHILD_TIMEOUT_SECONDS", "900"))
@@ -102,6 +112,7 @@ function _run_child(script, project, output_dir, relative, timeout_seconds)
     end
     result_file = "$(_case_name(relative)).json"
     result_path = joinpath(output_dir, result_file)
+    checkpoint = _checkpoint_data(output_dir, relative)
     if isfile(result_path)
         record = JSON.parsefile(result_path)
         return Dict{String,Any}(
@@ -118,10 +129,18 @@ function _run_child(script, project, output_dir, relative, timeout_seconds)
             "family_perturbations_enabled" => get(record, "family_perturbations_enabled", nothing),
             "family_perturbation_families" => get(record, "family_perturbation_families", Any[]),
             "family_perturbation_max_iter" => get(record, "family_perturbation_max_iter", nothing),
+            "family_scaling_experiment_families" => get(
+                record, "family_scaling_experiment_families", Any[],
+            ),
+            "profile_stage" => get(record, "profile_stage", nothing),
+            "profile_stage_requested" => get(record, "profile_stage_requested", nothing),
+            "profile_skip_reason" => get(record, "profile_skip_reason", nothing),
+            "profile_max_variables" => get(record, "profile_max_variables", nothing),
             "process_exit_code" => exit_code,
             "process_wait_error" => wait_error,
             "process_log" => basename(process_log),
             "process_timeout" => timed_out,
+            "checkpoint" => checkpoint,
         )
     end
     return Dict{String,Any}(
@@ -134,6 +153,7 @@ function _run_child(script, project, output_dir, relative, timeout_seconds)
         "process_wait_error" => wait_error,
         "process_log" => basename(process_log),
         "process_timeout" => timed_out,
+        "checkpoint" => checkpoint,
     )
 end
 
@@ -157,6 +177,15 @@ function _index_data(project, timeout_seconds, entries)
         ),
         "family_perturbation_max_iter" => get(
             ENV, "NLPDIAGNOSTICS_BMOPF_PERTURBATION_MAX_ITER", "100",
+        ),
+        "family_scaling_experiment_families" => get(
+            ENV, "NLPDIAGNOSTICS_BMOPF_FAMILY_SCALING_EXPERIMENTS", "",
+        ),
+        "profile_max_variables" => get(
+            ENV, "NLPDIAGNOSTICS_BMOPF_PROFILE_MAX_VARIABLES", "0",
+        ),
+        "profile_stage" => get(
+            ENV, "NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE", "full",
         ),
         "environment" => Dict(
             "julia_version" => string(VERSION),

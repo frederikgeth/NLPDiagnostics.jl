@@ -1646,9 +1646,153 @@ This separates two phenomena that the earlier warning could not. The IBR
 circle family causes the enormous raw row-norm spread at the saved point, but
 normalizing it changes the sparse-QR proxy by less than three percent and does
 not change rank. It is therefore unlikely to explain the larger 99-/538-bus
-condition-proxy increases by itself. The next empirical target is to run the
-same semantic attribution on those cases, identify their minimum-row families,
-and intervene only on recurrent candidates before moving to solver/KKT traces.
+condition-proxy increases by itself. At that stage, the next empirical target
+was to run the same semantic attribution on those cases, identify their
+minimum-row families, and intervene only on recurrent candidates before
+moving to solver/KKT traces; the 99- and 538-bus campaigns below now close that
+target.
+
+The repeated 99-bus LN/LG campaign has now refined that conclusion. Eight
+observations passed every readiness gate with zero family-scale or intervention
+drift. At the saved LN point the 48 `ibr_power_circle` rows own both global
+extremes, spanning about `3.14e-9` to `11.14` within that one family. Normalizing
+only those rows preserves rank 1,968 but reduces the sparse-QR pivot proxy from
+about 183.07 to 36.79 (ratio 0.201), close to the LG and engine-start scale. At
+the saved LG point the circle rows own only the lower extreme; the same
+intervention preserves rank and changes the proxy from about 37.64 to 36.75
+(ratio 0.976).
+
+This LN/LG contrast is exact across repetitions and supplies a formulation-
+local numerical explanation for the earlier 99-bus asymmetry. It still does
+not prove a physical defect or predict solver convergence: the intervention
+acts on a recorded constraint Jacobian, not the complete KKT system or solver
+tolerance semantics. That stage's next target was the 538-bus LN/LG pair,
+followed by a solver-trace experiment that applies an explicitly documented
+constraint-scaling policy and checks residual and iteration consequences; both
+are now recorded below.
+
+The 538-bus LN/LG extension is now readiness-cleared with eight dense-disabled
+observations (two repetitions at engine start and saved SI for each variant).
+All same-point fingerprints, findings, curated metrics, row-family attribution,
+and intervention reports repeated exactly; registry coverage and trusted saved
+points were complete, and the validator emitted only the expected informational
+notice that point-local findings changed. Both 11,028-variable cases mapped all
+12,538 rows and retained full sparse-QR rank. At the saved point, the 302
+`ibr_power_circle` rows own both global row-norm extremes: the LG range is
+approximately `4.60e-9` to `17.42`, and the LN range is `3.45e-9` to `42.95`.
+Normalizing only that family leaves rank unchanged and reduces the pivot proxy
+from about `251.99` to `34.67` in LG (ratio `0.138`) and from `616.75` to
+`34.80` in LN (ratio `0.056`). The intervention was unavailable at engine
+start for the correct reason—all circle rows were zero there—and available at
+both saved points with the same direction and no rank change. This is now
+trusted empirical scale evidence, while remaining a recorded-linearization
+intervention rather than a physical or KKT proof.
+
+A bounded Ipopt solver-trace campaign now records the same semantic attribution
+and opt-in row-family intervention at the final solver-result point. The two
+99-bus cases both solved locally in 19 Ipopt iterations with no restoration
+attempt, and the parsed logs reached final primal infeasibility below `7e-16`
+and dual infeasibility below `2e-13`. The saved LN result again assigns both
+row-scale extremes to `ibr_power_circle` (within-family ratio about `1.54e4`),
+while the LG result assigns the minimum to that family and the maximum to the
+voltage-magnitude definition family. The LN-only recorded-Jacobian intervention
+reduces the proxy from about `183.05` to `36.82` (ratio `0.201`), whereas LG
+changes from `37.64` to `37.36` (ratio `0.993`); rank is unchanged in both.
+These are correlated final-point observations, not causal solver evidence: the
+trace currently does not rescale Ipopt's KKT system or rerun the solve under
+the intervention. The next major item is therefore an actual solver option A/B
+experiment that changes constraint scaling while preserving residual and
+termination semantics, followed by a repeated 538-bus solver trace so that
+the numerical attribution and solver behavior can be compared on the same
+trusted points; that A/B experiment is reported immediately below.
+
+The first actual solver-scaling A/B campaign is now complete on the 99-bus
+LN/LG pair. Three isolated Ipopt configurations shared one environment and
+captured logs, callback points, semantic row attribution, and the recorded
+`ibr_power_circle` intervention. The default configuration solved both cases
+in 20 iterations. Setting `nlp_scaling_method=none` remained locally optimal
+but required 29 LN and 28 LG iterations; tightening
+`nlp_scaling_max_gradient=10.0` required 17 iterations for both. Final
+objectives stayed aligned with the baseline (relative differences below
+`4e-7`), and all printed primal residuals were below `7e-16`; dual residuals
+remained finite. The family intervention continued to preserve rank 1,968 and
+the LN/LG proxy contrast in every configuration, so the solver option changes
+altered iteration behavior without changing the underlying semantic diagnosis.
+This is genuine solver-level evidence for scaling sensitivity, but only on one
+snapshot per formulation; the bounded 538-bus follow-up below was the next
+campaign.
+
+The bounded 538-bus follow-up now supplies the first large-case solver-level
+contrast. With `max_iter=40`, default Ipopt scaling solved LN in 25 iterations
+and LG in 20, with final printed primal residuals below `5e-14` and dual
+residuals below `1.3e-11`. The otherwise identical
+`nlp_scaling_method=none` runs reached the iteration limit on both cases
+(41 trace records), with printed primal residuals around `8e-3`, dual
+residuals of `2.0e9` (LN) and `8.7e8` (LG), and explicit
+`solver_termination_limit`, residual-stagnation, regression, and imbalance
+findings. The final objectives are intentionally not aligned because the
+no-scaling runs did not solve the model. This is strong solver-level evidence
+that Ipopt's internal scaling is materially important for these 538-bus
+formulations, while the semantic row-family attribution remains a separate
+diagnostic: the failed runs ended at different, non-solution points. The next
+step is repeated bounded A/B runs and a controlled 538-bus matrix including a
+tighter scaling cap, so the solver effect can be separated from run-to-run
+variation.
+
+The sweep campaign now has a first-class aggregation artifact rather than
+requiring pairwise inspection. `summarize_bmopf_solver_sweep.jl` reads the
+orchestrator manifest, retains common and effective solver options, verifies
+environment-fingerprint and case-matrix completeness, and emits one comparison
+row per configuration and case. Objective alignment is reported as
+`aligned`, `different_convention_or_solution`, or `unavailable`; residual and
+iteration changes remain raw deltas/ratios; and family scaling intervention
+ratios/rank changes remain attached to their evidence. This makes a multi-option
+campaign auditable without collapsing it into a performance score. The 99-bus
+campaign produces a complete two-case matrix with matching fingerprints for all
+three configurations.
+
+A direct follow-up with the same 538-bus solver bound exposed an important
+readiness limitation: the Ipopt log can reach `EXIT: Optimal Solution Found`
+while the subsequent full profile serialization is still resource-limited and
+does not write a case result. Those partial directories are deliberately not
+counted as solver evidence. The engineering response was an incremental
+checkpoint path and an explicit `profile_incomplete_after_solver` status, so a
+successful solver termination cannot be confused with a complete diagnostic
+observation; its implementation is recorded below.
+
+That readiness item is now implemented. Each solver-trace case writes a
+checkpoint through `started`, `solver_complete`, `profile_started`, and
+`complete`; the isolated launcher carries it into `index.json`; and the
+summarizer classifies a missing result after solver completion as
+`profile_incomplete_after_solver`, with separate profile-completeness counts.
+A synthetic partial record and a size-guarded 538-bus launcher run both pass
+through this path. The next large-case work can therefore distinguish solver
+behavior from diagnostic-profile resource failure without discarding the
+campaign provenance.
+
+Staged profiling is now available through
+`NLPDIAGNOSTICS_BMOPF_PROFILE_MAX_VARIABLES`. When a case exceeds the explicit
+profile budget, the runner uses the lightweight solver-only callback path and
+writes `ok_solver_trace_profile_skipped`, retaining iteration records, solver
+logs, termination evidence, and checkpoint provenance while marking the
+semantic/rank profile as `profile_skipped_resource_budget`. A real 30-bus run
+validated this mode with 19 trace records and final logged primal/dual
+infeasibilities of approximately `3.3e-16` and `4.3e-14`. The summarizer keeps
+these records in `solver_trace_case_count` but not `successful_case_count`, so
+solver evidence and full diagnostic readiness remain distinct.
+
+The stage is also explicitly selectable with
+`NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE=trace|full`, so a campaign can request
+solver-only capture independently of model size. Both the requested stage and
+the budget-triggered skip reason are retained in the case, launcher, and sweep
+records.
+
+The option-sweep orchestrator now writes its manifest after every completed
+configuration, not only at normal shutdown. A two-configuration size-guarded
+smoke confirmed that the first configuration remains recoverable even when a
+later child does not return. This closes the campaign-level provenance gap;
+the remaining large-case bottleneck is post-solve profile resource usage, not
+loss of the sweep record.
 
 Saved-result component matching is now exact as well (`pv_1` no longer matches
 `pv_10`). A fresh one-case SI/PU matrix reports 56 registered controller

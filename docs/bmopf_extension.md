@@ -509,7 +509,16 @@ each configuration receives its own evidence directory and summary. The
 summary classifies explicit `slow_progress`, `restoration_failed`,
 `numerical_failure`, `resource_limit`, and successful terminations while
 retaining raw records. This is a diagnostic campaign tool, not a solver
-benchmark scorecard.
+benchmark scorecard. The trace option parser preserves string attributes as
+ordinary `String` values and promotes Ipopt real-valued options such as `tol`
+and `nlp_scaling_max_gradient` to `Float64`; this avoids confusing an option
+typing failure with a solver numerical failure. A common
+`NLPDIAGNOSTICS_BMOPF_SOLVER_OPTIONS` value is merged into every sweep
+configuration, while per-configuration keys override it; this makes bounded
+iteration/time policies explicit and reproducible.
+The sweep manifest is persisted after each configuration as well as at normal
+completion, so a native child failure leaves earlier configuration provenance
+available for review.
 Run `benchmarks/summarize_bmopf_solver_trace.jl <output-directory>` to produce
 `summary.json` with status counts, trace phase/segment statistics, final and
 minimum printed residuals, and separate solver-result/BMOPF finding-code
@@ -523,6 +532,32 @@ objective deltas, marks objective alignment as unavailable/aligned or
 mismatches explicitly rather than attributing them to solver quality. When
 logs were captured, it also compares log availability, finding-code sets,
 parsed iteration/segment counts, and final printed residuals.
+For a complete option sweep, run
+`benchmarks/summarize_bmopf_solver_sweep.jl <sweep-manifest.json>`. The resulting
+`sweep_summary.json` keeps the effective option string for every configuration,
+checks environment and case-matrix completeness, and compares each candidate
+to the declared baseline. It preserves per-case iteration deltas, printed
+primal/dual residuals, objective alignment, solver finding codes, and
+row-family scaling-proxy/rank changes; it intentionally emits no composite
+solver score.
+Each case also writes a small `<case>.checkpoint.json` progress marker. Its
+phases (`started`, `solver_complete`, `profile_started`, `complete`, or
+`error`) make a resource-limited post-solve run inspectable; a solver log that
+reaches an optimal exit without a `complete` marker is not treated as a
+complete diagnostic record. The isolated launcher propagates that marker into
+the index, and the trace summarizer classifies a missing result after
+`solver_complete` or `profile_started` as `profile_incomplete_after_solver`,
+with separate profile-completeness counts.
+For large cases, set `NLPDIAGNOSTICS_BMOPF_PROFILE_MAX_VARIABLES` to an explicit
+profile budget. Cases above that limit use the solver-only trace path and are
+written with status `ok_solver_trace_profile_skipped`; their solver/log/trace
+evidence remains available, while the expensive BMOPF semantic and rank
+profile is recorded as `profile_skipped_resource_budget` rather than being
+silently inferred as clean.
+Set `NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE=trace` to request this solver-only
+stage explicitly, even below the variable budget. The default stage remains
+`full`; stage selection and budget decisions are retained in the case record
+and sweep metadata.
 
 Before choosing a draft-corpus campaign, run
 `benchmarks/inventory_bmopf_draft_corpus.jl`. It only parses BMOPF JSON and
@@ -936,6 +971,18 @@ require one complete finite solver-result point for every successful case.
 The trace runner also sanitizes NaN/Inf values at its JSON boundary, retaining
 the associated failure metadata instead of dropping the entire benchmark
 record.
+When `NLPDIAGNOSTICS_BMOPF_FAMILY_SCALING_EXPERIMENTS` is set for a solver
+trace, the final serialized case record contains both
+`bmopf_jacobian_row_family_scale_attribution` and
+`bmopf_jacobian_row_family_scaling_experiment`. The latter is deliberately a
+recorded-linearization intervention: it reports baseline/scaled sparse-QR
+rank and pivot proxy plus the applied factor range, but it does not modify the
+Ipopt run. Solver-log iteration counts, termination, residual evidence, and
+the semantic Jacobian reports must therefore be interpreted as correlated
+observations rather than a causal scaling experiment. The isolated launcher
+copies the requested family list into `index.json`; the trace summarizer copies
+it into `summary.json`, retains compact per-case attribution/intervention
+records, and reports coverage, rank-change, and pivot-proxy direction counts.
 The trace preflight also classifies source-schema losses using the same policy
 as the multiconductor campaign: representational unit losses are retained as
 context, while device-semantic and physical/operating-point losses block the

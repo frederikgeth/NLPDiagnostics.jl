@@ -113,6 +113,9 @@ bmopf_analyze_opf(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
 """Optional BMOPFTools staged-OPF profile-case entry point."""
 bmopf_profile_case(context, case; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to profile a staged BMOPF OPF context")._bmopf_profile_case(context, case; kwargs...)
+"""Run BMOPF semantic/context diagnostics at one explicit evaluated point without generic Jacobian profiling."""
+bmopf_context_profile_report(context, point; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required for BMOPF context profiling")._bmopf_context_profile_report(context, point; kwargs...)
 """Optional BMOPFTools build-and-profile benchmark entry point."""
 bmopf_build_and_profile(network, case_builder; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools' JuMP/IPOPT staged-build extension is required to build and profile a BMOPF network")._bmopf_build_and_profile(network, case_builder; kwargs...)
