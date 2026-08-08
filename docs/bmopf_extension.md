@@ -554,10 +554,38 @@ written with status `ok_solver_trace_profile_skipped`; their solver/log/trace
 evidence remains available, while the expensive BMOPF semantic and rank
 profile is recorded as `profile_skipped_resource_budget` rather than being
 silently inferred as clean.
-Set `NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE=trace` to request this solver-only
-stage explicitly, even below the variable budget. The default stage remains
-`full`; stage selection and budget decisions are retained in the case record
-and sweep metadata.
+Set `NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE=trace` to request the solver-only
+stage, `context` to add BMOPF semantic/context diagnostics, or `numerical` to
+evaluate and analyze the solver-result Jacobian under the configured dense
+entry budget. The default stage remains `full`; stage selection and budget
+decisions are retained in the case record and sweep metadata.
+The sweep summarizer promotes numerical-stage records into a separate
+`numerical` comparison block. It reports dense-rank and sparse-QR availability,
+raw rank deltas, rank-readiness transitions, and new/removed numerical finding
+codes. Its top-level `numerical_stage_coverage` counts available reports,
+sparse-QR reports, dense-rank reports, explicit dense-budget unavailability,
+stage/readiness distributions, and finding-code recurrence. A missing dense
+rank is therefore visible as an availability boundary and is never compared as
+zero rank or folded into a solver score.
+For repeated policy campaigns, pass two or more sweep manifests to
+`benchmarks/summarize_bmopf_solver_repeats.jl`. It aligns configuration/case
+records by manifest index, summarizes termination/status/iteration and sparse
+rank recurrence, and reports paired candidate-minus-baseline deltas. It also
+retains numerical-readiness transitions and environment fingerprints, so a
+solver-policy effect is only described as repeated when the same explicitly
+identified configuration/case pairs were observed more than once.
+For staged (`trace`, `context`, or `numerical`) records, termination is taken
+from the solver-owned log marker when a full solver postmortem is intentionally
+not materialized. This preserves `locally_optimal`, iteration-limit, and
+restoration evidence without pretending that the lightweight stage provides a
+full result profile.
+For large models this is the recommended first pass: use `trace` for repeated
+solver-policy experiments, inspect termination and residual evidence, and only
+enable sparse numerical profiling in a separately budgeted campaign.
+Repeat comparisons also retain final primal/dual residual deltas and semantic
+family availability. A trace-only campaign therefore can show a repeatable
+solver/residual effect while explicitly reporting that equation-family
+correlation is unavailable until a context-stage profile is run.
 
 Before choosing a draft-corpus campaign, run
 `benchmarks/inventory_bmopf_draft_corpus.jl`. It only parses BMOPF JSON and

@@ -686,14 +686,28 @@ function _family_perturbation_case_summary(record)
     )
 end
 
-function _failure_categories(record, nested_profile, trace_summary)
+function _solver_log_termination(solver_log)
+    solver_log isa AbstractDict || return "unknown"
+    text = lowercase(String(get(solver_log, "text", "")))
+    isempty(text) && return "unknown"
+    occursin("exit: optimal solution found", text) && return "locally_optimal"
+    occursin("exit: maximum number of iterations exceeded", text) && return "iteration_limit"
+    occursin("exit: maximum cpu time exceeded", text) && return "time_limit"
+    occursin("exit: restoration failed", text) && return "restoration_failed"
+    occursin("exit: converged to a point of local infeasibility", text) && return "locally_infeasible"
+    occursin("exit: invalid number detected", text) && return "invalid_number"
+    occursin("exit: error in step computation", text) && return "numerical_failure"
+    "unknown"
+end
+
+function _failure_categories(record, nested_profile, trace_summary, solver_log = nothing)
     categories = String[]
-    get(record, "status", "") in ("ok_solver_trace_profile_skipped",
-                                    "ok_solver_trace_context_profile") &&
+    get(record, "status", "") == "ok_solver_trace_profile_skipped" &&
         push!(categories, "profile_skipped_resource_budget")
     postmortem = get(nested_profile, "postmortem", nothing)
     termination = postmortem isa AbstractDict ?
         String(get(postmortem, "termination", "unknown")) : "unknown"
+    termination == "unknown" && (termination = _solver_log_termination(solver_log))
     termination == "slow_progress" && push!(categories, "slow_progress")
     termination == "restoration_failed" && push!(categories, "restoration_failed")
     termination in ("numerical_failure", "invalid_number") &&
@@ -707,13 +721,14 @@ function _failure_categories(record, nested_profile, trace_summary)
     isempty(categories) && termination in ("locally_optimal", "optimal") &&
         push!(categories, "successful_termination")
     isempty(categories) &&
-        get(record, "status", "") != "ok_solver_trace_context_profile" &&
+        get(record, "status", "") ∉ ("ok_solver_trace_context_profile", "ok_solver_trace_numerical_profile") &&
         push!(categories, "unclassified")
     return unique(categories)
 end
 
 _has_solver_trace(status) = status in (
     "ok", "ok_solver_trace_profile_skipped", "ok_solver_trace_context_profile",
+    "ok_solver_trace_numerical_profile",
 )
 
 function main()
@@ -940,6 +955,7 @@ function main()
             )
         end
         if _has_solver_trace(status)
+            solver_log = get(record, "solver_log_evidence", nothing)
             trace = get(record, "iteration_trace", Dict{String,Any}())
             trace_summary = _trace_summary(trace)
             summary["trace"] = trace_summary
@@ -1036,7 +1052,7 @@ function main()
                 point_trust, "solver_iterate_nonfinite_binding_count", 0,
             ))
             summary["failure_categories"] = _failure_categories(
-                record, nested_profile, trace_summary,
+                record, nested_profile, trace_summary, solver_log,
             )
             for category in summary["failure_categories"]
                 failure_category_counts[category] =
@@ -1046,6 +1062,8 @@ function main()
                 get(nested_profile, "postmortem", Dict{String,Any}()),
                 "termination", "unknown",
             )
+            summary["termination"] == "unknown" &&
+                (summary["termination"] = _solver_log_termination(solver_log))
             result_report = get(nested_profile, "result_report", Dict{String,Any}())
             summary["solver_result_finding_codes"] = _count_codes(result_report)
             _merge_counts!(trace_finding_codes, summary["solver_result_finding_codes"])
@@ -1137,6 +1155,14 @@ function main()
             else
                 summary["bmopf_context_profile"] = nothing
             end
+            numerical_profile = get(record, "numerical_profile", nothing)
+            if numerical_profile isa AbstractDict
+                summary["numerical_profile"] = numerical_profile
+                summary["numerical_finding_codes"] = _count_codes(numerical_profile)
+            else
+                summary["numerical_profile"] = nothing
+                summary["numerical_finding_codes"] = Dict{String,Int}()
+            end
         end
         solver_log = get(record, "solver_log_evidence", nothing)
         summary["solver_log_available"] = solver_log isa AbstractDict
@@ -1189,6 +1215,8 @@ function main()
         "family_perturbation_families" => get(index, "family_perturbation_families", Any[]),
         "family_perturbation_max_iter" => get(index, "family_perturbation_max_iter", nothing),
         "family_scaling_experiment_families" => family_scaling_families,
+        "profile_stage" => get(index, "profile_stage", "full"),
+        "profile_max_variables" => get(index, "profile_max_variables", 0),
         "family_scale_attribution_coverage" => Dict(
             "available_case_count" => family_scale_available_case_count,
             "unavailable_case_count" => family_scale_unavailable_case_count,
@@ -1206,7 +1234,8 @@ function main()
         "solver_trace_case_count" =>
             get(status_counts, "ok", 0) +
             get(status_counts, "ok_solver_trace_profile_skipped", 0) +
-            get(status_counts, "ok_solver_trace_context_profile", 0),
+            get(status_counts, "ok_solver_trace_context_profile", 0) +
+            get(status_counts, "ok_solver_trace_numerical_profile", 0),
         "iteration_count_total" => sum(iteration_counts; init = 0),
         "iteration_count_minimum" => isempty(iteration_counts) ? nothing : minimum(iteration_counts),
         "iteration_count_maximum" => isempty(iteration_counts) ? nothing : maximum(iteration_counts),

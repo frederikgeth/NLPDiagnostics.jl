@@ -1782,10 +1782,25 @@ these records in `solver_trace_case_count` but not `successful_case_count`, so
 solver evidence and full diagnostic readiness remain distinct.
 
 The stage is also explicitly selectable with
-`NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE=trace|full`, so a campaign can request
-solver-only capture independently of model size. Both the requested stage and
-the budget-triggered skip reason are retained in the case, launcher, and sweep
-records.
+`NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE=trace|context|numerical|full`, so a campaign
+can request solver-only capture, BMOPF semantic/context diagnostics, or a
+bounded solver-result numerical profile independently of model size. A
+validated 30-bus context-stage run retained 19 solver records
+and 26 `component_port_nominal_scale_mismatch` context findings without a
+generic Jacobian/rank profile. Both the requested stage and budget/skip reason
+are retained in the case, launcher, and sweep records.
+
+The bounded numerical stage is now validated as well. On the same 30-bus LN
+case it retained 19 solver records and emitted numerical findings for finite
+difference derivative provenance and mixed Jacobian provenance; sparse QR rank
+was available at 704 while the dense rank estimate was explicitly unavailable
+under the configured entry budget. This is the intended evidence distinction:
+the stage reports what was computed, rather than implying that a skipped dense
+rank is a nonsingular result.
+The fresh runner artifact also records the 250,000-entry budget and its
+environment-variable provenance, and closes the staged checkpoint as
+`complete`; the trace summarizer reports no failure category for this
+resource-bounded numerical run.
 
 The option-sweep orchestrator now writes its manifest after every completed
 configuration, not only at normal shutdown. A two-configuration size-guarded
@@ -1799,3 +1814,47 @@ Saved-result component matching is now exact as well (`pv_1` no longer matches
 violation crosswalks and zero registry-boundary cases. Its remaining warning
 is the actual SI/PU controller-residual delta, now separated from registry
 ambiguity.
+
+Numerical-stage sweep comparison is now first-class. The option-sweep summary
+retains per-case sparse-QR versus dense-rank availability, raw rank changes,
+rank-readiness transitions, and finding-code deltas, with explicit provenance
+for dense-budget limitations. Its aggregate coverage separates unavailable
+reports from sparse-ready and dense-ready reports and counts stage/readiness
+distributions. This is the next trust boundary for paired profiling: solver
+option changes can now be compared for numerical readiness without interpreting
+missing dense rank as a singular Jacobian or as a successful numerical check.
+
+Repeated solver-policy comparison is now explicit as well. The new
+`summarize_bmopf_solver_repeats.jl` aligns repeated sweep manifests by
+configuration, case, and replicate index; reports stable termination/status,
+iteration ranges and direction signatures; and carries sparse-rank and
+numerical-readiness recurrence. It keeps incompatible or incomplete pairs
+visible instead of treating a single successful A/B run as repeatable solver
+evidence. The next empirical ticket is to run two identical 538-bus trace
+manifests containing baseline, no-scaling, and a bounded scaling-cap policy.
+
+Two identical three-policy numerical sweeps on the 30-bus LN fixture now pass
+that repeatability gate. Both replicates had the same environment fingerprint,
+locally optimal termination, sparse QR rank 704, and
+`sparse_available_dense_unavailable` readiness. Relative to baseline,
+`nlp_scaling_none` consistently added 2 iterations and the bounded
+`nlp_scaling_low` policy consistently removed 2; both effects had zero
+iteration spread across the two replicates. This is repeatable solver-policy
+evidence on one small fixture, not yet a general scaling recommendation.
+
+The repeated 538-bus LN/LG trace campaign is now complete with the same three
+policies and `max_iter=40`, while dense profiling remained disabled. Across two
+manifests, baseline reached `locally_optimal` in 25 LN and 20 LG iterations;
+no-scaling reached `iteration_limit` in both cases (41 records each) on both
+replicates. The bounded scaling cap preserved `locally_optimal`, with LN at 19
+iterations (six fewer than baseline) and LG at 21 (one more), consistently in
+both replicates. This is strong repeatable solver-level evidence that Ipopt's
+scaling policy matters on this larger formulation, but the cap's direction is
+case-dependent and must not be promoted to a universal recommendation.
+The repeat summarizer now correlates these policy changes with printed residuals:
+the no-scaling policy increased final primal residuals by about `8.3e-3`--`8.6e-3`
+and dual residuals by `8.65e8`--`2.01e9`, while the bounded cap changed them only
+at approximately `1e-14` primal and `1e-11` dual scale. Trace-only runs report
+semantic-family availability as unavailable rather than inventing a stable
+family fingerprint; a separate context-stage campaign is required before
+linking the solver effect to BMOPF equation families.

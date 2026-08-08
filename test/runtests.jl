@@ -1326,6 +1326,9 @@ end
     @test occursin("solver_complete", solver_trace)
     @test occursin("PROFILE_MAX_VARIABLES", solver_trace)
     @test occursin("PROFILE_STAGE", solver_trace)
+    @test occursin("context", solver_trace)
+    @test occursin("numerical", solver_trace)
+    @test occursin("ok_solver_trace_numerical_profile", solver_trace)
     @test occursin("ok_solver_trace_profile_skipped", solver_trace)
     solver_trace_launcher = read(
         joinpath(benchmark_directory, "launch_bmopf_solver_trace.jl"), String,
@@ -1343,6 +1346,8 @@ end
     @test occursin("profile_completeness", solver_trace_summary)
     @test occursin("checkpoint_phase", solver_trace_summary)
     @test occursin("solver_trace_case_count", solver_trace_summary)
+    @test occursin("profile_stage", solver_trace_summary)
+    @test occursin("_solver_log_termination", solver_trace_summary)
     solver_option_sweep = read(
         joinpath(benchmark_directory, "sweep_bmopf_solver_options.jl"), String,
     )
@@ -1358,6 +1363,21 @@ end
     @test occursin("environment_fingerprints_match", solver_option_sweep_summary)
     @test occursin("case_matrix", solver_option_sweep_summary)
     @test occursin("condition_proxy_ratio_delta", solver_option_sweep_summary)
+    @test occursin("numerical_profile", solver_option_sweep_summary)
+    @test occursin("sparse_qr_rank", solver_option_sweep_summary)
+    @test occursin("dense_rank_unavailable", solver_option_sweep_summary)
+    @test occursin("rank_budget_source", solver_option_sweep_summary)
+    @test occursin("numerical_stage_coverage", solver_option_sweep_summary)
+    solver_option_repeats = read(
+        joinpath(benchmark_directory, "summarize_bmopf_solver_repeats.jl"),
+        String,
+    )
+    @test occursin("bmopf-solver-repeats-v1", solver_option_repeats)
+    @test occursin("termination_stable", solver_option_repeats)
+    @test occursin("sparse_qr_rank_delta", solver_option_repeats)
+    @test occursin("numerical_readiness_change_count", solver_option_repeats)
+    @test occursin("final_primal_residual_delta", solver_option_repeats)
+    @test occursin("semantic_family_change_count", solver_option_repeats)
     ledger = read(
         joinpath(benchmark_directory, "summarize_bmopf_evidence_ledger.jl"),
         String,

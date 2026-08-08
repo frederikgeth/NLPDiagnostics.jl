@@ -67,8 +67,8 @@ end
 
 function _profile_stage()
     stage = lowercase(strip(get(ENV, "NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE", "full")))
-    stage in ("full", "context", "trace") || error(
-        "NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE must be full, context, or trace, got '$stage'",
+    stage in ("full", "context", "numerical", "trace") || error(
+        "NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE must be full, context, numerical, or trace, got '$stage'",
     )
     return stage
 end
@@ -565,7 +565,7 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
         profile_budgeted = profile_stage != "full" ||
             (profile_max_variables > 0 && variable_count > profile_max_variables)
         profile_skip_reason = profile_stage == "trace" ?
-            "profile_stage_trace_only" : profile_stage == "context" ?
+            "profile_stage_trace_only" : profile_stage in ("context", "numerical") ?
             nothing : "profile_skipped_resource_budget"
         run = _solve_with_trace(model, solver_name;
             capture_points, profile = !profile_budgeted,
@@ -613,7 +613,8 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
         if profile_budgeted
             payload = Dict{String,Any}(
                 "status" => profile_stage == "context" ?
-                    "ok_solver_trace_context_profile" :
+                    "ok_solver_trace_context_profile" : profile_stage == "numerical" ?
+                    "ok_solver_trace_numerical_profile" :
                     "ok_solver_trace_profile_skipped",
                 "profile_stage" => profile_stage,
                 "profile_skip_reason" => profile_skip_reason,
@@ -645,6 +646,7 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                 "solver_profile" => nothing,
                 "bmopf_profile" => nothing,
                 "bmopf_context_profile" => nothing,
+                "numerical_profile" => nothing,
                 "family_perturbations" => Any[],
                 "family_perturbations_enabled" => false,
                 "family_perturbation_families" => String[],
@@ -667,9 +669,30 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                     payload["bmopf_context_profile"] = NLPDiagnostics.report_data(context_report)
                     payload["profile_skip_reason"] = nothing
                 end
+            elseif profile_stage == "numerical"
+                point = NLPDiagnostics.solver_result_point(model)
+                if isnothing(point)
+                    payload["profile_skip_reason"] = "solver_result_point_unavailable"
+                else
+                    numerical_report = NLPDiagnostics.analyze_numerical(
+                        JuMP.backend(model), point;
+                        rank_max_dense_entries = dense_entry_limit,
+                    )
+                    numerical_data = NLPDiagnostics.report_data(numerical_report)
+                    numerical_metadata = get(numerical_data, "metadata", nothing)
+                    if numerical_metadata isa AbstractDict
+                        numerical_metadata["rank_max_dense_entries"] = string(dense_entry_limit)
+                        numerical_metadata["rank_budget_source"] =
+                            "NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES"
+                    end
+                    payload["numerical_profile"] = numerical_data
+                    payload["profile_skip_reason"] = nothing
+                end
             end
             write(result_path, JSON.json(_json_safe(payload)))
-            _write_case_checkpoint(checkpoint_path, "profile_skipped_resource_budget";
+            checkpoint_phase = profile_stage in ("context", "numerical") ? "complete" :
+                "profile_skipped_resource_budget"
+            _write_case_checkpoint(checkpoint_path, checkpoint_phase;
                 fields = Dict(
                     "name" => name, "profile_max_variables" => profile_max_variables,
                     "profile_stage" => profile_stage,

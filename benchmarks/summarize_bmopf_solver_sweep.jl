@@ -18,6 +18,25 @@ function _as_number(value)
     value isa Real && isfinite(Float64(value)) ? Float64(value) : nothing
 end
 
+function _metadata_number(value)
+    number = _as_number(value)
+    !isnothing(number) && return number
+    value isa AbstractString || return nothing
+    text = strip(String(value))
+    isempty(text) || lowercase(text) in ("nothing", "nan", "missing", "null") && return nothing
+    parsed = tryparse(Float64, text)
+    parsed isa Real && isfinite(parsed) ? Float64(parsed) : nothing
+end
+
+function _metadata_bool(value)
+    value isa Bool && return value
+    value isa AbstractString || return nothing
+    text = lowercase(strip(String(value)))
+    text == "true" && return true
+    text == "false" && return false
+    nothing
+end
+
 function _delta(left, right)
     l, r = _as_number(left), _as_number(right)
     isnothing(l) || isnothing(r) ? nothing : r - l
@@ -71,6 +90,54 @@ function _family_scaling(case)
     )
 end
 
+function _numerical_profile(case)
+    raw = _as_dict(get(case, "numerical_profile", nothing))
+    metadata = _as_dict(get(raw, "metadata", nothing))
+    finding_codes = _as_dict(get(case, "numerical_finding_codes",
+                                 get(raw, "finding_code_counts", Dict())))
+    available = !isempty(raw) && !isempty(metadata)
+    dense_available = _metadata_bool(get(metadata, "jacobian_rank_available", nothing))
+    sparse_available = _metadata_bool(get(metadata, "sparse_qr_rank_available", nothing))
+    dense_available = isnothing(dense_available) ?
+        !isnothing(_metadata_number(get(metadata, "jacobian_rank", nothing))) &&
+        !haskey(finding_codes, "jacobian_rank_analysis_unavailable") : dense_available
+    sparse_available = isnothing(sparse_available) ?
+        !isnothing(_metadata_number(get(metadata, "sparse_qr_rank", nothing))) : sparse_available
+    dense_unavailable = haskey(finding_codes, "jacobian_rank_analysis_unavailable") ||
+        (available && dense_available === false)
+    readiness = !available ? "unavailable" :
+        (sparse_available && dense_available ? "dense_and_sparse_available" :
+         (sparse_available ? "sparse_available_dense_unavailable" :
+          (dense_available ? "dense_available_sparse_unavailable" : "rank_unavailable")))
+    dense_rank = dense_available === true ? _metadata_number(get(metadata, "jacobian_rank", nothing)) : nothing
+    sparse_rank = sparse_available === true ? _metadata_number(get(metadata, "sparse_qr_rank", nothing)) : nothing
+    scaled_sparse_rank = sparse_available === true ? _metadata_number(get(metadata, "scaled_sparse_qr_rank", nothing)) : nothing
+    selected_metadata = Dict{String,Any}()
+    for key in (
+        "jacobian_rank", "scaled_jacobian_rank", "sparse_qr_rank", "scaled_sparse_qr_rank",
+        "jacobian_rank_available", "sparse_qr_rank_available", "jacobian_rank_scaling",
+        "sparse_qr_rank_scaling", "jacobian_rank_relative_tolerance", "sparse_qr_method",
+        "sparse_qr_condition_proxy", "sparse_qr_factorization_relative_residual",
+        "sparse_qr_factorization_residual_reason", "rank_max_dense_entries", "rank_budget_source",
+        "raw_jacobian_entry_count", "evaluated_constraint_row_count", "evaluation_variable_count",
+        "jacobian_derivative_method_count", "jacobian_derivative_row_method_counts",
+    )
+        haskey(metadata, key) && (selected_metadata[key] = metadata[key])
+    end
+    return Dict{String,Any}(
+        "available" => available,
+        "readiness" => readiness,
+        "dense_rank_available" => dense_available === true,
+        "dense_rank_unavailable" => dense_unavailable,
+        "sparse_qr_available" => sparse_available === true,
+        "dense_rank" => dense_rank,
+        "sparse_qr_rank" => sparse_rank,
+        "scaled_sparse_qr_rank" => scaled_sparse_rank,
+        "finding_codes" => finding_codes,
+        "metadata" => selected_metadata,
+    )
+end
+
 function _case_observation(case)
     trace = _as_dict(get(case, "trace", nothing))
     log = _as_dict(get(case, "solver_log_iterations", nothing))
@@ -99,6 +166,16 @@ function _case_observation(case)
         "solver_result_finding_codes" => get(case, "solver_result_finding_codes", Dict()),
         "failure_categories" => get(case, "failure_categories", Any[]),
         "family_scaling" => family,
+        "numerical_profile" => _numerical_profile(case),
+    )
+end
+
+function _finding_code_delta(baseline, candidate)
+    baseline_codes = Set(String.(keys(_as_dict(baseline))))
+    candidate_codes = Set(String.(keys(_as_dict(candidate))))
+    Dict(
+        "new_in_candidate" => sort!(collect(setdiff(candidate_codes, baseline_codes))),
+        "absent_in_candidate" => sort!(collect(setdiff(baseline_codes, candidate_codes))),
     )
 end
 
@@ -114,6 +191,8 @@ function _compare_case(base, candidate)
         (objective_difference <= 1.0e-6 ? "aligned" : "different_convention_or_solution")
     base_family = _as_dict(get(base, "family_scaling", nothing))
     candidate_family = _as_dict(get(candidate, "family_scaling", nothing))
+    base_numerical = _as_dict(get(base, "numerical_profile", nothing))
+    candidate_numerical = _as_dict(get(candidate, "numerical_profile", nothing))
     family_comparisons = Dict{String,Any}[]
     family_names = sort!(collect(union(keys(_as_dict(get(base_family, "families", nothing))),
                                   keys(_as_dict(get(candidate_family, "families", nothing))))))
@@ -179,6 +258,62 @@ function _compare_case(base, candidate)
         "candidate_finding_codes" => get(candidate, "solver_result_finding_codes", Dict()),
         "candidate_log_finding_codes" => get(get(candidate, "solver_log", Dict()), "finding_codes", Dict()),
         "family_scaling" => family_comparisons,
+        "numerical" => Dict(
+            "baseline" => base_numerical,
+            "candidate" => candidate_numerical,
+            "readiness_changed" => get(base_numerical, "readiness", nothing) != get(candidate_numerical, "readiness", nothing),
+            "dense_rank_available_changed" => get(base_numerical, "dense_rank_available", false) != get(candidate_numerical, "dense_rank_available", false),
+            "sparse_qr_available_changed" => get(base_numerical, "sparse_qr_available", false) != get(candidate_numerical, "sparse_qr_available", false),
+            "dense_rank" => Dict(
+                "baseline" => get(base_numerical, "dense_rank", nothing),
+                "candidate" => get(candidate_numerical, "dense_rank", nothing),
+                "delta_candidate_minus_baseline" => _delta(get(base_numerical, "dense_rank", nothing), get(candidate_numerical, "dense_rank", nothing)),
+            ),
+            "sparse_qr_rank" => Dict(
+                "baseline" => get(base_numerical, "sparse_qr_rank", nothing),
+                "candidate" => get(candidate_numerical, "sparse_qr_rank", nothing),
+                "delta_candidate_minus_baseline" => _delta(get(base_numerical, "sparse_qr_rank", nothing), get(candidate_numerical, "sparse_qr_rank", nothing)),
+                "ratio_candidate_over_baseline" => _ratio(get(base_numerical, "sparse_qr_rank", nothing), get(candidate_numerical, "sparse_qr_rank", nothing)),
+            ),
+            "finding_code_delta" => _finding_code_delta(get(base_numerical, "finding_codes", Dict()), get(candidate_numerical, "finding_codes", Dict())),
+        ),
+    )
+end
+
+function _numerical_stage_coverage(maps, configurations)
+    total = available = sparse = dense = dense_unavailable = 0
+    stage_counts = Dict{String,Int}()
+    readiness_counts = Dict{String,Int}()
+    finding_counts = Dict{String,Int}()
+    for (map_index, case_map) in enumerate(maps), case in values(case_map)
+        total += 1
+        numerical = _numerical_profile(case)
+        readiness = String(get(numerical, "readiness", "unavailable"))
+        readiness_counts[readiness] = get(readiness_counts, readiness, 0) + 1
+        if get(numerical, "available", false)
+            available += 1
+            get(numerical, "sparse_qr_available", false) && (sparse += 1)
+            get(numerical, "dense_rank_available", false) && (dense += 1)
+            get(numerical, "dense_rank_unavailable", false) && (dense_unavailable += 1)
+            for code in keys(_as_dict(get(numerical, "finding_codes", nothing)))
+                code_string = String(code)
+                finding_counts[code_string] = get(finding_counts, code_string, 0) + 1
+            end
+        end
+        stage_value = get(configurations[map_index], "profile_stage", get(case, "profile_stage", "unknown"))
+        stage = String(something(stage_value, "unknown"))
+        stage_counts[stage] = get(stage_counts, stage, 0) + 1
+    end
+    Dict(
+        "total_case_configuration_count" => total,
+        "available_case_count" => available,
+        "unavailable_case_count" => total - available,
+        "sparse_qr_available_case_count" => sparse,
+        "dense_rank_available_case_count" => dense,
+        "dense_rank_unavailable_case_count" => dense_unavailable,
+        "stage_counts" => stage_counts,
+        "readiness_counts" => readiness_counts,
+        "finding_code_case_counts" => finding_counts,
     )
 end
 
@@ -208,6 +343,8 @@ function main()
             "options" => get(entry, "options", nothing),
             "common_options" => get(entry, "common_options", nothing),
             "effective_options" => get(entry, "effective_options", nothing),
+            "profile_stage" => isnothing(summary) ? get(entry, "profile_stage", nothing) : get(summary, "profile_stage", nothing),
+            "profile_max_variables" => isnothing(summary) ? get(entry, "profile_max_variables", nothing) : get(summary, "profile_max_variables", nothing),
             "status" => get(entry, "status", nothing),
             "summary_file" => get(entry, "summary_file", nothing),
             "environment_fingerprint" => isnothing(summary) ? get(entry, "environment_fingerprint", nothing) : get(summary, "environment_fingerprint", nothing),
@@ -259,6 +396,7 @@ function main()
             "common_case_names" => sort!(String.(common_names)),
             "complete" => all(length(map) == length(base_map) for map in maps),
         ),
+        "numerical_stage_coverage" => _numerical_stage_coverage(maps, configurations),
         "comparisons" => comparisons,
     )
     output_path = length(ARGS) == 2 ? abspath(ARGS[2]) : joinpath(dirname(manifest_path), "sweep_summary.json")
