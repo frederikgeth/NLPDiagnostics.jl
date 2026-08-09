@@ -58,9 +58,43 @@ function _contract(case)
         "complex_constitutive_map_count", "physical_mode_count",
         "voltage_coordinate_map_count", "current_coordinate_map_count",
         "voltage_coordinate_alignment", "current_coordinate_alignment",
+        "physical_mode_projections", "physical_mode_projection_matches",
         "port_assembly_component_count", "port_assembly_connected_component_count",
     )
     Dict(key => get(raw, key, nothing) for key in fields)
+end
+
+function _structural_contract(contract)
+    excluded = Set(("voltage_coordinate_alignment", "current_coordinate_alignment",
+                    "physical_mode_projections", "physical_mode_projection_matches"))
+    Dict(key => value for (key, value) in contract if !(key in excluded))
+end
+
+function _mode_projections(contract)
+    raw = _dict(get(contract, "physical_mode_projections", nothing))
+    counts = _dict(get(raw, "status_counts", nothing))
+    Dict(
+        "mode_count" => _int(get(raw, "mode_count", 0)),
+        "visible_count" => _int(get(raw, "visible_count", get(counts, "visible", 0))),
+        "hidden_count" => _int(get(raw, "hidden_count", get(counts, "hidden", 0))),
+        "unrepresented_count" => _int(get(raw, "unrepresented_count", get(counts, "unrepresented", 0))),
+        "status_counts" => counts,
+        "rows" => get(raw, "rows", Any[]),
+    )
+end
+
+function _mode_matches(contract)
+    raw = _dict(get(contract, "physical_mode_projection_matches", nothing))
+    counts = _dict(get(raw, "status_counts", nothing))
+    Dict(
+        "mode_count" => _int(get(raw, "mode_count", 0)),
+        "observed_count" => _int(get(raw, "observed_count", get(counts, "observed", 0))),
+        "not_observed_count" => _int(get(raw, "not_observed_count", get(counts, "not_observed", 0))),
+        "outside_free_coordinates_count" => _int(get(raw, "outside_free_coordinates_count", get(counts, "outside_free_coordinates", 0))),
+        "partial_alignment_count" => _int(get(raw, "partial_alignment_count", get(counts, "partial_alignment", 0))),
+        "status_counts" => counts,
+        "rows" => get(raw, "rows", Any[]),
+    )
 end
 
 function _modes(case)
@@ -157,6 +191,12 @@ function main()
     for name in names
         left, right = baseline_cases[name], candidate_cases[name]
         left_contract, right_contract = _contract(left), _contract(right)
+        left_structural_contract, right_structural_contract =
+            _structural_contract(left_contract), _structural_contract(right_contract)
+        left_mode_projections = _mode_projections(left_contract)
+        right_mode_projections = _mode_projections(right_contract)
+        left_mode_matches = _mode_matches(left_contract)
+        right_mode_matches = _mode_matches(right_contract)
         left_voltage_alignment = _alignment(left_contract, "voltage_coordinate_alignment")
         right_voltage_alignment = _alignment(right_contract, "voltage_coordinate_alignment")
         left_current_alignment = _alignment(left_contract, "current_coordinate_alignment")
@@ -176,13 +216,19 @@ function main()
             "status_changed" => get(left, "status", nothing) != get(right, "status", nothing),
             "baseline_contract" => left_contract,
             "candidate_contract" => right_contract,
-            "contract_changed" => left_contract != right_contract,
+            "contract_changed" => left_structural_contract != right_structural_contract,
             "baseline_voltage_alignment" => left_voltage_alignment,
             "candidate_voltage_alignment" => right_voltage_alignment,
             "voltage_alignment_changed" => left_voltage_alignment != right_voltage_alignment,
             "baseline_current_alignment" => left_current_alignment,
             "candidate_current_alignment" => right_current_alignment,
             "current_alignment_changed" => left_current_alignment != right_current_alignment,
+            "baseline_mode_projections" => left_mode_projections,
+            "candidate_mode_projections" => right_mode_projections,
+            "mode_projection_status_changed" => left_mode_projections["status_counts"] != right_mode_projections["status_counts"],
+            "baseline_mode_matches" => left_mode_matches,
+            "candidate_mode_matches" => right_mode_matches,
+            "mode_match_status_changed" => left_mode_matches["status_counts"] != right_mode_matches["status_counts"],
             "baseline_port_map_alignment_status" => port_map_status,
             "candidate_port_map_alignment_status" => candidate_port_map_status,
             "port_map_alignment_changed" => port_map_status != candidate_port_map_status,
@@ -219,6 +265,12 @@ function main()
     alignment_available = count(row -> row["alignment_status"] == "aligned", paired)
     port_map_complete = count(row -> row["baseline_port_map_alignment_status"] == "port_maps_complete" &&
         row["candidate_port_map_alignment_status"] == "port_maps_complete", paired)
+    mode_projection_available = count(row -> row["baseline_mode_projections"]["mode_count"] > 0 &&
+        row["candidate_mode_projections"]["mode_count"] > 0, paired)
+    mode_projection_status_changes = count(row -> row["mode_projection_status_changed"], paired)
+    mode_match_available = count(row -> row["baseline_mode_matches"]["mode_count"] > 0 &&
+        row["candidate_mode_matches"]["mode_count"] > 0, paired)
+    mode_match_status_changes = count(row -> row["mode_match_status_changed"], paired)
     findings = Any[]
     isempty(missing_baseline) && isempty(missing_candidate) || push!(findings, Dict(
         "code" => "multiconductor_point_case_coverage_mismatch", "severity" => "warning",
@@ -283,6 +335,12 @@ function main()
         "aligned_case_count" => alignment_available,
         "port_map_alignment_pair_complete" => port_map_complete == dense_overlap && dense_overlap > 0,
         "port_map_complete_case_count" => port_map_complete,
+        "mode_projection_pair_available" => mode_projection_available == dense_overlap && dense_overlap > 0,
+        "mode_projection_available_case_count" => mode_projection_available,
+        "mode_projection_status_change_count" => mode_projection_status_changes,
+        "mode_match_pair_available" => mode_match_available == dense_overlap && dense_overlap > 0,
+        "mode_match_available_case_count" => mode_match_available,
+        "mode_match_status_change_count" => mode_match_status_changes,
         "ambiguous_rank_change_count" => ambiguous_rank_changes,
     )
     payload = Dict{String,Any}(

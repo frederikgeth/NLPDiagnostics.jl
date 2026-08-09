@@ -1353,6 +1353,24 @@ preserve this interpretation boundary. The next implementation step is a
 per-port alignment-coverage report that identifies missing and partial
 terminal maps for targeted BMOPFTools metadata restoration.
 
+Per-component mode projections are now serialized and compared. All five
+fixtures expose paired projection records; the declared source common-mode
+directions are visible in model coordinates, with no hidden or unrepresented
+projection in this corpus, and visibility is stable across BMOPF-start and
+zero points. These remain candidate directions rather than observed
+nullspaces: the numerical comparison still has coordinate-alignment
+boundaries. The next step is matching visible candidates against observed
+Jacobian null vectors with explicit component and variable support evidence.
+
+The first candidate-to-Jacobian match checkpoint is complete. All five
+fixtures have paired, point-stable match records. No candidate is currently
+classified as observed: 12 modes are outside the free-coordinate Jacobian
+scope, and the wye-delta transformer has two additional visible delta modes
+classified as locally not observed (residuals near 0.577). The result is kept
+as semantic evidence rather than a physical failure. The next step is a
+controlled free-coordinate projection policy that preserves fixed components
+instead of silently discarding them.
+
 The per-port alignment report is now retained in each multiconductor contract.
 The dense checkpoint had complete voltage and current terminal maps on all five
 fixtures, with no missing, dimension-mismatched, or nonfinite maps. The

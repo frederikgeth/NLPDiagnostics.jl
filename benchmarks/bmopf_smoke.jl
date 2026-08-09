@@ -108,6 +108,85 @@ function _optional_positive_integer(name::AbstractString; default = 0)
     return iszero(value) ? nothing : value
 end
 
+function _expected_mode_free_coordinate_policy()
+    raw = lowercase(strip(get(
+        ENV,
+        "NLPDIAGNOSTICS_BMOPF_EXPECTED_MODE_FREE_COORDINATE_POLICY",
+        "project_free",
+    )))
+    raw in ("strict", "project_free", "project") || error(
+        "NLPDIAGNOSTICS_BMOPF_EXPECTED_MODE_FREE_COORDINATE_POLICY must be strict or project_free",
+    )
+    return raw == "strict" ? :strict : :project_free
+end
+
+_as_dict(value) = value isa AbstractDict ?
+    Dict{String,Any}(String(k) => v for (k, v) in value) : Dict{String,Any}()
+
+function _physical_mode_projection_matches(analysis_data, projection_data)
+    projections = _as_dict(projection_data)
+    projection_rows = [_as_dict(row) for row in get(projections, "rows", Any[])]
+    by_expected_name = Dict{String,Dict{String,Any}}(
+        String(get(row, "expected_mode_name", "")) => row for row in projection_rows
+        if !isempty(String(get(row, "expected_mode_name", "")))
+    )
+    rows = Dict{String,Any}[]
+    for raw_finding in get(_as_dict(analysis_data), "findings", Any[])
+        finding = _as_dict(raw_finding)
+        code = String(get(finding, "code", ""))
+        code in ("expected_nullspace_mode_observed", "expected_nullspace_mode_not_observed",
+                 "expected_nullspace_mode_unaligned", "expected_nullspace_mode_partial_alignment",
+                 "expected_nullspace_mode_free_projection_observed",
+                 "expected_nullspace_mode_free_projection_not_observed") || continue
+        evidence = get(finding, "evidence", Any[])
+        evidence isa AbstractVector && !isempty(evidence) || continue
+        details = _as_dict(get(_as_dict(first(evidence)), "details", nothing))
+        mode_name = String(get(details, "mode", ""))
+        isempty(mode_name) && continue
+        projection = get(by_expected_name, mode_name, Dict{String,Any}())
+        match_status = code == "expected_nullspace_mode_observed" ? "observed" :
+            code == "expected_nullspace_mode_not_observed" ? "not_observed" :
+            code == "expected_nullspace_mode_free_projection_observed" ? "projected_observed" :
+            code == "expected_nullspace_mode_free_projection_not_observed" ? "projected_not_observed" :
+            code == "expected_nullspace_mode_partial_alignment" ? "partial_alignment" :
+            "outside_free_coordinates"
+        push!(rows, Dict{String,Any}(
+            "expected_mode_name" => mode_name,
+            "component_type" => get(projection, "component_type", nothing),
+            "component_id" => get(projection, "component_id", nothing),
+            "port_id" => get(projection, "port_id", nothing),
+            "mode_name" => get(projection, "mode_name", nothing),
+            "projection_status" => get(projection, "status", "unrepresented"),
+            "jacobian_match_status" => match_status,
+            "aligned_variable_count" => get(details, "aligned_variable_count", nothing),
+            "unaligned_variable_count" => get(details, "unaligned_variable_count", nothing),
+            "aligned_coefficient_fraction" => get(details, "aligned_coefficient_fraction", nothing),
+            "projection_policy" => get(details, "projection_policy", "strict"),
+            "missing_variable_indices" => get(details, "missing_variable_indices", ""),
+            "nonfree_variable_indices" => get(details, "nonfree_variable_indices", ""),
+            "projection_residual" => get(details, "projection_residual", nothing),
+            "tolerance" => get(details, "tolerance", nothing),
+            "model_variable_indices" => get(projection, "model_variable_indices", Any[]),
+        ))
+    end
+    status_counts = Dict{String,Int}()
+    for row in rows
+        status = String(row["jacobian_match_status"])
+        status_counts[status] = get(status_counts, status, 0) + 1
+    end
+    Dict{String,Any}(
+        "mode_count" => length(rows),
+        "rows" => rows,
+        "status_counts" => status_counts,
+        "observed_count" => get(status_counts, "observed", 0),
+        "not_observed_count" => get(status_counts, "not_observed", 0),
+        "outside_free_coordinates_count" => get(status_counts, "outside_free_coordinates", 0),
+        "partial_alignment_count" => get(status_counts, "partial_alignment", 0),
+        "projected_observed_count" => get(status_counts, "projected_observed", 0),
+        "projected_not_observed_count" => get(status_counts, "projected_not_observed", 0),
+    )
+end
+
 function _bmopf_integrity_preflight(network)
     findings = BMOPFTools.Finding[]
     result = BMOPFTools.integrity_check(network, findings)
@@ -286,8 +365,72 @@ function _multiconductor_contract_data(context; operating_source = nothing)
             "nonfinite_map_count" => get(status_counts, "nonfinite", 0),
         )
     end
+    function physical_mode_projection_data(ports, modes, maps)
+        port_by_key = Dict((port.component_type, port.component_id, port.port_id) => port for port in ports)
+        map_by_key = Dict((map.component_type, map.component_id, map.port_id) => map for map in maps)
+        rows = Dict{String,Any}[]
+        for mode in modes
+            key = (mode.component_type, mode.component_id, mode.port_id)
+            port = get(port_by_key, key, nothing)
+            map = get(map_by_key, key, nothing)
+            status = "unrepresented"
+            projected_norm = nothing
+            support_count = 0
+            variable_indices = Int[]
+            reason = nothing
+            if mode.space != :terminal
+                reason = "mode_space_has_no_generic_terminal_projection"
+            elseif isnothing(port) || isnothing(map)
+                reason = "missing_port_or_coordinate_map"
+            elseif length(mode.direction) != length(port.terminal_labels) ||
+                   size(map.terminal_to_variable) !=
+                   (length(map.variables), length(port.terminal_labels)) ||
+                   !all(isfinite, map.terminal_to_variable)
+                reason = "coordinate_map_dimension_or_finiteness_mismatch"
+            else
+                projected = map.terminal_to_variable * mode.direction
+                projected_norm = norm(projected)
+                threshold = sqrt(eps(Float64)) * max(1.0, norm(mode.direction))
+                support = findall(value -> abs(value) > threshold, projected)
+                support_count = length(support)
+                variable_indices = [map.variables[index].value for index in support]
+                status = projected_norm > threshold ? "visible" : "hidden"
+                reason = status == "visible" ? "nonzero_model_coordinate_projection" :
+                    "zero_model_coordinate_projection"
+            end
+            push!(rows, Dict{String,Any}(
+                "component_type" => string(mode.component_type),
+                "component_id" => mode.component_id,
+                "port_id" => mode.port_id,
+                "mode_name" => string(something(mode.name, :unnamed)),
+                "expected_mode_name" => "component_port_candidate_mode_$(mode.component_type)_$(mode.component_id)_$(mode.port_id)_$(something(mode.name, :unnamed))",
+                "space" => string(mode.space),
+                "status" => status,
+                "reason" => reason,
+                "projected_norm" => projected_norm,
+                "model_coordinate_support_count" => support_count,
+                "model_variable_indices" => variable_indices,
+            ))
+        end
+        status_counts = Dict{String,Int}()
+        for row in rows
+            status = String(row["status"])
+            status_counts[status] = get(status_counts, status, 0) + 1
+        end
+        Dict{String,Any}(
+            "mode_count" => length(rows),
+            "rows" => rows,
+            "status_counts" => status_counts,
+            "visible_count" => get(status_counts, "visible", 0),
+            "hidden_count" => get(status_counts, "hidden", 0),
+            "unrepresented_count" => get(status_counts, "unrepresented", 0),
+        )
+    end
     voltage_alignment = coordinate_alignment(voltage_ports, voltage_maps)
     current_alignment = coordinate_alignment(current_ports, current_maps)
+    physical_mode_projections = physical_mode_projection_data(
+        voltage_ports, physical_modes, voltage_maps,
+    )
     return Dict{String,Any}(
         "voltage_port_count" => length(voltage_ports),
         "voltage_coordinate_map_count" => length(voltage_maps),
@@ -322,6 +465,7 @@ function _multiconductor_contract_data(context; operating_source = nothing)
         "current_report_finding_count" => length(current_report.findings),
         "current_skipped_count" => parse(Int, current_report.metadata[:bmopf_terminal_current_port_skipped_count]),
         "physical_mode_count" => length(physical_modes),
+        "physical_mode_projections" => physical_mode_projections,
         "physical_mode_finding_count" => length(physical_mode_report.findings),
         "physical_mode_categories" => sort!(collect(Set(string(item.category) for item in
                                                          NLPDiagnostics.bmopf_terminal_port_nullspace_mode_semantics(context)))),
@@ -369,6 +513,7 @@ function main()
         "NLPDIAGNOSTICS_BMOPF_ITERATIVE_RIGHT_PROBE_ITERATIONS";
         default = 50,
     ), 50)
+    expected_mode_free_coordinate_policy = _expected_mode_free_coordinate_policy()
     environment = _benchmark_environment()
     environment_fingerprint = _benchmark_environment_fingerprint(environment)
 
@@ -389,6 +534,8 @@ function main()
                     include_initialization = true,
                     rank_max_dense_entries = dense_entry_limit,
                     jacobian_rank_tolerance_sweep_max_dense_entries = dense_entry_limit,
+                    expected_mode_free_coordinate_policy =
+                        expected_mode_free_coordinate_policy,
                     iterative_right_nullspace_probe_dimension = iterative_probe_dimension,
                     iterative_right_nullspace_probe_iterations = iterative_probe_iterations,
                 ),
@@ -409,6 +556,8 @@ function main()
                     point = evaluation.point,
                     include_port_physical_modes = true,
                     check_degeneracy = true,
+                    expected_mode_free_coordinate_policy =
+                        expected_mode_free_coordinate_policy,
                     jacobian_rank_tolerance_sweep_tolerances = [sqrt(eps(Float64))],
                     jacobian_rank_tolerance_sweep_max_dense_entries = dense_entry_limit,
                 )
@@ -420,6 +569,10 @@ function main()
             end
             physical_mode_analysis_data = NLPDiagnostics.report_data(
                 physical_mode_analysis,
+            )
+            physical_mode_projection_matches = _physical_mode_projection_matches(
+                physical_mode_analysis_data,
+                get(multiconductor_contract, "physical_mode_projections", Dict{String,Any}()),
             )
             generic_findings = sum(length(report["findings"]) for
                 report in values(data["profile"]["reports"]))
@@ -438,9 +591,12 @@ function main()
                 "rank_max_dense_entries" => dense_entry_limit,
                 "iterative_right_nullspace_probe_dimension" => iterative_probe_dimension,
                 "iterative_right_nullspace_probe_iterations" => iterative_probe_iterations,
+                "expected_mode_free_coordinate_policy" =>
+                    expected_mode_free_coordinate_policy,
                 "dense_rank_analysis_eligible" => jacobian_entries <= dense_entry_limit,
                 "multiconductor_contract" => multiconductor_contract,
                 "physical_mode_analysis" => physical_mode_analysis_data,
+                "physical_mode_projection_matches" => physical_mode_projection_matches,
                 "build_seconds" => run.build_seconds,
                 "build_allocations" => run.build_allocations,
                 "kcl_seconds" => run.kcl_seconds,
@@ -495,6 +651,8 @@ function main()
         "environment_fingerprint" => environment_fingerprint,
         "point_policy" => point_policy,
         "rank_max_dense_entries" => dense_entry_limit,
+        "expected_mode_free_coordinate_policy" =>
+            expected_mode_free_coordinate_policy,
         "cases" => index,
     )))
     println("wrote evidence records to $output_dir")

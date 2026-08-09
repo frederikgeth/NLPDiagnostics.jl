@@ -4801,6 +4801,7 @@ function analyze(
     iteration_condition_persistence_max_dense_entries::Integer = 4_000_000,
     iteration_condition_persistence_change_factor_threshold::Real = 100,
     expected_modes::Union{Nothing,AbstractVector{<:ExpectedNullspaceMode}} = nothing,
+    expected_mode_free_coordinate_policy::Symbol = :strict,
     degeneracy_nullspace_support_relative::Real = 0.1,
     degeneracy_nullspace_uniform_shift_correlation::Real = 0.98,
     degeneracy_nullspace_max_compact_support::Integer = 8,
@@ -5153,6 +5154,8 @@ function analyze(
                 nullspace_support_relative = degeneracy_nullspace_support_relative,
                 nullspace_uniform_shift_correlation = degeneracy_nullspace_uniform_shift_correlation,
                 nullspace_max_compact_support = degeneracy_nullspace_max_compact_support,
+                expected_mode_free_coordinate_policy =
+                    expected_mode_free_coordinate_policy,
             )
             # `analyze_degeneracy` projects declared port modes itself. Keep
             # caller-declared modes separate here so a port candidate is

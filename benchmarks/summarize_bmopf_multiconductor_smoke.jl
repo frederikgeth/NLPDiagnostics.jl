@@ -106,7 +106,8 @@ function _contract_view(contract)
                 "controller_curve_statuses")
         haskey(contract, key) && (result[key] = contract[key])
     end
-    for key in ("voltage_coordinate_alignment", "current_coordinate_alignment")
+    for key in ("voltage_coordinate_alignment", "current_coordinate_alignment",
+                "physical_mode_projections")
         haskey(contract, key) && (result[key] = contract[key])
     end
     finding_count = 0
@@ -144,6 +145,11 @@ function _case_record(root, entry)
     source_warning_impacts = String[_schema_warning_impact(field) for field in source_warning_fields]
     source_warning_policies = Dict{String,Any}[_schema_warning_policy(field) for field in source_warning_fields]
     contract = _contract_view(get(record, "multiconductor_contract", nothing))
+    physical_mode_projection_matches = _as_dict(
+        get(record, "physical_mode_projection_matches", nothing),
+    )
+    !isempty(physical_mode_projection_matches) &&
+        (contract["physical_mode_projection_matches"] = physical_mode_projection_matches)
     mode_analysis = _as_dict(get(record, "physical_mode_analysis", nothing))
     mode_metadata = _as_dict(get(mode_analysis, "metadata", nothing))
     mode_codes = _as_dict(get(mode_analysis, "finding_code_counts", nothing))
@@ -290,6 +296,17 @@ function main()
     iterative_probe_unavailable_count = 0
     iterative_probe_no_small_residual_count = 0
     mode_status_counts = Dict{String,Int}()
+    mode_projection_cases = 0
+    mode_projection_visible_count = 0
+    mode_projection_hidden_count = 0
+    mode_projection_unrepresented_count = 0
+    mode_match_cases = 0
+    mode_match_observed_count = 0
+    mode_match_not_observed_count = 0
+    mode_match_outside_free_count = 0
+    mode_match_partial_count = 0
+    mode_match_projected_observed_count = 0
+    mode_match_projected_not_observed_count = 0
     for case in cases
         status = String(get(case, "status", "unknown"))
         status_counts[status] = get(status_counts, status, 0) + 1
@@ -349,6 +366,23 @@ function main()
         contract = _as_dict(get(case, "multiconductor_contract", nothing))
         !isempty(contract) && (contract_available += 1)
         physical_mode_count += _int(get(contract, "physical_mode_count", 0))
+        mode_projection = _as_dict(get(contract, "physical_mode_projections", nothing))
+        if _int(get(mode_projection, "mode_count", 0)) > 0
+            mode_projection_cases += 1
+            mode_projection_visible_count += _int(get(mode_projection, "visible_count", 0))
+            mode_projection_hidden_count += _int(get(mode_projection, "hidden_count", 0))
+            mode_projection_unrepresented_count += _int(get(mode_projection, "unrepresented_count", 0))
+        end
+        mode_matches = _as_dict(get(contract, "physical_mode_projection_matches", nothing))
+        if _int(get(mode_matches, "mode_count", 0)) > 0
+            mode_match_cases += 1
+            mode_match_observed_count += _int(get(mode_matches, "observed_count", 0))
+            mode_match_not_observed_count += _int(get(mode_matches, "not_observed_count", 0))
+            mode_match_outside_free_count += _int(get(mode_matches, "outside_free_coordinates_count", 0))
+            mode_match_partial_count += _int(get(mode_matches, "partial_alignment_count", 0))
+            mode_match_projected_observed_count += _int(get(mode_matches, "projected_observed_count", 0))
+            mode_match_projected_not_observed_count += _int(get(mode_matches, "projected_not_observed_count", 0))
+        end
         contract_finding_count += _int(get(contract, "contract_finding_count", 0))
         comparison = _as_dict(get(case, "physical_mode_comparison", nothing))
         if !isempty(comparison)
@@ -436,6 +470,14 @@ function main()
                            "mode_analysis_case_count" => mode_analysis_cases),
         "suggested_action" => "Run the BMOPF physical-mode analysis for every selected fixture before comparing nullspace semantics.",
     ))
+    mode_projection_cases < successful && push!(findings, Dict(
+        "code" => "multiconductor_mode_projection_unavailable",
+        "severity" => "warning",
+        "observation" => "Per-component physical-mode projection evidence is unavailable for one or more successful fixtures.",
+        "evidence" => Dict("successful_case_count" => successful,
+                           "mode_projection_case_count" => mode_projection_cases),
+        "suggested_action" => "Retain the mode as unrepresented until its terminal-to-model projection is explicitly declared.",
+    ))
     mode_analysis_cases > mode_rank_available_cases && push!(findings, Dict(
         "code" => "multiconductor_expected_mode_rank_unavailable",
         "severity" => "warning",
@@ -500,6 +542,19 @@ function main()
             "physical_mode_count" => physical_mode_count,
             "contract_finding_count" => contract_finding_count,
             "physical_mode_analysis_case_count" => mode_analysis_cases,
+            "physical_mode_projection_case_count" => mode_projection_cases,
+            "physical_mode_projection_visible_count" => mode_projection_visible_count,
+            "physical_mode_projection_hidden_count" => mode_projection_hidden_count,
+            "physical_mode_projection_unrepresented_count" => mode_projection_unrepresented_count,
+            "physical_mode_match_case_count" => mode_match_cases,
+            "physical_mode_match_observed_count" => mode_match_observed_count,
+            "physical_mode_match_not_observed_count" => mode_match_not_observed_count,
+            "physical_mode_match_outside_free_coordinate_count" => mode_match_outside_free_count,
+            "physical_mode_match_partial_alignment_count" => mode_match_partial_count,
+            "physical_mode_match_projected_observed_count" =>
+                mode_match_projected_observed_count,
+            "physical_mode_match_projected_not_observed_count" =>
+                mode_match_projected_not_observed_count,
             "physical_mode_rank_available_case_count" => mode_rank_available_cases,
             "expected_physical_mode_count" => expected_mode_count,
             "observed_physical_mode_count" => observed_mode_count,
@@ -523,6 +578,12 @@ function main()
             "physical_metadata_complete" => physical_metadata_warning_count == 0,
             "physical_mode_observations_available" => physical_mode_count > 0,
             "physical_mode_analysis_available" => successful > 0 && mode_analysis_cases == successful,
+            "mode_projection_observations_available" => successful > 0 &&
+                mode_projection_cases == successful,
+            "mode_jacobian_match_observations_available" => successful > 0 &&
+                mode_match_cases == successful,
+            "mode_free_coordinate_projection_policy" => get(index,
+                "expected_mode_free_coordinate_policy", "unknown"),
             "dense_physical_mode_rank_complete" => successful > 0 &&
                 mode_analysis_cases == successful && mode_rank_available_cases == successful,
             "expected_observed_mode_comparison" => successful > 0 &&

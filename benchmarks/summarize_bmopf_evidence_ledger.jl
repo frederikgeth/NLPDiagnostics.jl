@@ -338,6 +338,34 @@ function _append_multiconductor_point_evidence!(records, report, path)
             "At least one port, mode, or probe observation changed across the paired point policies.",
         evidence = Dict("readiness" => readiness, "contract_change_count" => contract_changes,
             "mode_status_change_count" => mode_changes, "probe_convergence_change_count" => probe_changes))
+    projection_pairs = count(item -> begin
+        row = _dict(item)
+        _int(get(_dict(get(row, "baseline_mode_projections", nothing)), "mode_count", 0)) > 0 &&
+        _int(get(_dict(get(row, "candidate_mode_projections", nothing)), "mode_count", 0)) > 0
+    end, comparisons)
+    projection_changes = count(item -> get(_dict(item), "mode_projection_status_changed", false), comparisons)
+    projection_pairs > 0 && _append_evidence_record!(records, report, path,
+        "multiconductor_point_mode_projection_visibility|$(get(report, "baseline_point_policy", "unknown"))|$(get(report, "candidate_point_policy", "unknown"))",
+        "multiconductor_point_mode_projection_visibility", "mode_coordinate_projection";
+        confidence = "structural",
+        domain = "physical_interpretation_boundary",
+        observation = "Per-component physical-mode projections were available for the paired point comparison.",
+        evidence = Dict("projection_pair_count" => projection_pairs,
+            "projection_status_change_count" => projection_changes))
+    match_pairs = count(item -> begin
+        row = _dict(item)
+        _int(get(_dict(get(row, "baseline_mode_matches", nothing)), "mode_count", 0)) > 0 &&
+        _int(get(_dict(get(row, "candidate_mode_matches", nothing)), "mode_count", 0)) > 0
+    end, comparisons)
+    match_changes = count(item -> get(_dict(item), "mode_match_status_changed", false), comparisons)
+    match_pairs > 0 && _append_evidence_record!(records, report, path,
+        "multiconductor_point_mode_jacobian_match|$(get(report, "baseline_point_policy", "unknown"))|$(get(report, "candidate_point_policy", "unknown"))",
+        "multiconductor_point_mode_jacobian_match", "mode_jacobian_comparison";
+        confidence = "local",
+        domain = "physical_interpretation_boundary",
+        observation = "Visible component-mode candidates were compared with local observed-Jacobian nullspace evidence.",
+        evidence = Dict("match_pair_count" => match_pairs,
+            "match_status_change_count" => match_changes))
     voltage_alignment_changes = count(item -> get(_dict(item), "voltage_alignment_changed", false), comparisons)
     current_alignment_changes = count(item -> get(_dict(item), "current_alignment_changed", false), comparisons)
     voltage_alignment_missing = sum(

@@ -1416,6 +1416,11 @@ end
     @test occursin("voltage_alignment_changed", point_comparison)
     @test occursin("current_alignment_changed", point_comparison)
     @test occursin("port_map_alignment_pair_complete", point_comparison)
+    @test occursin("mode_projection_pair_available", point_comparison)
+    @test occursin("mode_match_pair_available", point_comparison)
+    @test occursin("physical_mode_projections", read(
+        joinpath(benchmark_directory, "bmopf_smoke.jl"), String,
+    ))
     @test occursin("multiconductor_point_successful_overlap_empty", read(
         joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
     ))
@@ -1436,6 +1441,11 @@ end
     @test occursin("multiconductor_point_rank_alignment_boundary", ledger)
     @test occursin("multiconductor_point_port_alignment_coverage", ledger)
     @test occursin("multiconductor_point_port_map_alignment_incomplete", ledger)
+    @test occursin("multiconductor_point_mode_projection_visibility", ledger)
+    @test occursin("multiconductor_point_mode_jacobian_match", ledger)
+    @test occursin("multiconductor_mode_jacobian_match_unavailable", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
     @test occursin("record_kind", ledger)
     @test occursin("\"evaluation_points\"", ledger)
     @test occursin("\"basis_counts\"", ledger)
@@ -2536,6 +2546,62 @@ end
     @test length(findings(
         component_mode_report, :component_persistent_expected_mode_not_observed,
     )) == 1
+
+    @testset "expected-mode free-coordinate projection preserves fixed components" begin
+        projected_model = MOIU.Model{Float64}()
+        fixed = MOI.add_variable(projected_model)
+        y_projected = MOI.add_variable(projected_model)
+        z_projected = MOI.add_variable(projected_model)
+        MOI.add_constraint(projected_model, fixed, MOI.EqualTo(0.0))
+        MOI.add_constraint(
+            projected_model,
+            MOI.ScalarAffineFunction(
+                [
+                    MOI.ScalarAffineTerm(1.0, y_projected),
+                    MOI.ScalarAffineTerm(1.0, z_projected),
+                ],
+                0.0,
+            ),
+            MOI.EqualTo(0.0),
+        )
+        projected_evaluation = NLPDiagnostics.evaluate_numerical(
+            projected_model,
+            NLPDiagnostics.evaluation_point(projected_model, [0.0, 0.0, 0.0]),
+        )
+        projected_mode = NLPDiagnostics.ExpectedNullspaceMode(
+            :fixed_plus_free_mode,
+            [fixed, y_projected, z_projected],
+            [1.0, 1.0, -1.0],
+        )
+        strict_projection_report = NLPDiagnostics.analyze_degeneracy(
+            projected_model,
+            projected_evaluation;
+            expected_modes = [projected_mode],
+        )
+        strict_finding = only(findings(
+            strict_projection_report,
+            :expected_nullspace_mode_unaligned,
+        ))
+        @test evidence_details(strict_finding)["nonfree_variable_indices"] ==
+              string(fixed.value)
+        free_projection_report = NLPDiagnostics.analyze_degeneracy(
+            projected_model,
+            projected_evaluation;
+            expected_modes = [projected_mode],
+            expected_mode_free_coordinate_policy = :project_free,
+        )
+        projected_finding = only(findings(
+            free_projection_report,
+            :expected_nullspace_mode_free_projection_observed,
+        ))
+        projected_details = evidence_details(projected_finding)
+        @test projected_details["projection_policy"] == "project_free"
+        @test projected_details["nonfree_variable_indices"] == string(fixed.value)
+        @test projected_details["unaligned_coefficient_norm"] == "1.0"
+        @test free_projection_report.metadata[
+            :expected_mode_free_coordinate_projection_enabled
+        ] == "true"
+    end
 
     stationary_component_model = MOIU.Model{Float64}()
     stationary_variable = MOI.add_variable(stationary_component_model)

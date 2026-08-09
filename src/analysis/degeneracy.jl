@@ -883,11 +883,15 @@ function _expected_nullspace_mode_findings(
     comparison::StructuralNumericalComparison{T},
     modes::AbstractVector{<:ExpectedNullspaceMode};
     residual_tolerance::Real = sqrt(eps(T)),
+    free_coordinate_policy::Symbol = :strict,
 ) where {T<:AbstractFloat}
     comparison.available || return Finding[]
     tolerance = convert(T, residual_tolerance)
     tolerance >= zero(T) ||
         throw(ArgumentError("residual_tolerance must be nonnegative"))
+    free_coordinate_policy in (:strict, :project_free) || throw(ArgumentError(
+        "free_coordinate_policy must be :strict or :project_free",
+    ))
     point_columns = Dict(
         variable => column for
         (column, variable) in enumerate(comparison.point.variables)
@@ -901,27 +905,42 @@ function _expected_nullspace_mode_findings(
     for mode in modes
         direction = zeros(T, length(comparison.free_variable_columns))
         unavailable_variables = Int[]
+        nonfree_variables = Int[]
         aligned_variable_count = 0
         unavailable_coefficient_squared = zero(T)
+        nonfree_coefficient_squared = zero(T)
         aligned_coefficient_squared = zero(T)
         for (variable, coefficient) in zip(mode.variables, mode.direction)
             column = get(point_columns, variable, 0)
             local_column = get(local_columns, column, 0)
-            if iszero(local_column)
+            coefficient_value = convert(T, coefficient)
+            if iszero(column)
                 push!(unavailable_variables, variable.value)
-                unavailable_coefficient_squared += convert(T, coefficient)^2
+                unavailable_coefficient_squared += coefficient_value^2
+            elseif iszero(local_column)
+                push!(nonfree_variables, variable.value)
+                nonfree_coefficient_squared += coefficient_value^2
             else
-                direction[local_column] += convert(T, coefficient)
+                direction[local_column] += coefficient_value
                 aligned_variable_count += 1
-                aligned_coefficient_squared += convert(T, coefficient)^2
+                aligned_coefficient_squared += coefficient_value^2
             end
         end
-        if !isempty(unavailable_variables) || iszero(norm(direction))
-            total_coefficient_norm = sqrt(
-                max(zero(T), aligned_coefficient_squared + unavailable_coefficient_squared),
-            )
-            aligned_fraction = iszero(total_coefficient_norm) ? zero(T) :
-                               sqrt(aligned_coefficient_squared) / total_coefficient_norm
+        total_coefficient_norm = sqrt(max(zero(T), aligned_coefficient_squared +
+                                          nonfree_coefficient_squared +
+                                          unavailable_coefficient_squared))
+        aligned_fraction = iszero(total_coefficient_norm) ? zero(T) :
+                           sqrt(aligned_coefficient_squared) / total_coefficient_norm
+        discarded_variables = vcat(nonfree_variables, unavailable_variables)
+        discarded_coefficient_squared = nonfree_coefficient_squared +
+                                        unavailable_coefficient_squared
+
+        # The strict policy preserves the historical safety gate: every mode
+        # coordinate must be part of the free comparison scope. The explicit
+        # projection policy is allowed to compare only the free component, but
+        # retains every discarded coordinate and coefficient norm in evidence.
+        if (!isempty(discarded_variables) && free_coordinate_policy == :strict) ||
+           iszero(norm(direction))
             if !isempty(unavailable_variables) && !iszero(norm(direction))
                 push!(
                     findings,
@@ -938,9 +957,10 @@ function _expected_nullspace_mode_findings(
                             "aligned_variable_count" => aligned_variable_count,
                             "unaligned_variable_count" => length(unavailable_variables),
                             "unaligned_variable_indices" => join(unavailable_variables, ","),
+                            "nonfree_variable_indices" => join(nonfree_variables, ","),
                             "aligned_coefficient_fraction" => aligned_fraction,
                             "aligned_coefficient_norm" => sqrt(aligned_coefficient_squared),
-                            "unaligned_coefficient_norm" => sqrt(unavailable_coefficient_squared),
+                            "unaligned_coefficient_norm" => sqrt(discarded_coefficient_squared),
                         ])],
                         suggested_actions = [
                             "Inspect the terminal-to-model map and fixed-coordinate declarations before comparing the projected direction.",
@@ -961,10 +981,15 @@ function _expected_nullspace_mode_findings(
                     why_it_matters = "The debugger cannot compare a declared gauge with the observed nullspace unless their variable coordinates agree.",
                     evidence = [Evidence("Expected nullspace alignment"; details = [
                         "mode" => mode.name,
-                        "unaligned_variable_indices" => join(unavailable_variables, ","),
+                        "unaligned_variable_indices" => join(discarded_variables, ","),
+                        "missing_variable_indices" => join(unavailable_variables, ","),
+                        "nonfree_variable_indices" => join(nonfree_variables, ","),
                         "aligned_variable_count" => aligned_variable_count,
-                        "unaligned_variable_count" => length(unavailable_variables),
+                        "unaligned_variable_count" => length(discarded_variables),
                         "aligned_coefficient_fraction" => aligned_fraction,
+                        "aligned_coefficient_norm" => sqrt(aligned_coefficient_squared),
+                        "unaligned_coefficient_norm" => sqrt(discarded_coefficient_squared),
+                        "free_coordinate_policy" => free_coordinate_policy,
                     ])],
                     suggested_actions = [
                         "Declare the mode in free evaluation-point coordinates or provide plugin-specific alignment logic.",
@@ -984,7 +1009,49 @@ function _expected_nullspace_mode_findings(
         affected = EntityRef[
             EntityRef(:variable, variable.value) for variable in mode.variables
         ]
-        if residual <= tolerance
+        projected = !isempty(discarded_variables)
+        projected_code = projected ?
+                         (residual <= tolerance ?
+                          :expected_nullspace_mode_free_projection_observed :
+                          :expected_nullspace_mode_free_projection_not_observed) :
+                         (residual <= tolerance ?
+                          :expected_nullspace_mode_observed :
+                          :expected_nullspace_mode_not_observed)
+        projected_observed = residual <= tolerance
+        if projected
+            push!(
+                findings,
+                Finding(
+                    projected_code;
+                    severity = SeverityInfo,
+                    domain = RepresentationalIssue,
+                    basis = LocalInference,
+                    confidence = ConfidenceMedium,
+                    observation = projected_observed ?
+                                  "The free-coordinate projection of expected nullspace mode :$(mode.name) aligns with the observed local right nullspace." :
+                                  "The free-coordinate projection of expected nullspace mode :$(mode.name) does not align with the observed local right nullspace.",
+                    why_it_matters = "This is a controlled comparison of the represented free component only. Fixed or unavailable components are retained in the evidence and prevent a physical gauge conclusion.",
+                    evidence = [Evidence("Expected-nullspace free-coordinate projection"; details = [
+                        "mode" => mode.name,
+                        "projection_policy" => free_coordinate_policy,
+                        "projection_residual" => residual,
+                        "tolerance" => tolerance,
+                        "aligned_variable_count" => aligned_variable_count,
+                        "unaligned_variable_count" => length(discarded_variables),
+                        "missing_variable_indices" => join(unavailable_variables, ","),
+                        "nonfree_variable_indices" => join(nonfree_variables, ","),
+                        "aligned_coefficient_fraction" => aligned_fraction,
+                        "aligned_coefficient_norm" => sqrt(aligned_coefficient_squared),
+                        "unaligned_coefficient_norm" => sqrt(discarded_coefficient_squared),
+                        "description" => mode.description,
+                    ])],
+                    suggested_actions = projected_observed ?
+                                        ["Retain this as projected local evidence, then repeat with the fixed/reference coordinates released or with a plugin-specific tangent policy."] :
+                                        ["Inspect fixed/reference coordinates and the terminal-to-model convention before changing the physical mode declaration."],
+                    affected = affected,
+                ),
+            )
+        elseif residual <= tolerance
             push!(
                 findings,
                 Finding(
@@ -1150,6 +1217,7 @@ function analyze_degeneracy(
     include_port_topology_modes::Bool = true,
     expected_mode_residual_tolerance::Real =
         sqrt(eps(eltype(evaluation.point.values))),
+    expected_mode_free_coordinate_policy::Symbol = :strict,
     nullspace_support_relative::Real = 0.1,
     nullspace_uniform_shift_correlation::Real = 0.98,
     nullspace_max_compact_support::Integer = 8,
@@ -1175,6 +1243,10 @@ function analyze_degeneracy(
     kwargs...,
 )
     _validate_evaluation_variable_order(model, evaluation)
+    expected_mode_free_coordinate_policy in (:strict, :project_free) ||
+        throw(ArgumentError(
+            "expected_mode_free_coordinate_policy must be :strict or :project_free",
+        ))
     port_modes = include_port_topology_modes ? port_expected_nullspace_modes(
         component_port_metadata(model),
         component_port_nullspace_modes(model),
@@ -1191,6 +1263,10 @@ function analyze_degeneracy(
         max_compact_support = nullspace_max_compact_support,
     )
     report = DiagnosticReport()
+    report.metadata[:expected_mode_free_coordinate_policy] =
+        string(expected_mode_free_coordinate_policy)
+    report.metadata[:expected_mode_free_coordinate_projection_enabled] =
+        string(expected_mode_free_coordinate_policy == :project_free)
     append!(report.findings, _structural_numerical_findings(comparison))
     append!(report.findings, _nullspace_fingerprint_findings(comparison, evaluation, fingerprints))
     append!(report.findings, _unknown_local_degeneracy_findings(comparison, fingerprints))
@@ -1200,6 +1276,7 @@ function analyze_degeneracy(
             comparison,
             all_expected_modes;
             residual_tolerance = expected_mode_residual_tolerance,
+            free_coordinate_policy = expected_mode_free_coordinate_policy,
         ),
     )
     append!(

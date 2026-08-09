@@ -2093,3 +2093,23 @@ boundary is therefore narrower: the port maps are structurally complete, but
 the declared physical-mode semantics are not yet aligned to model coordinates.
 The next major item is to expose those mode-to-coordinate projections per
 component and use them to separate hidden, visible, and unrepresented modes.
+
+Per-component mode projections are now serialized for the dense checkpoint.
+All five fixtures expose paired projection records; the declared source
+common-mode directions are visible in model coordinates (two visible modes for
+the grounded-neutral case), with no hidden or unrepresented projection in
+this corpus. Projection visibility is stable between BMOPF-start and zero
+points. This does not make the modes observed: the numerical comparison still
+reports coordinate-alignment boundaries. The next major item is to compare
+these visible candidate directions against observed Jacobian nullspace vectors,
+preserving component and variable support in the match evidence.
+
+The first candidate-to-Jacobian match checkpoint is now complete. All five
+fixtures have paired match records and stable status across BMOPF-start and
+zero points. No candidate was classified as observed: 12 modes lie outside
+the free-coordinate Jacobian scope, while the wye-delta transformer has two
+additional visible delta modes classified as locally not observed (residuals
+about 0.577). This is a useful semantic result, not a failure: the current
+reference/fixed-coordinate treatment prevents a physical gauge claim. The
+next major item is a controlled free-coordinate projection policy so visible
+candidates can be compared without silently dropping fixed components.

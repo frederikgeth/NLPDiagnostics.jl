@@ -1658,6 +1658,20 @@ function _validate_multiconductor_smoke(path, summary)
             "Expected-versus-observed physical-mode analysis is not available for every successful fixture.",
             Dict("summary_path" => path);
             suggested_action = "Run the physical-mode analysis for every selected fixture before comparing nullspace semantics."))
+    get(readiness, "mode_projection_observations_available", false) === true || push!(findings,
+        _finding("multiconductor_mode_projection_unavailable", "warning",
+            "Per-component physical-mode projection evidence is unavailable for one or more successful fixtures.",
+            Dict("summary_path" => path,
+                 "physical_mode_projection_case_count" => get(get(summary, "aggregate", Dict()), "physical_mode_projection_case_count", 0),
+                 "successful_case_count" => get(get(summary, "aggregate", Dict()), "successful_case_count", 0));
+            suggested_action = "Retain the mode as unrepresented until its terminal-to-model projection is explicitly declared."))
+    get(readiness, "mode_jacobian_match_observations_available", false) === true || push!(findings,
+        _finding("multiconductor_mode_jacobian_match_unavailable", "warning",
+            "Per-component physical-mode versus observed-Jacobian match evidence is unavailable for one or more successful fixtures.",
+            Dict("summary_path" => path,
+                 "physical_mode_match_case_count" => get(get(summary, "aggregate", Dict()), "physical_mode_match_case_count", 0),
+                 "successful_case_count" => get(get(summary, "aggregate", Dict()), "successful_case_count", 0));
+            suggested_action = "Retain visible modes as candidates until their local Jacobian comparison is serialized."))
     get(readiness, "expected_observed_mode_comparison", false) === true || push!(findings,
         _finding("multiconductor_expected_mode_comparison_unavailable", "warning",
             "The multiconductor campaign does not have complete coordinate-aligned local numerical evidence for its declared physical modes.",
@@ -1802,6 +1816,21 @@ function _validate_multiconductor_point_comparison(path, summary)
                  "dense_rank_pair_available" => dense_overlap,
                  "port_map_complete_case_count" => get(readiness, "port_map_complete_case_count", 0));
             suggested_action = "Restore or explicitly map missing terminal coordinates before interpreting point-local rank changes."
+    ))
+    dense_overlap > 0 && get(readiness, "mode_projection_pair_available", false) !== true && push!(findings,
+        _finding("multiconductor_point_mode_projection_unavailable", "warning",
+            "The paired dense point comparison lacks per-component physical-mode projection evidence.",
+            Dict("summary_path" => path,
+                 "dense_rank_pair_available" => dense_overlap,
+                 "mode_projection_available_case_count" => get(readiness, "mode_projection_available_case_count", 0));
+            suggested_action = "Declare and serialize per-component terminal-mode projections before interpreting rank changes."))
+    dense_overlap > 0 && get(readiness, "mode_match_pair_available", false) !== true && push!(findings,
+        _finding("multiconductor_point_mode_jacobian_match_unavailable", "warning",
+            "The paired dense point comparison lacks per-component mode-to-Jacobian match evidence.",
+            Dict("summary_path" => path,
+                 "dense_rank_pair_available" => dense_overlap,
+                 "mode_match_available_case_count" => get(readiness, "mode_match_available_case_count", 0));
+            suggested_action = "Serialize the local expected-mode comparison before interpreting candidate visibility as an observed gauge."
     ))
     return Dict{String,Any}(
         "summary_path" => path, "paired_case_count" => paired,

@@ -373,6 +373,7 @@ function profile_case(
     jacobian_rank_tolerance_sweep_tolerances::Union{Nothing,AbstractVector{<:Real}} = nothing,
     jacobian_rank_tolerance_sweep_scaling::Symbol = :none,
     jacobian_rank_tolerance_sweep_max_dense_entries::Integer = 4_000_000,
+    expected_mode_free_coordinate_policy::Symbol = :strict,
 ) where {T<:AbstractFloat}
     hits_before = cache.hits
     misses_before = cache.misses
@@ -574,6 +575,8 @@ function profile_case(
         evaluation;
         relative_tolerance = rank_relative_tolerance,
         max_dense_entries = rank_max_dense_entries,
+        expected_mode_free_coordinate_policy =
+            expected_mode_free_coordinate_policy,
     ))
 
     _apply_point_provenance_guard!(numerical_report, case.point)
