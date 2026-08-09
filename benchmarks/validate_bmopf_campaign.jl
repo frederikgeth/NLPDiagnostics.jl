@@ -635,6 +635,33 @@ function _validate_solver_trace(path, summary)
              "successful_cases_missing_solver_result_trust_metadata" => missing_result_trust);
         suggested_action = "Regenerate the trace campaign with the current serializer, and do not use older or incomplete result records for physical or cross-case claims."
     ))
+    endpoint_conditioned_cases = Any[]
+    for raw_case in get(summary, "cases", Any[])
+        raw_case isa AbstractDict || continue
+        termination = lowercase(String(get(raw_case, "termination", "")))
+        termination in ("iteration_limit", "time_limit", "resource_limit",
+                        "restoration_failed") || continue
+        semantic_codes = Dict{String,Any}()
+        merge!(semantic_codes, _dict(get(raw_case,
+            "bmopf_profile_finding_codes", nothing)))
+        merge!(semantic_codes, _dict(get(raw_case,
+            "bmopf_context_finding_codes", nothing)))
+        isempty(semantic_codes) && continue
+        push!(endpoint_conditioned_cases, Dict(
+            "snapshot" => get(raw_case, "snapshot", get(raw_case, "name", nothing)),
+            "termination" => termination,
+            "status" => get(raw_case, "status", nothing),
+            "finding_codes" => semantic_codes,
+        ))
+    end
+    !isempty(endpoint_conditioned_cases) && push!(findings, _finding(
+        "solver_trace_endpoint_conditioned_semantics", "info",
+        "Semantic findings were evaluated at solver endpoints that did not reach a successful termination.",
+        Dict("summary_path" => path,
+             "endpoint_conditioned_case_count" => length(endpoint_conditioned_cases),
+             "cases" => endpoint_conditioned_cases);
+        suggested_action = "Repeat the policy with a sufficient iteration/time budget or compare it with a trusted saved point before assigning formulation meaning."
+    ))
     nonfinite_iterate_bindings > 0 && push!(findings, _finding(
         "trusted_solver_iterate_nonfinite", "error",
         "The solver trace contains callback points with non-finite coordinates.",
@@ -859,6 +886,7 @@ function _validate_solver_trace(path, summary)
             "controller_curve_trace_observations" => observation_count > 0,
             "controller_curve_trace_finite_observations" => observation_count > 0 && nonfinite == 0,
             "trusted_solver_result_point_coverage" => trusted_result_ready,
+            "solver_semantics_endpoint_trust" => isempty(endpoint_conditioned_cases),
             "trusted_solver_iterate_observations" => trusted_iterate_bindings > 0,
             "trusted_solver_iterate_finite" => nonfinite_iterate_bindings == 0,
             "source_snapshot_coverage" => source_snapshot_ready,
@@ -1586,6 +1614,14 @@ function _validate_multiconductor_smoke(path, summary)
             "The multiconductor smoke summary does not record an explicit dense-analysis budget.",
             Dict("summary_path" => path);
             suggested_action = "Record the dense rank budget before comparing fixture-level numerical evidence."))
+    dense_budget = _int(get(summary, "rank_max_dense_entries", 0))
+    dense_budget > 0 && get(readiness, "dense_physical_mode_rank_complete", false) !== true && push!(findings,
+        _finding("multiconductor_smoke_dense_mode_rank_incomplete", "warning",
+            "A positive dense budget was requested, but dense physical-mode rank evidence is incomplete across the successful fixtures.",
+            Dict("summary_path" => path, "rank_max_dense_entries" => dense_budget,
+                 "physical_mode_rank_available_case_count" => get(get(summary, "aggregate", Dict()), "physical_mode_rank_available_case_count", 0),
+                 "successful_case_count" => get(get(summary, "aggregate", Dict()), "successful_case_count", 0));
+            suggested_action = "Restrict the dense checkpoint to fixtures within budget, or retain the campaign as sparse-only evidence."))
     get(readiness, "source_fixtures_preserved", false) === true || push!(findings,
         _finding("multiconductor_source_snapshot_missing", "warning",
             "The campaign does not preserve every source fixture for follow-up schema mapping.",
@@ -1699,6 +1735,77 @@ function _validate_multiconductor_probe_comparison(path, summary)
         "paired_case_count" => paired,
         "readiness" => readiness,
         "findings" => findings,
+    )
+end
+
+function _validate_multiconductor_point_comparison(path, summary)
+    findings = Any[]
+    readiness = get(summary, "readiness", Dict())
+    readiness isa AbstractDict || (readiness = Dict())
+    paired = _int(get(summary, "paired_case_count", 0))
+    paired == 0 && push!(findings, _finding(
+        "multiconductor_point_comparison_empty", "warning",
+        "The point-policy comparison contains no paired fixtures.",
+        Dict("summary_path" => path);
+        suggested_action = "Compare summaries with explicit common fixture names."
+    ))
+    get(readiness, "paired_case_coverage", false) === true || push!(findings, _finding(
+        "multiconductor_point_case_coverage_mismatch", "warning",
+        "The point-policy comparison does not cover the same fixture set on both sides.",
+        Dict("summary_path" => path);
+        suggested_action = "Treat only explicitly paired fixtures as comparable."
+    ))
+    get(readiness, "environment_compatible", false) === true || push!(findings, _finding(
+        "multiconductor_point_environment_mismatch", "warning",
+        "The point-policy summaries have incompatible environment fingerprints.",
+        Dict("summary_path" => path);
+        suggested_action = "Align Julia, BMOPFTools, PowerIO, and fixture environments first."
+    ))
+    get(readiness, "distinct_point_policies", false) === true || push!(findings, _finding(
+        "multiconductor_point_policy_not_distinct", "warning",
+        "The point-policy comparison uses the same policy on both sides.",
+        Dict("summary_path" => path);
+        suggested_action = "Select distinct evaluation-point policies."
+    ))
+    overlap = _int(get(readiness, "successful_case_overlap", 0))
+    overlap == 0 && push!(findings, _finding(
+        "multiconductor_point_successful_overlap_empty", "warning",
+        "No fixture was successful at both evaluation points.",
+        Dict("summary_path" => path, "paired_case_count" => paired);
+        suggested_action = "Use an explicit completion or synthetic policy before interpreting point-local changes."
+    ))
+    dense_budget = max(
+        _int(get(readiness, "baseline_dense_budget", 0)),
+        _int(get(readiness, "candidate_dense_budget", 0)),
+    )
+    dense_overlap = _int(get(readiness, "dense_rank_pair_available", 0))
+    dense_budget > 0 && dense_overlap == 0 && push!(findings, _finding(
+        "multiconductor_point_dense_rank_overlap_empty", "warning",
+        "A dense-rank budget was requested, but no paired fixture has dense rank evidence at both points.",
+        Dict("summary_path" => path, "dense_budget" => dense_budget,
+             "dense_rank_pair_available" => dense_overlap);
+        suggested_action = "Restrict dense checkpoints to small fixtures and preserve dense-rank availability on both sides."
+    ))
+    ambiguous_rank_changes = _int(get(readiness, "ambiguous_rank_change_count", 0))
+    ambiguous_rank_changes > 0 && push!(findings, _finding(
+        "multiconductor_point_rank_alignment_ambiguous", "warning",
+        "Dense rank changed for paired fixtures whose declared physical modes are not coordinate-aligned; terminal port maps may still be complete.",
+        Dict("summary_path" => path,
+             "ambiguous_rank_change_count" => ambiguous_rank_changes,
+             "alignment_blocked_case_count" => get(readiness, "alignment_blocked_case_count", 0));
+        suggested_action = "Inspect terminal-to-model coordinate maps and source metadata before interpreting the rank change as a physical or formulation defect."
+    ))
+    dense_overlap > 0 && get(readiness, "port_map_alignment_pair_complete", false) !== true && push!(findings,
+        _finding("multiconductor_point_port_map_alignment_incomplete", "warning",
+            "The paired dense point comparison does not have complete terminal-port coordinate-map coverage on both sides.",
+            Dict("summary_path" => path,
+                 "dense_rank_pair_available" => dense_overlap,
+                 "port_map_complete_case_count" => get(readiness, "port_map_complete_case_count", 0));
+            suggested_action = "Restore or explicitly map missing terminal coordinates before interpreting point-local rank changes."
+    ))
+    return Dict{String,Any}(
+        "summary_path" => path, "paired_case_count" => paired,
+        "readiness" => readiness, "findings" => findings,
     )
 end
 
@@ -1921,6 +2028,108 @@ function _validate_evidence_ledger_comparison(path, comparison)
     )
 end
 
+function _validate_solver_repeat_summary(path, summary)
+    findings = Any[]
+    configurations = get(summary, "configurations", Any[])
+    comparisons = get(summary, "comparisons", Any[])
+    isempty(configurations) && push!(findings, _finding(
+        "solver_repeat_configuration_empty", "warning",
+        "The solver-repeat summary contains no configuration observations.",
+        Dict("summary_path" => path);
+        suggested_action = "Provide completed solver-trace summaries for each policy."
+    ))
+    configuration_row_scale_ready = true
+    configuration_row_scale_repeatable = true
+    for raw_configuration in configurations
+        raw_configuration isa AbstractDict || continue
+        label = String(get(raw_configuration, "label", "unknown"))
+        for raw_case in get(raw_configuration, "cases", Any[])
+            raw_case isa AbstractDict || continue
+            recurrence = get(raw_case, "recurrence", Dict())
+            recurrence isa AbstractDict || (recurrence = Dict())
+            available = get(recurrence, "row_family_scale_available", false) === true
+            stable = get(recurrence, "row_family_scale_ratio_stable", false) === true
+            configuration_row_scale_ready &= available
+            configuration_row_scale_repeatable &= available && stable
+            !available && push!(findings, _finding(
+                "solver_repeat_row_family_scale_unavailable", "warning",
+                "A repeated solver configuration has no row-family scale attribution.",
+                Dict("summary_path" => path, "configuration" => label,
+                     "case" => get(raw_case, "name", "unknown"));
+                suggested_action = "Rerun the numerical stage with the compact BMOPF attribution enabled."
+            ))
+            available && !stable && push!(findings, _finding(
+                "solver_repeat_row_family_scale_not_stable", "warning",
+                "Row-family scale ratios differ across repeats for a configuration/case.",
+                Dict("summary_path" => path, "configuration" => label,
+                     "case" => get(raw_case, "name", "unknown"));
+                suggested_action = "Inspect endpoint, environment, and solver trace provenance before interpreting policy effects."
+            ))
+        end
+    end
+    paired_row_scale_ready = true
+    paired_row_scale_repeatable = true
+    semantic_changes = 0
+    numerical_readiness_changes = 0
+    for raw_comparison in comparisons
+        raw_comparison isa AbstractDict || continue
+        candidate = String(get(raw_comparison, "candidate_label", "unknown"))
+        comparison = get(raw_comparison, "summary", Dict())
+        comparison isa AbstractDict || (comparison = Dict())
+        paired = _int(get(comparison, "paired_replicate_count", 0))
+        paired > 0 || push!(findings, _finding(
+            "solver_repeat_paired_observations_empty", "warning",
+            "A solver-policy comparison has no paired repeat observations.",
+            Dict("summary_path" => path, "candidate" => candidate);
+            suggested_action = "Use manifests with the same configuration labels in each repeat."
+        ))
+        row_range = get(comparison, "row_family_scale_ratio_delta_range", Dict())
+        row_range isa AbstractDict || (row_range = Dict())
+        row_available = get(row_range, "available", false) === true
+        row_stable = get(comparison, "row_family_scale_ratio_delta_stable", false) === true
+        paired_row_scale_ready &= row_available
+        paired_row_scale_repeatable &= row_available && row_stable
+        !row_available && paired > 0 && push!(findings, _finding(
+            "solver_repeat_row_family_delta_unavailable", "warning",
+            "A paired solver-policy comparison has no row-family scale delta evidence.",
+            Dict("summary_path" => path, "candidate" => candidate);
+            suggested_action = "Retain the row-family attribution envelope in each numerical-stage summary."
+        ))
+        row_available && !row_stable && push!(findings, _finding(
+            "solver_repeat_row_family_delta_not_stable", "warning",
+            "A paired row-family scale delta is not stable across repeats.",
+            Dict("summary_path" => path, "candidate" => candidate);
+            suggested_action = "Treat the policy delta as provisional and inspect endpoint reproducibility."
+        ))
+        semantic_changes += _int(get(comparison, "semantic_finding_change_count", 0))
+        numerical_readiness_changes += _int(get(comparison, "numerical_readiness_change_count", 0))
+    end
+    semantic_changes > 0 && push!(findings, _finding(
+        "solver_repeat_semantic_finding_changes", "warning",
+        "Repeated solver-policy comparisons changed semantic finding codes.",
+        Dict("summary_path" => path, "change_count" => semantic_changes);
+        suggested_action = "Apply endpoint triangulation before promoting the change to a formulation-level claim."
+    ))
+    numerical_readiness_changes > 0 && push!(findings, _finding(
+        "solver_repeat_numerical_readiness_changes", "warning",
+        "Repeated solver-policy comparisons changed numerical readiness.",
+        Dict("summary_path" => path, "change_count" => numerical_readiness_changes);
+        suggested_action = "Inspect dense/sparse budgets and evaluation-point provenance."
+    ))
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "readiness" => Dict(
+            "configuration_row_family_scale_available" => configuration_row_scale_ready,
+            "configuration_row_family_scale_repeatable" => configuration_row_scale_repeatable,
+            "paired_row_family_delta_available" => paired_row_scale_ready,
+            "paired_row_family_delta_repeatable" => paired_row_scale_repeatable,
+            "semantic_finding_changes" => semantic_changes,
+            "numerical_readiness_changes" => numerical_readiness_changes,
+        ),
+        "findings" => findings,
+    )
+end
+
 function main()
     length(ARGS) >= 2 || error("usage: validate_bmopf_campaign.jl output.json summary1.json ...")
     output_path = abspath(first(ARGS))
@@ -1934,8 +2143,10 @@ function main()
     trace_comparison_reports = Any[]
     multiconductor_reports = Any[]
     multiconductor_probe_comparisons = Any[]
+    multiconductor_point_comparisons = Any[]
     operator_reports = Any[]
     repeat_reports = Any[]
+    solver_repeat_reports = Any[]
     perturbation_corpus_reports = Any[]
     evidence_ledger_reports = Any[]
     evidence_ledger_comparison_reports = Any[]
@@ -1981,9 +2192,15 @@ function main()
         elseif startswith(report_version, "bmopf-multiconductor-probe-comparison-")
             report = _validate_multiconductor_probe_comparison(path, summary)
             push!(multiconductor_probe_comparisons, report)
+        elseif startswith(report_version, "bmopf-multiconductor-point-comparison-")
+            report = _validate_multiconductor_point_comparison(path, summary)
+            push!(multiconductor_point_comparisons, report)
         elseif startswith(report_version, "nlpdiagnostics-operator-fingerprint-summary-")
             report = _validate_operator_fingerprint(path, summary)
             push!(operator_reports, report)
+        elseif startswith(report_version, "bmopf-solver-repeats-")
+            report = _validate_solver_repeat_summary(path, summary)
+            push!(solver_repeat_reports, report)
         elseif haskey(summary, "repeat_index") && haskey(summary, "by_pair")
             report = _validate_repeat_summary(path, summary)
             push!(repeat_reports, report)
@@ -2034,7 +2251,9 @@ function main()
         "trace_comparison_reports" => trace_comparison_reports,
         "multiconductor_reports" => multiconductor_reports,
         "multiconductor_probe_comparisons" => multiconductor_probe_comparisons,
+        "multiconductor_point_comparisons" => multiconductor_point_comparisons,
         "operator_reports" => operator_reports,
+        "solver_repeat_reports" => solver_repeat_reports,
         "perturbation_repeat_reports" => repeat_reports,
         "perturbation_corpus_reports" => perturbation_corpus_reports,
         "evidence_ledger_reports" => evidence_ledger_reports,

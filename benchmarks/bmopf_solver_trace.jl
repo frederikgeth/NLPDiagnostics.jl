@@ -674,8 +674,15 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                 if isnothing(point)
                     payload["profile_skip_reason"] = "solver_result_point_unavailable"
                 else
+                    # Evaluate once and reuse the trusted solver-result evaluation
+                    # for both generic numerical diagnostics and BMOPF semantic
+                    # attribution.  This keeps the sparse-only path self-contained
+                    # without constructing the full (resource-heavy) BMOPF profile.
+                    evaluation = NLPDiagnostics.evaluate_numerical(
+                        JuMP.backend(model), point,
+                    )
                     numerical_report = NLPDiagnostics.analyze_numerical(
-                        JuMP.backend(model), point;
+                        JuMP.backend(model), evaluation;
                         rank_max_dense_entries = dense_entry_limit,
                     )
                     numerical_data = NLPDiagnostics.report_data(numerical_report)
@@ -686,6 +693,21 @@ function _case_record(root, relative, solver_name, output_dir, max_variables,
                             "NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES"
                     end
                     payload["numerical_profile"] = numerical_data
+                    row_family_scale =
+                        NLPDiagnostics.bmopf_jacobian_row_family_scale_attribution(
+                            context, evaluation,
+                        )
+                    # Retain a compact semantic profile in the numerical-stage
+                    # record.  The full BMOPF profile remains intentionally
+                    # budgeted out, but row-family scale evidence must survive
+                    # into matrix/repeat summaries.
+                    payload["bmopf_jacobian_row_family_scale_attribution"] =
+                        row_family_scale
+                    payload["bmopf_profile"] = Dict{String,Any}(
+                        "profile_stage" => "numerical",
+                        "bmopf_jacobian_row_family_scale_attribution" =>
+                            row_family_scale,
+                    )
                     payload["profile_skip_reason"] = nothing
                 end
             end

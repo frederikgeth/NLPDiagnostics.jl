@@ -1069,9 +1069,18 @@ function main()
             _merge_counts!(trace_finding_codes, summary["solver_result_finding_codes"])
             bmopf_profile = get(record, "bmopf_profile", nothing)
             if bmopf_profile isa AbstractDict
-                family_scale = _row_family_scale_summary(get(
+                family_scale_raw = get(
                     bmopf_profile, "bmopf_jacobian_row_family_scale_attribution", nothing,
-                ))
+                )
+                # Numerical-stage records keep a compact attribution both inside
+                # the semantic profile and at top level for consumers that do
+                # not retain the profile envelope.  Prefer the nested value,
+                # then fall back to the explicit record field.
+                isempty(_as_dict(family_scale_raw)) &&
+                    (family_scale_raw = get(
+                        record, "bmopf_jacobian_row_family_scale_attribution", nothing,
+                    ))
+                family_scale = _row_family_scale_summary(family_scale_raw)
                 summary["bmopf_jacobian_row_family_scale_attribution"] = family_scale
                 get(family_scale, "available", false) ?
                     (family_scale_available_case_count += 1) :

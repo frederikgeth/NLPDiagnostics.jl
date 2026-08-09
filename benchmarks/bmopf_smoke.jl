@@ -236,9 +236,62 @@ function _multiconductor_contract_data(context; operating_source = nothing)
     passive_current_report = NLPDiagnostics.bmopf_passive_network_current_map_report(context)
     passive_current_model_maps = NLPDiagnostics.bmopf_passive_network_current_maps(context; basis = :model)
     passive_current_model_report = NLPDiagnostics.bmopf_passive_network_current_map_report(context; basis = :model)
+    function coordinate_alignment(ports, maps)
+        map_by_key = Dict((map.component_type, map.component_id, map.port_id) => map for map in maps)
+        rows = Dict{String,Any}[]
+        for port in ports
+            key = (port.component_type, port.component_id, port.port_id)
+            map = get(map_by_key, key, nothing)
+            expected_terminal_count = length(port.terminal_labels)
+            if isnothing(map)
+                push!(rows, Dict{String,Any}(
+                    "component_type" => string(port.component_type),
+                    "component_id" => port.component_id,
+                    "port_id" => port.port_id,
+                    "status" => "missing_map",
+                    "expected_terminal_count" => expected_terminal_count,
+                    "model_variable_count" => 0,
+                ))
+                continue
+            end
+            dimensions_ok = size(map.terminal_to_variable, 2) == expected_terminal_count &&
+                            size(map.terminal_to_variable, 1) == length(map.variables)
+            finite = all(isfinite, map.terminal_to_variable)
+            status = !dimensions_ok ? "dimension_mismatch" : !finite ? "nonfinite" : "aligned"
+            push!(rows, Dict{String,Any}(
+                "component_type" => string(port.component_type),
+                "component_id" => port.component_id,
+                "port_id" => port.port_id,
+                "status" => status,
+                "expected_terminal_count" => expected_terminal_count,
+                "model_variable_count" => length(map.variables),
+                "map_row_count" => size(map.terminal_to_variable, 1),
+                "map_column_count" => size(map.terminal_to_variable, 2),
+                "map_rank" => dimensions_ok && finite ? LinearAlgebra.rank(map.terminal_to_variable) : 0,
+            ))
+        end
+        status_counts = Dict{String,Int}()
+        for row in rows
+            status = String(row["status"])
+            status_counts[status] = get(status_counts, status, 0) + 1
+        end
+        Dict{String,Any}(
+            "port_count" => length(ports),
+            "map_count" => length(maps),
+            "rows" => rows,
+            "status_counts" => status_counts,
+            "aligned_port_count" => get(status_counts, "aligned", 0),
+            "missing_map_count" => get(status_counts, "missing_map", 0),
+            "dimension_mismatch_count" => get(status_counts, "dimension_mismatch", 0),
+            "nonfinite_map_count" => get(status_counts, "nonfinite", 0),
+        )
+    end
+    voltage_alignment = coordinate_alignment(voltage_ports, voltage_maps)
+    current_alignment = coordinate_alignment(current_ports, current_maps)
     return Dict{String,Any}(
         "voltage_port_count" => length(voltage_ports),
         "voltage_coordinate_map_count" => length(voltage_maps),
+        "voltage_coordinate_alignment" => voltage_alignment,
         "voltage_connection_count" => length(voltage_connections),
         "voltage_report_finding_count" => length(voltage_report.findings),
         "port_assembly_component_count" => port_assembly.component_count,
@@ -265,6 +318,7 @@ function _multiconductor_contract_data(context; operating_source = nothing)
         "controller_curve_cap_violation_count" => controller_curve_cap_violation_count,
         "current_port_count" => length(current_ports),
         "current_coordinate_map_count" => length(current_maps),
+        "current_coordinate_alignment" => current_alignment,
         "current_report_finding_count" => length(current_report.findings),
         "current_skipped_count" => parse(Int, current_report.metadata[:bmopf_terminal_current_port_skipped_count]),
         "physical_mode_count" => length(physical_modes),
@@ -420,11 +474,16 @@ function main()
                 "fixture" => spec.file, "fixture_path" => abspath(path),
                 "source_snapshot" => source_snapshot,
                 "status" => "error", "error" => message,
+                "point_policy" => point_policy,
+                "rank_max_dense_entries" => dense_entry_limit,
+                "iterative_right_nullspace_probe_dimension" => iterative_probe_dimension,
+                "iterative_right_nullspace_probe_iterations" => iterative_probe_iterations,
                 "integrity_preflight" => preflight,
             )))
             push!(index, Dict(
                 "name" => spec.name, "status" => "error",
                 "result_file" => basename(result_path), "error" => message,
+                "point_policy" => point_policy,
                 "source_snapshot" => source_snapshot,
             ))
             println("$(spec.name): ERROR — $(sprint(showerror, error))")
@@ -434,6 +493,7 @@ function main()
         "fixture_root" => abspath(root),
         "environment" => environment,
         "environment_fingerprint" => environment_fingerprint,
+        "point_policy" => point_policy,
         "rank_max_dense_entries" => dense_entry_limit,
         "cases" => index,
     )))

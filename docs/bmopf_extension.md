@@ -586,6 +586,9 @@ Repeat comparisons also retain final primal/dual residual deltas and semantic
 family availability. A trace-only campaign therefore can show a repeatable
 solver/residual effect while explicitly reporting that equation-family
 correlation is unavailable until a context-stage profile is run.
+Context-stage repeats additionally compare finding-code identities. Differences
+at iteration-limit points should be read as endpoint-conditioned observations;
+they are not evidence that component metadata or physical scales changed.
 
 Before choosing a draft-corpus campaign, run
 `benchmarks/inventory_bmopf_draft_corpus.jl`. It only parses BMOPF JSON and
@@ -1217,3 +1220,143 @@ non-unit circular equalities, and `logdiffexp`. Use
 `benchmarks/summarize_operator_fingerprint.jl` followed by
 `benchmarks/validate_bmopf_campaign.jl` to normalize and trust-gate the
 result before adding it to `summarize_bmopf_evidence_ledger.jl`.
+
+### Point calibration and endpoint separation
+
+Use `benchmarks/launch_bmopf_point_calibration.jl` to repeat the full profile
+at explicit evaluation points. The supported policies are `engine_start`,
+`saved_si`, and `saved_pu`; select them with
+`NLPDIAGNOSTICS_BMOPF_CALIBRATION_POINTS`, repeat with
+`NLPDIAGNOSTICS_BMOPF_CALIBRATION_REPETITIONS`, and set
+`NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES=0` for large cases. The launcher
+writes a resumable manifest after each child. Summarize it with
+`benchmarks/summarize_bmopf_point_calibration.jl`.
+
+The v2 summary separates point-invariant stages from point-local findings,
+checks exact same-point fingerprints and metric recurrence, and requires full
+saved-result registry coverage before reporting persistence. A successful
+comparison is evidence that a finding changes with the evaluated endpoint; it
+does not by itself establish a mathematical or physical defect. On the
+538-bus LN/LG calibration, all 12,538 rows were mapped at both points and the
+sparse rank remained 11,028, while the saved-point `ibr_power_circle` rows
+accounted for the large row-scale spread. This is the recommended gate before
+interpreting solver-policy/context differences as formulation-level claims.
+
+The endpoint-triangulation utility also accepts multiple calibration summaries
+through `NLPDIAGNOSTICS_BMOPF_TRIANGULATION_CALIBRATIONS`. This supports a
+stratified corpus without losing case-level provenance. In the current
+30/99/538-bus LN/LG campaign, six successful no-scaling endpoints all matched
+their trusted saved-SI semantic finding maps; the report therefore contains no
+endpoint-conditioned cases. Use this report before treating a repeated policy
+effect as a formulation-level observation.
+
+Successful no-scaling endpoints are the next trust gate. On the 538-bus pair,
+LG reached `locally_optimal` at `max_iter=100` and LN reached it at
+`max_iter=300`; both reproduced the baseline context finding identities and
+had residuals below `6e-12`. The earlier 40-iteration no-scaling findings
+(`bmopf_opf_differentiability_not_ready` and the small port-scale subset) were
+therefore endpoint-conditioned observations. Treat a policy comparison as
+formulation evidence only after this successful-endpoint check, or retain an
+explicit iteration-limit label in the report.
+
+For repeated policy campaigns, use two sweep manifests with
+`benchmarks/summarize_bmopf_solver_repeats.jl`, then join their summaries with
+`summarize_bmopf_endpoint_triangulation.jl`. In the current 30/99/538-bus
+matrix, all 36 policy/case observations were successful and repeatable, with
+zero semantic finding changes across repetitions; all 18 policy/case results
+matched saved-SI semantics. This separates repeatable solver-work changes from
+endpoint-conditioned semantic changes before numerical-stage interpretation.
+
+For a small dense checkpoint, set
+`NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES=1000000` on the 30-bus LN/LG pair.
+The current run reports dense rank 704, sparse rank 704, and explicit rank
+agreement for all baseline, bounded-scaling, and no-scaling policies. Keep the
+larger 99/538-bus campaigns at zero dense budget.
+
+The numerical-stage repeat summary now retains sparse-QR condition-proxy
+ranges and policy deltas in addition to sparse rank and readiness. On the
+30/99/538-bus matrix, all sparse ranks were invariant and dense rank was
+explicitly unavailable; condition-proxy deltas remained small relative to the
+absolute proxies. Treat these as sparse numerical observations until a bounded
+dense run is performed on an appropriately small fixture.
+
+The solver-trace numerical path now preserves compact BMOPFTools row-family
+scale attribution alongside the generic numerical report. It evaluates the
+solver endpoint once, reuses that evaluation for both diagnostics and semantic
+mapping, and records `bmopf_profile` with an explicit numerical-stage marker;
+the full BMOPF profile remains budgeted out. The 30/99/538-bus LN/LG checkpoint
+reported attribution on all six successful cases when the large-model solve
+guard was raised explicitly. Observed global row-scale ratios were roughly
+`2.8e3`--`5.9e4`, with `ibr_power_circle` consistently the smallest-positive
+family. This is local derivative-scale evidence and must not be read as a
+causal solver or physical diagnosis.
+
+The fresh three-policy numerical checkpoint (baseline, bounded scaling, and
+no-scaling) retained attribution for all 18 stratified observations. Bounded
+scaling increased the global row-scale ratio by roughly 2.0--2.3%; no-scaling
+decreased it by roughly 0.2--0.35%. The repeat summarizer now accepts both raw
+BMOPF attribution (`global`) and normalized case-summary envelopes, so paired
+policy deltas are no longer reported as unavailable when the evidence is
+present. These results are descriptive and provenance-scoped.
+
+An independent second run of the three-policy matrix reproduced the row-family
+ratios, sparse ranks, condition proxies, and readiness for all six cases. The
+paired bounded-scaling and no-scaling row-family deltas were stable case by
+case, with zero semantic or readiness changes. The campaign validator now
+recognizes solver-repeat summaries and requires both attribution availability
+and recurrence before treating these policy deltas as repeatable evidence.
+
+The bounded dense 30-bus checkpoint is also complete for all three policies and
+both LN/LG cases: dense and sparse ranks agree at 704, with explicit budget
+provenance and row-family attribution retained. The 99/538-bus fixtures remain
+sparse-only by design. The next phase is evidence-ledger integration followed
+by controlled multiconductor profiling through the BMOPFTools engine.
+
+The evidence ledger now accepts solver-repeat recurrence and dense/sparse rank
+agreement as explicit evidence records, preserving their provenance and budget
+metadata. A combined ledger of the repeated policy, dense 30-bus, and
+multiconductor summaries retained 26 source-aware records.
+
+A controlled five-fixture multiconductor smoke run through BMOPFTools completed
+with explicit start completion, dense analysis disabled, and an iterative
+right-nullspace probe. All fixtures built and exposed port contracts and probe
+data. Source-schema losses and unavailable dense physical-mode comparison were
+retained as readiness boundaries; they are not treated as solver failures. The
+next multiconductor step is a second point policy (engine initialization versus
+explicit BMOPF completion) and a point comparison before physical conclusions.
+
+The point-policy comparison utility now pairs multiconductor summaries by
+fixture, checks environment and policy identity, and separates contract/mode/
+probe changes from physical claims. BMOPF-start completion versus the explicit
+zero probe covered all five fixtures successfully with unchanged contract,
+mode-status, and probe-convergence observations. The raw engine-initialization
+policy failed all five fixtures because starts were incomplete; this is reported
+as a readiness boundary, not as a physical diagnosis. Successful overlap is
+required before a point comparison is admitted as evidence.
+
+The bounded dense checkpoint is now complete on all five small fixtures with a
+10,000-entry budget. Dense rank was available at both point policies for every
+paired fixture. Port contracts, mode-status classifications, and probe
+availability were stable, but delta-load changed rank 38 -> 36 and the
+wye-delta transformer changed 48 -> 42 between BMOPF-start and zero
+coordinates. These are explicitly recorded as point-local numerical evidence;
+they are not physical interpretations because the same fixtures still report
+coordinate-alignment boundaries and unsupported source metadata. Larger
+multiconductor campaigns should remain sparse-only unless their dense budget
+is stated and the paired dense-rank gate is satisfied.
+
+Dense-rank changes are now classified against coordinate alignment. In the
+five-fixture checkpoint, all fixtures remain at the coordinate-alignment
+boundary, so the two rank changes are recorded as `alignment_ambiguous`, not
+as physical modes or formulation defects. The validator and evidence ledger
+preserve this interpretation boundary. The next implementation step is a
+per-port alignment-coverage report that identifies missing and partial
+terminal maps for targeted BMOPFTools metadata restoration.
+
+The per-port alignment report is now retained in each multiconductor contract.
+The dense checkpoint had complete voltage and current terminal maps on all five
+fixtures, with no missing, dimension-mismatched, or nonfinite maps. The
+remaining boundary is specifically mode-to-coordinate semantics: structurally
+complete port maps do not yet make every declared physical mode comparable to
+the model Jacobian. The next step is per-component mode projection evidence,
+classified as hidden, visible, or unrepresented.

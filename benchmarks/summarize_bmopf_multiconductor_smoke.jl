@@ -106,6 +106,9 @@ function _contract_view(contract)
                 "controller_curve_statuses")
         haskey(contract, key) && (result[key] = contract[key])
     end
+    for key in ("voltage_coordinate_alignment", "current_coordinate_alignment")
+        haskey(contract, key) && (result[key] = contract[key])
+    end
     finding_count = 0
     for key in ("voltage_report_finding_count", "port_assembly_finding_count",
                 "current_report_finding_count", "current_law_finding_count",
@@ -150,6 +153,7 @@ function _case_record(root, entry)
     dense_guard_allows = dense_limit > 0 && dense_entries <= dense_limit
     mode_rank_available = dense_guard_allows &&
                           lowercase(string(get(mode_metadata, "jacobian_rank_available", "false"))) == "true"
+    mode_jacobian_rank = _int(get(mode_metadata, "jacobian_rank", 0))
     expected_modes = _int(get(mode_metadata, "bmopf_port_physical_modes_applied", 0))
     observed_modes = mode_int("expected_nullspace_mode_observed") +
                      mode_int("component_port_nullspace_mode_observed")
@@ -226,6 +230,8 @@ function _case_record(root, entry)
             "not_observed_mode_count" => not_observed_modes,
             "partial_alignment_mode_count" => partial_modes,
             "jacobian_rank_available" => mode_rank_available,
+            "jacobian_rank" => mode_jacobian_rank,
+            "sparse_qr_rank" => _int(get(numerical_metadata, "sparse_qr_rank", 0)),
             "dense_guard_allows" => dense_guard_allows,
             "finding_code_counts" => mode_codes,
         ),
@@ -471,6 +477,8 @@ function main()
         "index_path" => index_path,
         "fixture_root" => get(index, "fixture_root", nothing),
         "environment_fingerprint" => get(index, "environment_fingerprint", nothing),
+        "point_policy" => get(index, "point_policy", nothing),
+        "rank_max_dense_entries" => get(index, "rank_max_dense_entries", nothing),
         "case_count" => length(cases),
         "status_counts" => status_counts,
         "cases" => cases,
@@ -515,6 +523,8 @@ function main()
             "physical_metadata_complete" => physical_metadata_warning_count == 0,
             "physical_mode_observations_available" => physical_mode_count > 0,
             "physical_mode_analysis_available" => successful > 0 && mode_analysis_cases == successful,
+            "dense_physical_mode_rank_complete" => successful > 0 &&
+                mode_analysis_cases == successful && mode_rank_available_cases == successful,
             "expected_observed_mode_comparison" => successful > 0 &&
                 mode_analysis_cases == successful && mode_rank_available_cases == successful &&
                 unaligned_mode_count == 0,

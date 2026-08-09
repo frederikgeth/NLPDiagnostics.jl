@@ -1265,6 +1265,8 @@ end
         "summarize_bmopf_solver_trace.jl",
         "sweep_bmopf_solver_options.jl",
         "summarize_bmopf_solver_sweep.jl",
+        "summarize_bmopf_endpoint_triangulation.jl",
+        "compare_bmopf_multiconductor_points.jl",
         "summarize_bmopf_evidence_ledger.jl",
     )
     for script in scripts
@@ -1320,6 +1322,8 @@ end
         joinpath(benchmark_directory, "bmopf_solver_trace.jl"), String,
     )
     @test occursin("bmopf_jacobian_row_family_scale_attribution", solver_trace)
+    @test occursin("evaluate_numerical", solver_trace)
+    @test occursin("profile_stage", solver_trace)
     @test occursin("bmopf_jacobian_row_family_scaling_experiment", solver_trace)
     @test occursin("_IPOPT_REAL_OPTIONS", solver_trace)
     @test occursin("profile_started", solver_trace)
@@ -1348,6 +1352,12 @@ end
     @test occursin("solver_trace_case_count", solver_trace_summary)
     @test occursin("profile_stage", solver_trace_summary)
     @test occursin("_solver_log_termination", solver_trace_summary)
+    @test occursin("solver_trace_endpoint_conditioned_semantics", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
+    @test occursin("solver_repeat_row_family_delta_not_stable", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
     solver_option_sweep = read(
         joinpath(benchmark_directory, "sweep_bmopf_solver_options.jl"), String,
     )
@@ -1375,13 +1385,58 @@ end
     @test occursin("bmopf-solver-repeats-v1", solver_option_repeats)
     @test occursin("termination_stable", solver_option_repeats)
     @test occursin("sparse_qr_rank_delta", solver_option_repeats)
+    @test occursin("sparse_qr_condition_proxy_delta", solver_option_repeats)
+    @test occursin("row_family_scale_ratio_delta", solver_option_repeats)
+    @test occursin("row_family_scale_ratio_delta_stable", solver_option_repeats)
+    @test occursin("_stable_delta_by_case", solver_option_repeats)
     @test occursin("numerical_readiness_change_count", solver_option_repeats)
     @test occursin("final_primal_residual_delta", solver_option_repeats)
     @test occursin("semantic_family_change_count", solver_option_repeats)
+    @test occursin("semantic_finding_change_count", solver_option_repeats)
+    endpoint_triangulation = read(
+        joinpath(benchmark_directory, "summarize_bmopf_endpoint_triangulation.jl"),
+        String,
+    )
+    @test occursin("bmopf-endpoint-triangulation-v1", endpoint_triangulation)
+    @test occursin("successful_matches_engine_start", endpoint_triangulation)
+    @test occursin("endpoint_conditioned", endpoint_triangulation)
+    @test occursin("_semantic_only_codes", endpoint_triangulation)
+    @test occursin("NLPDIAGNOSTICS_BMOPF_TRIANGULATION_CALIBRATIONS", endpoint_triangulation)
+    point_comparison = read(
+        joinpath(benchmark_directory, "compare_bmopf_multiconductor_points.jl"),
+        String,
+    )
+    @test occursin("bmopf-multiconductor-point-comparison-v1", point_comparison)
+    @test occursin("successful_case_overlap", point_comparison)
+    @test occursin("distinct_point_policies", point_comparison)
+    @test occursin("dense_rank_pair_available", point_comparison)
+    @test occursin("dense_rank_change_count", point_comparison)
+    @test occursin("alignment_pair_available", point_comparison)
+    @test occursin("rank_change_classification", point_comparison)
+    @test occursin("voltage_alignment_changed", point_comparison)
+    @test occursin("current_alignment_changed", point_comparison)
+    @test occursin("port_map_alignment_pair_complete", point_comparison)
+    @test occursin("multiconductor_point_successful_overlap_empty", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
+    @test occursin("multiconductor_point_dense_rank_overlap_empty", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
+    @test occursin("multiconductor_point_rank_alignment_ambiguous", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
     ledger = read(
         joinpath(benchmark_directory, "summarize_bmopf_evidence_ledger.jl"),
         String,
     )
+    @test occursin("solver_repeats", ledger)
+    @test occursin("solver_repeat_row_family_delta_recurrence", ledger)
+    @test occursin("dense_sparse_rank_agreement", ledger)
+    @test occursin("multiconductor_point_dense_rank_checkpoint", ledger)
+    @test occursin("multiconductor_point_rank_alignment_boundary", ledger)
+    @test occursin("multiconductor_point_port_alignment_coverage", ledger)
+    @test occursin("multiconductor_point_port_map_alignment_incomplete", ledger)
+    @test occursin("record_kind", ledger)
     @test occursin("\"evaluation_points\"", ledger)
     @test occursin("\"basis_counts\"", ledger)
     @test occursin("\"domain_counts\"", ledger)
