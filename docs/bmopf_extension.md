@@ -1026,6 +1026,21 @@ findings and metadata for the source path, dropped fields/scopes, policy
 statuses, and original conversion messages. This keeps source-fidelity
 limitations visible even when a user is not running the benchmark harness.
 
+BMOPFTools now retains a compact provenance-only inventory of source fields
+found in PowerIO `extras` records. NLPDiagnostics reports provenance coverage
+and unmapped blocking fields separately; this inventory supports later mapping
+work but does not clear the physical-readiness gate. A plugin may provide an
+explicit `powerio_source_mapped_fields` list when it has a justified mapping
+contract, and that declaration is recorded distinctly from the original
+conversion warnings.
+
+The current BMOPFTools boundary also emits mapping evidence for fields that
+are demonstrably represented in the staged network: `kv` → `load.v_nom`,
+`phases` → `load.terminal_map/configuration`, and `basekv`/`angle` → voltage
+source magnitude/angle with explicit transforms. Device model and per-unit
+voltage-limit fields remain unmapped until their semantics are represented by
+an explicit BMOPF component or plugin contract.
+
 The isolated solver-trace launcher makes the in-place NLPDiagnostics package
 visible to BMOPFTools child processes and records native child-wait errors.
 Size-guard-only campaigns therefore remain build evidence and are not treated

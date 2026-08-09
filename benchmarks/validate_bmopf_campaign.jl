@@ -1629,6 +1629,33 @@ function _validate_multiconductor_smoke(path, summary)
                  "source_snapshot_case_count" => get(get(summary, "aggregate", Dict()), "source_snapshot_case_count", 0),
                  "successful_case_count" => get(get(summary, "aggregate", Dict()), "successful_case_count", 0));
             suggested_action = "Rerun the smoke campaign with source snapshots preserved before interpreting schema-loss findings."))
+    get(readiness, "source_schema_context_report_available", false) === true || push!(findings,
+        _finding("multiconductor_source_schema_report_missing", "warning",
+            "The campaign does not contain the structured BMOPF source-schema report for every successful fixture.",
+            Dict("summary_path" => path,
+                 "source_schema_context_report_case_count" => get(get(summary, "aggregate", Dict()),
+                     "source_schema_context_report_case_count", 0),
+                 "successful_case_count" => get(get(summary, "aggregate", Dict()),
+                     "successful_case_count", 0));
+            suggested_action = "Regenerate the smoke campaign with the current BMOPF source-schema report enabled."))
+    get(readiness, "source_schema_provenance_available", false) === true || push!(findings,
+        _finding("multiconductor_source_schema_provenance_missing", "warning",
+            "The campaign does not preserve a source-only metadata inventory for every successful fixture.",
+            Dict("summary_path" => path,
+                 "source_schema_provenance_case_count" => get(get(summary, "aggregate", Dict()),
+                     "source_schema_provenance_case_count", 0),
+                 "successful_case_count" => get(get(summary, "aggregate", Dict()),
+                     "successful_case_count", 0));
+            suggested_action = "Retain the PowerIO source metadata inventory before attempting physical-field restoration."))
+    get(readiness, "source_schema_mapping_complete", false) === true || push!(findings,
+        _finding("multiconductor_source_schema_mapping_incomplete", "warning",
+            "Source-only metadata is preserved, but blocking fields are not yet covered by explicit BMOPF mappings.",
+            Dict("summary_path" => path,
+                 "source_schema_unmapped_blocking_field_counts" => get(get(summary, "aggregate", Dict()),
+                     "source_schema_unmapped_blocking_field_counts", Dict()),
+                 "source_schema_mapping_ready_case_count" => get(get(summary, "aggregate", Dict()),
+                     "source_schema_mapping_ready_case_count", 0));
+            suggested_action = "Implement and validate explicit source-to-BMOPF mappings before promoting physical tangent declarations."))
     get(readiness, "port_contract_available", false) === true || push!(findings,
         _finding("multiconductor_smoke_contract_unavailable", "warning",
             "One or more successful fixtures lack a multiconductor port contract.",

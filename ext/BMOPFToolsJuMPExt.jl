@@ -2319,8 +2319,29 @@ function _bmopf_source_schema_count_string(values::AbstractVector{<:AbstractStri
     return join(("$(key)=$(counts[key])" for key in sort!(collect(keys(counts)))), ",")
 end
 
+function _bmopf_source_schema_field_vector(value)
+    value isa AbstractVector || return String[]
+    return sort!(unique(String[string(item) for item in value]))
+end
+
+function _bmopf_source_schema_provenance_fields(value)
+    value isa AbstractDict || return String[]
+    fields = _bmopf_source_schema_field_vector(get(value, "fields", get(value, :fields, Any[])))
+    !isempty(fields) && return fields
+    scopes = get(value, "by_scope", get(value, :by_scope, Dict()))
+    scopes isa AbstractDict || return String[]
+    all_fields = String[]
+    for raw_fields in values(scopes)
+        append!(all_fields, _bmopf_source_schema_field_vector(raw_fields))
+    end
+    return sort!(unique(all_fields))
+end
+
 """Return structured fidelity findings for PowerIO fields dropped by the BMOPF schema."""
-function _bmopf_source_schema_report(context)
+function _bmopf_source_schema_report(
+    context;
+    mapped_fields = nothing,
+)
     network = BMOPFTools.opf_network(context)
     meta = get(network, "_meta", get(network, :_meta, Dict{Any,Any}()))
     meta isa AbstractDict || (meta = Dict{Any,Any}())
@@ -2329,6 +2350,19 @@ function _bmopf_source_schema_report(context)
         (isnothing(raw_warnings) ? Any[] : Any[raw_warnings])
     warnings = String[string(item) for item in raw_warnings]
     source_path = string(get(meta, "powerio_source", get(meta, :powerio_source, "")))
+    source_metadata = get(meta, "powerio_source_metadata",
+                          get(meta, :powerio_source_metadata, Dict{Any,Any}()))
+    provenance_fields = _bmopf_source_schema_provenance_fields(source_metadata)
+    source_mapping = get(meta, "powerio_source_mapping",
+                         get(meta, :powerio_source_mapping, Dict{Any,Any}()))
+    source_mapping = source_mapping isa AbstractDict ? source_mapping : Dict{Any,Any}()
+    mapping_by_field = get(source_mapping, "by_field",
+                           get(source_mapping, :by_field, Dict{Any,Any}()))
+    mapping_by_field = mapping_by_field isa AbstractDict ? mapping_by_field : Dict{Any,Any}()
+    raw_mapped_fields = mapped_fields === nothing ?
+        get(meta, "powerio_source_mapped_fields",
+            get(meta, :powerio_source_mapped_fields, Any[])) : mapped_fields
+    mapped_fields = _bmopf_source_schema_field_vector(raw_mapped_fields)
 
     fields = String[]
     scopes = String[]
@@ -2348,6 +2382,12 @@ function _bmopf_source_schema_report(context)
         push!(blocking, policy.blocking)
     end
 
+    warning_fields = sort!(unique(fields))
+    provenance_warning_fields = sort!(intersect(warning_fields, provenance_fields))
+    mapped_warning_fields = sort!(intersect(warning_fields, mapped_fields))
+    blocking_warning_fields = sort!(unique(fields[findall(blocking)]))
+    unmapped_blocking_fields = sort!(setdiff(blocking_warning_fields, mapped_fields))
+
     report = NLPDiagnostics.DiagnosticReport()
     report.metadata[:stage] = "bmopf_source_schema"
     report.metadata[:bmopf_source_schema_warning_count] = string(length(warnings))
@@ -2356,6 +2396,23 @@ function _bmopf_source_schema_report(context)
     report.metadata[:bmopf_source_schema_device_semantics_count] = string(count(==("device_semantics"), impacts))
     report.metadata[:bmopf_source_schema_unclassified_count] = string(count(==("unknown"), impacts))
     report.metadata[:bmopf_source_schema_source_path] = source_path
+    report.metadata[:bmopf_source_schema_provenance_available] = string(!isempty(provenance_fields))
+    report.metadata[:bmopf_source_schema_provenance_fields] = join(provenance_fields, ",")
+    report.metadata[:bmopf_source_schema_provenance_field_count] = string(length(provenance_fields))
+    report.metadata[:bmopf_source_schema_provenance_warning_fields] = join(provenance_warning_fields, ",")
+    report.metadata[:bmopf_source_schema_provenance_warning_field_count] = string(length(provenance_warning_fields))
+    report.metadata[:bmopf_source_schema_mapped_fields] = join(mapped_fields, ",")
+    report.metadata[:bmopf_source_schema_mapped_field_count] = string(length(mapped_fields))
+    report.metadata[:bmopf_source_schema_mapped_warning_field_count] = string(length(mapped_warning_fields))
+    report.metadata[:bmopf_source_schema_unmapped_blocking_fields] = join(unmapped_blocking_fields, ",")
+    report.metadata[:bmopf_source_schema_restoration_ready] = string(isempty(unmapped_blocking_fields))
+    report.metadata[:bmopf_source_schema_mapping_statuses] = join(sort!(unique(
+        String[string(get(value, "status", get(value, :status, "unknown")))
+                 for value in values(mapping_by_field) if value isa AbstractDict])), ",")
+    report.metadata[:bmopf_source_schema_mapping_targets] = join(sort!(String[
+        "$(key)=>$(get(value, "target", get(value, :target, "unknown")))"
+        for (key, value) in mapping_by_field if value isa AbstractDict
+    ]), ";")
     report.metadata[:bmopf_source_schema_warning_fields] = join(unique(fields), ",")
     report.metadata[:bmopf_source_schema_warning_scopes] = join(unique(scopes), ",")
     report.metadata[:bmopf_source_schema_warning_impacts] = join(unique(impacts), ",")
@@ -2364,6 +2421,24 @@ function _bmopf_source_schema_report(context)
     report.metadata[:bmopf_source_schema_warning_scope_counts] = _bmopf_source_schema_count_string(scopes)
     report.metadata[:bmopf_source_schema_warning_impact_counts] = _bmopf_source_schema_count_string(impacts)
     report.metadata[:bmopf_source_schema_warning_policy_status_counts] = _bmopf_source_schema_count_string(statuses)
+
+    if !isempty(provenance_fields)
+        push!(report, NLPDiagnostics.Finding(:bmopf_source_schema_provenance_preserved;
+            severity = NLPDiagnostics.SeverityInfo,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.StructuralProof,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "The conversion record preserves a source-only metadata inventory for $(length(provenance_fields)) field(s).",
+            why_it_matters = "Provenance allows source-level fields to be audited and mapped later, but it does not mean those fields are active in the BMOPF equations or solver scaling.",
+            evidence = [NLPDiagnostics.Evidence("PowerIO source metadata inventory";
+                details = [
+                    "fields" => join(provenance_fields, ","),
+                    "warning_fields_with_provenance" => join(provenance_warning_fields, ","),
+                    "source" => source_path,
+                ])],
+            suggested_actions = ["Use the preserved field inventory to implement explicit BMOPF mappings; retain the provenance record with benchmark artifacts."],
+        ))
+    end
 
     for (impact, code, severity, observation, why, action) in (
         ("physical_or_operating_point", :bmopf_source_schema_physical_metadata_loss,
@@ -2405,6 +2480,11 @@ function _bmopf_source_schema_report(context)
                     "fields" => join(selected_fields, ","),
                     "scopes" => join(selected_scopes, ","),
                     "messages" => join(selected_messages, " | "),
+                    "provenance_fields" => join(intersect(selected_fields, provenance_fields), ","),
+                    "mapped_fields" => join(intersect(selected_fields, mapped_fields), ","),
+                    "unmapped_blocking_fields" => join(intersect(selected_fields, unmapped_blocking_fields), ","),
+                    "mapping_targets" => get(report.metadata,
+                        :bmopf_source_schema_mapping_targets, ""),
                     "source" => source_path,
                 ])],
             suggested_actions = [action],

@@ -1428,6 +1428,28 @@ contains the report in both the context profile and physical-mode analysis:
 17 conversion warnings are exposed as 15 physical/device-semantic blockers
 and 2 representational losses, with the original DSS source path retained.
 
+The BMOPFTools conversion boundary now also preserves a provenance-only field
+inventory extracted from PowerIO `extras` records. The live delta-load report
+sees nine source-only fields and eight warning fields with provenance; it
+explicitly keeps `restoration_ready = false` because provenance is not the
+same as an active BMOPF mapping. An optional `powerio_source_mapped_fields`
+record is reserved for plugin-owned mappings and is reported separately from
+the historical conversion warnings.
+
+The smoke summarizer and validator now carry this distinction to campaign
+readiness: source-report availability, provenance coverage, mapped-field
+coverage, and unmapped blocking fields are separate gates. The current
+delta-load validation is therefore `warn` for the specific mapping gap, while
+preserving the numerical and provenance evidence for follow-up work.
+
+The first explicit mappings are now exercised by the live converter: `kv` is
+audited against `load.v_nom`, `phases` against the load terminal structure,
+and `basekv`/`angle` against the voltage-source magnitude/angle after their
+documented unit and phase-sequence transforms. The remaining delta-load
+blocking fields are `model`, `vminpu`, and `vmaxpu`; they remain unmapped on
+purpose, so this batch closes the provenance-to-mapping audit trail without
+claiming physical readiness.
+
 The smoke runner now preserves a byte-for-byte source snapshot for every
 fixture, recording a relative copy path, SHA-256 digest, byte count, and line
 count in the result and index. The five-fixture rerun preserved all sources,

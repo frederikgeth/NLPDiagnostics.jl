@@ -31,6 +31,16 @@ function _float_list(value)
     return result
 end
 
+function _count_csv!(counts::Dict{String,Int}, value)
+    value isa AbstractString || return counts
+    for token in split(value, ',')
+        key = strip(String(token))
+        isempty(key) && continue
+        counts[key] = get(counts, key, 0) + 1
+    end
+    return counts
+end
+
 function _schema_warning_field(message)
     match_result = match(r"`([^`]+)`", String(message))
     isnothing(match_result) ? nothing : String(match_result.captures[1])
@@ -210,6 +220,31 @@ function _case_record(root, entry)
         "no_comparison_finding"
     end
     profile = _as_dict(get(record, "profile", nothing))
+    context_report = _as_dict(get(profile, "bmopf_context_report", nothing))
+    context_metadata = _as_dict(get(context_report, "metadata", nothing))
+    source_schema_coverage = Dict{String,Any}(
+        "report_available" => !isempty(context_metadata),
+        "provenance_available" => lowercase(string(get(context_metadata,
+            "bmopf_source_schema_provenance_available", "false"))) == "true",
+        "provenance_fields" => get(context_metadata,
+            "bmopf_source_schema_provenance_fields", ""),
+        "provenance_warning_fields" => get(context_metadata,
+            "bmopf_source_schema_provenance_warning_fields", ""),
+        "provenance_field_count" => _int(get(context_metadata,
+            "bmopf_source_schema_provenance_field_count", 0)),
+        "provenance_warning_field_count" => _int(get(context_metadata,
+            "bmopf_source_schema_provenance_warning_field_count", 0)),
+        "mapped_fields" => get(context_metadata,
+            "bmopf_source_schema_mapped_fields", ""),
+        "mapped_field_count" => _int(get(context_metadata,
+            "bmopf_source_schema_mapped_field_count", 0)),
+        "mapped_warning_field_count" => _int(get(context_metadata,
+            "bmopf_source_schema_mapped_warning_field_count", 0)),
+        "unmapped_blocking_fields" => get(context_metadata,
+            "bmopf_source_schema_unmapped_blocking_fields", ""),
+        "restoration_ready" => lowercase(string(get(context_metadata,
+            "bmopf_source_schema_restoration_ready", "false"))) == "true",
+    )
     profile_body = _as_dict(get(profile, "profile", nothing))
     reports = _as_dict(get(profile_body, "reports", nothing))
     numerical = _as_dict(get(reports, "numerical", nothing))
@@ -263,6 +298,7 @@ function _case_record(root, entry)
             "source_schema_warning_impacts" => source_warning_impacts,
             "source_schema_warning_policies" => source_warning_policies,
         ),
+        "source_schema_coverage" => source_schema_coverage,
         "multiconductor_contract" => contract,
         "physical_mode_comparison" => Dict(
             "status" => mode_status,
@@ -320,6 +356,13 @@ function main()
     source_schema_field_policies = Dict{String,Any}()
     source_warning_fixture_counts = Dict{String,Any}()
     physical_metadata_warning_count = 0
+    source_schema_context_report_cases = 0
+    source_schema_provenance_cases = 0
+    source_schema_provenance_field_counts = Dict{String,Int}()
+    source_schema_provenance_warning_field_counts = Dict{String,Int}()
+    source_schema_mapped_field_counts = Dict{String,Int}()
+    source_schema_unmapped_blocking_field_counts = Dict{String,Int}()
+    source_schema_mapping_ready_cases = 0
     contract_available = 0
     physical_mode_count = 0
     contract_finding_count = 0
@@ -358,6 +401,22 @@ function main()
         integrity_errors += _int(get(preflight, "error_count", 0))
         integrity_warnings += _int(get(preflight, "warning_count", 0))
         source_schema_warnings += _int(get(preflight, "source_schema_warning_count", 0))
+        source_schema_coverage = _as_dict(get(case, "source_schema_coverage", nothing))
+        if get(source_schema_coverage, "report_available", false) === true
+            source_schema_context_report_cases += 1
+            get(source_schema_coverage, "provenance_available", false) === true &&
+                (source_schema_provenance_cases += 1)
+            _count_csv!(source_schema_provenance_field_counts,
+                get(source_schema_coverage, "provenance_fields", ""))
+            _count_csv!(source_schema_provenance_warning_field_counts,
+                get(source_schema_coverage, "provenance_warning_fields", ""))
+            _count_csv!(source_schema_mapped_field_counts,
+                get(source_schema_coverage, "mapped_fields", ""))
+            _count_csv!(source_schema_unmapped_blocking_field_counts,
+                get(source_schema_coverage, "unmapped_blocking_fields", ""))
+            get(source_schema_coverage, "restoration_ready", false) === true &&
+                (source_schema_mapping_ready_cases += 1)
+        end
         snapshot = _as_dict(get(case, "source_snapshot", nothing))
         get(snapshot, "preserved", false) === true && (source_snapshot_cases += 1)
         fixture_key = String(get(case, "name", "unknown"))
@@ -590,6 +649,13 @@ function main()
             "source_schema_field_policies" => source_schema_field_policies,
             "source_schema_warning_fixture_counts" => source_warning_fixture_counts,
             "physical_metadata_warning_count" => physical_metadata_warning_count,
+            "source_schema_context_report_case_count" => source_schema_context_report_cases,
+            "source_schema_provenance_case_count" => source_schema_provenance_cases,
+            "source_schema_provenance_field_counts" => source_schema_provenance_field_counts,
+            "source_schema_provenance_warning_field_counts" => source_schema_provenance_warning_field_counts,
+            "source_schema_mapped_field_counts" => source_schema_mapped_field_counts,
+            "source_schema_unmapped_blocking_field_counts" => source_schema_unmapped_blocking_field_counts,
+            "source_schema_mapping_ready_case_count" => source_schema_mapping_ready_cases,
             "contract_case_count" => contract_available,
             "physical_mode_count" => physical_mode_count,
             "contract_finding_count" => contract_finding_count,
@@ -630,6 +696,12 @@ function main()
             "port_contract_available" => successful > 0 && contract_available == successful,
             "integrity_preflight_clear" => integrity_errors == 0,
             "source_fixtures_preserved" => successful > 0 && source_snapshot_cases == successful,
+            "source_schema_context_report_available" => successful > 0 &&
+                source_schema_context_report_cases == successful,
+            "source_schema_provenance_available" => successful > 0 &&
+                source_schema_provenance_cases == successful,
+            "source_schema_mapping_complete" => successful > 0 &&
+                source_schema_mapping_ready_cases == successful,
             "physical_metadata_complete" => physical_metadata_warning_count == 0,
             "physical_mode_observations_available" => physical_mode_count > 0,
             "physical_mode_analysis_available" => successful > 0 && mode_analysis_cases == successful,

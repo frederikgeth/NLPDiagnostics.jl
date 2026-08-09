@@ -714,6 +714,18 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     source_metadata_net = deepcopy(net)
     source_metadata_net["_meta"] = Dict{String,Any}(
         "powerio_source" => "synthetic.dss",
+        "powerio_source_metadata" => Dict{String,Any}(
+            "fields" => ["kv", "model", "mystery"],
+        ),
+        "powerio_source_mapped_fields" => ["kv"],
+        "powerio_source_mapping" => Dict{String,Any}(
+            "by_field" => Dict{String,Any}(
+                "kv" => Dict{String,Any}(
+                    "status" => "mapped",
+                    "target" => "load.v_nom",
+                ),
+            ),
+        ),
         "powerio_warnings" => [
             "linecode 4w: `units` has no place in BMOPF schema; dropped",
             "load d12: `kv` is not represented in BMOPF schema; dropped",
@@ -733,10 +745,24 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
           "kv=1,model=1,mystery=1,units=1"
     @test source_metadata_report.metadata[:bmopf_source_schema_warning_impact_counts] ==
           "device_semantics=1,physical_or_operating_point=1,representational=1,unknown=1"
+    @test source_metadata_report.metadata[:bmopf_source_schema_provenance_available] == "true"
+    @test source_metadata_report.metadata[:bmopf_source_schema_provenance_field_count] == "3"
+    @test source_metadata_report.metadata[:bmopf_source_schema_provenance_warning_field_count] == "3"
+    @test source_metadata_report.metadata[:bmopf_source_schema_mapped_fields] == "kv"
+    @test source_metadata_report.metadata[:bmopf_source_schema_mapped_warning_field_count] == "1"
+    @test source_metadata_report.metadata[:bmopf_source_schema_mapping_targets] == "kv=>load.v_nom"
+    @test source_metadata_report.metadata[:bmopf_source_schema_restoration_ready] == "false"
     @test length(findings(source_metadata_report, :bmopf_source_schema_physical_metadata_loss)) == 1
     @test length(findings(source_metadata_report, :bmopf_source_schema_device_semantics_loss)) == 1
     @test length(findings(source_metadata_report, :bmopf_source_schema_representational_loss)) == 1
     @test length(findings(source_metadata_report, :bmopf_source_schema_unclassified_loss)) == 1
+    mapped_source_metadata_report = NLPDiagnostics.bmopf_source_schema_report(
+        TestBMOPFContext(model, source_metadata_net, objects, nothing);
+        mapped_fields = ["kv", "model", "mystery"],
+    )
+    @test mapped_source_metadata_report.metadata[:bmopf_source_schema_mapped_field_count] == "3"
+    @test mapped_source_metadata_report.metadata[:bmopf_source_schema_mapped_warning_field_count] == "3"
+    @test mapped_source_metadata_report.metadata[:bmopf_source_schema_restoration_ready] == "true"
     @test isnothing(NLPDiagnostics.bmopf_initialization_point(context))
     @test_throws ArgumentError NLPDiagnostics.bmopf_set_start_values!(context)
     @test_throws UndefKeywordError NLPDiagnostics.bmopf_start_completion_point(context)
@@ -1510,6 +1536,12 @@ end
     @test occursin("multiconductor_point_mode_projection_visibility", ledger)
     @test occursin("multiconductor_point_mode_jacobian_match", ledger)
     @test occursin("multiconductor_mode_jacobian_match_unavailable", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
+    @test occursin("source_schema_context_report_available", read(
+        joinpath(benchmark_directory, "summarize_bmopf_multiconductor_smoke.jl"), String,
+    ))
+    @test occursin("multiconductor_source_schema_mapping_incomplete", read(
         joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
     ))
     @test occursin("multiconductor_mode_projection_policy_unavailable", read(

@@ -311,8 +311,8 @@ bmopf_component_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
 bmopf_component_rank_capability_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to inspect staged BMOPF component-rank capability")._bmopf_component_rank_capability_report(context)
 """Report source-schema fidelity losses recorded while converting PowerIO data to BMOPF."""
-bmopf_source_schema_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
-    "BMOPFTools and JuMP support are required to report BMOPF source-schema fidelity")._bmopf_source_schema_report(context)
+bmopf_source_schema_report(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to report BMOPF source-schema fidelity")._bmopf_source_schema_report(context; kwargs...)
 """Optional domain-plugin port/connection declarations; the generic default is empty."""
 component_port_metadata(model::MOI.ModelLike) = ComponentPortMetadata[]
 component_port_metadata(model::ModelSnapshot) = ComponentPortMetadata[]
