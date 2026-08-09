@@ -2294,6 +2294,125 @@ function _bmopf_analyze_initialization(
     return report
 end
 
+const _BMOPF_SOURCE_SCHEMA_PHYSICAL_FIELDS = Set(
+    ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu"),
+)
+
+"""Classify a PowerIO-to-BMOPF source-schema warning for report consumers."""
+function _bmopf_source_schema_warning_policy(field::AbstractString)
+    normalized = lowercase(strip(field))
+    if normalized == "units"
+        return (impact = "representational", status = "intentionally_unsupported", blocking = false)
+    elseif normalized == "model"
+        return (impact = "device_semantics", status = "unsupported_device_semantics", blocking = true)
+    elseif normalized in _BMOPF_SOURCE_SCHEMA_PHYSICAL_FIELDS
+        return (impact = "physical_or_operating_point", status = "unsupported_physical_metadata", blocking = true)
+    end
+    return (impact = "unknown", status = "unclassified_drop", blocking = true)
+end
+
+function _bmopf_source_schema_count_string(values::AbstractVector{<:AbstractString})
+    counts = Dict{String,Int}()
+    for value in values
+        counts[String(value)] = get(counts, String(value), 0) + 1
+    end
+    return join(("$(key)=$(counts[key])" for key in sort!(collect(keys(counts)))), ",")
+end
+
+"""Return structured fidelity findings for PowerIO fields dropped by the BMOPF schema."""
+function _bmopf_source_schema_report(context)
+    network = BMOPFTools.opf_network(context)
+    meta = get(network, "_meta", get(network, :_meta, Dict{Any,Any}()))
+    meta isa AbstractDict || (meta = Dict{Any,Any}())
+    raw_warnings = get(meta, "powerio_warnings", get(meta, :powerio_warnings, Any[]))
+    raw_warnings = raw_warnings isa AbstractVector ? raw_warnings :
+        (isnothing(raw_warnings) ? Any[] : Any[raw_warnings])
+    warnings = String[string(item) for item in raw_warnings]
+    source_path = string(get(meta, "powerio_source", get(meta, :powerio_source, "")))
+
+    fields = String[]
+    scopes = String[]
+    impacts = String[]
+    statuses = String[]
+    blocking = Bool[]
+    for message in warnings
+        field_match = match(r"`([^`]+)`", message)
+        field = isnothing(field_match) ? "unknown" : String(field_match.captures[1])
+        scope_tokens = split(strip(message))
+        scope = isempty(scope_tokens) ? "unknown" : replace(String(first(scope_tokens)), ":" => "")
+        policy = _bmopf_source_schema_warning_policy(field)
+        push!(fields, field)
+        push!(scopes, scope)
+        push!(impacts, policy.impact)
+        push!(statuses, policy.status)
+        push!(blocking, policy.blocking)
+    end
+
+    report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:stage] = "bmopf_source_schema"
+    report.metadata[:bmopf_source_schema_warning_count] = string(length(warnings))
+    report.metadata[:bmopf_source_schema_physical_blocking_count] = string(count(blocking))
+    report.metadata[:bmopf_source_schema_representational_count] = string(count(==("representational"), impacts))
+    report.metadata[:bmopf_source_schema_device_semantics_count] = string(count(==("device_semantics"), impacts))
+    report.metadata[:bmopf_source_schema_unclassified_count] = string(count(==("unknown"), impacts))
+    report.metadata[:bmopf_source_schema_source_path] = source_path
+    report.metadata[:bmopf_source_schema_warning_fields] = join(unique(fields), ",")
+    report.metadata[:bmopf_source_schema_warning_scopes] = join(unique(scopes), ",")
+    report.metadata[:bmopf_source_schema_warning_impacts] = join(unique(impacts), ",")
+    report.metadata[:bmopf_source_schema_warning_policy_statuses] = join(unique(statuses), ",")
+    report.metadata[:bmopf_source_schema_warning_field_counts] = _bmopf_source_schema_count_string(fields)
+    report.metadata[:bmopf_source_schema_warning_scope_counts] = _bmopf_source_schema_count_string(scopes)
+    report.metadata[:bmopf_source_schema_warning_impact_counts] = _bmopf_source_schema_count_string(impacts)
+    report.metadata[:bmopf_source_schema_warning_policy_status_counts] = _bmopf_source_schema_count_string(statuses)
+
+    for (impact, code, severity, observation, why, action) in (
+        ("physical_or_operating_point", :bmopf_source_schema_physical_metadata_loss,
+            NLPDiagnostics.SeverityWarning,
+            "PowerIO source fields carrying physical or operating-point semantics were dropped during BMOPF conversion.",
+            "Expected physical modes, rank interpretation, and operating-point diagnostics can be incomplete when these fields are unavailable.",
+            "Preserve or explicitly map the source physical fields before treating BMOPF numerical findings as physically complete."),
+        ("device_semantics", :bmopf_source_schema_device_semantics_loss,
+            NLPDiagnostics.SeverityWarning,
+            "PowerIO device-semantics fields were dropped during BMOPF conversion.",
+            "The staged model may not preserve device behavior or control interpretation needed for physical diagnosis.",
+            "Add an explicit BMOPF mapping for the device-semantics fields or mark the affected device semantics unavailable."),
+        ("representational", :bmopf_source_schema_representational_loss,
+            NLPDiagnostics.SeverityInfo,
+            "PowerIO fields were dropped because they have no direct BMOPF representation.",
+            "The mathematics may still be represented, but source-level units or annotations cannot be reconstructed from the staged model.",
+            "Retain the source metadata alongside the staged network when unit-aware interpretation is required."),
+        ("unknown", :bmopf_source_schema_unclassified_loss,
+            NLPDiagnostics.SeverityWarning,
+            "PowerIO source fields were dropped without a recognized fidelity policy.",
+            "Unclassified information loss can hide physical or device semantics and blocks a confident interpretation of downstream findings.",
+            "Classify the field and add an explicit BMOPF mapping before relying on physical conclusions."),
+    )
+        selected = findall(==(impact), impacts)
+        isempty(selected) && continue
+        selected_fields = unique(fields[selected])
+        selected_scopes = unique(scopes[selected])
+        selected_messages = unique(warnings[selected])
+        push!(report, NLPDiagnostics.Finding(code;
+            severity = severity,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.StructuralProof,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "$(observation) Observed $(length(selected)) warning(s) for fields $(join(selected_fields, ", ")).",
+            why_it_matters = why,
+            evidence = [NLPDiagnostics.Evidence("PowerIO conversion warning record";
+                details = [
+                    "warning_count" => length(selected),
+                    "fields" => join(selected_fields, ","),
+                    "scopes" => join(selected_scopes, ","),
+                    "messages" => join(selected_messages, " | "),
+                    "source" => source_path,
+                ])],
+            suggested_actions = [action],
+        ))
+    end
+    return report
+end
+
 function _bmopf_append_report!(target, source)
     append!(target.findings, source.findings)
     merge!(target.metadata, source.metadata)
@@ -2326,6 +2445,7 @@ function _bmopf_profile_context_report(
     report = NLPDiagnostics.DiagnosticReport()
     _bmopf_append_report!(report,
         NLPDiagnostics.bmopf_terminal_report(BMOPFTools.opf_network(context)))
+    _bmopf_append_report!(report, _bmopf_source_schema_report(context))
     _bmopf_append_report!(report, _bmopf_terminal_port_report(context))
     _bmopf_append_report!(report, _bmopf_opf_lifecycle_report(context))
     _bmopf_append_report!(report, _bmopf_opf_registry_report(context))
@@ -3254,6 +3374,46 @@ function _bmopf_terminal_port_nullspace_mode_report(context)
         ))
     end
     return report
+end
+
+"""
+    _bmopf_expected_mode_tangent_policy(context; variables = :fixed)
+
+Construct a plugin-specific coordinate scope for local expected-nullspace
+comparisons. The default retains all variables whose staged domain role is
+`FixedVariable`; this records the coordinate scope without releasing bounds,
+changing the model, or asserting that the coordinates are physically free.
+"""
+function _bmopf_expected_mode_tangent_policy(
+    context;
+    variables = :fixed,
+    name::Symbol = :bmopf_fixed_reference_grounding,
+    description::AbstractString = "BMOPFTools fixed/reference/grounding coordinates retained for a local tangent comparison",
+)
+    owner = _bmopf_context_model(context)
+    graph = NLPDiagnostics.incidence_graph(
+        JuMP.backend(owner); include_variable_domains = true,
+    )
+    selected = if variables === :fixed
+        MOI.VariableIndex[
+            record.index for (record, role) in zip(graph.variables, graph.variable_roles)
+            if role == NLPDiagnostics.FixedVariable
+        ]
+    elseif variables isa AbstractVector{<:MOI.VariableIndex}
+        collect(variables)
+    else
+        throw(ArgumentError("variables must be :fixed or a vector of MOI.VariableIndex"))
+    end
+    isempty(selected) && return nothing
+    return NLPDiagnostics.ExpectedNullspaceTangentPolicy(
+        name,
+        selected;
+        description = description,
+        metadata = Dict(
+            "source" => "BMOPFTools staged OPF variable-domain roles",
+            "selection" => variables === :fixed ? "fixed" : "explicit",
+        ),
+    )
 end
 
 """Return BMOPFTools-derived linear constitutive voltage maps."""
@@ -5101,6 +5261,7 @@ function _bmopf_analyze_opf(
     include_floating_neutral_candidates::Bool = false,
     include_port_physical_modes::Bool = false,
     expected_modes::Union{Nothing,AbstractVector{<:NLPDiagnostics.ExpectedNullspaceMode}} = nothing,
+    expected_mode_tangent_policy::Union{Nothing,NLPDiagnostics.ExpectedNullspaceTangentPolicy} = nothing,
     kwargs...,
 )
     owner = _bmopf_context_model(context)
@@ -5126,10 +5287,14 @@ function _bmopf_analyze_opf(
         vcat(expected_modes, candidate_modes, port_physical_modes)
     end
     report = isnothing(resolved_expected_modes) ?
-             NLPDiagnostics.analyze(JuMP.backend(owner); point = point, kwargs...) :
+             NLPDiagnostics.analyze(JuMP.backend(owner); point = point,
+                                    expected_mode_tangent_policy = expected_mode_tangent_policy,
+                                    kwargs...) :
              NLPDiagnostics.analyze(JuMP.backend(owner); point = point, kwargs...,
-                                    expected_modes = resolved_expected_modes)
+                                    expected_modes = resolved_expected_modes,
+                                    expected_mode_tangent_policy = expected_mode_tangent_policy)
     physical_report = NLPDiagnostics.bmopf_terminal_report(BMOPFTools.opf_network(context))
+    source_schema_report = _bmopf_source_schema_report(context)
     port_report = _bmopf_terminal_port_report(context)
     physical_mode_report = _bmopf_terminal_port_nullspace_mode_report(context)
     constitutive_map_report = _bmopf_terminal_constitutive_map_report(context)
@@ -5143,6 +5308,7 @@ function _bmopf_analyze_opf(
     coordinate_scale_report = isnothing(point) ? nothing :
         _bmopf_terminal_port_coordinate_scale_report(context, point)
     append!(report.findings, physical_report.findings)
+    append!(report.findings, source_schema_report.findings)
     append!(report.findings, port_report.findings)
     include_port_physical_modes && append!(report.findings, physical_mode_report.findings)
     append!(report.findings, constitutive_map_report.findings)
@@ -5157,6 +5323,7 @@ function _bmopf_analyze_opf(
     for (key, value) in physical_report.metadata
         report.metadata[key] = value
     end
+    merge!(report.metadata, source_schema_report.metadata)
     merge!(report.metadata, port_report.metadata)
     include_port_physical_modes && merge!(report.metadata, physical_mode_report.metadata)
     merge!(report.metadata, constitutive_map_report.metadata)
@@ -5177,7 +5344,7 @@ function _bmopf_analyze_opf(
         string(length(candidate_modes))
     report.metadata[:bmopf_port_physical_modes_enabled] = string(include_port_physical_modes)
     report.metadata[:bmopf_port_physical_modes_applied] = string(length(port_physical_modes))
-    report.metadata[:stages] *= ",bmopf_terminals,bmopf_terminal_ports,bmopf_terminal_port_physical_modes,bmopf_terminal_constitutive_maps,bmopf_terminal_complex_constitutive_maps,bmopf_passive_network_current_maps,bmopf_current_laws,bmopf_floating_neutral_candidates,bmopf_opf_lifecycle,bmopf_opf_registry,bmopf_components"
+    report.metadata[:stages] *= ",bmopf_terminals,bmopf_source_schema,bmopf_terminal_ports,bmopf_terminal_port_physical_modes,bmopf_terminal_constitutive_maps,bmopf_terminal_complex_constitutive_maps,bmopf_passive_network_current_maps,bmopf_current_laws,bmopf_floating_neutral_candidates,bmopf_opf_lifecycle,bmopf_opf_registry,bmopf_components"
     !isnothing(coordinate_scale_report) && (report.metadata[:stages] *= ",bmopf_terminal_coordinate_scales")
     !isnothing(point) &&
         NLPDiagnostics._apply_point_provenance_guard!(report, point)

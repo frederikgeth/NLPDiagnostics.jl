@@ -1414,6 +1414,20 @@ unsupported device semantics and voltage/topology fields are unsupported
 physical metadata. This turns the warning into an implementation queue rather
 than an undifferentiated import defect.
 
+Source-schema fidelity is now a first-class BMOPF diagnostic rather than a
+benchmark-only counter. `bmopf_source_schema_report(context)` reads the
+PowerIO conversion record and emits aggregate, renderer-neutral findings for
+physical/operating-point metadata loss, device-semantic loss, intentional
+representational loss, and unclassified drops. The report preserves the
+source path, affected fields/scopes, policy status, and original warning
+messages, so direct callers inherit the same physical-readiness boundary as
+the campaign summaries.
+
+A live delta-load smoke check through the updated BMOPFTools engine now
+contains the report in both the context profile and physical-mode analysis:
+17 conversion warnings are exposed as 15 physical/device-semantic blockers
+and 2 representational losses, with the original DSS source path retained.
+
 The smoke runner now preserves a byte-for-byte source snapshot for every
 fixture, recording a relative copy path, SHA-256 digest, byte count, and line
 count in the result and index. The five-fixture rerun preserved all sources,
@@ -2113,3 +2127,62 @@ about 0.577). This is a useful semantic result, not a failure: the current
 reference/fixed-coordinate treatment prevents a physical gauge claim. The
 next major item is a controlled free-coordinate projection policy so visible
 candidates can be compared without silently dropping fixed components.
+
+The controlled free-coordinate policy is now implemented. The default :strict
+policy preserves the original alignment gate. The opt-in :project_free policy
+compares only the represented free component while retaining fixed and missing
+coordinates, coefficient norms, variable indices, projection residuals, and
+policy identity in the finding evidence. Projected matches are deliberately
+classified as local representational evidence rather than physical observations.
+BMOPF smoke, point comparison, validation, and evidence-ledger paths now record
+the policy and projected-match counts. The next major item is to add a
+plugin-specific tangent policy for reference and grounding coordinates, so a
+projected candidate can be compared against the physically admissible tangent
+space rather than only the generic free-variable scope.
+
+The generic tangent-policy boundary is now implemented. An
+`ExpectedNullspaceTangentPolicy` names an explicit coordinate scope and
+metadata; `analyze_degeneracy` retains those columns in the local Jacobian
+comparison and labels matches as local tangent evidence. No bounds or model
+constraints are changed. The BMOPFTools extension can construct a default
+`bmopf_fixed_reference_grounding` scope from staged fixed-variable roles, and
+the smoke, comparison, validation, and ledger paths serialize its identity.
+The next major item is empirical calibration: run paired BMOPF campaigns with
+and without the tangent scope, inspect residual and rank changes, and add
+fixture-specific declarations only where the staged engine semantics justify
+them.
+
+A reproducible calibration path is now available. `launch_bmopf_tangent_calibration.jl`
+runs the same smoke fixtures and point policy under `none` and `fixed` scopes,
+serializes both summaries, and invokes
+`compare_bmopf_tangent_policies.jl`. The comparison reports per-fixture rank,
+mode-status, and tangent-observation deltas with explicit environment and point
+compatibility gates. It treats changes as local calibration evidence rather than
+physical conclusions. The next item is to run this campaign on the small BMOPF
+fixture set, inspect retained-variable support, and promote only validated
+reference/grounding declarations into the multiconductor plugin.
+
+The five-fixture zero-point calibration is complete. All five paired dense
+comparisons were available and retained the same rank under `none` and `fixed`:
+delta-load 36, free-neutral-return 34, grounded-neutral 34,
+unbalanced-three-phase-line 38, and wye-delta-transformer 42. Every fixture
+changed only its mode-coordinate classification: 12 modes moved from outside
+the generic free scope to tangent-comparable in the first four cases, and six
+transformer modes did so in the last. All 14 tangent-comparable modes were
+locally not observed. This supports the representational value of the policy,
+but the corpus still carries 59 physical/source-schema warnings, so no
+fixture-specific physical declaration is promoted yet.
+
+The first bounded calibration run used the `delta-load` fixture at the zero
+coordinate probe with a 10,000-entry dense budget. Both scopes built
+successfully and retained rank 36. Without the scope, two visible modes were
+outside the free-coordinate comparison; with the fixed scope, both became
+comparable and were classified locally as tangent-not-observed. This is the
+intended representational effect, not a rank or physical conclusion. The run
+also retained 17 source-schema warnings, including physical metadata losses,
+so the fixture is not yet suitable for promoting a physical declaration.
+
+The calibration summaries now retain each tangent-mode row with its mode name,
+policy identity, residual, tolerance, and declaration description, together
+with the retained-coordinate count. This makes the source-restoration step
+auditable at fixture level instead of relying on aggregate counts.

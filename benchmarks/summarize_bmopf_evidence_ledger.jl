@@ -358,6 +358,34 @@ function _append_multiconductor_point_evidence!(records, report, path)
         _int(get(_dict(get(row, "candidate_mode_matches", nothing)), "mode_count", 0)) > 0
     end, comparisons)
     match_changes = count(item -> get(_dict(item), "mode_match_status_changed", false), comparisons)
+    projected_observed = sum(
+        _int(get(_dict(get(_dict(item), "baseline_mode_matches", nothing)),
+                "projected_observed_count", 0)) +
+        _int(get(_dict(get(_dict(item), "candidate_mode_matches", nothing)),
+                "projected_observed_count", 0))
+        for item in comparisons
+    )
+    projected_not_observed = sum(
+        _int(get(_dict(get(_dict(item), "baseline_mode_matches", nothing)),
+                "projected_not_observed_count", 0)) +
+        _int(get(_dict(get(_dict(item), "candidate_mode_matches", nothing)),
+                "projected_not_observed_count", 0))
+        for item in comparisons
+    )
+    tangent_observed = sum(
+        _int(get(_dict(get(_dict(item), "baseline_mode_matches", nothing)),
+                "tangent_observed_count", 0)) +
+        _int(get(_dict(get(_dict(item), "candidate_mode_matches", nothing)),
+                "tangent_observed_count", 0))
+        for item in comparisons
+    )
+    tangent_not_observed = sum(
+        _int(get(_dict(get(_dict(item), "baseline_mode_matches", nothing)),
+                "tangent_not_observed_count", 0)) +
+        _int(get(_dict(get(_dict(item), "candidate_mode_matches", nothing)),
+                "tangent_not_observed_count", 0))
+        for item in comparisons
+    )
     match_pairs > 0 && _append_evidence_record!(records, report, path,
         "multiconductor_point_mode_jacobian_match|$(get(report, "baseline_point_policy", "unknown"))|$(get(report, "candidate_point_policy", "unknown"))",
         "multiconductor_point_mode_jacobian_match", "mode_jacobian_comparison";
@@ -365,7 +393,19 @@ function _append_multiconductor_point_evidence!(records, report, path)
         domain = "physical_interpretation_boundary",
         observation = "Visible component-mode candidates were compared with local observed-Jacobian nullspace evidence.",
         evidence = Dict("match_pair_count" => match_pairs,
-            "match_status_change_count" => match_changes))
+            "match_status_change_count" => match_changes,
+            "projected_observed_count_across_points" => projected_observed,
+            "projected_not_observed_count_across_points" => projected_not_observed,
+            "baseline_projection_policy" => get(readiness,
+                "baseline_mode_projection_policy", "unknown"),
+            "candidate_projection_policy" => get(readiness,
+                "candidate_mode_projection_policy", "unknown"),
+            "tangent_observed_count_across_points" => tangent_observed,
+            "tangent_not_observed_count_across_points" => tangent_not_observed,
+            "baseline_tangent_policy" => get(readiness,
+                "baseline_mode_tangent_policy", "unknown"),
+            "candidate_tangent_policy" => get(readiness,
+                "candidate_mode_tangent_policy", "unknown")))
     voltage_alignment_changes = count(item -> get(_dict(item), "voltage_alignment_changed", false), comparisons)
     current_alignment_changes = count(item -> get(_dict(item), "current_alignment_changed", false), comparisons)
     voltage_alignment_missing = sum(

@@ -1019,6 +1019,13 @@ as the multiconductor campaign: representational unit losses are retained as
 context, while device-semantic and physical/operating-point losses block the
 `physical_metadata_complete` readiness gate until explicitly mapped.
 
+The same evidence is available directly from a staged context through
+`NLPDiagnostics.bmopf_source_schema_report(context)`. It is attached to both
+the BMOPF context profile and `bmopf_analyze_opf` report, with aggregate
+findings and metadata for the source path, dropped fields/scopes, policy
+statuses, and original conversion messages. This keeps source-fidelity
+limitations visible even when a user is not running the benchmark harness.
+
 The isolated solver-trace launcher makes the in-place NLPDiagnostics package
 visible to BMOPFTools child processes and records native child-wait errors.
 Size-guard-only campaigns therefore remain build evidence and are not treated
@@ -1371,10 +1378,55 @@ as semantic evidence rather than a physical failure. The next step is a
 controlled free-coordinate projection policy that preserves fixed components
 instead of silently discarding them.
 
+That policy is now available as expected_mode_free_coordinate_policy =
+:strict or :project_free. :project_free records the discarded fixed or
+unavailable components explicitly and emits projected local match findings
+without treating them as physical gauge certificates. The BMOPF campaign
+serializes the policy, projected residuals, discarded-coordinate support, and
+point-to-point stability. The remaining semantic boundary is the
+plugin-specific tangent space for reference and grounding coordinates.
+
+The tangent boundary is now represented by
+`ExpectedNullspaceTangentPolicy`. It retains explicitly named fixed/reference
+coordinates in the local Jacobian comparison without releasing their model
+domains. Findings carry the policy name and are classified as local inference,
+not physical certificates. The BMOPFTools adapter exposes
+`bmopf_expected_mode_tangent_policy(context; variables = :fixed)`, which
+derives a conservative scope from staged fixed-variable roles. Smoke records,
+point comparisons, validation, and the evidence ledger preserve this policy
+identity so campaigns with different coordinate scopes cannot be compared
+silently.
+
+For paired calibration, use `launch_bmopf_tangent_calibration.jl`. It runs the
+same smoke campaign with `none` and `fixed` scopes and produces a guarded
+`tangent_policy_comparison.json`. The comparison requires matching fixture,
+environment, and evaluation-point provenance before reporting rank or mode
+changes.
+
+In the first bounded `delta-load` calibration (zero-coordinate probe,
+10,000-entry dense budget), both policies retained dense rank 36. The `none`
+scope left two visible modes outside the free comparison; the fixed scope made
+both comparable and classified them as locally tangent-not-observed. The same
+run retained 17 source-schema warnings, including physical metadata losses, so
+this result is calibration evidence rather than a physical declaration.
+
+The five-fixture zero-point campaign preserved rank in every pair: 36, 34, 34,
+38, and 42 for delta-load, free-neutral-return, grounded-neutral,
+unbalanced-three-phase-line, and wye-delta-transformer respectively. The fixed
+scope made all 14 visible candidate modes comparable; none was locally
+observed. The campaign still contains 59 source-schema warnings with physical
+impact, so the next step is metadata restoration and support inspection rather
+than adding fixture-specific physical mode declarations.
+
+Calibration summaries retain per-mode tangent rows (mode name, policy,
+residual, tolerance, and description) plus the retained-coordinate count. This
+is the evidence to inspect when deciding whether a fixed/reference coordinate
+belongs in a future physical plugin declaration.
+
 The per-port alignment report is now retained in each multiconductor contract.
 The dense checkpoint had complete voltage and current terminal maps on all five
 fixtures, with no missing, dimension-mismatched, or nonfinite maps. The
 remaining boundary is specifically mode-to-coordinate semantics: structurally
 complete port maps do not yet make every declared physical mode comparable to
-the model Jacobian. The next step is per-component mode projection evidence,
-classified as hidden, visible, or unrepresented.
+the model Jacobian. The next step is source-metadata restoration and
+fixture-level support review before promoting any physical tangent declaration.

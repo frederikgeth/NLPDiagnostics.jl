@@ -322,6 +322,10 @@ solver is invoked and no model data is modified. The result retains timing and
 derivative-provenance counts alongside the full reports so formulation cases can
 be compared reproducibly. The iterative sparse probes are disabled by default;
 set either probe dimension keyword to record explicit additional probe stages.
+expected_mode_free_coordinate_policy is passed to the degeneracy stage and
+defaults to the conservative :strict policy.
+expected_mode_tangent_policy optionally retains plugin-declared fixed/reference
+coordinates for a local expected-mode comparison without modifying the model.
 """
 function profile_case(
     model::MOI.ModelLike,
@@ -374,6 +378,7 @@ function profile_case(
     jacobian_rank_tolerance_sweep_scaling::Symbol = :none,
     jacobian_rank_tolerance_sweep_max_dense_entries::Integer = 4_000_000,
     expected_mode_free_coordinate_policy::Symbol = :strict,
+    expected_mode_tangent_policy::Union{Nothing,ExpectedNullspaceTangentPolicy} = nothing,
 ) where {T<:AbstractFloat}
     hits_before = cache.hits
     misses_before = cache.misses
@@ -577,6 +582,7 @@ function profile_case(
         max_dense_entries = rank_max_dense_entries,
         expected_mode_free_coordinate_policy =
             expected_mode_free_coordinate_policy,
+        expected_mode_tangent_policy = expected_mode_tangent_policy,
     ))
 
     _apply_point_provenance_guard!(numerical_report, case.point)

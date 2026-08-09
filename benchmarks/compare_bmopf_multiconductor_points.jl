@@ -92,6 +92,12 @@ function _mode_matches(contract)
         "not_observed_count" => _int(get(raw, "not_observed_count", get(counts, "not_observed", 0))),
         "outside_free_coordinates_count" => _int(get(raw, "outside_free_coordinates_count", get(counts, "outside_free_coordinates", 0))),
         "partial_alignment_count" => _int(get(raw, "partial_alignment_count", get(counts, "partial_alignment", 0))),
+        "projected_observed_count" => _int(get(raw, "projected_observed_count", get(counts, "projected_observed", 0))),
+        "projected_not_observed_count" => _int(get(raw, "projected_not_observed_count", get(counts, "projected_not_observed", 0))),
+        "tangent_observed_count" => _int(get(raw, "tangent_observed_count", get(counts, "tangent_observed", 0))),
+        "tangent_not_observed_count" => _int(get(raw, "tangent_not_observed_count", get(counts, "tangent_not_observed", 0))),
+        "projection_policies" => sort!(unique(String(get(row, "projection_policy", "strict"))
+            for row in get(raw, "rows", Any[]))),
         "status_counts" => counts,
         "rows" => get(raw, "rows", Any[]),
     )
@@ -106,6 +112,8 @@ function _modes(case)
         "unaligned_mode_count" => _int(get(raw, "unaligned_mode_count", 0)),
         "not_observed_mode_count" => _int(get(raw, "not_observed_mode_count", 0)),
         "partial_alignment_mode_count" => _int(get(raw, "partial_alignment_mode_count", 0)),
+        "tangent_observed_mode_count" => _int(get(raw, "tangent_observed_mode_count", 0)),
+        "tangent_not_observed_mode_count" => _int(get(raw, "tangent_not_observed_mode_count", 0)),
         "jacobian_rank_available" => _bool(get(raw, "jacobian_rank_available", false)),
         "dense_guard_allows" => _bool(get(raw, "dense_guard_allows", false)),
         "jacobian_rank" => _int(get(raw, "jacobian_rank", 0)),
@@ -183,6 +191,14 @@ function main()
         get(baseline_first_case, "point_policy", "unknown"))
     candidate_policy = get(candidate, "point_policy",
         get(candidate_first_case, "point_policy", "unknown"))
+    baseline_mode_policy = get(baseline, "expected_mode_free_coordinate_policy",
+        get(baseline_first_case, "expected_mode_free_coordinate_policy", "unknown"))
+    candidate_mode_policy = get(candidate, "expected_mode_free_coordinate_policy",
+        get(candidate_first_case, "expected_mode_free_coordinate_policy", "unknown"))
+    baseline_tangent_policy = get(baseline, "expected_mode_tangent_policy",
+        get(baseline_first_case, "expected_mode_tangent_policy", "unknown"))
+    candidate_tangent_policy = get(candidate, "expected_mode_tangent_policy",
+        get(candidate_first_case, "expected_mode_tangent_policy", "unknown"))
     baseline_dense_budget = _int(get(baseline, "rank_max_dense_entries",
         get(baseline_first_case, "rank_max_dense_entries", 0)))
     candidate_dense_budget = _int(get(candidate, "rank_max_dense_entries",
@@ -292,6 +308,20 @@ function main()
         "evidence" => Dict("point_policy" => baseline_policy),
         "suggested_action" => "Select distinct evaluation-point policies for comparison.",
     ))
+    baseline_mode_policy == candidate_mode_policy || push!(findings, Dict(
+        "code" => "multiconductor_point_mode_projection_policy_mismatch", "severity" => "warning",
+        "observation" => "The paired summaries used different expected-mode free-coordinate projection policies.",
+        "evidence" => Dict("baseline_policy" => baseline_mode_policy,
+                           "candidate_policy" => candidate_mode_policy),
+        "suggested_action" => "Use the same strict or project_free mode policy before comparing point-local mode statuses.",
+    ))
+    baseline_tangent_policy == candidate_tangent_policy || push!(findings, Dict(
+        "code" => "multiconductor_point_mode_tangent_policy_mismatch", "severity" => "warning",
+        "observation" => "The paired summaries used different plugin-specific expected-mode tangent policies.",
+        "evidence" => Dict("baseline_policy" => baseline_tangent_policy,
+                           "candidate_policy" => candidate_tangent_policy),
+        "suggested_action" => "Use the same tangent-coordinate scope before comparing local expected-mode statuses.",
+    ))
     successful_overlap == 0 && push!(findings, Dict(
         "code" => "multiconductor_point_successful_overlap_empty", "severity" => "warning",
         "observation" => "The paired point policies have no fixture successful at both points.",
@@ -341,6 +371,12 @@ function main()
         "mode_match_pair_available" => mode_match_available == dense_overlap && dense_overlap > 0,
         "mode_match_available_case_count" => mode_match_available,
         "mode_match_status_change_count" => mode_match_status_changes,
+        "mode_projection_policy_compatible" => baseline_mode_policy == candidate_mode_policy,
+        "baseline_mode_projection_policy" => baseline_mode_policy,
+        "candidate_mode_projection_policy" => candidate_mode_policy,
+        "mode_tangent_policy_compatible" => baseline_tangent_policy == candidate_tangent_policy,
+        "baseline_mode_tangent_policy" => baseline_tangent_policy,
+        "candidate_mode_tangent_policy" => candidate_tangent_policy,
         "ambiguous_rank_change_count" => ambiguous_rank_changes,
     )
     payload = Dict{String,Any}(

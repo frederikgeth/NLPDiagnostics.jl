@@ -120,6 +120,19 @@ function _expected_mode_free_coordinate_policy()
     return raw == "strict" ? :strict : :project_free
 end
 
+function _expected_mode_tangent_policy(context)
+    raw = lowercase(strip(get(
+        ENV,
+        "NLPDIAGNOSTICS_BMOPF_EXPECTED_MODE_TANGENT_POLICY",
+        "fixed",
+    )))
+    raw in ("none", "fixed") || error(
+        "NLPDIAGNOSTICS_BMOPF_EXPECTED_MODE_TANGENT_POLICY must be none or fixed",
+    )
+    raw == "none" && return nothing
+    return NLPDiagnostics.bmopf_expected_mode_tangent_policy(context)
+end
+
 _as_dict(value) = value isa AbstractDict ?
     Dict{String,Any}(String(k) => v for (k, v) in value) : Dict{String,Any}()
 
@@ -137,7 +150,9 @@ function _physical_mode_projection_matches(analysis_data, projection_data)
         code in ("expected_nullspace_mode_observed", "expected_nullspace_mode_not_observed",
                  "expected_nullspace_mode_unaligned", "expected_nullspace_mode_partial_alignment",
                  "expected_nullspace_mode_free_projection_observed",
-                 "expected_nullspace_mode_free_projection_not_observed") || continue
+                 "expected_nullspace_mode_free_projection_not_observed",
+                 "expected_nullspace_mode_tangent_observed",
+                 "expected_nullspace_mode_tangent_not_observed") || continue
         evidence = get(finding, "evidence", Any[])
         evidence isa AbstractVector && !isempty(evidence) || continue
         details = _as_dict(get(_as_dict(first(evidence)), "details", nothing))
@@ -148,6 +163,8 @@ function _physical_mode_projection_matches(analysis_data, projection_data)
             code == "expected_nullspace_mode_not_observed" ? "not_observed" :
             code == "expected_nullspace_mode_free_projection_observed" ? "projected_observed" :
             code == "expected_nullspace_mode_free_projection_not_observed" ? "projected_not_observed" :
+            code == "expected_nullspace_mode_tangent_observed" ? "tangent_observed" :
+            code == "expected_nullspace_mode_tangent_not_observed" ? "tangent_not_observed" :
             code == "expected_nullspace_mode_partial_alignment" ? "partial_alignment" :
             "outside_free_coordinates"
         push!(rows, Dict{String,Any}(
@@ -184,6 +201,8 @@ function _physical_mode_projection_matches(analysis_data, projection_data)
         "partial_alignment_count" => get(status_counts, "partial_alignment", 0),
         "projected_observed_count" => get(status_counts, "projected_observed", 0),
         "projected_not_observed_count" => get(status_counts, "projected_not_observed", 0),
+        "tangent_observed_count" => get(status_counts, "tangent_observed", 0),
+        "tangent_not_observed_count" => get(status_counts, "tangent_not_observed", 0),
     )
 end
 
@@ -545,6 +564,7 @@ function main()
                 run.context; operating_source = run.result.profile.evaluation.point,
             )
             evaluation = run.result.profile.evaluation
+            expected_mode_tangent_policy = _expected_mode_tangent_policy(run.context)
             variable_count = length(evaluation.point.variables)
             constraint_row_count = length(evaluation.constraint_sources)
             jacobian_entries = variable_count * constraint_row_count
@@ -558,6 +578,7 @@ function main()
                     check_degeneracy = true,
                     expected_mode_free_coordinate_policy =
                         expected_mode_free_coordinate_policy,
+                    expected_mode_tangent_policy = expected_mode_tangent_policy,
                     jacobian_rank_tolerance_sweep_tolerances = [sqrt(eps(Float64))],
                     jacobian_rank_tolerance_sweep_max_dense_entries = dense_entry_limit,
                 )
@@ -593,6 +614,8 @@ function main()
                 "iterative_right_nullspace_probe_iterations" => iterative_probe_iterations,
                 "expected_mode_free_coordinate_policy" =>
                     expected_mode_free_coordinate_policy,
+                "expected_mode_tangent_policy" => isnothing(expected_mode_tangent_policy) ?
+                    "none" : string(expected_mode_tangent_policy.name),
                 "dense_rank_analysis_eligible" => jacobian_entries <= dense_entry_limit,
                 "multiconductor_contract" => multiconductor_contract,
                 "physical_mode_analysis" => physical_mode_analysis_data,
@@ -615,6 +638,8 @@ function main()
                 "rank_max_dense_entries" => dense_entry_limit,
                 "iterative_right_nullspace_probe_dimension" => iterative_probe_dimension,
                 "iterative_right_nullspace_probe_iterations" => iterative_probe_iterations,
+                "expected_mode_tangent_policy" => isnothing(expected_mode_tangent_policy) ?
+                    "none" : string(expected_mode_tangent_policy.name),
                 "dense_rank_analysis_eligible" => jacobian_entries <= dense_entry_limit,
                 "multiconductor_contract" => multiconductor_contract,
                 "generic_finding_count" => generic_findings,
@@ -634,6 +659,7 @@ function main()
                 "rank_max_dense_entries" => dense_entry_limit,
                 "iterative_right_nullspace_probe_dimension" => iterative_probe_dimension,
                 "iterative_right_nullspace_probe_iterations" => iterative_probe_iterations,
+                "expected_mode_tangent_policy" => "unavailable",
                 "integrity_preflight" => preflight,
             )))
             push!(index, Dict(
@@ -653,6 +679,9 @@ function main()
         "rank_max_dense_entries" => dense_entry_limit,
         "expected_mode_free_coordinate_policy" =>
             expected_mode_free_coordinate_policy,
+        "expected_mode_tangent_policy" => get(
+            ENV, "NLPDIAGNOSTICS_BMOPF_EXPECTED_MODE_TANGENT_POLICY", "fixed",
+        ),
         "cases" => index,
     )))
     println("wrote evidence records to $output_dir")

@@ -256,6 +256,9 @@ bmopf_terminal_port_nullspace_mode_semantics(context) = _bmopf_extension(:BMOPFT
 """Report BMOPFTools physical terminal-port mode declarations."""
 bmopf_terminal_port_nullspace_mode_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to report staged BMOPF physical port modes")._bmopf_terminal_port_nullspace_mode_report(context)
+"""Return a BMOPFTools plugin-specific coordinate scope for local tangent checks."""
+bmopf_expected_mode_tangent_policy(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to construct a BMOPF expected-mode tangent policy")._bmopf_expected_mode_tangent_policy(context; kwargs...)
 """Return BMOPFTools-derived linear constitutive voltage maps."""
 bmopf_terminal_constitutive_maps(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to inspect staged BMOPF constitutive maps")._bmopf_terminal_constitutive_maps(context)
@@ -307,6 +310,9 @@ bmopf_component_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
 """Report BMOPFTools expected-component-rank declaration coverage."""
 bmopf_component_rank_capability_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to inspect staged BMOPF component-rank capability")._bmopf_component_rank_capability_report(context)
+"""Report source-schema fidelity losses recorded while converting PowerIO data to BMOPF."""
+bmopf_source_schema_report(context) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to report BMOPF source-schema fidelity")._bmopf_source_schema_report(context)
 """Optional domain-plugin port/connection declarations; the generic default is empty."""
 component_port_metadata(model::MOI.ModelLike) = ComponentPortMetadata[]
 component_port_metadata(model::ModelSnapshot) = ComponentPortMetadata[]
@@ -388,6 +394,8 @@ function structural_numerical_comparison(
     relative_tolerance::Real =
         max(length(evaluation.point.variables), 1) * eps(T),
     max_dense_entries::Integer = 4_000_000,
+    additional_variable_indices::AbstractVector{MOI.VariableIndex} =
+        MOI.VariableIndex[],
 ) where {T<:AbstractFloat}
     graph = incidence_graph(model)
     graph.complete || return _unavailable_structural_numerical_comparison(
@@ -399,18 +407,31 @@ function structural_numerical_comparison(
         evaluation,
         "structural matching is unavailable",
     )
+    # Prefer the complete EntityRef as the alignment key. MOI constraint
+    # indices are only unique within a function/set type, so a domain row and
+    # an algebraic row can legitimately share the same integer index. The
+    # reduced key is retained only as a conservative fallback when it is
+    # unambiguous.
     numerical_rows = Dict(
-        _entity_row_key(source) => row for
+        source => row for
         (row, source) in enumerate(evaluation.constraint_sources)
     )
+    numerical_rows_by_reduced_key = Dict{Tuple{Symbol,Int,Union{Nothing,Int}},Vector{Int}}()
+    for (row, source) in enumerate(evaluation.constraint_sources)
+        push!(get!(numerical_rows_by_reduced_key, _entity_row_key(source), Int[]), row)
+    end
     selected_rows = Int[]
     for position in matching.eligible_constraint_positions
         node = graph.constraint_nodes[position]
         reference = _constraint_ref(node.constraint; row = node.row)
-        row = get(numerical_rows, _entity_row_key(reference), 0)
+        row = get(numerical_rows, reference, 0)
+        if iszero(row)
+            candidates = get(numerical_rows_by_reduced_key, _entity_row_key(reference), Int[])
+            length(candidates) == 1 && (row = only(candidates))
+        end
         iszero(row) && return _unavailable_structural_numerical_comparison(
             evaluation,
-            "could not align structural equality node $(reference.index) with an evaluated row",
+            "could not align structural equality node $(reference.index) with one unambiguous evaluated row",
         )
         push!(selected_rows, row)
     end
@@ -428,6 +449,20 @@ function structural_numerical_comparison(
         )
         push!(variable_columns, column)
     end
+    graph_variable_indices = Set(record.index for record in graph.variables)
+    for variable in unique(additional_variable_indices)
+        variable in graph_variable_indices || return _unavailable_structural_numerical_comparison(
+            evaluation,
+            "tangent policy references variable $(variable.value) absent from the incidence graph",
+        )
+        column = get(point_columns, variable, 0)
+        iszero(column) && return _unavailable_structural_numerical_comparison(
+            evaluation,
+            "tangent policy variable $(variable.value) is absent from the evaluation point",
+        )
+        push!(variable_columns, column)
+    end
+    unique!(variable_columns)
     selected_evaluation = _selected_jacobian_submatrix_evaluation(
         evaluation,
         selected_rows,
@@ -884,6 +919,7 @@ function _expected_nullspace_mode_findings(
     modes::AbstractVector{<:ExpectedNullspaceMode};
     residual_tolerance::Real = sqrt(eps(T)),
     free_coordinate_policy::Symbol = :strict,
+    tangent_policy::Union{Nothing,ExpectedNullspaceTangentPolicy} = nothing,
 ) where {T<:AbstractFloat}
     comparison.available || return Finding[]
     tolerance = convert(T, residual_tolerance)
@@ -941,7 +977,7 @@ function _expected_nullspace_mode_findings(
         # retains every discarded coordinate and coefficient norm in evidence.
         if (!isempty(discarded_variables) && free_coordinate_policy == :strict) ||
            iszero(norm(direction))
-            if !isempty(unavailable_variables) && !iszero(norm(direction))
+            if !isempty(discarded_variables) && !iszero(norm(direction))
                 push!(
                     findings,
                     Finding(
@@ -950,13 +986,13 @@ function _expected_nullspace_mode_findings(
                         domain = RepresentationalIssue,
                         basis = StructuralProof,
                         confidence = ConfidenceCertain,
-                        observation = "Expected nullspace mode :$(mode.name) retains $(aligned_variable_count) aligned variable component(s), while $(length(unavailable_variables)) component(s) lie outside the free-coordinate scope.",
+                        observation = "Expected nullspace mode :$(mode.name) retains $(aligned_variable_count) aligned variable component(s), while $(length(discarded_variables)) component(s) lie outside the free-coordinate scope.",
                         why_it_matters = "The projected direction can be inspected, but dropping non-free components changes the declared mode and must not be treated as an observed physical gauge.",
                         evidence = [Evidence("Partial expected-nullspace alignment"; details = [
                             "mode" => mode.name,
                             "aligned_variable_count" => aligned_variable_count,
-                            "unaligned_variable_count" => length(unavailable_variables),
-                            "unaligned_variable_indices" => join(unavailable_variables, ","),
+                            "unaligned_variable_count" => length(discarded_variables),
+                            "unaligned_variable_indices" => join(discarded_variables, ","),
                             "nonfree_variable_indices" => join(nonfree_variables, ","),
                             "aligned_coefficient_fraction" => aligned_fraction,
                             "aligned_coefficient_norm" => sqrt(aligned_coefficient_squared),
@@ -1014,9 +1050,13 @@ function _expected_nullspace_mode_findings(
                          (residual <= tolerance ?
                           :expected_nullspace_mode_free_projection_observed :
                           :expected_nullspace_mode_free_projection_not_observed) :
+                         isnothing(tangent_policy) ?
                          (residual <= tolerance ?
                           :expected_nullspace_mode_observed :
-                          :expected_nullspace_mode_not_observed)
+                          :expected_nullspace_mode_not_observed) :
+                         (residual <= tolerance ?
+                          :expected_nullspace_mode_tangent_observed :
+                          :expected_nullspace_mode_tangent_not_observed)
         projected_observed = residual <= tolerance
         if projected
             push!(
@@ -1034,6 +1074,8 @@ function _expected_nullspace_mode_findings(
                     evidence = [Evidence("Expected-nullspace free-coordinate projection"; details = [
                         "mode" => mode.name,
                         "projection_policy" => free_coordinate_policy,
+                        "tangent_policy" => isnothing(tangent_policy) ? "none" :
+                            string(tangent_policy.name),
                         "projection_residual" => residual,
                         "tolerance" => tolerance,
                         "aligned_variable_count" => aligned_variable_count,
@@ -1055,17 +1097,24 @@ function _expected_nullspace_mode_findings(
             push!(
                 findings,
                 Finding(
-                    :expected_nullspace_mode_observed;
+                    isnothing(tangent_policy) ?
+                    :expected_nullspace_mode_observed :
+                    :expected_nullspace_mode_tangent_observed;
                     severity = SeverityInfo,
                     domain = RepresentationalIssue,
-                    basis = PhysicalExpectation,
-                    confidence = ConfidenceHigh,
-                    observation = "Declared expected nullspace mode :$(mode.name) aligns with the observed local right nullspace.",
-                    why_it_matters = "This supports, but does not prove, the plugin or caller's interpretation of the local freedom as an expected gauge or invariance.",
+                    basis = isnothing(tangent_policy) ? PhysicalExpectation : LocalInference,
+                    confidence = isnothing(tangent_policy) ? ConfidenceHigh : ConfidenceMedium,
+                    observation = isnothing(tangent_policy) ?
+                                  "Declared expected nullspace mode :$(mode.name) aligns with the observed local right nullspace." :
+                                  "Declared expected nullspace mode :$(mode.name) aligns with the observed local right nullspace under tangent policy :$(tangent_policy.name).",
+                    why_it_matters = isnothing(tangent_policy) ?
+                                     "This supports, but does not prove, the plugin or caller's interpretation of the local freedom as an expected gauge or invariance." :
+                                     "This is local evidence under an explicit plugin tangent scope; it does not prove that the fixed/reference coordinates may be released physically.",
                     evidence = [Evidence("Expected-nullspace comparison"; details = [
                         "mode" => mode.name,
                         "projection_residual" => residual,
                         "tolerance" => tolerance,
+                        "tangent_policy" => isnothing(tangent_policy) ? "none" : string(tangent_policy.name),
                         "description" => mode.description,
                     ])],
                     suggested_actions = [
@@ -1078,17 +1127,24 @@ function _expected_nullspace_mode_findings(
             push!(
                 findings,
                 Finding(
-                    :expected_nullspace_mode_not_observed;
+                    isnothing(tangent_policy) ?
+                    :expected_nullspace_mode_not_observed :
+                    :expected_nullspace_mode_tangent_not_observed;
                     severity = SeverityInfo,
                     domain = RepresentationalIssue,
                     basis = LocalInference,
-                    confidence = ConfidenceHigh,
-                    observation = "Declared expected nullspace mode :$(mode.name) does not align with the observed local right nullspace.",
-                    why_it_matters = "The mode may be fixed by this formulation or operating point, or the declaration may not match the model coordinates.",
+                    confidence = isnothing(tangent_policy) ? ConfidenceHigh : ConfidenceMedium,
+                    observation = isnothing(tangent_policy) ?
+                                  "Declared expected nullspace mode :$(mode.name) does not align with the observed local right nullspace." :
+                                  "Declared expected nullspace mode :$(mode.name) does not align with the observed local right nullspace under tangent policy :$(tangent_policy.name).",
+                    why_it_matters = isnothing(tangent_policy) ?
+                                     "The mode may be fixed by this formulation or operating point, or the declaration may not match the model coordinates." :
+                                     "The mode remains absent even after the plugin tangent scope retained its declared coordinates; this is local evidence, not a physical failure certificate.",
                     evidence = [Evidence("Expected-nullspace comparison"; details = [
                         "mode" => mode.name,
                         "projection_residual" => residual,
                         "tolerance" => tolerance,
+                        "tangent_policy" => isnothing(tangent_policy) ? "none" : string(tangent_policy.name),
                         "description" => mode.description,
                     ])],
                     suggested_actions = [
@@ -1107,12 +1163,17 @@ function _expected_nullspace_span_findings(
     comparison::StructuralNumericalComparison{T},
     modes::AbstractVector{<:ExpectedNullspaceMode};
     residual_tolerance::Real = sqrt(eps(T)),
+    free_coordinate_policy::Symbol = :strict,
+    tangent_policy::Union{Nothing,ExpectedNullspaceTangentPolicy} = nothing,
 ) where {T<:AbstractFloat}
     comparison.available || return Finding[]
     isempty(modes) && return Finding[]
     tolerance = convert(T, residual_tolerance)
     tolerance >= zero(T) ||
         throw(ArgumentError("residual_tolerance must be nonnegative"))
+    free_coordinate_policy in (:strict, :project_free) || throw(ArgumentError(
+        "free_coordinate_policy must be :strict or :project_free",
+    ))
     estimate = something(comparison.estimate)
     point_columns = Dict(
         variable => column for
@@ -1124,21 +1185,29 @@ function _expected_nullspace_span_findings(
     )
     directions = Vector{Vector{T}}()
     names = Symbol[]
+    projected_names = Symbol[]
+    projected_variables = Dict{Symbol,Vector{Int}}()
     for mode in modes
         direction = zeros(T, length(comparison.free_variable_columns))
         aligned = true
+        discarded = Int[]
         for (variable, coefficient) in zip(mode.variables, mode.direction)
             column = get(point_columns, variable, 0)
             local_column = get(local_columns, column, 0)
             if iszero(local_column)
-                aligned = false
-                break
+                push!(discarded, variable.value)
+                free_coordinate_policy == :strict && (aligned = false; break)
+            else
+                direction[local_column] += convert(T, coefficient)
             end
-            direction[local_column] += convert(T, coefficient)
         end
         aligned && !iszero(norm(direction)) || continue
         push!(directions, direction / norm(direction))
         push!(names, mode.name)
+        !isempty(discarded) && begin
+            push!(projected_names, mode.name)
+            projected_variables[mode.name] = discarded
+        end
     end
     isempty(directions) && return Finding[]
     declared = hcat(directions...)
@@ -1154,6 +1223,28 @@ function _expected_nullspace_span_findings(
                           norm(declared - observed_basis *
                                (transpose(observed_basis) * declared)) / norm(declared)
     findings = Finding[]
+    if !isempty(projected_names)
+        push!(findings, Finding(
+            :expected_nullspace_mode_span_free_projection;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceMedium,
+            observation = "The expected-mode span includes free-coordinate projections for $(length(projected_names)) declaration(s) under the :project_free policy.",
+            why_it_matters = "The span comparison uses only represented free components; fixed or unavailable coordinates remain explicit and prevent a physical span certificate.",
+            evidence = [Evidence("Expected-nullspace span free projection"; details = [
+                "projection_policy" => free_coordinate_policy,
+                "tangent_policy" => isnothing(tangent_policy) ? "none" : string(tangent_policy.name),
+                "projected_mode_names" => join(string.(projected_names), ","),
+                "discarded_variable_indices" => join(
+                    sort!(unique(vcat(values(projected_variables)...))), ",",
+                ),
+            ])],
+            suggested_actions = [
+                "Repeat the span comparison with a plugin-specific tangent policy before assigning physical meaning.",
+            ],
+        ))
+    end
     if declared_rank < length(names)
         push!(findings, Finding(
             :expected_nullspace_mode_declarations_dependent;
@@ -1208,6 +1299,12 @@ end
 
 Report the first generic degeneracy classification: structural equality-pattern
 freedom versus additional local numerical rank loss.
+
+expected_mode_free_coordinate_policy = :strict requires every declared mode
+coordinate to be present in the free-variable comparison scope. Set it to
+:project_free only when a caller wants a controlled local comparison of the
+represented free component; fixed and unavailable components remain explicit in
+the emitted evidence and do not become a physical gauge certificate.
 """
 function analyze_degeneracy(
     model::MOI.ModelLike,
@@ -1218,6 +1315,7 @@ function analyze_degeneracy(
     expected_mode_residual_tolerance::Real =
         sqrt(eps(eltype(evaluation.point.values))),
     expected_mode_free_coordinate_policy::Symbol = :strict,
+    expected_mode_tangent_policy::Union{Nothing,ExpectedNullspaceTangentPolicy} = nothing,
     nullspace_support_relative::Real = 0.1,
     nullspace_uniform_shift_correlation::Real = 0.98,
     nullspace_max_compact_support::Integer = 8,
@@ -1255,7 +1353,13 @@ function analyze_degeneracy(
     ) : ExpectedNullspaceMode[]
     port_summary = port_expected_nullspace_summary(port_modes)
     all_expected_modes = vcat(expected_modes, port_modes)
-    comparison = structural_numerical_comparison(model, evaluation; kwargs...)
+    tangent_variables = isnothing(expected_mode_tangent_policy) ?
+                        MOI.VariableIndex[] : expected_mode_tangent_policy.variables
+    comparison_kwargs = merge(
+        NamedTuple(kwargs),
+        (additional_variable_indices = tangent_variables,),
+    )
+    comparison = structural_numerical_comparison(model, evaluation; comparison_kwargs...)
     fingerprints = nullspace_fingerprints(
         comparison;
         support_relative = nullspace_support_relative,
@@ -1267,6 +1371,17 @@ function analyze_degeneracy(
         string(expected_mode_free_coordinate_policy)
     report.metadata[:expected_mode_free_coordinate_projection_enabled] =
         string(expected_mode_free_coordinate_policy == :project_free)
+    report.metadata[:expected_mode_tangent_policy] = isnothing(expected_mode_tangent_policy) ?
+        "none" : string(expected_mode_tangent_policy.name)
+    report.metadata[:expected_mode_tangent_policy_variable_count] = isnothing(expected_mode_tangent_policy) ?
+        "0" : string(length(expected_mode_tangent_policy.variables))
+    report.metadata[:expected_mode_tangent_policy_description] = isnothing(expected_mode_tangent_policy) ?
+        "" : expected_mode_tangent_policy.description
+    if !isnothing(expected_mode_tangent_policy)
+        for (key, value) in expected_mode_tangent_policy.metadata
+            report.metadata[Symbol("expected_mode_tangent_policy_" * key)] = value
+        end
+    end
     append!(report.findings, _structural_numerical_findings(comparison))
     append!(report.findings, _nullspace_fingerprint_findings(comparison, evaluation, fingerprints))
     append!(report.findings, _unknown_local_degeneracy_findings(comparison, fingerprints))
@@ -1277,6 +1392,7 @@ function analyze_degeneracy(
             all_expected_modes;
             residual_tolerance = expected_mode_residual_tolerance,
             free_coordinate_policy = expected_mode_free_coordinate_policy,
+            tangent_policy = expected_mode_tangent_policy,
         ),
     )
     append!(
@@ -1285,6 +1401,8 @@ function analyze_degeneracy(
             comparison,
             all_expected_modes;
             residual_tolerance = expected_mode_residual_tolerance,
+            free_coordinate_policy = expected_mode_free_coordinate_policy,
+            tangent_policy = expected_mode_tangent_policy,
         ),
     )
     if !isnothing(iterative_right_nullspace_probe_dimension)

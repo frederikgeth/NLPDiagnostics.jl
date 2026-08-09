@@ -154,6 +154,24 @@ function _case_record(root, entry)
     mode_metadata = _as_dict(get(mode_analysis, "metadata", nothing))
     mode_codes = _as_dict(get(mode_analysis, "finding_code_counts", nothing))
     mode_int(code) = _int(get(mode_codes, code, 0))
+    tangent_rows = Dict{String,Any}[]
+    for raw_finding in get(mode_analysis, "findings", Any[])
+        finding = _as_dict(raw_finding)
+        code = String(get(finding, "code", ""))
+        code in ("expected_nullspace_mode_tangent_observed",
+                 "expected_nullspace_mode_tangent_not_observed") || continue
+        evidence = get(finding, "evidence", Any[])
+        evidence isa AbstractVector && !isempty(evidence) || continue
+        details = _as_dict(get(_as_dict(first(evidence)), "details", nothing))
+        push!(tangent_rows, Dict{String,Any}(
+            "code" => code,
+            "mode" => get(details, "mode", nothing),
+            "tangent_policy" => get(details, "tangent_policy", nothing),
+            "projection_residual" => get(details, "projection_residual", nothing),
+            "tolerance" => get(details, "tolerance", nothing),
+            "description" => get(details, "description", nothing),
+        ))
+    end
     dense_limit = _int(get(entry, "rank_max_dense_entries", get(record, "rank_max_dense_entries", 0)))
     dense_entries = _int(get(entry, "jacobian_dense_entry_count", get(record, "jacobian_dense_entry_count", 0)))
     dense_guard_allows = dense_limit > 0 && dense_entries <= dense_limit
@@ -168,12 +186,22 @@ function _case_record(root, entry)
     not_observed_modes = mode_int("expected_nullspace_mode_not_observed") +
                          mode_int("component_port_nullspace_mode_not_observed")
     partial_modes = mode_int("expected_nullspace_mode_partial_alignment")
+    projected_observed_modes =
+        mode_int("expected_nullspace_mode_free_projection_observed")
+    projected_not_observed_modes =
+        mode_int("expected_nullspace_mode_free_projection_not_observed")
+    tangent_observed_modes = mode_int("expected_nullspace_mode_tangent_observed")
+    tangent_not_observed_modes = mode_int("expected_nullspace_mode_tangent_not_observed")
     mode_status = if isempty(mode_analysis)
         "unavailable"
     elseif !mode_rank_available
         "rank_unavailable"
     elseif unaligned_modes > 0
         "coordinate_alignment_boundary"
+    elseif projected_observed_modes > 0 || projected_not_observed_modes > 0
+        "free_coordinate_projection"
+    elseif tangent_observed_modes > 0 || tangent_not_observed_modes > 0
+        "plugin_tangent_scope"
     elseif observed_modes > 0
         "observed"
     elseif not_observed_modes > 0
@@ -215,6 +243,14 @@ function _case_record(root, entry)
         "scalar_constraint_row_count" => get(record, "scalar_constraint_row_count", nothing),
         "jacobian_dense_entry_count" => get(record, "jacobian_dense_entry_count", nothing),
         "rank_max_dense_entries" => get(record, "rank_max_dense_entries", nothing),
+        "expected_mode_free_coordinate_policy" => get(record,
+            "expected_mode_free_coordinate_policy",
+            get(entry, "expected_mode_free_coordinate_policy", "unknown")),
+        "expected_mode_tangent_policy" => get(record,
+            "expected_mode_tangent_policy",
+            get(entry, "expected_mode_tangent_policy", "unknown")),
+        "expected_mode_tangent_policy_variable_count" => get(mode_metadata,
+            "expected_mode_tangent_policy_variable_count", "0"),
         "dense_rank_analysis_eligible" => get(record, "dense_rank_analysis_eligible", nothing),
         "integrity_preflight" => Dict(
             "error_count" => _int(get(preflight, "error_count", 0)),
@@ -235,6 +271,11 @@ function _case_record(root, entry)
             "unaligned_mode_count" => unaligned_modes,
             "not_observed_mode_count" => not_observed_modes,
             "partial_alignment_mode_count" => partial_modes,
+            "projected_observed_mode_count" => projected_observed_modes,
+            "projected_not_observed_mode_count" => projected_not_observed_modes,
+            "tangent_observed_mode_count" => tangent_observed_modes,
+            "tangent_not_observed_mode_count" => tangent_not_observed_modes,
+            "tangent_rows" => tangent_rows,
             "jacobian_rank_available" => mode_rank_available,
             "jacobian_rank" => mode_jacobian_rank,
             "sparse_qr_rank" => _int(get(numerical_metadata, "sparse_qr_rank", 0)),
@@ -289,6 +330,9 @@ function main()
     unaligned_mode_count = 0
     not_observed_mode_count = 0
     partial_alignment_mode_count = 0
+    tangent_observed_mode_count = 0
+    tangent_not_observed_mode_count = 0
+    tangent_policy_variable_count = 0
     iterative_probe_requested_cases = 0
     iterative_probe_available_cases = 0
     iterative_probe_converged_cases = 0
@@ -395,6 +439,10 @@ function main()
             unaligned_mode_count += _int(get(comparison, "unaligned_mode_count", 0))
             not_observed_mode_count += _int(get(comparison, "not_observed_mode_count", 0))
             partial_alignment_mode_count += _int(get(comparison, "partial_alignment_mode_count", 0))
+            tangent_observed_mode_count += _int(get(comparison, "tangent_observed_mode_count", 0))
+            tangent_not_observed_mode_count += _int(get(comparison, "tangent_not_observed_mode_count", 0))
+            tangent_policy_variable_count += _int(get(case,
+                "expected_mode_tangent_policy_variable_count", 0))
         end
         probe = _as_dict(get(case, "iterative_right_nullspace_probe", nothing))
         requested_dimension = _int(get(probe, "requested_dimension", 0))
@@ -521,6 +569,10 @@ function main()
         "environment_fingerprint" => get(index, "environment_fingerprint", nothing),
         "point_policy" => get(index, "point_policy", nothing),
         "rank_max_dense_entries" => get(index, "rank_max_dense_entries", nothing),
+        "expected_mode_free_coordinate_policy" => get(index,
+            "expected_mode_free_coordinate_policy", "unknown"),
+        "expected_mode_tangent_policy" => get(index,
+            "expected_mode_tangent_policy", "unknown"),
         "case_count" => length(cases),
         "status_counts" => status_counts,
         "cases" => cases,
@@ -561,6 +613,9 @@ function main()
             "unaligned_physical_mode_count" => unaligned_mode_count,
             "not_observed_physical_mode_count" => not_observed_mode_count,
             "partial_alignment_physical_mode_count" => partial_alignment_mode_count,
+            "tangent_observed_physical_mode_count" => tangent_observed_mode_count,
+            "tangent_not_observed_physical_mode_count" => tangent_not_observed_mode_count,
+            "tangent_policy_variable_count_sum" => tangent_policy_variable_count,
             "iterative_probe_requested_case_count" => iterative_probe_requested_cases,
             "iterative_probe_available_case_count" => iterative_probe_available_cases,
             "iterative_probe_converged_case_count" => iterative_probe_converged_cases,
@@ -584,6 +639,10 @@ function main()
                 mode_match_cases == successful,
             "mode_free_coordinate_projection_policy" => get(index,
                 "expected_mode_free_coordinate_policy", "unknown"),
+            "mode_tangent_policy" => get(index,
+                "expected_mode_tangent_policy", "unknown"),
+            "mode_tangent_policy_available" => get(index,
+                "expected_mode_tangent_policy", "none") != "none",
             "dense_physical_mode_rank_complete" => successful > 0 &&
                 mode_analysis_cases == successful && mode_rank_available_cases == successful,
             "expected_observed_mode_comparison" => successful > 0 &&

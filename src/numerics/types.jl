@@ -1477,6 +1477,44 @@ function ExpectedNullspaceMode(
 end
 
 """
+A plugin-supplied coordinate scope for a physically admissible tangent check.
+
+The variables are additional model coordinates that may be fixed or otherwise
+excluded from the generic free-variable comparison. Including them does not
+release bounds or modify the model; it only asks the numerical comparison to
+retain those columns and records the policy provenance.
+"""
+struct ExpectedNullspaceTangentPolicy
+    name::Symbol
+    variables::Vector{MOI.VariableIndex}
+    description::String
+    metadata::Dict{String,String}
+end
+
+function ExpectedNullspaceTangentPolicy(
+    name::Symbol,
+    variables::AbstractVector{MOI.VariableIndex};
+    description::AbstractString = "",
+    metadata::AbstractDict = Dict{String,String}(),
+)
+    isempty(variables) && throw(ArgumentError(
+        "expected-nullspace tangent policy must retain at least one variable",
+    ))
+    length(unique(variables)) == length(variables) || throw(ArgumentError(
+        "expected-nullspace tangent policy variables must be unique",
+    ))
+    isempty(strip(String(description))) && throw(ArgumentError(
+        "expected-nullspace tangent policy description must not be empty",
+    ))
+    return ExpectedNullspaceTangentPolicy(
+        name,
+        collect(variables),
+        String(description),
+        Dict(string(key) => string(value) for (key, value) in metadata),
+    )
+end
+
+"""
 A labeled, solver-independent numerical profiling scenario.
 
 The descriptive fields make task, formulation, initialization, scale, and

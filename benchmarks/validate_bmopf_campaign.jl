@@ -1672,6 +1672,21 @@ function _validate_multiconductor_smoke(path, summary)
                  "physical_mode_match_case_count" => get(get(summary, "aggregate", Dict()), "physical_mode_match_case_count", 0),
                  "successful_case_count" => get(get(summary, "aggregate", Dict()), "successful_case_count", 0));
             suggested_action = "Retain visible modes as candidates until their local Jacobian comparison is serialized."))
+    mode_projection_policy = get(readiness,
+        "mode_free_coordinate_projection_policy", "unknown")
+    mode_projection_policy in ("strict", "project_free") || push!(findings,
+        _finding("multiconductor_mode_projection_policy_unavailable", "warning",
+            "The campaign does not record an explicit expected-mode free-coordinate policy.",
+            Dict("summary_path" => path,
+                 "mode_free_coordinate_projection_policy" => mode_projection_policy);
+            suggested_action = "Record either strict or project_free policy before comparing fixed/reference components."))
+    mode_tangent_policy = get(readiness, "mode_tangent_policy", "unknown")
+    mode_tangent_policy in ("none", "fixed", "bmopf_fixed_reference_grounding") || push!(findings,
+        _finding("multiconductor_mode_tangent_policy_unavailable", "warning",
+            "The campaign does not record a recognized plugin-specific expected-mode tangent policy.",
+            Dict("summary_path" => path,
+                 "mode_tangent_policy" => mode_tangent_policy);
+            suggested_action = "Record the BMOPF tangent scope explicitly, or set it to none when the plugin policy is intentionally disabled."))
     get(readiness, "expected_observed_mode_comparison", false) === true || push!(findings,
         _finding("multiconductor_expected_mode_comparison_unavailable", "warning",
             "The multiconductor campaign does not have complete coordinate-aligned local numerical evidence for its declared physical modes.",

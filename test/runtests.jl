@@ -707,6 +707,36 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     rank_capability_report = NLPDiagnostics.bmopf_component_rank_capability_report(context)
     @test rank_capability_report.metadata[:stage] == "bmopf_component_rank_capability"
     @test length(findings(rank_capability_report, :bmopf_component_expected_rank_unavailable)) == 1
+    source_schema_report = NLPDiagnostics.bmopf_source_schema_report(context)
+    @test source_schema_report.metadata[:stage] == "bmopf_source_schema"
+    @test source_schema_report.metadata[:bmopf_source_schema_warning_count] == "0"
+    @test isempty(source_schema_report.findings)
+    source_metadata_net = deepcopy(net)
+    source_metadata_net["_meta"] = Dict{String,Any}(
+        "powerio_source" => "synthetic.dss",
+        "powerio_warnings" => [
+            "linecode 4w: `units` has no place in BMOPF schema; dropped",
+            "load d12: `kv` is not represented in BMOPF schema; dropped",
+            "device d: `model` is not represented in BMOPF schema; dropped",
+            "device d: `mystery` is not represented in BMOPF schema; dropped",
+        ],
+    )
+    source_metadata_report = NLPDiagnostics.bmopf_source_schema_report(
+        TestBMOPFContext(model, source_metadata_net, objects, nothing),
+    )
+    @test source_metadata_report.metadata[:bmopf_source_schema_warning_count] == "4"
+    @test source_metadata_report.metadata[:bmopf_source_schema_physical_blocking_count] == "3"
+    @test source_metadata_report.metadata[:bmopf_source_schema_representational_count] == "1"
+    @test source_metadata_report.metadata[:bmopf_source_schema_device_semantics_count] == "1"
+    @test source_metadata_report.metadata[:bmopf_source_schema_unclassified_count] == "1"
+    @test source_metadata_report.metadata[:bmopf_source_schema_warning_field_counts] ==
+          "kv=1,model=1,mystery=1,units=1"
+    @test source_metadata_report.metadata[:bmopf_source_schema_warning_impact_counts] ==
+          "device_semantics=1,physical_or_operating_point=1,representational=1,unknown=1"
+    @test length(findings(source_metadata_report, :bmopf_source_schema_physical_metadata_loss)) == 1
+    @test length(findings(source_metadata_report, :bmopf_source_schema_device_semantics_loss)) == 1
+    @test length(findings(source_metadata_report, :bmopf_source_schema_representational_loss)) == 1
+    @test length(findings(source_metadata_report, :bmopf_source_schema_unclassified_loss)) == 1
     @test isnothing(NLPDiagnostics.bmopf_initialization_point(context))
     @test_throws ArgumentError NLPDiagnostics.bmopf_set_start_values!(context)
     @test_throws UndefKeywordError NLPDiagnostics.bmopf_start_completion_point(context)
@@ -1255,7 +1285,8 @@ end
 end
 
 @testset "BMOPF point calibration benchmark contracts" begin
-    benchmark_directory = joinpath(@__DIR__, "..", "benchmarks")
+    repository_root = normpath(joinpath(@__DIR__, ".."))
+    benchmark_directory = joinpath(repository_root, "benchmarks")
     scripts = (
         "launch_bmopf_point_calibration.jl",
         "summarize_bmopf_point_calibration.jl",
@@ -1418,9 +1449,44 @@ end
     @test occursin("port_map_alignment_pair_complete", point_comparison)
     @test occursin("mode_projection_pair_available", point_comparison)
     @test occursin("mode_match_pair_available", point_comparison)
+    @test occursin("mode_projection_policy_compatible", point_comparison)
+    @test occursin("mode_tangent_policy_compatible", point_comparison)
     @test occursin("physical_mode_projections", read(
         joinpath(benchmark_directory, "bmopf_smoke.jl"), String,
     ))
+    @test occursin("NLPDIAGNOSTICS_BMOPF_EXPECTED_MODE_FREE_COORDINATE_POLICY",
+        read(joinpath(benchmark_directory, "bmopf_smoke.jl"), String))
+    @test occursin("NLPDIAGNOSTICS_BMOPF_EXPECTED_MODE_TANGENT_POLICY",
+        read(joinpath(benchmark_directory, "bmopf_smoke.jl"), String))
+    @test occursin("bmopf_expected_mode_tangent_policy",
+        read(joinpath(repository_root, "src", "analysis", "degeneracy.jl"), String))
+    @test occursin("_bmopf_expected_mode_tangent_policy",
+        read(joinpath(repository_root, "ext", "BMOPFToolsJuMPExt.jl"), String))
+    @test occursin("bmopf_source_schema_report",
+        read(joinpath(repository_root, "src", "analysis", "degeneracy.jl"), String))
+    @test occursin("_bmopf_source_schema_report",
+        read(joinpath(repository_root, "ext", "BMOPFToolsJuMPExt.jl"), String))
+    @test occursin("bmopf_source_schema_physical_metadata_loss",
+        read(joinpath(repository_root, "ext", "BMOPFToolsJuMPExt.jl"), String))
+    @test occursin("expected_nullspace_mode_tangent_observed",
+        read(joinpath(repository_root, "src", "analysis", "degeneracy.jl"), String))
+    @test occursin("multiconductor_mode_tangent_policy_unavailable", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
+    tangent_comparison = read(
+        joinpath(benchmark_directory, "compare_bmopf_tangent_policies.jl"), String,
+    )
+    @test occursin("tangent_policy_rank_change_observed", tangent_comparison)
+    @test occursin("comparison_available", tangent_comparison)
+    @test occursin("free_coordinate_policy_compatible", tangent_comparison)
+    @test occursin("tangent_rows", tangent_comparison)
+    tangent_launcher = read(
+        joinpath(benchmark_directory, "launch_bmopf_tangent_calibration.jl"), String,
+    )
+    @test occursin("NLPDIAGNOSTICS_BMOPF_TANGENT_CALIBRATION_POLICIES", tangent_launcher)
+    @test occursin("compare_bmopf_tangent_policies.jl", tangent_launcher)
+    @test occursin("expected_nullspace_mode_free_projection_observed",
+        read(joinpath(repository_root, "src", "analysis", "degeneracy.jl"), String))
     @test occursin("multiconductor_point_successful_overlap_empty", read(
         joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
     ))
@@ -1444,6 +1510,9 @@ end
     @test occursin("multiconductor_point_mode_projection_visibility", ledger)
     @test occursin("multiconductor_point_mode_jacobian_match", ledger)
     @test occursin("multiconductor_mode_jacobian_match_unavailable", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
+    @test occursin("multiconductor_mode_projection_policy_unavailable", read(
         joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
     ))
     @test occursin("record_kind", ledger)
@@ -2598,9 +2667,43 @@ end
         @test projected_details["projection_policy"] == "project_free"
         @test projected_details["nonfree_variable_indices"] == string(fixed.value)
         @test projected_details["unaligned_coefficient_norm"] == "1.0"
+        @test length(findings(
+            free_projection_report,
+            :expected_nullspace_mode_span_free_projection,
+        )) == 1
         @test free_projection_report.metadata[
             :expected_mode_free_coordinate_projection_enabled
         ] == "true"
+
+        tangent_policy = NLPDiagnostics.ExpectedNullspaceTangentPolicy(
+            :fixed_reference,
+            [fixed];
+            description = "retain the fixed reference coordinate for a local tangent check",
+            metadata = Dict("source" => "synthetic regression"),
+        )
+        tangent_report = NLPDiagnostics.analyze_degeneracy(
+            projected_model,
+            projected_evaluation;
+            expected_modes = [projected_mode],
+            expected_mode_tangent_policy = tangent_policy,
+        )
+        tangent_finding = only(findings(
+            tangent_report,
+            :expected_nullspace_mode_tangent_observed,
+        ))
+        @test evidence_details(tangent_finding)["tangent_policy"] ==
+              "fixed_reference"
+        @test tangent_report.metadata[:expected_mode_tangent_policy] ==
+              "fixed_reference"
+        @test tangent_report.metadata[:expected_mode_tangent_policy_variable_count] ==
+              "1"
+        @test tangent_report.metadata[:expected_mode_tangent_policy_source] ==
+              "synthetic regression"
+        @test_throws ArgumentError NLPDiagnostics.ExpectedNullspaceTangentPolicy(
+            :empty_scope,
+            MOI.VariableIndex[];
+            description = "invalid",
+        )
     end
 
     stationary_component_model = MOIU.Model{Float64}()
