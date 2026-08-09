@@ -726,6 +726,15 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
                 ),
             ),
         ),
+        "powerio_source_semantics" => Dict{String,Any}(
+            "load_voltage_thresholds" => [Dict{String,Any}(
+                "scope" => "load:d12",
+                "vminpu" => 0.5,
+                "vmaxpu" => 1.1,
+                "status" => "observed_ordered",
+            )],
+            "voltage_source_models" => Any[],
+        ),
         "powerio_warnings" => [
             "linecode 4w: `units` has no place in BMOPF schema; dropped",
             "load d12: `kv` is not represented in BMOPF schema; dropped",
@@ -763,6 +772,50 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test mapped_source_metadata_report.metadata[:bmopf_source_schema_mapped_field_count] == "3"
     @test mapped_source_metadata_report.metadata[:bmopf_source_schema_mapped_warning_field_count] == "3"
     @test mapped_source_metadata_report.metadata[:bmopf_source_schema_restoration_ready] == "true"
+    source_metadata_net["load"] = Dict{String,Any}(
+        "d12" => Dict{String,Any}(
+            "bus" => "load",
+            "terminal_map" => ["a", "n"],
+            "v_nom" => [240.0],
+        ),
+    )
+    original_variable_count = JuMP.num_variables(model)
+    auxiliary = NLPDiagnostics.bmopf_source_behavior_auxiliary_model(
+        TestBMOPFContext(model, source_metadata_net, objects, nothing),
+    )
+    @test auxiliary["status"] == "materialized"
+    @test auxiliary["constraint_pair_count"] == 1
+    @test auxiliary["variable_count"] == 4
+    @test auxiliary["original_model_mutated"] == false
+    @test auxiliary["original_model_variable_count"] == original_variable_count
+    @test only(auxiliary["records"])["materialization"] == "auxiliary_model_only"
+    @test JuMP.num_variables(auxiliary["model"]) == 4
+    behavior_objects = deepcopy(objects)
+    behavior_objects[BMOPFTools.opf_bus_voltage_key("load", "a")] = vr_load_a
+    behavior_objects[BMOPFTools.opf_bus_voltage_key("load", "n")] = vr_load_n
+    behavior_objects[BMOPFTools.opf_bus_voltage_key("load", "a"; component = :imag)] = vi_load_a
+    behavior_objects[BMOPFTools.opf_bus_voltage_key("load", "n"; component = :imag)] = vi_load_n
+    behavior_context = TestBMOPFContext(model, source_metadata_net, behavior_objects, nothing)
+    behavior_point = NLPDiagnostics.EvaluationPoint(
+        JuMP.index.([vr_load_a, vr_load_n, vi_load_a, vi_load_n]),
+        [0.0, 0.0, 0.0, 0.0],
+        label = "synthetic-source-behavior-point",
+    )
+    behavior_report = NLPDiagnostics.bmopf_source_behavior_report(
+        behavior_context, behavior_point,
+    )
+    @test behavior_report.report.metadata[:bmopf_source_behavior_checked_count] == "1"
+    @test behavior_report.report.metadata[:bmopf_source_behavior_below_vminpu_count] == "1"
+    @test length(findings(behavior_report.report, :bmopf_source_behavior_threshold_violation)) == 1
+    @test NLPDiagnostics.bmopf_source_behavior_auxiliary_solve(auxiliary)["status"] ==
+          "unavailable"
+    if isdefined(Main, :Ipopt)
+        solved_auxiliary = NLPDiagnostics.bmopf_source_behavior_auxiliary_solve(
+            auxiliary; optimizer = Ipopt.Optimizer,
+            optimizer_attributes = Dict("max_iter" => 5),
+        )
+        @test solved_auxiliary["status"] in ("solved", "unsolved")
+    end
     @test isnothing(NLPDiagnostics.bmopf_initialization_point(context))
     @test_throws ArgumentError NLPDiagnostics.bmopf_set_start_values!(context)
     @test_throws UndefKeywordError NLPDiagnostics.bmopf_start_completion_point(context)

@@ -1445,15 +1445,74 @@ preserving the numerical and provenance evidence for follow-up work.
 The first explicit mappings are now exercised by the live converter: `kv` is
 audited against `load.v_nom`, `phases` against the load terminal structure,
 and `basekv`/`angle` against the voltage-source magnitude/angle after their
-documented unit and phase-sequence transforms. The remaining delta-load
-blocking fields are `model`, `vminpu`, and `vmaxpu`; they remain unmapped on
-purpose, so this batch closes the provenance-to-mapping audit trail without
-claiming physical readiness.
+documented unit and phase-sequence transforms. The live source-model contract
+also maps OpenDSS `model=ideal` to BMOPF's fixed-voltage boundary, while load
+model codes are mapped to the corresponding BMOPF constitutive law. The
+remaining delta-load blocking fields are `vminpu` and `vmaxpu`; they remain
+unmapped as bus bounds on purpose, so this batch closes the
+provenance-to-mapping audit trail without claiming physical readiness.
+
+The BMOPFTools regression suite now checks this contract directly, including
+scope inventories and metadata survival through a BMOPF JSON round trip. The
+suite also records the expected broken/optional cases separately from actual
+failures, so missing optional solver integrations do not masquerade as core
+conversion regressions.
+
+The mapping record is now a complete warning-field ledger: mapped entries are
+listed alongside explicit `unmapped` entries with impact, blocking status, and
+reason. This makes `vminpu` and `vmaxpu` visible as deliberate semantic gaps
+rather than silent omissions, while `units` remains explicitly non-blocking
+representational metadata.
+
+The ledger now supports scope-level partial mappings. OpenDSS ZIP loads map
+their model code and `zipv` coefficients into BMOPF `model`/ZIP fields, while
+the voltage-source `model=ideal` is recognized as the fixed-voltage-boundary
+contract represented by BMOPF; unsupported source models would remain
+unmapped. The aggregate model field is therefore mapped for the current
+fixtures.
+
+The smoke campaign now includes a dedicated `zip-load` fixture. Its live
+profile maps `zipv` completely and reports only `vminpu` and `vmaxpu` as
+blocking source-schema gaps, demonstrating that the campaign distinguishes
+load-model fidelity from voltage-behavior limits.
+
+The source-semantic report now preserves normalized observations for every
+fixture: ordered `vminpu`/`vmaxpu` load thresholds are recorded as
+load-behavior evidence (never as BMOPF bus bounds), and `model=ideal` source
+records carry the explicit fixed-voltage-boundary contract. These observations
+make the next physical-readiness step measurable without silently changing the
+optimization model.
+
+The next boundary is now explicit in the API: `powerio_source_behavior_contract`
+returns an observation-only contract by default, while an opt-in planning mode
+returns non-mutating terminal-voltage-ratio candidates with topology and
+nominal-voltage context. No candidate is added to the original JuMP/BMOPF model;
+materialization remains a deliberate auxiliary-problem decision for a later
+plugin or benchmark stage.
+
+That auxiliary boundary is now implemented for staged BMOPF contexts:
+`bmopf_source_behavior_auxiliary_model` builds a separate JuMP model with
+explicit real/imaginary terminal-voltage variables and squared-magnitude lower
+and upper rows. The six-fixture campaign materializes 14 constraint pairs,
+records zero mutations of the original models, and keeps the validator at
+`warn` only for the still-unmapped source fields. Solving and interpreting
+these auxiliary problems remains opt-in; their rows are diagnostic candidates,
+not new constraints in the production formulation. The typed report path now
+evaluates each materialized threshold at the profile point and records any
+domain violation as a finding. An optimizer can be supplied separately to
+solve the isolated model, with unavailable solver state kept distinct from
+model infeasibility.
+
+The expanded six-case rerun completed all cases successfully. Across the
+campaign, `angle`, `basekv`, `kv`, and `phases` mapped in all six cases, while
+`zipv` mapped in the ZIP case; the remaining blocking counts are six each for
+`vminpu` and `vmaxpu`. The validator remains `warn` for that explicit
+semantic gap, with no campaign build or integrity failures.
 
 The smoke runner now preserves a byte-for-byte source snapshot for every
 fixture, recording a relative copy path, SHA-256 digest, byte count, and line
-count in the result and index. The five-fixture rerun preserved all sources,
-so future field-mapping work can be audited against the exact input deck.
+count in the result and index. The six-fixture rerun preserved all sources, so
+future field-mapping work can be audited against the exact input deck.
 
 Solver-iterate correlation now exposes the same point-level trust boundary at
 the row level: every bound iteration records its point fingerprint, provenance

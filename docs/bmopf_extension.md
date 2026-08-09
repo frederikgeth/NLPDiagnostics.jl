@@ -304,10 +304,10 @@ default; set `finalize_kcl=false` only when deliberately profiling a partial
 builder state. `network` is deep-copied unless
 `copy_network=false` is explicitly requested.
 
-`benchmarks/bmopf_smoke.jl` is an opt-in five-fixture starter corpus for the
+`benchmarks/bmopf_smoke.jl` is an opt-in six-fixture starter corpus for the
 BMOPFTools `pf_comparison` OpenDSS data. It exercises grounded and free neutral
-returns, an unbalanced four-wire feeder, a delta load, and a wye-delta
-transformer. Set `NLPDIAGNOSTICS_BMOPF_FIXTURE_ROOT` to the corresponding
+returns, an unbalanced four-wire feeder, a delta load, a ZIP load, and a
+wye-delta transformer. Set `NLPDIAGNOSTICS_BMOPF_FIXTURE_ROOT` to the corresponding
 BMOPFTools fixture directory before running it. Its output is deliberately a
 compact discovery summary and it writes one full JSON evidence record per case
 plus `index.json`. Set `NLPDIAGNOSTICS_BMOPF_OUTPUT_DIR` to choose the output
@@ -1037,9 +1037,57 @@ conversion warnings.
 The current BMOPFTools boundary also emits mapping evidence for fields that
 are demonstrably represented in the staged network: `kv` → `load.v_nom`,
 `phases` → `load.terminal_map/configuration`, and `basekv`/`angle` → voltage
-source magnitude/angle with explicit transforms. Device model and per-unit
-voltage-limit fields remain unmapped until their semantics are represented by
-an explicit BMOPF component or plugin contract.
+source magnitude/angle with explicit transforms. Load ZIP `model`/`zipv`
+fields are mapped into BMOPF load model coefficients when the staged load
+contains those fields; a source-side `model=ideal` is mapped by the fixed
+voltage-boundary capability contract. Unsupported source models remain
+unmapped. Per-unit voltage-limit
+fields remain unmapped until an explicit component or plugin contract gives
+them semantics beyond a bus-wide voltage bound.
+
+The source-semantic report also retains normalized `vminpu`/`vmaxpu` records as
+load-voltage-behavior observations. They are intentionally not converted into
+BMOPF bus bounds: the observation is useful for diagnosing model-domain and
+initialization issues, but it does not prove that the optimization model has
+those limits as active constraints. OpenDSS `model=ideal` is reported
+separately as a represented fixed-voltage-boundary contract; unsupported source
+models remain explicit unmapped blockers.
+
+BMOPFTools exposes the same boundary through
+`powerio_source_behavior_contract(net)`. Its default policy is
+`observation_only`; `powerio_source_behavior_contract(net;
+plan_auxiliary_constraints=true)` returns non-mutating candidate terminal
+voltage-ratio constraints of the form
+`vminpu <= abs(V_terminal) / v_nom <= vmaxpu`. Candidates carry their bus,
+terminal map, nominal-voltage context, readiness status, and an explicit
+`active_in_original_model=false` marker. This is a diagnostic planning API,
+not an implicit reformulation.
+
+For staged JuMP contexts, `NLPDiagnostics.bmopf_source_behavior_auxiliary_model`
+materializes eligible candidates into a separate JuMP model. The builder uses
+explicit real/imaginary terminal-voltage variables and squared-magnitude bounds,
+returns primitive records alongside the auxiliary model, and records that no
+constraint was added to the original BMOPF model. The smoke campaign serializes
+this evidence without serializing JuMP object references.
+
+`NLPDiagnostics.bmopf_source_behavior_report(context, point)` evaluates those
+thresholds at a typed operating point and emits physical, numerical-observation
+findings for below-`vminpu` or above-`vmaxpu` ratios. The report keeps the
+observed ratio, source thresholds, scope, and violation magnitude in primitive
+rows. Passing `solve_auxiliary=true` with an optimizer invokes the isolated
+model and records its termination status; without an optimizer the solve is
+explicitly reported as unavailable. Neither path mutates the production model.
+
+Each conversion warning is also present in the mapping ledger with an
+`unmapped` status, impact classification, readiness-blocking flag, and reason.
+Consequently, an absent target is an explicit policy decision rather than an
+unobserved field. When a field is represented for only some component scopes,
+the ledger records `partially_mapped` plus the mapped and unmapped scopes; it
+does not clear the aggregate readiness gate.
+
+The multiconductor smoke campaign includes a ZIP-load fixture so this
+scope-level behavior is exercised in a complete profile, summary, and
+validation path rather than only in a conversion unit test.
 
 The isolated solver-trace launcher makes the in-place NLPDiagnostics package
 visible to BMOPFTools child processes and records native child-wait errors.

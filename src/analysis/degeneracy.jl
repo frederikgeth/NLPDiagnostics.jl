@@ -313,6 +313,18 @@ bmopf_component_rank_capability_report(context) = _bmopf_extension(:BMOPFToolsJu
 """Report source-schema fidelity losses recorded while converting PowerIO data to BMOPF."""
 bmopf_source_schema_report(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to report BMOPF source-schema fidelity")._bmopf_source_schema_report(context; kwargs...)
+"""Build a separate, non-mutating auxiliary model for source voltage-behavior candidates."""
+bmopf_source_behavior_auxiliary_model(context; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required to build the BMOPF source-behavior auxiliary model")._bmopf_source_behavior_auxiliary_model(context; kwargs...)
+"""Solve an already-built isolated BMOPF source-behavior auxiliary model."""
+bmopf_source_behavior_auxiliary_solve(auxiliary; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required to solve the BMOPF source-behavior auxiliary model")._bmopf_source_behavior_auxiliary_solve(auxiliary; kwargs...)
+"""Report source voltage-behavior threshold violations at an explicit point."""
+bmopf_source_behavior_report(context, point; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required to report BMOPF source-behavior thresholds")._bmopf_source_behavior_report(context, point; kwargs...)
 """Optional domain-plugin port/connection declarations; the generic default is empty."""
 component_port_metadata(model::MOI.ModelLike) = ComponentPortMetadata[]
 component_port_metadata(model::ModelSnapshot) = ComponentPortMetadata[]

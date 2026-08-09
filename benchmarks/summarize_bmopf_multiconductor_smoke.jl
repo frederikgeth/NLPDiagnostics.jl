@@ -56,7 +56,7 @@ function _schema_warning_impact(field)
     field = String(field)
     field == "units" && return "representational"
     field == "model" && return "device_semantics"
-    field in ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu") &&
+    field in ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu", "zipv") &&
         return "physical_or_operating_point"
     return "unknown"
 end
@@ -75,7 +75,7 @@ function _schema_warning_policy(field)
         "physical_readiness_blocking" => true,
         "action" => "Map the source device model into an explicit BMOPF component or plugin contract.",
     )
-    field in ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu") && return Dict{String,Any}(
+    field in ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu", "zipv") && return Dict{String,Any}(
         "status" => "unsupported_physical_metadata",
         "impact" => "physical_or_operating_point",
         "physical_readiness_blocking" => true,
@@ -240,11 +240,34 @@ function _case_record(root, entry)
             "bmopf_source_schema_mapped_field_count", 0)),
         "mapped_warning_field_count" => _int(get(context_metadata,
             "bmopf_source_schema_mapped_warning_field_count", 0)),
+        "mapping_field_statuses" => get(context_metadata,
+            "bmopf_source_schema_mapping_field_statuses", ""),
         "unmapped_blocking_fields" => get(context_metadata,
             "bmopf_source_schema_unmapped_blocking_fields", ""),
         "restoration_ready" => lowercase(string(get(context_metadata,
             "bmopf_source_schema_restoration_ready", "false"))) == "true",
+        "threshold_observation_count" => _int(get(context_metadata,
+            "bmopf_source_schema_threshold_observation_count", 0)),
+        "threshold_observation_statuses" => get(context_metadata,
+            "bmopf_source_schema_threshold_observation_statuses", ""),
+        "source_model_observation_count" => _int(get(context_metadata,
+            "bmopf_source_schema_source_model_observation_count", 0)),
+        "source_model_contract_statuses" => get(context_metadata,
+            "bmopf_source_schema_source_model_contract_statuses", ""),
+        "behavior_contract_available" => lowercase(string(get(context_metadata,
+            "bmopf_source_schema_behavior_contract_available", "false"))) == "true",
+        "behavior_contract_version" => get(context_metadata,
+            "bmopf_source_schema_behavior_contract_version", ""),
+        "behavior_constraint_policy" => get(context_metadata,
+            "bmopf_source_schema_behavior_constraint_policy", ""),
+        "behavior_candidate_count" => _int(get(context_metadata,
+            "bmopf_source_schema_behavior_candidate_count", 0)),
+        "behavior_eligible_candidate_count" => _int(get(context_metadata,
+            "bmopf_source_schema_behavior_eligible_candidate_count", 0)),
     )
+    auxiliary = _as_dict(get(record, "source_behavior_auxiliary", nothing))
+    auxiliary_solve = _as_dict(get(record, "source_behavior_auxiliary_solve", nothing))
+    behavior_report = _as_dict(get(record, "source_behavior_report", nothing))
     profile_body = _as_dict(get(profile, "profile", nothing))
     reports = _as_dict(get(profile_body, "reports", nothing))
     numerical = _as_dict(get(reports, "numerical", nothing))
@@ -299,6 +322,35 @@ function _case_record(root, entry)
             "source_schema_warning_policies" => source_warning_policies,
         ),
         "source_schema_coverage" => source_schema_coverage,
+        "source_behavior_auxiliary" => Dict(
+            "status" => get(auxiliary, "status", "unavailable"),
+            "variable_count" => _int(get(auxiliary, "variable_count", 0)),
+            "constraint_pair_count" => _int(get(auxiliary, "constraint_pair_count", 0)),
+            "original_model_variable_count" => _int(get(auxiliary,
+                "original_model_variable_count", 0)),
+            "original_model_mutated" => get(auxiliary, "original_model_mutated", true),
+            "materialized_record_count" => count(item ->
+                get(_as_dict(item), "status", "") == "materialized",
+                get(auxiliary, "records", Any[])),
+        ),
+        "source_behavior_report" => Dict(
+            "status" => get(behavior_report, "status", "unavailable"),
+            "finding_count" => _int(get(behavior_report, "finding_count", 0)),
+            "finding_codes" => get(behavior_report, "finding_codes", Any[]),
+            "row_count" => length(get(behavior_report, "rows", Any[])),
+            "auxiliary_solve_status" => get(behavior_report,
+                "auxiliary_solve_status", "unknown"),
+        ),
+        "source_behavior_auxiliary_solve" => Dict(
+            "status" => get(auxiliary_solve, "status", "unavailable"),
+            "solver" => get(auxiliary_solve, "solver", "unknown"),
+            "termination_status" => get(auxiliary_solve,
+                "termination_status", "unknown"),
+            "feasible" => get(auxiliary_solve, "feasible", false),
+            "result_count" => _int(get(auxiliary_solve, "result_count", 0)),
+            "objective_value" => get(auxiliary_solve, "objective_value", nothing),
+            "error" => get(auxiliary_solve, "error", nothing),
+        ),
         "multiconductor_contract" => contract,
         "physical_mode_comparison" => Dict(
             "status" => mode_status,
@@ -363,6 +415,27 @@ function main()
     source_schema_mapped_field_counts = Dict{String,Int}()
     source_schema_unmapped_blocking_field_counts = Dict{String,Int}()
     source_schema_mapping_ready_cases = 0
+    source_schema_threshold_observation_cases = 0
+    source_schema_threshold_observation_count = 0
+    source_schema_threshold_status_counts = Dict{String,Int}()
+    source_schema_source_model_contract_cases = 0
+    source_schema_source_model_observation_count = 0
+    source_schema_source_model_status_counts = Dict{String,Int}()
+    source_schema_behavior_contract_cases = 0
+    source_schema_behavior_candidate_count = 0
+    source_schema_behavior_eligible_candidate_count = 0
+    source_behavior_auxiliary_cases = 0
+    source_behavior_auxiliary_materialized_pairs = 0
+    source_behavior_auxiliary_mutation_cases = 0
+    source_behavior_auxiliary_solve_status_counts = Dict{String,Int}()
+    source_behavior_auxiliary_solve_solver_counts = Dict{String,Int}()
+    source_behavior_auxiliary_solve_requested_cases = 0
+    source_behavior_auxiliary_solve_feasible_cases = 0
+    source_behavior_auxiliary_solve_unavailable_cases = 0
+    source_behavior_report_cases = 0
+    source_behavior_report_row_count = 0
+    source_behavior_report_finding_count = 0
+    source_behavior_report_finding_code_counts = Dict{String,Int}()
     contract_available = 0
     physical_mode_count = 0
     contract_finding_count = 0
@@ -402,6 +475,36 @@ function main()
         integrity_warnings += _int(get(preflight, "warning_count", 0))
         source_schema_warnings += _int(get(preflight, "source_schema_warning_count", 0))
         source_schema_coverage = _as_dict(get(case, "source_schema_coverage", nothing))
+        auxiliary = _as_dict(get(case, "source_behavior_auxiliary", nothing))
+        get(auxiliary, "status", "unavailable") != "unavailable" &&
+            (source_behavior_auxiliary_cases += 1)
+        source_behavior_auxiliary_materialized_pairs += _int(get(auxiliary,
+            "constraint_pair_count", 0))
+        get(auxiliary, "original_model_mutated", true) === true &&
+            (source_behavior_auxiliary_mutation_cases += 1)
+        auxiliary_solve = _as_dict(get(case, "source_behavior_auxiliary_solve", nothing))
+        solve_status = string(get(auxiliary_solve, "status", "unavailable"))
+        solve_solver = string(get(auxiliary_solve, "solver", "unknown"))
+        source_behavior_auxiliary_solve_status_counts[solve_status] =
+            get(source_behavior_auxiliary_solve_status_counts, solve_status, 0) + 1
+        source_behavior_auxiliary_solve_solver_counts[solve_solver] =
+            get(source_behavior_auxiliary_solve_solver_counts, solve_solver, 0) + 1
+        solve_solver != "none" && (source_behavior_auxiliary_solve_requested_cases += 1)
+        get(auxiliary_solve, "feasible", false) === true &&
+            (source_behavior_auxiliary_solve_feasible_cases += 1)
+        solve_status == "unavailable" &&
+            (source_behavior_auxiliary_solve_unavailable_cases += 1)
+        behavior_report = _as_dict(get(case, "source_behavior_report", nothing))
+        get(behavior_report, "status", "unavailable") == "available" &&
+            (source_behavior_report_cases += 1)
+        source_behavior_report_row_count += _int(get(behavior_report, "row_count", 0))
+        source_behavior_report_finding_count += _int(get(behavior_report,
+            "finding_count", 0))
+        for code in get(behavior_report, "finding_codes", Any[])
+            code_string = string(code)
+            source_behavior_report_finding_code_counts[code_string] =
+                get(source_behavior_report_finding_code_counts, code_string, 0) + 1
+        end
         if get(source_schema_coverage, "report_available", false) === true
             source_schema_context_report_cases += 1
             get(source_schema_coverage, "provenance_available", false) === true &&
@@ -414,6 +517,24 @@ function main()
                 get(source_schema_coverage, "mapped_fields", ""))
             _count_csv!(source_schema_unmapped_blocking_field_counts,
                 get(source_schema_coverage, "unmapped_blocking_fields", ""))
+            threshold_count = _int(get(source_schema_coverage,
+                "threshold_observation_count", 0))
+            threshold_count > 0 && (source_schema_threshold_observation_cases += 1)
+            source_schema_threshold_observation_count += threshold_count
+            _count_csv!(source_schema_threshold_status_counts,
+                get(source_schema_coverage, "threshold_observation_statuses", ""))
+            source_model_count = _int(get(source_schema_coverage,
+                "source_model_observation_count", 0))
+            source_model_count > 0 && (source_schema_source_model_contract_cases += 1)
+            source_schema_source_model_observation_count += source_model_count
+            _count_csv!(source_schema_source_model_status_counts,
+                get(source_schema_coverage, "source_model_contract_statuses", ""))
+            get(source_schema_coverage, "behavior_contract_available", false) === true &&
+                (source_schema_behavior_contract_cases += 1)
+            source_schema_behavior_candidate_count += _int(get(source_schema_coverage,
+                "behavior_candidate_count", 0))
+            source_schema_behavior_eligible_candidate_count += _int(get(source_schema_coverage,
+                "behavior_eligible_candidate_count", 0))
             get(source_schema_coverage, "restoration_ready", false) === true &&
                 (source_schema_mapping_ready_cases += 1)
         end
@@ -447,12 +568,16 @@ function main()
             scope_counts = fixture_profile["scope_counts"]
             scope_counts[key] = get(scope_counts, key, 0) + 1
         end
-        for impact in get(preflight, "source_schema_warning_impacts", Any[])
+        mapped_fields = Set(strip(String(token)) for token in
+            split(String(get(source_schema_coverage, "mapped_fields", "")), ',') if !isempty(strip(String(token))))
+        for (field, impact) in zip(get(preflight, "source_schema_warning_fields", Any[]),
+                                   get(preflight, "source_schema_warning_impacts", Any[]))
             key = String(impact)
             source_warning_impact_counts[key] = get(source_warning_impact_counts, key, 0) + 1
             impact_counts = fixture_profile["impact_counts"]
             impact_counts[key] = get(impact_counts, key, 0) + 1
-            key != "representational" && (physical_metadata_warning_count += 1)
+            String(field) in mapped_fields ||
+                (key != "representational" && (physical_metadata_warning_count += 1))
         end
         for policy in get(preflight, "source_schema_warning_policies", Any[])
             policy_dict = _as_dict(policy)
@@ -462,9 +587,28 @@ function main()
             policy_counts = fixture_profile["policy_status_counts"]
             policy_counts[status_key] = get(policy_counts, status_key, 0) + 1
         end
+        mapping_statuses = Dict{String,String}()
+        for item in split(String(get(source_schema_coverage, "mapping_field_statuses", "")), ';')
+            isempty(strip(item)) && continue
+            parts = split(item, "=>"; limit = 2)
+            length(parts) == 2 || continue
+            mapping_statuses[strip(parts[1])] = strip(parts[2])
+        end
         for (field, policy) in zip(get(preflight, "source_schema_warning_fields", Any[]),
                                    get(preflight, "source_schema_warning_policies", Any[]))
-            source_schema_field_policies[String(field)] = policy
+            field_key = String(field)
+            mapped_status = get(mapping_statuses, field_key, "")
+            if !isempty(mapped_status) && mapped_status ∉ ("unmapped", "partially_mapped")
+                raw_policy = _as_dict(policy)
+                source_schema_field_policies[field_key] = Dict{String,Any}(
+                    "impact" => get(raw_policy, "impact", "unknown"),
+                    "status" => mapped_status,
+                    "physical_readiness_blocking" => false,
+                    "action" => "The source field is covered by an explicit BMOPF mapping contract; inspect its target and transform metadata.",
+                )
+            else
+                source_schema_field_policies[field_key] = policy
+            end
         end
         contract = _as_dict(get(case, "multiconductor_contract", nothing))
         !isempty(contract) && (contract_available += 1)
@@ -627,6 +771,9 @@ function main()
         "fixture_root" => get(index, "fixture_root", nothing),
         "environment_fingerprint" => get(index, "environment_fingerprint", nothing),
         "point_policy" => get(index, "point_policy", nothing),
+        "source_behavior_solver" => get(index, "source_behavior_solver", "none"),
+        "source_behavior_solver_attributes" => get(index,
+            "source_behavior_solver_attributes", Dict{String,Any}()),
         "rank_max_dense_entries" => get(index, "rank_max_dense_entries", nothing),
         "expected_mode_free_coordinate_policy" => get(index,
             "expected_mode_free_coordinate_policy", "unknown"),
@@ -656,6 +803,43 @@ function main()
             "source_schema_mapped_field_counts" => source_schema_mapped_field_counts,
             "source_schema_unmapped_blocking_field_counts" => source_schema_unmapped_blocking_field_counts,
             "source_schema_mapping_ready_case_count" => source_schema_mapping_ready_cases,
+            "source_schema_threshold_observation_case_count" =>
+                source_schema_threshold_observation_cases,
+            "source_schema_threshold_observation_count" =>
+                source_schema_threshold_observation_count,
+            "source_schema_threshold_status_counts" => source_schema_threshold_status_counts,
+            "source_schema_source_model_contract_case_count" =>
+                source_schema_source_model_contract_cases,
+            "source_schema_source_model_observation_count" =>
+                source_schema_source_model_observation_count,
+            "source_schema_source_model_status_counts" =>
+                source_schema_source_model_status_counts,
+            "source_schema_behavior_contract_case_count" =>
+                source_schema_behavior_contract_cases,
+            "source_schema_behavior_candidate_count" =>
+                source_schema_behavior_candidate_count,
+            "source_schema_behavior_eligible_candidate_count" =>
+                source_schema_behavior_eligible_candidate_count,
+            "source_behavior_auxiliary_case_count" => source_behavior_auxiliary_cases,
+            "source_behavior_auxiliary_materialized_pair_count" =>
+                source_behavior_auxiliary_materialized_pairs,
+            "source_behavior_auxiliary_mutation_case_count" =>
+                source_behavior_auxiliary_mutation_cases,
+            "source_behavior_auxiliary_solve_status_counts" =>
+                source_behavior_auxiliary_solve_status_counts,
+            "source_behavior_auxiliary_solve_solver_counts" =>
+                source_behavior_auxiliary_solve_solver_counts,
+            "source_behavior_auxiliary_solve_requested_case_count" =>
+                source_behavior_auxiliary_solve_requested_cases,
+            "source_behavior_auxiliary_solve_feasible_case_count" =>
+                source_behavior_auxiliary_solve_feasible_cases,
+            "source_behavior_auxiliary_solve_unavailable_case_count" =>
+                source_behavior_auxiliary_solve_unavailable_cases,
+            "source_behavior_report_case_count" => source_behavior_report_cases,
+            "source_behavior_report_row_count" => source_behavior_report_row_count,
+            "source_behavior_report_finding_count" => source_behavior_report_finding_count,
+            "source_behavior_report_finding_code_counts" =>
+                source_behavior_report_finding_code_counts,
             "contract_case_count" => contract_available,
             "physical_mode_count" => physical_mode_count,
             "contract_finding_count" => contract_finding_count,
@@ -702,6 +886,19 @@ function main()
                 source_schema_provenance_cases == successful,
             "source_schema_mapping_complete" => successful > 0 &&
                 source_schema_mapping_ready_cases == successful,
+            "source_schema_semantic_observations_available" => successful > 0 &&
+                source_schema_threshold_observation_cases == successful &&
+                source_schema_source_model_contract_cases == successful,
+            "source_schema_behavior_contract_available" => successful > 0 &&
+                source_schema_behavior_contract_cases == successful,
+            "source_behavior_auxiliary_available" => successful > 0 &&
+                source_behavior_auxiliary_cases == successful &&
+                source_behavior_auxiliary_mutation_cases == 0,
+            "source_behavior_report_available" => successful > 0 &&
+                source_behavior_report_cases == successful,
+            "source_behavior_auxiliary_solve_complete" =>
+                source_behavior_auxiliary_solve_requested_cases == 0 ||
+                source_behavior_auxiliary_solve_unavailable_cases == 0,
             "physical_metadata_complete" => physical_metadata_warning_count == 0,
             "physical_mode_observations_available" => physical_mode_count > 0,
             "physical_mode_analysis_available" => successful > 0 && mode_analysis_cases == successful,

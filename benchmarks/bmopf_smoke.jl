@@ -39,6 +39,12 @@ const _SMOKE_FIXTURES = [
         tags = [:smoke, :delta, :multiconductor],
     ),
     (
+        name = "zip-load",
+        file = "pf_zip_3ph.dss",
+        description = "Three-phase ZIP load with explicit voltage-dependent load coefficients.",
+        tags = [:smoke, :zip, :multiconductor, :load_model],
+    ),
+    (
         name = "unbalanced-three-phase-line",
         file = "pf_3ph_line.dss",
         description = "Unbalanced grounded four-wire three-phase feeder.",
@@ -135,6 +141,88 @@ end
 
 _as_dict(value) = value isa AbstractDict ?
     Dict{String,Any}(String(k) => v for (k, v) in value) : Dict{String,Any}()
+
+function _source_behavior_auxiliary_data(auxiliary)
+    return Dict{String,Any}(
+        "status" => get(auxiliary, "status", "unknown"),
+        "variable_count" => get(auxiliary, "variable_count", 0),
+        "constraint_pair_count" => get(auxiliary, "constraint_pair_count", 0),
+        "original_model_variable_count" => get(auxiliary,
+            "original_model_variable_count", 0),
+        "original_model_mutated" => get(auxiliary, "original_model_mutated", true),
+        "records" => [Dict{String,Any}(String(k) => v for (k, v) in record)
+                      for record in get(auxiliary, "records", Any[])
+                      if record isa AbstractDict],
+    )
+end
+
+function _source_behavior_solver_policy()
+    raw = lowercase(strip(get(
+        ENV, "NLPDIAGNOSTICS_BMOPF_SOURCE_BEHAVIOR_SOLVER", "none",
+    )))
+    raw in ("none", "ipopt") || error(
+        "NLPDIAGNOSTICS_BMOPF_SOURCE_BEHAVIOR_SOLVER must be none or ipopt",
+    )
+    return raw
+end
+
+function _source_behavior_solver_attributes()
+    attributes = Dict{String,Any}(
+        "max_iter" => _optional_positive_integer(
+            "NLPDIAGNOSTICS_BMOPF_SOURCE_BEHAVIOR_MAX_ITER"; default = 100,
+        ),
+    )
+    filter!(pair -> !isnothing(pair.second), attributes)
+    raw_tol = strip(get(ENV, "NLPDIAGNOSTICS_BMOPF_SOURCE_BEHAVIOR_TOL", ""))
+    if !isempty(raw_tol)
+        tol = try parse(Float64, raw_tol) catch
+            error("NLPDIAGNOSTICS_BMOPF_SOURCE_BEHAVIOR_TOL must be a finite number")
+        end
+        isfinite(tol) && tol > 0.0 || error(
+            "NLPDIAGNOSTICS_BMOPF_SOURCE_BEHAVIOR_TOL must be positive and finite",
+        )
+        attributes["tol"] = tol
+    end
+    return attributes
+end
+
+function _source_behavior_auxiliary_solve_data(auxiliary, solver_policy, attributes)
+    solver_policy == "none" && return Dict{String,Any}(
+        "status" => "not_requested",
+        "solver" => "none",
+        "feasible" => false,
+        "result_count" => 0,
+        "optimizer_attributes" => attributes,
+    )
+    optimizer = solver_policy == "ipopt" ? Ipopt.Optimizer : nothing
+    solve = NLPDiagnostics.bmopf_source_behavior_auxiliary_solve(
+        auxiliary; optimizer, optimizer_attributes = attributes,
+    )
+    data = Dict{String,Any}(String(key) => value for (key, value) in solve)
+    data["solver"] = solver_policy
+    data["optimizer_attributes"] = attributes
+    return data
+end
+
+function _source_behavior_report_data(result)
+    report = get(result, :report, nothing)
+    rows = get(result, :rows, Any[])
+    solve = get(result, :solve, Dict{String,Any}())
+    report isa NLPDiagnostics.DiagnosticReport || return Dict{String,Any}(
+        "status" => "unavailable",
+        "reason" => "source_behavior_report_not_materialized",
+    )
+    return Dict{String,Any}(
+        "status" => "available",
+        "finding_count" => length(report.findings),
+        "finding_codes" => string.(getfield.(report.findings, :code)),
+        "metadata" => Dict{String,Any}(string(key) => string(value)
+                                        for (key, value) in report.metadata),
+        "rows" => [Dict{String,Any}(String(key) => value for (key, value) in row)
+                   for row in rows if row isa AbstractDict],
+        "auxiliary_solve_status" => string(get(solve, "status", "unknown")),
+    )
+end
 
 function _physical_mode_projection_matches(analysis_data, projection_data)
     projections = _as_dict(projection_data)
@@ -524,6 +612,8 @@ function main()
         join((spec.name for spec in _SMOKE_FIXTURES), ", "),
     )
     point_policy = lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_POINT_POLICY", "initialization"))
+    source_behavior_solver = _source_behavior_solver_policy()
+    source_behavior_solver_attributes = _source_behavior_solver_attributes()
     dense_entry_limit = _dense_entry_limit()
     iterative_probe_dimension = _optional_positive_integer(
         "NLPDIAGNOSTICS_BMOPF_ITERATIVE_RIGHT_PROBE_DIMENSION",
@@ -559,11 +649,27 @@ function main()
                     iterative_right_nullspace_probe_iterations = iterative_probe_iterations,
                 ),
             )
+            source_behavior_auxiliary_model =
+                NLPDiagnostics.bmopf_source_behavior_auxiliary_model(run.context)
+            source_behavior_auxiliary = _source_behavior_auxiliary_data(
+                source_behavior_auxiliary_model,
+            )
+            source_behavior_auxiliary_solve = _source_behavior_auxiliary_solve_data(
+                source_behavior_auxiliary_model,
+                source_behavior_solver,
+                source_behavior_solver_attributes,
+            )
             data = NLPDiagnostics.profile_result_data(run.result)
             multiconductor_contract = _multiconductor_contract_data(
                 run.context; operating_source = run.result.profile.evaluation.point,
             )
             evaluation = run.result.profile.evaluation
+            source_behavior_report = _source_behavior_report_data(
+                NLPDiagnostics.bmopf_source_behavior_report(
+                    run.context, evaluation.point;
+                    solve_auxiliary = false,
+                ),
+            )
             expected_mode_tangent_policy = _expected_mode_tangent_policy(run.context)
             variable_count = length(evaluation.point.variables)
             constraint_row_count = length(evaluation.constraint_sources)
@@ -606,6 +712,8 @@ function main()
                 "tags" => string.(spec.tags),
                 "environment_fingerprint" => environment_fingerprint,
                 "point_policy" => point_policy,
+                "source_behavior_solver" => source_behavior_solver,
+                "source_behavior_solver_attributes" => source_behavior_solver_attributes,
                 "model_variable_count" => variable_count,
                 "scalar_constraint_row_count" => constraint_row_count,
                 "jacobian_dense_entry_count" => jacobian_entries,
@@ -618,6 +726,9 @@ function main()
                     "none" : string(expected_mode_tangent_policy.name),
                 "dense_rank_analysis_eligible" => jacobian_entries <= dense_entry_limit,
                 "multiconductor_contract" => multiconductor_contract,
+                "source_behavior_auxiliary" => source_behavior_auxiliary,
+                "source_behavior_auxiliary_solve" => source_behavior_auxiliary_solve,
+                "source_behavior_report" => source_behavior_report,
                 "physical_mode_analysis" => physical_mode_analysis_data,
                 "physical_mode_projection_matches" => physical_mode_projection_matches,
                 "build_seconds" => run.build_seconds,
@@ -632,6 +743,8 @@ function main()
                 "result_file" => basename(result_path),
                 "source_snapshot" => source_snapshot,
                 "point_policy" => point_policy,
+                "source_behavior_solver" => source_behavior_solver,
+                "source_behavior_solver_attributes" => source_behavior_solver_attributes,
                 "model_variable_count" => variable_count,
                 "scalar_constraint_row_count" => constraint_row_count,
                 "jacobian_dense_entry_count" => jacobian_entries,
@@ -642,6 +755,9 @@ function main()
                     "none" : string(expected_mode_tangent_policy.name),
                 "dense_rank_analysis_eligible" => jacobian_entries <= dense_entry_limit,
                 "multiconductor_contract" => multiconductor_contract,
+                "source_behavior_auxiliary" => source_behavior_auxiliary,
+                "source_behavior_auxiliary_solve" => source_behavior_auxiliary_solve,
+                "source_behavior_report" => source_behavior_report,
                 "generic_finding_count" => generic_findings,
                 "context_finding_count" => context_findings,
                 "build_seconds" => run.build_seconds, "kcl_seconds" => run.kcl_seconds,
@@ -676,6 +792,8 @@ function main()
         "environment" => environment,
         "environment_fingerprint" => environment_fingerprint,
         "point_policy" => point_policy,
+        "source_behavior_solver" => source_behavior_solver,
+        "source_behavior_solver_attributes" => source_behavior_solver_attributes,
         "rank_max_dense_entries" => dense_entry_limit,
         "expected_mode_free_coordinate_policy" =>
             expected_mode_free_coordinate_policy,

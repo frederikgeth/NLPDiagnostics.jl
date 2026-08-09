@@ -2295,7 +2295,7 @@ function _bmopf_analyze_initialization(
 end
 
 const _BMOPF_SOURCE_SCHEMA_PHYSICAL_FIELDS = Set(
-    ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu"),
+    ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu", "zipv"),
 )
 
 """Classify a PowerIO-to-BMOPF source-schema warning for report consumers."""
@@ -2363,6 +2363,28 @@ function _bmopf_source_schema_report(
         get(meta, "powerio_source_mapped_fields",
             get(meta, :powerio_source_mapped_fields, Any[])) : mapped_fields
     mapped_fields = _bmopf_source_schema_field_vector(raw_mapped_fields)
+    source_semantics = get(meta, "powerio_source_semantics",
+                           get(meta, :powerio_source_semantics, Dict{Any,Any}()))
+    source_semantics = source_semantics isa AbstractDict ? source_semantics : Dict{Any,Any}()
+    threshold_observations = get(source_semantics, "load_voltage_thresholds",
+                                 get(source_semantics, :load_voltage_thresholds, Any[]))
+    threshold_observations = threshold_observations isa AbstractVector ? threshold_observations : Any[]
+    source_model_observations = get(source_semantics, "voltage_source_models",
+                                    get(source_semantics, :voltage_source_models, Any[]))
+    source_model_observations = source_model_observations isa AbstractVector ? source_model_observations : Any[]
+    behavior_contract = if isdefined(BMOPFTools, :powerio_source_behavior_contract)
+        try
+            BMOPFTools.powerio_source_behavior_contract(network)
+        catch
+            Dict{String,Any}()
+        end
+    else
+        Dict{String,Any}()
+    end
+    behavior_contract = behavior_contract isa AbstractDict ? behavior_contract : Dict{Any,Any}()
+    behavior_observations = get(behavior_contract, "load_voltage_behavior",
+                                get(behavior_contract, :load_voltage_behavior, Any[]))
+    behavior_observations = behavior_observations isa AbstractVector ? behavior_observations : Any[]
 
     fields = String[]
     scopes = String[]
@@ -2409,10 +2431,38 @@ function _bmopf_source_schema_report(
     report.metadata[:bmopf_source_schema_mapping_statuses] = join(sort!(unique(
         String[string(get(value, "status", get(value, :status, "unknown")))
                  for value in values(mapping_by_field) if value isa AbstractDict])), ",")
+    report.metadata[:bmopf_source_schema_mapping_field_statuses] = join(sort!(String[
+        "$(key)=>$(get(value, "status", get(value, :status, "unknown")))"
+        for (key, value) in mapping_by_field if value isa AbstractDict
+    ]), ";")
     report.metadata[:bmopf_source_schema_mapping_targets] = join(sort!(String[
         "$(key)=>$(get(value, "target", get(value, :target, "unknown")))"
         for (key, value) in mapping_by_field if value isa AbstractDict
     ]), ";")
+    report.metadata[:bmopf_source_schema_threshold_observation_count] =
+        string(length(threshold_observations))
+    report.metadata[:bmopf_source_schema_threshold_observation_statuses] = join(sort!(unique(String[
+        string(get(item, "status", get(item, :status, "unknown")))
+        for item in threshold_observations if item isa AbstractDict
+    ])), ",")
+    report.metadata[:bmopf_source_schema_source_model_observation_count] =
+        string(length(source_model_observations))
+    report.metadata[:bmopf_source_schema_source_model_contract_statuses] = join(sort!(unique(String[
+        string(get(item, "status", get(item, :status, "unknown")))
+        for item in source_model_observations if item isa AbstractDict
+    ])), ",")
+    report.metadata[:bmopf_source_schema_behavior_contract_available] = string(
+        get(behavior_contract, "source_semantics_available",
+            get(behavior_contract, :source_semantics_available, false)) === true)
+    report.metadata[:bmopf_source_schema_behavior_contract_version] = string(
+        get(behavior_contract, "contract_version", get(behavior_contract, :contract_version, "")))
+    report.metadata[:bmopf_source_schema_behavior_constraint_policy] = string(
+        get(behavior_contract, "constraint_policy", get(behavior_contract, :constraint_policy, "")))
+    report.metadata[:bmopf_source_schema_behavior_candidate_count] = string(
+        length(behavior_observations))
+    report.metadata[:bmopf_source_schema_behavior_eligible_candidate_count] = string(
+        get(behavior_contract, "eligible_candidate_count",
+            get(behavior_contract, :eligible_candidate_count, 0)))
     report.metadata[:bmopf_source_schema_warning_fields] = join(unique(fields), ",")
     report.metadata[:bmopf_source_schema_warning_scopes] = join(unique(scopes), ",")
     report.metadata[:bmopf_source_schema_warning_impacts] = join(unique(impacts), ",")
@@ -2437,6 +2487,35 @@ function _bmopf_source_schema_report(
                     "source" => source_path,
                 ])],
             suggested_actions = ["Use the preserved field inventory to implement explicit BMOPF mappings; retain the provenance record with benchmark artifacts."],
+        ))
+    end
+    if !isempty(threshold_observations) || !isempty(source_model_observations)
+        threshold_statuses = unique(String[string(get(item, "status", get(item, :status, "unknown")))
+                                    for item in threshold_observations if item isa AbstractDict])
+        model_statuses = unique(String[string(get(item, "status", get(item, :status, "unknown")))
+                                 for item in source_model_observations if item isa AbstractDict])
+        push!(report, NLPDiagnostics.Finding(:bmopf_source_schema_behavior_observations;
+            severity = NLPDiagnostics.SeverityInfo,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.StructuralProof,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "The source record preserves $(length(threshold_observations)) load voltage-behavior observation(s) and $(length(source_model_observations)) voltage-source model contract(s).",
+            why_it_matters = "These observations support physical interpretation without pretending that load behavior thresholds are BMOPF bus bounds or that every source model has an active BMOPF equivalent.",
+            evidence = [NLPDiagnostics.Evidence("Source semantic observation record";
+                details = [
+                    "load_threshold_count" => length(threshold_observations),
+                    "load_threshold_statuses" => join(threshold_statuses, ","),
+                    "source_model_count" => length(source_model_observations),
+                    "source_model_contract_statuses" => join(model_statuses, ","),
+                    "behavior_contract_version" => get(behavior_contract,
+                        "contract_version", get(behavior_contract, :contract_version, "")),
+                    "constraint_policy" => get(behavior_contract,
+                        "constraint_policy", get(behavior_contract, :constraint_policy, "")),
+                    "eligible_constraint_candidate_count" => get(behavior_contract,
+                        "eligible_candidate_count", get(behavior_contract, :eligible_candidate_count, 0)),
+                    "source" => source_path,
+                ])],
+            suggested_actions = ["Use the observations for diagnostics and retain the explicit distinction between behavioral thresholds, boundary contracts, and active optimization constraints."],
         ))
     end
 
@@ -2491,6 +2570,244 @@ function _bmopf_source_schema_report(
         ))
     end
     return report
+end
+
+"""Build an isolated auxiliary JuMP model for source voltage-behavior candidates."""
+function _bmopf_source_behavior_auxiliary_model(
+    context;
+    optimizer = nothing,
+    include_ineligible::Bool = false,
+)
+    owner = _bmopf_context_model(context)
+    owner isa JuMP.Model || throw(ArgumentError(
+        "BMOPFTools.opf_model(context) did not return a JuMP.Model"))
+    network = BMOPFTools.opf_network(context)
+    contract = BMOPFTools.powerio_source_behavior_contract(
+        network; plan_auxiliary_constraints = true)
+    auxiliary = optimizer === nothing ? JuMP.Model() : JuMP.Model(optimizer)
+    voltage_real = Dict{Tuple{String,String},JuMP.VariableRef}()
+    voltage_imag = Dict{Tuple{String,String},JuMP.VariableRef}()
+    records = Dict{String,Any}[]
+    constraints = Dict{String,Any}[]
+
+    for candidate in get(contract, "auxiliary_constraint_candidates", Any[])
+        candidate isa AbstractDict || continue
+        scope = string(get(candidate, "scope", "unknown"))
+        status = string(get(candidate, "status", "not_ready"))
+        terminals = get(candidate, "terminal_map", Any[])
+        bus = get(candidate, "bus", nothing)
+        nominal = get(candidate, "nominal_voltage", Any[])
+        vmin = get(candidate, "vminpu", nothing)
+        vmax = get(candidate, "vmaxpu", nothing)
+        ready = status == "candidate" && bus isa AbstractString &&
+            terminals isa AbstractVector && length(terminals) == 2 &&
+            nominal isa AbstractVector && length(nominal) == 1 &&
+            nominal[1] isa Real && isfinite(Float64(nominal[1])) &&
+            vmin isa Real && vmax isa Real &&
+            isfinite(Float64(vmin)) && isfinite(Float64(vmax)) &&
+            Float64(vmin) <= Float64(vmax) && Float64(nominal[1]) > 0.0
+        if !ready
+            push!(records, Dict{String,Any}(
+                "scope" => scope,
+                "status" => "not_materialized",
+                "reason" => "terminal_voltage_projection_not_ready",
+                "active_in_original_model" => false,
+            ))
+            continue
+        end
+        bus_id = String(bus)
+        terminal_ids = String[string(item) for item in terminals]
+        keys = [(bus_id, terminal_ids[1]), (bus_id, terminal_ids[2])]
+        for key in keys
+            if !haskey(voltage_real, key)
+                label = replace("$(key[1])_$(key[2])", r"[^A-Za-z0-9_]" => "_")
+                voltage_real[key] = JuMP.@variable(auxiliary, base_name = "vbr_$(label)")
+                voltage_imag[key] = JuMP.@variable(auxiliary, base_name = "vbi_$(label)")
+            end
+        end
+        vr = voltage_real[keys[1]] - voltage_real[keys[2]]
+        vi = voltage_imag[keys[1]] - voltage_imag[keys[2]]
+        magnitude_squared = vr^2 + vi^2
+        nominal_voltage = Float64(nominal[1])
+        lower_squared = (Float64(vmin) * nominal_voltage)^2
+        upper_squared = (Float64(vmax) * nominal_voltage)^2
+        lower = JuMP.@constraint(auxiliary, lower_squared <= magnitude_squared)
+        upper = JuMP.@constraint(auxiliary, magnitude_squared <= upper_squared)
+        push!(constraints, Dict{String,Any}(
+            "scope" => scope,
+            "lower" => lower,
+            "upper" => upper,
+            "lower_squared_V2" => lower_squared,
+            "upper_squared_V2" => upper_squared,
+        ))
+        push!(records, Dict{String,Any}(
+            "scope" => scope,
+            "status" => "materialized",
+            "bus" => bus_id,
+            "terminal_map" => terminal_ids,
+            "nominal_voltage_V" => nominal_voltage,
+            "vminpu" => Float64(vmin),
+            "vmaxpu" => Float64(vmax),
+            "constraint_family" => "load_terminal_voltage_ratio_bounds",
+            "constraint_form" => "vminpu <= abs(V_terminal) / v_nom <= vmaxpu",
+            "active_in_original_model" => false,
+            "materialization" => "auxiliary_model_only",
+        ))
+    end
+    return Dict{String,Any}(
+        "model" => auxiliary,
+        "source_contract" => contract,
+        "records" => records,
+        "constraints" => constraints,
+        "variable_count" => JuMP.num_variables(auxiliary),
+        "constraint_pair_count" => length(constraints),
+        "original_model" => owner,
+        "original_model_variable_count" => JuMP.num_variables(owner),
+        "original_model_mutated" => false,
+        "status" => isempty(constraints) ? "no_materialized_candidates" : "materialized",
+    )
+end
+
+"""Solve an isolated source-behavior auxiliary model when an optimizer is supplied."""
+function _bmopf_source_behavior_auxiliary_solve(
+    auxiliary::AbstractDict;
+    optimizer = nothing,
+    silent::Bool = true,
+    optimizer_attributes::AbstractDict = Dict{String,Any}(),
+)
+    model = get(auxiliary, "model", nothing)
+    model isa JuMP.Model || throw(ArgumentError(
+        "auxiliary must be the result of bmopf_source_behavior_auxiliary_model"))
+    if optimizer !== nothing
+        JuMP.set_optimizer(model, optimizer)
+    end
+    try
+        silent && JuMP.set_silent(model)
+        for (name, value) in optimizer_attributes
+            JuMP.set_optimizer_attribute(model, String(name), value)
+        end
+        JuMP.@objective(model, Min, 0.0)
+        JuMP.optimize!(model)
+    catch error
+        return Dict{String,Any}(
+            "status" => "unavailable",
+            "termination_status" => "optimizer_not_available",
+            "error" => sprint(showerror, error),
+            "feasible" => false,
+            "result_count" => 0,
+        )
+    end
+    termination = string(JuMP.termination_status(model))
+    result_count = JuMP.result_count(model)
+    feasible = result_count > 0 && JuMP.primal_status(model) != MOI.NO_SOLUTION
+    return Dict{String,Any}(
+        "status" => feasible ? "solved" : "unsolved",
+        "termination_status" => termination,
+        "primal_status" => string(JuMP.primal_status(model)),
+        "feasible" => feasible,
+        "result_count" => result_count,
+        "objective_value" => feasible ? JuMP.objective_value(model) : nothing,
+    )
+end
+
+"""Evaluate source voltage-behavior thresholds at a typed BMOPF point."""
+function _bmopf_source_behavior_report(
+    context,
+    point::NLPDiagnostics.EvaluationPoint;
+    solve_auxiliary::Bool = false,
+    optimizer = nothing,
+)
+    auxiliary = _bmopf_source_behavior_auxiliary_model(context)
+    positions = Dict(variable => value for (variable, value) in
+                     zip(point.variables, point.values))
+    report = NLPDiagnostics.DiagnosticReport()
+    checked = 0
+    below = 0
+    above = 0
+    unavailable = 0
+    rows = Dict{String,Any}[]
+    for record in get(auxiliary, "records", Any[])
+        record isa AbstractDict || continue
+        get(record, "status", "") == "materialized" || continue
+        scope = string(get(record, "scope", "unknown"))
+        bus = String(get(record, "bus", ""))
+        terminals = String[string(item) for item in get(record, "terminal_map", Any[])]
+        length(terminals) == 2 || continue
+        values = Float64[]
+        for terminal in terminals
+            object = try
+                BMOPFTools.opf_object(context,
+                    BMOPFTools.opf_bus_voltage_key(bus, terminal; component = :real))
+            catch
+                nothing
+            end
+            imag_object = try
+                BMOPFTools.opf_object(context,
+                    BMOPFTools.opf_bus_voltage_key(bus, terminal; component = :imag))
+            catch
+                nothing
+            end
+            object isa JuMP.VariableRef && imag_object isa JuMP.VariableRef || break
+            vr = get(positions, JuMP.index(object), nothing)
+            vi = get(positions, JuMP.index(imag_object), nothing)
+            vr isa Real && vi isa Real && isfinite(Float64(vr)) && isfinite(Float64(vi)) || break
+            push!(values, Float64(vr)); push!(values, Float64(vi))
+        end
+        length(values) == 4 || begin
+            unavailable += 1
+            push!(rows, Dict{String,Any}("scope" => scope, "status" => "point_unavailable"))
+            continue
+        end
+        base = _bmopf_voltage_base(context, bus)
+        base = isnothing(base) ? 1.0 : base
+        nominal = Float64(get(record, "nominal_voltage_V", NaN))
+        ratio = base * hypot(values[1] - values[3], values[2] - values[4]) / nominal
+        vmin = Float64(get(record, "vminpu", NaN))
+        vmax = Float64(get(record, "vmaxpu", NaN))
+        isfinite(ratio) && isfinite(vmin) && isfinite(vmax) || begin
+            unavailable += 1
+            push!(rows, Dict{String,Any}("scope" => scope, "status" => "nonfinite"))
+            continue
+        end
+        checked += 1
+        status = ratio < vmin ? "below_vminpu" : ratio > vmax ? "above_vmaxpu" : "within_bounds"
+        status == "below_vminpu" && (below += 1)
+        status == "above_vmaxpu" && (above += 1)
+        push!(rows, Dict{String,Any}(
+            "scope" => scope,
+            "status" => status,
+            "observed_ratio" => ratio,
+            "vminpu" => vmin,
+            "vmaxpu" => vmax,
+            "violation" => max(vmin - ratio, ratio - vmax, 0.0),
+        ))
+        status == "within_bounds" && continue
+        push!(report, NLPDiagnostics.Finding(:bmopf_source_behavior_threshold_violation;
+            severity = NLPDiagnostics.SeverityWarning,
+            domain = NLPDiagnostics.PhysicalIssue,
+            basis = NLPDiagnostics.NumericalObservation,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "Load voltage-behavior threshold $(status) observed for $(scope).",
+            why_it_matters = "The operating point lies outside the source-declared load behavior domain; this is not evidence that the production BMOPF model contains a corresponding bus bound.",
+            evidence = [NLPDiagnostics.Evidence("Load voltage-behavior threshold";
+                details = ["scope" => scope, "observed_ratio" => ratio,
+                           "vminpu" => vmin, "vmaxpu" => vmax,
+                           "violation" => max(vmin - ratio, ratio - vmax, 0.0)])],
+            suggested_actions = ["Inspect initialization, load-law validity, and physical operating assumptions before adding any auxiliary constraint."],
+        ))
+    end
+    solve = solve_auxiliary ? _bmopf_source_behavior_auxiliary_solve(auxiliary; optimizer = optimizer) :
+        Dict{String,Any}("status" => "not_requested")
+    report.metadata[:stage] = "bmopf_source_behavior"
+    report.metadata[:bmopf_source_behavior_checked_count] = string(checked)
+    report.metadata[:bmopf_source_behavior_below_vminpu_count] = string(below)
+    report.metadata[:bmopf_source_behavior_above_vmaxpu_count] = string(above)
+    report.metadata[:bmopf_source_behavior_unavailable_count] = string(unavailable)
+    report.metadata[:bmopf_source_behavior_auxiliary_constraint_pair_count] =
+        string(get(auxiliary, "constraint_pair_count", 0))
+    report.metadata[:bmopf_source_behavior_auxiliary_solve_status] =
+        string(get(solve, "status", "unknown"))
+    return (report = report, rows = rows, auxiliary = auxiliary, solve = solve)
 end
 
 function _bmopf_append_report!(target, source)

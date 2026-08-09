@@ -1647,6 +1647,58 @@ function _validate_multiconductor_smoke(path, summary)
                  "successful_case_count" => get(get(summary, "aggregate", Dict()),
                      "successful_case_count", 0));
             suggested_action = "Retain the PowerIO source metadata inventory before attempting physical-field restoration."))
+    get(readiness, "source_schema_semantic_observations_available", false) === true || push!(findings,
+        _finding("multiconductor_source_schema_semantic_observations_missing", "warning",
+            "The campaign lacks normalized observations for load voltage-behavior thresholds or voltage-source model contracts.",
+            Dict("summary_path" => path,
+                 "source_schema_threshold_observation_case_count" => get(get(summary, "aggregate", Dict()),
+                     "source_schema_threshold_observation_case_count", 0),
+                 "source_schema_source_model_contract_case_count" => get(get(summary, "aggregate", Dict()),
+                     "source_schema_source_model_contract_case_count", 0));
+            suggested_action = "Regenerate the campaign with source semantic observations enabled before interpreting voltage-model fidelity."))
+    get(readiness, "source_schema_behavior_contract_available", false) === true || push!(findings,
+        _finding("multiconductor_source_schema_behavior_contract_missing", "warning",
+            "The campaign lacks the explicit non-mutating contract for load voltage-behavior thresholds.",
+            Dict("summary_path" => path,
+                 "source_schema_behavior_contract_case_count" => get(get(summary, "aggregate", Dict()),
+                     "source_schema_behavior_contract_case_count", 0),
+                 "source_schema_behavior_candidate_count" => get(get(summary, "aggregate", Dict()),
+                     "source_schema_behavior_candidate_count", 0));
+            suggested_action = "Expose the source behavior contract before planning auxiliary voltage-ratio constraints."))
+    get(readiness, "source_behavior_auxiliary_available", false) === true || push!(findings,
+        _finding("multiconductor_source_behavior_auxiliary_unavailable", "warning",
+            "The campaign does not contain a complete non-mutating auxiliary-model materialization record.",
+            Dict("summary_path" => path,
+                 "source_behavior_auxiliary_case_count" => get(get(summary, "aggregate", Dict()),
+                     "source_behavior_auxiliary_case_count", 0),
+                 "source_behavior_auxiliary_materialized_pair_count" => get(get(summary, "aggregate", Dict()),
+                     "source_behavior_auxiliary_materialized_pair_count", 0),
+                 "source_behavior_auxiliary_mutation_case_count" => get(get(summary, "aggregate", Dict()),
+                     "source_behavior_auxiliary_mutation_case_count", 0));
+            suggested_action = "Build the auxiliary model separately and verify that the original BMOPF model is unchanged."))
+    get(readiness, "source_behavior_report_available", false) === true || push!(findings,
+        _finding("multiconductor_source_behavior_report_unavailable", "warning",
+            "The campaign contains source-behavior candidates but not a complete point-wise threshold report for every successful fixture.",
+            Dict("summary_path" => path,
+                 "source_behavior_report_case_count" => get(get(summary, "aggregate", Dict()),
+                     "source_behavior_report_case_count", 0),
+                 "source_behavior_report_row_count" => get(get(summary, "aggregate", Dict()),
+                     "source_behavior_report_row_count", 0),
+                 "source_behavior_report_finding_count" => get(get(summary, "aggregate", Dict()),
+                     "source_behavior_report_finding_count", 0));
+            suggested_action = "Regenerate the campaign with the typed operating point and source-behavior report preserved."))
+    get(readiness, "source_behavior_auxiliary_solve_complete", false) === true || push!(findings,
+        _finding("multiconductor_source_behavior_auxiliary_solve_unavailable", "warning",
+            "A solver-backed source-behavior campaign was requested, but one or more auxiliary solves were unavailable.",
+            Dict("summary_path" => path,
+                 "source_behavior_solver" => get(summary, "source_behavior_solver", "unknown"),
+                 "source_behavior_auxiliary_solve_status_counts" =>
+                     get(get(summary, "aggregate", Dict()),
+                         "source_behavior_auxiliary_solve_status_counts", Dict()),
+                 "source_behavior_auxiliary_solve_unavailable_case_count" =>
+                     get(get(summary, "aggregate", Dict()),
+                         "source_behavior_auxiliary_solve_unavailable_case_count", 0));
+            suggested_action = "Inspect the solver environment or rerun with source-behavior solver policy none for observation-only evidence."))
     get(readiness, "source_schema_mapping_complete", false) === true || push!(findings,
         _finding("multiconductor_source_schema_mapping_incomplete", "warning",
             "Source-only metadata is preserved, but blocking fields are not yet covered by explicit BMOPF mappings.",

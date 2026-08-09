@@ -219,7 +219,7 @@ function _schema_warning_impact(field)
     field = String(field)
     field == "units" && return "representational"
     field == "model" && return "device_semantics"
-    field in ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu") &&
+    field in ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu", "zipv") &&
         return "physical_or_operating_point"
     return "unknown"
 end
@@ -238,7 +238,7 @@ function _schema_warning_policy(field)
         "physical_readiness_blocking" => true,
         "action" => "Map the source device model into an explicit BMOPF component or plugin contract.",
     )
-    field in ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu") &&
+    field in ("angle", "basekv", "kv", "phases", "vmaxpu", "vminpu", "zipv") &&
         return Dict{String,Any}(
             "status" => "unsupported_physical_metadata",
             "impact" => "physical_or_operating_point",
