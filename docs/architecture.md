@@ -1,7 +1,35 @@
-# Initial architecture
+# Architecture
 
 This document records decisions that should remain stable as implementation
 details evolve.
+
+The normative package mission and present scope are in
+[`mission_and_scope.md`](mission_and_scope.md). The architecture supports two
+closely related uses: an evidence-first model debugger and an experimental
+measurement platform for numerical-method development.
+
+## Current phase boundary
+
+The project has enough feature breadth to exercise the original vision. Its
+current phase is consolidation and calibration, not unrestricted addition of
+new finding families. Work should strengthen the following chain:
+
+1. preserve a measurement with explicit provenance and coordinate semantics;
+2. compare it with a truth-labelled case or a controlled intervention;
+3. state the narrowest interpretation supported by that comparison; and
+4. render the evidence needed for another researcher to challenge it.
+
+This leads to three architectural layers that must remain separable:
+
+- measurement artifacts: expressions, points, derivative products, solver
+  telemetry, structural graphs, and domain metadata;
+- comparison artifacts: tolerances, normalization, reference backends,
+  repeated points, and controlled perturbations; and
+- diagnostic interpretations: findings whose confidence and issue domain are
+  bounded by the first two layers.
+
+A renderer may combine these layers for presentation, but a finding must never
+be the only surviving copy of the measurement that produced it.
 
 ## Domain component metadata
 

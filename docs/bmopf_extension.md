@@ -554,6 +554,25 @@ written with status `ok_solver_trace_profile_skipped`; their solver/log/trace
 evidence remains available, while the expensive BMOPF semantic and rank
 profile is recorded as `profile_skipped_resource_budget` rather than being
 silently inferred as clean.
+Row-family residual capture depends on bound solver-iterate points. The source
+matrix launcher therefore rejects
+`NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_CAPTURE_ROW_RESIDUALS=true` unless
+`NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_CAPTURE_POINTS=true` is also explicit.
+
+For a paired multiconductor option campaign, set
+`NLPDIAGNOSTICS_BMOPF_OPTION_CAMPAIGN_SCOPE=multiconductor` and use
+`benchmarks/launch_bmopf_solver_option_perturbations.jl`, followed by
+`benchmarks/summarize_bmopf_solver_option_perturbations.jl`. Use the `context`
+profile stage and keep the dense rank budget at zero for the first pass. The v4
+summary retains model variable count, structural BMOPF context metadata, and
+the source behavior contract as a per-cell semantic fingerprint. Context
+finding counts are retained separately because some findings are conditioned
+on the solver endpoint and are therefore outcomes rather than model-build
+invariants. A multiconductor
+stability observation is promotable only when those contracts are complete and
+invariant across every same-case, same-budget, same-initialization comparison.
+This gate detects harness or model-build drift; it does not prove that the
+source semantics themselves are correct.
 Set `NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE=trace` to request the solver-only
 stage, `context` to add BMOPF semantic/context diagnostics, or `numerical` to
 evaluate and analyze the solver-result Jacobian under the configured dense
@@ -1626,17 +1645,39 @@ source-domain classification without requiring dense rank analysis.
 For algorithmic persistence checks, use
 `benchmarks/launch_bmopf_solver_option_perturbations.jl`. It crosses named
 Ipopt option profiles with initialization policies and solver budgets while
-keeping the matrix budget authoritative. The companion
+keeping the matrix budget authoritative. The default baseline is explicit and
+the launcher rejects duplicate option sets, because a solver default and an
+equivalent named profile are not independent interventions. The companion
 `benchmarks/summarize_bmopf_solver_option_perturbations.jl` compares each
 perturbation to its same-policy baseline and reports changes in classification,
 restoration records, endpoint residual signatures, and trace length.
-When row-residual capture is enabled, it also retains a complete per-family
-peak map and ranked peak deltas. Family changes are marked only when they exceed
-the combined absolute/relative comparison tolerance recorded in the report;
-machine-scale evaluator noise is kept as evidence but is not promoted to a
-material algorithmic finding.
+When row-residual capture is enabled, it retains first-captured, final-captured,
+post-first, post-first regular-phase, and post-first restoration-phase
+statistics for every available family as
+well as the legacy global peak. This separation is essential: a shared starting
+point can dominate the global maximum even when later trajectories differ. The
+first callback is not assumed to be identical to the caller's supplied
+initialization.
+Within-family changes are marked only when they exceed the configurable
+absolute/relative comparison tolerance recorded in the report. That tolerance
+uses raw residual coordinates; it is a noise screen, not a physical
+normalization and not a basis for ranking different families.
 The resulting option summary is accepted by
 `benchmarks/summarize_bmopf_evidence_ledger.jl`, which emits separate
-numerical evidence for row-family residual stability and local evidence for
+numerical evidence for post-first row-family trajectory stability and local evidence for
 classification sensitivity. This keeps an algorithmic perturbation result
 visible without turning it into a formulation defect claim.
+The ledger emits a negative stability record only when a v3-or-later report declares
+distinct option sets, every manifest entry completed, every non-baseline row
+has a matched baseline, and every row-family trajectory is available and
+nonempty. Older schemas are retained only as legacy smoke observations;
+incomplete campaigns produce coverage evidence instead of robustness
+evidence.
+For v4 multiconductor scope, model-semantic contract availability and
+invariance are additional mandatory gates. A failed semantic gate produces a
+representational control finding and suppresses the trajectory-stability
+record.
+The option summary also aggregates the solve-time environment fingerprints and
+records a separate summary-time environment. Git provenance distinguishes a
+clean revision from modified source using a content fingerprint; it never
+stores the source diff itself in the report.

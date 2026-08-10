@@ -385,6 +385,7 @@ struct IterativeNullspaceEstimate{T<:AbstractFloat}
     point::EvaluationPoint{T}
     iterations::Int
     converged::Bool
+    operator_source::Symbol
     direction::Vector{T}
     residual_norm::Union{Nothing,T}
     matrix_norm::Union{Nothing,T}
@@ -399,6 +400,7 @@ struct IterativeNullspaceSubspaceEstimate{T<:AbstractFloat}
     requested_dimension::Int
     iterations::Int
     converged::Bool
+    operator_source::Symbol
     directions::Matrix{T}
     residual_norms::Vector{T}
     matrix_norm::Union{Nothing,T}
@@ -414,6 +416,7 @@ struct IterativeLeftNullspaceSubspaceEstimate{T<:AbstractFloat}
     requested_dimension::Int
     iterations::Int
     converged::Bool
+    operator_source::Symbol
     directions::Matrix{T}
     residual_norms::Vector{T}
     matrix_norm::Union{Nothing,T}
@@ -427,10 +430,32 @@ struct IterativeJacobianSpectrumEstimate{T<:AbstractFloat}
     reason::Union{Nothing,String}
     point::EvaluationPoint{T}
     iterations::Int
+    operator_source::Symbol
     largest_singular_value_proxy::Union{Nothing,T}
     candidate_small_singular_values::Vector{T}
     spectral_spread_proxies::Vector{T}
     candidate_subspace_converged::Bool
+end
+
+"""
+A local Jacobian linear operator with explicit product provenance.
+
+The assembled sparse matrix remains available for inspection. When `source`
+is `:hybrid_moi_jacvec`, products for NLP-block rows use MOI's public
+`:JacVec` callbacks while all other rows use the assembled matrix. This is a
+local numerical object, not a rank or derivative-correctness certificate.
+"""
+struct JacobianLinearOperator{T<:AbstractFloat,M,E}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    rows::Int
+    columns::Int
+    source::Symbol
+    assembled_matrix::M
+    nlp_evaluator::E
+    nlp_rows::Vector{Int}
+    native_unavailable_reason::Union{Nothing,String}
 end
 
 """

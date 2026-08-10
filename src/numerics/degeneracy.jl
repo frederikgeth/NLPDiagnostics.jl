@@ -64,6 +64,216 @@ function _combined_sparse_jacobian_matrix(
     )
 end
 
+function _unavailable_jacobian_linear_operator(
+    evaluation::NumericalEvaluation{T},
+    reason::AbstractString,
+) where {T<:AbstractFloat}
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    return JacobianLinearOperator{T,SparseMatrixCSC{T,Int},Nothing}(
+        false, String(reason), evaluation.point, rows, columns, :unavailable,
+        spzeros(T, rows, columns), nothing, Int[], nothing,
+    )
+end
+
+"""
+    jacobian_linear_operator(evaluation)
+
+Construct an inspectable sparse local Jacobian operator from the additive
+entries in `evaluation`. Incomplete derivative rows and non-finite entries
+produce an unavailable operator rather than an implicit zero contribution.
+"""
+function jacobian_linear_operator(
+    evaluation::NumericalEvaluation{T},
+) where {T<:AbstractFloat}
+    incomplete = findall(
+        method -> method in _JACOBIAN_INCOMPLETE_METHODS,
+        evaluation.jacobian_row_methods,
+    )
+    isempty(incomplete) || return _unavailable_jacobian_linear_operator(
+        evaluation, "Jacobian rows $(join(incomplete, ',')) are incomplete",
+    )
+    all(entry -> isfinite(entry.value), evaluation.jacobian_entries) ||
+        return _unavailable_jacobian_linear_operator(
+            evaluation, "Jacobian contains non-finite raw entries",
+        )
+    matrix = _combined_sparse_jacobian_matrix(evaluation)
+    all(isfinite, nonzeros(matrix)) || return _unavailable_jacobian_linear_operator(
+        evaluation, "Jacobian contains non-finite combined entries",
+    )
+    return JacobianLinearOperator{T,typeof(matrix),Nothing}(
+        true, nothing, evaluation.point, size(matrix, 1), size(matrix, 2),
+        :assembled_sparse, matrix, nothing, Int[], nothing,
+    )
+end
+
+"""
+    jacobian_linear_operator(model, evaluation; prefer_native = true)
+
+Construct a hybrid operator that uses public MOI `:JacVec` and transposed
+Jacobian-product callbacks for NLP-block rows when available. The operator
+retains the assembled sparse matrix and reports an explicit fallback reason
+when the evaluator does not provide a usable native product path.
+"""
+function jacobian_linear_operator(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T};
+    prefer_native::Bool = true,
+    native_consistency_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    consistency_tolerance = T(native_consistency_tolerance)
+    isfinite(consistency_tolerance) && consistency_tolerance >= zero(T) ||
+        throw(ArgumentError(
+            "native_consistency_tolerance must be finite and nonnegative",
+        ))
+    evaluation.point.variables == MOI.get(model, MOI.ListOfVariableIndices()) ||
+        throw(ArgumentError("evaluation-point variable order does not match the model"))
+    assembled = jacobian_linear_operator(evaluation)
+    assembled.available || return assembled
+    prefer_native || return assembled
+    block = _optional_nlp_block(model)
+    isnothing(block) && return JacobianLinearOperator{T,typeof(assembled.assembled_matrix),Nothing}(
+        true, nothing, evaluation.point, assembled.rows, assembled.columns,
+        :assembled_sparse, assembled.assembled_matrix, nothing, Int[],
+        "no NLPBlock",
+    )
+    capability = evaluator_capabilities(block.evaluator)
+    if !(:JacVec in capability.available_features)
+        return JacobianLinearOperator{T,typeof(assembled.assembled_matrix),Nothing}(
+            true, nothing, evaluation.point, assembled.rows, assembled.columns,
+            :assembled_sparse, assembled.assembled_matrix, nothing, Int[],
+            "NLP evaluator does not advertise :JacVec",
+        )
+    end
+    nlp_rows = findall(source -> source.kind == :nlp_constraint,
+        evaluation.constraint_sources)
+    length(nlp_rows) == length(block.constraint_bounds) ||
+        return _unavailable_jacobian_linear_operator(
+            evaluation,
+            "NLP row mapping does not match NLPBlock constraint bounds",
+        )
+    try
+        MOI.initialize(block.evaluator, copy(capability.requested_features))
+    catch error
+        return JacobianLinearOperator{T,typeof(assembled.assembled_matrix),Nothing}(
+            true, nothing, evaluation.point, assembled.rows, assembled.columns,
+            :assembled_sparse, assembled.assembled_matrix, nothing, Int[],
+            "MOI :JacVec initialization failed: $(sprint(showerror, error))",
+        )
+    end
+    try
+        right_probe = T[sin(T(column)) for column in 1:assembled.columns]
+        right_norm = norm(right_probe)
+        iszero(right_norm) || (right_probe ./= right_norm)
+        native_product = zeros(T, length(nlp_rows))
+        MOI.eval_constraint_jacobian_product(
+            block.evaluator, native_product, copy(evaluation.point.values), right_probe,
+        )
+        assembled_product = assembled.assembled_matrix[nlp_rows, :] * right_probe
+        product_error = norm(native_product - assembled_product) /
+            max(one(T), norm(native_product), norm(assembled_product))
+
+        left_probe = T[cos(T(row)) for row in 1:length(nlp_rows)]
+        left_norm = norm(left_probe)
+        iszero(left_norm) || (left_probe ./= left_norm)
+        native_transpose = zeros(T, assembled.columns)
+        MOI.eval_constraint_jacobian_transpose_product(
+            block.evaluator, native_transpose, copy(evaluation.point.values), left_probe,
+        )
+        assembled_transpose = adjoint(assembled.assembled_matrix[nlp_rows, :]) * left_probe
+        transpose_error = norm(native_transpose - assembled_transpose) /
+            max(one(T), norm(native_transpose), norm(assembled_transpose))
+        if !(isfinite(product_error) && isfinite(transpose_error) &&
+             product_error <= consistency_tolerance &&
+             transpose_error <= consistency_tolerance)
+            return JacobianLinearOperator{T,typeof(assembled.assembled_matrix),Nothing}(
+                true, nothing, evaluation.point, assembled.rows, assembled.columns,
+                :assembled_sparse, assembled.assembled_matrix, nothing, Int[],
+                "MOI :JacVec consistency screen failed: product_relative_error=$(product_error), transpose_relative_error=$(transpose_error), tolerance=$(consistency_tolerance)",
+            )
+        end
+    catch error
+        return JacobianLinearOperator{T,typeof(assembled.assembled_matrix),Nothing}(
+            true, nothing, evaluation.point, assembled.rows, assembled.columns,
+            :assembled_sparse, assembled.assembled_matrix, nothing, Int[],
+            "MOI :JacVec consistency screen failed: $(sprint(showerror, error))",
+        )
+    end
+    return JacobianLinearOperator{T,typeof(assembled.assembled_matrix),typeof(block.evaluator)}(
+        true, nothing, evaluation.point, assembled.rows, assembled.columns,
+        :hybrid_moi_jacvec, assembled.assembled_matrix, block.evaluator,
+        nlp_rows, nothing,
+    )
+end
+
+Base.size(operator::JacobianLinearOperator) = (operator.rows, operator.columns)
+Base.size(operator::JacobianLinearOperator, dimension::Integer) =
+    size(operator)[dimension]
+
+function jacobian_product(
+    operator::JacobianLinearOperator{T},
+    direction::AbstractVector{<:Real},
+) where {T<:AbstractFloat}
+    operator.available || throw(ArgumentError(
+        "Jacobian operator is unavailable: $(operator.reason)",
+    ))
+    length(direction) == operator.columns || throw(DimensionMismatch(
+        "Jacobian product direction has length $(length(direction)); expected $(operator.columns)",
+    ))
+    converted = T.(direction)
+    result = operator.assembled_matrix * converted
+    if operator.source == :hybrid_moi_jacvec
+        native = zeros(T, length(operator.nlp_rows))
+        MOI.eval_constraint_jacobian_product(
+            operator.nlp_evaluator, native, copy(operator.point.values), converted,
+        )
+        result[operator.nlp_rows] .= native
+    end
+    all(isfinite, result) || throw(ArgumentError(
+        "Jacobian product returned non-finite values",
+    ))
+    return result
+end
+
+function jacobian_transpose_product(
+    operator::JacobianLinearOperator{T},
+    direction::AbstractVector{<:Real},
+) where {T<:AbstractFloat}
+    operator.available || throw(ArgumentError(
+        "Jacobian operator is unavailable: $(operator.reason)",
+    ))
+    length(direction) == operator.rows || throw(DimensionMismatch(
+        "transposed-Jacobian product direction has length $(length(direction)); expected $(operator.rows)",
+    ))
+    converted = T.(direction)
+    result = adjoint(operator.assembled_matrix) * converted
+    if operator.source == :hybrid_moi_jacvec
+        nlp_direction = converted[operator.nlp_rows]
+        result .-= adjoint(operator.assembled_matrix[operator.nlp_rows, :]) * nlp_direction
+        native = zeros(T, operator.columns)
+        MOI.eval_constraint_jacobian_transpose_product(
+            operator.nlp_evaluator, native, copy(operator.point.values), nlp_direction,
+        )
+        result .+= native
+    end
+    all(isfinite, result) || throw(ArgumentError(
+        "transposed-Jacobian product returned non-finite values",
+    ))
+    return result
+end
+
+function _jacobian_products(operator::JacobianLinearOperator{T}, directions) where {T}
+    return hcat((jacobian_product(operator, view(directions, :, column))
+        for column in axes(directions, 2))...)
+end
+
+function _jacobian_transpose_products(
+    operator::JacobianLinearOperator{T}, directions,
+) where {T}
+    return hcat((jacobian_transpose_product(operator, view(directions, :, column))
+        for column in axes(directions, 2))...)
+end
+
 function _unavailable_rank_estimate(
     evaluation::NumericalEvaluation{T},
     policy::RankPolicy{T},
@@ -238,6 +448,7 @@ function iterative_right_nullspace_estimate(
     iterations::Integer = 100,
     convergence_tolerance::Real = sqrt(eps(T)),
     matrix_norm::Symbol = :frobenius,
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
 ) where {T<:AbstractFloat}
     iterations > 0 || throw(ArgumentError("iterations must be positive"))
     tolerance = convert(T, convergence_tolerance)
@@ -246,14 +457,15 @@ function iterative_right_nullspace_estimate(
     rows = length(evaluation.constraint_sources)
     columns = length(evaluation.point.variables)
     unavailable(reason) = IterativeNullspaceEstimate{T}(
-        false, reason, evaluation.point, 0, false, T[], nothing, nothing,
+        false, reason, evaluation.point, 0, false, operator.source, T[], nothing, nothing,
         nothing,
     )
     columns > 0 || return unavailable("Jacobian has no variable columns")
-    pattern = sparse_jacobian_pattern_estimate(evaluation)
-    pattern.available || return unavailable(pattern.reason)
-
-    matrix = _combined_sparse_jacobian_matrix(evaluation)
+    operator.available || return unavailable(operator.reason)
+    operator.point == evaluation.point || throw(ArgumentError(
+        "Jacobian operator and evaluation points do not match",
+    ))
+    matrix = operator.assembled_matrix
     norm_value = T(_matrix_norm(matrix, matrix_norm))
     direction = T[sin(T(index)) for index in 1:columns]
     direction_norm = norm(direction)
@@ -266,7 +478,9 @@ function iterative_right_nullspace_estimate(
     probe = copy(direction)
     spectral_scale = zero(T)
     for _ in 1:min(20, Int(iterations))
-        normal_product = adjoint(matrix) * (matrix * probe)
+        normal_product = jacobian_transpose_product(
+            operator, jacobian_product(operator, probe),
+        )
         product_norm = norm(normal_product)
         isfinite(product_norm) ||
             return unavailable("sparse Jacobian product became non-finite")
@@ -278,7 +492,9 @@ function iterative_right_nullspace_estimate(
     converged = false
     completed_iterations = 0
     for iteration in 1:Int(iterations)
-        candidate = direction - (adjoint(matrix) * (matrix * direction)) / shift
+        candidate = direction - jacobian_transpose_product(
+            operator, jacobian_product(operator, direction),
+        ) / shift
         candidate_norm = norm(candidate)
         isfinite(candidate_norm) && !iszero(candidate_norm) ||
             return unavailable("iterative nullspace direction became invalid")
@@ -292,11 +508,12 @@ function iterative_right_nullspace_estimate(
         end
         direction = candidate
     end
-    residual = norm(matrix * direction)
+    residual = norm(jacobian_product(operator, direction))
     isfinite(residual) || return unavailable("candidate residual became non-finite")
     relative_residual = _relative_residual(residual, norm_value, norm(direction))
     return IterativeNullspaceEstimate{T}(
         true, nothing, evaluation.point, completed_iterations, converged,
+        operator.source,
         direction, residual, norm_value, relative_residual,
     )
 end
@@ -316,6 +533,7 @@ function iterative_right_nullspace_subspace_estimate(
     iterations::Integer = 100,
     convergence_tolerance::Real = sqrt(eps(T)),
     matrix_norm::Symbol = :frobenius,
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
 ) where {T<:AbstractFloat}
     dimension > 0 || throw(ArgumentError("dimension must be positive"))
     iterations > 0 || throw(ArgumentError("iterations must be positive"))
@@ -325,15 +543,17 @@ function iterative_right_nullspace_subspace_estimate(
     rows = length(evaluation.constraint_sources)
     columns = length(evaluation.point.variables)
     unavailable(reason) = IterativeNullspaceSubspaceEstimate{T}(
-        false, reason, evaluation.point, Int(dimension), 0, false,
+        false, reason, evaluation.point, Int(dimension), 0, false, operator.source,
         zeros(T, columns, 0), T[], nothing, T[], nothing,
     )
     columns > 0 || return unavailable("Jacobian has no variable columns")
     dimension <= columns ||
         throw(ArgumentError("dimension must not exceed the Jacobian column count"))
-    pattern = sparse_jacobian_pattern_estimate(evaluation)
-    pattern.available || return unavailable(pattern.reason)
-    matrix = _combined_sparse_jacobian_matrix(evaluation)
+    operator.available || return unavailable(operator.reason)
+    operator.point == evaluation.point || throw(ArgumentError(
+        "Jacobian operator and evaluation points do not match",
+    ))
+    matrix = operator.assembled_matrix
     norm_value = T(_matrix_norm(matrix, matrix_norm))
     seed = T[
         sin(T(row * (column + 1))) + cos(T((row + 1) * column)) for
@@ -349,7 +569,9 @@ function iterative_right_nullspace_subspace_estimate(
     probe = view(directions, :, 1)
     spectral_scale = zero(T)
     for _ in 1:min(20, Int(iterations))
-        normal_product = adjoint(matrix) * (matrix * probe)
+        normal_product = jacobian_transpose_product(
+            operator, jacobian_product(operator, probe),
+        )
         product_norm = norm(normal_product)
         isfinite(product_norm) ||
             return unavailable("sparse Jacobian product became non-finite")
@@ -362,7 +584,9 @@ function iterative_right_nullspace_subspace_estimate(
     converged = false
     subspace_change = nothing
     for iteration in 1:Int(iterations)
-        candidate = directions - (adjoint(matrix) * (matrix * directions)) / shift
+        candidate = directions - _jacobian_transpose_products(
+            operator, _jacobian_products(operator, directions),
+        ) / shift
         candidate = try
             Matrix(qr(candidate).Q)[:, 1:dimension]
         catch error
@@ -382,7 +606,8 @@ function iterative_right_nullspace_subspace_estimate(
             break
         end
     end
-    residuals = T[norm(matrix * directions[:, column]) for column in 1:dimension]
+    residuals = T[norm(jacobian_product(operator, directions[:, column]))
+        for column in 1:dimension]
     all(isfinite, residuals) || return unavailable("candidate residual became non-finite")
     relative_residuals = T[
         _relative_residual(residuals[column], norm_value, norm(view(directions, :, column)))
@@ -390,7 +615,7 @@ function iterative_right_nullspace_subspace_estimate(
     ]
     return IterativeNullspaceSubspaceEstimate{T}(
         true, nothing, evaluation.point, Int(dimension), completed_iterations,
-        converged, directions, residuals, norm_value, relative_residuals,
+        converged, operator.source, directions, residuals, norm_value, relative_residuals,
         subspace_change,
     )
 end
@@ -409,6 +634,7 @@ function iterative_left_nullspace_subspace_estimate(
     iterations::Integer = 100,
     convergence_tolerance::Real = sqrt(eps(T)),
     matrix_norm::Symbol = :frobenius,
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
 ) where {T<:AbstractFloat}
     dimension > 0 || throw(ArgumentError("dimension must be positive"))
     iterations > 0 || throw(ArgumentError("iterations must be positive"))
@@ -417,15 +643,17 @@ function iterative_left_nullspace_subspace_estimate(
         throw(ArgumentError("convergence_tolerance must be nonnegative"))
     rows = length(evaluation.constraint_sources)
     unavailable(reason) = IterativeLeftNullspaceSubspaceEstimate{T}(
-        false, reason, evaluation.point, Int(dimension), 0, false,
+        false, reason, evaluation.point, Int(dimension), 0, false, operator.source,
         zeros(T, rows, 0), T[], nothing, T[], nothing,
     )
     rows > 0 || return unavailable("Jacobian has no constraint rows")
     dimension <= rows ||
         throw(ArgumentError("dimension must not exceed the Jacobian row count"))
-    pattern = sparse_jacobian_pattern_estimate(evaluation)
-    pattern.available || return unavailable(pattern.reason)
-    matrix = _combined_sparse_jacobian_matrix(evaluation)
+    operator.available || return unavailable(operator.reason)
+    operator.point == evaluation.point || throw(ArgumentError(
+        "Jacobian operator and evaluation points do not match",
+    ))
+    matrix = operator.assembled_matrix
     norm_value = T(_matrix_norm(matrix, matrix_norm))
     seed = T[
         sin(T(row * (column + 1))) + cos(T((row + 1) * column)) for
@@ -441,7 +669,9 @@ function iterative_left_nullspace_subspace_estimate(
     probe = view(directions, :, 1)
     spectral_scale = zero(T)
     for _ in 1:min(20, Int(iterations))
-        normal_product = matrix * (adjoint(matrix) * probe)
+        normal_product = jacobian_product(
+            operator, jacobian_transpose_product(operator, probe),
+        )
         product_norm = norm(normal_product)
         isfinite(product_norm) ||
             return unavailable("sparse transposed-Jacobian product became non-finite")
@@ -454,7 +684,9 @@ function iterative_left_nullspace_subspace_estimate(
     converged = false
     subspace_change = nothing
     for iteration in 1:Int(iterations)
-        candidate = directions - matrix * (adjoint(matrix) * directions) / shift
+        candidate = directions - _jacobian_products(
+            operator, _jacobian_transpose_products(operator, directions),
+        ) / shift
         candidate = try
             Matrix(qr(candidate).Q)[:, 1:dimension]
         catch error
@@ -474,7 +706,8 @@ function iterative_left_nullspace_subspace_estimate(
             break
         end
     end
-    residuals = T[norm(adjoint(matrix) * directions[:, column]) for column in 1:dimension]
+    residuals = T[norm(jacobian_transpose_product(operator, directions[:, column]))
+        for column in 1:dimension]
     all(isfinite, residuals) || return unavailable("candidate residual became non-finite")
     relative_residuals = T[
         _relative_residual(residuals[column], norm_value, norm(view(directions, :, column)))
@@ -482,7 +715,7 @@ function iterative_left_nullspace_subspace_estimate(
     ]
     return IterativeLeftNullspaceSubspaceEstimate{T}(
         true, nothing, evaluation.point, Int(dimension), completed_iterations,
-        converged, directions, residuals, norm_value, relative_residuals,
+        converged, operator.source, directions, residuals, norm_value, relative_residuals,
         subspace_change,
     )
 end
@@ -501,19 +734,21 @@ function iterative_jacobian_spectrum_estimate(
     probe_dimension::Integer = 1,
     iterations::Integer = 100,
     convergence_tolerance::Real = sqrt(eps(T)),
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
 ) where {T<:AbstractFloat}
     iterations > 0 || throw(ArgumentError("iterations must be positive"))
     probe_dimension > 0 || throw(ArgumentError("probe_dimension must be positive"))
     columns = length(evaluation.point.variables)
     unavailable(reason) = IterativeJacobianSpectrumEstimate{T}(
-        false, reason, evaluation.point, 0, nothing, T[], T[], false,
+        false, reason, evaluation.point, 0, operator.source, nothing, T[], T[], false,
     )
     columns > 0 || return unavailable("Jacobian has no variable columns")
     probe_dimension <= columns ||
         throw(ArgumentError("probe_dimension must not exceed the Jacobian column count"))
-    pattern = sparse_jacobian_pattern_estimate(evaluation)
-    pattern.available || return unavailable(pattern.reason)
-    matrix = _combined_sparse_jacobian_matrix(evaluation)
+    operator.available || return unavailable(operator.reason)
+    operator.point == evaluation.point || throw(ArgumentError(
+        "Jacobian operator and evaluation points do not match",
+    ))
     vector = T[sin(T(index)) for index in 1:columns]
     vector_norm = norm(vector)
     isfinite(vector_norm) && !iszero(vector_norm) ||
@@ -521,7 +756,9 @@ function iterative_jacobian_spectrum_estimate(
     vector ./= vector_norm
     completed_iterations = 0
     for iteration in 1:Int(iterations)
-        normal_product = adjoint(matrix) * (matrix * vector)
+        normal_product = jacobian_transpose_product(
+            operator, jacobian_product(operator, vector),
+        )
         product_norm = norm(normal_product)
         isfinite(product_norm) ||
             return unavailable("sparse normal-operator product became non-finite")
@@ -529,7 +766,9 @@ function iterative_jacobian_spectrum_estimate(
         iszero(product_norm) && break
         vector = normal_product / product_norm
     end
-    normal_product = adjoint(matrix) * (matrix * vector)
+    normal_product = jacobian_transpose_product(
+        operator, jacobian_product(operator, vector),
+    )
     rayleigh = dot(vector, normal_product)
     isfinite(rayleigh) && rayleigh >= zero(T) ||
         return unavailable("power-iteration Rayleigh quotient became invalid")
@@ -539,6 +778,7 @@ function iterative_jacobian_spectrum_estimate(
         probe_dimension;
         iterations = iterations,
         convergence_tolerance = convergence_tolerance,
+        operator = operator,
     )
     subspace.available || return unavailable(something(subspace.reason, "small-direction probe unavailable"))
     spreads = T[
@@ -550,6 +790,7 @@ function iterative_jacobian_spectrum_estimate(
         nothing,
         evaluation.point,
         completed_iterations,
+        operator.source,
         largest,
         subspace.residual_norms,
         spreads,

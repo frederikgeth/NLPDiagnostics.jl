@@ -578,6 +578,7 @@ function analyze_iterative_right_nullspace_probe(
     convergence_tolerance::Real = sqrt(eps(T)),
     residual_relative_tolerance::Real = sqrt(eps(T)),
     support_relative::Real = 0.1,
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
 ) where {T<:AbstractFloat}
     probe_dimension > 0 || throw(ArgumentError("probe_dimension must be positive"))
     iterations > 0 || throw(ArgumentError("iterations must be positive"))
@@ -590,6 +591,7 @@ function analyze_iterative_right_nullspace_probe(
         evaluation, probe_dimension;
         iterations = iterations,
         convergence_tolerance = convergence_tolerance,
+        operator = operator,
     )
     report = DiagnosticReport()
     report.metadata[:stage] = "iterative_right_nullspace_probe"
@@ -598,6 +600,9 @@ function analyze_iterative_right_nullspace_probe(
     report.metadata[:iterative_probe_available] = string(probe.available)
     report.metadata[:iterative_probe_iterations] = string(probe.iterations)
     report.metadata[:iterative_probe_converged] = string(probe.converged)
+    report.metadata[:iterative_probe_operator_source] = string(probe.operator_source)
+    report.metadata[:iterative_probe_native_operator_unavailable_reason] =
+        something(operator.native_unavailable_reason, "")
     report.metadata[:iterative_probe_residual_relative_tolerance] =
         string(residual_tolerance)
     report.metadata[:iterative_probe_support_relative] = string(support_relative)
@@ -686,6 +691,7 @@ function analyze_iterative_left_nullspace_probe(
     convergence_tolerance::Real = sqrt(eps(T)),
     residual_relative_tolerance::Real = sqrt(eps(T)),
     support_relative::Real = 0.1,
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
 ) where {T<:AbstractFloat}
     probe_dimension > 0 || throw(ArgumentError("probe_dimension must be positive"))
     iterations > 0 || throw(ArgumentError("iterations must be positive"))
@@ -698,6 +704,7 @@ function analyze_iterative_left_nullspace_probe(
         evaluation, probe_dimension;
         iterations = iterations,
         convergence_tolerance = convergence_tolerance,
+        operator = operator,
     )
     report = DiagnosticReport()
     report.metadata[:stage] = "iterative_left_nullspace_probe"
@@ -706,6 +713,9 @@ function analyze_iterative_left_nullspace_probe(
     report.metadata[:iterative_left_probe_available] = string(probe.available)
     report.metadata[:iterative_left_probe_iterations] = string(probe.iterations)
     report.metadata[:iterative_left_probe_converged] = string(probe.converged)
+    report.metadata[:iterative_left_probe_operator_source] = string(probe.operator_source)
+    report.metadata[:iterative_left_probe_native_operator_unavailable_reason] =
+        something(operator.native_unavailable_reason, "")
     report.metadata[:iterative_left_probe_residual_relative_tolerance] =
         string(residual_tolerance)
     report.metadata[:iterative_left_probe_support_relative] = string(support_relative)
@@ -792,6 +802,7 @@ function analyze_iterative_jacobian_spectrum_probe(
     iterations::Integer = 100,
     convergence_tolerance::Real = sqrt(eps(T)),
     spectral_spread_threshold::Real = 1.0e6,
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
 ) where {T<:AbstractFloat}
     probe_dimension > 0 || throw(ArgumentError("probe_dimension must be positive"))
     iterations > 0 || throw(ArgumentError("iterations must be positive"))
@@ -802,6 +813,7 @@ function analyze_iterative_jacobian_spectrum_probe(
         probe_dimension = probe_dimension,
         iterations = iterations,
         convergence_tolerance = convergence_tolerance,
+        operator = operator,
     )
     report = DiagnosticReport()
     report.metadata[:stage] = "iterative_jacobian_spectrum_probe"
@@ -809,6 +821,10 @@ function analyze_iterative_jacobian_spectrum_probe(
     report.metadata[:iterative_spectrum_probe_requested_dimension] = string(probe_dimension)
     report.metadata[:iterative_spectrum_probe_available] = string(estimate.available)
     report.metadata[:iterative_spectrum_probe_iterations] = string(estimate.iterations)
+    report.metadata[:iterative_spectrum_probe_operator_source] =
+        string(estimate.operator_source)
+    report.metadata[:iterative_spectrum_probe_native_operator_unavailable_reason] =
+        something(operator.native_unavailable_reason, "")
     report.metadata[:iterative_spectrum_probe_candidate_subspace_converged] = string(estimate.candidate_subspace_converged)
     report.metadata[:iterative_spectrum_probe_candidate_count] = string(length(estimate.candidate_small_singular_values))
     report.metadata[:iterative_spectrum_probe_spread_threshold] =
@@ -885,8 +901,12 @@ function analyze_iterative_right_nullspace_probe(
     relative_step::Real = cbrt(eps(T)),
     kwargs...,
 ) where {T<:AbstractFloat}
+    evaluation = evaluate_numerical(
+        model, point; cache = cache, relative_step = relative_step,
+    )
     return analyze_iterative_right_nullspace_probe(
-        evaluate_numerical(model, point; cache = cache, relative_step = relative_step);
+        evaluation;
+        operator = jacobian_linear_operator(model, evaluation),
         kwargs...,
     )
 end
@@ -918,8 +938,12 @@ function analyze_iterative_left_nullspace_probe(
     relative_step::Real = cbrt(eps(T)),
     kwargs...,
 ) where {T<:AbstractFloat}
+    evaluation = evaluate_numerical(
+        model, point; cache = cache, relative_step = relative_step,
+    )
     return analyze_iterative_left_nullspace_probe(
-        evaluate_numerical(model, point; cache = cache, relative_step = relative_step);
+        evaluation;
+        operator = jacobian_linear_operator(model, evaluation),
         kwargs...,
     )
 end
@@ -952,8 +976,12 @@ function analyze_iterative_jacobian_spectrum_probe(
     relative_step::Real = cbrt(eps(T)),
     kwargs...,
 ) where {T<:AbstractFloat}
+    evaluation = evaluate_numerical(
+        model, point; cache = cache, relative_step = relative_step,
+    )
     return analyze_iterative_jacobian_spectrum_probe(
-        evaluate_numerical(model, point; cache = cache, relative_step = relative_step);
+        evaluation;
+        operator = jacobian_linear_operator(model, evaluation),
         kwargs...,
     )
 end

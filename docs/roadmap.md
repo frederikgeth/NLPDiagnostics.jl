@@ -30,6 +30,42 @@ The next development phase therefore prioritizes, in order:
 New finding families should be added only when they close a documented gap in
 one of these tracks and arrive with a truth-labelled calibration case.
 
+### Immediate execution sequence after the review
+
+The next major increments are deliberately narrower than the historical
+feature roadmap:
+
+1. preserve solver telemetry and its scaling semantics end to end;
+2. repair the solver-option campaign so every profile is a distinct,
+   controlled intervention and initialization is separated from later
+   trajectory behavior;
+3. replace loosely related numerical keywords with typed, serializable policy
+   objects and add extension-enabled CI lanes;
+4. complete the operator-based nullspace backend and validate it against the
+   guarded dense reference corpus; and
+5. run a truth-labelled BMOPF calibration matrix before promoting any new
+   physical classifier.
+
+The first increment is implemented: Ipopt callback traces now retain barrier
+parameter, step norm, regularization size, dual step, and line-search trials;
+MadNLP retains the corresponding publicly available barrier, regularization,
+and dual-step quantities. Every record carries explicit metric-coordinate
+semantics, and serialized traces report telemetry coverage instead of making
+missing columns indistinguishable from zero.
+
+The second increment is also implemented at the harness level. The default
+Ipopt profiles now use three distinct explicit option sets. Summary schema v3
+separates the first captured callback residual, subsequent peak,
+phase-conditioned post-first peaks, and final captured residual. A shared
+initial iterate can therefore no longer make two
+different solver trajectories appear identical merely because the global
+maximum occurred at iteration zero.
+Evidence-ledger promotion now has a matching negative-result gate: trajectory
+stability is recorded only for a distinct-option v3 campaign with complete
+manifest, baseline-pair, and row-family trajectory coverage. Historical
+schemas become legacy smoke observations and incomplete v3 runs become explicit
+coverage observations.
+
 ### Status at the review boundary
 
 The implementation is substantially ahead of the original milestones in
@@ -45,7 +81,8 @@ feature breadth:
 - guarded dense analysis, sparse structural matching, sparse QR rank screens,
   iterative null-direction probes, expected physical modes, and persistence
   comparisons are available; and
-- the default package test suite passes 1,549 tests at this review boundary.
+- the extension-enabled package test suite contains more than 1,500 assertions
+  at this review boundary.
 
 The remaining gap is scientific validation rather than raw capability. In
 particular:
@@ -96,6 +133,24 @@ Treat this as the highest-priority numerical-algebra work.
 - Add tolerance and row/column-scaling sweeps. A mode that appears only under a
   narrow arbitrary threshold is classified as tolerance-sensitive numerical
   evidence.
+
+Current status (2026-08-11): `RankPolicy`, guarded dense SVD, SuiteSparseQR,
+backward residuals, and the calibration corpus are implemented. A typed local
+Jacobian operator now preserves `:assembled_sparse` versus
+`:hybrid_moi_jacvec` provenance. The hybrid path uses public MOI forward and
+transpose products only after a deterministic consistency screen against the
+assembled entries; incomplete/non-finite rows are unavailable and callback
+disagreement falls back explicitly. Existing right, left, and spectrum probes
+now use this boundary and publish their operator source. The remaining major
+gap in this gate is the standard smallest-singular/operator algorithm and its
+multi-seed orthogonality/stability calibration; the shifted normal-operator
+iteration remains candidate evidence only.
+
+The first operator-boundary increment is therefore complete. The next
+numerical-algebra implementation item is a standard Golub--Kahan/LSMR-class
+backend with explicit bidiagonal residuals, reorthogonalization evidence,
+multi-seed stability, and dense-SVD calibration. It must enter as a second
+candidate backend before replacing the existing shifted iteration.
 
 Exit criteria:
 
@@ -290,6 +345,14 @@ Exit criteria:
 - no unguarded dense conversion remains on a large-model path; and
 - benchmark artifacts declare schema, package versions, source hashes, point
   provenance, solver options, and numerical policies.
+
+First CI increment: `.github/workflows/ci.yml` now separates the generic
+package matrix from isolated Ipopt/MadNLP and PowerModels/BMOPFTools extension
+jobs. The BMOPFTools lane develops the authoritative repository explicitly,
+rather than relying on a developer's local path. This closes the configuration
+ambiguity, but the gate remains open until the workflow has passed on GitHub
+and formatting, documentation examples, Aqua, and targeted JET checks have
+their own reviewed policies.
 
 ### Calibration release gate
 
@@ -1916,6 +1979,25 @@ and 26 `component_port_nominal_scale_mismatch` context findings without a
 generic Jacobian/rank profile. Both the requested stage and budget/skip reason
 are retained in the case, launcher, and sweep records.
 
+The corrected v4 multiconductor option campaign is now complete on the
+free-neutral and delta fixtures. All 24 cells passed artifact, trajectory, and
+model-semantic invariance gates under one solve-time content fingerprint. The
+free-neutral case was stable. The zero-start delta case distinguished monotone
+from adaptive barrier behavior at five iterations, including small but
+material-under-policy KCL/line-voltage trajectory changes; the difference
+disappeared by 25 iterations, and the two adaptive globalizations agreed.
+This is now a useful bounded solver-method profiling case.
+
+The same campaign exposed a higher-priority multiconductor metadata gap. The
+balanced delta case's neutral real/imaginary voltage coordinates converge near
+zero but inherit the port-wide 1 p.u. voltage nominal scale, producing two
+recurrent nominal-scale mismatch warnings. Before scaling findings are trusted
+on multiconductor models, extend `PortCoordinateSemantics` with per-terminal
+scale/role information (including expected-zero or reference coordinates),
+project it through `PortCoordinateMap`, and add balanced/unbalanced neutral
+positive and negative controls. Do not suppress the warning by variable name
+or by a generic near-zero exception.
+
 The bounded numerical stage is now validated as well. On the same 30-bus LN
 case it retained 19 solver records and emitted numerical findings for finite
 difference derivative provenance and mixed Jacobian provenance; sparse QR rank
@@ -2538,7 +2620,19 @@ next major item is to run the same residual-aware option cross on the transforme
 and ZIP fixtures, so family-level residual persistence—not just phase and
 classification—can be compared under algorithmic perturbations.
 
-The residual-aware option cross is also complete for ZIP and the transformer,
+**Post-review correction.** The historical option runs above remain useful as
+pipeline smoke tests, but they do not satisfy the current experimental-design
+gate. Ipopt's default barrier strategy made the empty `baseline` profile and
+the explicit `monotone` profile equivalent, so those were not three distinct
+interventions. In addition, the old family comparison used the maximum over the
+entire captured trace; a common iteration-zero residual could hide differences
+later in the trajectory. These results must not be cited as calibrated evidence
+of option robustness. The current launcher rejects duplicate option sets, and the v3
+summary separates first-captured, subsequent, phase-conditioned, and final residuals.
+The ZIP/transformer and multiconductor campaigns should be rerun under that
+schema before their negative sensitivity results are trusted.
+
+Under the historical schema, the residual-aware option cross completed for ZIP and the transformer,
 with all three option profiles, both initialization policies, and budgets 5 and
 25: 24 observations and 16 perturbation-vs-baseline comparisons passed every
 readiness gate. No comparison changed restoration presence or any named
@@ -2547,9 +2641,9 @@ relative `1e-8`); machine-scale differences are therefore not promoted to
 findings. The only classification change was the transformer native five-step
 adaptive-barrier case, matching the trace-only campaign. Adaptive reduced the
 captured transformer trace length at 25 iterations, but did not change the
-material family-residual signature. This is a useful negative result: the
-current option sensitivity is phase/classification-level, not evidence of a
-specific row-family defect. The next major item is to expose this tolerance-aware
+material family-residual signature. This is retained as smoke evidence rather
+than a validated negative result: it does not yet establish that the option
+sensitivity is only phase/classification-level. The next major item is to expose this tolerance-aware
 family comparison in the renderer/evidence ledger and then repeat it on a small
 multiconductor benchmark before scaling to larger BMOPF decks.
 
@@ -2562,3 +2656,19 @@ were stable, while one transformer five-step adaptive case changed endpoint
 classification. The next major item is the small multiconductor option/residual
 benchmark, using the BMOPFTools engine and port-family semantics before any
 large-corpus campaign.
+
+The corrected v3 ZIP/transformer campaign is now complete: 24 observations,
+16 matched baseline comparisons, and eight direct adaptive-profile comparisons
+passed the manifest, pairing, and trajectory-coverage gates. No option changed
+restoration presence, endpoint residual-failure status, first-captured family
+residuals, global family peaks, or post-first family trajectories. The largest
+raw family-statistic delta was approximately `6.04e-11`, below the declared
+combined tolerance. Both adaptive profiles changed only the native-start
+transformer's five-iteration classification and shortened its 25-iteration
+trace; their direct paired observations were otherwise identical. The
+zero-start ZIP restoration/endpoint signature persisted across all profiles.
+This is now valid bounded numerical evidence, not the earlier duplicate-profile
+smoke result. Because the solve-time schema predated dirty-tree content
+fingerprinting and the run used a modified checkout, it remains a development
+calibration result that must be repeated on a fixed clean revision before
+publication. Full details are in `docs/calibration_results.md`.

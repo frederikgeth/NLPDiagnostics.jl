@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Package / Julia ${{ matrix.julia-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1.10', '1']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v2
+      - name: Run package tests
+        uses: julia-actions/julia-runtest@v1
+
+  solver-extensions:
+    name: Ipopt and MadNLP extensions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.10'
+      - uses: julia-actions/cache@v2
+      - name: Build isolated solver-extension environment
+        run: >-
+          julia --startup-file=no --project=.ci/solver -e '
+          using Pkg;
+          Pkg.develop(path=".");
+          Pkg.add(["JuMP", "Ipopt", "MadNLP"]);
+          Pkg.instantiate()'
+      - name: Run solver-extension tests
+        run: julia --startup-file=no --project=.ci/solver test/runtests.jl
+
+  domain-extensions:
+    name: PowerModels and BMOPFTools extensions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.10'
+      - uses: julia-actions/cache@v2
+      - name: Build isolated domain-extension environment
+        run: >-
+          julia --startup-file=no --project=.ci/domain -e '
+          using Pkg;
+          Pkg.develop(path=".");
+          Pkg.develop(url="https://github.com/frederikgeth/BMOPFTools.jl.git");
+          Pkg.add(["JuMP", "Ipopt", "PowerModels"]);
+          Pkg.instantiate()'
+      - name: Run domain-extension tests
+        run: julia --startup-file=no --project=.ci/domain test/runtests.jl

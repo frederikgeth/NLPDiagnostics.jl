@@ -20,6 +20,8 @@ MOI.eval_constraint_jacobian(::CrosscheckJacVecEvaluator, values, x) =
     (values[1] = 1.0; nothing)
 MOI.eval_constraint_jacobian_product(::CrosscheckJacVecEvaluator, values, x, direction) =
     (values[1] = direction[1]; nothing)
+MOI.eval_constraint_jacobian_transpose_product(::CrosscheckJacVecEvaluator, values, x, direction) =
+    (values[1] = direction[1]; nothing)
 MOI.hessian_lagrangian_structure(::CrosscheckJacVecEvaluator) = [(1, 1)]
 MOI.eval_hessian_lagrangian(::CrosscheckJacVecEvaluator, values, x, sigma, mu) =
     (values[1] = 2 * sigma; nothing)
@@ -142,6 +144,50 @@ MOI.eval_hessian_lagrangian_product(::CrosscheckJacVecEvaluator, values, x, dire
         jacvec_model,
         NLPDiagnostics.evaluation_point(jacvec_model, [1.0]),
     )
+    assembled_operator = NLPDiagnostics.jacobian_linear_operator(jacvec_evaluation)
+    @test assembled_operator.available
+    @test assembled_operator.source == :assembled_sparse
+    @test NLPDiagnostics.jacobian_product(assembled_operator, [2.0]) == [2.0]
+    @test NLPDiagnostics.jacobian_transpose_product(assembled_operator, [3.0]) == [3.0]
+    native_operator = NLPDiagnostics.jacobian_linear_operator(
+        jacvec_model, jacvec_evaluation,
+    )
+    @test native_operator.available
+    @test native_operator.source == :hybrid_moi_jacvec
+    @test isnothing(native_operator.native_unavailable_reason)
+    @test native_operator.nlp_rows == [1]
+    @test NLPDiagnostics.jacobian_product(native_operator, [2.0]) == [2.0]
+    @test NLPDiagnostics.jacobian_transpose_product(native_operator, [3.0]) == [3.0]
+    @test_throws DimensionMismatch NLPDiagnostics.jacobian_product(native_operator, [1.0, 2.0])
+    @test_throws DimensionMismatch NLPDiagnostics.jacobian_transpose_product(native_operator, [1.0, 2.0])
+    inconsistent_jacvec_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+        jacvec_evaluation.point,
+        jacvec_evaluation.objective_value,
+        jacvec_evaluation.objective_source,
+        copy(jacvec_evaluation.objective_gradient),
+        copy(jacvec_evaluation.constraint_values),
+        copy(jacvec_evaluation.constraint_sources),
+        [NLPDiagnostics.JacobianEntry(1, 1, 2.0)],
+        copy(jacvec_evaluation.jacobian_row_methods),
+        copy(jacvec_evaluation.capabilities),
+        copy(jacvec_evaluation.failures),
+        copy(jacvec_evaluation.call_statistics),
+        jacvec_evaluation.objective_gradient_method,
+    )
+    screened_operator = NLPDiagnostics.jacobian_linear_operator(
+        jacvec_model, inconsistent_jacvec_evaluation,
+    )
+    @test screened_operator.available
+    @test screened_operator.source == :assembled_sparse
+    @test occursin("consistency screen failed", screened_operator.native_unavailable_reason)
+    native_probe_report = NLPDiagnostics.analyze_iterative_right_nullspace_probe(
+        jacvec_model,
+        jacvec_evaluation.point;
+        probe_dimension = 1,
+        iterations = 5,
+    )
+    @test native_probe_report.metadata[:iterative_probe_operator_source] ==
+        "hybrid_moi_jacvec"
     jacvec_report = NLPDiagnostics.analyze_jacobian_directional_crosscheck(
         jacvec_model,
         jacvec_evaluation;

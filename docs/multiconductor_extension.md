@@ -64,6 +64,13 @@ terminal-coordinate maps or absent maps remain an unavailable generic scale proj
 require a plugin-supplied transformed-scale rule rather than a guessed scalar
 scale. Mixed maps are also flagged during static metadata validation, before a
 numerical point is available.
+The current nominal scale is port-wide. That is insufficient when phase and
+neutral/common-mode terminal coordinates have different expected operating
+magnitudes. In particular, the balanced delta calibration fixture drives its
+free neutral rectangular coordinates close to zero and triggers a misleading
+1 p.u. mismatch. Until terminal-role-specific scales or an expected-zero
+coordinate contract are implemented, multiconductor port-scale findings are
+local screening evidence only and must not motivate automatic rescaling.
 For the same direct rows, the map-adjusted port scale must agree with any
 component-coordinate nominal scale on the mapped MOI variable. Supplying a
 scale on only one side is likewise reported as an incomplete shared-coordinate

@@ -366,6 +366,16 @@ function main()
         isfile(joinpath(root, relative)) || error("selected DSS deck is missing: $(joinpath(root, relative))")
     end
     budgets = _budgets()
+    capture_residuals = _env_flag(
+        "NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_CAPTURE_ROW_RESIDUALS",
+    )
+    capture_points = _env_flag(
+        "NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_CAPTURE_POINTS",
+    )
+    capture_residuals && !capture_points && error(
+        "row-family residual capture requires " *
+        "NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_CAPTURE_POINTS=true",
+    )
     output_root = abspath(get(ENV, "NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_MATRIX_OUTPUT_DIR",
         joinpath(pwd(), "bmopf-source-solver-matrix-results")))
     mkpath(output_root)
@@ -401,6 +411,8 @@ function main()
             "NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_OPTIONS", ""),
         "initialization_policy" => get(ENV,
             "NLPDIAGNOSTICS_BMOPF_INITIALIZATION_POLICY", "none"),
+        "capture_points" => capture_points,
+        "capture_row_family_residuals" => capture_residuals,
     )
         write(manifest_path, JSON.json(payload))
         println("max_iter=$(budget) $(relative): $(entry["status"]) " *

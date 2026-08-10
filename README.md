@@ -1,12 +1,20 @@
 # NLPDiagnostics.jl
 
-> Early development prototype: public APIs and finding codes may evolve.
+> Advanced research prototype: public APIs and finding codes may evolve, and
+> numerical or physical interpretations remain subject to documented
+> calibration gates.
 
 NLPDiagnostics.jl is an evidence-first, solver-independent debugger for
 nonlinear optimization models expressed through JuMP and
 MathOptInterface (MOI).
 
-The package is at an early prototype stage. The current implementation takes a
+It also serves as an experimental measurement platform for numerical-method
+development. Its job is to separate observations from hypotheses, preserve the
+evidence needed to test those hypotheses, and compare controlled interventions.
+It does not assign a single model-health score, silently rewrite a model, or
+claim a physical cause from one local numerical observation.
+
+The package is in a consolidation-and-calibration phase. The current implementation takes a
 read-only snapshot through the public MOI model API and reports:
 
 - inconsistent, repeated, and fixing variable bounds;
@@ -27,6 +35,8 @@ read-only snapshot through the public MOI model API and reports:
 - operating-point domain and non-finite evaluation findings; and
 - Jacobian row/column scale summaries;
 - guarded local Jacobian rank, conditioning, and nullspace evidence; and
+- checked sparse/MOI Jacobian product operators with explicit product
+  provenance for large-model numerical-method experiments; and
 - explicit Hessian-of-the-Lagrangian and reduced-Hessian curvature tools;
 - reproducible solver-independent formulation profile cases; and
 - finite first- and second-derivative domain checks;
@@ -89,6 +99,9 @@ For a combined artifact, `ipopt_profile_with_iteration_trace!` and
 `madnlp_profile_with_iteration_trace!` return a `SolverTraceProfileRun` with
 both the frozen trace and the final solver-result profile; it can be exported
 with `profile_result_data`.
+Iteration records retain available barrier, step, regularization, and line-search
+telemetry and explicitly label the coordinate/scaling convention of solver
+metrics. Unknown conventions remain unknown rather than being inferred.
 
 Each finding separately records:
 
@@ -102,13 +115,19 @@ Each finding separately records:
 
 NLPDiagnostics never modifies the source model.
 
-See [`docs/architecture.md`](docs/architecture.md) for the initial design
-decisions and roadmap, and
+See [`docs/mission_and_scope.md`](docs/mission_and_scope.md) for the package
+mission, evidence contract, present non-goals, and definition of done for a new
+finding family. See [`docs/architecture.md`](docs/architecture.md) for the
+stable design decisions, and
 [`docs/moi_nonlinear_api.md`](docs/moi_nonlinear_api.md) for the public MOI
 capability survey.
 
 The ordered implementation plan is maintained in
 [`docs/roadmap.md`](docs/roadmap.md).
+The package, solver-extension, domain-extension, and scientific-calibration
+test boundaries are documented in [`docs/testing.md`](docs/testing.md).
+Bounded empirical results and their trust limitations are recorded in
+[`docs/calibration_results.md`](docs/calibration_results.md).
 Structural matching semantics are documented in
 [`docs/structural_analysis.md`](docs/structural_analysis.md).
 Expression-domain evidence semantics and extension hooks are documented in

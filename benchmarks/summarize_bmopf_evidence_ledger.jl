@@ -326,24 +326,104 @@ function _append_solver_option_evidence!(records, report, path)
     get(readiness, "baseline_comparisons_available", false) === true || return
     comparisons = [_dict(item) for item in get(report, "comparisons_vs_baseline", Any[])]
     isempty(comparisons) && return
-    residual_changes = count(item -> get(item, "row_family_residual_changed", false) === true, comparisons)
+    report_version = String(get(report, "report_version", "unknown"))
+    schema_ready = (startswith(report_version, "bmopf-solver-option-perturbation-v3") ||
+        startswith(report_version, "bmopf-solver-option-perturbation-v4")) &&
+        get(readiness, "distinct_option_sets_declared", false) === true
+    if !schema_ready
+        _append_evidence_record!(records, report, path,
+            "solver_option_legacy_smoke_observation|$(length(comparisons))",
+            "solver_option_legacy_smoke_observation", "option_perturbation_smoke";
+            confidence = "heuristic",
+            observation = "The option campaign predates the distinct-intervention and post-first-trajectory trust gates; it is retained as pipeline smoke evidence only.",
+            evidence = Dict(
+                "comparison_count" => length(comparisons),
+                "report_version" => report_version,
+                "readiness" => readiness,
+            ))
+        return
+    end
+    coverage_ready = get(readiness, "all_manifest_entries_completed", false) === true &&
+        get(readiness, "manifest_entry_count_complete", false) === true &&
+        get(readiness, "all_nonbaseline_observations_compared", false) === true &&
+        get(readiness, "all_row_family_residual_traces_available", false) === true &&
+        get(readiness, "all_row_family_trajectories_nonempty", false) === true &&
+        get(readiness, "trajectory_comparisons_available", false) === true
+    if !coverage_ready
+        _append_evidence_record!(records, report, path,
+            "solver_option_incomplete_trajectory_observation|$(length(comparisons))",
+            "solver_option_incomplete_trajectory_observation",
+            "option_perturbation_coverage";
+            confidence = "numerical",
+            observation = "The corrected option campaign has incomplete trajectory coverage and cannot support a stability conclusion.",
+            evidence = Dict(
+                "comparison_count" => length(comparisons),
+                "report_version" => report_version,
+                "readiness" => readiness,
+            ))
+        return
+    end
+    multiconductor_scope = get(report, "campaign_scope", "generic") == "multiconductor"
+    semantic_ready = get(readiness, "model_semantic_contracts_available", false) === true &&
+        get(readiness, "model_semantic_invariance", false) === true
+    if multiconductor_scope && !semantic_ready
+        _append_evidence_record!(records, report, path,
+            "solver_option_multiconductor_semantic_gate_failed|$(length(comparisons))",
+            "solver_option_multiconductor_semantic_gate_failed",
+            "option_perturbation_semantic_control";
+            confidence = "structural",
+            domain = "representational",
+            observation = "The multiconductor option campaign did not preserve a complete, invariant model-semantic contract across paired cells, so solver-response stability is not promoted.",
+            evidence = Dict(
+                "comparison_count" => length(comparisons),
+                "readiness" => readiness,
+            ))
+        return
+    end
+    if multiconductor_scope
+        _append_evidence_record!(records, report, path,
+            "solver_option_multiconductor_semantic_invariance|$(length(comparisons))",
+            "solver_option_multiconductor_semantic_invariance",
+            "option_perturbation_semantic_control";
+            confidence = "structural",
+            domain = "representational",
+            observation = "Model size, structural BMOPF context metadata, and source behavior contracts were invariant across every paired multiconductor option cell.",
+            evidence = Dict(
+                "comparison_count" => length(comparisons),
+                "readiness" => readiness,
+            ))
+    end
+    residual_changes = count(item ->
+        get(item, "row_family_trajectory_changed", false) === true, comparisons)
+    global_peak_changes = count(item ->
+        get(item, "row_family_global_peak_changed", false) === true, comparisons)
+    first_captured_changes = count(item ->
+        get(item, "row_family_first_captured_changed", false) === true, comparisons)
     restoration_changes = count(item -> get(item, "restoration_signature_changed", false) === true, comparisons)
     classification_changes = count(item -> get(item, "classification_changed", false) === true, comparisons)
+    context_finding_changes = count(item ->
+        get(item, "bmopf_context_finding_codes_changed", false) === true,
+        comparisons,
+    )
     code = residual_changes == 0 ?
-        "solver_option_row_family_residual_stability" :
-        "solver_option_row_family_residual_changes"
+        "solver_option_row_family_trajectory_stability" :
+        "solver_option_row_family_trajectory_changes"
     _append_evidence_record!(records, report, path,
         "$code|$(length(comparisons))", code, "option_perturbation_comparison";
         confidence = "numerical",
         observation = residual_changes == 0 ?
-            "Named row-family residual peaks remained materially stable under the bounded solver-option perturbations." :
-            "At least one named row-family residual peak changed materially under the bounded solver-option perturbations.",
+            "Named row-family post-first trajectories remained materially stable under the distinct bounded solver-option perturbations." :
+            "At least one named row-family post-first trajectory changed materially under the distinct bounded solver-option perturbations.",
         evidence = Dict("comparison_count" => length(comparisons),
-            "residual_change_count" => residual_changes,
+            "trajectory_change_count" => residual_changes,
+            "global_peak_change_count" => global_peak_changes,
+            "first_captured_change_count" => first_captured_changes,
             "restoration_signature_change_count" => restoration_changes,
             "classification_change_count" => classification_changes,
+            "bmopf_context_finding_code_change_count" => context_finding_changes,
             "residual_comparison_tolerance" => get(report,
                 "residual_comparison_tolerance", nothing),
+            "experimental_design" => get(report, "experimental_design", nothing),
             "readiness" => readiness))
     classification_changes > 0 && _append_evidence_record!(records, report, path,
         "solver_option_classification_sensitivity|$classification_changes",
@@ -353,7 +433,58 @@ function _append_solver_option_evidence!(records, report, path)
         evidence = Dict("comparison_count" => length(comparisons),
             "classification_change_count" => classification_changes,
             "restoration_signature_change_count" => restoration_changes,
-            "residual_change_count" => residual_changes))
+            "trajectory_change_count" => residual_changes,
+            "global_peak_change_count" => global_peak_changes,
+            "first_captured_change_count" => first_captured_changes))
+    context_finding_changes > 0 && _append_evidence_record!(records, report, path,
+        "solver_option_bmopf_context_sensitivity|$context_finding_changes",
+        "solver_option_bmopf_context_sensitivity",
+        "option_perturbation_context_comparison";
+        confidence = "local",
+        domain = "physical_interpretation_boundary",
+        observation = "At least one bounded solver-option perturbation changed the BMOPF context finding-code distribution at its selected endpoint.",
+        evidence = Dict(
+            "comparison_count" => length(comparisons),
+            "context_finding_code_change_count" => context_finding_changes,
+            "model_semantic_contract_change_count" => count(item ->
+                get(item, "model_semantic_contract_changed", false) === true,
+                comparisons,
+            ),
+        ))
+    pairwise = [_dict(item) for item in get(
+        report, "comparisons_between_perturbations", Any[],
+    )]
+    get(readiness, "between_perturbation_comparisons_available", false) === true || return
+    isempty(pairwise) && return
+    pair_trajectory_changes = count(item ->
+        get(item, "row_family_trajectory_changed", false) === true, pairwise)
+    pair_classification_changes = count(item ->
+        get(item, "classification_changed", false) === true, pairwise)
+    pair_trace_length_changes = count(item -> begin
+        delta = get(item, "trace_record_count_delta", nothing)
+        delta isa Number && delta != 0
+    end, pairwise)
+    pair_code = pair_trajectory_changes == 0 && pair_classification_changes == 0 &&
+        pair_trace_length_changes == 0 ?
+        "solver_option_perturbation_pair_stability" :
+        "solver_option_perturbation_pair_sensitivity"
+    _append_evidence_record!(records, report, path,
+        "$pair_code|$(length(pairwise))", pair_code,
+        "between_perturbation_comparison";
+        confidence = "numerical",
+        observation = pair_code == "solver_option_perturbation_pair_stability" ?
+            "The non-baseline option profiles produced no material measured differences in the bounded paired campaign." :
+            "The non-baseline option profiles differed on at least one measured bounded-campaign outcome.",
+        evidence = Dict(
+            "comparison_count" => length(pairwise),
+            "trajectory_change_count" => pair_trajectory_changes,
+            "classification_change_count" => pair_classification_changes,
+            "trace_length_change_count" => pair_trace_length_changes,
+            "profile_pairs" => sort!(unique([
+                "$(get(item, "reference_profile", "unknown"))=>$(get(item, "candidate_profile", "unknown"))"
+                for item in pairwise
+            ])),
+        ))
 end
 
 function _append_multiconductor_point_evidence!(records, report, path)
@@ -626,4 +757,6 @@ function main()
     println("wrote BMOPF evidence ledger to $output_path")
 end
 
-main()
+if abspath(PROGRAM_FILE) == abspath(@__FILE__)
+    main()
+end

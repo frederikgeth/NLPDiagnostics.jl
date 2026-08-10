@@ -41,7 +41,16 @@ if Base.find_package("Ipopt") !== nothing
         @test all(record.format == :ipopt_callback for record in trace.records)
         @test all(length(binding.point.values) == 1 for binding in trace.bindings)
         @test all(binding.point.label isa String for binding in trace.bindings)
-        @test NLPDiagnostics.iteration_trace_data(trace)["record_count"] == length(trace.records)
+        trace_data = NLPDiagnostics.iteration_trace_data(trace)
+        @test trace_data["record_count"] == length(trace.records)
+        @test trace_data["schema_version"] == "nlpdiagnostics-iteration-trace-v2"
+        @test trace_data["telemetry_coverage"]["barrier_parameter"] == length(trace.records)
+        @test trace_data["telemetry_coverage"]["step_norm"] == length(trace.records)
+        @test trace_data["telemetry_coverage"]["regularization_size"] == length(trace.records)
+        @test trace_data["telemetry_coverage"]["dual_step"] == length(trace.records)
+        @test trace_data["telemetry_coverage"]["line_search_trials"] == length(trace.records)
+        @test all(record.semantics.primal_infeasibility ==
+                  NLPDiagnostics.SolverScaledCoordinates for record in trace.records)
         @test run.result isa NLPDiagnostics.SolverProfileResult
         run_data = NLPDiagnostics.profile_result_data(run)
         @test run_data["iteration_trace"]["record_count"] == length(trace.records)
@@ -65,6 +74,11 @@ if Base.find_package("MadNLP") !== nothing
         @test all(record.format == :madnlp_callback for record in trace.records)
         @test any(record.phase == :regular for record in trace.records)
         @test all(isnothing(binding.point) for binding in trace.bindings)
+        @test all(!isnothing(record.barrier_parameter) for record in trace.records)
+        @test all(!isnothing(record.regularization_size) for record in trace.records)
+        @test all(!isnothing(record.dual_step) for record in trace.records)
+        @test all(record.semantics.objective == NLPDiagnostics.OriginalModelCoordinates
+                  for record in trace.records)
         @test run.result isa NLPDiagnostics.SolverProfileResult
         @test isapprox(last(trace.records).objective, JuMP.objective_value(model);
             rtol = 1.0e-8,
@@ -1408,6 +1422,20 @@ end
 @testset "BMOPF point calibration benchmark contracts" begin
     repository_root = normpath(joinpath(@__DIR__, ".."))
     benchmark_directory = joinpath(repository_root, "benchmarks")
+    benchmark_environment_module = Module(:NLPDiagnosticsBenchmarkEnvironmentContract)
+    Base.include(benchmark_environment_module,
+        joinpath(benchmark_directory, "benchmark_environment.jl"))
+    git_state = getfield(benchmark_environment_module, :_benchmark_git_state)(repository_root)
+    @test git_state["revision"] isa AbstractString
+    @test !isempty(git_state["revision"])
+    @test git_state["dirty"] isa Bool
+    @test git_state["dirty"] ? git_state["diff_fingerprint"] isa String :
+          isnothing(git_state["diff_fingerprint"])
+    benchmark_environment = getfield(
+        benchmark_environment_module, :_benchmark_environment,
+    )()
+    @test haskey(benchmark_environment, "git_dirty")
+    @test haskey(benchmark_environment, "git_diff_fingerprint")
     scripts = (
         "launch_bmopf_point_calibration.jl",
         "summarize_bmopf_point_calibration.jl",
@@ -1528,6 +1556,7 @@ end
     @test occursin("row_family_residual_by_policy", source_matrix_comparison)
     @test occursin("family_residual_trend", source_matrix_comparison)
     @test occursin("SOURCE_SOLVER_CAPTURE_ROW_RESIDUALS", source_matrix_launcher)
+    @test occursin("row-family residual capture requires", source_matrix_launcher)
     residual_trend_validation = read(
         joinpath(benchmark_directory, "validate_bmopf_residual_trends.jl"), String,
     )
@@ -1550,13 +1579,232 @@ end
     @test occursin("restoration_signature_changed", option_summary)
     @test occursin("row_family_residual_changed", option_summary)
     @test occursin("row_family_residual_peak_deltas", option_summary)
+    @test occursin("row_family_residual_trajectory_deltas", option_summary)
+    @test occursin("post_first_captured_peak", option_summary)
+    @test occursin("row_family_first_captured_changed", option_summary)
+    @test occursin("comparisons_between_perturbations", option_summary)
+    @test occursin("between_perturbation_comparisons_available", option_summary)
     @test occursin("residual_comparison_tolerance", option_summary)
     @test occursin("baseline_comparisons_available", option_summary)
+    @test occursin("model_semantic_contract_changed", option_summary)
+    @test occursin("multiconductor_semantic_gate_passed", option_summary)
+    option_summary_module = Module(:NLPDiagnosticsOptionSummaryContract)
+    Base.include(option_summary_module, joinpath(
+        benchmark_directory, "summarize_bmopf_solver_option_perturbations.jl",
+    ))
+    baseline_trace = Dict{String,Any}("rows" => Any[
+        Dict("iteration" => 0, "phase" => "regular", "families" =>
+            Dict("power_balance" => Dict("max_feasibility_violation" => 10.0))),
+        Dict("iteration" => 1, "phase" => "regular", "families" =>
+            Dict("power_balance" => Dict("max_feasibility_violation" => 1.0))),
+        Dict("iteration" => 2, "phase" => "regular", "families" =>
+            Dict("power_balance" => Dict("max_feasibility_violation" => 0.1))),
+    ])
+    perturbed_trace = Dict{String,Any}("rows" => Any[
+        Dict("iteration" => 0, "phase" => "regular", "families" =>
+            Dict("power_balance" => Dict("max_feasibility_violation" => 10.0))),
+        Dict("iteration" => 1, "phase" => "regular", "families" =>
+            Dict("power_balance" => Dict("max_feasibility_violation" => 0.8))),
+        Dict("iteration" => 2, "phase" => "regular", "families" =>
+            Dict("power_balance" => Dict("max_feasibility_violation" => 0.01))),
+    ])
+    family_trajectories = getfield(option_summary_module, :_family_trajectories)
+    trajectory_deltas = getfield(option_summary_module, :_trajectory_deltas)
+    peak_map = getfield(option_summary_module, :_row_peak_map)
+    material_peak_change = getfield(option_summary_module, :_material_peak_change)
+    baseline_trajectories = family_trajectories(baseline_trace)
+    perturbed_trajectories = family_trajectories(perturbed_trace)
+    deltas = trajectory_deltas(baseline_trajectories, perturbed_trajectories)
+    @test !material_peak_change(peak_map(baseline_trace), peak_map(perturbed_trace))
+    @test only(deltas)["trajectory_changed"]
+    @test !only(deltas)["first_captured_changed"]
+    @test only(deltas)["final_captured_changed"]
+    semantic_contract = getfield(option_summary_module, :_model_semantic_contract)
+    semantic_case = Dict{String,Any}(
+        "model_variable_count" => 12,
+        "bmopf_context_profile" => Dict("findings" => Any[]),
+        "bmopf_context_finding_codes" => Dict("floating_neutral" => 1),
+        "source_behavior_contract" => Dict("available" => true),
+    )
+    contract, contract_fingerprint, context_codes = semantic_contract(semantic_case)
+    @test contract["context_profile_available"]
+    @test contract["model_variable_count"] == 12
+    @test context_codes == Dict("floating_neutral" => 1)
+    @test length(contract_fingerprint) == 64
+    reordered_semantic_case = Dict{String,Any}(
+        "source_behavior_contract" => Dict("available" => true),
+        "bmopf_context_finding_codes" => Dict("floating_neutral" => 1),
+        "bmopf_context_profile" => Dict("findings" => Any[]),
+        "model_variable_count" => 12,
+    )
+    @test semantic_contract(reordered_semantic_case)[2] == contract_fingerprint
+    option_launcher_module = Module(:NLPDiagnosticsOptionLauncherContract)
+    Base.include(option_launcher_module, joinpath(
+        benchmark_directory, "launch_bmopf_solver_option_perturbations.jl",
+    ))
+    specs = withenv("NLPDIAGNOSTICS_BMOPF_OPTION_PERTURBATIONS" => nothing) do
+        getfield(option_launcher_module, :_specs)()
+    end
+    @test count(spec -> spec.label == "baseline", specs) == 1
+    @test length(unique(spec.options for spec in specs)) == length(specs)
+    @test all(!isempty(spec.options) for spec in specs)
+    canonical_options = getfield(option_launcher_module, :_canonical_options)
+    @test canonical_options("tol=1e-6,mu_strategy=adaptive") ==
+          canonical_options("mu_strategy=adaptive,tol=1e-6")
+    @test_throws ErrorException withenv(
+        "NLPDIAGNOSTICS_BMOPF_OPTION_PERTURBATIONS" =>
+            "baseline:tol=1e-6,mu_strategy=adaptive;" *
+            "duplicate:mu_strategy=adaptive,tol=1e-6",
+    ) do
+        getfield(option_launcher_module, :_specs)()
+    end
+    @test_throws ErrorException canonical_options("")
+    validate_option_scope = getfield(option_launcher_module,
+        :_validate_campaign_scope)
+    @test_throws ErrorException withenv(
+        "NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_PROFILE_STAGE" => "trace",
+        "NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_CAPTURE_POINTS" => "true",
+        "NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_CAPTURE_ROW_RESIDUALS" => "true",
+    ) do
+        validate_option_scope("multiconductor")
+    end
+    @test withenv(
+        "NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_PROFILE_STAGE" => "context",
+        "NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_CAPTURE_POINTS" => "true",
+        "NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_CAPTURE_ROW_RESIDUALS" => "true",
+    ) do
+        isnothing(validate_option_scope("multiconductor"))
+    end
+    write_option_manifest = getfield(option_launcher_module, :_write_manifest)
+    mktempdir() do directory
+        path = joinpath(directory, "manifest.json")
+        write_option_manifest(
+            path,
+            directory,
+            [Dict{String,Any}("status" => "ok")],
+            specs,
+            ["none", "zero"];
+            status = "running",
+        )
+        manifest = getfield(option_launcher_module, :JSON).parsefile(path)
+        @test manifest["report_version"] == "bmopf-option-perturbation-manifest-v3"
+        @test manifest["campaign_status"] == "running"
+        @test manifest["completed_entry_count"] == 1
+        @test manifest["expected_entry_count"] == 2 * length(specs)
+        @test manifest["campaign_scope"] == "generic"
+        @test !isfile("$path.tmp")
+    end
     evidence_ledger_summary = read(
         joinpath(benchmark_directory, "summarize_bmopf_evidence_ledger.jl"), String,
     )
-    @test occursin("solver_option_row_family_residual_stability", evidence_ledger_summary)
+    @test occursin("solver_option_row_family_trajectory_stability", evidence_ledger_summary)
+    @test occursin("solver_option_legacy_smoke_observation", evidence_ledger_summary)
+    @test occursin("solver_option_incomplete_trajectory_observation", evidence_ledger_summary)
+    @test occursin("solver_option_perturbation_pair_stability", evidence_ledger_summary)
     @test occursin("solver_option_classification_sensitivity", evidence_ledger_summary)
+    @test occursin("solver_option_multiconductor_semantic_invariance", evidence_ledger_summary)
+    @test occursin("solver_option_bmopf_context_sensitivity", evidence_ledger_summary)
+    evidence_ledger_module = Module(:NLPDiagnosticsEvidenceLedgerContract)
+    Base.include(evidence_ledger_module, joinpath(
+        benchmark_directory, "summarize_bmopf_evidence_ledger.jl",
+    ))
+    append_option_evidence = getfield(
+        evidence_ledger_module, :_append_solver_option_evidence!,
+    )
+    trusted_option_report = Dict{String,Any}(
+        "report_version" => "bmopf-solver-option-perturbation-v3",
+        "readiness" => Dict(
+            "all_matrix_files_present" => true,
+            "baseline_comparisons_available" => true,
+            "all_manifest_entries_completed" => true,
+            "manifest_entry_count_complete" => true,
+            "all_nonbaseline_observations_compared" => true,
+            "all_row_family_residual_traces_available" => true,
+            "all_row_family_trajectories_nonempty" => true,
+            "trajectory_comparisons_available" => true,
+            "distinct_option_sets_declared" => true,
+        ),
+        "comparisons_vs_baseline" => Any[Dict(
+            "row_family_trajectory_changed" => false,
+            "row_family_global_peak_changed" => false,
+            "row_family_first_captured_changed" => false,
+            "restoration_signature_changed" => false,
+            "classification_changed" => false,
+        )],
+    )
+    trusted_option_records = Dict{String,Any}[]
+    append_option_evidence(
+        trusted_option_records, trusted_option_report, "trusted-option.json",
+    )
+    @test only(trusted_option_records)["code"] ==
+          "solver_option_row_family_trajectory_stability"
+    legacy_option_report = deepcopy(trusted_option_report)
+    legacy_option_report["report_version"] = "bmopf-solver-option-perturbation-v2"
+    legacy_option_records = Dict{String,Any}[]
+    append_option_evidence(
+        legacy_option_records, legacy_option_report, "legacy-option.json",
+    )
+    @test only(legacy_option_records)["code"] ==
+          "solver_option_legacy_smoke_observation"
+    incomplete_option_report = deepcopy(trusted_option_report)
+    incomplete_option_report["readiness"][
+        "all_row_family_residual_traces_available"
+    ] = false
+    incomplete_option_records = Dict{String,Any}[]
+    append_option_evidence(
+        incomplete_option_records, incomplete_option_report, "incomplete-option.json",
+    )
+    @test only(incomplete_option_records)["code"] ==
+          "solver_option_incomplete_trajectory_observation"
+    paired_option_report = deepcopy(trusted_option_report)
+    paired_option_report["readiness"][
+        "between_perturbation_comparisons_available"
+    ] = true
+    paired_option_report["comparisons_between_perturbations"] = Any[Dict(
+        "reference_profile" => "adaptive_filter",
+        "candidate_profile" => "adaptive_free",
+        "row_family_trajectory_changed" => false,
+        "classification_changed" => false,
+        "trace_record_count_delta" => 0,
+    )]
+    paired_option_records = Dict{String,Any}[]
+    append_option_evidence(
+        paired_option_records, paired_option_report, "paired-option.json",
+    )
+    @test Set(record["code"] for record in paired_option_records) == Set([
+        "solver_option_row_family_trajectory_stability",
+        "solver_option_perturbation_pair_stability",
+    ])
+    multiconductor_option_report = deepcopy(trusted_option_report)
+    multiconductor_option_report["report_version"] =
+        "bmopf-solver-option-perturbation-v4"
+    multiconductor_option_report["campaign_scope"] = "multiconductor"
+    multiconductor_option_report["readiness"][
+        "model_semantic_contracts_available"
+    ] = true
+    multiconductor_option_report["readiness"][
+        "model_semantic_invariance"
+    ] = true
+    multiconductor_records = Dict{String,Any}[]
+    append_option_evidence(
+        multiconductor_records,
+        multiconductor_option_report,
+        "multiconductor-option.json",
+    )
+    @test Set(record["code"] for record in multiconductor_records) == Set([
+        "solver_option_multiconductor_semantic_invariance",
+        "solver_option_row_family_trajectory_stability",
+    ])
+    failed_semantic_report = deepcopy(multiconductor_option_report)
+    failed_semantic_report["readiness"]["model_semantic_invariance"] = false
+    failed_semantic_records = Dict{String,Any}[]
+    append_option_evidence(
+        failed_semantic_records,
+        failed_semantic_report,
+        "failed-multiconductor-option.json",
+    )
+    @test only(failed_semantic_records)["code"] ==
+        "solver_option_multiconductor_semantic_gate_failed"
     structural_family_correlation = read(
         joinpath(benchmark_directory,
             "correlate_bmopf_structural_family_omission.jl"), String,
@@ -12640,10 +12888,14 @@ end
         @test length(trace.segments) == 1
         @test length(trace.bindings) == 1
         trace_data = NLPDiagnostics.iteration_trace_data(trace)
+        @test trace_data["schema_version"] == "nlpdiagnostics-iteration-trace-v2"
         @test trace_data["record_count"] == 1
         @test trace_data["binding_count"] == 1
         @test trace_data["bindings"][1]["point_fingerprint"] ==
               NLPDiagnostics.evaluation_point_fingerprint(combined_binding.point)
+        @test trace_data["telemetry_coverage"]["barrier_parameter"] == 0
+        @test trace_data["records"][1]["metric_semantics"]["objective"] ==
+              "MetricCoordinatesUnknown"
         trace_report = NLPDiagnostics.analyze_iteration_trace(
             combined_model, trace;
             check_degeneracy = false,

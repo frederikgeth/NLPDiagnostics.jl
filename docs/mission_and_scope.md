@@ -46,6 +46,25 @@ Physical declarations and observed numerical modes are independent evidence
 channels. Solver telemetry and recomputed model quantities are also independent
 channels. Agreement may support a hypothesis; disagreement must remain visible.
 
+## Decision rule for project work
+
+Every proposed feature should be identified as one of four things before it is
+implemented:
+
+- a **measurement**, which must preserve source, coordinates, units or scaling,
+  operating point, and availability;
+- a **comparison**, which must preserve its reference, normalization,
+  tolerances, and experimental controls;
+- an **interpretation**, whose confidence cannot exceed the measurements and
+  comparisons that support it; or
+- an **intervention**, which must be explicit, reversible where practical, and
+  compared with a declared baseline.
+
+If a proposed interpretation lacks a calibrated measurement or comparison, the
+next roadmap item is to build that evidence—not to add the finding. This rule
+also governs benchmark conclusions: repeated execution is reliability evidence,
+while a distinct controlled intervention is mechanism evidence.
+
 ## Current scope
 
 The current research prototype includes:

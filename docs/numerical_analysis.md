@@ -818,8 +818,9 @@ explicit error rather than a guessed postmortem.
 For live iteration evidence, `ipopt_iteration_trace_capture(model;
 capture_points=false)` installs Ipopt's public `CallbackFunction` intermediate
 callback and returns an `IterationTraceCapture`. Each callback row records
-objective, primal/dual infeasibility, steps, iteration number, and regular or
-restoration phase. With `capture_points=true`, callback primal coordinates are
+objective, primal/dual infeasibility, primal and dual step lengths, barrier
+parameter, step norm, regularization size, line-search trial count, iteration
+number, and regular or restoration phase. With `capture_points=true`, callback primal coordinates are
 copied through `MOI.CallbackVariablePrimal` and retained as explicitly
 captured `EvaluationPoint` bindings. No solver internals or log reconstruction
 are used; call `iteration_trace(capture)` after `optimize!`.
@@ -832,6 +833,15 @@ profiles the final public MOI result with that trace and returns a
 `SolverTraceProfileRun`. `profile_result_data` serializes the trace and profile
 as separate evidence sections.
 
+Serialized iteration traces use schema
+`nlpdiagnostics-iteration-trace-v2`. Every row contains the optional telemetry
+columns plus typed `metric_semantics`; the top-level `telemetry_coverage`
+counts how many records actually supplied each column. Ipopt's objective is
+labelled in original model coordinates, while its callback infeasibility
+columns are labelled solver-scaled and its barrier quantity solver-defined.
+These labels describe provenance, not accuracy, and prevent a solver-scaled
+residual from being silently compared with a recomputed raw model residual.
+
 ### MadNLP extension
 
 When `MadNLP` is loaded, the same `solver_postmortem` entry point recognizes
@@ -843,13 +853,16 @@ only the raw `Restoration Failed` status records unsuccessful restoration.
 `madnlp_iteration_trace_callback()` constructs a MadNLP
 `AbstractUserCallback` for the public `intermediate_callback` option and
 returns `(callback, capture)`. The callback records objective, primal/dual
-infeasibility, complementarity, step length, iteration, and regular/restoration
-phase. The objective is unpacked through MadNLP's public callback accessor so
+infeasibility, complementarity, primal and dual step lengths, barrier
+parameter, regularization size, iteration, and regular/restoration phase. The objective is unpacked through MadNLP's public callback accessor so
 it remains in model objective units rather than MadNLP's internal objective
 scaling. MadNLP's callback API does not provide a stable MOI primal-vector
 interface, so this adapter deliberately captures metrics only; it does not
 invent `EvaluationPoint`s. After `solve!` or `optimize!`, freeze the collector
 with `iteration_trace(capture)`.
+MadNLP callback residual, complementarity, barrier, and regularization columns
+are labelled solver-defined until the adapter can document a stronger public
+coordinate contract.
 The one-call helper `madnlp_optimize_with_iteration_trace!(model)` performs the
 same attach, solve, and freeze sequence for a JuMP or MOI MadNLP model. It
 returns metric records only, preserving the callback API's explicit limitation
@@ -1097,6 +1110,22 @@ warning, not a numerical condition estimate.
 
 ## Iterative sparse null-direction probe
 
+`jacobian_linear_operator(evaluation)` is the common product boundary for the
+iterative probes. It combines additive entries into one inspectable sparse
+matrix and becomes unavailable if any derivative row is incomplete or any raw
+or combined entry is non-finite. `jacobian_linear_operator(model, evaluation)`
+prefers public MOI `:JacVec` and transposed-Jacobian products for NLP-block rows
+and uses the assembled sparse representation for all remaining rows. Before
+selecting that hybrid path it compares both native products with the assembled
+Jacobian on deterministic directions. A callback error or discrepancy causes
+an explicit `:assembled_sparse` fallback with `native_unavailable_reason`; it
+does not silently feed an inconsistent product into a nullspace probe.
+`jacobian_product` and `jacobian_transpose_product` expose the selected path for
+method-development experiments. This consistency screen is a representation
+check, not independent proof that either derivative representation is correct;
+the finite-difference directional cross-check remains the independent local
+screen.
+
 `iterative_right_nullspace_estimate(evaluation)` is an explicit, opt-in
 sparse-matvec probe for one candidate right direction with a small Jacobian
 residual. It uses normalized shifted `J'J` products and records both the
@@ -1118,6 +1147,9 @@ explicit report wrapper. It records probe budget, convergence, residual scale,
 and material variable support for directions below a caller-selected residual
 threshold. Its findings are candidate numerical evidence only; the wrapper
 does not certify a nullspace, numerical rank, or physical mode.
+Every iterative report records `operator_source`. Model-based convenience
+overloads construct the hybrid operator and therefore use checked MOI products
+when available; evaluation-only overloads use the assembled sparse operator.
 
 `iterative_jacobian_spectrum_estimate` combines a normal-operator power scale
 with the block probe's small-direction residuals. Its reported spectral spreads

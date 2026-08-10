@@ -131,6 +131,7 @@ export SparseQRRankEstimate
 export IterativeNullspaceEstimate
 export IterativeNullspaceSubspaceEstimate
 export IterativeJacobianSpectrumEstimate
+export JacobianLinearOperator
 export JacobianScaleSummary
 export HessianEntry
 export HessianEvaluation
@@ -306,6 +307,9 @@ export jacobian_row_family_scaling_experiment
 export jacobian_rank_estimate
 export sparse_jacobian_pattern_estimate
 export sparse_qr_rank_estimate
+export jacobian_linear_operator
+export jacobian_product
+export jacobian_transpose_product
 export iterative_right_nullspace_estimate
 export iterative_right_nullspace_subspace_estimate
 export iterative_left_nullspace_subspace_estimate
