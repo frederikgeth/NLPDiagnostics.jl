@@ -790,6 +790,28 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test auxiliary["original_model_variable_count"] == original_variable_count
     @test only(auxiliary["records"])["materialization"] == "auxiliary_model_only"
     @test JuMP.num_variables(auxiliary["model"]) == 4
+    source_contract = Dict{String,Any}(
+        "contract_version" => "test/source-behavior/v1",
+        "auxiliary_constraint_candidates" => [Dict{String,Any}(
+            "scope" => "load:d12",
+            "status" => "candidate",
+            "bus" => "load",
+            "terminal_map" => ["a", "n"],
+            "nominal_voltage" => [240.0],
+            "vminpu" => 0.0,
+            "vmaxpu" => 2.0,
+        )],
+    )
+    pu_behavior_context = TestBMOPFContext(
+        model, source_metadata_net, deepcopy(objects),
+        (v_base = Dict("load" => 240.0),),
+    )
+    pu_auxiliary = NLPDiagnostics.bmopf_source_behavior_auxiliary_model(
+        pu_behavior_context; source_contract,
+    )
+    @test only(pu_auxiliary["records"])["nominal_voltage_V"] == 240.0
+    @test only(pu_auxiliary["records"])["nominal_voltage_model"] == 1.0
+    @test only(pu_auxiliary["records"])["model_coordinate_units"] == "per-unit"
     behavior_objects = deepcopy(objects)
     behavior_objects[BMOPFTools.opf_bus_voltage_key("load", "a")] = vr_load_a
     behavior_objects[BMOPFTools.opf_bus_voltage_key("load", "n")] = vr_load_n
@@ -807,6 +829,25 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test behavior_report.report.metadata[:bmopf_source_behavior_checked_count] == "1"
     @test behavior_report.report.metadata[:bmopf_source_behavior_below_vminpu_count] == "1"
     @test length(findings(behavior_report.report, :bmopf_source_behavior_threshold_violation)) == 1
+    behavior_comparison = NLPDiagnostics.bmopf_source_behavior_solver_comparison(
+        behavior_context, behavior_point;
+        solver_name = "Ipopt",
+        termination_status = "Infeasible_Problem_Detected",
+        feasible = false,
+    )
+    @test behavior_comparison.comparison["classification"] ==
+          "solver_failure_aligned_with_source_domain_violation"
+    @test length(findings(behavior_comparison.report,
+        :bmopf_source_behavior_solver_failure_aligned)) == 1
+    successful_behavior_comparison =
+        NLPDiagnostics.bmopf_source_behavior_solver_comparison(
+            behavior_context, behavior_point;
+            solver_name = "Ipopt",
+            termination_status = "LOCALLY_SOLVED",
+            feasible = true,
+        )
+    @test successful_behavior_comparison.comparison["classification"] ==
+          "solver_success_outside_source_domain"
     @test NLPDiagnostics.bmopf_source_behavior_auxiliary_solve(auxiliary)["status"] ==
           "unavailable"
     if isdefined(Main, :Ipopt)
@@ -815,6 +856,7 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
             optimizer_attributes = Dict("max_iter" => 5),
         )
         @test solved_auxiliary["status"] in ("solved", "unsolved")
+        @test JuMP.num_variables(model) == original_variable_count
     end
     @test isnothing(NLPDiagnostics.bmopf_initialization_point(context))
     @test_throws ArgumentError NLPDiagnostics.bmopf_set_start_values!(context)
@@ -1378,6 +1420,14 @@ end
         "summarize_bmopf_endpoint_triangulation.jl",
         "compare_bmopf_multiconductor_points.jl",
         "summarize_bmopf_evidence_ledger.jl",
+        "launch_bmopf_source_solver_matrix.jl",
+        "compare_bmopf_source_solver_matrices.jl",
+        "correlate_bmopf_structural_family_omission.jl",
+        "summarize_bmopf_sparse_corpus.jl",
+        "validate_bmopf_residual_trends.jl",
+        "summarize_bmopf_restoration_campaign.jl",
+        "launch_bmopf_solver_option_perturbations.jl",
+        "summarize_bmopf_solver_option_perturbations.jl",
     )
     for script in scripts
         source = read(joinpath(benchmark_directory, script), String)
@@ -1462,6 +1512,55 @@ end
     @test occursin("solver_trace_case_count", solver_trace_summary)
     @test occursin("profile_stage", solver_trace_summary)
     @test occursin("_solver_log_termination", solver_trace_summary)
+    source_matrix_launcher = read(
+        joinpath(benchmark_directory, "launch_bmopf_source_solver_matrix.jl"), String,
+    )
+    @test occursin("solver_size_guard_skipped", source_matrix_launcher)
+    @test occursin("checkpoint_phase", source_matrix_launcher)
+    @test occursin("model_variable_count", source_matrix_launcher)
+    @test occursin("SOURCE_SOLVER_PROFILE_STAGE", source_matrix_launcher)
+    @test occursin("SOURCE_SOLVER_RANK_MAX_DENSE_ENTRIES", source_matrix_launcher)
+    source_matrix_comparison = read(
+        joinpath(benchmark_directory, "compare_bmopf_source_solver_matrices.jl"), String,
+    )
+    @test occursin("trace_by_policy", source_matrix_comparison)
+    @test occursin("active_set_changed", source_matrix_comparison)
+    @test occursin("row_family_residual_by_policy", source_matrix_comparison)
+    @test occursin("family_residual_trend", source_matrix_comparison)
+    @test occursin("SOURCE_SOLVER_CAPTURE_ROW_RESIDUALS", source_matrix_launcher)
+    residual_trend_validation = read(
+        joinpath(benchmark_directory, "validate_bmopf_residual_trends.jl"), String,
+    )
+    @test occursin("restoration_alignment", residual_trend_validation)
+    @test occursin("all_residual_traces_available", residual_trend_validation)
+    restoration_campaign_report = read(
+        joinpath(benchmark_directory, "summarize_bmopf_restoration_campaign.jl"), String,
+    )
+    @test occursin("dense_rank_required", restoration_campaign_report)
+    @test occursin("restoration_endpoint_failure_cooccurrence_count",
+        restoration_campaign_report)
+    option_launcher = read(
+        joinpath(benchmark_directory, "launch_bmopf_solver_option_perturbations.jl"), String,
+    )
+    @test occursin("OPTION_PERTURBATIONS", option_launcher)
+    option_summary = read(
+        joinpath(benchmark_directory,
+            "summarize_bmopf_solver_option_perturbations.jl"), String,
+    )
+    @test occursin("restoration_signature_changed", option_summary)
+    @test occursin("baseline_comparisons_available", option_summary)
+    structural_family_correlation = read(
+        joinpath(benchmark_directory,
+            "correlate_bmopf_structural_family_omission.jl"), String,
+    )
+    @test occursin("endpoint_change_and_load_sensitivity_cooccur",
+        structural_family_correlation)
+    @test occursin("not causality", structural_family_correlation)
+    sparse_corpus_summary = read(
+        joinpath(benchmark_directory, "summarize_bmopf_sparse_corpus.jl"), String,
+    )
+    @test occursin("large_models_stopped_before_dense_solver_work", sparse_corpus_summary)
+    @test occursin("solver_size_guard_skipped_count", sparse_corpus_summary)
     @test occursin("solver_trace_endpoint_conditioned_semantics", read(
         joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
     ))

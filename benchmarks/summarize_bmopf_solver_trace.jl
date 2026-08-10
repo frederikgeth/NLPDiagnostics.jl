@@ -785,6 +785,22 @@ function main()
     incomplete_solver_iterate_bindings = 0
     non_solver_trace_bindings = 0
     nonfinite_solver_iterate_bindings = 0
+    source_behavior_comparison_available_case_count = 0
+    source_behavior_comparison_status_counts = Dict{String,Int}()
+    source_behavior_comparison_classification_counts = Dict{String,Int}()
+    source_behavior_comparison_finding_codes = Dict{String,Int}()
+    source_behavior_comparison_threshold_violation_case_count = 0
+    source_behavior_comparison_aligned_failure_case_count = 0
+    source_behavior_comparison_success_outside_domain_case_count = 0
+    source_behavior_comparison_unexplained_failure_case_count = 0
+    source_behavior_comparison_coordinate_aligned_case_count = 0
+    source_behavior_comparison_coordinate_alignment_missing_case_count = 0
+    source_behavior_contract_case_count = 0
+    source_behavior_contract_candidate_count = 0
+    source_behavior_contract_eligible_candidate_count = 0
+    source_behavior_auxiliary_case_count = 0
+    source_behavior_auxiliary_materialized_pair_count = 0
+    source_behavior_auxiliary_mutation_case_count = 0
     successful_source_snapshot_cases = 0
     successful_source_snapshot_missing_cases = 0
     source_snapshot_hashes = Set{String}()
@@ -871,6 +887,107 @@ function main()
         source_snapshot = get(record, "source_snapshot",
             get(entry, "source_snapshot", nothing))
         summary["source_snapshot"] = source_snapshot
+        summary["initialization"] = get(record, "initialization",
+            get(entry, "initialization", Dict{String,Any}()))
+        summary["endpoint_derivative"] = get(record, "endpoint_derivative",
+            get(entry, "endpoint_derivative", Dict{String,Any}(
+                "status" => "unavailable",
+            )))
+        summary["row_family_residual_trace"] = get(record,
+            "row_family_residual_trace", get(entry,
+                "row_family_residual_trace", Dict{String,Any}(
+                    "status" => "unavailable",
+                )))
+        source_behavior_comparison = get(record,
+            "source_behavior_solver_comparison", nothing)
+        source_behavior_comparison isa AbstractDict ||
+            (source_behavior_comparison = Dict{String,Any}(
+                "status" => "unavailable",
+                "reason" => "record_does_not_contain_source_behavior_comparison",
+            ))
+        summary["source_behavior_solver_comparison"] = source_behavior_comparison
+        source_behavior_contract = get(record, "source_behavior_contract", nothing)
+        source_behavior_contract isa AbstractDict ||
+            (source_behavior_contract = Dict{String,Any}("status" => "unavailable"))
+        contract = get(source_behavior_contract, "contract", Dict())
+        contract isa AbstractDict || (contract = Dict())
+        candidate_entries = get(contract, "auxiliary_constraint_candidates", Any[])
+        candidate_entries isa AbstractVector || (candidate_entries = Any[])
+        candidate_count = _integer_value(get(contract,
+            "auxiliary_constraint_candidate_count", length(candidate_entries)))
+        eligible_candidate_count = _integer_value(get(contract,
+            "eligible_candidate_count", count(item ->
+                item isa AbstractDict && get(item, "status", "") == "candidate",
+                candidate_entries)))
+        source_behavior_contract_summary = Dict{String,Any}(
+            "status" => get(source_behavior_contract, "status", "unavailable"),
+            "version" => get(contract, "contract_version",
+                get(contract, "version", nothing)),
+            "candidate_count" => candidate_count,
+            "eligible_candidate_count" => eligible_candidate_count,
+        )
+        summary["source_behavior_contract"] = source_behavior_contract_summary
+        source_behavior_contract_summary["status"] == "available" &&
+            (source_behavior_contract_case_count += 1)
+        source_behavior_contract_candidate_count += _integer_value(
+            source_behavior_contract_summary["candidate_count"])
+        source_behavior_contract_eligible_candidate_count += _integer_value(
+            source_behavior_contract_summary["eligible_candidate_count"])
+        source_behavior_auxiliary = get(record, "source_behavior_auxiliary", nothing)
+        source_behavior_auxiliary isa AbstractDict ||
+            (source_behavior_auxiliary = Dict{String,Any}("status" => "unavailable"))
+        source_behavior_auxiliary_summary = Dict{String,Any}(
+            "status" => get(source_behavior_auxiliary, "status", "unavailable"),
+            "variable_count" => _integer_value(get(source_behavior_auxiliary,
+                "variable_count", 0)),
+            "constraint_pair_count" => _integer_value(get(source_behavior_auxiliary,
+                "constraint_pair_count", 0)),
+            "original_model_mutated" => get(source_behavior_auxiliary,
+                "original_model_mutated", true),
+        )
+        summary["source_behavior_auxiliary"] = source_behavior_auxiliary_summary
+        source_behavior_auxiliary_summary["status"] != "unavailable" &&
+            (source_behavior_auxiliary_case_count += 1)
+        source_behavior_auxiliary_materialized_pair_count += _integer_value(
+            source_behavior_auxiliary_summary["constraint_pair_count"])
+        source_behavior_auxiliary_summary["original_model_mutated"] === true &&
+            (source_behavior_auxiliary_mutation_case_count += 1)
+        comparison_status = String(get(source_behavior_comparison, "status", "unavailable"))
+        source_behavior_comparison_status_counts[comparison_status] =
+            get(source_behavior_comparison_status_counts, comparison_status, 0) + 1
+        if comparison_status == "available"
+            source_behavior_comparison_available_case_count += 1
+            comparison_rows = get(source_behavior_comparison, "rows", Any[])
+            comparison_rows isa AbstractVector || (comparison_rows = Any[])
+            coordinate_aligned = !isempty(comparison_rows) && all(row -> begin
+                row isa AbstractDict || return false
+                units = String(get(row, "model_coordinate_units", "unknown"))
+                nominal = _finite_float(get(row, "nominal_voltage_V", nothing))
+                units in ("per-unit", "SI/model-native") && !isnothing(nominal) && nominal > 0.0
+            end, comparison_rows)
+            if coordinate_aligned
+                source_behavior_comparison_coordinate_aligned_case_count += 1
+            else
+                source_behavior_comparison_coordinate_alignment_missing_case_count += 1
+            end
+            comparison = get(source_behavior_comparison, "comparison", Dict())
+            comparison isa AbstractDict || (comparison = Dict())
+            classification = String(get(comparison, "classification", "unknown"))
+            source_behavior_comparison_classification_counts[classification] =
+                get(source_behavior_comparison_classification_counts, classification, 0) + 1
+            violation_count = _integer_value(get(comparison,
+                "threshold_violation_count", 0))
+            violation_count > 0 &&
+                (source_behavior_comparison_threshold_violation_case_count += 1)
+            classification == "solver_failure_aligned_with_source_domain_violation" &&
+                (source_behavior_comparison_aligned_failure_case_count += 1)
+            classification == "solver_success_outside_source_domain" &&
+                (source_behavior_comparison_success_outside_domain_case_count += 1)
+            classification == "solver_failure_not_explained_by_source_domain_thresholds" &&
+                (source_behavior_comparison_unexplained_failure_case_count += 1)
+            _merge_counts!(source_behavior_comparison_finding_codes,
+                _count_codes(get(source_behavior_comparison, "report", Dict())))
+        end
         if _has_solver_trace(status)
             preserved = source_snapshot isa AbstractDict &&
                         get(source_snapshot, "preserved", false) === true &&
@@ -1217,6 +1334,7 @@ function main()
     end
     payload = Dict{String,Any}(
         "runner_version" => get(index, "runner_version", nothing),
+        "input_format" => get(index, "input_format", "bmopf"),
         "solver" => get(index, "solver", nothing),
         "environment" => get(index, "environment", nothing),
         "environment_fingerprint" => get(index, "environment_fingerprint", nothing),
@@ -1251,6 +1369,34 @@ function main()
         "solver_result_finding_codes" => trace_finding_codes,
         "bmopf_context_finding_codes" => bmopf_finding_codes,
         "bmopf_profile_finding_codes" => bmopf_profile_finding_codes,
+        "source_behavior_comparison" => Dict(
+            "available_case_count" => source_behavior_comparison_available_case_count,
+            "status_counts" => source_behavior_comparison_status_counts,
+            "classification_counts" => source_behavior_comparison_classification_counts,
+            "finding_codes" => source_behavior_comparison_finding_codes,
+            "threshold_violation_case_count" =>
+                source_behavior_comparison_threshold_violation_case_count,
+            "aligned_failure_case_count" =>
+                source_behavior_comparison_aligned_failure_case_count,
+            "success_outside_domain_case_count" =>
+                source_behavior_comparison_success_outside_domain_case_count,
+            "unexplained_failure_case_count" =>
+                source_behavior_comparison_unexplained_failure_case_count,
+            "coordinate_aligned_case_count" =>
+                source_behavior_comparison_coordinate_aligned_case_count,
+            "coordinate_alignment_missing_case_count" =>
+                source_behavior_comparison_coordinate_alignment_missing_case_count,
+        ),
+        "source_behavior_contract" => Dict(
+            "available_case_count" => source_behavior_contract_case_count,
+            "candidate_count" => source_behavior_contract_candidate_count,
+            "eligible_candidate_count" => source_behavior_contract_eligible_candidate_count,
+        ),
+        "source_behavior_auxiliary" => Dict(
+            "available_case_count" => source_behavior_auxiliary_case_count,
+            "materialized_pair_count" => source_behavior_auxiliary_materialized_pair_count,
+            "mutation_case_count" => source_behavior_auxiliary_mutation_case_count,
+        ),
         "controller_curve_trace_finding_codes" => controller_curve_trace_finding_codes,
         "controller_curve_trace_status_changes" => _metric_summary(controller_curve_trace_status_changes),
         "controller_curve_trace_coverage_changes" => _metric_summary(controller_curve_trace_coverage_changes),

@@ -114,6 +114,12 @@ function _compare_case(left, right)
     right_codes = _as_dict(get(right, "solver_result_finding_codes", nothing))
     bmopf_left = _as_dict(get(left, "bmopf_context_finding_codes", nothing))
     bmopf_right = _as_dict(get(right, "bmopf_context_finding_codes", nothing))
+    initialization_left = _as_dict(get(left, "initialization", nothing))
+    initialization_right = _as_dict(get(right, "initialization", nothing))
+    derivative_left = _as_dict(get(left, "endpoint_derivative", nothing))
+    derivative_right = _as_dict(get(right, "endpoint_derivative", nothing))
+    initialization_left = _as_dict(get(left, "initialization", nothing))
+    initialization_right = _as_dict(get(right, "initialization", nothing))
     left_log = _as_dict(get(left, "solver_log_iterations", nothing))
     right_log = _as_dict(get(right, "solver_log_iterations", nothing))
     return Dict{String,Any}(
@@ -126,6 +132,65 @@ function _compare_case(left, right)
             "objective_comparison_reference" => Dict("left" => get(left, "objective_comparison_reference", nothing), "right" => get(right, "objective_comparison_reference", nothing)),
         ),
         "model_variable_count" => Dict("left" => get(left, "model_variable_count", nothing), "right" => get(right, "model_variable_count", nothing)),
+        "initialization" => Dict(
+            "policy" => Dict("left" => get(initialization_left, "policy", nothing),
+                "right" => get(initialization_right, "policy", nothing)),
+            "status" => Dict("left" => get(initialization_left, "status", nothing),
+                "right" => get(initialization_right, "status", nothing)),
+            "finite_start_count" => Dict(
+                "left" => get(initialization_left, "finite_start_count", nothing),
+                "right" => get(initialization_right, "finite_start_count", nothing)),
+            "missing_start_count" => Dict(
+                "left" => get(initialization_left, "missing_start_count", nothing),
+                "right" => get(initialization_right, "missing_start_count", nothing)),
+            "point_fingerprint" => Dict(
+                "left" => get(_as_dict(get(initialization_left, "point", nothing)),
+                    "fingerprint", nothing),
+                "right" => get(_as_dict(get(initialization_right, "point", nothing)),
+                    "fingerprint", nothing)),
+        ),
+        "endpoint_derivative" => Dict(
+            "status" => Dict("left" => get(derivative_left, "status", nothing),
+                "right" => get(derivative_right, "status", nothing)),
+            "fingerprint" => Dict(
+                "left" => get(derivative_left, "fingerprint", nothing),
+                "right" => get(derivative_right, "fingerprint", nothing),
+                "match" => get(derivative_left, "fingerprint", nothing) ==
+                    get(derivative_right, "fingerprint", nothing)),
+            "point_fingerprint" => Dict(
+                "left" => get(derivative_left, "point_fingerprint", nothing),
+                "right" => get(derivative_right, "point_fingerprint", nothing)),
+            "jacobian_entry_count" => Dict(
+                "left" => get(derivative_left, "jacobian_entry_count", nothing),
+                "right" => get(derivative_right, "jacobian_entry_count", nothing)),
+            "jacobian_max_abs" => Dict(
+                "left" => get(derivative_left, "jacobian_max_abs", nothing),
+                "right" => get(derivative_right, "jacobian_max_abs", nothing)),
+        ),
+        "initialization" => Dict(
+            "policy" => Dict(
+                "left" => get(initialization_left, "policy", nothing),
+                "right" => get(initialization_right, "policy", nothing),
+            ),
+            "status" => Dict(
+                "left" => get(initialization_left, "status", nothing),
+                "right" => get(initialization_right, "status", nothing),
+            ),
+            "finite_start_count" => Dict(
+                "left" => get(initialization_left, "finite_start_count", nothing),
+                "right" => get(initialization_right, "finite_start_count", nothing),
+            ),
+            "missing_start_count" => Dict(
+                "left" => get(initialization_left, "missing_start_count", nothing),
+                "right" => get(initialization_right, "missing_start_count", nothing),
+            ),
+            "point_fingerprint" => Dict(
+                "left" => get(_as_dict(get(initialization_left, "point", nothing)),
+                    "fingerprint", nothing),
+                "right" => get(_as_dict(get(initialization_right, "point", nothing)),
+                    "fingerprint", nothing),
+            ),
+        ),
         "trace" => Dict(
             "record_count" => Dict("left" => get(left_trace, "record_count", nothing), "right" => get(right_trace, "record_count", nothing),
                                     "delta_right_minus_left" => _delta(get(left_trace, "record_count", nothing), get(right_trace, "record_count", nothing))),

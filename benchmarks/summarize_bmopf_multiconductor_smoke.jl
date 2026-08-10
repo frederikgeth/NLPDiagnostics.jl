@@ -296,6 +296,11 @@ function _case_record(root, entry)
         "fixture" => get(record, "fixture", nothing),
         "status" => get(entry, "status", get(record, "status", "unknown")),
         "result_file" => result_file,
+        "source_behavior_solver" => get(record, "source_behavior_solver",
+            get(entry, "source_behavior_solver", "none")),
+        "source_behavior_solver_attributes" => get(record,
+            "source_behavior_solver_attributes",
+            get(entry, "source_behavior_solver_attributes", Dict{String,Any}())),
         "source_snapshot" => source_snapshot,
         "model_variable_count" => get(record, "model_variable_count", nothing),
         "scalar_constraint_row_count" => get(record, "scalar_constraint_row_count", nothing),
@@ -342,14 +347,20 @@ function _case_record(root, entry)
                 "auxiliary_solve_status", "unknown"),
         ),
         "source_behavior_auxiliary_solve" => Dict(
-            "status" => get(auxiliary_solve, "status", "unavailable"),
-            "solver" => get(auxiliary_solve, "solver", "unknown"),
+            "status" => get(auxiliary_solve, "status", "not_requested"),
+            "solver" => get(auxiliary_solve, "solver", "none"),
             "termination_status" => get(auxiliary_solve,
                 "termination_status", "unknown"),
             "feasible" => get(auxiliary_solve, "feasible", false),
             "result_count" => _int(get(auxiliary_solve, "result_count", 0)),
             "objective_value" => get(auxiliary_solve, "objective_value", nothing),
             "error" => get(auxiliary_solve, "error", nothing),
+            "original_model_variable_count_before" => get(auxiliary_solve,
+                "original_model_variable_count_before", nothing),
+            "original_model_variable_count_after" => get(auxiliary_solve,
+                "original_model_variable_count_after", nothing),
+            "original_model_mutated" => get(auxiliary_solve,
+                "original_model_mutated", false),
         ),
         "multiconductor_contract" => contract,
         "physical_mode_comparison" => Dict(
@@ -432,6 +443,7 @@ function main()
     source_behavior_auxiliary_solve_requested_cases = 0
     source_behavior_auxiliary_solve_feasible_cases = 0
     source_behavior_auxiliary_solve_unavailable_cases = 0
+    source_behavior_auxiliary_solve_mutation_cases = 0
     source_behavior_report_cases = 0
     source_behavior_report_row_count = 0
     source_behavior_report_finding_count = 0
@@ -483,8 +495,8 @@ function main()
         get(auxiliary, "original_model_mutated", true) === true &&
             (source_behavior_auxiliary_mutation_cases += 1)
         auxiliary_solve = _as_dict(get(case, "source_behavior_auxiliary_solve", nothing))
-        solve_status = string(get(auxiliary_solve, "status", "unavailable"))
-        solve_solver = string(get(auxiliary_solve, "solver", "unknown"))
+        solve_status = string(get(auxiliary_solve, "status", "not_requested"))
+        solve_solver = string(get(auxiliary_solve, "solver", "none"))
         source_behavior_auxiliary_solve_status_counts[solve_status] =
             get(source_behavior_auxiliary_solve_status_counts, solve_status, 0) + 1
         source_behavior_auxiliary_solve_solver_counts[solve_solver] =
@@ -494,6 +506,8 @@ function main()
             (source_behavior_auxiliary_solve_feasible_cases += 1)
         solve_status == "unavailable" &&
             (source_behavior_auxiliary_solve_unavailable_cases += 1)
+        get(auxiliary_solve, "original_model_mutated", false) === true &&
+            (source_behavior_auxiliary_solve_mutation_cases += 1)
         behavior_report = _as_dict(get(case, "source_behavior_report", nothing))
         get(behavior_report, "status", "unavailable") == "available" &&
             (source_behavior_report_cases += 1)
@@ -835,6 +849,8 @@ function main()
                 source_behavior_auxiliary_solve_feasible_cases,
             "source_behavior_auxiliary_solve_unavailable_case_count" =>
                 source_behavior_auxiliary_solve_unavailable_cases,
+            "source_behavior_auxiliary_solve_mutation_case_count" =>
+                source_behavior_auxiliary_solve_mutation_cases,
             "source_behavior_report_case_count" => source_behavior_report_cases,
             "source_behavior_report_row_count" => source_behavior_report_row_count,
             "source_behavior_report_finding_count" => source_behavior_report_finding_count,
@@ -899,6 +915,8 @@ function main()
             "source_behavior_auxiliary_solve_complete" =>
                 source_behavior_auxiliary_solve_requested_cases == 0 ||
                 source_behavior_auxiliary_solve_unavailable_cases == 0,
+            "source_behavior_auxiliary_solve_non_mutating" =>
+                source_behavior_auxiliary_solve_mutation_cases == 0,
             "physical_metadata_complete" => physical_metadata_warning_count == 0,
             "physical_mode_observations_available" => physical_mode_count > 0,
             "physical_mode_analysis_available" => successful > 0 && mode_analysis_cases == successful,

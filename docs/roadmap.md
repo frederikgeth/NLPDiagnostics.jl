@@ -1503,6 +1503,37 @@ domain violation as a finding. An optimizer can be supplied separately to
 solve the isolated model, with unavailable solver state kept distinct from
 model infeasibility.
 
+The smoke campaign now supports a controlled solver-backed auxiliary policy.
+`NLPDIAGNOSTICS_BMOPF_SOURCE_BEHAVIOR_SOLVER=none` preserves the default
+solver-independent run, while `=ipopt` solves only the isolated auxiliary
+model. Solver name, attributes, termination status, feasibility, and result
+count are serialized per fixture and aggregated separately from the production
+BMOPF profile. A bounded ZIP campaign solved its auxiliary model locally with
+Ipopt (`max_iter=5`) without mutating the production model; this is now the
+baseline for comparing source-domain evidence against solver behavior.
+
+The production solver-trace runner now records the same comparison at its
+trusted result point. Trace summaries aggregate classifications and validation
+distinguishes a feasible result outside the source domain from a solver failure
+that is merely aligned with a threshold violation. This closes the evidence
+loop without treating endpoint observations as proof of causality.
+
+The runner also accepts `NLPDIAGNOSTICS_BMOPF_INPUT_FORMAT=dss`, preserving the
+PowerIO source contract through a real solve. On the ZIP fixture, the paired
+campaign retained three source-behavior candidates and three isolated
+constraint pairs; the bounded Ipopt endpoint exceeded all three `vmaxpu`
+thresholds while stopping at an iteration limit. The resulting classification
+is `solver_failure_aligned_with_source_domain_violation`, explicitly a follow-up
+hypothesis rather than a causal diagnosis.
+
+The new source-solver matrix launcher makes budget dependence explicit. A
+three-fixture, two-budget run found stable `solver_success_outside_source_domain`
+classifications for the grounded-neutral and delta-load decks, while the ZIP
+deck changed from `solver_failure_aligned_with_source_domain_violation` at
+`max_iter=5` to `solver_success_outside_source_domain` at `max_iter=25`.
+That change is exactly the kind of endpoint-versus-formulation distinction the
+debugger must preserve.
+
 The expanded six-case rerun completed all cases successfully. Across the
 campaign, `angle`, `basekv`, `kv`, and `phases` mapped in all six cases, while
 `zipv` mapped in the ZIP case; the remaining blocking counts are six each for
@@ -2267,3 +2298,224 @@ The calibration summaries now retain each tangent-mode row with its mode name,
 policy identity, residual, tolerance, and declaration description, together
 with the retained-coordinate count. This makes the source-restoration step
 auditable at fixture level instead of relying on aggregate counts.
+
+The first source-preserving solver matrix exposed and corrected an important
+coordinate-boundary defect. Staged BMOPF contexts normalize source nominal
+voltages during construction; comparing those model-coordinate values directly
+with source volts produced spurious ratios near 200--240. The source-trace path
+now captures the pre-build source contract, records both physical and
+model-coordinate nominals, and applies the declared voltage base before
+classifying a threshold. A corrected DSS smoke trace reports a 0.919 p.u.
+load ratio for the one-phase perfect-neutral fixture, within its `[0, 2]`
+source domain. The next major item is to rerun the full six-fixture budget
+matrix through this corrected gate, then resume source-metadata restoration and
+multiconductor physical-mode calibration only from unit-aligned evidence.
+
+That corrected six-fixture matrix is now complete for `max_iter = 5` and `25`.
+All 12 pairs completed with source-contract, non-mutating auxiliary-model,
+comparison, and coordinate-alignment coverage. The one-phase, delta-load, and
+three-phase-line fixtures were consistent with their source voltage domains at
+both budgets. ZIP and wye-delta-transformer failures at five iterations were
+not explained by source thresholds, and both became source-domain-consistent at
+25 iterations. Thus the earlier threshold-aligned failures were entirely due
+to the volts-versus-per-unit reporting defect; the remaining budget dependence
+is a solver-endpoint observation that should be investigated through
+initialization, derivatives, and formulation scaling. The next major item is
+now controlled initialization/point perturbation on those two cases, not adding
+source voltage bounds.
+
+The first controlled family-omission matrix is complete for ZIP and
+wye-delta-transformer at both budgets, with `load` and `ibr` variants present in
+all four pairs. At `max_iter=5`, omitting the load family reached a local
+optimum for both cases, while omitting IBR remained iteration-limited. At
+`max_iter=25`, both variants reached local optima. This is repeatable
+solver-sensitivity evidence that load-family equations/constraints deserve
+priority in the next derivative and initialization audit; it is not proof that
+the production load formulation is wrong, because omission changes the model.
+The perturbation report also records family-level Jacobian rank effects and
+retains the production baseline separately. The next item is to compare these
+omission signals against explicit start policies and derivative fingerprints on
+the unchanged model.
+
+Initialization provenance is now part of every source-preserving solver trace
+and matrix entry. The trace supports four explicit policies: preserve native
+BMOPFTools starts, all-zero starts, BMOPF starts, and BMOPF starts with zero
+completion for missing coordinates. It records whether the policy was applied,
+how many finite starts were present/installed, how many coordinates remained
+missing, and the completed-point
+fingerprint when one exists. A one-case ZIP pilot with all-zero starts completed
+with 44/44 finite starts and retained the same source-domain classification as
+the native-BMOPFTools-start five-iteration run. This is only a policy/provenance
+checkpoint; a paired budgeted matrix is still required before attributing any
+termination change to initialization. The launcher also now survives cases
+with no family-perturbation records instead of aborting while reducing an empty
+status collection. The next major item is a paired `none`/`zero`/`bmopf` matrix
+on ZIP and wye-delta-transformer, followed by derivative-fingerprint comparison
+at the same endpoint.
+
+The first all-zero-start matrix is now complete for ZIP and wye-delta-transformer
+at both budgets. All four pairs applied finite starts to every coordinate and
+passed source-contract, coordinate-alignment, auxiliary non-mutation, and
+comparison readiness. The wye-delta case retained the same five-versus-25
+budget transition as the default policy. ZIP remained source-domain-unexplained
+at both budgets under zero starts, whereas the default policy became consistent
+at 25; this is a concrete initialization-sensitive endpoint observation, not a
+formulation diagnosis. The BMOPF-start-plus-zero-completion pilot also now
+works against the staged lifecycle and records a completed-start fingerprint.
+Trace comparison tooling retains initialization policy and fingerprint fields
+so the next matrix can compare endpoint derivatives under compatible point
+provenance.
+
+The endpoint derivative checkpoint is now implemented as an opt-in trace stage.
+On the zero-start ZIP pilot it evaluated 245 finite Jacobian entries with a
+stable evaluator-source fingerprint and retained both the endpoint point
+fingerprint and sparse value digest. This provides the missing bridge between
+initialization sensitivity and derivative evidence without pretending to
+estimate rank or conditioning. The next major item is a paired derivative
+fingerprint matrix for default versus zero/BMOPF-completed starts, with point
+compatibility and solver-budget gates kept explicit.
+
+The initialization semantics audit also found that the native BMOPFTools build
+does not populate every coordinate: the ZIP trace had 14 finite native starts
+and 30 missing coordinates. The all-zero policy supplied 44/44 starts. This is
+why the baseline is now explicitly called `none`/native-default rather than
+“uninitialized”; future comparisons must report both policy identity and start
+coverage before interpreting endpoint differences.
+
+The paired policy/derivative matrix is now complete for ZIP and
+wye-delta-transformer at budgets 5 and 25. All 12 policy/case/budget records
+passed the source-contract, coordinate-alignment, initialization, and endpoint
+derivative gates. Native defaults and BMOPF-start-plus-zero-completion produced
+the same endpoint derivative fingerprints on all four pairs; all-zero starts
+produced different fingerprints on all four. The only classification change was
+ZIP at budget 25: native/default and BMOPF-completed starts were
+source-domain-consistent, while all-zero starts remained an unexplained solver
+endpoint failure. This is strong local initialization sensitivity evidence, not
+a proof of a formulation defect. The next major item is to inspect the
+fingerprint deltas structurally—row-family magnitudes, residuals, and active-set
+state—before broadening the benchmark corpus.
+
+The structural attribution hook is now implemented. Endpoint derivative records
+can carry BMOPFTools row-family scale attribution; the ZIP pilot exposed 21
+families, with KCL rows owning the largest finite row norms and load-power
+imaginary rows owning the smallest positive norm. This is the first concrete
+bridge from an initialization-induced endpoint fingerprint to named formulation
+families. A full three-policy attribution matrix remains the next run before
+making any family-level diagnosis.
+
+Active-set endpoint summaries are now included alongside the row-family data.
+The zero-start ZIP pilot exposed 27 selected active rows, 17 violated rows, and
+a maximum feasibility violation of 1.0 at the five-iteration endpoint. These
+records make solver-endpoint geometry inspectable without conflating an
+incomplete iterate with a physical infeasibility certificate. The next run is
+the full three-policy row-family and active-set matrix, followed by matched
+family-level deltas.
+
+That full structural matrix is now complete. All 12 records passed every
+readiness gate. Native defaults and BMOPF-completed starts matched exactly in
+active-row sets, violation counts, and row-family extrema across both fixtures
+and budgets. Zero starts changed the ZIP active geometry at both budgets: 17
+rows moved from the native active set, 17 rows became violated, and the maximum
+feasibility violation increased to 1.0. Its smallest positive row norm moved
+from the line-thermal family (0.722) to `load_power_imag` (0.001196), while KCL
+remained the largest-scale family. The transformer retained the same active-row
+set and zero violations under all policies, although its detailed row-family
+scales still changed. This localizes the current sensitivity signal to ZIP's
+load/endpoint geometry rather than a generic transformer or source-contract
+effect. The next major item is to correlate these deltas with solver iteration
+residuals and family-omission results before testing larger cases.
+
+The structural comparison now includes the full solver iteration trace. The
+zero-start ZIP runs entered restoration immediately and ended at the budget
+with primal residual 1 and dual residual approximately 999, while native and
+BMOPF-completed starts followed the regular convergent trajectory. The
+transformer had the same endpoint active geometry under all policies; zero
+starts only added transient residual increases. This separates a true
+initialization-sensitive solver trajectory from a row-scale change that does
+not alter endpoint geometry.
+
+`benchmarks/correlate_bmopf_structural_family_omission.jl` now joins that
+comparison to the family-omission campaign. In the bounded four-row matrix,
+load-family omission was sensitive on all rows and co-occurred with the two
+ZIP endpoint changes; IBR omission was not sensitive and never co-occurred.
+This is a useful prioritization signal for a deeper load-family investigation,
+not a causal or physical diagnosis. The generated JSON preserves the evidence
+and readiness gates. The next major item is row-family residual attribution
+over a wider, sparse-first BMOPF corpus, with dense/rank analyses restricted
+to the small fixtures.
+
+The first sparse-first corpus checkpoint now covers BMOPFTools' 14-, 55-, and
+223-bus LV decks. Source contracts and auxiliary non-mutation checks passed
+for all three. The 14- and 55-bus cases reached the existing resource-budget
+profile boundary; the 223-bus case was stopped explicitly by the 2,000-variable
+solver guard (3,784 variables). A new
+`benchmarks/summarize_bmopf_sparse_corpus.jl` report records these as planned
+coverage boundaries rather than solver failures. This confirms that the
+benchmark harness can scale its evidence policy without silently attempting
+dense analysis on large models. The next major item is to add sparse Jacobian
+row-family residual attribution to these guarded campaigns and then compare
+it against the small-fixture endpoint evidence.
+
+The sparse numerical-profile path is now exercised on the 14- and 55-bus LV
+decks with a zero dense-rank budget. Both campaigns passed source and
+coordinate readiness and retained 27 named row families. The native and
+zero-start policies stayed source-domain-consistent, but their trajectories
+changed: the 55-bus zero-start run used 13 trace records versus 5 natively,
+while the 14-bus run retained four records with a different final primal
+residual. Row-family extrema also moved for the 14-bus case (the smallest
+family changed from `switch_current_thermal` to `line_current_thermal`). These
+are numerical/initialization observations, not physical diagnoses. The next
+step is to retain sparse row residuals—not only row norms—so trajectory changes
+can be attributed to families without requiring dense matrices.
+
+That residual-retention step is now implemented. With public Ipopt callback
+points enabled, each captured iterate can carry per-family maximum and L2
+feasibility residuals plus active/violated row counts. In the paired 14-/55-bus
+campaign, zero starts raised the global peak feasibility residual from roughly
+0.87 to 1.73 and expanded the 55-bus captured trajectory from 5 to 13 points.
+The largest early residuals were transformer-voltage families, while load and
+KCL families remained separately visible. This is the first trajectory-level
+family attribution, still explicitly numerical and local. The next item is to
+add residual trend classification (persistent, transient, or restoration-only)
+and validate it against solver phase changes on the ZIP/transformer fixtures.
+
+The first trend classifier is now included in the policy comparison. It uses
+only captured family residual series and solver phase labels, and emits
+descriptive `persistent`, `transient`, `restoration_only`, `mixed`, or
+`inactive_or_below_tolerance` tags. These are intentionally heuristic trend
+summaries. The next validation is to exercise them on the ZIP/transformer
+fixture matrix, where restoration behavior is already independently visible.
+
+The restoration validation is now in place. On the zero-start ZIP fixture, the
+residual-aware trace reproduced one regular and one restoration callback at
+both budgets, with final primal/dual residuals of 1 and approximately 999.
+The validator correctly labels this as `restoration_with_persistent_family`:
+the phase is real, but the residual families span both callbacks rather than
+being restoration-only. Native ZIP and both transformer policies had no
+restoration phase and were labelled `aligned_no_restoration`. This is the
+intended conservative result: a phase/family consistency check, not a causal
+claim about which formulation component caused restoration.
+
+The bounded restoration campaign report is now implemented. Across the
+residual-aware ZIP/transformer grid it records eight policy observations, two
+restoration observations, and two restoration/endpoint-residual
+co-occurrences. Both co-occurrences are the zero-start ZIP runs; the
+transformer has no restoration signature. The report also retains the largest
+family peaks, showing ZIP voltage-drop/load-voltage families at the failed
+endpoint while keeping transformer KCL peaks visible as separate transient
+evidence. This is the correct stopping point for generic restoration claims:
+the next major item is to add solver-option and budget perturbations to test
+whether these signatures persist under controlled algorithmic changes.
+
+The first option-persistence campaign is complete on ZIP, with baseline,
+adaptive-barrier, and monotone-barrier profiles crossed with native and
+zero-completion starts at five and 25 iterations. All 12 matrices completed
+and all eight perturbation-vs-baseline comparisons were available. The
+restoration signature was invariant: zero-start ZIP retained one restoration
+record and the large endpoint residual signature under both barrier profiles,
+while native starts retained no restoration record. No classification or trace
+length changed in this bounded campaign. This strengthens the interpretation
+from “option-specific artifact” toward “initialization-sensitive local
+signature,” but it is still not a causal or physical proof. The next item is
+to cross the same option profiles with the transformer fixture and a broader
+budget grid.

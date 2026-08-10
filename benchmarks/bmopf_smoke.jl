@@ -187,12 +187,19 @@ function _source_behavior_solver_attributes()
 end
 
 function _source_behavior_auxiliary_solve_data(auxiliary, solver_policy, attributes)
+    original_model = get(auxiliary, "original_model", nothing)
+    original_count_before = get(auxiliary, "original_model_variable_count", nothing)
+    original_count_after = original_model isa JuMP.Model ?
+        JuMP.num_variables(original_model) : nothing
     solver_policy == "none" && return Dict{String,Any}(
         "status" => "not_requested",
         "solver" => "none",
         "feasible" => false,
         "result_count" => 0,
         "optimizer_attributes" => attributes,
+        "original_model_variable_count_before" => original_count_before,
+        "original_model_variable_count_after" => original_count_after,
+        "original_model_mutated" => original_count_before != original_count_after,
     )
     optimizer = solver_policy == "ipopt" ? Ipopt.Optimizer : nothing
     solve = NLPDiagnostics.bmopf_source_behavior_auxiliary_solve(
@@ -201,6 +208,9 @@ function _source_behavior_auxiliary_solve_data(auxiliary, solver_policy, attribu
     data = Dict{String,Any}(String(key) => value for (key, value) in solve)
     data["solver"] = solver_policy
     data["optimizer_attributes"] = attributes
+    data["original_model_variable_count_before"] = original_count_before
+    data["original_model_variable_count_after"] = original_count_after
+    data["original_model_mutated"] = original_count_before != original_count_after
     return data
 end
 
@@ -772,6 +782,8 @@ function main()
                 "source_snapshot" => source_snapshot,
                 "status" => "error", "error" => message,
                 "point_policy" => point_policy,
+                "source_behavior_solver" => source_behavior_solver,
+                "source_behavior_solver_attributes" => source_behavior_solver_attributes,
                 "rank_max_dense_entries" => dense_entry_limit,
                 "iterative_right_nullspace_probe_dimension" => iterative_probe_dimension,
                 "iterative_right_nullspace_probe_iterations" => iterative_probe_iterations,
@@ -782,6 +794,8 @@ function main()
                 "name" => spec.name, "status" => "error",
                 "result_file" => basename(result_path), "error" => message,
                 "point_policy" => point_policy,
+                "source_behavior_solver" => source_behavior_solver,
+                "source_behavior_solver_attributes" => source_behavior_solver_attributes,
                 "source_snapshot" => source_snapshot,
             ))
             println("$(spec.name): ERROR — $(sprint(showerror, error))")

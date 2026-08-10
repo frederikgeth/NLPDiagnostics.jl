@@ -325,6 +325,10 @@ bmopf_source_behavior_auxiliary_solve(auxiliary; kwargs...) =
 bmopf_source_behavior_report(context, point; kwargs...) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP support are required to report BMOPF source-behavior thresholds")._bmopf_source_behavior_report(context, point; kwargs...)
+"""Compare source-behavior threshold evidence with an external solver result."""
+bmopf_source_behavior_solver_comparison(context, point; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required to compare BMOPF source-behavior evidence with a solver result")._bmopf_source_behavior_solver_comparison(context, point; kwargs...)
 """Optional domain-plugin port/connection declarations; the generic default is empty."""
 component_port_metadata(model::MOI.ModelLike) = ComponentPortMetadata[]
 component_port_metadata(model::ModelSnapshot) = ComponentPortMetadata[]

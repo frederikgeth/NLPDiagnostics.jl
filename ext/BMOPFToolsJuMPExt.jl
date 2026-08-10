@@ -2577,13 +2577,18 @@ function _bmopf_source_behavior_auxiliary_model(
     context;
     optimizer = nothing,
     include_ineligible::Bool = false,
+    source_contract = nothing,
 )
     owner = _bmopf_context_model(context)
     owner isa JuMP.Model || throw(ArgumentError(
         "BMOPFTools.opf_model(context) did not return a JuMP.Model"))
     network = BMOPFTools.opf_network(context)
-    contract = BMOPFTools.powerio_source_behavior_contract(
-        network; plan_auxiliary_constraints = true)
+    source_contract_supplied = source_contract !== nothing
+    contract = source_contract_supplied ? source_contract :
+        BMOPFTools.powerio_source_behavior_contract(
+            network; plan_auxiliary_constraints = true)
+    contract isa AbstractDict || throw(ArgumentError(
+        "source_contract must be a dictionary returned by powerio_source_behavior_contract"))
     auxiliary = optimizer === nothing ? JuMP.Model() : JuMP.Model(optimizer)
     voltage_real = Dict{Tuple{String,String},JuMP.VariableRef}()
     voltage_imag = Dict{Tuple{String,String},JuMP.VariableRef}()
@@ -2628,24 +2633,53 @@ function _bmopf_source_behavior_auxiliary_model(
         vr = voltage_real[keys[1]] - voltage_real[keys[2]]
         vi = voltage_imag[keys[1]] - voltage_imag[keys[2]]
         magnitude_squared = vr^2 + vi^2
-        nominal_voltage = Float64(nominal[1])
-        lower_squared = (Float64(vmin) * nominal_voltage)^2
-        upper_squared = (Float64(vmax) * nominal_voltage)^2
+        source_nominal_voltage = Float64(nominal[1])
+        voltage_base = _bmopf_voltage_base(context, bus_id)
+        model_nominal_voltage = if source_contract_supplied && !isnothing(voltage_base)
+            source_nominal_voltage / voltage_base
+        else
+            source_nominal_voltage
+        end
+        isfinite(model_nominal_voltage) && model_nominal_voltage > 0.0 || begin
+            push!(records, Dict{String,Any}(
+                "scope" => scope,
+                "status" => "not_materialized",
+                "reason" => "nominal_voltage_coordinate_alignment_unavailable",
+                "active_in_original_model" => false,
+            ))
+            continue
+        end
+        physical_nominal_voltage = if source_contract_supplied
+            source_nominal_voltage
+        elseif !isnothing(voltage_base)
+            source_nominal_voltage * voltage_base
+        else
+            source_nominal_voltage
+        end
+        lower_squared = (Float64(vmin) * model_nominal_voltage)^2
+        upper_squared = (Float64(vmax) * model_nominal_voltage)^2
+        lower_squared_physical = (Float64(vmin) * physical_nominal_voltage)^2
+        upper_squared_physical = (Float64(vmax) * physical_nominal_voltage)^2
         lower = JuMP.@constraint(auxiliary, lower_squared <= magnitude_squared)
         upper = JuMP.@constraint(auxiliary, magnitude_squared <= upper_squared)
         push!(constraints, Dict{String,Any}(
             "scope" => scope,
             "lower" => lower,
             "upper" => upper,
-            "lower_squared_V2" => lower_squared,
-            "upper_squared_V2" => upper_squared,
+            "lower_squared_V2" => lower_squared_physical,
+            "upper_squared_V2" => upper_squared_physical,
+            "lower_squared_model2" => lower_squared,
+            "upper_squared_model2" => upper_squared,
         ))
         push!(records, Dict{String,Any}(
             "scope" => scope,
             "status" => "materialized",
             "bus" => bus_id,
             "terminal_map" => terminal_ids,
-            "nominal_voltage_V" => nominal_voltage,
+            "nominal_voltage_V" => physical_nominal_voltage,
+            "nominal_voltage_model" => model_nominal_voltage,
+            "model_coordinate_units" => isnothing(voltage_base) ? "SI/model-native" : "per-unit",
+            "voltage_base_V" => voltage_base,
             "vminpu" => Float64(vmin),
             "vmaxpu" => Float64(vmax),
             "constraint_family" => "load_terminal_voltage_ratio_bounds",
@@ -2716,8 +2750,10 @@ function _bmopf_source_behavior_report(
     point::NLPDiagnostics.EvaluationPoint;
     solve_auxiliary::Bool = false,
     optimizer = nothing,
+    source_contract = nothing,
 )
-    auxiliary = _bmopf_source_behavior_auxiliary_model(context)
+    auxiliary = _bmopf_source_behavior_auxiliary_model(
+        context; source_contract = source_contract)
     positions = Dict(variable => value for (variable, value) in
                      zip(point.variables, point.values))
     report = NLPDiagnostics.DiagnosticReport()
@@ -2777,6 +2813,10 @@ function _bmopf_source_behavior_report(
             "scope" => scope,
             "status" => status,
             "observed_ratio" => ratio,
+            "nominal_voltage_V" => nominal,
+            "nominal_voltage_model" => get(record, "nominal_voltage_model", nominal),
+            "model_coordinate_units" => get(record, "model_coordinate_units", "unknown"),
+            "voltage_base_V" => get(record, "voltage_base_V", nothing),
             "vminpu" => vmin,
             "vmaxpu" => vmax,
             "violation" => max(vmin - ratio, ratio - vmax, 0.0),
@@ -2808,6 +2848,100 @@ function _bmopf_source_behavior_report(
     report.metadata[:bmopf_source_behavior_auxiliary_solve_status] =
         string(get(solve, "status", "unknown"))
     return (report = report, rows = rows, auxiliary = auxiliary, solve = solve)
+end
+
+"""Compare source-domain threshold evidence with a production solver result."""
+function _bmopf_source_behavior_solver_comparison(
+    context,
+    point::NLPDiagnostics.EvaluationPoint;
+    solver_name::AbstractString = "unknown",
+    termination_status::AbstractString = "unknown",
+    feasible = nothing,
+    source_contract = nothing,
+)
+    source = _bmopf_source_behavior_report(
+        context, point;
+        solve_auxiliary = false,
+        source_contract = source_contract,
+    )
+    rows = source.rows
+    below = count(row -> get(row, "status", "") == "below_vminpu", rows)
+    above = count(row -> get(row, "status", "") == "above_vmaxpu", rows)
+    violations = below + above
+    checked = count(row -> get(row, "status", "") in
+        ("within_bounds", "below_vminpu", "above_vmaxpu"), rows)
+    status = lowercase(strip(String(termination_status)))
+    termination_success = status in
+        ("solved", "optimal", "locally_solved", "feasible_point", "success")
+    solver_success = termination_success && (feasible !== false)
+    solver_known = feasible isa Bool || status != "unknown"
+    classification = if checked == 0
+        "source_domain_evidence_unavailable"
+    elseif !solver_known
+        "unknown_solver_outcome"
+    elseif solver_success && violations > 0
+        "solver_success_outside_source_domain"
+    elseif !solver_success && violations > 0
+        "solver_failure_aligned_with_source_domain_violation"
+    elseif !solver_success
+        "solver_failure_not_explained_by_source_domain_thresholds"
+    else
+        "solver_and_source_domain_consistent"
+    end
+    report = source.report
+    report.metadata[:bmopf_source_behavior_solver_name] = String(solver_name)
+    report.metadata[:bmopf_source_behavior_solver_termination_status] = String(termination_status)
+    report.metadata[:bmopf_source_behavior_solver_feasible] =
+        isnothing(feasible) ? "unknown" : string(feasible)
+    report.metadata[:bmopf_source_behavior_solver_termination_success] =
+        string(termination_success)
+    report.metadata[:bmopf_source_behavior_solver_classification] = classification
+    report.metadata[:bmopf_source_behavior_solver_threshold_violation_count] = string(violations)
+    if classification in ("solver_success_outside_source_domain",
+                          "solver_failure_aligned_with_source_domain_violation",
+                          "solver_failure_not_explained_by_source_domain_thresholds")
+        observation = classification == "solver_success_outside_source_domain" ?
+            "The production solver returned a feasible result outside the source-declared voltage-behavior domain." :
+            classification == "solver_failure_aligned_with_source_domain_violation" ?
+            "The production solver did not return a feasible result and the evaluated point is outside the source-declared voltage-behavior domain." :
+            "The production solver did not return a feasible result, but the evaluated point is within the source-declared voltage-behavior domain."
+        why = classification == "solver_failure_not_explained_by_source_domain_thresholds" ?
+            "The source voltage-behavior thresholds do not explain this solver outcome; inspect derivatives, scaling, initialization, and structural degeneracy." :
+            "The alignment is evidence for a possible model-domain interaction, not proof that the source threshold caused the solver outcome."
+        push!(report, NLPDiagnostics.Finding(Symbol("bmopf_source_behavior_" *
+                (classification == "solver_success_outside_source_domain" ?
+                 "solver_success_outside_domain" : classification ==
+                 "solver_failure_aligned_with_source_domain_violation" ?
+                 "solver_failure_aligned" : "solver_failure_unexplained"));
+            severity = NLPDiagnostics.SeverityWarning,
+            domain = NLPDiagnostics.PhysicalIssue,
+            basis = NLPDiagnostics.NumericalObservation,
+            confidence = NLPDiagnostics.ConfidenceMedium,
+            observation = observation,
+            why_it_matters = why,
+            evidence = [NLPDiagnostics.Evidence("Production solver/source-domain comparison";
+                details = ["solver" => String(solver_name),
+                           "termination_status" => String(termination_status),
+                           "feasible" => isnothing(feasible) ? "unknown" : feasible,
+                           "below_vminpu_count" => below,
+                           "above_vmaxpu_count" => above,
+                           "classification" => classification])],
+            suggested_actions = ["Inspect the source-to-BMOPF semantic contract and the solver-result point before changing production constraints."],
+        ))
+    end
+    comparison = Dict{String,Any}(
+        "solver" => String(solver_name),
+        "termination_status" => String(termination_status),
+        "feasible" => isnothing(feasible) ? nothing : feasible,
+        "termination_success" => termination_success,
+        "classification" => classification,
+        "threshold_violation_count" => violations,
+        "below_vminpu_count" => below,
+        "above_vmaxpu_count" => above,
+        "checked_count" => checked,
+    )
+    return (report = report, rows = rows, comparison = comparison,
+            source_behavior = source)
 end
 
 function _bmopf_append_report!(target, source)

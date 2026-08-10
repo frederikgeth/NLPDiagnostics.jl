@@ -1077,6 +1077,55 @@ observed ratio, source thresholds, scope, and violation magnitude in primitive
 rows. Passing `solve_auxiliary=true` with an optimizer invokes the isolated
 model and records its termination status; without an optimizer the solve is
 explicitly reported as unavailable. Neither path mutates the production model.
+The smoke runner exposes this as an explicit campaign policy through
+`NLPDIAGNOSTICS_BMOPF_SOURCE_BEHAVIOR_SOLVER=none|ipopt`; optional
+`NLPDIAGNOSTICS_BMOPF_SOURCE_BEHAVIOR_MAX_ITER` and
+`NLPDIAGNOSTICS_BMOPF_SOURCE_BEHAVIOR_TOL` attributes are recorded alongside
+each solve, so solver-backed evidence can be distinguished from observation-only
+profiles.
+
+Solver-trace records can also call
+`NLPDiagnostics.bmopf_source_behavior_solver_comparison` at the trusted solver
+result point. The result keeps solver termination/feasibility separate from
+source-domain observations and classifies the relationship as consistent,
+success-outside-domain, failure-aligned, or failure-unexplained. These are
+follow-up hypotheses, not causal certificates.
+
+When a source contract is available before staged model construction, pass it
+as `source_contract = ...` to the auxiliary/report/comparison APIs. The staged
+BMOPF context may normalize source nominal voltages; the adapter preserves the
+source nominal in volts, derives the corresponding model-coordinate nominal
+(for example, `0.999998` p.u.), and records the voltage base used for the
+conversion. This prevents a volts-versus-per-unit mismatch from being reported
+as a physical threshold violation.
+
+`benchmarks/launch_bmopf_source_solver_matrix.jl` automates this paired path
+over DSS fixtures and iteration budgets. It writes one trace, summary,
+validation report, and process log per case/budget pair, then reports whether a
+classification is stable across budgets. Matrix readiness also requires every
+comparison row to carry a finite source nominal and an explicit model-coordinate
+unit (`per-unit` or `SI/model-native`); a stable classification without that
+gate is not admitted as physical evidence. Set
+`NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_MATRIX_REUSE=true` to rebuild the manifest
+and validation summaries from completed case directories without rerunning the
+solver children.
+
+The same launcher now retains optional BMOPF family-omission perturbations
+(`NLPDIAGNOSTICS_BMOPF_RUN_FAMILY_PERTURBATIONS=true`) in each matrix entry,
+including per-family status, termination, iteration delta, and row-family
+effects. These records are deliberately auxiliary: omission of a native family
+is a sensitivity experiment, not a valid reformulation of the production
+model. Enabling this mode automatically uses the full profile stage (override
+with `NLPDIAGNOSTICS_BMOPF_FAMILY_PROFILE_STAGE`) so family variants are not
+silently skipped by a trace-only resource policy. Matrix readiness separately
+checks that every requested family variant completed.
+
+The corrected six-fixture matrix had complete alignment coverage in all 12
+case/budget pairs. One-phase, delta-load, and line fixtures were consistent at
+both budgets; ZIP and wye-delta-transformer cases were source-domain-consistent
+at `max_iter=25`, while their five-iteration failures were not explained by
+source thresholds. This separates the original unit-boundary artifact from the
+remaining endpoint/initialization behavior.
 
 Each conversion warning is also present in the mapping ledger with an
 `unmapped` status, impact classification, readiness-blocking flag, and reason.
@@ -1493,3 +1542,91 @@ remaining boundary is specifically mode-to-coordinate semantics: structurally
 complete port maps do not yet make every declared physical mode comparable to
 the model Jacobian. The next step is source-metadata restoration and
 fixture-level support review before promoting any physical tangent declaration.
+
+The source-preserving solver trace now records initialization provenance before
+the first Ipopt/MadNLP call. Set
+`NLPDIAGNOSTICS_BMOPF_INITIALIZATION_POLICY` to `none` (the default), `zero`,
+`bmopf`, or `bmopf_zero_completion`. The trace retains the policy, application
+status, coordinate count, finite-start count, missing-start count, and—when
+applicable—the completed start-point fingerprint and provenance. The policy
+`none` preserves BMOPFTools' native starts without adding an override; the
+other policies supply variable primal starts. None of these policies changes
+bounds, constraints, or the source snapshot. The source-solver matrix carries the same fields and
+requires initialization metadata in its readiness report. These policies are
+controlled point perturbations: a changed termination or derivative fingerprint
+is local initialization evidence, not proof that the unchanged formulation is
+mathematically defective.
+`benchmarks/compare_bmopf_solver_traces.jl` also retains the two policies'
+initialization status, finite/missing counts, and point fingerprints alongside
+the solver-trace comparison.
+
+Set `NLPDIAGNOSTICS_BMOPF_CAPTURE_ENDPOINT_DERIVATIVES=true` to add an opt-in
+endpoint derivative record. It evaluates the public MOI numerical interface at
+the solver-result point and stores a deterministic sparse Jacobian-value
+fingerprint, evaluator-source fingerprint, entry/finite-entry counts, and
+finite magnitude range. This is endpoint-local numerical evidence; it is not a
+rank certificate and is intentionally disabled for large trace-only campaigns.
+For policy grids, `benchmarks/compare_bmopf_source_solver_matrices.jl` checks
+case/budget compatibility, source comparisons, coordinate alignment,
+initialization metadata, and endpoint derivative availability before reporting
+classification or derivative-fingerprint changes.
+When endpoint derivatives are enabled, the matrix also retains BMOPFTools row-
+family scale attribution, including global extrema and per-family row norms.
+Those values remain point-local scale evidence rather than condition estimates.
+Endpoint records also retain scalar active-set classifications, selected active
+rows, violated rows, and maximum feasibility violation; these are endpoint
+geometry observations and do not replace solver KKT or rank analysis.
+In the completed ZIP/transformer policy grid, native and BMOPF-completed starts
+matched active geometry exactly; zero starts changed ZIP's active set and moved
+its smallest row scale to the load-power-imaginary family.
+
+To connect endpoint observations with controlled formulation perturbations,
+`benchmarks/correlate_bmopf_structural_family_omission.jl` joins the structural
+policy comparison with the source-preserving family-omission matrix. It reports
+termination/iteration sensitivity for the load and IBR families, rank-effect
+counts, active-set deltas, and explicit co-occurrence flags. A co-occurrence is
+only local prioritization evidence: it does not establish that omitting a
+family causes the endpoint change, and it must be followed by a broader
+campaign and physical review.
+
+For larger decks, use `benchmarks/summarize_bmopf_sparse_corpus.jl` after a
+source-solver matrix run. It preserves resource-budget and solver-size-guard
+outcomes as explicit campaign boundaries, checks source-contract and
+auxiliary-model non-mutation coverage, and prevents a skipped dense analysis
+from being misread as an unavailable or failed diagnosis.
+
+For medium-size cases, set
+`NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_PROFILE_STAGE=numerical` and pass an
+explicit `NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_RANK_MAX_DENSE_ENTRIES` budget.
+The launcher then retains sparse numerical diagnostics and row-family scale
+attribution without enabling the full BMOPF profile. A numerical-profile
+row-family record is labelled `available_numerical_profile`, so it cannot be
+silently confused with an endpoint derivative capture.
+
+To retain trajectory evidence, pair that mode with
+`NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_CAPTURE_POINTS=true` and
+`NLPDIAGNOSTICS_BMOPF_SOURCE_SOLVER_CAPTURE_ROW_RESIDUALS=true`. The trace
+then evaluates only the captured public iterate points and stores per-family
+maximum, L2, active-row, and violated-row summaries. The comparison utility
+reports these as `row_family_residual_by_policy`; they are sparse,
+point-local observations and never a causal proof. The comparison also labels
+each family heuristically as `persistent`, `transient`, `restoration_only`,
+`mixed`, or `inactive_or_below_tolerance`; these labels are descriptive trend
+summaries, not solver-theory classifications.
+`benchmarks/validate_bmopf_residual_trends.jl` checks those labels against the
+captured regular/restoration phase counts and explicitly distinguishes a
+restoration phase with persistent family residuals from a genuinely
+restoration-only family signal.
+
+`benchmarks/summarize_bmopf_restoration_campaign.jl` produces a bounded report
+over a policy/case/budget grid. It counts restoration/endpoint-residual
+co-occurrences, retains the largest family residual peaks, and records the
+source-domain classification without requiring dense rank analysis.
+
+For algorithmic persistence checks, use
+`benchmarks/launch_bmopf_solver_option_perturbations.jl`. It crosses named
+Ipopt option profiles with initialization policies and solver budgets while
+keeping the matrix budget authoritative. The companion
+`benchmarks/summarize_bmopf_solver_option_perturbations.jl` compares each
+perturbation to its same-policy baseline and reports changes in classification,
+restoration records, endpoint residual signatures, and trace length.

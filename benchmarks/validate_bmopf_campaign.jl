@@ -662,6 +662,59 @@ function _validate_solver_trace(path, summary)
              "cases" => endpoint_conditioned_cases);
         suggested_action = "Repeat the policy with a sufficient iteration/time budget or compare it with a trusted saved point before assigning formulation meaning."
     ))
+    source_comparison = get(summary, "source_behavior_comparison", nothing)
+    if source_comparison isa AbstractDict
+        available = _int(get(source_comparison, "available_case_count", 0))
+        coordinate_aligned = _int(get(source_comparison,
+            "coordinate_aligned_case_count", 0))
+        coordinate_missing = _int(get(source_comparison,
+            "coordinate_alignment_missing_case_count", 0))
+        available > 0 && coordinate_aligned < available && push!(findings, _finding(
+            "solver_trace_source_coordinate_alignment_incomplete", "warning",
+            "Some source-behavior comparison rows do not expose a complete source-to-model coordinate alignment.",
+            Dict("summary_path" => path,
+                 "source_behavior_comparison_available_case_count" => available,
+                 "coordinate_aligned_case_count" => coordinate_aligned,
+                 "coordinate_alignment_missing_case_count" => coordinate_missing);
+            suggested_action = "Regenerate the trace with the pre-build source contract and explicit model-coordinate nominal metadata before interpreting threshold classifications."
+        ))
+        classifications = get(source_comparison, "classification_counts", Dict())
+        available < successful_cases && push!(findings, _finding(
+            "solver_trace_source_behavior_comparison_incomplete", "warning",
+            "The solver-trace campaign does not contain source-behavior comparison evidence for every successful case.",
+            Dict("summary_path" => path,
+                 "successful_case_count" => successful_cases,
+                 "source_behavior_comparison_available_case_count" => available);
+            suggested_action = "Regenerate the trace campaign with the current source-behavior comparison path before making cross-domain claims."
+        ))
+        outside = _int(get(source_comparison,
+            "success_outside_domain_case_count", 0))
+        outside > 0 && push!(findings, _finding(
+            "solver_trace_success_outside_source_domain", "warning",
+            "One or more feasible production solver results lie outside the source-declared voltage-behavior domain.",
+            Dict("summary_path" => path,
+                 "success_outside_domain_case_count" => outside,
+                 "classification_counts" => classifications);
+            suggested_action = "Inspect source-domain assumptions and the final operating point; do not add a production bound solely from this observation."
+        ))
+        aligned = _int(get(source_comparison,
+            "aligned_failure_case_count", 0))
+        aligned > 0 && push!(findings, _finding(
+            "solver_trace_failure_aligned_with_source_domain", "info",
+            "Solver failure coincides with a source-domain threshold violation in one or more cases.",
+            Dict("summary_path" => path,
+                 "aligned_failure_case_count" => aligned,
+                 "classification_counts" => classifications);
+            suggested_action = "Treat the alignment as a hypothesis for follow-up, then compare initialization, derivatives, and formulation scaling."
+        ))
+    elseif successful_cases > 0
+        push!(findings, _finding(
+            "solver_trace_source_behavior_comparison_missing", "warning",
+            "The solver-trace summary does not contain source-behavior comparison evidence.",
+            Dict("summary_path" => path);
+            suggested_action = "Regenerate the trace campaign with the current source-domain comparison path."
+        ))
+    end
     nonfinite_iterate_bindings > 0 && push!(findings, _finding(
         "trusted_solver_iterate_nonfinite", "error",
         "The solver trace contains callback points with non-finite coordinates.",
@@ -697,6 +750,38 @@ function _validate_solver_trace(path, summary)
             "The solver-trace summary does not contain source-snapshot coverage fields.",
             Dict("summary_path" => path);
             suggested_action = "Regenerate solver-trace summaries with the current reproducibility schema."
+        ))
+    end
+    if lowercase(String(get(summary, "input_format", "bmopf"))) == "dss"
+        source_contract = get(summary, "source_behavior_contract", nothing)
+        source_contract isa AbstractDict || (source_contract = Dict())
+        contract_cases = _int(get(source_contract, "available_case_count", 0))
+        contract_cases < successful_cases && push!(findings, _finding(
+            "source_solver_trace_contract_coverage_incomplete", "warning",
+            "The source-preserving solver campaign does not retain a source-behavior contract for every successful case.",
+            Dict("summary_path" => path,
+                 "successful_case_count" => successful_cases,
+                 "source_behavior_contract_case_count" => contract_cases);
+            suggested_action = "Inspect source conversion metadata and rerun the paired campaign before interpreting solver/domain relationships."
+        ))
+        source_auxiliary = get(summary, "source_behavior_auxiliary", nothing)
+        source_auxiliary isa AbstractDict || (source_auxiliary = Dict())
+        auxiliary_cases = _int(get(source_auxiliary, "available_case_count", 0))
+        mutation_cases = _int(get(source_auxiliary, "mutation_case_count", 0))
+        auxiliary_cases < successful_cases && push!(findings, _finding(
+            "source_solver_trace_auxiliary_coverage_incomplete", "warning",
+            "The source-preserving solver campaign does not retain an isolated auxiliary-model record for every successful case.",
+            Dict("summary_path" => path,
+                 "successful_case_count" => successful_cases,
+                 "source_behavior_auxiliary_case_count" => auxiliary_cases);
+            suggested_action = "Regenerate the paired campaign with auxiliary-model materialization enabled."
+        ))
+        mutation_cases > 0 && push!(findings, _finding(
+            "source_solver_trace_auxiliary_mutated_model", "error",
+            "The source-preserving campaign recorded a mutation of a production model while materializing source-domain diagnostics.",
+            Dict("summary_path" => path,
+                 "source_behavior_auxiliary_mutation_case_count" => mutation_cases);
+            suggested_action = "Stop interpreting the campaign and isolate the mutation before rerunning."
         ))
     end
     schema_coverage = get(summary, "source_schema_coverage", nothing)
@@ -1699,6 +1784,14 @@ function _validate_multiconductor_smoke(path, summary)
                      get(get(summary, "aggregate", Dict()),
                          "source_behavior_auxiliary_solve_unavailable_case_count", 0));
             suggested_action = "Inspect the solver environment or rerun with source-behavior solver policy none for observation-only evidence."))
+    get(readiness, "source_behavior_auxiliary_solve_non_mutating", false) === true || push!(findings,
+        _finding("multiconductor_source_behavior_auxiliary_solve_mutated_model", "error",
+            "The auxiliary solve campaign changed the recorded production-model variable count.",
+            Dict("summary_path" => path,
+                 "source_behavior_auxiliary_solve_mutation_case_count" =>
+                     get(get(summary, "aggregate", Dict()),
+                         "source_behavior_auxiliary_solve_mutation_case_count", 0));
+            suggested_action = "Stop interpreting the campaign and isolate the mutation before rerunning solver-backed diagnostics."))
     get(readiness, "source_schema_mapping_complete", false) === true || push!(findings,
         _finding("multiconductor_source_schema_mapping_incomplete", "warning",
             "Source-only metadata is preserved, but blocking fields are not yet covered by explicit BMOPF mappings.",
