@@ -171,6 +171,10 @@ export SolverPostmortem
 export SolverResultAnalysis
 export SolverLogObservation
 export SolverIterationRecord
+export SolverIterationMetricSemantics
+export SolverMetricCoordinates
+export MetricCoordinatesUnknown, OriginalModelCoordinates
+export SolverScaledCoordinates, SolverDefinedCoordinates
 export SolverIterationSegment
 export SolverIterationSummary
 export IterationPointBinding

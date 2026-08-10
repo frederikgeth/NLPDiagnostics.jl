@@ -1548,7 +1548,15 @@ end
             "summarize_bmopf_solver_option_perturbations.jl"), String,
     )
     @test occursin("restoration_signature_changed", option_summary)
+    @test occursin("row_family_residual_changed", option_summary)
+    @test occursin("row_family_residual_peak_deltas", option_summary)
+    @test occursin("residual_comparison_tolerance", option_summary)
     @test occursin("baseline_comparisons_available", option_summary)
+    evidence_ledger_summary = read(
+        joinpath(benchmark_directory, "summarize_bmopf_evidence_ledger.jl"), String,
+    )
+    @test occursin("solver_option_row_family_residual_stability", evidence_ledger_summary)
+    @test occursin("solver_option_classification_sensitivity", evidence_ledger_summary)
     structural_family_correlation = read(
         joinpath(benchmark_directory,
             "correlate_bmopf_structural_family_omission.jl"), String,

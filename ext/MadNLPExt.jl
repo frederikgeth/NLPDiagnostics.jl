@@ -116,6 +116,16 @@ function (callback::_MadNLPTraceCallback)(solver, mode::MadNLP.AbstractUserCallb
         Float64(MadNLP.get_inf_compl(solver)),
         Float64(MadNLP.get_alpha(solver)),
         "",
+        barrier_parameter = Float64(MadNLP.get_mu(solver)),
+        regularization_size = Float64(MadNLP.get_del_w(solver)),
+        dual_step = Float64(MadNLP.get_alpha_z(solver)),
+        semantics = NLPDiagnostics.SolverIterationMetricSemantics(
+            objective = NLPDiagnostics.OriginalModelCoordinates,
+            primal_infeasibility = NLPDiagnostics.SolverDefinedCoordinates,
+            dual_infeasibility = NLPDiagnostics.SolverDefinedCoordinates,
+            complementarity = NLPDiagnostics.SolverDefinedCoordinates,
+            barrier_parameter = NLPDiagnostics.SolverDefinedCoordinates,
+        ),
     )
     NLPDiagnostics.capture_iteration!(callback.capture, record)
     return true

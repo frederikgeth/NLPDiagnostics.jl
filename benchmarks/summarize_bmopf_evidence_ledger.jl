@@ -77,6 +77,7 @@ function _source_type(report)
     startswith(version, "bmopf-persistence-summary-") && return "saved_result_persistence_summary"
     startswith(version, "bmopf-saved-result-profile-comparison-") && return "saved_result_profile_comparison"
     startswith(version, "bmopf-result-policy-matrix-summary-") && return "result_policy_matrix"
+    startswith(version, "bmopf-solver-option-perturbation-") && return "solver_option_perturbation"
     startswith(version, "bmopf-point-calibration-") && return "point_calibration"
     startswith(version, "bmopf-evidence-ledger-comparison-") && return "evidence_ledger_comparison"
     startswith(version, "bmopf-evidence-ledger-") && return "evidence_ledger"
@@ -318,6 +319,43 @@ function _append_dense_rank_evidence!(records, report, path)
     end
 end
 
+function _append_solver_option_evidence!(records, report, path)
+    _source_type(report) == "solver_option_perturbation" || return
+    readiness = _dict(get(report, "readiness", nothing))
+    get(readiness, "all_matrix_files_present", false) === true || return
+    get(readiness, "baseline_comparisons_available", false) === true || return
+    comparisons = [_dict(item) for item in get(report, "comparisons_vs_baseline", Any[])]
+    isempty(comparisons) && return
+    residual_changes = count(item -> get(item, "row_family_residual_changed", false) === true, comparisons)
+    restoration_changes = count(item -> get(item, "restoration_signature_changed", false) === true, comparisons)
+    classification_changes = count(item -> get(item, "classification_changed", false) === true, comparisons)
+    code = residual_changes == 0 ?
+        "solver_option_row_family_residual_stability" :
+        "solver_option_row_family_residual_changes"
+    _append_evidence_record!(records, report, path,
+        "$code|$(length(comparisons))", code, "option_perturbation_comparison";
+        confidence = "numerical",
+        observation = residual_changes == 0 ?
+            "Named row-family residual peaks remained materially stable under the bounded solver-option perturbations." :
+            "At least one named row-family residual peak changed materially under the bounded solver-option perturbations.",
+        evidence = Dict("comparison_count" => length(comparisons),
+            "residual_change_count" => residual_changes,
+            "restoration_signature_change_count" => restoration_changes,
+            "classification_change_count" => classification_changes,
+            "residual_comparison_tolerance" => get(report,
+                "residual_comparison_tolerance", nothing),
+            "readiness" => readiness))
+    classification_changes > 0 && _append_evidence_record!(records, report, path,
+        "solver_option_classification_sensitivity|$classification_changes",
+        "solver_option_classification_sensitivity", "option_perturbation_comparison";
+        confidence = "local",
+        observation = "A bounded solver-option perturbation changed at least one endpoint classification while the formulation and initialization policy were held fixed.",
+        evidence = Dict("comparison_count" => length(comparisons),
+            "classification_change_count" => classification_changes,
+            "restoration_signature_change_count" => restoration_changes,
+            "residual_change_count" => residual_changes))
+end
+
 function _append_multiconductor_point_evidence!(records, report, path)
     _source_type(report) == "multiconductor_point_comparison" || return
     readiness = _dict(get(report, "readiness", nothing))
@@ -492,6 +530,7 @@ function _extract_records(report, path)
         _append_solver_repeat_evidence!(records, report, path)
     end
     _append_dense_rank_evidence!(records, report, path)
+    _append_solver_option_evidence!(records, report, path)
     _append_multiconductor_point_evidence!(records, report, path)
     for (index, item_raw) in enumerate(get(report, "trace_comparison_reports", Any[]))
         item = _dict(item_raw)

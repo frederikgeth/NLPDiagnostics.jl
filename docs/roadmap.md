@@ -2519,3 +2519,46 @@ from “option-specific artifact” toward “initialization-sensitive local
 signature,” but it is still not a causal or physical proof. The next item is
 to cross the same option profiles with the transformer fixture and a broader
 budget grid.
+
+That cross-fixture option campaign is now complete. Baseline, adaptive-barrier,
+and monotone-barrier profiles were crossed with native and all-zero starts for
+the wye-delta transformer at budgets 5, 25, and 50: 18 matrix records and 12
+same-policy perturbation comparisons passed the artifact/readiness gates. The
+transformer retained no restoration records under any profile, start policy, or
+budget. Monotone-barrier was classification-stable; adaptive-barrier changed
+only the native five-iteration classification from a bounded solver failure to
+source-domain consistency, while leaving the regular phase signature and
+endpoint residual signature unchanged. At larger budgets the classifications
+converged across profiles; adaptive also shortened the captured trace by one
+record (native) or two records (zero start), which is algorithmic trajectory
+evidence rather than a formulation diagnosis. This establishes that the ZIP
+restoration signal is not reproduced by the transformer fixture, while keeping
+option sensitivity visible as a separate, bounded numerical observation. The
+next major item is to run the same residual-aware option cross on the transformer
+and ZIP fixtures, so family-level residual persistence—not just phase and
+classification—can be compared under algorithmic perturbations.
+
+The residual-aware option cross is also complete for ZIP and the transformer,
+with all three option profiles, both initialization policies, and budgets 5 and
+25: 24 observations and 16 perturbation-vs-baseline comparisons passed every
+readiness gate. No comparison changed restoration presence or any named
+row-family peak beyond the explicit combined tolerance (absolute `1e-10`,
+relative `1e-8`); machine-scale differences are therefore not promoted to
+findings. The only classification change was the transformer native five-step
+adaptive-barrier case, matching the trace-only campaign. Adaptive reduced the
+captured transformer trace length at 25 iterations, but did not change the
+material family-residual signature. This is a useful negative result: the
+current option sensitivity is phase/classification-level, not evidence of a
+specific row-family defect. The next major item is to expose this tolerance-aware
+family comparison in the renderer/evidence ledger and then repeat it on a small
+multiconductor benchmark before scaling to larger BMOPF decks.
+
+The tolerance-aware family comparison is now exposed in the evidence ledger.
+Option summaries are recognized as a first-class source type and emit separate
+records for material row-family residual stability and local classification
+sensitivity. On the completed residual campaign this produced one numerical
+stability record and one local sensitivity record: the named family residuals
+were stable, while one transformer five-step adaptive case changed endpoint
+classification. The next major item is the small multiconductor option/residual
+benchmark, using the BMOPFTools engine and port-family semantics before any
+large-corpus campaign.

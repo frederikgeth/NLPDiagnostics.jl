@@ -20,6 +20,44 @@ function _row_peak(trace)
                 min(length(peak), 5))]
 end
 
+function _row_peak_map(trace)
+    peaks = Dict{String,Float64}()
+    for raw_row in get(_dict(trace), "rows", Any[])
+        for (family, raw_family) in _dict(get(_dict(raw_row), "families", nothing))
+            value = get(_dict(raw_family), "max_feasibility_violation", nothing)
+            value isa Number && isfinite(Float64(value)) &&
+                (peaks[family] = max(get(peaks, family, 0.0), Float64(value)))
+        end
+    end
+    return peaks
+end
+
+function _peak_deltas(base, perturbed)
+    families = union(keys(base), keys(perturbed))
+    deltas = Dict{String,Any}[]
+    for family in families
+        baseline = get(base, family, 0.0)
+        changed = get(perturbed, family, 0.0)
+        delta = changed - baseline
+        isfinite(delta) || continue
+        material = abs(delta) > 1.0e-10 + 1.0e-8 * max(abs(baseline), abs(changed))
+        push!(deltas, Dict{String,Any}(
+            "family" => family,
+            "baseline_peak" => baseline,
+            "perturbed_peak" => changed,
+            "delta" => delta,
+            "absolute_delta" => abs(delta),
+            "material_change" => material,
+        ))
+    end
+    sort!(deltas; by = item -> (-item["absolute_delta"], item["family"]))
+    return deltas
+end
+
+function _material_peak_change(base, perturbed)
+    any(item["material_change"] for item in _peak_deltas(base, perturbed))
+end
+
 function _record(entry, profile, options, policy)
     summary_path = get(entry, "summary_path", nothing)
     summary_path isa AbstractString && isfile(summary_path) || return nothing
@@ -50,6 +88,7 @@ function _record(entry, profile, options, policy)
         "final_dual_infeasibility" => final_dual,
         "endpoint_residual_failure_signature" => endpoint_failure,
         "row_family_residual_status" => get(residual, "status", "unavailable"),
+        "row_family_residual_peak_map" => _row_peak_map(residual),
         "largest_family_peak_residuals" => _row_peak(residual),
     )
 end
@@ -104,13 +143,24 @@ function main()
             "trace_record_count_delta" => observation["trace_record_count"] isa Number &&
                 base["trace_record_count"] isa Number ? observation["trace_record_count"] -
                 base["trace_record_count"] : nothing,
+            "row_family_residual_changed" => _material_peak_change(
+                base["row_family_residual_peak_map"],
+                observation["row_family_residual_peak_map"]),
+            "row_family_residual_peak_deltas" => _peak_deltas(
+                base["row_family_residual_peak_map"],
+                observation["row_family_residual_peak_map"]),
             "baseline" => base,
             "perturbed" => observation,
         ))
     end
     output = Dict{String,Any}(
-        "report_version" => "bmopf-solver-option-perturbation-v1",
+        "report_version" => "bmopf-solver-option-perturbation-v2",
         "manifest" => manifest_path,
+        "cases" => sort!(unique(String[item["case"] for item in observations])),
+        "solvers" => ["Ipopt"],
+        "budgets" => get(manifest, "budgets", nothing),
+        "option_profiles" => get(manifest, "options", Any[]),
+        "initialization_policies" => get(manifest, "policies", Any[]),
         "observations" => observations,
         "comparisons_vs_baseline" => comparisons,
         "missing_records" => unique(missing),
@@ -121,6 +171,11 @@ function main()
         ),
         "interpretation" =>
             "Option perturbations test persistence of observed signatures under controlled solver changes; they do not establish causality or formulation correctness.",
+        "residual_comparison_tolerance" => Dict{String,Any}(
+            "absolute" => 1.0e-10,
+            "relative" => 1.0e-8,
+            "interpretation" => "Family peak changes below this combined tolerance are treated as floating-point or evaluation noise, not a material algorithmic difference.",
+        ),
     )
     write(output_path, JSON.json(output))
     println("wrote solver-option perturbation summary to $output_path")

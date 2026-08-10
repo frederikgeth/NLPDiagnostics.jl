@@ -1630,3 +1630,13 @@ keeping the matrix budget authoritative. The companion
 `benchmarks/summarize_bmopf_solver_option_perturbations.jl` compares each
 perturbation to its same-policy baseline and reports changes in classification,
 restoration records, endpoint residual signatures, and trace length.
+When row-residual capture is enabled, it also retains a complete per-family
+peak map and ranked peak deltas. Family changes are marked only when they exceed
+the combined absolute/relative comparison tolerance recorded in the report;
+machine-scale evaluator noise is kept as evidence but is not promoted to a
+material algorithmic finding.
+The resulting option summary is accepted by
+`benchmarks/summarize_bmopf_evidence_ledger.jl`, which emits separate
+numerical evidence for row-family residual stability and local evidence for
+classification sensitivity. This keeps an algorithmic perturbation result
+visible without turning it into a formulation defect claim.

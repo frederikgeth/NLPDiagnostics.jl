@@ -1316,6 +1316,18 @@ function iteration_trace_data(trace::SolverIterationTrace)
         "dual_infeasibility" => record.dual_infeasibility,
         "complementarity" => record.complementarity,
         "primal_step" => record.primal_step,
+        "barrier_parameter" => record.barrier_parameter,
+        "step_norm" => record.step_norm,
+        "regularization_size" => record.regularization_size,
+        "dual_step" => record.dual_step,
+        "line_search_trials" => record.line_search_trials,
+        "metric_semantics" => Dict{String,Any}(
+            "objective" => string(record.semantics.objective),
+            "primal_infeasibility" => string(record.semantics.primal_infeasibility),
+            "dual_infeasibility" => string(record.semantics.dual_infeasibility),
+            "complementarity" => string(record.semantics.complementarity),
+            "barrier_parameter" => string(record.semantics.barrier_parameter),
+        ),
         "text" => record.text,
     ) for record in trace.records]
     segment_data = [Dict{String,Any}(
@@ -1338,10 +1350,25 @@ function iteration_trace_data(trace::SolverIterationTrace)
         "point_provenance_source" => binding.point.provenance.source,
         "point_provenance_complete" => binding.point.provenance.complete,
     ) for binding in trace.bindings]
+    telemetry_fields = (
+        :barrier_parameter,
+        :step_norm,
+        :regularization_size,
+        :dual_step,
+        :line_search_trials,
+    )
+    telemetry_coverage = Dict{String,Any}(
+        string(field) => count(
+            record -> !isnothing(getfield(record, field)),
+            trace.records,
+        ) for field in telemetry_fields
+    )
     return Dict{String,Any}(
+        "schema_version" => "nlpdiagnostics-iteration-trace-v2",
         "record_count" => length(trace.records),
         "segment_count" => length(trace.segments),
         "binding_count" => length(trace.bindings),
+        "telemetry_coverage" => telemetry_coverage,
         "records" => record_data,
         "segments" => segment_data,
         "bindings" => binding_data,

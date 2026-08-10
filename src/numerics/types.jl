@@ -1932,7 +1932,54 @@ struct SolverLogObservation
     text::String
 end
 
-"""One complete, numerically parsed solver iteration-log row."""
+"""Coordinate/scaling convention attached to one solver-reported metric."""
+@enum SolverMetricCoordinates::UInt8 begin
+    MetricCoordinatesUnknown = 0
+    OriginalModelCoordinates = 1
+    SolverScaledCoordinates = 2
+    SolverDefinedCoordinates = 3
+end
+
+"""
+Typed semantics for the principal numerical columns in a solver iteration row.
+
+The fields describe coordinate/scaling provenance, not accuracy. A solver may
+report the objective in original model units while reporting infeasibility or
+barrier quantities in an internally scaled system. Unknown semantics remain
+explicit rather than being inferred from a numeric value.
+"""
+struct SolverIterationMetricSemantics
+    objective::SolverMetricCoordinates
+    primal_infeasibility::SolverMetricCoordinates
+    dual_infeasibility::SolverMetricCoordinates
+    complementarity::SolverMetricCoordinates
+    barrier_parameter::SolverMetricCoordinates
+end
+
+function SolverIterationMetricSemantics(;
+    objective::SolverMetricCoordinates = MetricCoordinatesUnknown,
+    primal_infeasibility::SolverMetricCoordinates = MetricCoordinatesUnknown,
+    dual_infeasibility::SolverMetricCoordinates = MetricCoordinatesUnknown,
+    complementarity::SolverMetricCoordinates = MetricCoordinatesUnknown,
+    barrier_parameter::SolverMetricCoordinates = MetricCoordinatesUnknown,
+)
+    return SolverIterationMetricSemantics(
+        objective,
+        primal_infeasibility,
+        dual_infeasibility,
+        complementarity,
+        barrier_parameter,
+    )
+end
+
+"""
+One solver iteration observation.
+
+The common fields support parsed logs and public solver callbacks. Optional
+algorithm telemetry is retained when the source exposes it. `semantics`
+records whether the main metrics use original model coordinates, solver-scaled
+coordinates, solver-defined coordinates, or an unknown convention.
+"""
 struct SolverIterationRecord
     format::Symbol
     line::Int
@@ -1943,7 +1990,51 @@ struct SolverIterationRecord
     dual_infeasibility::Float64
     complementarity::Union{Nothing,Float64}
     primal_step::Union{Nothing,Float64}
+    barrier_parameter::Union{Nothing,Float64}
+    step_norm::Union{Nothing,Float64}
+    regularization_size::Union{Nothing,Float64}
+    dual_step::Union{Nothing,Float64}
+    line_search_trials::Union{Nothing,Int}
+    semantics::SolverIterationMetricSemantics
     text::String
+end
+
+function SolverIterationRecord(
+    format::Symbol,
+    line::Integer,
+    iteration::Integer,
+    phase::Symbol,
+    objective::Real,
+    primal_infeasibility::Real,
+    dual_infeasibility::Real,
+    complementarity::Union{Nothing,Real},
+    primal_step::Union{Nothing,Real},
+    text::AbstractString;
+    barrier_parameter::Union{Nothing,Real} = nothing,
+    step_norm::Union{Nothing,Real} = nothing,
+    regularization_size::Union{Nothing,Real} = nothing,
+    dual_step::Union{Nothing,Real} = nothing,
+    line_search_trials::Union{Nothing,Integer} = nothing,
+    semantics::SolverIterationMetricSemantics = SolverIterationMetricSemantics(),
+)
+    return SolverIterationRecord(
+        format,
+        Int(line),
+        Int(iteration),
+        phase,
+        Float64(objective),
+        Float64(primal_infeasibility),
+        Float64(dual_infeasibility),
+        isnothing(complementarity) ? nothing : Float64(complementarity),
+        isnothing(primal_step) ? nothing : Float64(primal_step),
+        isnothing(barrier_parameter) ? nothing : Float64(barrier_parameter),
+        isnothing(step_norm) ? nothing : Float64(step_norm),
+        isnothing(regularization_size) ? nothing : Float64(regularization_size),
+        isnothing(dual_step) ? nothing : Float64(dual_step),
+        isnothing(line_search_trials) ? nothing : Int(line_search_trials),
+        semantics,
+        String(text),
+    )
 end
 
 """

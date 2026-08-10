@@ -135,6 +135,17 @@ function NLPDiagnostics.ipopt_iteration_trace_capture(
             nothing,
             alpha_pr,
             "",
+            barrier_parameter = mu,
+            step_norm = d_norm,
+            regularization_size = regularization_size,
+            dual_step = alpha_du,
+            line_search_trials = Int(ls_trials),
+            semantics = NLPDiagnostics.SolverIterationMetricSemantics(
+                objective = NLPDiagnostics.OriginalModelCoordinates,
+                primal_infeasibility = NLPDiagnostics.SolverScaledCoordinates,
+                dual_infeasibility = NLPDiagnostics.SolverScaledCoordinates,
+                barrier_parameter = NLPDiagnostics.SolverDefinedCoordinates,
+            ),
         )
         point = if capture_points
             values = [MOI.get(model, MOI.CallbackVariablePrimal(model), variable)
