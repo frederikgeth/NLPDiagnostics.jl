@@ -9,6 +9,17 @@
   base, and semantic-registry APIs. They do not inspect private builder state
   or infer component semantics from variable names.
 
+The scaling adapter also consumes BMOPFTools' semantic coordinate and residual
+blocks. It currently has engine-verified physical contracts for ordinary AC
+line/load models, single-phase and wye-delta transformers, general n-winding
+transformers, and an AC/DC converter tie. Transformer coil-power auxiliaries
+created during constraint construction receive stable public registry keys;
+they are not recovered from generated JuMP names. Normalized thermal and
+apparent-power rows are explicitly dimensionless even though their coordinate
+blocks retain current or power units. `bmopf_block_scaling_covariance_report`
+requires complete point, set, residual, and sparse-Jacobian agreement before it
+labels two policies physically equivalent.
+
 ## Terminal coordinates and bases
 
 For staged IVR models, `bmopf_terminal_port_metadata`,
@@ -1202,6 +1213,40 @@ latter deliberately reports observations instead of a score. A policy with a
 smaller local proxy has not thereby been shown to converge faster or more
 robustly.
 
+`bmopf_transport_scaling_point` holds the physical state fixed while changing
+coordinates. It uses the complete public semantic map, returns a round-trip
+certificate, and labels the target coordinates as `TransportedPoint`; callers
+must evaluate that point in the target model before claiming feasibility or
+covariance. `bmopf_physical_feasibility_report` then applies exact block,
+residual, or declared-quantity tolerances in physical residual coordinates.
+Missing tolerance coverage fails acceptance, and the report explicitly does
+not equate solver-internal scaled tolerances with physical tolerances.
+
+`bmopf_physical_solver_kkt_report` closes the scalar-bound endpoint contract
+for a solved BMOPF model. It builds the authoritative physical map, verifies
+that the numerical evaluation matches the selected public solver result, and
+reports physical feasibility, stationarity, dual feasibility, and
+complementarity. Feasibility tolerances may be expanded by BMOPFTools residual
+quantity. Stationarity, dual, and complementarity tolerances stay explicit
+because their compound units also depend on objective semantics. Setting
+`semantic_blocks=false` selects the exact positive-diagonal scalar-side route;
+coupled blocks require a supported full dual/set transformation contract.
+
+The report also contains `semantic_attribution`. Primal residual blocks are
+mapped to public BMOPFTools constraint families, stationarity coordinates to
+public variable families, and complementarity sides to their exact scalar-row
+families. Each family retains record counts, pass/fail coverage, and maxima for
+the relevant residuals. A transformed block spanning several registry
+families receives an explicit `mixed[...]` label. Unregistered rows remain
+visible but make `interpretation_qualified=false`.
+
+`bmopf_solver_trace_physical_endpoint_data` combines this attributed endpoint
+with the unchanged native solver trace and generic solver-result profile. It is
+the preferred artifact for matched nondimensionalisation runs. The native
+trace and physical endpoint are not numerically equated; the artifact records
+their different roles and the fact that the last callback row can precede the
+public final result.
+
 The first truth-labelled integration fixture compares classic 1 MVA per-unit
 coordinates with a custom 500 V / 200 kVA policy. All physical-coordinate,
 function, set, violation, and Jacobian checks pass. The custom coordinates
@@ -1213,14 +1258,47 @@ solver merit unresolved. A negative control changes one physical line
 resistance and is rejected through the physical-Jacobian check despite complete
 semantic alignment.
 
-This remains a local diagonal covariance test, not a full model-equivalence
-certificate. The current contract covers the AC bus, line, switch, source,
-load, generator, ground, and supported IBR families exercised by the fixture.
-Transformer/n-winding cross-side current scales, coupled/non-diagonal set
-transforms, and several DC residual families remain explicit coverage gaps.
-Before attributing solver behavior to scaling, a campaign must also hold
-physical initialization, perturbations, termination tolerances, and endpoint
-KKT interpretation fixed.
+This remains a local covariance test, not a full model-equivalence certificate.
+The current contract covers the AC bus, line, switch, source, load, generator,
+ground, supported IBR, transformer/n-winding, and exercised DC converter/network
+families. The formulation breadth is regression-tested separately. A solved
+line/load fixture now transports one classic-per-unit Ipopt endpoint to SI and
+two custom policies; all four pass physical residual, Jacobian, and local-rank
+covariance. Before attributing solver behavior to scaling, campaigns must still
+hold perturbations and physical endpoint KKT criteria fixed. Scalar-side
+solver dual and complementarity semantics are now implemented; general
+coupled-cone dual transformations remain outside the current contract.
+
+### Authoritative semantic block covariance
+
+BMOPFTools now declares native paired coordinates and residuals through its
+public `OpfSemanticBlock` registry. `bmopf_semantic_block_scaling_map` consumes
+those declarations and assembles a complete `SemanticBlockScalingMap`; model
+coordinates not covered by a valid declaration remain explicit singleton
+blocks. The adapter reports applied and skipped declarations, singleton
+coverage, and local reference-scale provenance. It never groups coordinates by
+JuMP names.
+
+`bmopf_block_scaling_covariance_report` applies the common-physical-coordinate
+gate to the declared blocks, while
+`bmopf_block_scaling_coordinate_geometry_report` compares raw local geometry
+only after that gate passes. The first line/load truth fixture applies ten
+two-coordinate variable blocks and eight two-row residual blocks. It passes
+classic-versus-custom covariance and rejects a changed line resistance.
+
+Residual-set semantics are deliberately exact. KCL and other equations whose
+actual JuMP sets are equality to zero use `ZeroEqualitySetContract`. Source
+voltage and load power equations with nonzero equality values use
+`ScalarBoundsSetContract`. Rotating the latter would produce a coupled affine
+set; until that image is represented explicitly, the generic block gate marks
+it unavailable rather than treating it as a zero residual or a rotated box.
+
+Local physical ratings in the engine declaration (currently including
+per-phase load nominal apparent power and supported IBR nameplate power) are
+candidate nondimensionalisation references with sources. They do not alter the
+model-to-SI map. This separation lets experiments ask whether a device-local
+row reference improves numerical work while the physical covariance gate
+continues to test that the mathematical model is unchanged.
 
 The same evidence is available directly from a staged context through
 `NLPDiagnostics.bmopf_source_schema_report(context)`. It is attached to both

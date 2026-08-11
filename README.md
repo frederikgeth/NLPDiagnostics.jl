@@ -34,6 +34,20 @@ read-only snapshot through the public MOI model API and reports:
 - `NLPBlock` and nonlinear-oracle capability adapters;
 - operating-point domain and non-finite evaluation findings; and
 - Jacobian row/column scale summaries;
+- semantic block-linear physical covariance for diagonal and complex-pair
+  transformations, with explicit set contracts, orthogonal singular-value
+  invariance checks, and guarded multiplier/stationarity/Hessian/KKT mapping;
+- round-trip-certified transport of one physical state between scaling
+  policies, with distinct transported-point provenance;
+- serializable native solver-trace plus physical-endpoint artifacts that keep
+  coordinate semantics separate instead of comparing unlike residuals;
+- per-residual physical feasibility, per-coordinate stationarity, and
+  scalar-side complementarity contracts using point-verified public MOI
+  solver duals, with coupled-cone dual transforms kept explicitly unavailable;
+- BMOPFTools-backed authoritative real/imaginary and active/reactive block
+  maps, including local rating provenance, singleton coverage, and positive
+  plus changed-physics covariance controls, with registry-family attribution
+  of physical KKT residuals;
 - guarded local Jacobian rank, conditioning, and nullspace evidence; and
 - checked sparse/MOI Jacobian product operators with explicit product
   provenance for large-model numerical-method experiments; and

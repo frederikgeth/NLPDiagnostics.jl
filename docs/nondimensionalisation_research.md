@@ -35,7 +35,7 @@ These layers must not be merged into one "conditioning score".
 | Candidate contribution | Current status | Required evidence before promotion |
 |---|---|---|
 | Semantic, per-residual-block physical scaling for multiconductor NLP models | Hypothesis | Complete scale contracts; physical covariance; matched solver campaigns; robustness across operating points and case families |
-| Block-linear covariance for real representations of complex scalings | Design target | Exact variable, residual, set, derivative, multiplier, Hessian, and KKT transformation tests with negative controls |
+| Block-linear covariance for real representations of complex scalings | Implemented; small truth gate | Extend set/formulation coverage, side-specific complementarity, and BMOPFTools semantic-block declarations |
 | Separation of physical scaling, algebraic equilibration, and algorithm-aware rotation | Strong conceptual candidate | Demonstrate experimentally that the three mechanisms produce distinguishable signatures and outcomes |
 | Complex rotations as a way to improve the exact full-Jacobian 2-norm condition number | Rejected for complete unit-magnitude orthogonal transformations | Retain the singular-value invariance proof and regression tests; apparent counterexamples indicate an incomplete transformation or measurement issue |
 | Complex rotations for block decoupling and preconditioner design | Hypothesis | Invariant full singular spectrum together with reduced declared cross-block coupling and improved matched algorithmic work |
@@ -203,17 +203,31 @@ by comparing different physical starts or stopping tolerances.
 
 ## Immediate implementation sequence
 
-1. Introduce a generic semantic block-linear scaling map, with diagonal scaling
-   as its one-dimensional special case.
-2. Add set-transform contracts and covariance for multipliers, stationarity,
-   complementarity, Hessians, and KKT systems.
-3. Extend BMOPFTools metadata with paired residual blocks and local physical
-   ratings without inferring semantics from JuMP names.
-4. Build small line, transformer, delta/wye, neutral, and converter truth cases.
-5. Run magnitude-only fixed-policy experiments.
-6. Run phase-only singular-invariance and block-coupling experiments.
-7. Run combined and matched solver experiments only after those gates pass.
-8. Treat QC/RQC/TRQC experiments as a separate approximation-strength study.
+1. **Implemented:** introduce a generic semantic block-linear scaling map, with
+   diagonal scaling as its one-dimensional special case.
+2. **Substantially implemented:** add set-transform contracts and covariance
+   for multipliers, stationarity, Hessians, and KKT systems. Zero equalities,
+   positive-diagonal boxes, and conformal Euclidean balls are covered. Public
+   solver endpoint duals now close scalar-side complementarity; general
+   coupled-cone dual transforms remain open.
+3. **Implemented for native pairs:** BMOPFTools metadata exposes paired
+   coordinate/residual blocks and selected local physical ratings without
+   inferring semantics from JuMP names. Nonzero equality sets remain scalar
+   bounds rather than being falsely treated as origin residuals.
+4. **Implemented for five engine-backed formulation classes:** validate a
+   classic-versus-custom policy through the engine declarations for line/load,
+   single-phase transformer, unbalanced wye-delta transformer, three-winding
+   transformer, and an AC/DC converter tie. Every class has a changed-physics
+   negative control.
+5. **Implemented for the small line/load truth case:** solve once and transport
+   the shared physical state through SI, classic, and two custom policies.
+6. **Implemented for scalar-bound endpoints:** physical primal, stationarity,
+   dual-feasibility, and complementarity acceptance are explicit and tied to a
+   point-verified public MOI dual snapshot.
+7. Run magnitude-only fixed-policy experiments.
+8. Run phase-only singular-invariance and block-coupling experiments.
+9. Run combined and matched solver experiments only after those gates pass.
+10. Treat QC/RQC/TRQC experiments as a separate approximation-strength study.
 
 ## Current publication boundary
 
@@ -225,3 +239,85 @@ algorithm-aware complex rotation, and relaxation changes.
 No claim is yet made that local bases improve solver performance, that one policy
 dominates classic per-unit, or that complex rotations improve exact NLP
 conditioning. Those remain experimental questions.
+
+The first block-covariance truth fixture now validates arbitrarily positioned
+two-coordinate variable and residual rotations, objective scaling, sparse
+Jacobian covariance, multiplier inverse-transpose mapping, stationarity,
+Hessian-of-the-Lagrangian covariance, and the physical saddle-point KKT matrix.
+It also retains three negative/coverage controls: incorrect multipliers fail,
+rotated scalar boxes are unavailable, and non-orthogonal magnitude blocks do not
+claim singular-value invariance. This promotes the transformation machinery to
+implemented status, not the scaling-performance hypotheses.
+
+The first engine-backed fixture now closes the same gate through BMOPFTools'
+public `OpfSemanticBlock` registry. Classic 1 MVA per-unit and custom 500 V /
+200 kVA coordinates agree in common physical block coordinates for points,
+constraint functions, sets, violations, and sparse Jacobians. A changed line
+resistance fails the Jacobian gate. Load nominal apparent power is preserved as
+a provenance-bearing candidate reference scale; it is not silently applied as
+a row scaling. This is the first end-to-end evidence that local ratings can be
+studied without confusing a unit conversion, a model mutation, and an
+algebraic equilibration policy.
+
+The formulation-breadth gate now covers four additional small engine-backed
+cases. It distinguishes transformer-side voltage and current units, referred
+n-winding ampere-turn and leakage residuals, delta/wye incidence, coil-power
+auxiliaries, AC/DC converter power balance, resistive-versus-ideal DC branch
+residual units, and DC KCL. Positive two-norm limits are recorded as normalized
+dimensionless rows because BMOPFTools stamps `(a/limit)^2+(b/limit)^2 <= 1`;
+their underlying coordinates retain physical current or power units. Treating
+those rows as current-squared or power-squared was a representational error
+found by constraint-set covariance and is now a regression-tested dead end.
+
+All four new classic-versus-custom comparisons pass point,
+constraint-function, set, violation, and sparse physical-Jacobian covariance.
+A 20% change to the relevant transformer winding or DC-line resistance fails
+the Jacobian gate. This expands confidence in the comparison machinery, but it
+still does not show that any scaling policy improves a solver.
+
+### Shared physical states and stopping semantics
+
+`transport_scaling_point` is the experiment boundary for holding the physical
+state fixed while changing model coordinates. It converts the source point to
+declared physical semantic coordinates, aligns keys, applies the target inverse
+map, and checks the reconstructed physical state. Its output is intentionally a
+`TransportedPoint`, not a target `SolverResultPoint`. A scaling experiment must
+still evaluate that point in the target model and pass physical covariance.
+
+The first solved-state experiment uses one Ipopt endpoint from the classic
+per-unit line/load fixture and transports it to SI plus two custom policies.
+All four coordinate systems agree on physical residuals and sparse physical
+Jacobians within the declared tolerances. This is necessary reproducibility
+evidence, not evidence that any policy is faster or more robust.
+
+Stopping tolerances are dimensional contracts, not solver-option aliases.
+`physical_feasibility_report` accepts per-residual or per-block tolerances; its
+BMOPFTools adapter can expand them from physical quantities. It never computes
+a maximum across unlike voltage, current, power, and squared-residual units.
+`physical_stationarity_report` likewise requires tolerances per physical
+variable coordinate and an explicit model-coordinate multiplier
+representative.
+
+The complete physical KKT endpoint report now reads a public solver dual only
+after verifying that the derivative evaluation and selected primal result are
+the same point. MOI greater-than and less-than signs determine lower and upper
+sides exactly; interval constraints retain a documented minimum-support sign
+split of the aggregate dual rather than an activity-tolerance guess. Positive
+diagonal residual maps transform each side's slack and multiplier inversely,
+so their product is invariant. Rotated boxes and general coupled cones remain
+unavailable pending a full dual-cone contract.
+
+Matched solver campaigns must retain both layers:
+
+1. native solver options and native scaled residual traces; and
+2. an independently evaluated physical endpoint contract with declared units,
+   tolerances, multiplier source, and coverage.
+
+Only the second layer makes endpoint quality comparable across coordinate
+policies. Identical Ipopt or MadNLP tolerance strings do not.
+
+This pairing is now implemented by `solver_trace_physical_endpoint_data` and
+the attributed BMOPF wrapper `bmopf_solver_trace_physical_endpoint_data`.
+BMOPF family maxima make it possible to ask which equation or variable family
+controls physical endpoint quality. They remain attribution, not causality:
+the experimental design must still vary one scaling intervention at a time.

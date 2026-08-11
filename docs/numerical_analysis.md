@@ -1650,6 +1650,101 @@ coverage evidence. Even a qualified result is local linear-algebra evidence:
 solver convergence, robustness, KKT accuracy, and total work require matched
 solver experiments at physically equivalent initial and endpoint states.
 
+### Semantic block-linear covariance
+
+`SemanticLinearBlock` generalizes one-dimensional scales to small nonsingular
+blocks with explicit positions in the model vector and semantic output keys.
+`SemanticConstraintBlock` attaches a mathematical set contract to each residual
+block. `SemanticBlockScalingMap` assembles these declarations into sparse
+whole-model forward and inverse maps without forming a dense whole-model
+inverse. A `DiagonalScalingMap` can be lifted into this representation, while
+the established diagonal-report method and schema remain unchanged.
+
+The first supported set contracts are:
+
+- `ZeroEqualitySetContract`, which permits any nonsingular transformation of
+  the complete equality block;
+- `ScalarBoundsSetContract`, whose physical image is supported only under a
+  positive diagonal block transform; and
+- `EuclideanBallSetContract`, whose physical image is supported under a
+  conformal rotation-and-uniform-scale transform.
+
+`UnsupportedSetContract` and unsupported images are explicit coverage evidence.
+In particular, rotating a rectangular `P/Q` box does not silently produce a new
+independent box. Its set and feasibility covariance are unavailable, blocking
+the equivalence gate even when point, function, and Jacobian covariance pass.
+
+The block overload of `scaling_covariance_report` maps points, residuals,
+objective gradients, and sparse Jacobians to physical coordinates. Its geometry
+report adds a truth check for complete unit-magnitude orthogonal transformations:
+the raw full-Jacobian singular values must be invariant within tolerance. This
+check is deliberately separate from row/column norms, sparsity, and later
+block-coupling metrics.
+
+`scaling_kkt_covariance_report` maps supplied multiplier representatives by the
+inverse-transpose residual transformation and compares physical objective
+weights, stationarity, Hessians-of-the-Lagrangian, and saddle-point KKT matrices.
+Multiplier and stationarity evidence remain sparse-capable. Dense Hessian/KKT
+comparison is guarded by `max_dense_entries`; a guard breach is unavailable
+rather than an implicit allocation. General inequality complementarity remains
+unavailable because `HessianEvaluation` does not carry side-specific duals.
+The report establishes covariance of supplied local objects, not optimality,
+multiplier uniqueness, or KKT nonsingularity.
+
+### Shared points and physical endpoint acceptance
+
+`transport_scaling_point` maps an `EvaluationPoint` through the common physical
+variable coordinates of two scaling maps. It aligns semantic keys, applies the
+target inverse, and retains a round-trip certificate. The resulting point has
+`TransportedPoint` provenance: it is complete when the source was complete,
+but it is not an observed solver result in the target model. Evaluate it again
+before using target residuals or derivatives.
+
+`physical_feasibility_report` evaluates supported physical set violations and
+requires an absolute tolerance for every residual or block. A global default is
+possible but is recorded as a uniform-tolerance assumption; it is usually
+inappropriate across mixed units. The report does not aggregate unlike
+residuals into a maximum or score.
+
+`physical_stationarity_report` accepts a complete row-aligned multiplier vector
+in the model Lagrangian convention, transforms multipliers and stationarity to
+physical coordinates, and applies per-variable tolerances. It does not recover
+multipliers or infer their solver convention.
+
+`solver_dual_snapshot` is the separate solver-evidence boundary. It first
+requires the `NumericalEvaluation` coordinates to match the selected public
+`VariablePrimal` result, then reads ordinary `ConstraintDual` values and
+`NLPBlockDual` values in the evaluator's exact row order. MOI's dual is retained
+with an explicit sign conversion: NLPDiagnostics' row multiplier is
+`-MOI.ConstraintDual`, while the objective weight is `+1` for minimization,
+`-1` for maximization, and zero for feasibility sense. Greater-than rows expose
+lower multipliers, less-than rows expose upper multipliers, and interval rows
+record the minimum-support sign split of MOI's aggregate dual. That split is a
+representative, not evidence of multiplier uniqueness.
+
+The solver-snapshot overload of `physical_kkt_acceptance_report` combines
+physical primal feasibility, stationarity, scalar-side dual feasibility, and
+complementarity. Positive diagonal scalar-bound transforms are supported and
+preserve the multiplier-times-slack product. A rotated box or general coupled
+cone remains unavailable until its full dual-cone transformation contract is
+implemented. The older caller-supplied multiplier overload remains
+conservative and concludes only for equality-only models because it has no
+side provenance.
+
+`solver_trace_physical_endpoint_data` is the experiment artifact boundary. It
+serializes a `SolverTraceProfileRun` unchanged beside the point-verified
+physical KKT endpoint. The last captured solver row is retained for convenient
+inspection, but it is not asserted to be the public final result. Native and
+physical residuals are deliberately juxtaposed rather than subtracted or
+ratioed: each native iteration record retains its own coordinate semantics,
+while the endpoint report retains the caller's dimensional tolerances. This is
+the artifact to compare across scaling policies.
+
+These endpoint contracts are independent of solver-native stopping metrics.
+Matched scaling experiments should preserve both the native trace and the
+physical endpoint reports rather than treating identical option strings as
+identical physical accuracy.
+
 ## Sparse-QR rank resource budgets
 
 `sparse_qr_rank_estimate` records independent `max_input_nonzeros` and

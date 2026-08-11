@@ -33,6 +33,26 @@ end
 NLPDiagnostics.solver_result_point(model::JuMP.Model; kwargs...) =
     NLPDiagnostics.solver_result_point(JuMP.backend(model); kwargs...)
 
+NLPDiagnostics.solver_dual_snapshot(
+    model::JuMP.Model,
+    evaluation::NLPDiagnostics.NumericalEvaluation;
+    kwargs...,
+) = NLPDiagnostics.solver_dual_snapshot(
+    JuMP.backend(model), evaluation; kwargs...,
+)
+
+NLPDiagnostics.solver_trace_physical_endpoint_data(
+    model::JuMP.Model,
+    run::NLPDiagnostics.SolverTraceProfileRun,
+    map::Union{
+        NLPDiagnostics.DiagonalScalingMap,
+        NLPDiagnostics.SemanticBlockScalingMap,
+    };
+    kwargs...,
+) = NLPDiagnostics.solver_trace_physical_endpoint_data(
+    JuMP.backend(model), run, map; kwargs...,
+)
+
 NLPDiagnostics.ipopt_iteration_trace_capture(model::JuMP.Model; kwargs...) =
     NLPDiagnostics.ipopt_iteration_trace_capture(JuMP.backend(model); kwargs...)
 

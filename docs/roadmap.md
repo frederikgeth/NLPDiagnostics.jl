@@ -81,9 +81,10 @@ sets and violations as well as functions and derivatives, and blocks geometry
 comparison when coverage or covariance is incomplete. A small classic-versus-
 custom fixture passes every physical gate, while a changed physical line
 coefficient is rejected. Remaining before corpus-wide comparative scaling
-claims are trusted: extend the explicit contracts to transformer/n-winding and
-DC families, map a shared feasible physical state into every policy, and run
-matched solver/tolerance/KKT experiments.
+claims are trusted: extract side-specific endpoint duals, complete physical
+complementarity/KKT acceptance, and run matched solver campaigns under those
+contracts. Transformer/n-winding/DC coverage and four-policy shared-state
+transport are completed in the later checkpoints below.
 
 ### Status at the review boundary
 
@@ -3153,9 +3154,11 @@ The next ordered major items are:
 2. define physical semantics for solver feasibility, complementarity, and KKT
    tolerances so matched Ipopt/MadNLP traces compare equivalent stopping tests,
    not merely identical option strings;
-3. extend explicit scale contracts to transformer and n-winding currents and
-   residuals, then to AC/DC converter and DC-network families, with one positive
-   and one physical-parameter negative control per formulation class;
+3. **Completed for the current truth fixtures:** explicit scale contracts now
+   cover transformer and n-winding coordinates/residuals plus the AC/DC
+   converter and DC-network families exercised by the converter-tie fixture.
+   Single-phase, wye-delta, n-winding, and converter cases each have a positive
+   covariance test and a changed-resistance negative control;
 4. add semantic row/column-family attribution to the now sparse-capable
    coordinate-geometry summary, preserving unavailable dense spectral evidence;
    and
@@ -3167,3 +3170,178 @@ from small truth-labelled cases. It is not yet ready to rank policies on the
 large multiconductor corpus: the remaining work is concentrated in shared
 feasible-point mapping, stopping-test semantics, and formulation-family
 coverage rather than another generic diagnostic feature wave.
+
+## 2026-08-11 semantic block-scaling checkpoint
+
+The diagonal covariance boundary now has a compatible semantic block-linear
+extension. Small blocks may refer to arbitrary model-vector positions, expose
+semantic physical keys, and map through sparse assembled whole-model operators.
+The implementation supports zero-equality mixing, positive-diagonal scalar
+bounds, and conformally transformed Euclidean balls. Rotated boxes and other
+unsupported coupled-set images are unavailable and block equivalence rather
+than being approximated.
+
+The first exact two-coordinate rotation fixture passes point, residual,
+objective, gradient, sparse Jacobian, multiplier, stationarity,
+Hessian-of-the-Lagrangian, and KKT covariance. It also confirms the expected
+full-Jacobian singular-value invariance under complete orthogonal variable and
+residual blocks. An incorrect multiplier fails, a rotated scalar box is
+rejected by set coverage, and a non-orthogonal magnitude block does not claim
+the rotation invariant. Multiplier and stationarity comparison remain
+sparse-capable; dense Hessian/KKT work has an explicit entry guard.
+
+The next ordered scaling-research items are:
+
+1. **Completed:** expose paired real/imaginary and active/reactive residual
+   blocks plus selected local ratings through BMOPFTools' public semantic
+   registry, and consume them through a complete singleton-fallback adapter;
+2. **Substantially completed:** small single-phase transformer, unbalanced
+   wye-delta, three-winding, and AC/DC converter-tie truth fixtures now pass,
+   each with a physical-parameter negative control. Dedicated centre-tap,
+   regulator, floating-neutral, and delta-winding n-winding cases remain;
+3. **Completed for scalar-bound solver endpoints:** add point-verified public
+   MOI dual snapshots, lower/upper side data, and physical dual-feasibility and
+   complementarity. Coupled-cone dual transforms remain separate work;
+4. implement explicit off-block coupling measurements for declared numerical
+   decompositions, keeping them separate from full-Jacobian conditioning; and
+5. only then run magnitude-only and phase-only matched solver campaigns before
+   combining local scales and rotations.
+
+The line/load engine-backed truth case passes 40 checks across declaration
+coverage, classic-versus-custom physical block covariance, local coordinate
+geometry, and a changed-resistance negative control. BMOPFTools separately
+tests declaration invariants, overlap rejection, defensive copying, correct
+zero-versus-nonzero equality set contracts, and provenance serialization. The
+formulation-breadth suite adds 64 checks across four further classes. The
+shared feasible-state mapper and physical feasibility/stationarity contracts
+are completed in the checkpoint below. Scalar-side complementarity and
+solver-dual provenance are now completed in the following checkpoint. The
+remaining gates are trace integration, semantic attribution, and specialist
+transformer/neutral fixtures; they are not another generic map abstraction.
+
+## 2026-08-12 shared-state and physical endpoint checkpoint
+
+The shared feasible-state gate is now implemented and exercised. A generic
+`transport_scaling_point` maps an explicit point through common physical
+semantic coordinates, aligns differently ordered semantic keys, reconstructs
+the target model coordinates, and retains both physical vectors plus the
+maximum round-trip error. The target point has distinct `TransportedPoint`
+provenance, so it is never mislabeled as a target solver result.
+
+On the line/load truth fixture, Ipopt first obtains a feasible classic-per-unit
+endpoint. The same physical state is transported into SI units and two custom
+consistent-per-unit policies (200 kVA / 500 V and 5 MVA / 1.5 kV). All three
+target evaluations pass point, function, set, physical violation, sparse
+physical-Jacobian, and local-rank covariance. This closes the shared-state item
+with an engine-backed four-policy test, not an initialization recurrence.
+
+Physical stopping semantics are now implemented for scalar-bound endpoints at
+the correct boundary:
+
+- `physical_feasibility_report` applies residual- or block-specific absolute
+  tolerances after mapping functions and sets to physical coordinates;
+- the BMOPFTools wrapper can expand tolerances by declared physical quantity
+  without maximizing unlike units together;
+- `physical_stationarity_report` transforms an explicitly supplied row-aligned
+  multiplier representative and Lagrangian residual to physical variable
+  coordinates;
+- the caller-supplied-multiplier overload of `physical_kkt_acceptance_report`
+  still concludes only for equality-only systems; and
+- `solver_dual_snapshot` plus the solver-snapshot KKT overload verify point
+  identity, align public MOI duals with evaluator rows, preserve the exact MOI
+  sign convention, and close physical scalar-side dual feasibility and
+  complementarity.
+
+These reports deliberately do not translate an Ipopt or MadNLP option string
+into a physical guarantee. The next ordered major items are:
+
+1. **Completed:** extract solver endpoint duals with an explicit MOI row/side
+   convention, including variable bounds because they are evaluator rows;
+2. **Completed for positive-diagonal scalar bounds:** implement physical
+   side-specific dual feasibility and complementarity and expose a BMOPF
+   endpoint adapter. Next connect these records to matched Ipopt/MadNLP trace
+   artifacts and add coupled-cone dual contracts where justified;
+3. add semantic row/column-family attribution to sparse-capable coordinate
+   geometry and stopping residuals;
+4. add centre-tap, regulator, floating-neutral, and delta-winding n-winding
+   truth fixtures; and
+5. only then run the multi-time 99-bus four-policy campaign and compare
+   restoration, accepted steps, endpoint KKT residuals, factorization work,
+   and robustness.
+
+## 2026-08-12 solver-dual and complementarity checkpoint
+
+The endpoint evidence boundary no longer relies on recovered active-set
+multipliers. `SolverDualSnapshot` reads public MOI duals only after the selected
+solver primal and the `NumericalEvaluation` agree coordinate-by-coordinate.
+Ordinary scalarized constraints, variable-bound constraints, `NLPBlockDual`,
+and nonlinear-oracle rows follow the evaluator's exact order. Any missing,
+non-finite, or misaligned row makes the snapshot unavailable.
+
+The conversion is explicit and regression-tested: NLPDiagnostics uses
+`objective_weight*f + lambda'g`, hence `lambda = -MOI.ConstraintDual`; objective
+weight is `+1` for minimization and `-1` for maximization. One-sided bounds keep
+their canonical nonnegative lower/upper multiplier. An interval dual is stored
+as the minimum-support sign split of the aggregate MOI value and is not called
+unique.
+
+`physical_complementarity_report` maps scalar-side slacks and multipliers
+through positive diagonal residual transforms, checks independently declared
+physical dual and complementarity tolerances, and records the invariant
+multiplier-times-slack product. The solver-snapshot overload of
+`physical_kkt_acceptance_report` now combines all four first-order gates. The
+BMOPFTools adapter applies the same contract using authoritative semantic keys;
+the solved line/load truth fixture passes feasibility, stationarity, dual, and
+complementarity checks. Rotated boxes and general coupled cones are rejected
+rather than componentwise approximated.
+
+The next major phase is experiment instrumentation rather than more endpoint
+algebra:
+
+1. **Completed at the artifact boundary:** attach physical endpoint KKT
+   evidence to retained Ipopt/MadNLP trace profiles while preserving native
+   metric coordinates and refusing direct residual ratios;
+2. **Completed for BMOPF endpoint residuals:** add registry-family attribution
+   for primal feasibility, stationarity, dual feasibility, and
+   complementarity. Coordinate-geometry column-family aggregation remains;
+3. add specialist centre-tap, regulator, floating-neutral, and delta-winding
+   truth fixtures, including relevant inequality controls;
+4. implement only the coupled dual-cone transforms actually exercised by
+   those fixtures; and
+5. run magnitude-only and phase-only small campaigns before the bounded
+   multi-time 99-bus policy matrix.
+
+## 2026-08-12 trace and semantic-attribution checkpoint
+
+`solver_trace_physical_endpoint_data` now produces one renderer-neutral
+artifact containing the unchanged native iteration trace, solver-result
+profile, last captured callback row, solver-dual provenance, and independent
+physical endpoint KKT report. The relationship record explicitly forbids
+subtracting or ratioing native and physical residuals without an additional
+coordinate-and-tolerance translation. It also records that the final callback
+row may precede the public solver result.
+
+The BMOPFTools adapter adds semantic attribution from public registries. It
+groups primal feasibility by constraint block families, stationarity by
+variable-block families, and scalar-side dual/complementarity evidence by the
+exact constraint-row family. Mixed transformed blocks stay mixed. Alignment
+availability and registry coverage are separate gates, so an unregistered row
+can be retained without qualifying a physical interpretation.
+
+The line/load truth fixture now includes a loose registered current thermal
+limit. Its Ipopt trace-plus-endpoint artifact passes the full physical KKT
+contract and attributes inequality dual/complementarity evidence to
+`line_current_thermal`. This validates the instrumentation path; it does not
+show that the limit is active or that any scaling policy is preferable.
+
+Next priorities are:
+
+1. finish variable column-family aggregation in coordinate-geometry reports;
+2. run small magnitude-only and phase-only matched Ipopt campaigns using the
+   new paired artifacts;
+3. add specialist centre-tap, regulator, floating-neutral, and delta-winding
+   truth fixtures;
+4. add coupled-cone dual transforms only for sets encountered by those
+   fixtures; and
+5. promote to the bounded multi-time 99-bus matrix only after repeatability
+   and endpoint-coverage gates pass.

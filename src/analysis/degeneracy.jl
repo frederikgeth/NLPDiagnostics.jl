@@ -160,6 +160,33 @@ bmopf_jacobian_row_family_scaling_experiment(context, evaluation; kwargs...) =
 bmopf_diagonal_scaling_map(context, evaluation) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP support are required for BMOPF physical scaling maps")._bmopf_diagonal_scaling_map(context, evaluation)
+"""Construct a complete physical scaling map using authoritative BMOPFTools semantic blocks."""
+bmopf_semantic_block_scaling_map(context, evaluation) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF semantic block scaling maps")._bmopf_semantic_block_scaling_map(context, evaluation)
+"""Transport one BMOPF point between scaling policies through declared physical coordinates."""
+bmopf_transport_scaling_point(
+    source_context, source_evaluation,
+    target_context, target_evaluation; kwargs...,
+) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required for BMOPF scaling-point transport")._bmopf_transport_scaling_point(
+        source_context, source_evaluation,
+        target_context, target_evaluation; kwargs...)
+"""Apply per-residual physical feasibility tolerances to one BMOPF evaluation."""
+bmopf_physical_feasibility_report(context, evaluation; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF physical feasibility reports")._bmopf_physical_feasibility_report(
+            context, evaluation; kwargs...)
+"""Read solver duals and apply the complete BMOPF physical endpoint KKT contract."""
+bmopf_physical_solver_kkt_report(context, model, evaluation; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF physical solver-KKT reports")._bmopf_physical_solver_kkt_report(
+            context, model, evaluation; kwargs...)
+"""Pair a native solver trace with the attributed BMOPF physical endpoint contract."""
+bmopf_solver_trace_physical_endpoint_data(context, model, run; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF trace-plus-endpoint artifacts")._bmopf_solver_trace_physical_endpoint_data(
+            context, model, run; kwargs...)
 """Compare two staged BMOPF evaluations after mapping coordinates, sets, and residuals to physical units."""
 bmopf_scaling_covariance_report(reference_context, reference_evaluation,
                                 candidate_context, candidate_evaluation; kwargs...) =
@@ -173,6 +200,22 @@ bmopf_scaling_coordinate_geometry_report(
     candidate_context, candidate_evaluation; kwargs...,
 ) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required for BMOPF scaling-geometry comparison")._bmopf_scaling_coordinate_geometry_report(
+        reference_context, reference_evaluation,
+        candidate_context, candidate_evaluation; kwargs...)
+"""Compare two BMOPF evaluations using authoritative coupled coordinate and residual blocks."""
+bmopf_block_scaling_covariance_report(
+    reference_context, reference_evaluation,
+    candidate_context, candidate_evaluation; kwargs...,
+) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required for BMOPF semantic block covariance")._bmopf_block_scaling_covariance_report(
+        reference_context, reference_evaluation,
+        candidate_context, candidate_evaluation; kwargs...)
+"""Compare BMOPF coordinate geometry after the semantic block covariance gate."""
+bmopf_block_scaling_coordinate_geometry_report(
+    reference_context, reference_evaluation,
+    candidate_context, candidate_evaluation; kwargs...,
+) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required for BMOPF semantic block geometry comparison")._bmopf_block_scaling_coordinate_geometry_report(
         reference_context, reference_evaluation,
         candidate_context, candidate_evaluation; kwargs...)
 """Report complete public semantic-registry coverage for evaluated BMOPF rows."""

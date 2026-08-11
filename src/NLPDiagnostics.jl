@@ -19,6 +19,7 @@ include("numerics/fingerprints.jl")
 include("numerics/degeneracy.jl")
 include("numerics/hessian.jl")
 include("numerics/activity.jl")
+include("numerics/duals.jl")
 include("analysis/matching.jl")
 include("reports/structural_graph.jl")
 include("analysis/domains.jl")
@@ -27,6 +28,7 @@ include("analysis/expressions.jl")
 include("analysis/static.jl")
 include("analysis/structure.jl")
 include("analysis/numerical.jl")
+include("analysis/scaling.jl")
 include("analysis/crosscheck.jl")
 include("analysis/activity.jl")
 include("analysis/degeneracy.jl")
@@ -103,6 +105,7 @@ export select_trusted_evaluation_points
 export trusted_point_selection_data
 export UserPoint, InitializationPoint, CompletedInitializationPoint
 export SolverIteratePoint, SolverResultPoint, PerturbedPoint, SyntheticSmokePoint
+export TransportedPoint
 export model_fingerprint
 export evaluation_point_fingerprint
 export evaluation_source_fingerprint
@@ -170,6 +173,7 @@ export SolverProfileResult
 export SolverTraceProfileRun
 export BMOPFProfileResult
 export profile_result_data
+export solver_trace_physical_endpoint_data
 export bmopf_build_and_analyze_opf
 export ProfileTimingSummary
 export ProfileAllocationSummary
@@ -318,8 +322,29 @@ export jacobian_row_family_scale_attribution
 export jacobian_row_family_scaling_experiment
 export DiagonalScalingMap
 export ScalarConstraintBounds
+export AbstractSemanticConstraintSetContract
+export ZeroEqualitySetContract
+export ScalarBoundsSetContract
+export EuclideanBallSetContract
+export UnsupportedSetContract
+export SemanticLinearBlock
+export SemanticConstraintBlock
+export SemanticBlockScalingMap
+export ScalingPointTransport
+export transport_scaling_point
+export scaling_point_transport_data
+export physical_feasibility_report
+export physical_stationarity_report
+export physical_complementarity_report
+export physical_kkt_acceptance_report
+export SolverConstraintSideDual
+export SolverDualSnapshot
+export solver_dual_snapshot
+export solver_dual_snapshot_data
+export solver_complementarity_report
 export scaling_covariance_report
 export scaling_coordinate_geometry_report
+export scaling_kkt_covariance_report
 export jacobian_rank_estimate
 export sparse_jacobian_pattern_estimate
 export sparse_qr_rank_estimate
@@ -406,8 +431,15 @@ export bmopf_constraint_semantic_row_map
 export bmopf_jacobian_row_family_scale_attribution
 export bmopf_jacobian_row_family_scaling_experiment
 export bmopf_diagonal_scaling_map
+export bmopf_semantic_block_scaling_map
+export bmopf_transport_scaling_point
+export bmopf_physical_feasibility_report
+export bmopf_physical_solver_kkt_report
+export bmopf_solver_trace_physical_endpoint_data
 export bmopf_scaling_covariance_report
 export bmopf_scaling_coordinate_geometry_report
+export bmopf_block_scaling_covariance_report
+export bmopf_block_scaling_coordinate_geometry_report
 export bmopf_constraint_registry_coverage_report
 export bmopf_analyze_jacobian_row_family_perturbations
 export bmopf_saved_result_profile_case

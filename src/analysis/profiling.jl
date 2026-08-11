@@ -84,6 +84,89 @@ function profile_result_data(result::SolverTraceProfileRun)
     )
 end
 
+function _solver_trace_physical_endpoint_bundle(
+    run::SolverTraceProfileRun,
+    physical_endpoint::AbstractDict,
+)
+    trace_data = iteration_trace_data(run.trace)
+    last_record = isempty(trace_data["records"]) ? nothing :
+        last(trace_data["records"])
+    endpoint_available = get(physical_endpoint, "acceptance_passed", nothing) !==
+        nothing
+    return Dict{String,Any}(
+        "schema_version" => "solver-trace-physical-endpoint-v1",
+        "available" => endpoint_available,
+        "acceptance_passed" =>
+            get(physical_endpoint, "acceptance_passed", nothing),
+        "solver_trace_profile" => profile_result_data(run),
+        "last_captured_solver_record" => last_record,
+        "physical_endpoint" => Dict{String,Any}(physical_endpoint),
+        "evidence_relationship" => Dict{String,Any}(
+            "native_trace_role" =>
+                "solver-reported progress and stopping evidence in each record's declared coordinates",
+            "physical_endpoint_role" =>
+                "independently evaluated first-order endpoint evidence in caller-declared physical coordinates",
+            "numeric_residual_comparison_performed" => false,
+            "reason" =>
+                "solver metrics and physical residuals are juxtaposed, not subtracted or ratioed, unless an explicit coordinate-and-tolerance translation is available",
+            "same_endpoint_claim" =>
+                "the physical endpoint is tied to the public solver result; the last captured trace row may precede that result",
+        ),
+    )
+end
+
+"""
+    solver_trace_physical_endpoint_data(run, physical_endpoint)
+
+Attach a precomputed physical endpoint contract to a retained solver trace.
+The native trace is serialized unchanged, and no numerical comparison is made
+between solver-scaled metrics and dimensional physical residuals.
+"""
+solver_trace_physical_endpoint_data(
+    run::SolverTraceProfileRun,
+    physical_endpoint::AbstractDict,
+) = _solver_trace_physical_endpoint_bundle(run, physical_endpoint)
+
+"""
+    solver_trace_physical_endpoint_data(model, run, map;
+        dual_snapshot_kwargs=NamedTuple(), physical_kkt_kwargs=NamedTuple())
+
+Read the endpoint dual for the solver result retained by `run`, evaluate the
+physical KKT contract using the exact cached endpoint evaluation, and return a
+single serializable trace-plus-endpoint artifact. This function does not solve
+the model or reinterpret native solver residuals.
+"""
+function solver_trace_physical_endpoint_data(
+    model::MOI.ModelLike,
+    run::SolverTraceProfileRun,
+    map::Union{DiagonalScalingMap,SemanticBlockScalingMap};
+    dual_snapshot_kwargs::NamedTuple = NamedTuple(),
+    physical_kkt_kwargs::NamedTuple = NamedTuple(),
+)
+    profile = run.result.profile
+    if isnothing(profile)
+        return _solver_trace_physical_endpoint_bundle(
+            run,
+            Dict{String,Any}(
+                "report_version" => "physical-kkt-acceptance-v2",
+                "acceptance_passed" => nothing,
+                "reason" =>
+                    "the solver trace profile has no complete public endpoint evaluation",
+            ),
+        )
+    end
+    dual_options = merge(
+        (result_index=run.result.result_index,), dual_snapshot_kwargs,
+    )
+    duals = solver_dual_snapshot(
+        model, profile.evaluation; dual_options...,
+    )
+    endpoint = physical_kkt_acceptance_report(
+        profile.evaluation, map, duals; physical_kkt_kwargs...,
+    )
+    return _solver_trace_physical_endpoint_bundle(run, endpoint)
+end
+
 """Return renderer-neutral, serializable data for a repeated profile aggregate."""
 function profile_aggregate_data(aggregate::ProfileAggregate)
     timing_data = Dict(

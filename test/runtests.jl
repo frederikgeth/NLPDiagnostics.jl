@@ -23,6 +23,8 @@ include("randomized_rank_oracles.jl")
 include("point_provenance.jl")
 include("fingerprints_and_crosscheck.jl")
 include("scaling_covariance.jl")
+include("block_scaling_covariance.jl")
+include("solver_duals.jl")
 
 if Base.find_package("Ipopt") !== nothing
     import Ipopt
@@ -57,6 +59,41 @@ if Base.find_package("Ipopt") !== nothing
         run_data = NLPDiagnostics.profile_result_data(run)
         @test run_data["iteration_trace"]["record_count"] == length(trace.records)
         @test haskey(run_data, "solver_profile")
+        endpoint_evaluation = run.result.profile.evaluation
+        endpoint_bounds = NLPDiagnostics._evaluated_row_bounds(
+            JuMP.backend(model), endpoint_evaluation,
+        )
+        endpoint_map = NLPDiagnostics.DiagonalScalingMap(
+            "ipopt-trace-identity";
+            variable_keys=["x"],
+            variable_scales=[1.0],
+            constraint_keys=["lower-bound"],
+            constraint_scales=[1.0],
+            constraint_bounds=endpoint_bounds,
+        )
+        endpoint_data = NLPDiagnostics.solver_trace_physical_endpoint_data(
+            model,
+            run,
+            endpoint_map;
+            physical_kkt_kwargs=(
+                feasibility_default_absolute_tolerance=1.0e-6,
+                stationarity_default_absolute_tolerance=1.0e-6,
+                dual_default_absolute_tolerance=1.0e-6,
+                complementarity_default_absolute_tolerance=1.0e-6,
+            ),
+        )
+        @test endpoint_data["schema_version"] ==
+            "solver-trace-physical-endpoint-v1"
+        @test endpoint_data["available"]
+        @test endpoint_data["acceptance_passed"]
+        @test endpoint_data["solver_trace_profile"]["iteration_trace"][
+            "record_count"
+        ] == length(trace.records)
+        @test endpoint_data["last_captured_solver_record"]["iteration"] ==
+            last(trace.records).iteration
+        @test !endpoint_data["evidence_relationship"][
+            "numeric_residual_comparison_performed"
+        ]
     end
 end
 
@@ -199,6 +236,7 @@ if Base.find_package("Ipopt") !== nothing &&
    hasmethod(BMOPFTools.build_opf_model, Tuple{Dict{String,Any}})
     import Ipopt
     include("bmopf_scaling_covariance.jl")
+    include("bmopf_scaling_formulations.jl")
 end
 
 @testset "BMOPFTools terminal adapter" begin

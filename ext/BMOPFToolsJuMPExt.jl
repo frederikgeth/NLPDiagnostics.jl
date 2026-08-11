@@ -1151,6 +1151,76 @@ function _bmopf_component_bus(network, family::AbstractString, id; field="bus")
     return bus isa AbstractString ? String(bus) : nothing
 end
 
+"""Return `(subtype, component)` for a transformer stored below its subtype."""
+function _bmopf_transformer_component(network, id)
+    transformers = get(network, "transformer", Dict())
+    transformers isa AbstractDict || return nothing
+    target = string(id)
+    for (subtype, components) in transformers
+        components isa AbstractDict || continue
+        component = get(components, target, nothing)
+        component isa AbstractDict && return (subtype=string(subtype), component=component)
+    end
+    return nothing
+end
+
+function _bmopf_transformer_side_bus(network, id, side)
+    record = _bmopf_transformer_component(network, id)
+    isnothing(record) && return nothing
+    side_text = lowercase(string(side))
+    field = side_text in ("fr", "from") ? "bus_from" :
+        side_text in ("to", "toward") ? "bus_to" : nothing
+    isnothing(field) && return nothing
+    bus = get(record.component, field, nothing)
+    return bus isa AbstractString ? String(bus) : nothing
+end
+
+function _bmopf_nwind_bus(network, id, winding)
+    record = _bmopf_transformer_component(network, id)
+    isnothing(record) && return nothing
+    record.subtype == "n_winding" || return nothing
+    windings = get(record.component, "windings", nothing)
+    windings isa AbstractVector || return nothing
+    winding isa Integer && 1 <= winding <= length(windings) || return nothing
+    entry = windings[winding]
+    entry isa AbstractDict || return nothing
+    bus = get(entry, "bus", nothing)
+    return bus isa AbstractString ? String(bus) : nothing
+end
+
+_bmopf_tuple_entry(index, position) =
+    index isa Tuple && length(index) >= position ? index[position] : nothing
+
+function _bmopf_transformer_voltage_bus(network, index)
+    id = _bmopf_index_id(index)
+    record = _bmopf_transformer_component(network, id)
+    isnothing(record) && return nothing
+    subtype = record.subtype
+    marker = _bmopf_tuple_entry(index, 2)
+    if subtype in ("wye_delta", "delta_wye")
+        # These equations are written in delta-side volts. The semantic index
+        # records the wye side, so select the opposite terminal bus.
+        side = lowercase(string(marker)) in ("fr", "from") ? "to" : "from"
+        return _bmopf_transformer_side_bus(network, id, side)
+    end
+    # YY, centre-tap, and regulating equations are referred to winding 1.
+    return _bmopf_transformer_side_bus(network, id, "from")
+end
+
+function _bmopf_transformer_coupling_bus(network, index)
+    id = _bmopf_index_id(index)
+    record = _bmopf_transformer_component(network, id)
+    isnothing(record) && return nothing
+    marker = _bmopf_tuple_entry(index, 2)
+    if record.subtype in ("wye_delta", "delta_wye") && marker isa AbstractString
+        # The index records the delta side; the residual is expressed in the
+        # wye winding's current units.
+        side = lowercase(String(marker)) in ("fr", "from") ? "to" : "from"
+        return _bmopf_transformer_side_bus(network, id, side)
+    end
+    return _bmopf_transformer_side_bus(network, id, "to")
+end
+
 function _bmopf_variable_physical_scale(context, key)
     network = BMOPFTools.opf_network(context)
     family = key.family
@@ -1183,11 +1253,24 @@ function _bmopf_variable_physical_scale(context, key)
         bus = _bmopf_component_bus(network, "voltage_source", _bmopf_index_id(index))
         scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:cr_xf, :ci_xf)
+        side = _bmopf_tuple_entry(index, 2)
+        bus = isnothing(side) ? nothing :
+            _bmopf_transformer_side_bus(network, _bmopf_index_id(index), side)
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:cr_nw, :ci_nw)
+        winding = _bmopf_tuple_entry(index, 2)
+        bus = _bmopf_nwind_bus(network, _bmopf_index_id(index), winding)
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
     elseif family in (:cri, :cii)
         bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
         scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
-    elseif family in (:p_ibr, :q_ibr, :pdc_src)
+    elseif family in (:p_ibr, :q_ibr, :pdc_src,
+                      :transformer_coil_p, :transformer_coil_q,
+                      :nwind_coil_p, :nwind_coil_q)
         scale = _bmopf_power_base(context)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
     elseif family == :u_ibr
@@ -1213,7 +1296,8 @@ function _bmopf_variable_physical_scale(context, key)
         scale = isnothing(bus) ? nothing : _bmopf_dc_current_scale(context, bus)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_current)
     elseif family == :idc_br
-        bus = _bmopf_component_bus(network, "dc_branch", _bmopf_index_id(index); field="bus_from")
+        bus = _bmopf_component_bus(
+            network, "dc_branch", _bmopf_index_id(index); field="dc_bus_from")
         scale = isnothing(bus) ? nothing : _bmopf_dc_current_scale(context, bus)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_current)
     elseif family == :idc_conv
@@ -1240,11 +1324,13 @@ function _bmopf_constraint_physical_scale(context, key)
     for suffix in ("_lower_bound", "_upper_bound", "_fixed")
         endswith(family_text, suffix) || continue
         variable_family = Symbol(first(family_text, length(family_text) - length(suffix)))
-        return _bmopf_variable_physical_scale(
+        contract = _bmopf_variable_physical_scale(
             context, BMOPFTools.OpfModelKey(:variable, variable_family, index))
+        isnothing(contract) || return contract
     end
     if family in (:ground_voltage_real, :ground_voltage_imag,
-                  :source_voltage_real, :source_voltage_imag)
+                  :source_voltage_real, :source_voltage_imag,
+                  :source_neutral_voltage_real, :source_neutral_voltage_imag)
         bus = family in (:ground_voltage_real, :ground_voltage_imag) ?
             _bmopf_index_bus(index) :
             _bmopf_component_bus(network, "voltage_source", _bmopf_index_id(index))
@@ -1261,12 +1347,109 @@ function _bmopf_constraint_physical_scale(context, key)
             network, component_family, _bmopf_index_id(index); field="bus_from")
         scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:voltage)
+    elseif family == :dc_branch_voltage_drop
+        component = _bmopf_network_component(network, "dc_branch", _bmopf_index_id(index))
+        conductor = _bmopf_tuple_entry(index, 2)
+        bus = isnothing(component) ? nothing : get(component, "dc_bus_from", nothing)
+        bus isa AbstractString || return nothing
+        resistances = get(component, "r", nothing)
+        resistance = resistances isa AbstractVector && conductor isa Integer &&
+            1 <= conductor <= length(resistances) ? resistances[conductor] : nothing
+        if resistance isa Real && resistance > 0
+            scale = _bmopf_dc_current_scale(context, String(bus))
+            return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_current)
+        end
+        scale = _bmopf_dc_voltage_scale(context, String(bus))
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_voltage)
+    elseif family in (:dc_converter_voltage_control,)
+        bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index); field="dc_bus")
+        scale = isnothing(bus) ? nothing : _bmopf_dc_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_voltage)
+    elseif family == :kcl_dc
+        bus = _bmopf_index_bus(index)
+        scale = isnothing(bus) ? nothing : _bmopf_dc_current_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_current)
+    elseif family in (:dc_converter_power_balance, :dc_converter_droop,
+                      :dc_load_power, :dc_source_power)
+        scale = _bmopf_power_base(context)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family in (:dc_bus_voltage_ln_lower, :dc_bus_voltage_ln_upper,
+                      :dc_bus_voltage_ll_lower, :dc_bus_voltage_ll_upper)
+        bus = _bmopf_index_bus(index)
+        scale = isnothing(bus) ? nothing : _bmopf_dc_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_voltage)
+    elseif family == :dc_branch_current_thermal
+        bus = _bmopf_component_bus(
+            network, "dc_branch", _bmopf_index_id(index); field="dc_bus_from")
+        scale = isnothing(bus) ? nothing : _bmopf_dc_current_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:dc_current_squared)
+    elseif family == :dc_branch_power_thermal
+        scale = _bmopf_power_base(context)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:power_squared)
     elseif family in (:line_current_thermal, :switch_current_thermal)
         component_family = startswith(family_text, "line_") ? "line" : "switch"
         bus = _bmopf_component_bus(
             network, component_family, _bmopf_index_id(index); field="bus_from")
         scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale^2, quantity=:current_squared)
+    elseif family in (:transformer_voltage_real, :transformer_voltage_imag,
+                      :transformer_galvanic_bond_real,
+                      :transformer_galvanic_bond_imag)
+        bus = family in (:transformer_galvanic_bond_real,
+                         :transformer_galvanic_bond_imag) ?
+            _bmopf_transformer_side_bus(network, _bmopf_index_id(index), "from") :
+            _bmopf_transformer_voltage_bus(network, index)
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:voltage)
+    elseif family in (:transformer_current_coupling_real,
+                      :transformer_current_coupling_imag)
+        bus = _bmopf_transformer_coupling_bus(network, index)
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:transformer_current_pin_real, :transformer_current_pin_imag)
+        side = _bmopf_tuple_entry(index, 2)
+        bus = isnothing(side) ? nothing :
+            _bmopf_transformer_side_bus(network, _bmopf_index_id(index), side)
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:transformer_neutral_balance_real,
+                      :transformer_neutral_balance_imag)
+        side = _bmopf_tuple_entry(index, 2)
+        bus = side isa AbstractString ?
+            _bmopf_transformer_side_bus(network, _bmopf_index_id(index), side) :
+            _bmopf_transformer_side_bus(network, _bmopf_index_id(index), "to")
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:transformer_current_return_real,
+                      :transformer_current_return_imag)
+        bus = _bmopf_transformer_side_bus(network, _bmopf_index_id(index), "from")
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family == :transformer_current_thermal
+        side = _bmopf_tuple_entry(index, 2)
+        bus = isnothing(side) ? nothing :
+            _bmopf_transformer_side_bus(network, _bmopf_index_id(index), side)
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:current_squared)
+    elseif family == :transformer_apparent_power_circle
+        scale = _bmopf_power_base(context)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:power_squared)
+    elseif family in (:nwind_ampere_turn_real, :nwind_ampere_turn_imag)
+        bus = _bmopf_nwind_bus(network, _bmopf_index_id(index), 1)
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:nwind_voltage_drop_real, :nwind_voltage_drop_imag)
+        bus = _bmopf_nwind_bus(network, _bmopf_index_id(index), 1)
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:voltage)
+    elseif family == :nwind_current_thermal
+        winding = _bmopf_tuple_entry(index, 2)
+        bus = _bmopf_nwind_bus(network, _bmopf_index_id(index), winding)
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:current_squared)
+    elseif family == :nwind_apparent_power_circle
+        scale = _bmopf_power_base(context)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:power_squared)
     elseif family in (:line_angle_lower, :line_angle_upper)
         bus = _bmopf_component_bus(network, "line", _bmopf_index_id(index); field="bus_from")
         scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
@@ -1300,6 +1483,11 @@ function _bmopf_constraint_physical_scale(context, key)
                       :ibr_dc_power_lower, :ibr_dc_power_upper)
         scale = _bmopf_power_base(context)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family in (:power_link_p, :power_link_q,
+                      :transformer_power_link_p, :transformer_power_link_q,
+                      :nwind_power_link_p, :nwind_power_link_q)
+        scale = _bmopf_power_base(context)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
     elseif family in (:ibr_power_circle,)
         scale = _bmopf_power_base(context)
         return isnothing(scale) ? nothing : (scale=scale^2, quantity=:power_squared)
@@ -1317,6 +1505,14 @@ function _bmopf_constraint_physical_scale(context, key)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:voltage)
     end
     return nothing
+end
+
+function _bmopf_is_normalized_norm_family(family::Symbol)
+    text = string(family)
+    return endswith(text, "_thermal") || endswith(text, "_circle") ||
+        family in (:bus_neutral_voltage_upper,
+                   :bus_negative_sequence_voltage_upper,
+                   :bus_zero_sequence_voltage_upper)
 end
 
 function _bmopf_floating_neutral_components(context)
@@ -2246,6 +2442,16 @@ function _bmopf_diagonal_scaling_map(context, evaluation)
                 "reason" => "constraint set has no scalar-bound representation"))
             continue
         end
+        lower, upper = bound
+        # BMOPFTools writes every positive two-norm limit as
+        # (a/limit)^2 + (b/limit)^2 <= 1. That row and its set are
+        # dimensionless even when `a` and `b` carry physical units. A zero
+        # limit uses the unnormalised homogeneous form and retains the squared
+        # quantity scale returned by the family contract above.
+        if _bmopf_is_normalized_norm_family(key.family) &&
+           isnothing(lower) && upper isa Real && isapprox(upper, 1.0; atol=1e-12)
+            contract = (scale=1.0, quantity=:dimensionless_normalized_limit)
+        end
         label = _bmopf_key_label(key)
         !isnothing(source.subindex) && (label *= ":row=$(source.subindex)")
         if label in seen_constraint_keys
@@ -2255,7 +2461,6 @@ function _bmopf_diagonal_scaling_map(context, evaluation)
             continue
         end
         push!(seen_constraint_keys, label)
-        lower, upper = bound
         push!(constraint_keys, label)
         push!(constraint_scales, Float64(contract.scale))
         push!(constraint_quantities, string(contract.quantity))
@@ -2295,6 +2500,865 @@ function _bmopf_diagonal_scaling_map(context, evaluation)
         "constraint_bounds_available" => !isnothing(row_bounds),
         "claim_scope" => "explicit diagonal physical-coordinate and scalar-residual scaling",
     )
+end
+
+function _bmopf_semantic_block_output_keys(block)
+    return [
+        "$(block.kind):semantic-block:$(block.id):$(component)"
+        for component in block.components
+    ]
+end
+
+function _bmopf_semantic_constraint_rows(context, evaluation)
+    key_lookup = _bmopf_constraint_result_keys(context)
+    rows = Dict{Any,Vector{Int}}()
+    for (row, source) in enumerate(evaluation.constraint_sources)
+        source_key = _bmopf_constraint_source_key(source)
+        key = isnothing(source_key) ? nothing : get(key_lookup, source_key, nothing)
+        if isnothing(key)
+            parent_key = _bmopf_constraint_source_key(source; subindex=nothing)
+            key = isnothing(parent_key) ? nothing :
+                get(key_lookup, parent_key, nothing)
+        end
+        isnothing(key) || push!(get!(rows, key, Int[]), row)
+    end
+    return rows
+end
+
+function _bmopf_semantic_set_contract(block, bounds)
+    if block.set_contract == :zero_equality
+        if all(bound -> !isnothing(bound.lower) && !isnothing(bound.upper) &&
+                        iszero(bound.lower) && iszero(bound.upper), bounds)
+            return NLPDiagnostics.ZeroEqualitySetContract()
+        end
+        return NLPDiagnostics.UnsupportedSetContract(
+            "BMOPFTools declared a zero-equality block but evaluated scalar row bounds are not all exactly zero",
+        )
+    elseif block.set_contract == :scalar_bounds
+        return NLPDiagnostics.ScalarBoundsSetContract(bounds)
+    elseif block.set_contract == :euclidean_ball
+        radius = get(block.metadata, "radius_model", nothing)
+        center = get(block.metadata, "center_model", Float64[])
+        if radius isa Real && center isa AbstractVector &&
+           all(value -> value isa Real, center)
+            return NLPDiagnostics.EuclideanBallSetContract(
+                radius; center=Float64.(center),
+            )
+        end
+        return NLPDiagnostics.UnsupportedSetContract(
+            "BMOPFTools Euclidean-ball declaration lacks finite radius_model/center_model metadata",
+        )
+    elseif block.set_contract == :unsupported
+        return NLPDiagnostics.UnsupportedSetContract(string(get(
+            block.metadata,
+            "set_contract_reason",
+            "BMOPFTools marks this coupled residual set unsupported",
+        )))
+    end
+    return NLPDiagnostics.UnsupportedSetContract(
+        "BMOPFTools supplied no residual-set transformation contract",
+    )
+end
+
+function _bmopf_semantic_block_reference_record(block, positions)
+    return Dict{String,Any}(
+        "id" => block.id,
+        "kind" => string(block.kind),
+        "positions" => copy(positions),
+        "components" => string.(block.components),
+        "quantity" => string(block.quantity),
+        "physical_unit" => string(block.physical_unit),
+        "reference_physical_scale" => block.reference_physical_scale,
+        "reference_scale_source" => block.reference_scale_source,
+        "owner" => string(block.owner),
+    )
+end
+
+function _bmopf_semantic_block_scaling_map(context, evaluation)
+    diagonal_build = _bmopf_diagonal_scaling_map(context, evaluation)
+    if !diagonal_build["available"]
+        return Dict{String,Any}(
+            "report_version" => "bmopf-semantic-block-scaling-map-v1",
+            "available" => false,
+            "reason" => "the complete BMOPF diagonal physical-scale map is unavailable",
+            "diagonal_map" => diagonal_build,
+        )
+    end
+    if !isdefined(BMOPFTools, :opf_semantic_blocks)
+        return Dict{String,Any}(
+            "report_version" => "bmopf-semantic-block-scaling-map-v1",
+            "available" => false,
+            "reason" => "this BMOPFTools version does not expose semantic block declarations",
+            "diagonal_map" => diagonal_build,
+        )
+    end
+
+    diagonal = diagonal_build["map"]
+    declared = BMOPFTools.opf_semantic_blocks(context)
+    model_variables = evaluation.point.variables
+    variable_positions = Dict(
+        variable => position for (position, variable) in enumerate(model_variables)
+    )
+    constraint_rows = _bmopf_semantic_constraint_rows(context, evaluation)
+    used_variables = Set{Int}()
+    used_constraints = Set{Int}()
+    variable_blocks = NLPDiagnostics.SemanticLinearBlock[]
+    constraint_blocks = NLPDiagnostics.SemanticConstraintBlock[]
+    skipped = Dict{String,Any}[]
+    reference_scales = Dict{String,Any}[]
+    applied_variable_blocks = 0
+    applied_constraint_blocks = 0
+
+    for block in declared
+        positions = Int[]
+        reason = nothing
+        if block.kind == :variable
+            for member in block.members
+                object = try
+                    BMOPFTools.opf_object(context, member)
+                catch
+                    nothing
+                end
+                if !(object isa JuMP.VariableRef)
+                    reason = "one or more declared members are not scalar JuMP variables"
+                    break
+                end
+                position = get(variable_positions, JuMP.index(object), nothing)
+                if isnothing(position)
+                    reason = "one or more declared members are absent from the evaluation variable order"
+                    break
+                end
+                push!(positions, position)
+            end
+        elseif block.kind == :constraint
+            for member in block.members
+                member_rows = get(constraint_rows, member, Int[])
+                if length(member_rows) != 1
+                    reason = "one or more declared members do not map to exactly one evaluated scalar row"
+                    break
+                end
+                push!(positions, only(member_rows))
+            end
+        else
+            reason = "unsupported semantic-block kind"
+        end
+        if isnothing(reason) && length(unique(positions)) != length(positions)
+            reason = "declared members map to duplicate model positions"
+        end
+        used = block.kind == :variable ? used_variables : used_constraints
+        if isnothing(reason) && !isempty(intersect(used, Set(positions)))
+            reason = "declared block overlaps an already applied semantic block"
+        end
+        scales = if isnothing(reason)
+            block.kind == :variable ?
+                diagonal.variable_scales[positions] :
+                diagonal.constraint_scales[positions]
+        else
+            Float64[]
+        end
+        if isnothing(reason) && !all(scale -> isapprox(
+                scale, first(scales); rtol=1e-12, atol=0.0), scales)
+            reason = "block members have different physical unit scales; no authoritative block-output scale was declared"
+        end
+        if !isnothing(reason)
+            push!(skipped, Dict{String,Any}(
+                "id" => block.id,
+                "kind" => string(block.kind),
+                "reason" => reason,
+            ))
+            continue
+        end
+
+        transform = first(scales) .* Matrix{Float64}(block.model_to_canonical)
+        keys = _bmopf_semantic_block_output_keys(block)
+        try
+            if block.kind == :variable
+                push!(variable_blocks, NLPDiagnostics.SemanticLinearBlock(
+                    keys, positions, transform,
+                ))
+                union!(used_variables, positions)
+                applied_variable_blocks += 1
+            else
+                bounds = diagonal.constraint_bounds[positions]
+                set_contract = _bmopf_semantic_set_contract(block, bounds)
+                push!(constraint_blocks, NLPDiagnostics.SemanticConstraintBlock(
+                    keys, positions, transform; set=set_contract,
+                ))
+                union!(used_constraints, positions)
+                applied_constraint_blocks += 1
+            end
+            push!(reference_scales,
+                _bmopf_semantic_block_reference_record(block, positions))
+        catch error
+            push!(skipped, Dict{String,Any}(
+                "id" => block.id,
+                "kind" => string(block.kind),
+                "reason" => "invalid semantic transform: $(sprint(showerror, error))",
+            ))
+        end
+    end
+
+    for position in eachindex(diagonal.variable_keys)
+        position in used_variables && continue
+        push!(variable_blocks, NLPDiagnostics.SemanticLinearBlock(
+            [diagonal.variable_keys[position]],
+            [position],
+            reshape([diagonal.variable_scales[position]], 1, 1),
+        ))
+    end
+    for position in eachindex(diagonal.constraint_keys)
+        position in used_constraints && continue
+        push!(constraint_blocks, NLPDiagnostics.SemanticConstraintBlock(
+            [diagonal.constraint_keys[position]],
+            [position],
+            reshape([diagonal.constraint_scales[position]], 1, 1);
+            set=NLPDiagnostics.ScalarBoundsSetContract([
+                diagonal.constraint_bounds[position],
+            ]),
+        ))
+    end
+
+    scaling_map = NLPDiagnostics.SemanticBlockScalingMap(
+        _bmopf_scaling_policy_label(context);
+        variable_blocks,
+        constraint_blocks,
+        objective_scale=diagonal.objective_scale,
+    )
+    return Dict{String,Any}(
+        "report_version" => "bmopf-semantic-block-scaling-map-v1",
+        "available" => true,
+        "policy" => _bmopf_scaling_policy_label(context),
+        "map" => scaling_map,
+        "declared_block_count" => length(declared),
+        "declared_variable_block_count" => count(block -> block.kind == :variable, declared),
+        "declared_constraint_block_count" => count(block -> block.kind == :constraint, declared),
+        "applied_variable_block_count" => applied_variable_blocks,
+        "applied_constraint_block_count" => applied_constraint_blocks,
+        "singleton_variable_block_count" =>
+            length(diagonal.variable_keys) - length(used_variables),
+        "singleton_constraint_block_count" =>
+            length(diagonal.constraint_keys) - length(used_constraints),
+        "skipped_declarations" => skipped,
+        "reference_scales" => reference_scales,
+        "diagonal_map_coverage" => Dict(
+            key => value for (key, value) in diagonal_build if key != "map"),
+        "claim_scope" =>
+            "authoritative BMOPFTools block coordinates with complete scalar fallback",
+    )
+end
+
+"""
+    bmopf_transport_scaling_point(source_context, source_evaluation,
+                                  target_context, target_evaluation; kwargs...)
+
+Transport the source evaluation point through BMOPFTools' authoritative
+physical semantic-block coordinates. `target_evaluation` supplies the target
+model's explicit variable order and scaling-map schema; its numerical point is
+not used. The returned `TransportedPoint` must be evaluated in the target model
+before feasibility or covariance is claimed.
+"""
+function _bmopf_transport_scaling_point(
+    source_context,
+    source_evaluation,
+    target_context,
+    target_evaluation;
+    label::AbstractString = "bmopf-physical-state-transport",
+    semantic_blocks::Bool = true,
+)
+    source_build = semantic_blocks ?
+        _bmopf_semantic_block_scaling_map(source_context, source_evaluation) :
+        _bmopf_diagonal_scaling_map(source_context, source_evaluation)
+    target_build = semantic_blocks ?
+        _bmopf_semantic_block_scaling_map(target_context, target_evaluation) :
+        _bmopf_diagonal_scaling_map(target_context, target_evaluation)
+    if !source_build["available"] || !target_build["available"]
+        return Dict{String,Any}(
+            "report_version" => "bmopf-scaling-point-transport-v1",
+            "available" => false,
+            "reason" => "one or both BMOPF physical scaling maps are unavailable",
+            "source_map" => source_build,
+            "target_map" => target_build,
+        )
+    end
+    transport = NLPDiagnostics.transport_scaling_point(
+        source_evaluation.point,
+        source_build["map"],
+        target_evaluation.point.variables,
+        target_build["map"];
+        label,
+    )
+    data = NLPDiagnostics.scaling_point_transport_data(transport)
+    data["report_version"] = "bmopf-scaling-point-transport-v1"
+    data["available"] = true
+    data["semantic_blocks"] = semantic_blocks
+    data["transport"] = transport
+    data["source_map_coverage"] = Dict(
+        key => value for (key, value) in source_build if key != "map")
+    data["target_map_coverage"] = Dict(
+        key => value for (key, value) in target_build if key != "map")
+    data["qualification"]["claim"] =
+        "BMOPF physical-state coordinate transport through authoritative semantic maps"
+    return data
+end
+
+"""
+    bmopf_physical_feasibility_report(context, evaluation; kwargs...)
+
+Apply physical endpoint feasibility tolerances to BMOPF residuals. Tolerances
+may be declared by exact semantic residual/block key or by BMOPFTools physical
+quantity (for example `:voltage`, `:current`, or `:power`). Quantity defaults
+are expanded to individual blocks and never compared or maximized across
+unlike units.
+"""
+function _bmopf_physical_feasibility_report(
+    context,
+    evaluation;
+    absolute_tolerances::AbstractDict = Dict{String,Float64}(),
+    quantity_absolute_tolerances::AbstractDict = Dict{String,Float64}(),
+    default_absolute_tolerance::Union{Nothing,Real} = nothing,
+    set_transform_tolerance::Real = sqrt(eps(Float64)),
+    semantic_blocks::Bool = true,
+)
+    map_build = semantic_blocks ?
+        _bmopf_semantic_block_scaling_map(context, evaluation) :
+        _bmopf_diagonal_scaling_map(context, evaluation)
+    if !map_build["available"]
+        return Dict{String,Any}(
+            "report_version" => "bmopf-physical-feasibility-v1",
+            "available" => false,
+            "acceptance_passed" => nothing,
+            "reason" => "the BMOPF physical scaling map is unavailable",
+            "map" => map_build,
+        )
+    end
+    normalized_quantity_tolerances = Dict{String,Float64}()
+    for (quantity, tolerance) in quantity_absolute_tolerances
+        tolerance isa Real && isfinite(tolerance) && tolerance >= 0 ||
+            throw(ArgumentError(
+                "physical feasibility tolerance for quantity $(repr(quantity)) must be finite and nonnegative",
+            ))
+        normalized_quantity_tolerances[string(quantity)] = Float64(tolerance)
+    end
+    map = semantic_blocks ? map_build["map"] :
+        NLPDiagnostics.SemanticBlockScalingMap(map_build["map"])
+    diagonal_build = _bmopf_diagonal_scaling_map(context, evaluation)
+    quantities = diagonal_build["constraint_quantities"]
+    block_quantities = Dict{String,String}()
+    expanded_tolerances = Dict{String,Float64}(
+        string(key) => Float64(value) for (key, value) in absolute_tolerances
+    )
+    for block in map.constraint_blocks
+        block_id = join(sort(block.linear.keys), "\u001f")
+        declared = unique(quantities[block.linear.positions])
+        quantity = length(declared) == 1 ? only(declared) : "mixed"
+        block_quantities[block_id] = quantity
+        haskey(expanded_tolerances, block_id) && continue
+        haskey(normalized_quantity_tolerances, quantity) || continue
+        expanded_tolerances[block_id] =
+            normalized_quantity_tolerances[quantity]
+    end
+    report = NLPDiagnostics.physical_feasibility_report(
+        evaluation,
+        map;
+        absolute_tolerances=expanded_tolerances,
+        default_absolute_tolerance,
+        set_transform_tolerance,
+    )
+    report["report_version"] = "bmopf-physical-feasibility-v1"
+    report["semantic_blocks"] = semantic_blocks
+    report["quantity_absolute_tolerances"] =
+        normalized_quantity_tolerances
+    report["block_physical_quantities"] = block_quantities
+    if report["available"]
+        for residual in values(report["residuals"])
+            residual["physical_quantity"] = get(
+                block_quantities, residual["block_id"], "unknown",
+            )
+        end
+    end
+    report["map_coverage"] = Dict(
+        key => value for (key, value) in map_build if key != "map")
+    report["qualification"]["claim"] =
+        "BMOPF endpoint feasibility in declared physical residual coordinates and caller-declared tolerances"
+    report["qualification"]["solver_option_translation"] =
+        "not claimed; solver-internal scaled stopping tests remain separate evidence"
+    return report
+end
+
+function _bmopf_semantic_family_label(families)
+    normalized = sort!(unique!(string.(collect(families))))
+    isempty(normalized) && return "unregistered"
+    length(normalized) == 1 && return only(normalized)
+    return "mixed[$(join(normalized, "+"))]"
+end
+
+function _bmopf_constraint_block_attribution(context, evaluation, map)
+    row_semantics = _bmopf_constraint_semantic_row_map(context, evaluation)
+    result = Dict{String,Dict{String,Any}}()
+    for block in map.constraint_blocks
+        block_id = join(sort(block.linear.keys), "\u001f")
+        descriptors = [row_semantics[string(row)] for row in block.linear.positions]
+        families = sort!(unique!([
+            string(get(descriptor, "constraint_family", "unregistered_constraint"))
+            for descriptor in descriptors
+        ]))
+        components = sort!(unique!([
+            _bmopf_constraint_component_family(family) for family in families
+        ]))
+        result[block_id] = Dict{String,Any}(
+            "constraint_families" => families,
+            "family_label" => _bmopf_semantic_family_label(families),
+            "component_families" => components,
+            "row_positions" => copy(block.linear.positions),
+            "all_rows_registered" => all(
+                descriptor -> get(descriptor, "registered", false) == true,
+                descriptors,
+            ),
+        )
+    end
+    return result, row_semantics
+end
+
+function _bmopf_variable_block_attribution(context, evaluation, map)
+    families_by_variable = Dict{MOI.VariableIndex,Vector{String}}()
+    for key in BMOPFTools.opf_object_keys(context; kind=:variable)
+        object = try
+            BMOPFTools.opf_object(context, key)
+        catch
+            nothing
+        end
+        object isa JuMP.VariableRef || continue
+        push!(
+            get!(families_by_variable, JuMP.index(object), String[]),
+            string(key.family),
+        )
+    end
+    result = Dict{String,Dict{String,Any}}()
+    for block in map.variable_blocks
+        families = String[]
+        for position in block.positions
+            variable = evaluation.point.variables[position]
+            append!(families, get(
+                families_by_variable, variable, ["unregistered_variable"],
+            ))
+        end
+        unique!(families)
+        sort!(families)
+        descriptor = Dict{String,Any}(
+            "variable_families" => families,
+            "family_label" => _bmopf_semantic_family_label(families),
+            "variable_positions" => copy(block.positions),
+            "all_variables_registered" =>
+                !("unregistered_variable" in families),
+        )
+        for key in block.keys
+            result[key] = descriptor
+        end
+    end
+    return result
+end
+
+function _bmopf_update_kkt_family_summary!(
+    summaries,
+    family::String,
+    metrics,
+    passed,
+)
+    summary = get!(summaries, family) do
+        Dict{String,Any}(
+            "record_count" => 0,
+            "passed_count" => 0,
+            "failed_count" => 0,
+            "unavailable_pass_count" => 0,
+            "maxima" => Dict{String,Float64}(),
+        )
+    end
+    summary["record_count"] += 1
+    if passed === true
+        summary["passed_count"] += 1
+    elseif passed === false
+        summary["failed_count"] += 1
+    else
+        summary["unavailable_pass_count"] += 1
+    end
+    maxima = summary["maxima"]
+    for (metric, raw_value) in metrics
+        raw_value isa Real && isfinite(raw_value) || continue
+        value = abs(Float64(raw_value))
+        maxima[string(metric)] = max(get(maxima, string(metric), 0.0), value)
+    end
+    return summary
+end
+
+function _bmopf_physical_kkt_semantic_attribution(
+    context,
+    evaluation,
+    map,
+    report,
+)
+    required = ("primal_feasibility", "stationarity", "complementarity")
+    if !all(key -> haskey(report, key), required)
+        return Dict{String,Any}(
+            "schema_version" => "bmopf-physical-kkt-attribution-v1",
+            "available" => false,
+            "reason" => "the physical KKT report is unavailable or incomplete",
+        )
+    end
+    constraint_blocks, row_semantics =
+        _bmopf_constraint_block_attribution(context, evaluation, map)
+    variable_keys = _bmopf_variable_block_attribution(context, evaluation, map)
+    primal_records = Dict{String,Any}()
+    stationarity_records = Dict{String,Any}()
+    complementarity_records = Dict{String,Any}()
+    primal_summary = Dict{String,Any}()
+    stationarity_summary = Dict{String,Any}()
+    complementarity_summary = Dict{String,Any}()
+    missing = String[]
+
+    primal = report["primal_feasibility"]
+    for (key, raw_record) in get(primal, "residuals", Dict{String,Any}())
+        record = Dict{String,Any}(raw_record)
+        block_id = string(get(record, "block_id", ""))
+        descriptor = get(constraint_blocks, block_id, nothing)
+        if isnothing(descriptor)
+            push!(missing, "primal:$key")
+            continue
+        end
+        merge!(record, descriptor)
+        family = descriptor["family_label"]
+        primal_records[key] = record
+        _bmopf_update_kkt_family_summary!(
+            primal_summary, family,
+            ("violation" => get(record, "violation", nothing),),
+            get(record, "passed", nothing),
+        )
+    end
+
+    stationarity = report["stationarity"]
+    for (key, raw_record) in get(
+        stationarity, "stationarity", Dict{String,Any}(),
+    )
+        record = Dict{String,Any}(raw_record)
+        descriptor = get(variable_keys, key, nothing)
+        if isnothing(descriptor)
+            push!(missing, "stationarity:$key")
+            continue
+        end
+        merge!(record, descriptor)
+        family = descriptor["family_label"]
+        stationarity_records[key] = record
+        _bmopf_update_kkt_family_summary!(
+            stationarity_summary, family,
+            ("absolute_residual" =>
+                get(record, "absolute_residual", nothing),),
+            get(record, "passed", nothing),
+        )
+    end
+
+    complementarity = report["complementarity"]
+    for (key, raw_record) in get(
+        complementarity, "sides", Dict{String,Any}(),
+    )
+        record = Dict{String,Any}(raw_record)
+        row = get(record, "row", nothing)
+        descriptor = row isa Integer ?
+            get(row_semantics, string(row), nothing) : nothing
+        if isnothing(descriptor)
+            push!(missing, "complementarity:$key")
+            continue
+        end
+        family = string(get(
+            descriptor, "constraint_family", "unregistered_constraint",
+        ))
+        record["constraint_family"] = family
+        record["component_family"] =
+            _bmopf_constraint_component_family(family)
+        record["constraint_registered"] =
+            get(descriptor, "registered", false)
+        record["constraint_index"] = get(descriptor, "constraint_index", "?")
+        complementarity_records[key] = record
+        _bmopf_update_kkt_family_summary!(
+            complementarity_summary, family,
+            (
+                "dual_violation" => get(record, "dual_violation", nothing),
+                "complementarity_residual" =>
+                    get(record, "complementarity_residual", nothing),
+            ),
+            get(record, "passed", nothing),
+        )
+    end
+    unique!(missing)
+    sort!(missing)
+    registered_primal = count(
+        record -> get(record, "all_rows_registered", false) == true,
+        values(primal_records),
+    )
+    registered_stationarity = count(
+        record -> get(record, "all_variables_registered", false) == true,
+        values(stationarity_records),
+    )
+    registered_complementarity = count(
+        record -> get(record, "constraint_registered", false) == true,
+        values(complementarity_records),
+    )
+    aligned_count = length(primal_records) + length(stationarity_records) +
+        length(complementarity_records)
+    registered_count = registered_primal + registered_stationarity +
+        registered_complementarity
+    registry_complete = registered_count == aligned_count
+    return Dict{String,Any}(
+        "schema_version" => "bmopf-physical-kkt-attribution-v1",
+        "available" => isempty(missing),
+        "interpretation_qualified" => isempty(missing) && registry_complete,
+        "label_source" => "BMOPFTools public variable and constraint registries",
+        "missing_record_attributions" => missing,
+        "aligned_record_count" => aligned_count,
+        "registered_record_count" => registered_count,
+        "registry_coverage_complete" => registry_complete,
+        "primal_feasibility" => Dict(
+            "records" => primal_records,
+            "families" => primal_summary,
+        ),
+        "stationarity" => Dict(
+            "records" => stationarity_records,
+            "families" => stationarity_summary,
+        ),
+        "complementarity" => Dict(
+            "applicable" => get(complementarity, "applicable", nothing),
+            "records" => complementarity_records,
+            "families" => complementarity_summary,
+        ),
+        "qualification" => Dict{String,Any}(
+            "mixed_block_policy" =>
+                "a transformed block spanning multiple registry families receives an explicit mixed family label",
+            "claim" =>
+                "semantic attribution of endpoint residual evidence, not a causal explanation of solver behavior",
+            "unregistered_policy" =>
+                "unregistered rows remain aligned under explicit labels but block interpretation qualification",
+        ),
+    )
+end
+
+"""
+    bmopf_physical_solver_kkt_report(context, model, evaluation; kwargs...)
+
+Read public solver duals at the exact BMOPF result point and evaluate primal
+feasibility, stationarity, dual feasibility, and complementarity in declared
+physical coordinates. Feasibility tolerances may be expanded from BMOPFTools
+residual quantities. Stationarity, dual, and complementarity tolerances remain
+explicit because their compound units also depend on the objective semantics.
+"""
+function _bmopf_physical_solver_kkt_report(
+    context,
+    model,
+    evaluation;
+    result_index::Integer = 1,
+    semantic_blocks::Bool = true,
+    feasibility_absolute_tolerances::AbstractDict = Dict{String,Float64}(),
+    quantity_feasibility_absolute_tolerances::AbstractDict =
+        Dict{String,Float64}(),
+    feasibility_default_absolute_tolerance::Union{Nothing,Real} = nothing,
+    stationarity_absolute_tolerances::AbstractDict = Dict{String,Float64}(),
+    stationarity_default_absolute_tolerance::Union{Nothing,Real} = nothing,
+    dual_absolute_tolerances::AbstractDict = Dict{String,Float64}(),
+    dual_default_absolute_tolerance::Union{Nothing,Real} = nothing,
+    complementarity_absolute_tolerances::AbstractDict =
+        Dict{String,Float64}(),
+    complementarity_default_absolute_tolerance::Union{Nothing,Real} = nothing,
+    set_transform_tolerance::Real = sqrt(eps(Float64)),
+    point_absolute_tolerance::Real = 10eps(Float64),
+    point_relative_tolerance::Real = 10eps(Float64),
+)
+    map_build = semantic_blocks ?
+        _bmopf_semantic_block_scaling_map(context, evaluation) :
+        _bmopf_diagonal_scaling_map(context, evaluation)
+    if !map_build["available"]
+        return Dict{String,Any}(
+            "report_version" => "bmopf-physical-solver-kkt-v1",
+            "available" => false,
+            "acceptance_passed" => nothing,
+            "reason" => "the BMOPF physical scaling map is unavailable",
+            "map" => map_build,
+        )
+    end
+    map = semantic_blocks ? map_build["map"] :
+        NLPDiagnostics.SemanticBlockScalingMap(map_build["map"])
+    diagonal_build = _bmopf_diagonal_scaling_map(context, evaluation)
+    expanded_feasibility = Dict{String,Float64}(
+        string(key) => Float64(value)
+        for (key, value) in feasibility_absolute_tolerances
+    )
+    normalized_quantities = Dict{String,Float64}()
+    for (quantity, tolerance) in quantity_feasibility_absolute_tolerances
+        tolerance isa Real && isfinite(tolerance) && tolerance >= 0 ||
+            throw(ArgumentError(
+                "physical feasibility tolerance for quantity $(repr(quantity)) must be finite and nonnegative",
+            ))
+        normalized_quantities[string(quantity)] = Float64(tolerance)
+    end
+    block_quantities = Dict{String,String}()
+    if diagonal_build["available"]
+        quantities = diagonal_build["constraint_quantities"]
+        for block in map.constraint_blocks
+            block_id = join(sort(block.linear.keys), "\u001f")
+            declared = unique(quantities[block.linear.positions])
+            quantity = length(declared) == 1 ? only(declared) : "mixed"
+            block_quantities[block_id] = quantity
+            haskey(expanded_feasibility, block_id) && continue
+            haskey(normalized_quantities, quantity) || continue
+            expanded_feasibility[block_id] = normalized_quantities[quantity]
+        end
+    end
+    duals = NLPDiagnostics.solver_dual_snapshot(
+        model, evaluation;
+        result_index,
+        point_absolute_tolerance,
+        point_relative_tolerance,
+    )
+    report = NLPDiagnostics.physical_kkt_acceptance_report(
+        evaluation,
+        map,
+        duals;
+        feasibility_absolute_tolerances=expanded_feasibility,
+        feasibility_default_absolute_tolerance,
+        stationarity_absolute_tolerances,
+        stationarity_default_absolute_tolerance,
+        dual_absolute_tolerances,
+        dual_default_absolute_tolerance,
+        complementarity_absolute_tolerances,
+        complementarity_default_absolute_tolerance,
+        set_transform_tolerance,
+    )
+    report["report_version"] = "bmopf-physical-solver-kkt-v1"
+    report["available"] = get(report, "acceptance_passed", nothing) !== nothing
+    report["semantic_blocks"] = semantic_blocks
+    report["quantity_feasibility_absolute_tolerances"] =
+        normalized_quantities
+    report["block_physical_quantities"] = block_quantities
+    report["map_coverage"] = Dict(
+        key => value for (key, value) in map_build if key != "map"
+    )
+    report["semantic_attribution"] =
+        _bmopf_physical_kkt_semantic_attribution(
+            context, evaluation, map, report,
+        )
+    report["qualification"] = merge(
+        get(report, "qualification", Dict{String,Any}()),
+        Dict{String,Any}(
+            "claim" => "BMOPF physical endpoint first-order KKT residual acceptance using public solver duals",
+            "compound_tolerance_policy" =>
+                "stationarity, dual, and complementarity tolerances are explicit; residual quantity labels alone do not determine their units",
+        ),
+    )
+    return report
+end
+
+"""Build one serializable BMOPF native-trace plus physical-endpoint artifact."""
+function _bmopf_solver_trace_physical_endpoint_data(
+    context,
+    model,
+    run;
+    kwargs...,
+)
+    profile = run.result.profile
+    endpoint = if isnothing(profile)
+        Dict{String,Any}(
+            "report_version" => "bmopf-physical-solver-kkt-v1",
+            "acceptance_passed" => nothing,
+            "reason" =>
+                "the solver trace profile has no complete public endpoint evaluation",
+        )
+    else
+        _bmopf_physical_solver_kkt_report(
+            context, model, profile.evaluation; kwargs...,
+        )
+    end
+    data = NLPDiagnostics.solver_trace_physical_endpoint_data(run, endpoint)
+    data["schema_version"] = "bmopf-solver-trace-physical-endpoint-v1"
+    data["bmopf_scaling_policy"] = _bmopf_scaling_policy_label(context)
+    data["qualification"] = Dict{String,Any}(
+        "claim" =>
+            "paired native solver trace and independently evaluated BMOPF physical endpoint evidence",
+        "does_not_establish" => [
+            "equivalence of native and physical residual values",
+            "causality between an attributed family and solver behavior",
+            "global optimality",
+        ],
+    )
+    return data
+end
+
+function _bmopf_block_scaling_covariance_report(
+    reference_context,
+    reference_evaluation,
+    candidate_context,
+    candidate_evaluation;
+    kwargs...,
+)
+    reference_build = _bmopf_semantic_block_scaling_map(
+        reference_context, reference_evaluation)
+    candidate_build = _bmopf_semantic_block_scaling_map(
+        candidate_context, candidate_evaluation)
+    if !reference_build["available"] || !candidate_build["available"]
+        return Dict{String,Any}(
+            "report_version" => "bmopf-block-scaling-covariance-v1",
+            "available" => false,
+            "equivalence_gate_passed" => nothing,
+            "reason" => "one or both BMOPF semantic block maps are unavailable",
+            "reference_map" => reference_build,
+            "candidate_map" => candidate_build,
+        )
+    end
+    report = NLPDiagnostics.scaling_covariance_report(
+        reference_evaluation, reference_build["map"],
+        candidate_evaluation, candidate_build["map"]; kwargs...)
+    report["report_version"] = "bmopf-block-scaling-covariance-v1"
+    report["available"] = true
+    report["reference_map_coverage"] = Dict(
+        key => value for (key, value) in reference_build if key != "map")
+    report["candidate_map_coverage"] = Dict(
+        key => value for (key, value) in candidate_build if key != "map")
+    report["qualification"]["claim"] =
+        "same-point BMOPF semantic block-coordinate, coupled-residual, and set covariance"
+    return report
+end
+
+function _bmopf_block_scaling_coordinate_geometry_report(
+    reference_context,
+    reference_evaluation,
+    candidate_context,
+    candidate_evaluation;
+    kwargs...,
+)
+    reference_build = _bmopf_semantic_block_scaling_map(
+        reference_context, reference_evaluation)
+    candidate_build = _bmopf_semantic_block_scaling_map(
+        candidate_context, candidate_evaluation)
+    if !reference_build["available"] || !candidate_build["available"]
+        return Dict{String,Any}(
+            "report_version" => "bmopf-block-scaling-coordinate-geometry-v1",
+            "available" => false,
+            "comparison_qualified" => false,
+            "reason" => "one or both BMOPF semantic block maps are unavailable",
+            "reference_map" => reference_build,
+            "candidate_map" => candidate_build,
+        )
+    end
+    report = NLPDiagnostics.scaling_coordinate_geometry_report(
+        reference_evaluation, reference_build["map"],
+        candidate_evaluation, candidate_build["map"]; kwargs...)
+    report["report_version"] = "bmopf-block-scaling-coordinate-geometry-v1"
+    report["available"] = true
+    report["reference_map_coverage"] = Dict(
+        key => value for (key, value) in reference_build if key != "map")
+    report["candidate_map_coverage"] = Dict(
+        key => value for (key, value) in candidate_build if key != "map")
+    report["qualification"] = Dict{String,Any}(
+        "claim" => "same-point local BMOPF solver-coordinate geometry in authoritative semantic blocks",
+        "requires_solver_experiment_for_merit" => true,
+        "requires_endpoint_kkt_gate" => true,
+    )
+    return report
 end
 
 function _bmopf_scaling_covariance_report(

@@ -6,6 +6,7 @@
     SolverResultPoint
     PerturbedPoint
     SyntheticSmokePoint
+    TransportedPoint
 end
 
 """Typed origin and completeness evidence for one numerical point."""
