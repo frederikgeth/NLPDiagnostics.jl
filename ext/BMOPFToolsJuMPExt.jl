@@ -676,14 +676,40 @@ function _bmopf_append_current_port!(ports, maps, semantics, skipped, context,
                                      component_type::Symbol, component_id::String,
                                      registry_id::String, port_role::String,
                                      bus::String, terminal_labels::Vector{String},
-                                     terminal_count::Int, key_builder)
-    terminal_count > 0 || return
+                                     variable_count::Int, key_builder;
+                                     terminal_from_variable = nothing,
+                                     variable_from_terminal = nothing)
+    variable_count > 0 || return
     per_unit = !isnothing(BMOPFTools.opf_bases(context))
     current_base = _bmopf_current_base(context, bus)
     unit = per_unit ? "p.u." : "A"
+    coordinate_map = isnothing(terminal_from_variable) ?
+        Matrix{Float64}(LinearAlgebra.I, variable_count, variable_count) :
+        Matrix{Float64}(terminal_from_variable)
+    size(coordinate_map, 2) == variable_count || throw(DimensionMismatch(
+        "current terminal map has $(size(coordinate_map, 2)) columns for $variable_count model coordinates",
+    ))
+    size(coordinate_map, 1) <= length(terminal_labels) || throw(DimensionMismatch(
+        "current terminal map has $(size(coordinate_map, 1)) rows for $(length(terminal_labels)) terminal labels",
+    ))
+    mapped_terminal_labels = terminal_labels[1:size(coordinate_map, 1)]
+    mapped_mode_labels = isnothing(terminal_from_variable) ?
+                         terminal_labels[1:variable_count] :
+                         ["branch_current_$(index)" for index in 1:variable_count]
+    inverse_map = if isnothing(variable_from_terminal)
+        isnothing(terminal_from_variable) ? coordinate_map :
+        LinearAlgebra.pinv(coordinate_map)
+    else
+        Matrix{Float64}(variable_from_terminal)
+    end
+    expected_inverse_size = (variable_count, size(coordinate_map, 1))
+    size(inverse_map) == expected_inverse_size ||
+        throw(DimensionMismatch(
+            "current variable map has size $(size(inverse_map)); expected $expected_inverse_size",
+        ))
     for component in (:real, :imag)
         variables = MOI.VariableIndex[]
-        for conductor in 1:terminal_count
+        for conductor in 1:variable_count
             key = key_builder(registry_id, conductor; component = component)
             object = try
                 BMOPFTools.opf_object(context, key)
@@ -697,7 +723,7 @@ function _bmopf_append_current_port!(ports, maps, semantics, skipped, context,
             end
             push!(variables, JuMP.index(object))
         end
-        length(variables) == terminal_count || continue
+        length(variables) == variable_count || continue
         port_id = "$(port_role)_current_$(component)"
         metadata = Dict{String,String}(
             "source" => "BMOPFTools public current registry",
@@ -705,20 +731,21 @@ function _bmopf_append_current_port!(ports, maps, semantics, skipped, context,
             "port_role" => port_role,
             "bus" => bus,
             "coordinate_component" => string(component),
+            "terminal_to_variable_map" => isnothing(terminal_from_variable) ?
+                                          "identity" : "declared_incidence",
         )
         !isnothing(current_base) && (metadata["physical_current_base_A"] = string(current_base))
-        identity = Matrix{Float64}(LinearAlgebra.I, terminal_count, terminal_count)
         push!(ports, NLPDiagnostics.ComponentPortMetadata(
             component_type, component_id, port_id;
-            terminal_labels = terminal_labels[1:terminal_count],
-            mode_labels = terminal_labels[1:terminal_count],
+            terminal_labels = mapped_terminal_labels,
+            mode_labels = mapped_mode_labels,
             variables = variables,
-            connection_matrix = identity,
+            connection_matrix = coordinate_map,
             metadata = metadata,
         ))
         push!(maps, NLPDiagnostics.PortCoordinateMap(
             component_type, component_id, port_id, variables;
-            terminal_to_variable = identity,
+            terminal_to_variable = inverse_map,
             description = "BMOPFTools $(component_type) $(component_id) $(port_role) rectangular $(component) terminal-current map",
         ))
         push!(semantics, NLPDiagnostics.PortCoordinateSemantics(
@@ -805,9 +832,19 @@ function _bmopf_current_port_declarations(context)
             builder = (id, conductor; component = :real) -> key_function(id, conductor; component = component)
             n = _bmopf_available_current_count(context, string(identifier), builder, max(n, 1))
             n > 0 || continue
+            terminal_map = if family == "load" &&
+                              uppercase(string(get(device, "configuration", "WYE"))) == "SINGLE_PHASE" &&
+                              length(terminals) == 2 && n == 1
+                reshape([1.0, -1.0], 2, 1)
+            else
+                nothing
+            end
             _bmopf_append_current_port!(ports, maps, semantics, skipped, context,
                                         component_type, string(identifier), string(identifier),
-                                        "terminal", bus, string.(terminals), n, builder)
+                                        "terminal", bus, string.(terminals), n, builder;
+                                        terminal_from_variable = terminal_map,
+                                        variable_from_terminal = isnothing(terminal_map) ?
+                                            nothing : [0.5 -0.5])
         end
     end
 
@@ -2478,13 +2515,20 @@ function _bmopf_source_schema_report(
     warning_fields = sort!(unique(fields))
     provenance_warning_fields = sort!(intersect(warning_fields, provenance_fields))
     mapped_warning_fields = sort!(intersect(warning_fields, mapped_fields))
-    blocking_warning_fields = sort!(unique(fields[findall(blocking)]))
-    unmapped_blocking_fields = sort!(setdiff(blocking_warning_fields, mapped_fields))
+    unresolved = [!(field in mapped_fields) for field in fields]
+    unresolved_blocking = blocking .& unresolved
+    blocking_warning_fields = sort!(unique(fields[findall(unresolved_blocking)]))
+    unmapped_blocking_fields = blocking_warning_fields
 
     report = NLPDiagnostics.DiagnosticReport()
     report.metadata[:stage] = "bmopf_source_schema"
     report.metadata[:bmopf_source_schema_warning_count] = string(length(warnings))
-    report.metadata[:bmopf_source_schema_physical_blocking_count] = string(count(blocking))
+    report.metadata[:bmopf_source_schema_physical_blocking_count] =
+        string(count(unresolved_blocking))
+    report.metadata[:bmopf_source_schema_resolved_warning_count] =
+        string(count(!, unresolved))
+    report.metadata[:bmopf_source_schema_unresolved_warning_count] =
+        string(count(identity, unresolved))
     report.metadata[:bmopf_source_schema_representational_count] = string(count(==("representational"), impacts))
     report.metadata[:bmopf_source_schema_device_semantics_count] = string(count(==("device_semantics"), impacts))
     report.metadata[:bmopf_source_schema_unclassified_count] = string(count(==("unknown"), impacts))
@@ -2612,7 +2656,8 @@ function _bmopf_source_schema_report(
             "Unclassified information loss can hide physical or device semantics and blocks a confident interpretation of downstream findings.",
             "Classify the field and add an explicit BMOPF mapping before relying on physical conclusions."),
     )
-        selected = findall(==(impact), impacts)
+        selected = findall(index -> impacts[index] == impact && unresolved[index],
+                           eachindex(impacts))
         isempty(selected) && continue
         selected_fields = unique(fields[selected])
         selected_scopes = unique(scopes[selected])
@@ -3394,6 +3439,142 @@ function _bmopf_analyze_jacobian_rank_persistence(
     )
     return _bmopf_append_candidate_provenance!(report, context, candidates,
                                                 include_floating_neutral_candidates)
+end
+
+"""Compare staged-BMOPF sparse-QR right-nullspace spans across points."""
+function _bmopf_analyze_sparse_qr_nullspace_persistence(
+    context,
+    points;
+    include_port_expected_modes::Bool = true,
+    expected_modes::AbstractVector{<:NLPDiagnostics.ExpectedNullspaceMode} =
+        NLPDiagnostics.ExpectedNullspaceMode[],
+    physical_interpretation_ready::Union{Nothing,Bool} = nothing,
+    kwargs...,
+)
+    owner = _bmopf_context_model(context)
+    owner isa JuMP.Model || throw(ArgumentError(
+        "BMOPFTools.opf_model(context) did not return a JuMP.Model",
+    ))
+    backend = JuMP.backend(owner)
+    evaluations = [NLPDiagnostics.evaluate_numerical(backend, point) for point in points]
+    projected_modes = include_port_expected_modes ?
+        NLPDiagnostics.port_expected_nullspace_modes(
+            _bmopf_terminal_port_metadata(context),
+            _bmopf_terminal_port_nullspace_modes(context),
+            _bmopf_terminal_port_connections(context),
+            _bmopf_terminal_port_coordinate_maps(context),
+        ) : NLPDiagnostics.ExpectedNullspaceMode[]
+    modes = vcat(expected_modes, projected_modes)
+    coordinate_groups = Dict{String,Vector{MOI.VariableIndex}}()
+    for (quantity, maps) in (
+        ("voltage", _bmopf_terminal_port_coordinate_maps(context)),
+        ("current", _bmopf_terminal_current_port_coordinate_maps(context)),
+    )
+        for map in maps
+            key = "$quantity:$(map.component_type):$(map.component_id):$(map.port_id)"
+            variables = get!(coordinate_groups, key, MOI.VariableIndex[])
+            append!(variables, map.variables)
+            unique!(variables)
+        end
+    end
+    schema_report = _bmopf_source_schema_report(context)
+    schema_ready = lowercase(get(schema_report.metadata,
+        :bmopf_source_schema_restoration_ready, "false")) == "true"
+    ready = something(physical_interpretation_ready, schema_ready)
+    blocking_fields = get(schema_report.metadata,
+        :bmopf_source_schema_unmapped_blocking_fields, "unknown")
+    readiness_reason = ready ?
+        "BMOPFTools source-schema restoration gate passed" :
+        "BMOPFTools source-schema restoration gate failed; unmapped blocking fields: $blocking_fields"
+    report = NLPDiagnostics.analyze_sparse_qr_nullspace_persistence(
+        evaluations;
+        expected_modes = modes,
+        coordinate_groups = coordinate_groups,
+        physical_interpretation_ready = ready,
+        physical_readiness_reason = readiness_reason,
+        kwargs...,
+    )
+    report.metadata[:bmopf_sparse_qr_persistent_port_expected_mode_count] =
+        string(length(projected_modes))
+    report.metadata[:bmopf_sparse_qr_persistent_source_schema_ready] =
+        string(schema_ready)
+    report.metadata[:bmopf_sparse_qr_persistent_source_schema_blocking_fields] =
+        blocking_fields
+    static_report = NLPDiagnostics.analyze_static(
+        NLPDiagnostics.snapshot(backend),
+    )
+    disconnected_findings = NLPDiagnostics.findings(
+        static_report, :disconnected_variable,
+    )
+    disconnected_by_index = Dict{Int,Union{Nothing,String}}()
+    for finding in disconnected_findings, entity in finding.affected
+        entity.kind == :variable || continue
+        disconnected_by_index[entity.index] = entity.name
+    end
+    leverage_raw = get(report.metadata,
+        :sparse_qr_persistent_variable_leverage_scores, "")
+    leverage_scores = Float64[]
+    for token in split(leverage_raw, ',')
+        isempty(strip(token)) && continue
+        value = try parse(Float64, strip(token)) catch; NaN end
+        isfinite(value) && push!(leverage_scores, value)
+    end
+    if length(leverage_scores) == length(first(points).variables) &&
+       !isempty(leverage_scores)
+        scale = maximum(leverage_scores; init = 0.0)
+        support_positions = findall(value ->
+            value > sqrt(eps(Float64)) * scale, leverage_scores)
+        support_variables = first(points).variables[support_positions]
+        disconnected_fraction = sum(
+            leverage_scores[position] for position in eachindex(leverage_scores)
+            if haskey(disconnected_by_index, first(points).variables[position].value)
+        )
+        support_is_disconnected = !isempty(support_variables) && all(
+            variable -> haskey(disconnected_by_index, variable.value),
+            support_variables,
+        )
+        report.metadata[:bmopf_sparse_qr_persistent_disconnected_variable_count] =
+            string(length(disconnected_by_index))
+        report.metadata[:bmopf_sparse_qr_persistent_disconnected_energy_fraction] =
+            string(disconnected_fraction)
+        report.metadata[:bmopf_sparse_qr_persistent_support_is_disconnected] =
+            string(support_is_disconnected)
+        if support_is_disconnected &&
+           disconnected_fraction >= 1.0 - sqrt(eps(Float64))
+            names = String[
+                something(get(disconnected_by_index, variable.value, nothing),
+                    "variable $(variable.value)")
+                for variable in support_variables
+            ]
+            push!(report, NLPDiagnostics.Finding(
+                :bmopf_sparse_qr_persistent_nullspace_explained_by_disconnected_variables;
+                severity = NLPDiagnostics.SeverityWarning,
+                domain = NLPDiagnostics.RepresentationalIssue,
+                basis = NLPDiagnostics.LocalInference,
+                confidence = NLPDiagnostics.ConfidenceHigh,
+                observation = "The persistent sparse-QR nullspace is supported entirely on structurally disconnected BMOPF variables.",
+                why_it_matters = "This identifies a representational degree of freedom in compiled model coordinates rather than a voltage gauge, collapse mode, or other network-physics nullspace.",
+                evidence = [NLPDiagnostics.Evidence(
+                    "BMOPF disconnected-variable explanation"; details = [
+                        "support_variable_indices" => join(getfield.(support_variables,
+                            :value), ","),
+                        "support_variable_names" => join(names, ","),
+                        "disconnected_energy_fraction" => disconnected_fraction,
+                        "support_variable_count" => length(support_variables),
+                    ],
+                )],
+                affected = [NLPDiagnostics.EntityRef(
+                    :variable, variable.value;
+                    name = get(disconnected_by_index, variable.value, nothing),
+                ) for variable in support_variables],
+                suggested_actions = [
+                    "Inspect BMOPFTools terminal allocation for inactive load conductors and remove, fix, or explicitly constrain unused current coordinates.",
+                    "After correcting the representation, rerun structural, sparse-QR, and nearby-point persistence checks before investigating physical gauges.",
+                ],
+            ))
+        end
+    end
+    return report
 end
 
 """Compare declared BMOPF registry-family component ranks across points."""

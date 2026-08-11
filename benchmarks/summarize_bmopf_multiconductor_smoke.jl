@@ -45,6 +45,47 @@ _bool(value) = value === true ||
     (value isa AbstractString && lowercase(strip(String(value))) in
         ("true", "1", "yes"))
 
+function _finding_detail_values(report, code::AbstractString,
+                                field::AbstractString)
+    values = Float64[]
+    for raw_finding in get(report, "findings", Any[])
+        finding = _as_dict(raw_finding)
+        String(get(finding, "code", "")) == code || continue
+        evidence = get(finding, "evidence", Any[])
+        evidence isa AbstractVector || continue
+        for raw_item in evidence
+            item = _as_dict(raw_item)
+            details = _as_dict(get(item, "details", nothing))
+            value = _float(get(details, field, nothing))
+            isnothing(value) || push!(values, value)
+        end
+    end
+    return values
+end
+
+function _integer_list(value)
+    value isa AbstractVector && return Int[_int(item) for item in value]
+    value isa AbstractString || return Int[]
+    return Int[_int(token) for token in split(value, ',')
+        if !isempty(strip(token))]
+end
+
+function _finding_detail_integer_values(report, code::AbstractString,
+                                        field::AbstractString)
+    values = Int[]
+    for raw_finding in get(report, "findings", Any[])
+        finding = _as_dict(raw_finding)
+        String(get(finding, "code", "")) == code || continue
+        evidence = get(finding, "evidence", Any[])
+        evidence isa AbstractVector || continue
+        for raw_item in evidence
+            details = _as_dict(get(_as_dict(raw_item), "details", nothing))
+            append!(values, _integer_list(get(details, field, "")))
+        end
+    end
+    return sort!(unique(values))
+end
+
 function _count_csv!(counts::Dict{String,Int}, value)
     value isa AbstractString || return counts
     for token in split(value, ',')
@@ -342,6 +383,19 @@ function _case_record(root, entry)
     crosscheck_relation = crosscheck_dimension > 0 ? string(get(numerical_metadata,
         "smallest_singular_backend_crosscheck_relation", "unavailable")) : "not_requested"
     numerical_code_counts = _as_dict(get(numerical, "finding_code_counts", nothing))
+    active_set = _as_dict(get(reports, "active_set", nothing))
+    active_set_metadata = _as_dict(get(active_set, "metadata", nothing))
+    active_set_code_counts = _as_dict(get(active_set, "finding_code_counts", nothing))
+    feasibility_violations = _finding_detail_values(
+        active_set, "constraint_feasibility_violation", "feasibility_violation")
+    zero_jacobian_rows = _finding_detail_integer_values(
+        numerical, "zero_jacobian_rows", "rows")
+    selected_active_rows = Set(_integer_list(get(
+        active_set_metadata, "active_rows", "")))
+    active_zero_jacobian_rows = sort!(Int[row for row in zero_jacobian_rows
+        if row in selected_active_rows])
+    inactive_zero_jacobian_rows = sort!(Int[row for row in zero_jacobian_rows
+        if !(row in selected_active_rows)])
     dense_calibration_requested = _bool(get(entry,
         "smallest_singular_backend_crosscheck_dense_calibration",
         get(record, "smallest_singular_backend_crosscheck_dense_calibration", false)))
@@ -349,9 +403,29 @@ function _case_record(root, entry)
         "restarted_dense_calibration_available", false))
     harmonic_dense_available = _bool(get(numerical_metadata,
         "harmonic_dense_calibration_available", false))
+    sparse_qr_nullspace_requested = _bool(get(entry,
+        "sparse_qr_nullspace", get(record, "sparse_qr_nullspace", false)))
+    sparse_qr_nullspace_dense_requested = _bool(get(entry,
+        "sparse_qr_nullspace_dense_calibration",
+        get(record, "sparse_qr_nullspace_dense_calibration", false)))
+    sparse_qr_persistence_requested = _bool(get(entry,
+        "sparse_qr_nullspace_persistence_requested",
+        get(record, "sparse_qr_nullspace_persistence_requested", false)))
+    sparse_qr_persistence_report = _as_dict(get(record,
+        "sparse_qr_nullspace_persistence_report", nothing))
+    sparse_qr_persistence_metadata = _as_dict(get(
+        sparse_qr_persistence_report, "metadata", nothing))
+    sparse_qr_persistence_findings = get(
+        sparse_qr_persistence_report, "findings", Any[])
+    sparse_qr_persistence_findings isa AbstractVector ||
+        (sparse_qr_persistence_findings = Any[])
     return Dict{String,Any}(
         "name" => get(entry, "name", "unknown"),
         "fixture" => get(record, "fixture", nothing),
+        "point_policy" => get(record, "point_policy",
+            get(entry, "point_policy", nothing)),
+        "point_solve" => _as_dict(get(record, "point_solve",
+            get(entry, "point_solve", nothing))),
         "status" => get(entry, "status", get(record, "status", "unknown")),
         "result_file" => result_file,
         "source_behavior_solver" => get(record, "source_behavior_solver",
@@ -438,6 +512,57 @@ function _case_record(root, entry)
             "sparse_qr_rank" => _int(get(numerical_metadata, "sparse_qr_rank", 0)),
             "dense_guard_allows" => dense_guard_allows,
             "finding_code_counts" => mode_codes,
+        ),
+        "numerical_profile" => Dict(
+            "available" => !isempty(numerical_metadata),
+            "sparse_qr_condition_proxy" => _float(get(numerical_metadata,
+                "sparse_qr_condition_proxy", nothing)),
+            "sparse_qr_matrix_norm" => _float(get(numerical_metadata,
+                "sparse_qr_matrix_norm", nothing)),
+            "sparse_qr_factorization_relative_residual" => _float(get(
+                numerical_metadata, "sparse_qr_factorization_relative_residual",
+                nothing)),
+            "raw_jacobian_entry_count" => _int(get(numerical_metadata,
+                "raw_jacobian_entry_count", 0)),
+            "evaluation_failure_count" => _int(get(numerical_metadata,
+                "evaluation_failure_count", 0)),
+            "derivative_issue_count" => _int(get(numerical_metadata,
+                "derivative_issue_count", 0)),
+            "expression_numerical_risk_count" => _int(get(numerical_metadata,
+                "expression_numerical_risk_count", 0)),
+            "zero_jacobian_row_finding_count" => _int(get(
+                numerical_code_counts, "zero_jacobian_rows", 0)),
+            "zero_jacobian_row_count" => length(zero_jacobian_rows),
+            "zero_jacobian_rows" => zero_jacobian_rows,
+            "active_zero_jacobian_row_count" =>
+                length(active_zero_jacobian_rows),
+            "active_zero_jacobian_rows" => active_zero_jacobian_rows,
+            "inactive_zero_jacobian_row_count" =>
+                length(inactive_zero_jacobian_rows),
+            "inactive_zero_jacobian_rows" => inactive_zero_jacobian_rows,
+            "inactive_stationary_diagonal_quadratic_row_count" => _int(get(
+                numerical_code_counts,
+                "inactive_stationary_diagonal_quadratic_row", 0)),
+            "active_stationary_diagonal_quadratic_row_count" => _int(get(
+                numerical_code_counts,
+                "active_stationary_diagonal_quadratic_row", 0)),
+            "violated_stationary_diagonal_quadratic_row_count" => _int(get(
+                numerical_code_counts,
+                "violated_stationary_diagonal_quadratic_row", 0)),
+            "finding_code_counts" => numerical_code_counts,
+        ),
+        "initialization_profile" => Dict(
+            "available" => !isempty(active_set),
+            "point_label" => get(numerical_metadata,
+                "evaluation_point_label", nothing),
+            "point_provenance_kind" => get(numerical_metadata,
+                "evaluation_point_provenance_kind", nothing),
+            "point_provenance_source" => get(numerical_metadata,
+                "evaluation_point_provenance_source", nothing),
+            "feasibility_violation_count" => length(feasibility_violations),
+            "maximum_feasibility_violation" => isempty(feasibility_violations) ?
+                0.0 : maximum(feasibility_violations),
+            "finding_code_counts" => active_set_code_counts,
         ),
         "iterative_right_nullspace_probe" => Dict(
             "requested_dimension" => probe_requested,
@@ -566,6 +691,166 @@ function _case_record(root, entry)
                     "harmonic_dense_minimum_principal_cosine", nothing)),
             ),
         ),
+        "sparse_qr_nullspace" => Dict(
+            "requested" => sparse_qr_nullspace_requested,
+            "scaling" => string(get(entry, "sparse_qr_nullspace_scaling",
+                get(record, "sparse_qr_nullspace_scaling", "none"))),
+            "available" => sparse_qr_nullspace_requested && _bool(get(
+                numerical_metadata, "sparse_qr_nullspace_available", false)),
+            "rank" => _int(get(numerical_metadata,
+                "sparse_qr_nullspace_rank", 0)),
+            "right_nullity" => _int(get(numerical_metadata,
+                "sparse_qr_right_nullity", 0)),
+            "absolute_threshold" => _float(get(numerical_metadata,
+                "sparse_qr_nullspace_absolute_threshold", nothing)),
+            "relative_residuals" => _float_list(get(numerical_metadata,
+                "sparse_qr_nullspace_relative_residuals", "")),
+            "orthogonality_loss" => _float(get(numerical_metadata,
+                "sparse_qr_nullspace_orthogonality_loss", nothing)),
+            "input_nonzeros" => _int(get(numerical_metadata,
+                "sparse_qr_nullspace_input_nonzeros", 0)),
+            "factor_nonzeros" => _int(get(numerical_metadata,
+                "sparse_qr_nullspace_factor_nonzeros", 0)),
+            "fill_ratio" => _float(get(numerical_metadata,
+                "sparse_qr_nullspace_fill_ratio", nothing)),
+            "dense_calibration_requested" =>
+                sparse_qr_nullspace_dense_requested,
+            "dense_calibration_available" =>
+                sparse_qr_nullspace_dense_requested && _bool(get(
+                    numerical_metadata,
+                    "sparse_qr_nullspace_dense_calibration_available", false)),
+            "dense_calibration_relation" =>
+                sparse_qr_nullspace_dense_requested ? string(get(
+                    numerical_metadata,
+                    "sparse_qr_nullspace_dense_calibration_relation",
+                    "unavailable")) : "not_requested",
+            "dense_rank" => _int(get(numerical_metadata,
+                "sparse_qr_nullspace_dense_rank", 0)),
+            "dense_right_nullity" => _int(get(numerical_metadata,
+                "sparse_qr_nullspace_dense_right_nullity", 0)),
+            "dense_minimum_principal_cosine" => _float(get(
+                numerical_metadata,
+                "sparse_qr_nullspace_dense_minimum_principal_cosine", nothing)),
+            "dense_threshold_ambiguous" => _bool(get(numerical_metadata,
+                "sparse_qr_nullspace_dense_threshold_ambiguous", false)),
+        ),
+        "sparse_qr_nullspace_persistence" => Dict(
+            "requested" => sparse_qr_persistence_requested,
+            "available" => sparse_qr_persistence_requested && _bool(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_nullspace_persistence_available", false)),
+            "repeat_count" => _int(get(entry,
+                "sparse_qr_nullspace_persistence_repeat_count",
+                get(record, "sparse_qr_nullspace_persistence_repeat_count", 0))),
+            "radii" => get(entry, "sparse_qr_nullspace_persistence_radii",
+                get(record, "sparse_qr_nullspace_persistence_radii", Any[])),
+            "direction_seed" => _int(get(entry,
+                "sparse_qr_nullspace_persistence_direction_seed",
+                get(record, "sparse_qr_nullspace_persistence_direction_seed", 0))),
+            "alignment_threshold" => _float(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_nullspace_persistence_alignment_threshold",
+                get(entry,
+                    "sparse_qr_nullspace_persistence_alignment_threshold",
+                    nothing))),
+            "evaluation_count" => _int(get(sparse_qr_persistence_metadata,
+                "evaluation_count", 0)),
+            "ranks" => [_int(value) for value in split(String(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_nullspace_persistence_ranks", "")), ',')
+                if !isempty(strip(value))],
+            "right_nullities" => [_int(value) for value in split(String(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_nullspace_persistence_right_nullities", "")), ',')
+                if !isempty(strip(value))],
+            "pair_relative_point_distances" => _float_list(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_nullspace_persistence_pair_relative_point_distances",
+                "")),
+            "pair_minimum_principal_cosines" => _float_list(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_nullspace_persistence_pair_minimum_principal_cosines",
+                "")),
+            "minimum_repeat_principal_cosine" => _float(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_nullspace_persistence_minimum_repeat_principal_cosine",
+                nothing)),
+            "minimum_nearby_principal_cosine" => _float(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_nullspace_persistence_minimum_nearby_principal_cosine",
+                nothing)),
+            "maximum_relative_residual" => _float(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_nullspace_persistence_maximum_relative_residual",
+                nothing)),
+            "rank_stable" => _bool(get(sparse_qr_persistence_metadata,
+                "sparse_qr_nullspace_persistence_rank_stable", false)),
+            "subspace_persistent" => _bool(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_nullspace_persistence_subspace_persistent", false)),
+            "residual_supported" => _bool(get(sparse_qr_persistence_metadata,
+                "sparse_qr_nullspace_persistence_residual_supported", false)),
+            "finding_codes" => [String(get(finding, "code", "unknown"))
+                for finding in sparse_qr_persistence_findings
+                if finding isa AbstractDict],
+            "material_variable_indices" => [_int(value) for value in split(
+                String(get(sparse_qr_persistence_metadata,
+                    "sparse_qr_persistent_material_variable_indices", "")), ',')
+                if !isempty(strip(value))],
+            "coordinate_group_energy_fractions" => String(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_persistent_coordinate_group_energy_fractions", "")),
+            "unmapped_coordinate_energy_fraction" => _float(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_persistent_unmapped_coordinate_energy_fraction",
+                nothing)),
+            "expected_mode_count" => _int(get(sparse_qr_persistence_metadata,
+                "sparse_qr_persistent_expected_mode_count", 0)),
+            "aligned_expected_mode_count" => _int(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_persistent_aligned_expected_mode_count", 0)),
+            "expected_mode_span_rank" => _int(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_persistent_expected_mode_span_rank", 0)),
+            "expected_mode_maximum_residual" => _float(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_persistent_expected_mode_maximum_residual", nothing)),
+            "maximum_unexplained_energy" => _float(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_persistent_expected_mode_maximum_unexplained_energy",
+                nothing)),
+            "expected_modes_numerically_supported" => _bool(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_persistent_expected_modes_numerically_supported",
+                false)),
+            "expected_mode_span_explains_nullspace" => _bool(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_persistent_expected_mode_span_explains_nullspace",
+                false)),
+            "physical_interpretation_ready" => _bool(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_persistent_physical_interpretation_ready", false)),
+            "physical_readiness_reason" => String(get(
+                sparse_qr_persistence_metadata,
+                "sparse_qr_persistent_physical_readiness_reason", "unknown")),
+            "port_expected_mode_count" => _int(get(
+                sparse_qr_persistence_metadata,
+                "bmopf_sparse_qr_persistent_port_expected_mode_count", 0)),
+            "source_schema_ready" => _bool(get(sparse_qr_persistence_metadata,
+                "bmopf_sparse_qr_persistent_source_schema_ready", false)),
+            "source_schema_blocking_fields" => String(get(
+                sparse_qr_persistence_metadata,
+                "bmopf_sparse_qr_persistent_source_schema_blocking_fields", "")),
+            "disconnected_variable_count" => _int(get(
+                sparse_qr_persistence_metadata,
+                "bmopf_sparse_qr_persistent_disconnected_variable_count", 0)),
+            "disconnected_energy_fraction" => _float(get(
+                sparse_qr_persistence_metadata,
+                "bmopf_sparse_qr_persistent_disconnected_energy_fraction", nothing)),
+            "support_is_disconnected" => _bool(get(
+                sparse_qr_persistence_metadata,
+                "bmopf_sparse_qr_persistent_support_is_disconnected", false)),
+        ),
     )
 end
 
@@ -657,6 +942,42 @@ function main()
     harmonic_dense_available_cases = 0
     restarted_dense_relation_counts = Dict{String,Int}()
     harmonic_dense_relation_counts = Dict{String,Int}()
+    sparse_qr_nullspace_requested_cases = 0
+    sparse_qr_nullspace_available_cases = 0
+    sparse_qr_nullspace_dense_requested_cases = 0
+    sparse_qr_nullspace_dense_available_cases = 0
+    sparse_qr_nullspace_dense_relation_counts = Dict{String,Int}()
+    sparse_qr_persistence_requested_cases = 0
+    sparse_qr_persistence_available_cases = 0
+    sparse_qr_persistence_repeat_requested_cases = 0
+    sparse_qr_persistence_repeat_stable_cases = 0
+    sparse_qr_persistence_nearby_requested_cases = 0
+    sparse_qr_persistence_nearby_stable_cases = 0
+    sparse_qr_persistence_rank_stable_cases = 0
+    sparse_qr_persistence_residual_supported_cases = 0
+    sparse_qr_persistence_finding_code_counts = Dict{String,Int}()
+    sparse_qr_persistence_disconnected_explanation_cases = 0
+    sparse_qr_persistence_physical_blocked_cases = 0
+    sparse_qr_persistence_unexplained_cases = 0
+    numerical_profile_cases = 0
+    numerical_evaluation_failure_count = 0
+    numerical_derivative_issue_count = 0
+    numerical_expression_risk_count = 0
+    maximum_sparse_qr_condition_proxy = nothing
+    active_zero_jacobian_row_cases = 0
+    active_zero_jacobian_row_count = 0
+    inactive_zero_jacobian_row_count = 0
+    inactive_stationary_diagonal_quadratic_row_count = 0
+    active_stationary_diagonal_quadratic_row_count = 0
+    violated_stationary_diagonal_quadratic_row_count = 0
+    initialization_profile_cases = 0
+    initialization_violation_cases = 0
+    initialization_feasibility_violation_count = 0
+    maximum_initialization_feasibility_violation = 0.0
+    point_solve_requested_cases = 0
+    point_solve_result_available_cases = 0
+    point_solve_feasible_cases = 0
+    point_solve_termination_status_counts = Dict{String,Int}()
     mode_status_counts = Dict{String,Int}()
     mode_projection_cases = 0
     mode_projection_visible_count = 0
@@ -744,6 +1065,63 @@ function main()
         end
         snapshot = _as_dict(get(case, "source_snapshot", nothing))
         get(snapshot, "preserved", false) === true && (source_snapshot_cases += 1)
+        numerical_profile = _as_dict(get(case, "numerical_profile", nothing))
+        if get(numerical_profile, "available", false) === true
+            numerical_profile_cases += 1
+            numerical_evaluation_failure_count += _int(get(
+                numerical_profile, "evaluation_failure_count", 0))
+            numerical_derivative_issue_count += _int(get(
+                numerical_profile, "derivative_issue_count", 0))
+            numerical_expression_risk_count += _int(get(
+                numerical_profile, "expression_numerical_risk_count", 0))
+            active_zero_count = _int(get(numerical_profile,
+                "active_zero_jacobian_row_count", 0))
+            active_zero_jacobian_row_count += active_zero_count
+            active_zero_count > 0 && (active_zero_jacobian_row_cases += 1)
+            inactive_zero_jacobian_row_count += _int(get(numerical_profile,
+                "inactive_zero_jacobian_row_count", 0))
+            inactive_stationary_diagonal_quadratic_row_count += _int(get(
+                numerical_profile,
+                "inactive_stationary_diagonal_quadratic_row_count", 0))
+            active_stationary_diagonal_quadratic_row_count += _int(get(
+                numerical_profile,
+                "active_stationary_diagonal_quadratic_row_count", 0))
+            violated_stationary_diagonal_quadratic_row_count += _int(get(
+                numerical_profile,
+                "violated_stationary_diagonal_quadratic_row_count", 0))
+            proxy = _float(get(numerical_profile,
+                "sparse_qr_condition_proxy", nothing))
+            if !isnothing(proxy)
+                maximum_sparse_qr_condition_proxy =
+                    isnothing(maximum_sparse_qr_condition_proxy) ? proxy :
+                    max(maximum_sparse_qr_condition_proxy, proxy)
+            end
+        end
+        initialization_profile = _as_dict(get(case,
+            "initialization_profile", nothing))
+        if get(initialization_profile, "available", false) === true
+            initialization_profile_cases += 1
+            violation_count = _int(get(initialization_profile,
+                "feasibility_violation_count", 0))
+            initialization_feasibility_violation_count += violation_count
+            violation_count > 0 && (initialization_violation_cases += 1)
+            violation = something(_float(get(initialization_profile,
+                "maximum_feasibility_violation", nothing)), 0.0)
+            maximum_initialization_feasibility_violation = max(
+                maximum_initialization_feasibility_violation, violation)
+        end
+        point_solve = _as_dict(get(case, "point_solve", nothing))
+        if get(point_solve, "requested", false) === true
+            point_solve_requested_cases += 1
+            get(point_solve, "solver_result_point_available", false) === true &&
+                (point_solve_result_available_cases += 1)
+            String(get(point_solve, "primal_status", "unknown")) ==
+                "FEASIBLE_POINT" && (point_solve_feasible_cases += 1)
+            termination = String(get(point_solve,
+                "termination_status", "unknown"))
+            point_solve_termination_status_counts[termination] = get(
+                point_solve_termination_status_counts, termination, 0) + 1
+        end
         fixture_key = String(get(case, "name", "unknown"))
         fixture_profile = get!(source_warning_fixture_counts, fixture_key, Dict{String,Any}(
             "warning_count" => 0,
@@ -908,6 +1286,77 @@ function main()
                 ) + 1
             end
         end
+        sparse_qr_nullspace = _as_dict(get(case,
+            "sparse_qr_nullspace", nothing))
+        if get(sparse_qr_nullspace, "requested", false) === true
+            sparse_qr_nullspace_requested_cases += 1
+            get(sparse_qr_nullspace, "available", false) === true &&
+                (sparse_qr_nullspace_available_cases += 1)
+            if get(sparse_qr_nullspace,
+                "dense_calibration_requested", false) === true
+                sparse_qr_nullspace_dense_requested_cases += 1
+                get(sparse_qr_nullspace,
+                    "dense_calibration_available", false) === true &&
+                    (sparse_qr_nullspace_dense_available_cases += 1)
+                relation = string(get(sparse_qr_nullspace,
+                    "dense_calibration_relation", "unavailable"))
+                sparse_qr_nullspace_dense_relation_counts[relation] = get(
+                    sparse_qr_nullspace_dense_relation_counts, relation, 0,
+                ) + 1
+            end
+        end
+        sparse_qr_persistence = _as_dict(get(case,
+            "sparse_qr_nullspace_persistence", nothing))
+        if get(sparse_qr_persistence, "requested", false) === true
+            sparse_qr_persistence_requested_cases += 1
+            available = get(sparse_qr_persistence, "available", false) === true
+            available && (sparse_qr_persistence_available_cases += 1)
+            get(sparse_qr_persistence, "rank_stable", false) === true &&
+                (sparse_qr_persistence_rank_stable_cases += 1)
+            get(sparse_qr_persistence, "residual_supported", false) === true &&
+                (sparse_qr_persistence_residual_supported_cases += 1)
+            repeat_requested = _int(get(sparse_qr_persistence,
+                "repeat_count", 0)) >= 2
+            if repeat_requested
+                sparse_qr_persistence_repeat_requested_cases += 1
+                repeat_cosine = _float(get(sparse_qr_persistence,
+                    "minimum_repeat_principal_cosine", nothing))
+                threshold = _float(get(sparse_qr_persistence,
+                    "alignment_threshold", nothing))
+                !isnothing(repeat_cosine) && !isnothing(threshold) &&
+                    repeat_cosine >= threshold &&
+                    (sparse_qr_persistence_repeat_stable_cases += 1)
+            end
+            radii = get(sparse_qr_persistence, "radii", Any[])
+            nearby_requested = radii isa AbstractVector && !isempty(radii)
+            if nearby_requested
+                sparse_qr_persistence_nearby_requested_cases += 1
+                nearby_cosine = _float(get(sparse_qr_persistence,
+                    "minimum_nearby_principal_cosine", nothing))
+                threshold = _float(get(sparse_qr_persistence,
+                    "alignment_threshold", nothing))
+                get(sparse_qr_persistence, "rank_stable", false) === true &&
+                    !isnothing(nearby_cosine) && !isnothing(threshold) &&
+                    nearby_cosine >= threshold &&
+                    (sparse_qr_persistence_nearby_stable_cases += 1)
+            end
+            for code in get(sparse_qr_persistence, "finding_codes", Any[])
+                key = String(code)
+                sparse_qr_persistence_finding_code_counts[key] = get(
+                    sparse_qr_persistence_finding_code_counts, key, 0,
+                ) + 1
+            end
+            get(sparse_qr_persistence, "support_is_disconnected", false) === true &&
+                (sparse_qr_persistence_disconnected_explanation_cases += 1)
+            expected_mode_count = _int(get(sparse_qr_persistence,
+                "expected_mode_count", 0))
+            expected_mode_count > 0 && get(sparse_qr_persistence,
+                "physical_interpretation_ready", false) === false &&
+                (sparse_qr_persistence_physical_blocked_cases += 1)
+            expected_mode_count > 0 && get(sparse_qr_persistence,
+                "expected_mode_span_explains_nullspace", true) === false &&
+                (sparse_qr_persistence_unexplained_cases += 1)
+        end
     end
     successful = get(status_counts, "ok", 0)
     findings = Any[]
@@ -935,8 +1384,10 @@ function main()
     ))
     source_schema_warnings > 0 && push!(findings, Dict(
         "code" => "multiconductor_source_schema_warnings",
-        "severity" => "warning",
-        "observation" => "The source loader dropped or could not represent some fixture fields.",
+        "severity" => physical_metadata_warning_count > 0 ? "warning" : "info",
+        "observation" => physical_metadata_warning_count > 0 ?
+            "The source loader emitted fidelity warnings with unresolved physical or device-semantic fields." :
+            "The source loader emitted fidelity warnings, but every physical or device-semantic field is covered by an explicit mapping or behavior contract.",
         "evidence" => Dict("source_schema_warning_count" => source_schema_warnings,
                            "field_counts" => source_warning_field_counts,
                            "scope_counts" => source_warning_scope_counts,
@@ -945,7 +1396,9 @@ function main()
                            "field_policies" => source_schema_field_policies,
                            "message_counts" => source_warning_message_counts,
                            "fixture_counts" => source_warning_fixture_counts),
-        "suggested_action" => "Inspect the retained source-schema warning details before treating fixture metadata as complete.",
+        "suggested_action" => physical_metadata_warning_count > 0 ?
+            "Inspect the retained source-schema warning details before treating fixture metadata as complete." :
+            "Retain the raw warnings and mapping contract as provenance; do not reinterpret load-behavior thresholds as active bus bounds.",
     ))
     physical_metadata_warning_count > 0 && push!(findings, Dict(
         "code" => "multiconductor_physical_schema_loss",
@@ -955,6 +1408,31 @@ function main()
                            "impact_counts" => source_warning_impact_counts,
                            "fixture_counts" => source_warning_fixture_counts),
         "suggested_action" => "Restore the affected source fields or prove that the BMOPF model does not depend on them before assigning physical meaning to numerical findings.",
+    ))
+    inactive_stationary_diagonal_quadratic_row_count > 0 && push!(findings, Dict(
+        "code" => "multiconductor_inactive_stationary_diagonal_quadratic_rows",
+        "severity" => "info",
+        "observation" => "Zero-gradient positive-diagonal quadratic rows were recognized as strictly inactive at the selected points.",
+        "evidence" => Dict(
+            "row_count" => inactive_stationary_diagonal_quadratic_row_count,
+            "active_row_count" => active_stationary_diagonal_quadratic_row_count,
+            "violated_row_count" => violated_stationary_diagonal_quadratic_row_count,
+        ),
+        "suggested_action" => "Retain the local zero-gradient evidence, but do not classify these slack rows as active-set singularities.",
+    ))
+    active_stationary_diagonal_quadratic_row_count > 0 && push!(findings, Dict(
+        "code" => "multiconductor_active_stationary_diagonal_quadratic_rows",
+        "severity" => "warning",
+        "observation" => "One or more active positive-diagonal quadratic rows have zero gradient at their exact center.",
+        "evidence" => Dict("row_count" => active_stationary_diagonal_quadratic_row_count),
+        "suggested_action" => "Inspect LICQ/MFCQ and exact minimum-level geometry before interpreting solver restoration behavior.",
+    ))
+    violated_stationary_diagonal_quadratic_row_count > 0 && push!(findings, Dict(
+        "code" => "multiconductor_violated_stationary_diagonal_quadratic_rows",
+        "severity" => "warning",
+        "observation" => "One or more violated positive-diagonal quadratic rows have zero gradient at their exact center.",
+        "evidence" => Dict("row_count" => violated_stationary_diagonal_quadratic_row_count),
+        "suggested_action" => "Move initialization away from the stationary infeasible center or correct the quadratic level.",
     ))
     contract_available < successful && push!(findings, Dict(
         "code" => "multiconductor_contract_unavailable",
@@ -1078,12 +1556,68 @@ function main()
                                    harmonic_dense_available_cases),
             "suggested_action" => "Restrict the dense checkpoint to representative fixtures within the explicit entry guard.",
         ))
+    sparse_qr_persistence_requested_cases >
+        sparse_qr_persistence_available_cases && push!(findings, Dict(
+            "code" => "multiconductor_sparse_qr_persistence_unavailable",
+            "severity" => "warning",
+            "observation" => "Sparse-QR nullspace persistence was unavailable for one or more requested fixtures.",
+            "evidence" => Dict(
+                "requested_case_count" => sparse_qr_persistence_requested_cases,
+                "available_case_count" => sparse_qr_persistence_available_cases,
+                "finding_code_counts" =>
+                    sparse_qr_persistence_finding_code_counts,
+            ),
+            "suggested_action" => "Inspect coordinate alignment, derivative availability, and sparse factor guards at every persistence point.",
+        ))
+    sparse_qr_persistence_repeat_requested_cases >
+        sparse_qr_persistence_repeat_stable_cases && push!(findings, Dict(
+            "code" => "multiconductor_sparse_qr_repeatability_failure",
+            "severity" => "warning",
+            "observation" => "Sparse-QR nullspace spans were not repeatable at identical coordinates for one or more fixtures.",
+            "evidence" => Dict(
+                "repeat_requested_case_count" =>
+                    sparse_qr_persistence_repeat_requested_cases,
+                "repeat_stable_case_count" =>
+                    sparse_qr_persistence_repeat_stable_cases,
+            ),
+            "suggested_action" => "Withhold nearby-point and physical interpretation until identical-point repeatability is restored.",
+        ))
+    sparse_qr_persistence_nearby_requested_cases >
+        sparse_qr_persistence_nearby_stable_cases && push!(findings, Dict(
+            "code" => "multiconductor_sparse_qr_nearby_not_persistent",
+            "severity" => "warning",
+            "observation" => "Sparse-QR nullspace dimension or span changed across the requested nearby points for one or more fixtures.",
+            "evidence" => Dict(
+                "nearby_requested_case_count" =>
+                    sparse_qr_persistence_nearby_requested_cases,
+                "nearby_stable_case_count" =>
+                    sparse_qr_persistence_nearby_stable_cases,
+                "rank_stable_case_count" =>
+                    sparse_qr_persistence_rank_stable_cases,
+            ),
+            "suggested_action" => "Sweep smaller radii and inspect pivot thresholds and derivative provenance before assigning a persistent mode.",
+        ))
+    sparse_qr_persistence_requested_cases >
+        sparse_qr_persistence_residual_supported_cases && push!(findings, Dict(
+            "code" => "multiconductor_sparse_qr_persistence_residual_failure",
+            "severity" => "warning",
+            "observation" => "One or more persistence campaigns contain directions that fail the direct original-Jacobian residual gate.",
+            "evidence" => Dict(
+                "requested_case_count" => sparse_qr_persistence_requested_cases,
+                "residual_supported_case_count" =>
+                    sparse_qr_persistence_residual_supported_cases,
+            ),
+            "suggested_action" => "Do not project an inaccurate span into component or physical coordinates.",
+        ))
     payload = Dict{String,Any}(
         "report_version" => "bmopf-multiconductor-smoke-summary-v1",
         "index_path" => index_path,
         "fixture_root" => get(index, "fixture_root", nothing),
+        "environment" => get(index, "environment", Dict{String,Any}()),
         "environment_fingerprint" => get(index, "environment_fingerprint", nothing),
         "point_policy" => get(index, "point_policy", nothing),
+        "point_solver_options" => get(index, "point_solver_options",
+            Dict{String,Any}()),
         "source_behavior_solver" => get(index, "source_behavior_solver", "none"),
         "source_behavior_solver_attributes" => get(index,
             "source_behavior_solver_attributes", Dict{String,Any}()),
@@ -1106,6 +1640,27 @@ function main()
             "smallest_singular_backend_crosscheck_scaling", "none"),
         "smallest_singular_backend_crosscheck_dense_calibration" => get(index,
             "smallest_singular_backend_crosscheck_dense_calibration", false),
+        "sparse_qr_nullspace" => get(index, "sparse_qr_nullspace", false),
+        "sparse_qr_nullspace_scaling" => get(index,
+            "sparse_qr_nullspace_scaling", "none"),
+        "sparse_qr_nullspace_max_input_nonzeros" => get(index,
+            "sparse_qr_nullspace_max_input_nonzeros", nothing),
+        "sparse_qr_nullspace_max_factor_nonzeros" => get(index,
+            "sparse_qr_nullspace_max_factor_nonzeros", nothing),
+        "sparse_qr_nullspace_max_entries" => get(index,
+            "sparse_qr_nullspace_max_entries", nothing),
+        "sparse_qr_nullspace_dense_calibration" => get(index,
+            "sparse_qr_nullspace_dense_calibration", false),
+        "sparse_qr_nullspace_persistence_requested" => get(index,
+            "sparse_qr_nullspace_persistence_requested", false),
+        "sparse_qr_nullspace_persistence_repeat_count" => get(index,
+            "sparse_qr_nullspace_persistence_repeat_count", 0),
+        "sparse_qr_nullspace_persistence_radii" => get(index,
+            "sparse_qr_nullspace_persistence_radii", Any[]),
+        "sparse_qr_nullspace_persistence_direction_seed" => get(index,
+            "sparse_qr_nullspace_persistence_direction_seed", 0),
+        "sparse_qr_nullspace_persistence_alignment_threshold" => get(index,
+            "sparse_qr_nullspace_persistence_alignment_threshold", nothing),
         "expected_mode_free_coordinate_policy" => get(index,
             "expected_mode_free_coordinate_policy", "unknown"),
         "expected_mode_tangent_policy" => get(index,
@@ -1118,6 +1673,37 @@ function main()
             "integrity_error_count" => integrity_errors,
             "integrity_warning_count" => integrity_warnings,
             "source_schema_warning_count" => source_schema_warnings,
+            "numerical_profile_case_count" => numerical_profile_cases,
+            "numerical_evaluation_failure_count" =>
+                numerical_evaluation_failure_count,
+            "numerical_derivative_issue_count" => numerical_derivative_issue_count,
+            "numerical_expression_risk_count" => numerical_expression_risk_count,
+            "maximum_sparse_qr_condition_proxy" =>
+                maximum_sparse_qr_condition_proxy,
+            "active_zero_jacobian_row_case_count" =>
+                active_zero_jacobian_row_cases,
+            "active_zero_jacobian_row_count" => active_zero_jacobian_row_count,
+            "inactive_zero_jacobian_row_count" =>
+                inactive_zero_jacobian_row_count,
+            "inactive_stationary_diagonal_quadratic_row_count" =>
+                inactive_stationary_diagonal_quadratic_row_count,
+            "active_stationary_diagonal_quadratic_row_count" =>
+                active_stationary_diagonal_quadratic_row_count,
+            "violated_stationary_diagonal_quadratic_row_count" =>
+                violated_stationary_diagonal_quadratic_row_count,
+            "initialization_profile_case_count" => initialization_profile_cases,
+            "initialization_violation_case_count" =>
+                initialization_violation_cases,
+            "initialization_feasibility_violation_count" =>
+                initialization_feasibility_violation_count,
+            "maximum_initialization_feasibility_violation" =>
+                maximum_initialization_feasibility_violation,
+            "point_solve_requested_case_count" => point_solve_requested_cases,
+            "point_solve_result_available_case_count" =>
+                point_solve_result_available_cases,
+            "point_solve_feasible_case_count" => point_solve_feasible_cases,
+            "point_solve_termination_status_counts" =>
+                point_solve_termination_status_counts,
             "source_snapshot_case_count" => source_snapshot_cases,
             "source_schema_warning_message_counts" => source_warning_message_counts,
             "source_schema_warning_field_counts" => source_warning_field_counts,
@@ -1237,6 +1823,40 @@ function main()
                 restarted_dense_relation_counts,
             "harmonic_smallest_singular_dense_relation_counts" =>
                 harmonic_dense_relation_counts,
+            "sparse_qr_nullspace_requested_case_count" =>
+                sparse_qr_nullspace_requested_cases,
+            "sparse_qr_nullspace_available_case_count" =>
+                sparse_qr_nullspace_available_cases,
+            "sparse_qr_nullspace_dense_requested_case_count" =>
+                sparse_qr_nullspace_dense_requested_cases,
+            "sparse_qr_nullspace_dense_available_case_count" =>
+                sparse_qr_nullspace_dense_available_cases,
+            "sparse_qr_nullspace_dense_relation_counts" =>
+                sparse_qr_nullspace_dense_relation_counts,
+            "sparse_qr_nullspace_persistence_requested_case_count" =>
+                sparse_qr_persistence_requested_cases,
+            "sparse_qr_nullspace_persistence_available_case_count" =>
+                sparse_qr_persistence_available_cases,
+            "sparse_qr_nullspace_persistence_repeat_requested_case_count" =>
+                sparse_qr_persistence_repeat_requested_cases,
+            "sparse_qr_nullspace_persistence_repeat_stable_case_count" =>
+                sparse_qr_persistence_repeat_stable_cases,
+            "sparse_qr_nullspace_persistence_nearby_requested_case_count" =>
+                sparse_qr_persistence_nearby_requested_cases,
+            "sparse_qr_nullspace_persistence_nearby_stable_case_count" =>
+                sparse_qr_persistence_nearby_stable_cases,
+            "sparse_qr_nullspace_persistence_rank_stable_case_count" =>
+                sparse_qr_persistence_rank_stable_cases,
+            "sparse_qr_nullspace_persistence_residual_supported_case_count" =>
+                sparse_qr_persistence_residual_supported_cases,
+            "sparse_qr_nullspace_persistence_finding_code_counts" =>
+                sparse_qr_persistence_finding_code_counts,
+            "sparse_qr_nullspace_persistence_disconnected_explanation_case_count" =>
+                sparse_qr_persistence_disconnected_explanation_cases,
+            "sparse_qr_nullspace_persistence_physical_blocked_case_count" =>
+                sparse_qr_persistence_physical_blocked_cases,
+            "sparse_qr_nullspace_persistence_unexplained_case_count" =>
+                sparse_qr_persistence_unexplained_cases,
             "physical_mode_comparison_status_counts" => mode_status_counts,
         ),
         "readiness" => Dict(
@@ -1244,6 +1864,26 @@ function main()
             "dense_budget_explicit" => all(haskey(case, "rank_max_dense_entries") for case in cases),
             "port_contract_available" => successful > 0 && contract_available == successful,
             "integrity_preflight_clear" => integrity_errors == 0,
+            "numerical_profile_complete" => successful > 0 &&
+                numerical_profile_cases == successful,
+            "numerical_evaluations_finite" =>
+                numerical_evaluation_failure_count == 0,
+            "derivative_evaluations_clear" =>
+                numerical_derivative_issue_count == 0,
+            "no_active_zero_jacobian_rows" =>
+                active_zero_jacobian_row_cases == 0,
+            "no_active_stationary_diagonal_quadratic_rows" =>
+                active_stationary_diagonal_quadratic_row_count == 0,
+            "no_violated_stationary_diagonal_quadratic_rows" =>
+                violated_stationary_diagonal_quadratic_row_count == 0,
+            "initialization_profile_complete" => successful > 0 &&
+                initialization_profile_cases == successful,
+            "initialization_feasible" => initialization_profile_cases > 0 &&
+                initialization_violation_cases == 0,
+            "solver_result_point_available" => point_solve_requested_cases == 0 ||
+                point_solve_result_available_cases == point_solve_requested_cases,
+            "solver_result_point_feasible" => point_solve_requested_cases == 0 ||
+                point_solve_feasible_cases == point_solve_requested_cases,
             "source_fixtures_preserved" => successful > 0 && source_snapshot_cases == successful,
             "source_schema_context_report_available" => successful > 0 &&
                 source_schema_context_report_cases == successful,
@@ -1301,6 +1941,29 @@ function main()
                 (dense_calibration_requested_cases ==
                     restarted_dense_available_cases ==
                     harmonic_dense_available_cases),
+            "sparse_qr_nullspace" => sparse_qr_nullspace_requested_cases == 0 ||
+                sparse_qr_nullspace_requested_cases ==
+                    sparse_qr_nullspace_available_cases,
+            "sparse_qr_nullspace_dense_calibration" =>
+                sparse_qr_nullspace_dense_requested_cases == 0 ||
+                sparse_qr_nullspace_dense_requested_cases ==
+                    sparse_qr_nullspace_dense_available_cases,
+            "sparse_qr_nullspace_persistence" =>
+                sparse_qr_persistence_requested_cases == 0 ||
+                sparse_qr_persistence_requested_cases ==
+                    sparse_qr_persistence_available_cases,
+            "sparse_qr_nullspace_repeatability" =>
+                sparse_qr_persistence_repeat_requested_cases == 0 ||
+                sparse_qr_persistence_repeat_requested_cases ==
+                    sparse_qr_persistence_repeat_stable_cases,
+            "sparse_qr_nullspace_nearby_persistence" =>
+                sparse_qr_persistence_nearby_requested_cases == 0 ||
+                sparse_qr_persistence_nearby_requested_cases ==
+                    sparse_qr_persistence_nearby_stable_cases,
+            "sparse_qr_nullspace_persistence_residual_support" =>
+                sparse_qr_persistence_requested_cases == 0 ||
+                sparse_qr_persistence_requested_cases ==
+                    sparse_qr_persistence_residual_supported_cases,
         ),
         "findings" => findings,
         "interpretation" => "Multiconductor contract aggregation only; port maps and physical modes are evidence records, not solver-independent physical certificates.",

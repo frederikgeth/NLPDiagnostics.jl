@@ -2806,3 +2806,217 @@ The next ordered numerical-algebra items are:
 
 Physical mode fingerprinting remains downstream of these gates and of the
 PowerIO/BMOPFTools source-schema readiness work.
+
+## 2026-08-11 numerical-algebra checkpoint: third backend complete
+
+The initial rank-revealing sparse-QR backend is now implemented end to end. It
+constructs free-column nullspace vectors from SuiteSparseQR, maps scaled
+directions into original coordinates, audits direct `Jv` residuals, records
+orthogonality and fill, supports guarded dense-SVD subspace calibration, and is
+integrated into generic profiles, BMOPF summaries, controlled comparisons, and
+campaign validation. Focused adversarial tests cover wide, tall, zero,
+ill-scaled, guarded, and dense-calibrated cases; the complete package suite has
+1,600 passing assertions at this checkpoint.
+
+On the 51-by-54 transformer at the completed start, unscaled and row-column
+policies both give rank 48/nullity six and agree with dense SVD at minimum
+principal cosine above `0.9999999999999998`. This is trustworthy local
+numerical-subspace evidence for this point, while source-schema warnings and
+the absence of persistence evidence still block a physical classification.
+
+The next ordered major items are:
+
+1. add deterministic same-point repeats and nearby-point perturbations for the
+   sparse-QR subspace, comparing principal angles rather than arbitrary basis
+   columns;
+2. project persistent numerical directions through plugin-owned component and
+   port coordinate maps, retaining unexplained residual energy and refusing a
+   physical label when source-schema coverage is incomplete;
+3. expand the small dense-oracle corpus with randomized rectangular matrices,
+   clustered threshold cases, and nonlinear cancellation Jacobians; and
+4. add symbolic fill estimates or stricter case-selection heuristics before
+   enabling sparse QR on larger feeders, because the factor-fill guard is
+   necessarily evaluated after numeric factorization.
+
+The iterative restarted/harmonic engines remain useful scalable probes, but
+the sparse-QR result shows that their disagreement on this transformer was a
+search-resolution problem, not evidence against the six-dimensional local
+nullspace.
+
+## 2026-08-11 numerical-algebra checkpoint: persistence and localization complete
+
+Sparse-QR persistence now distinguishes identical-coordinate repeatability
+from nearby-point stability, retains all pairwise point distances and principal
+cosines, and requires direct residual support. Persistent spans are localized
+through basis-invariant coordinate leverage and plugin-owned voltage/current
+port groups. Expected-mode projection retains both unexplained nullspace energy
+and a source-schema readiness boundary.
+
+On the transformer, the rank-48/nullity-six span is exactly stable over three
+repeats and four symmetric nearby probes. It is supported entirely on six
+structurally disconnected load-current coordinates, so the leading diagnosis
+has changed from “unclassified transformer nullspace” to “representational
+inactive-coordinate freedom.” Declared voltage-port candidates are orthogonal
+to this freedom, and their physical interpretation remains blocked by source
+schema gaps.
+
+The next major items are now:
+
+1. inspect BMOPFTools' load-terminal allocation contract and determine whether
+   inactive conductor current coordinates should be omitted, fixed, or linked;
+2. add a regression fixture for that representational defect and rerun the
+   persistence campaign on a corrected staged model;
+3. repeat sparse-QR persistence on the grounded-neutral, free-neutral, delta,
+   ZIP, and three-phase-line representatives to separate recurring adapter
+   patterns from transformer-specific behavior; and
+4. expand randomized rectangular, clustered-threshold, and nonlinear
+   cancellation oracle cases before considering sparse QR for broader feeders.
+
+Physical gauge classification should resume only after representational
+nullspaces are removed and source-schema readiness is explicit.
+
+## 2026-08-11 cross-package checkpoint: diagnosed freedom removed
+
+The first persistence-driven formulation intervention is complete. The six
+transformer directions were traced to unused second current coordinates on
+three two-terminal `SINGLE_PHASE` loads. BMOPFTools now allocates one complex
+branch current per such load and reports it against the two-terminal voltage
+difference. NLPDiagnostics exposes that coordinate through a two-terminal
+`[+1, -1]` incidence map instead of an identity map over two artificial model
+coordinates.
+
+The post-intervention transformer has 48 variables and 51 scalar rows. Sparse
+QR and dense SVD agree on rank 48/right-nullity zero, repeated over three exact
+copies and four nearby probes. The prior disconnected-variable and zero-column
+evidence is absent, while all current-port alignment checks pass. Campaign
+validation has no errors; its remaining warnings are exclusively the known
+source-schema readiness boundary.
+
+The next ordered major items are:
+
+1. run the same sparse-QR repeat/nearby-point policy on the other five small
+   BMOPF fixtures and classify recurring representational versus numerical
+   patterns before expanding case size;
+2. add an explicit formulation-intervention comparison artifact so pre/post
+   dimension, rank, nullity, disconnected support, and source revision are
+   reviewed as one controlled evidence record;
+3. restore or contractually classify the remaining `vminpu`/`vmaxpu` source
+   fields so absence of declared physical modes can eventually be interpreted;
+4. extend randomized rectangular, clustered-threshold, and nonlinear
+   cancellation oracles, including no-nullspace cases, before changing sparse
+   QR from opt-in calibration to a broader default; and
+5. only then launch medium BMOPF decks under explicit nonzero/fill budgets and
+   retain skipped cases as resource-bound evidence.
+
+This keeps the project on its intended path: numerical routines identify and
+localize a mechanism, structural analysis supplies independent evidence, and
+domain semantics determine whether the mechanism is representational or
+physical. Solver-method conclusions remain downstream of controlled point,
+formulation, and algorithm interventions.
+
+## 2026-08-11 campaign-evidence checkpoint: small-fixture baseline complete
+
+The remaining five small BMOPF fixtures now have a uniform sparse-QR
+repeat/nearby baseline. All five are full column rank across seven evaluations,
+dense SVD agrees on zero right nullity, and direct factorization residuals are
+at roundoff scale. There is no recurring representational nullspace analogous
+to the corrected transformer defect in this small set.
+
+Campaign provenance now fingerprints the loaded NLPDiagnostics and BMOPFTools
+source trees, and a first-class formulation-intervention report records
+dimension, rank, nullity, disconnected support, fixture identity, numerical
+policy, and source revision together. The historical transformer comparison
+reproduces the expected six-coordinate removal but deliberately fails the
+causal gate because its old runs changed QR scaling and did not record
+BMOPFTools source state.
+
+The main recurring observation is instead initialization: partial BMOPFTools
+starts completed with zero currents violate constraints in all five cases, with
+an order-one maximum violation on ZIP. Numerical evaluations and exact
+derivatives remain finite, and the largest recorded sparse-QR condition proxy
+is about 84. Source-schema loss still blocks physical presence/absence claims.
+
+The recurring zero-Jacobian rows have now been classified: all 40 are inactive
+current-magnitude circle rows evaluated at zero current, with no active
+stationary row. They do not explain solver difficulty at this point; their
+duplicate pairs remain a formulation-economy issue.
+
+The next ordered major items are:
+
+1. run a point-policy calibration on ZIP and the other small fixtures using a
+   physics-informed or solved feasible point, then compare rank, active-set,
+   feasibility, and conditioning evidence against zero completion;
+2. restore or contractually classify `vminpu`/`vmaxpu` and the remaining
+   voltage/load source semantics before interpreting absent physical modes;
+3. add randomized rectangular, clustered-threshold, and nonlinear-cancellation
+   oracle cases, including full-column-rank controls; and
+4. add a generic cross-stage finding that distinguishes inactive stationary
+   circle rows from active stationary constraints without suppressing the raw
+   zero-gradient evidence; and
+5. after those gates, profile selected medium BMOPF decks with sparse-only
+   budgets and retain factor-fill/resource skips as first-class evidence.
+
+This reorders the near-term emphasis from finding more nullspaces to separating
+start-point pathology, harmless compiled rows, source-schema loss, and genuine
+numerical geometry.
+
+## 2026-08-11 feasible-point checkpoint: initialization separated from geometry
+
+The five-fixture solved-point campaign closes the first item above. All five
+Ipopt runs produced public feasible result points, all 31 completed-start
+violations disappeared, sparse QR and guarded dense SVD retained full column
+rank, and rank/nullity stayed fixed across repeated and nearby evaluations.
+The stationary current-limit rows at zero current disappeared at solved points,
+confirming a point-local derivative effect. Sparse-QR condition proxies moved
+without rank changes, which is exactly the distinction the diagnostic pipeline
+must preserve: feasibility, local derivative scale, and degeneracy are separate
+observations.
+
+The next ordered major items are:
+
+1. restore or explicitly contract `vminpu`/`vmaxpu` at the PowerIO/BMOPF
+   boundary, then repeat the small solved-point campaign before promoting any
+   physical-mode absence result;
+2. implement a generic cross-stage finding for active versus inactive
+   stationary circular/quadratic rows, retaining the raw zero-gradient evidence
+   and recognizing non-unit radii/scales rather than assuming a unit circle;
+3. expand dense-oracle calibration with seeded randomized rectangular,
+   clustered-threshold, and nonlinear-cancellation Jacobians, including
+   full-column-rank negative controls and tolerance/scaling sweeps;
+4. launch selected medium BMOPF fixtures with sparse-only nonzero/fill/work
+   budgets, solver-result point provenance, and explicit resource skips; and
+5. correlate solver traces with row-family derivative scales only after the
+   preceding point and schema gates, so numerical-method conclusions are tied
+   to repeatable mechanisms rather than endpoint anecdotes.
+
+This is still the right direction. The generic core is no longer short of
+features; the main work is converting local observations into calibrated,
+cross-checked evidence and withholding physical labels when domain provenance
+is incomplete.
+
+## 2026-08-11 schema and stationary-row checkpoint
+
+The first two items above are complete. `vminpu`/`vmaxpu` are now recognized as
+preserved non-mutating load-behavior contracts rather than lost metadata or
+production bus bounds. The five-fixture rerun has complete source-schema and
+physical-metadata readiness with no unresolved blocking fields.
+
+Generic numerical analysis now classifies recognized stationary
+positive-diagonal quadratic rows as inactive, active, or violated and records
+the true quadratic level/radius. The small BMOPF baseline contains 40 inactive
+rows and zero active/violated rows; all 40 disappear at feasible solver-result
+points. This replaces a campaign-specific interpretation with reusable generic
+evidence.
+
+The next ordered major items are now:
+
+1. expand dense-oracle calibration with seeded randomized rectangular,
+   clustered-threshold, scaling-sensitive, and nonlinear-cancellation
+   Jacobians, including full-rank negative controls;
+2. select medium BMOPF cases using explicit Jacobian-nonzero, sparse-factor
+   fill, memory, and solver-work budgets, preserving every resource skip;
+3. repeat selected medium cases across solved points and controlled scaling
+   policies before interpreting condition-proxy or solver-trace changes; and
+4. begin physical mode fingerprinting only for cases whose source contract,
+   terminal maps, point provenance, numerical rank crosschecks, and persistence
+   gates all pass.

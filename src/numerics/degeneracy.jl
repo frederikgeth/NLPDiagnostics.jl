@@ -730,6 +730,125 @@ function sparse_qr_nullspace_dense_calibration(
     )
 end
 
+function sparse_qr_nullspace_persistence(
+    evaluations::AbstractVector{<:NumericalEvaluation{T}};
+    minimum_evaluations::Integer = 2,
+    subspace_alignment_threshold::Real = 0.98,
+    relative_tolerance::Real = isempty(evaluations) ? eps(T) : max(
+        length(first(evaluations).constraint_sources),
+        length(first(evaluations).point.variables),
+        1,
+    ) * eps(T),
+    absolute_tolerance::Real = zero(T),
+    scaling::Symbol = :none,
+    matrix_norm::Symbol = :frobenius,
+    max_input_nonzeros::Integer = 1_000_000,
+    max_factor_nonzeros::Integer = 4_000_000,
+    max_nullspace_entries::Integer = 1_000_000,
+    provenance::Symbol = :persistence,
+) where {T<:AbstractFloat}
+    minimum_evaluations >= 2 || throw(ArgumentError(
+        "minimum_evaluations must be at least two",
+    ))
+    minimum_evaluations <= typemax(Int) || throw(ArgumentError(
+        "minimum_evaluations is too large",
+    ))
+    alignment_threshold = T(subspace_alignment_threshold)
+    isfinite(alignment_threshold) && zero(T) <= alignment_threshold <= one(T) ||
+        throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    minimum_count = Int(minimum_evaluations)
+    estimates = SparseQRNullspaceEstimate{T}[]
+    labels = String[evaluation.point.label for evaluation in evaluations]
+    unavailable(reason) = SparseQRNullspacePersistenceEstimate{T}(
+        false, String(reason), estimates, labels,
+        Int[estimate.rank for estimate in estimates],
+        Int[estimate.right_nullity for estimate in estimates],
+        NTuple{2,Int}[], T[], T[], nothing, nothing, nothing,
+        false, false, alignment_threshold, minimum_count,
+    )
+    length(evaluations) >= minimum_count || return unavailable(
+        "received $(length(evaluations)) evaluations, fewer than minimum_evaluations=$minimum_count",
+    )
+    reference_variables = first(evaluations).point.variables
+    reference_rows = first(evaluations).constraint_sources
+    all(evaluation -> evaluation.point.variables == reference_variables,
+        evaluations) || return unavailable(
+            "evaluation variable coordinates are not aligned",
+        )
+    all(evaluation -> evaluation.constraint_sources == reference_rows,
+        evaluations) || return unavailable(
+            "evaluation constraint rows are not aligned",
+        )
+    append!(estimates, (
+        sparse_qr_nullspace_estimate(
+            evaluation;
+            relative_tolerance,
+            absolute_tolerance,
+            scaling,
+            matrix_norm,
+            max_input_nonzeros,
+            max_factor_nonzeros,
+            max_nullspace_entries,
+            provenance,
+        ) for evaluation in evaluations
+    ))
+    unavailable_indices = findall(estimate -> !estimate.available, estimates)
+    isempty(unavailable_indices) || return unavailable(
+        "sparse-QR nullspace unavailable at evaluation indices $(join(unavailable_indices, ','))",
+    )
+    ranks = Int[estimate.rank for estimate in estimates]
+    nullities = Int[estimate.right_nullity for estimate in estimates]
+    pair_indices = NTuple{2,Int}[]
+    pair_distances = T[]
+    pair_cosines = T[]
+    repeat_cosines = T[]
+    nearby_cosines = T[]
+    for left in eachindex(estimates), right in (left + 1):length(estimates)
+        push!(pair_indices, (left, right))
+        left_values = evaluations[left].point.values
+        right_values = evaluations[right].point.values
+        scale = max(
+            norm(left_values, Inf), norm(right_values, Inf), one(T),
+        )
+        distance = T(norm(left_values - right_values, Inf) / scale)
+        push!(pair_distances, distance)
+        cosine = if nullities[left] != nullities[right]
+            zero(T)
+        elseif iszero(nullities[left])
+            one(T)
+        else
+            cosines = _principal_cosines(
+                estimates[left].directions,
+                estimates[right].directions,
+            )
+            isempty(cosines) ? zero(T) : minimum(cosines)
+        end
+        push!(pair_cosines, cosine)
+        if iszero(distance)
+            push!(repeat_cosines, cosine)
+        else
+            push!(nearby_cosines, cosine)
+        end
+    end
+    residuals = T[
+        residual for estimate in estimates
+        for residual in estimate.relative_residual_norms
+    ]
+    maximum_residual = isempty(residuals) ? zero(T) : maximum(residuals)
+    rank_stable = all(==(first(ranks)), ranks) &&
+        all(==(first(nullities)), nullities)
+    persistent = rank_stable &&
+        all(cosine -> cosine >= alignment_threshold, pair_cosines)
+    return SparseQRNullspacePersistenceEstimate{T}(
+        true, nothing, estimates, labels, ranks, nullities, pair_indices,
+        pair_distances, pair_cosines,
+        isempty(repeat_cosines) ? nothing : minimum(repeat_cosines),
+        isempty(nearby_cosines) ? nothing : minimum(nearby_cosines),
+        maximum_residual, rank_stable, persistent, alignment_threshold,
+        minimum_count,
+    )
+end
+
 function sparse_qr_rank_estimate(
     evaluation::NumericalEvaluation{T},
     policy::RankPolicy{T},

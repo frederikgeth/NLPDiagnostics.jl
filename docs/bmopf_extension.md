@@ -315,10 +315,32 @@ directory; failures are retained as case-level JSON records so one failed build
 does not hide the remaining corpus.
 Set `NLPDIAGNOSTICS_BMOPF_CASES` to a comma-separated subset such as
 `delta-load,wye-delta-transformer` when iterating on one diagnosis.
+
+BMOPFTools two-terminal `SINGLE_PHASE` loads expose one complex branch-current
+coordinate, not one coordinate per terminal. The BMOPF extension preserves the
+two terminal semantics with connection incidence `[+1, -1]`; its coordinate
+map back to the model variable is `[0.5, -0.5]`. Consequently, a phase-to-phase
+load remains a two-terminal port while contributing only one independent real
+and one independent imaginary current coordinate. Treat any additional
+disconnected current coordinate for this topology as a representational
+construction defect, not as a physical circulation mode.
+
 The default `NLPDIAGNOSTICS_BMOPF_POINT_POLICY=initialization` requires complete
 caller-provided starts. Set it to `zero` only to use the explicit synthetic
 zero-coordinate probe; that probe never writes starts and must not be
 interpreted as a physically meaningful voltage initialization.
+Set it to `bmopf_start_values` for BMOPFTools' partial voltage initialization
+completed by explicit zeros, or to `ipopt_result` for a public Ipopt result
+point obtained from that same completed start. The latter keeps
+`add_objective=false`, so the solved-point calibration changes the evaluation
+point and solver attachment without changing the feasibility formulation.
+Each case records solver name, option values, elapsed time, termination,
+primal/dual status, result count, start and result fingerprints, and point
+availability. The bounded solve is controlled by
+`NLPDIAGNOSTICS_BMOPF_POINT_SOLVER_MAX_ITERATIONS` (default `500`) and
+`NLPDIAGNOSTICS_BMOPF_POINT_SOLVER_TOLERANCE` (default `1e-8`). A result point
+is calibration evidence only when extraction succeeds and the public primal
+status is `FEASIBLE_POINT`.
 Run `benchmarks/summarize_bmopf_smoke.jl <output-directory>` after a corpus
 execution to produce `summary.json`, including point-policy provenance and
 per-case/aggregate finding-code counts. The summary also aggregates the
@@ -389,6 +411,64 @@ and harmonic convergence gains/losses, agreement gains/losses, and relation
 changes while retaining per-case value-difference and principal-angle deltas.
 This is the appropriate comparison for deciding whether an unconverged BMOPF
 screen merely needs more bounded work; it still does not establish rank.
+
+The smoke runner also exposes the rank-revealing sparse-QR nullspace path. Set
+`NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE=true`; select `none`, `row`, `column`,
+or `row_column` with
+`NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_SCALING`. Resource controls are
+`NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_MAX_INPUT_NONZEROS`,
+`NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_MAX_FACTOR_NONZEROS`, and
+`NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_MAX_ENTRIES`. Small representative
+fixtures may additionally set
+`NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_DENSE_CALIBRATION=true`; this still
+obeys `NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES`.
+
+The multiconductor summary records QR rank/nullity, direct original-coordinate
+residuals, orthogonality, fill, and the dense-oracle relation. Use
+`benchmarks/compare_bmopf_sparse_qr_nullspaces.jl` for a same-point comparison
+of two explicit policies. It checks fixture, environment, and point alignment
+and retains rank/nullity, residual, fill, and dense-subspace deltas. Different
+scalings define different pivot metrics, so stable rank and mapped-subspace
+agreement are the relevant intervention evidence; raw scaled pivots are not
+physical conditioning improvements.
+
+For persistence experiments, set
+`NLPDIAGNOSTICS_BMOPF_SPARSE_QR_PERSISTENCE_REPEAT_COUNT` to zero or at least
+two and provide optional symmetric relative radii through
+`NLPDIAGNOSTICS_BMOPF_SPARSE_QR_PERSISTENCE_RADII`, for example
+`1e-8,1e-6`. The deterministic direction is selected by
+`NLPDIAGNOSTICS_BMOPF_SPARSE_QR_PERSISTENCE_DIRECTION_SEED`; coordinates use
+`max(abs(x), 1)` as their perturbation scale. These points carry
+`PerturbedPoint` provenance and are not claimed feasible, trusted solver
+iterates, or alternate solutions. The alignment gate is controlled by
+`NLPDIAGNOSTICS_BMOPF_SPARSE_QR_PERSISTENCE_ALIGNMENT_THRESHOLD`.
+
+The BMOPFTools adapter projects declared component-port and topology candidates
+into model coordinates, groups persistent leverage by explicit voltage/current
+port maps, and consults the source-schema restoration gate before emitting any
+physical interpretation. It also crosschecks persistent support with generic
+`disconnected_variable` facts. Thus unused compiled coordinates can be
+classified as representational freedoms even when they numerically dominate a
+nullspace that was initially suspected to be physical.
+
+For a pre/post formulation change, use
+`benchmarks/compare_bmopf_formulation_interventions.jl`. The comparator pairs
+fixtures by name and source SHA-256, requires identical evaluation-point,
+sparse-QR, and repeat/nearby policies, and records variable/row/rank/nullity
+and disconnected-support deltas. It distinguishes an available numerical
+comparison from a causal-ready intervention. The latter additionally requires
+two distinct clean BMOPFTools revisions; a dirty checkout or an unrecorded
+dependency revision remains useful development evidence but cannot support a
+causal claim.
+
+Benchmark environments now retain source states for both NLPDiagnostics and
+BMOPFTools: Git revision, dirty flag, and a fingerprint of tracked and
+untracked changes. Multiconductor summaries also retain compact
+`numerical_profile` and `initialization_profile` records per fixture. These
+include the sparse-QR condition proxy and factorization residual, evaluation
+and derivative issue counts, start-point provenance, feasibility-violation
+count, and maximum violation. The condition proxy is a factorization-local
+screen, not a normwise condition-number estimate.
 
 `benchmarks/bmopf_draft_corpus.jl` reads the `.bmopf.json` snapshots in the
 BMOPFDraftData benchmark repository using BMOPFTools' public `parse_bmopf`
@@ -1084,13 +1164,12 @@ findings and metadata for the source path, dropped fields/scopes, policy
 statuses, and original conversion messages. This keeps source-fidelity
 limitations visible even when a user is not running the benchmark harness.
 
-BMOPFTools now retains a compact provenance-only inventory of source fields
-found in PowerIO `extras` records. NLPDiagnostics reports provenance coverage
-and unmapped blocking fields separately; this inventory supports later mapping
-work but does not clear the physical-readiness gate. A plugin may provide an
-explicit `powerio_source_mapped_fields` list when it has a justified mapping
-contract, and that declaration is recorded distinctly from the original
-conversion warnings.
+BMOPFTools retains a compact inventory of source fields found in PowerIO
+`extras` records. NLPDiagnostics reports provenance coverage, explicit mapping
+contracts, and unresolved blocking fields separately. A raw PowerIO conversion
+warning therefore remains inspectable even when a later mapping or behavior
+contract accounts for the field; only unresolved blocking fields prevent
+physical-schema readiness.
 
 The current BMOPFTools boundary also emits mapping evidence for fields that
 are demonstrably represented in the staged network: `kv` → `load.v_nom`,
@@ -1099,9 +1178,8 @@ source magnitude/angle with explicit transforms. Load ZIP `model`/`zipv`
 fields are mapped into BMOPF load model coefficients when the staged load
 contains those fields; a source-side `model=ideal` is mapped by the fixed
 voltage-boundary capability contract. Unsupported source models remain
-unmapped. Per-unit voltage-limit
-fields remain unmapped until an explicit component or plugin contract gives
-them semantics beyond a bus-wide voltage bound.
+unmapped. `vminpu` and `vmaxpu` are mapped with a source-behavior contract,
+not into production-model bus bounds.
 
 The source-semantic report also retains normalized `vminpu`/`vmaxpu` records as
 load-voltage-behavior observations. They are intentionally not converted into
@@ -1110,6 +1188,11 @@ initialization issues, but it does not prove that the optimization model has
 those limits as active constraints. OpenDSS `model=ideal` is reported
 separately as a represented fixed-voltage-boundary contract; unsupported source
 models remain explicit unmapped blockers.
+Their mapping status is `mapped_with_contract`, targets the preserved
+`powerio_source_semantics.load_voltage_thresholds` record, and carries
+`active_in_original_model=false`. This clears source-fidelity readiness while
+preserving the separate question of whether a selected operating point lies
+inside the source load-law domain.
 
 BMOPFTools exposes the same boundary through
 `powerio_source_behavior_contract(net)`. Its default policy is
@@ -1735,3 +1818,22 @@ The campaign validator rejects unsupported policies or any record that claims
 the source model was mutated. It also requires a mapped original-coordinate
 audit for requested crosschecks. This intervention changes a recorded local
 linearization only; it is neither a BMOPF reformulation nor solver scaling.
+
+## Feasible-point calibration
+
+Use `benchmarks/compare_bmopf_multiconductor_points.jl` to compare two
+environment-compatible multiconductor summaries. In addition to rank, mode,
+and port-map evidence, the comparison retains feasibility-profile deltas,
+sparse-QR condition-proxy deltas, active stationary-row deltas, and public
+solver-result provenance. Its readiness gate requires paired numerical and
+initialization profiles; an `ipopt_result` candidate additionally requires a
+result point for every successful pair and feasible public primal statuses.
+
+The first five-fixture comparison paired `bmopf_start_values` with
+`ipopt_result`. All five Ipopt solves were `LOCALLY_SOLVED` with
+`FEASIBLE_POINT`; all 31 completed-start violations were eliminated. Sparse QR
+and guarded dense SVD agreed on full column rank at both points, and all seven
+repeat/nearby evaluations per solved fixture retained zero right nullity. The
+sparse-QR factor-diagonal ratio changed with the operating point, so it remains
+a local conditioning screen rather than a formulation invariant. Source
+`vminpu`/`vmaxpu` loss still blocks physical absence claims.

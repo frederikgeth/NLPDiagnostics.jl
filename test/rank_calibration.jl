@@ -7,13 +7,14 @@ import NLPDiagnostics
 function _rank_calibration_evaluation(
     matrix::AbstractMatrix{<:Real};
     label::AbstractString,
+    point_values::AbstractVector{<:Real} = zeros(size(matrix, 2)),
 )
     values = Float64.(matrix)
     rows, columns = size(values)
     variables = [MOI.VariableIndex(column) for column in 1:columns]
     point = NLPDiagnostics.EvaluationPoint(
         variables,
-        zeros(columns);
+        point_values;
         label,
     )
     entries = NLPDiagnostics.JacobianEntry{Float64}[]
@@ -970,6 +971,95 @@ end
     ).available
     @test_throws ArgumentError NLPDiagnostics.sparse_qr_nullspace_estimate(
         qr_null_evaluation; max_factor_nonzeros = -1,
+    )
+
+    qr_repeat = NLPDiagnostics.sparse_qr_nullspace_persistence(
+        [qr_null_evaluation, qr_null_evaluation];
+        relative_tolerance = 1.0e-10,
+        subspace_alignment_threshold = 0.999,
+    )
+    @test qr_repeat.available
+    @test qr_repeat.rank_stable
+    @test qr_repeat.subspace_persistent
+    @test qr_repeat.minimum_repeat_principal_cosine >= 1.0 - 1.0e-12
+    @test isnothing(qr_repeat.minimum_nearby_principal_cosine)
+    @test qr_repeat.pair_relative_point_distances == [0.0]
+
+    nearby_same_span = _rank_calibration_evaluation(
+        [1.0 0.0 1.0; 0.0 1.0 1.0];
+        label = "sparse QR nearby same span",
+        point_values = [1.0e-6, -1.0e-6, 2.0e-6],
+    )
+    qr_nearby = NLPDiagnostics.sparse_qr_nullspace_persistence(
+        [qr_null_evaluation, nearby_same_span];
+        relative_tolerance = 1.0e-10,
+        subspace_alignment_threshold = 0.999,
+    )
+    @test qr_nearby.available
+    @test qr_nearby.subspace_persistent
+    @test isnothing(qr_nearby.minimum_repeat_principal_cosine)
+    @test qr_nearby.minimum_nearby_principal_cosine >= 1.0 - 1.0e-12
+    @test only(qr_nearby.pair_relative_point_distances) == 2.0e-6
+
+    nearby_changed_span = _rank_calibration_evaluation(
+        [1.0 0.0 2.0; 0.0 1.0 1.0];
+        label = "sparse QR nearby changed span",
+        point_values = [1.0e-6, -1.0e-6, 2.0e-6],
+    )
+    qr_changed = NLPDiagnostics.sparse_qr_nullspace_persistence(
+        [qr_null_evaluation, nearby_changed_span];
+        relative_tolerance = 1.0e-10,
+        subspace_alignment_threshold = 0.999,
+    )
+    @test qr_changed.available
+    @test qr_changed.rank_stable
+    @test !qr_changed.subspace_persistent
+    @test qr_changed.minimum_nearby_principal_cosine < 0.999
+    qr_persistence_report =
+        NLPDiagnostics.analyze_sparse_qr_nullspace_persistence(
+            [qr_null_evaluation, nearby_same_span];
+            relative_tolerance = 1.0e-10,
+            subspace_alignment_threshold = 0.999,
+            expected_modes = [NLPDiagnostics.ExpectedNullspaceMode(
+                :declared_linear_freedom,
+                qr_null_evaluation.point.variables,
+                [-1.0, -1.0, 1.0],
+            )],
+            physical_interpretation_ready = false,
+            physical_readiness_reason = "calibration schema intentionally incomplete",
+            coordinate_groups = Dict(
+                "calibration:block" => qr_null_evaluation.point.variables,
+            ),
+        )
+    @test length(NLPDiagnostics.findings(
+        qr_persistence_report, :sparse_qr_nullspace_nearby_persistent,
+    )) == 1
+    @test length(NLPDiagnostics.findings(
+        qr_persistence_report, :sparse_qr_right_nullspace_persistent,
+    )) == 1
+    @test length(NLPDiagnostics.findings(
+        qr_persistence_report,
+        :sparse_qr_persistent_declared_modes_numerically_supported,
+    )) == 1
+    @test length(NLPDiagnostics.findings(
+        qr_persistence_report,
+        :sparse_qr_persistent_physical_interpretation_blocked,
+    )) == 1
+    @test parse(Float64, qr_persistence_report.metadata[
+        :sparse_qr_persistent_expected_mode_maximum_unexplained_energy,
+    ]) <= 1.0e-12
+    @test parse(Float64, qr_persistence_report.metadata[
+        :sparse_qr_persistent_unmapped_coordinate_energy_fraction,
+    ]) <= 1.0e-12
+    @test length(NLPDiagnostics.findings(
+        qr_persistence_report,
+        :sparse_qr_persistent_coordinate_support_localized,
+    )) == 1
+    @test !NLPDiagnostics.sparse_qr_nullspace_persistence(
+        [qr_null_evaluation]; minimum_evaluations = 2,
+    ).available
+    @test_throws ArgumentError NLPDiagnostics.sparse_qr_nullspace_persistence(
+        [qr_null_evaluation, qr_null_evaluation]; minimum_evaluations = 1,
     )
 
     dependent = _rank_calibration_evaluation(

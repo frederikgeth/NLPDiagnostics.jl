@@ -58,7 +58,65 @@ const _SMOKE_FIXTURES = [
     ),
 ]
 
-function _benchmark_case(spec, context, point_policy::String)
+function _ipopt_point_options()
+    max_iterations = something(_optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_POINT_SOLVER_MAX_ITERATIONS"; default = 500), 500)
+    tolerance = try
+        parse(Float64, get(ENV,
+            "NLPDIAGNOSTICS_BMOPF_POINT_SOLVER_TOLERANCE", "1e-8"))
+    catch
+        NaN
+    end
+    isfinite(tolerance) && tolerance > 0 || error(
+        "NLPDIAGNOSTICS_BMOPF_POINT_SOLVER_TOLERANCE must be positive and finite",
+    )
+    return Dict{String,Any}(
+        "solver" => "ipopt",
+        "max_iter" => max_iterations,
+        "tol" => tolerance,
+        "print_level" => 0,
+    )
+end
+
+function _solve_ipopt_point!(context, solve_record, options)
+    model = BMOPFTools.opf_model(context)
+    start = NLPDiagnostics.bmopf_start_completion_point(context;
+        missing_value = 0.0,
+        label = "bmopf-engine-starts-plus-zero-completion",
+    )
+    for (variable, value) in zip(start.variables, start.values)
+        JuMP.set_start_value(JuMP.VariableRef(model, variable), value)
+    end
+    for key in ("max_iter", "tol", "print_level")
+        JuMP.set_optimizer_attribute(model, key, options[key])
+    end
+    timing = @timed JuMP.optimize!(model)
+    point = NLPDiagnostics.solver_result_point(
+        model; label = "bmopf-ipopt-solver-result")
+    merge!(solve_record, Dict{String,Any}(
+        "requested" => true,
+        "solver" => "ipopt",
+        "options" => options,
+        "seconds" => Float64(timing.time),
+        "allocations" => Int(timing.bytes),
+        "termination_status" => string(JuMP.termination_status(model)),
+        "primal_status" => string(JuMP.primal_status(model)),
+        "dual_status" => string(JuMP.dual_status(model)),
+        "result_count" => JuMP.result_count(model),
+        "solver_result_point_available" => !isnothing(point),
+        "solver_result_point_fingerprint" => isnothing(point) ? nothing :
+            NLPDiagnostics.evaluation_point_fingerprint(point),
+        "start_point_fingerprint" =>
+            NLPDiagnostics.evaluation_point_fingerprint(start),
+    ))
+    isnothing(point) && error(
+        "Ipopt did not expose a public solver-result point; termination=$(JuMP.termination_status(model))",
+    )
+    return point
+end
+
+function _benchmark_case(spec, context, point_policy::String,
+                         solve_record, point_solver_options)
     point = if point_policy == "initialization"
         candidate = NLPDiagnostics.bmopf_initialization_point(context)
         isnothing(candidate) && error(
@@ -73,8 +131,10 @@ function _benchmark_case(spec, context, point_policy::String)
         )
     elseif point_policy == "zero"
         NLPDiagnostics.bmopf_coordinate_probe_point(context)
+    elseif point_policy == "ipopt_result"
+        _solve_ipopt_point!(context, solve_record, point_solver_options)
     else
-        error("unknown NLPDIAGNOSTICS_BMOPF_POINT_POLICY='$point_policy' (use initialization, bmopf_start_values, or zero)")
+        error("unknown NLPDIAGNOSTICS_BMOPF_POINT_POLICY='$point_policy' (use initialization, bmopf_start_values, zero, or ipopt_result)")
     end
     return NLPDiagnostics.ProfileCase(spec.name, point;
         description = spec.description,
@@ -87,7 +147,9 @@ function _benchmark_case(spec, context, point_policy::String)
             "fixture" => spec.file,
             "point_policy" => point_policy,
             "point_provenance" => point_policy == "bmopf_start_values" ?
-                                  "BMOPFTools voltage starts with explicit zero completion for missing coordinates" : point_policy,
+                                  "BMOPFTools voltage starts with explicit zero completion for missing coordinates" :
+                                  point_policy == "ipopt_result" ?
+                                  "Ipopt public solver-result point after BMOPFTools zero-completed start" : point_policy,
         ),
     )
 end
@@ -143,6 +205,89 @@ function _sparse_qr_nullspace_scaling()
         "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_SCALING must be none, row, column, or row_column",
     )
     return Symbol(raw)
+end
+
+function _comma_separated_positive_floats(name::AbstractString)
+    raw = strip(get(ENV, name, ""))
+    isempty(raw) && return Float64[]
+    values = Float64[]
+    for token in split(raw, ',')
+        value = try
+            parse(Float64, strip(token))
+        catch
+            error("$name must be a comma-separated list of positive finite numbers")
+        end
+        isfinite(value) && value > 0.0 || error(
+            "$name must contain only positive finite numbers",
+        )
+        push!(values, value)
+    end
+    return sort!(unique(values))
+end
+
+function _environment_unit_interval(name::AbstractString; default::Real)
+    raw = strip(get(ENV, name, string(default)))
+    value = try
+        parse(Float64, raw)
+    catch
+        error("$name must be a finite number in [0, 1]")
+    end
+    isfinite(value) && 0.0 <= value <= 1.0 || error(
+        "$name must be a finite number in [0, 1]",
+    )
+    return value
+end
+
+function _sparse_qr_persistence_points(
+    point::NLPDiagnostics.EvaluationPoint,
+    repeat_count::Integer,
+    radii::AbstractVector{<:Real},
+    direction_seed::Integer,
+)
+    repeat_count == 0 || repeat_count >= 2 || error(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_PERSISTENCE_REPEAT_COUNT must be zero or at least two",
+    )
+    points = NLPDiagnostics.EvaluationPoint[]
+    repeated = max(Int(repeat_count), 1)
+    for index in 1:repeated
+        push!(points, NLPDiagnostics.EvaluationPoint(
+            point.variables,
+            point.values;
+            label = "$(point.label)-sparse-qr-repeat-$index",
+            provenance = point.provenance,
+        ))
+    end
+    isempty(radii) && return points
+    direction = Float64[
+        sin(Float64(direction_seed) + index * 0.7548776662466927) +
+        cos(Float64(direction_seed) * 0.5 + index * 0.5698402909980532)
+        for index in eachindex(point.values)
+    ]
+    direction ./= maximum(abs, direction; init = 1.0)
+    coordinate_scales = max.(abs.(Float64.(point.values)), 1.0)
+    baseline_fingerprint = NLPDiagnostics.evaluation_point_fingerprint(point)
+    for radius in radii, sign in (-1.0, 1.0)
+        signed_radius = sign * Float64(radius)
+        values = Float64.(point.values) .+
+            signed_radius .* coordinate_scales .* direction
+        label = "$(point.label)-sparse-qr-nearby-$(sign < 0 ? "minus" : "plus")-$(radius)"
+        provenance = NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.PerturbedPoint;
+            source = "deterministic BMOPF sparse-QR persistence probe",
+            complete = point.provenance.complete,
+            metadata = Dict(
+                "baseline_fingerprint" => baseline_fingerprint,
+                "relative_radius" => string(radius),
+                "signed_radius" => string(signed_radius),
+                "direction_seed" => string(direction_seed),
+                "coordinate_scale" => "max(abs(x),1)",
+            ),
+        )
+        push!(points, NLPDiagnostics.EvaluationPoint(
+            point.variables, values; label, provenance,
+        ))
+    end
+    return points
 end
 
 function _expected_mode_free_coordinate_policy()
@@ -653,6 +798,7 @@ function main()
         join((spec.name for spec in _SMOKE_FIXTURES), ", "),
     )
     point_policy = lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_POINT_POLICY", "initialization"))
+    point_solver_options = _ipopt_point_options()
     source_behavior_solver = _source_behavior_solver_policy()
     source_behavior_solver_attributes = _source_behavior_solver_attributes()
     dense_entry_limit = _dense_entry_limit()
@@ -707,6 +853,27 @@ function main()
     sparse_qr_nullspace_dense_calibration = _boolean_environment(
         "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_DENSE_CALIBRATION",
     )
+    sparse_qr_persistence_repeat_count = something(_optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_PERSISTENCE_REPEAT_COUNT",
+    ), 0)
+    sparse_qr_persistence_repeat_count == 0 ||
+        sparse_qr_persistence_repeat_count >= 2 || error(
+            "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_PERSISTENCE_REPEAT_COUNT must be zero or at least two",
+        )
+    sparse_qr_persistence_radii = _comma_separated_positive_floats(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_PERSISTENCE_RADII",
+    )
+    sparse_qr_persistence_direction_seed = something(_optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_PERSISTENCE_DIRECTION_SEED";
+        default = 1,
+    ), 1)
+    sparse_qr_persistence_alignment_threshold = _environment_unit_interval(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_PERSISTENCE_ALIGNMENT_THRESHOLD";
+        default = 0.98,
+    )
+    sparse_qr_persistence_requested =
+        sparse_qr_persistence_repeat_count >= 2 ||
+        !isempty(sparse_qr_persistence_radii)
     expected_mode_free_coordinate_policy = _expected_mode_free_coordinate_policy()
     environment = _benchmark_environment()
     environment_fingerprint = _benchmark_environment_fingerprint(environment)
@@ -715,6 +882,11 @@ function main()
         path = joinpath(root, spec.file)
         result_path = joinpath(output_dir, "$(spec.name).json")
         preflight = nothing
+        point_solve = Dict{String,Any}(
+            "requested" => point_policy == "ipopt_result",
+            "solver" => point_policy == "ipopt_result" ? "ipopt" : "none",
+            "options" => point_solver_options,
+        )
         source_snapshot = Dict{String,Any}("preserved" => false, "source_path" => abspath(path))
         try
             isfile(path) || error("fixture is missing: $path")
@@ -722,8 +894,11 @@ function main()
             network = BMOPFTools.from_dss(path)
             preflight = _bmopf_integrity_preflight(network)
             run = NLPDiagnostics.bmopf_build_and_profile(network,
-                context -> _benchmark_case(spec, context, point_policy);
-                build_kwargs = (add_objective = false,),
+                context -> _benchmark_case(spec, context, point_policy,
+                    point_solve, point_solver_options);
+                build_kwargs = point_policy == "ipopt_result" ?
+                    (optimizer = Ipopt.Optimizer, add_objective = false) :
+                    (add_objective = false,),
                 profile_kwargs = (
                     include_initialization = true,
                     rank_max_dense_entries = dense_entry_limit,
@@ -781,6 +956,35 @@ function main()
                 run.context; operating_source = run.result.profile.evaluation.point,
             )
             evaluation = run.result.profile.evaluation
+            sparse_qr_persistence_points = sparse_qr_persistence_requested ?
+                _sparse_qr_persistence_points(
+                    evaluation.point,
+                    sparse_qr_persistence_repeat_count,
+                    sparse_qr_persistence_radii,
+                    sparse_qr_persistence_direction_seed,
+                ) : NLPDiagnostics.EvaluationPoint[]
+            sparse_qr_persistence_report = sparse_qr_persistence_requested ?
+                NLPDiagnostics.report_data(
+                    NLPDiagnostics.bmopf_analyze_sparse_qr_nullspace_persistence(
+                        run.context,
+                        sparse_qr_persistence_points;
+                        scaling = sparse_qr_nullspace_scaling,
+                        max_input_nonzeros =
+                            sparse_qr_nullspace_max_input_nonzeros,
+                        max_factor_nonzeros =
+                            sparse_qr_nullspace_max_factor_nonzeros,
+                        max_nullspace_entries =
+                            sparse_qr_nullspace_max_entries,
+                        subspace_alignment_threshold =
+                            sparse_qr_persistence_alignment_threshold,
+                    ),
+                ) : Dict{String,Any}(
+                    "metadata" => Dict{String,Any}(
+                        "sparse_qr_nullspace_persistence_available" => "false",
+                        "requested" => "false",
+                    ),
+                    "findings" => Any[],
+                )
             source_behavior_report = _source_behavior_report_data(
                 NLPDiagnostics.bmopf_source_behavior_report(
                     run.context, evaluation.point;
@@ -829,6 +1033,7 @@ function main()
                 "tags" => string.(spec.tags),
                 "environment_fingerprint" => environment_fingerprint,
                 "point_policy" => point_policy,
+                "point_solve" => point_solve,
                 "source_behavior_solver" => source_behavior_solver,
                 "source_behavior_solver_attributes" => source_behavior_solver_attributes,
                 "model_variable_count" => variable_count,
@@ -866,6 +1071,18 @@ function main()
                     sparse_qr_nullspace_max_entries,
                 "sparse_qr_nullspace_dense_calibration" =>
                     sparse_qr_nullspace_dense_calibration,
+                "sparse_qr_nullspace_persistence_requested" =>
+                    sparse_qr_persistence_requested,
+                "sparse_qr_nullspace_persistence_repeat_count" =>
+                    sparse_qr_persistence_repeat_count,
+                "sparse_qr_nullspace_persistence_radii" =>
+                    sparse_qr_persistence_radii,
+                "sparse_qr_nullspace_persistence_direction_seed" =>
+                    sparse_qr_persistence_direction_seed,
+                "sparse_qr_nullspace_persistence_alignment_threshold" =>
+                    sparse_qr_persistence_alignment_threshold,
+                "sparse_qr_nullspace_persistence_report" =>
+                    sparse_qr_persistence_report,
                 "expected_mode_free_coordinate_policy" =>
                     expected_mode_free_coordinate_policy,
                 "expected_mode_tangent_policy" => isnothing(expected_mode_tangent_policy) ?
@@ -889,6 +1106,7 @@ function main()
                 "result_file" => basename(result_path),
                 "source_snapshot" => source_snapshot,
                 "point_policy" => point_policy,
+                "point_solve" => point_solve,
                 "source_behavior_solver" => source_behavior_solver,
                 "source_behavior_solver_attributes" => source_behavior_solver_attributes,
                 "model_variable_count" => variable_count,
@@ -926,6 +1144,16 @@ function main()
                     sparse_qr_nullspace_max_entries,
                 "sparse_qr_nullspace_dense_calibration" =>
                     sparse_qr_nullspace_dense_calibration,
+                "sparse_qr_nullspace_persistence_requested" =>
+                    sparse_qr_persistence_requested,
+                "sparse_qr_nullspace_persistence_repeat_count" =>
+                    sparse_qr_persistence_repeat_count,
+                "sparse_qr_nullspace_persistence_radii" =>
+                    sparse_qr_persistence_radii,
+                "sparse_qr_nullspace_persistence_direction_seed" =>
+                    sparse_qr_persistence_direction_seed,
+                "sparse_qr_nullspace_persistence_alignment_threshold" =>
+                    sparse_qr_persistence_alignment_threshold,
                 "expected_mode_tangent_policy" => isnothing(expected_mode_tangent_policy) ?
                     "none" : string(expected_mode_tangent_policy.name),
                 "dense_rank_analysis_eligible" => jacobian_entries <= dense_entry_limit,
@@ -947,6 +1175,7 @@ function main()
                 "source_snapshot" => source_snapshot,
                 "status" => "error", "error" => message,
                 "point_policy" => point_policy,
+                "point_solve" => point_solve,
                 "source_behavior_solver" => source_behavior_solver,
                 "source_behavior_solver_attributes" => source_behavior_solver_attributes,
                 "rank_max_dense_entries" => dense_entry_limit,
@@ -981,6 +1210,16 @@ function main()
                     sparse_qr_nullspace_max_entries,
                 "sparse_qr_nullspace_dense_calibration" =>
                     sparse_qr_nullspace_dense_calibration,
+                "sparse_qr_nullspace_persistence_requested" =>
+                    sparse_qr_persistence_requested,
+                "sparse_qr_nullspace_persistence_repeat_count" =>
+                    sparse_qr_persistence_repeat_count,
+                "sparse_qr_nullspace_persistence_radii" =>
+                    sparse_qr_persistence_radii,
+                "sparse_qr_nullspace_persistence_direction_seed" =>
+                    sparse_qr_persistence_direction_seed,
+                "sparse_qr_nullspace_persistence_alignment_threshold" =>
+                    sparse_qr_persistence_alignment_threshold,
                 "expected_mode_tangent_policy" => "unavailable",
                 "integrity_preflight" => preflight,
             )))
@@ -988,6 +1227,7 @@ function main()
                 "name" => spec.name, "status" => "error",
                 "result_file" => basename(result_path), "error" => message,
                 "point_policy" => point_policy,
+                "point_solve" => point_solve,
                 "source_behavior_solver" => source_behavior_solver,
                 "source_behavior_solver_attributes" => source_behavior_solver_attributes,
                 "source_snapshot" => source_snapshot,
@@ -1004,6 +1244,7 @@ function main()
         "environment" => environment,
         "environment_fingerprint" => environment_fingerprint,
         "point_policy" => point_policy,
+        "point_solver_options" => point_solver_options,
         "source_behavior_solver" => source_behavior_solver,
         "source_behavior_solver_attributes" => source_behavior_solver_attributes,
         "rank_max_dense_entries" => dense_entry_limit,
@@ -1034,6 +1275,16 @@ function main()
         "sparse_qr_nullspace_max_entries" => sparse_qr_nullspace_max_entries,
         "sparse_qr_nullspace_dense_calibration" =>
             sparse_qr_nullspace_dense_calibration,
+        "sparse_qr_nullspace_persistence_requested" =>
+            sparse_qr_persistence_requested,
+        "sparse_qr_nullspace_persistence_repeat_count" =>
+            sparse_qr_persistence_repeat_count,
+        "sparse_qr_nullspace_persistence_radii" =>
+            sparse_qr_persistence_radii,
+        "sparse_qr_nullspace_persistence_direction_seed" =>
+            sparse_qr_persistence_direction_seed,
+        "sparse_qr_nullspace_persistence_alignment_threshold" =>
+            sparse_qr_persistence_alignment_threshold,
         "expected_mode_free_coordinate_policy" =>
             expected_mode_free_coordinate_policy,
         "expected_mode_tangent_policy" => get(

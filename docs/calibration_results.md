@@ -383,3 +383,240 @@ The corresponding artifacts are
 and the comparison and validation records in the latter directory. Validation
 reported no errors; remaining warnings concern source-schema readiness and the
 intentionally unresolved/inconclusive numerical relations.
+
+## 2026-08-11: transformer sparse-QR nullspace arbitration
+
+Status: **third backend resolves the local six-dimensional numerical subspace
+on this representative case; physical interpretation remains blocked**.
+
+The same 51-by-54 wye-delta transformer and completed BMOPF start were analyzed
+with rank-revealing SuiteSparseQR in unscaled and one-pass row-column-scaled
+coordinates. Both runs estimated rank 48 and right nullity six. Both agreed
+with guarded dense SVD on dimension and mapped subspace: minimum principal
+cosines were `0.9999999999999999` and `0.9999999999999998`, respectively, and
+the dense threshold was not classified as ambiguous. Direct residuals against
+the original Jacobian serialized as zero for all six orthonormal directions.
+
+The factor remained modest on this fixture: 232 input nonzeros, 334 unscaled
+factor nonzeros (fill ratio about `1.440`), and 338 scaled factor nonzeros (fill
+ratio about `1.457`). The controlled comparison found scaling as the only
+policy difference, no rank/nullity or dense-relation change, and no residual
+change at recorded precision. Campaign validation reported zero errors. Its six
+warnings are duplicated source-schema readiness warnings from the two input
+summaries; they are unrelated to QR algebra but prevent physical labels for the
+six directions.
+
+This result resolves the earlier question of whether the transformer cluster
+was merely an artifact of the two iterative normal-product trackers: on this
+point, an independent direct sparse factorization and dense SVD recover the same
+six-dimensional local numerical nullspace. It does not prove exact rank,
+pointwise persistence, or a transformer/neutral/delta physical mechanism. The
+next trust gate is repetition at identical and nearby trusted points, followed
+by component-coordinate projection of only the persistent directions. The
+artifacts are
+`/private/tmp/nlpdiag-bmopf-transformer-sparseqr-none-v1/multiconductor-summary.json`
+and
+`/private/tmp/nlpdiag-bmopf-transformer-sparseqr-row-column-v1/sparse-qr-nullspace-comparison.json`.
+
+## 2026-08-11: transformer persistence and representational explanation
+
+Status: **the six-dimensional nullspace is persistent but is explained by
+unused load-current coordinates, not by the declared voltage-port modes**.
+
+The row-column sparse-QR experiment was repeated three times at identical
+coordinates and at symmetric deterministic relative radii `1e-8` and `1e-6`.
+All seven evaluations returned rank 48 and right nullity six. All 21 pairwise
+minimum principal cosines were `1.0`, including every distinct-point pair, and
+the maximum direct original-Jacobian residual serialized as zero. This rules
+out basis sign/rotation effects and materially weakens a one-point derivative
+cancellation explanation over the tested neighborhood.
+
+Basis-invariant coordinate leverage localizes the entire span to six variables:
+`crd_ld1_2`, `cid_ld1_2`, `crd_ld2_2`, `cid_ld2_2`, `crd_ld3_2`, and
+`cid_ld3_2`. Each contributes one sixth of the nullspace energy. Generic static
+analysis independently proves that these variables occur in no objective or
+non-domain constraint, and numerical scaling reports identify the same six
+zero Jacobian columns. The BMOPF adapter therefore emits
+`bmopf_sparse_qr_persistent_nullspace_explained_by_disconnected_variables` and
+classifies the mechanism as representational compiled-coordinate freedom.
+
+Eight projected component/topology candidates span six independent voltage
+directions, but they do not explain this current-coordinate nullspace: the
+maximum candidate residual is `1.0` and the unexplained energy fraction is
+approximately `1.0`. This is not a physical contradiction. Physical presence
+and absence remain blocked because source fields `vmaxpu` and `vminpu` are not
+restored by the current PowerIO-to-BMOPF schema contract. The actionable next
+step is to inspect inactive load-terminal current allocation in BMOPFTools and
+then rerun the campaign after unused coordinates are removed, fixed, or
+explicitly constrained. The final raw artifact is
+`/private/tmp/nlpdiag-bmopf-transformer-sparseqr-persistence-v4/wye-delta-transformer.json`.
+
+## 2026-08-11: transformer inactive-coordinate intervention
+
+Status: **the diagnosed right nullspace disappears after correcting the
+BMOPFTools two-terminal load-current allocation**.
+
+The persistence/localization evidence identified a precise construction seam:
+each phase-to-phase `SINGLE_PHASE` load declared two complex current
+coordinates, while its constitutive equations and KCL used only the first.
+BMOPFTools now declares one complex branch current for this topology, and its
+result writer uses the same two-terminal voltage difference. NLPDiagnostics
+represents the branch current with terminal incidence `[+1, -1]` and the
+corresponding least-squares terminal-to-model map `[0.5, -0.5]`; the port
+contract therefore retains both physical terminals without inventing a second
+model coordinate.
+
+The controlled rerun reduced the staged transformer from 54 to 48 variables
+while retaining 51 scalar constraint rows. Sparse QR returned rank 48 and right
+nullity zero at all three identical-coordinate repeats and all four symmetric
+nearby probes. Guarded dense SVD agreed with the no-nullspace result. The six
+static `disconnected_variable` findings and the six zero-Jacobian columns both
+disappeared. All twelve current ports remained dimensionally aligned; the six
+single-phase load real/imaginary maps now have one model row, two terminal
+columns, and rank one.
+
+This is a useful end-to-end diagnostic result: repeated numerical geometry
+localized a formulation artifact, independent static evidence explained it,
+and a narrow model-construction correction removed exactly the predicted six
+degrees of freedom without changing the equation count. It is not evidence
+that every remaining physical mode declaration is absent. `vmaxpu` and
+`vminpu` are still lost at the PowerIO/BMOPF schema boundary, so physical
+presence/absence labels remain blocked. The post-intervention artifacts are
+`/private/tmp/nlpdiag-bmopf-transformer-sparseqr-persistence-v5/wye-delta-transformer.json`,
+`multiconductor-summary.json`, and `validation.json` in the same directory.
+
+## 2026-08-11: five-fixture persistence and initialization baseline
+
+Status: **local rank evidence is stable; initialization and source-schema
+readiness, rather than right-nullspace degeneracy, are the immediate observed
+boundaries**.
+
+The same unscaled sparse-QR policy was applied to grounded-neutral,
+free-neutral-return, delta-load, ZIP-load, and unbalanced-three-phase-line at
+the BMOPFTools start completed with zeros. Each case used three identical-point
+evaluations and four symmetric nearby probes at relative radii `1e-8` and
+`1e-6`. All five completed under the 250,000-entry dense guard.
+
+Every case was full column rank in all seven evaluations. The dimensions and
+ranks were 58-by-34/34, 58-by-34/34, 62-by-38/38, 80-by-44/44, and
+62-by-38/38, respectively. Guarded dense SVD agreed with sparse QR on zero
+right nullity in every case, and sparse-factor residuals were between roughly
+`8.15e-17` and `9.80e-17`. The recorded sparse-QR condition proxies ranged
+from about `2.67` to `83.92`; these are moderate local factorization screens,
+not condition-number certificates. No evaluation, derivative, or expression
+numeric-risk issue was recorded at these points.
+
+The numerical report's eight zero-Jacobian rows per fixture were also
+crosschecked against local activity. All 40 rows are inactive; none enters the
+selected active set. Direct model inspection identifies them as current-
+magnitude quadratic inequalities of the form
+`a * (current_real^2 + current_imag^2) <= 1`, evaluated at the zero-current
+completion. Their gradients therefore vanish at the center while they retain
+unit slack. They are not active-set singularities. The paired duplicate-limit
+rows remain a separate static redundancy observation and may still be worth
+deduplicating for formulation economy.
+
+Initialization is the recurring adverse pattern. BMOPFTools supplied a partial
+voltage start and the campaign filled all missing current coordinates with
+zero. All five starts violated constraints: 31 violations in total. Maximum
+violations were `0.015`, `0.015`, `0.02`, `1.0`, and `0.02` in the fixture
+order above. ZIP is therefore the clearest next initialization calibration
+case. Its order-one violation should not be confused with ill-conditioning or
+rank deficiency; it is evidence about the completed start.
+
+All cases also report locally tangent-not-observed declared source common-mode
+candidates. That absence is not yet physical evidence because PowerIO/BMOPF
+restoration still drops fields including `vminpu`, `vmaxpu`, `kv`, `phases`,
+and voltage-source metadata. Campaign validation has no errors and four
+warnings: infeasible initialization plus the three source-schema readiness
+warnings. Artifacts are under
+`/private/tmp/nlpdiag-bmopf-five-fixture-persistence-v1`.
+
+The new formulation-intervention artifact was also exercised on the historical
+transformer pre/post summaries. It records the exact expected delta: six fewer
+variables, unchanged row count and rank, six fewer persistent right-nullspace
+dimensions, six fewer disconnected coordinates, and dense-SVD corroboration.
+It correctly withholds controlled/causal readiness because the historical
+baseline used row-column scaling while the candidate used no scaling, and the
+old summaries predate BMOPFTools source-state provenance. The evidence remains
+strong local diagnosis, but a publication-grade causal artifact requires two
+policy-matched runs from isolated source revisions.
+
+## 2026-08-11: five-fixture feasible-point calibration
+
+Status: **matched local point-policy evidence; physical interpretation remains
+schema-blocked**.
+
+The grounded-neutral, free-neutral-return, delta-load, ZIP-load, and
+unbalanced-three-phase-line fixtures were rerun under identical source,
+numerical, dense-budget, repeat, and nearby-probe policies. The baseline used
+BMOPFTools' partial voltage start with explicit zero completion. The candidate
+attached Ipopt to the same objective-free feasibility formulation, initialized
+it from that completed start, and extracted the public solver-result point.
+The environment fingerprints match.
+
+All five solves terminated `LOCALLY_SOLVED` with public primal status
+`FEASIBLE_POINT`. The baseline had 31 feasibility violations in total; the
+candidate had none. Maximum violation changed from `0.015`, `0.015`, `0.02`,
+`1.0`, and `0.02` to zero for grounded-neutral, free-neutral-return,
+delta-load, ZIP-load, and the unbalanced line, respectively. This confirms that
+the ZIP order-one observation was a completed-start pathology rather than
+evidence of rank deficiency.
+
+Sparse QR reported ranks 34, 34, 38, 44, and 38 with zero right nullity at the
+solved points. Guarded dense SVD agreed in all five cases. Three identical-point
+repeats and four symmetric nearby probes per fixture retained the same rank and
+nullity. Rank did not change between completed-start and solved points. No
+active or inactive zero-Jacobian rows remained at the solved points; the eight
+inactive stationary current-limit rows seen per fixture at zero current were
+therefore point-local derivative geometry, not structural zero rows.
+
+The unscaled sparse-QR condition proxy changed from approximately `83.92` to
+`83.89` (grounded neutral), `2.67` to `4.31` (free neutral), `11.08` to `11.31`
+(delta), `10.36` to `12.10` (ZIP), and `12.43` to `16.53` (unbalanced line).
+These shifts show that the proxy is meaningfully operating-point dependent.
+They do not establish condition numbers or solver difficulty, and the absolute
+values must not be compared across formulations as physical scaling scores.
+
+The matched comparison passed its point, environment, port-map, mode-policy,
+numerical-profile, feasibility-profile, and solved-point readiness gates. The
+campaign validator reports only the expected infeasible-baseline warning and
+duplicated source-schema warnings. Physical presence/absence conclusions remain
+blocked because `vminpu` and `vmaxpu` are not preserved across the current
+PowerIO/BMOPF boundary. Artifacts are under
+`/private/tmp/nlpdiag-bmopf-five-fixture-start-v2` and
+`/private/tmp/nlpdiag-bmopf-five-fixture-ipopt-result-v1`.
+
+## 2026-08-11: source-behavior contract and stationary-row calibration
+
+Status: **source-fidelity gate cleared on the five small fixtures; production
+constraints remain unchanged**.
+
+The source-schema trace established that PowerIO/BMOPFTools already retained
+OpenDSS `vminpu` and `vmaxpu` values as normalized per-load behavior
+observations. They are load-law domain thresholds, not bus voltage bounds. The
+mapping ledger now records both fields as `mapped_with_contract`, targets the
+preserved source-behavior record, and explicitly states
+`active_in_original_model=false`. Raw conversion warnings remain in provenance
+but no longer generate physical-metadata-loss findings when an explicit mapping
+or behavior contract covers the affected field.
+
+The matched five-fixture campaigns were repeated from the corrected source
+tree. Every fixture mapped `angle`, `basekv`, `kv`, `model`, `phases`,
+`vminpu`, and `vmaxpu`; the ZIP fixture additionally mapped `zipv`. There were
+no unresolved blocking fields and zero physical-metadata warnings. Both
+`source_schema_mapping_complete` and `physical_metadata_complete` are true.
+Campaign validation contains zero errors and one warning, which is solely the
+known infeasible completed-start baseline. Accounted raw source warnings are
+retained as information.
+
+The new generic stationary-quadratic classifier independently recognized all
+40 zero-Jacobian rows at the completed starts as inactive positive-diagonal
+quadratic rows—eight per fixture. None was active or violated. At the five
+feasible Ipopt result points, all 40 stationary classifications disappeared.
+The matched comparison records elimination in every fixture. The classifier
+uses the actual coefficients and scalar level and reports the inferred radius;
+it does not assume a right-hand side near one.
+
+Artifacts are under `/private/tmp/nlpdiag-bmopf-five-fixture-start-v3` and
+`/private/tmp/nlpdiag-bmopf-five-fixture-ipopt-result-v2`.

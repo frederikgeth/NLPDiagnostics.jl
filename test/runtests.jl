@@ -537,6 +537,50 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test length(findings(broken_attachment_report, :bmopf_terminal_attachment_port_unavailable)) == 1
     @test broken_attachment_report.metadata[:bmopf_terminal_attachment_skipped_count] == "1"
 
+    branch_current_model = JuMP.Model()
+    JuMP.@variable(branch_current_model, crd_branch)
+    JuMP.@variable(branch_current_model, cid_branch)
+    branch_current_net = Dict{String,Any}(
+        "bus" => Dict{String,Any}(
+            "phase_bus" => Dict{String,Any}(
+                "terminal_names" => ["a", "b"],
+            ),
+        ),
+        "load" => Dict{String,Any}(
+            "phase_load" => Dict{String,Any}(
+                "bus" => "phase_bus",
+                "terminal_map" => ["a", "b"],
+                "configuration" => "SINGLE_PHASE",
+            ),
+        ),
+    )
+    branch_current_objects = Dict{BMOPFTools.OpfModelKey,Any}(
+        BMOPFTools.opf_load_current_key("phase_load", 1) => crd_branch,
+        BMOPFTools.opf_load_current_key(
+            "phase_load", 1; component = :imag,
+        ) => cid_branch,
+    )
+    branch_current_context = TestBMOPFContext(
+        branch_current_model,
+        branch_current_net,
+        branch_current_objects,
+        nothing,
+    )
+    branch_current_ports =
+        NLPDiagnostics.bmopf_terminal_current_port_metadata(branch_current_context)
+    @test length(branch_current_ports) == 2
+    @test all(port -> port.terminal_labels == ["a", "b"], branch_current_ports)
+    @test all(port -> port.mode_labels == ["branch_current_1"], branch_current_ports)
+    @test all(port -> port.connection_matrix == reshape([1.0, -1.0], 2, 1),
+              branch_current_ports)
+    branch_current_maps =
+        NLPDiagnostics.bmopf_terminal_current_port_coordinate_maps(branch_current_context)
+    @test length(branch_current_maps) == 2
+    @test all(map -> map.terminal_to_variable ≈ [0.5 -0.5], branch_current_maps)
+    @test isempty(NLPDiagnostics.bmopf_terminal_current_port_report(
+        branch_current_context,
+    ).findings)
+
     transformer_model = JuMP.Model()
     JuMP.@variable(transformer_model, vr_high[1:2])
     JuMP.@variable(transformer_model, vi_high[1:2])
@@ -802,7 +846,9 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
         TestBMOPFContext(model, source_metadata_net, objects, nothing),
     )
     @test source_metadata_report.metadata[:bmopf_source_schema_warning_count] == "4"
-    @test source_metadata_report.metadata[:bmopf_source_schema_physical_blocking_count] == "3"
+    @test source_metadata_report.metadata[:bmopf_source_schema_physical_blocking_count] == "2"
+    @test source_metadata_report.metadata[:bmopf_source_schema_resolved_warning_count] == "1"
+    @test source_metadata_report.metadata[:bmopf_source_schema_unresolved_warning_count] == "3"
     @test source_metadata_report.metadata[:bmopf_source_schema_representational_count] == "1"
     @test source_metadata_report.metadata[:bmopf_source_schema_device_semantics_count] == "1"
     @test source_metadata_report.metadata[:bmopf_source_schema_unclassified_count] == "1"
@@ -817,7 +863,7 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test source_metadata_report.metadata[:bmopf_source_schema_mapped_warning_field_count] == "1"
     @test source_metadata_report.metadata[:bmopf_source_schema_mapping_targets] == "kv=>load.v_nom"
     @test source_metadata_report.metadata[:bmopf_source_schema_restoration_ready] == "false"
-    @test length(findings(source_metadata_report, :bmopf_source_schema_physical_metadata_loss)) == 1
+    @test isempty(findings(source_metadata_report, :bmopf_source_schema_physical_metadata_loss))
     @test length(findings(source_metadata_report, :bmopf_source_schema_device_semantics_loss)) == 1
     @test length(findings(source_metadata_report, :bmopf_source_schema_representational_loss)) == 1
     @test length(findings(source_metadata_report, :bmopf_source_schema_unclassified_loss)) == 1
@@ -828,6 +874,12 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test mapped_source_metadata_report.metadata[:bmopf_source_schema_mapped_field_count] == "3"
     @test mapped_source_metadata_report.metadata[:bmopf_source_schema_mapped_warning_field_count] == "3"
     @test mapped_source_metadata_report.metadata[:bmopf_source_schema_restoration_ready] == "true"
+    @test mapped_source_metadata_report.metadata[:bmopf_source_schema_resolved_warning_count] == "3"
+    @test mapped_source_metadata_report.metadata[:bmopf_source_schema_unresolved_warning_count] == "1"
+    @test isempty(findings(mapped_source_metadata_report,
+        :bmopf_source_schema_device_semantics_loss))
+    @test isempty(findings(mapped_source_metadata_report,
+        :bmopf_source_schema_unclassified_loss))
     source_metadata_net["load"] = Dict{String,Any}(
         "d12" => Dict{String,Any}(
             "bus" => "load",
@@ -1263,6 +1315,12 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
         context, [numerical_point, numerical_point],
     )
     @test persistence_report.metadata[:bmopf_floating_neutral_candidate_modes_included] == "false"
+    sparse_qr_persistence_report =
+        NLPDiagnostics.bmopf_analyze_sparse_qr_nullspace_persistence(
+            context, [numerical_point, numerical_point],
+        )
+    @test sparse_qr_persistence_report.metadata[:stage] ==
+        "sparse_qr_nullspace_persistence"
     component_persistence_report = NLPDiagnostics.bmopf_analyze_component_rank_persistence(
         context, [numerical_point, numerical_point],
     )
@@ -1478,6 +1536,8 @@ end
     )()
     @test haskey(benchmark_environment, "git_dirty")
     @test haskey(benchmark_environment, "git_diff_fingerprint")
+    @test haskey(benchmark_environment, "package_source_states")
+    @test haskey(benchmark_environment["package_source_states"], "NLPDiagnostics")
     scripts = (
         "launch_bmopf_point_calibration.jl",
         "summarize_bmopf_point_calibration.jl",
@@ -1490,6 +1550,7 @@ end
         "summarize_bmopf_endpoint_triangulation.jl",
         "compare_bmopf_multiconductor_points.jl",
         "compare_bmopf_multiconductor_crosschecks.jl",
+        "compare_bmopf_formulation_interventions.jl",
         "summarize_bmopf_evidence_ledger.jl",
         "launch_bmopf_source_solver_matrix.jl",
         "compare_bmopf_source_solver_matrices.jl",
@@ -1942,6 +2003,22 @@ end
     @test occursin("mode_projection_policy_compatible", point_comparison)
     @test occursin("mode_tangent_policy_compatible", point_comparison)
     @test occursin("smallest_crosscheck_pair_available", point_comparison)
+    @test occursin("feasibility_violations_eliminated", point_comparison)
+    @test occursin("sparse_qr_condition_proxy_delta", point_comparison)
+    @test occursin("inactive_stationary_quadratic_rows_eliminated",
+        point_comparison)
+    @test occursin("candidate_solver_results_feasible", point_comparison)
+    campaign_validator = read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    )
+    @test occursin("multiconductor_point_numerical_profile_overlap_incomplete",
+        campaign_validator)
+    @test occursin("multiconductor_point_initialization_profile_overlap_incomplete",
+        campaign_validator)
+    @test occursin("multiconductor_point_solver_result_overlap_incomplete",
+        campaign_validator)
+    @test occursin("multiconductor_point_solver_results_not_feasible",
+        campaign_validator)
     @test occursin("smallest_crosscheck_relation_changed", point_comparison)
     @test occursin("smallest_crosscheck_minimum_principal_cosine_delta",
         point_comparison)
@@ -1954,6 +2031,21 @@ end
     @test occursin("agreement_gain_count", crosscheck_comparison)
     @test occursin("distinct_work_policy", crosscheck_comparison)
     @test occursin("scaling_intervention_only", crosscheck_comparison)
+    sparse_qr_comparison = read(joinpath(
+        benchmark_directory, "compare_bmopf_sparse_qr_nullspaces.jl"), String)
+    @test occursin("bmopf-sparse-qr-nullspace-comparison-v1",
+        sparse_qr_comparison)
+    @test occursin("dense_calibration_pair_available", sparse_qr_comparison)
+    @test occursin("rank_change_count", sparse_qr_comparison)
+    @test occursin("maximum_relative_residual_delta", sparse_qr_comparison)
+    @test occursin("scaling_intervention_only", sparse_qr_comparison)
+    formulation_comparison = read(joinpath(
+        benchmark_directory, "compare_bmopf_formulation_interventions.jl"), String)
+    @test occursin("bmopf-formulation-intervention-comparison-v1",
+        formulation_comparison)
+    @test occursin("dimension_change_matches_removed_nullity",
+        formulation_comparison)
+    @test occursin("causal_interpretation_ready", formulation_comparison)
     bmopf_smoke = read(joinpath(benchmark_directory, "bmopf_smoke.jl"), String)
     multiconductor_summary = read(joinpath(
         benchmark_directory, "summarize_bmopf_multiconductor_smoke.jl"), String)
@@ -1963,6 +2055,30 @@ end
         bmopf_smoke)
     @test occursin("NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_SCALING",
         bmopf_smoke)
+    @test occursin("NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE",
+        bmopf_smoke)
+    @test occursin("NLPDIAGNOSTICS_BMOPF_SPARSE_QR_PERSISTENCE_REPEAT_COUNT",
+        bmopf_smoke)
+    @test occursin("NLPDIAGNOSTICS_BMOPF_SPARSE_QR_PERSISTENCE_RADII",
+        bmopf_smoke)
+    @test occursin("NLPDIAGNOSTICS_BMOPF_POINT_SOLVER_MAX_ITERATIONS",
+        bmopf_smoke)
+    @test occursin("bmopf-ipopt-solver-result", bmopf_smoke)
+    @test occursin("solver_result_point_feasible", multiconductor_summary)
+    @test occursin("bmopf_analyze_sparse_qr_nullspace_persistence",
+        bmopf_smoke)
+    @test occursin("numerical_profile", multiconductor_summary)
+    @test occursin("initialization_profile", multiconductor_summary)
+    @test occursin("maximum_initialization_feasibility_violation",
+        multiconductor_summary)
+    @test occursin("active_zero_jacobian_row_count", multiconductor_summary)
+    @test occursin("no_active_zero_jacobian_rows", multiconductor_summary)
+    @test occursin("inactive_stationary_diagonal_quadratic_row_count",
+        multiconductor_summary)
+    @test occursin("no_active_stationary_diagonal_quadratic_rows",
+        multiconductor_summary)
+    @test occursin("multiconductor_initialization_infeasible", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String))
     @test occursin("smallest_singular_backend_crosscheck_max_basis_entries",
         bmopf_smoke)
     @test occursin("smallest_singular_crosscheck_relation_counts",
@@ -1974,6 +2090,12 @@ end
     @test occursin("smallest_singular_backend_crosscheck_original_audit_available",
         multiconductor_summary)
     @test occursin("smallest_singular_backend_original_coordinate_audit",
+        multiconductor_summary)
+    @test occursin("sparse_qr_nullspace_dense_relation_counts",
+        multiconductor_summary)
+    @test occursin("sparse_qr_nullspace_persistence_nearby_stable_case_count",
+        multiconductor_summary)
+    @test occursin("sparse_qr_nullspace_repeatability",
         multiconductor_summary)
     @test occursin("restarted_smallest_singular_dense_relation_counts",
         multiconductor_summary)
@@ -2053,6 +2175,9 @@ end
         joinpath(benchmark_directory, "summarize_bmopf_multiconductor_smoke.jl"), String,
     ))
     @test occursin("multiconductor_source_schema_mapping_incomplete", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
+    @test occursin("multiconductor_smoke_source_schema_warnings_accounted", read(
         joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
     ))
     @test occursin("multiconductor_mode_projection_policy_unavailable", read(
@@ -6725,6 +6850,52 @@ end
         @test column_finding.basis == NLPDiagnostics.LocalInference
         @test Dict(row_finding.evidence[2].details)["rows"] == "1"
         @test Dict(column_finding.evidence[2].details)["columns"] == "1,2"
+    end
+
+    @testset "stationary circular rows retain activity and non-unit radius" begin
+        Q = MOI.ScalarQuadraticFunction{Float64}
+        QT = MOI.ScalarQuadraticTerm{Float64}
+        inactive_model = new_model()
+        x, y = MOI.add_variables(inactive_model, 2)
+        circle = Q([QT(2.0, x, x), QT(2.0, y, y)],
+                   MOI.ScalarAffineTerm{Float64}[], 0.0)
+        MOI.add_constraint(inactive_model, circle, MOI.LessThan(4.0))
+        inactive_report = NLPDiagnostics.analyze_numerical(
+            inactive_model, [0.0, 0.0]; label = "non-unit circle center")
+        inactive = only(findings(
+            inactive_report, :inactive_stationary_diagonal_quadratic_row))
+        inactive_details = Dict(inactive.evidence[2].details)
+        @test inactive.severity == NLPDiagnostics.SeverityInfo
+        @test inactive_details["activity"] == "interior"
+        @test inactive_details["upper_radius_squared"] == "4.0"
+        @test inactive_details["upper_radius"] == "2.0"
+        @test inactive_report.metadata[:inactive_stationary_diagonal_quadratic_row_count] == "1"
+        @test inactive_report.metadata[:active_stationary_diagonal_quadratic_row_count] == "0"
+
+        active_model = new_model()
+        a, b = MOI.add_variables(active_model, 2)
+        active_circle = Q([QT(6.0, a, a), QT(6.0, b, b)],
+                          MOI.ScalarAffineTerm{Float64}[], 0.0)
+        MOI.add_constraint(active_model, active_circle, MOI.LessThan(0.0))
+        active_report = NLPDiagnostics.analyze_numerical(
+            active_model, [0.0, 0.0]; label = "active quadratic minimum")
+        active = only(findings(
+            active_report, :active_stationary_diagonal_quadratic_row))
+        @test active.severity == NLPDiagnostics.SeverityWarning
+        @test Dict(active.evidence[2].details)["activity"] == "active_upper"
+        @test active_report.metadata[:active_stationary_diagonal_quadratic_row_count] == "1"
+
+        violated_model = new_model()
+        u, v = MOI.add_variables(violated_model, 2)
+        violated_circle = Q([QT(2.0, u, u), QT(2.0, v, v)],
+                            MOI.ScalarAffineTerm{Float64}[], 0.0)
+        MOI.add_constraint(violated_model, violated_circle, MOI.LessThan(-1.0))
+        violated_report = NLPDiagnostics.analyze_numerical(
+            violated_model, [0.0, 0.0]; label = "violated quadratic center")
+        violated = only(findings(
+            violated_report, :violated_stationary_diagonal_quadratic_row))
+        @test violated.severity == NLPDiagnostics.SeverityError
+        @test violated_report.metadata[:violated_stationary_diagonal_quadratic_row_count] == "1"
     end
 
     @testset "exact quadratic derivatives use MOI diagonal semantics" begin

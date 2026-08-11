@@ -188,6 +188,9 @@ bmopf_analyze_reduced_hessian_persistence(context, snapshots; kwargs...) = _bmop
 """Optional BMOPFTools Jacobian-rank persistence entry point."""
 bmopf_analyze_jacobian_rank_persistence(context, points; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to analyze staged BMOPF Jacobian-rank persistence")._bmopf_analyze_jacobian_rank_persistence(context, points; kwargs...)
+"""Optional BMOPFTools sparse-QR right-nullspace persistence entry point."""
+bmopf_analyze_sparse_qr_nullspace_persistence(context, points; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required to analyze staged BMOPF sparse-QR nullspace persistence")._bmopf_analyze_sparse_qr_nullspace_persistence(context, points; kwargs...)
 """Optional BMOPFTools component-rank persistence entry point."""
 bmopf_analyze_component_rank_persistence(context, points; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to analyze staged BMOPF component-rank persistence")._bmopf_analyze_component_rank_persistence(context, points; kwargs...)

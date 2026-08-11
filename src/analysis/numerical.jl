@@ -1619,6 +1619,504 @@ function analyze_sparse_qr_nullspace_dense_calibration(
     return report
 end
 
+function analyze_sparse_qr_nullspace_persistence(
+    evaluations::AbstractVector{<:NumericalEvaluation{T}};
+    residual_relative_tolerance::Real = sqrt(eps(T)),
+    expected_modes::AbstractVector{<:ExpectedNullspaceMode} =
+        ExpectedNullspaceMode[],
+    expected_mode_residual_tolerance::Real = sqrt(eps(T)),
+    expected_mode_span_relative_tolerance::Real = sqrt(eps(T)),
+    unexplained_energy_tolerance::Real = sqrt(eps(T)),
+    physical_interpretation_ready::Bool = false,
+    physical_readiness_reason::AbstractString =
+        "physical interpretation was not authorized by the caller",
+    coordinate_groups::AbstractDict =
+        Dict{String,Vector{MOI.VariableIndex}}(),
+    coordinate_support_relative_threshold::Real = 0.05,
+    kwargs...,
+) where {T<:AbstractFloat}
+    residual_tolerance = T(residual_relative_tolerance)
+    isfinite(residual_tolerance) && residual_tolerance >= zero(T) ||
+        throw(ArgumentError(
+            "residual_relative_tolerance must be finite and nonnegative",
+        ))
+    mode_residual_tolerance = T(expected_mode_residual_tolerance)
+    mode_span_tolerance = T(expected_mode_span_relative_tolerance)
+    unexplained_tolerance = T(unexplained_energy_tolerance)
+    support_threshold = T(coordinate_support_relative_threshold)
+    for (name, value) in (
+        ("expected_mode_residual_tolerance", mode_residual_tolerance),
+        ("expected_mode_span_relative_tolerance", mode_span_tolerance),
+        ("unexplained_energy_tolerance", unexplained_tolerance),
+    )
+        isfinite(value) && value >= zero(T) || throw(ArgumentError(
+            "$name must be finite and nonnegative",
+        ))
+    end
+    isfinite(support_threshold) && zero(T) < support_threshold <= one(T) ||
+        throw(ArgumentError(
+            "coordinate_support_relative_threshold must lie in (0, 1]",
+        ))
+    persistence = sparse_qr_nullspace_persistence(evaluations; kwargs...)
+    report = DiagnosticReport()
+    report.metadata[:stage] = "sparse_qr_nullspace_persistence"
+    report.metadata[:evaluation_count] = string(length(evaluations))
+    report.metadata[:minimum_evaluations] = string(persistence.minimum_evaluations)
+    report.metadata[:sparse_qr_nullspace_persistence_available] =
+        string(persistence.available)
+    report.metadata[:sparse_qr_nullspace_persistence_point_labels] =
+        join(persistence.point_labels, ",")
+    report.metadata[:sparse_qr_persistent_expected_mode_count] =
+        string(length(expected_modes))
+    report.metadata[:sparse_qr_persistent_physical_interpretation_ready] =
+        string(physical_interpretation_ready)
+    report.metadata[:sparse_qr_persistent_physical_readiness_reason] =
+        String(physical_readiness_reason)
+    if !persistence.available
+        push!(report, Finding(:sparse_qr_nullspace_persistence_unavailable;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "Sparse-QR nullspace persistence is unavailable: $(persistence.reason).",
+            why_it_matters = "Cross-point conclusions require aligned coordinates and a completed guarded extraction at every supplied point.",
+            suggested_actions = [
+                "Inspect derivative availability, coordinate alignment, and sparse-factor resource guards at every point.",
+            ],
+        ))
+        return report
+    end
+    report.metadata[:sparse_qr_nullspace_persistence_ranks] =
+        join(persistence.ranks, ",")
+    report.metadata[:sparse_qr_nullspace_persistence_right_nullities] =
+        join(persistence.right_nullities, ",")
+    report.metadata[:sparse_qr_nullspace_persistence_pair_indices] = join((
+        "$(pair[1])-$(pair[2])" for pair in persistence.pair_indices
+    ), ",")
+    report.metadata[:sparse_qr_nullspace_persistence_pair_relative_point_distances] =
+        join(persistence.pair_relative_point_distances, ",")
+    report.metadata[:sparse_qr_nullspace_persistence_pair_minimum_principal_cosines] =
+        join(persistence.pair_minimum_principal_cosines, ",")
+    report.metadata[:sparse_qr_nullspace_persistence_minimum_repeat_principal_cosine] =
+        string(persistence.minimum_repeat_principal_cosine)
+    report.metadata[:sparse_qr_nullspace_persistence_minimum_nearby_principal_cosine] =
+        string(persistence.minimum_nearby_principal_cosine)
+    report.metadata[:sparse_qr_nullspace_persistence_maximum_relative_residual] =
+        string(persistence.maximum_relative_residual)
+    report.metadata[:sparse_qr_nullspace_persistence_rank_stable] =
+        string(persistence.rank_stable)
+    report.metadata[:sparse_qr_nullspace_persistence_subspace_persistent] =
+        string(persistence.subspace_persistent)
+    report.metadata[:sparse_qr_nullspace_persistence_alignment_threshold] =
+        string(persistence.subspace_alignment_threshold)
+    residual_supported = something(
+        persistence.maximum_relative_residual, T(Inf),
+    ) <= residual_tolerance
+    report.metadata[:sparse_qr_nullspace_persistence_residual_supported] =
+        string(residual_supported)
+    details = [
+        "point_labels" => join(persistence.point_labels, ","),
+        "ranks" => join(persistence.ranks, ","),
+        "right_nullities" => join(persistence.right_nullities, ","),
+        "pair_indices" => report.metadata[:sparse_qr_nullspace_persistence_pair_indices],
+        "pair_relative_point_distances" =>
+            report.metadata[:sparse_qr_nullspace_persistence_pair_relative_point_distances],
+        "pair_minimum_principal_cosines" =>
+            report.metadata[:sparse_qr_nullspace_persistence_pair_minimum_principal_cosines],
+        "minimum_repeat_principal_cosine" =>
+            persistence.minimum_repeat_principal_cosine,
+        "minimum_nearby_principal_cosine" =>
+            persistence.minimum_nearby_principal_cosine,
+        "maximum_relative_residual" => persistence.maximum_relative_residual,
+        "residual_relative_tolerance" => residual_tolerance,
+        "alignment_threshold" => persistence.subspace_alignment_threshold,
+    ]
+    if !persistence.rank_stable
+        push!(report, Finding(:sparse_qr_nullspace_rank_not_persistent;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = "Sparse-QR rank or right nullity changes across the supplied points.",
+            why_it_matters = "A one-point nullspace dimension cannot be promoted to a persistent formulation or physical mode when the thresholded dimension changes nearby.",
+            evidence = [Evidence("Sparse-QR nullspace persistence"; details)],
+            suggested_actions = [
+                "Inspect pivot-threshold margins, derivative domains, and point distances before interpreting the changing dimension.",
+            ],
+        ))
+    end
+    if !isnothing(persistence.minimum_repeat_principal_cosine)
+        repeat_stable = persistence.minimum_repeat_principal_cosine >=
+            persistence.subspace_alignment_threshold
+        push!(report, Finding(repeat_stable ?
+            :sparse_qr_nullspace_repeat_deterministic :
+            :sparse_qr_nullspace_repeat_not_deterministic;
+            severity = repeat_stable ? SeverityInfo : SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = repeat_stable ?
+                "Sparse-QR nullspace spans agree across identical-coordinate repeats." :
+                "Sparse-QR nullspace spans disagree across identical-coordinate repeats.",
+            why_it_matters = repeat_stable ?
+                "Basis signs or rotations may differ, but the extracted local span is repeatable under the recorded environment." :
+                "Algorithmic or environment sensitivity is present before any operating-point perturbation is considered.",
+            evidence = [Evidence("Sparse-QR identical-point repeats"; details)],
+            suggested_actions = repeat_stable ? [
+                "Proceed to explicitly bounded nearby-point comparisons.",
+            ] : [
+                "Do not assign persistence; inspect ordering, pivot ties, threading, and threshold margins.",
+            ],
+        ))
+    end
+    if !isnothing(persistence.minimum_nearby_principal_cosine)
+        nearby_stable = persistence.rank_stable &&
+            persistence.minimum_nearby_principal_cosine >=
+                persistence.subspace_alignment_threshold
+        push!(report, Finding(nearby_stable ?
+            :sparse_qr_nullspace_nearby_persistent :
+            :sparse_qr_nullspace_nearby_not_persistent;
+            severity = nearby_stable ? SeverityInfo : SeverityWarning,
+            domain = NumericalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = nearby_stable ?
+                "The same-dimensional sparse-QR nullspace is aligned across distinct nearby points." :
+                "The sparse-QR nullspace dimension or span is not stable across distinct nearby points.",
+            why_it_matters = nearby_stable ?
+                "This weakens a one-point derivative-cancellation explanation, but does not identify an exact or physical cause." :
+                "The candidate freedom is operating-point-dependent, threshold-sensitive, or affected by derivative behavior.",
+            evidence = [Evidence("Sparse-QR nearby-point persistence"; details)],
+            suggested_actions = nearby_stable ? [
+                "Compare the persistent span with plugin-owned component and port-coordinate modes.",
+            ] : [
+                "Reduce and sweep perturbation radii, then inspect pivot margins and derivative provenance.",
+            ],
+        ))
+    end
+    residual_supported || push!(report, Finding(
+        :sparse_qr_nullspace_persistence_residual_failure;
+        severity = SeverityWarning,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = "At least one persistent-span candidate fails the declared direct original-Jacobian residual tolerance.",
+        why_it_matters = "Principal-angle stability alone can preserve a repeatable but inaccurate extracted span.",
+        evidence = [Evidence("Sparse-QR persistence residual audit"; details)],
+        suggested_actions = [
+            "Tighten factorization/rank policies or withhold the span from downstream physical projection.",
+        ],
+    ))
+    if persistence.subspace_persistent && residual_supported
+        code = all(iszero, persistence.right_nullities) ?
+            :sparse_qr_no_right_nullspace_persistent :
+            :sparse_qr_right_nullspace_persistent
+        push!(report, Finding(code;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = all(iszero, persistence.right_nullities) ?
+                "Sparse QR consistently finds no right nullspace across the supplied points." :
+                "Sparse QR finds a residual-supported, aligned right-nullspace across the supplied points.",
+            why_it_matters = "This is repeated local numerical evidence under one explicit scaling and rank policy; it is not an exact-rank or physical-mode certificate.",
+            evidence = [Evidence("Sparse-QR persistent right nullspace"; details)],
+            suggested_actions = all(iszero, persistence.right_nullities) ? [
+                "Retain the policy and test other representative operating points if full-column-rank evidence matters.",
+            ] : [
+                "Project only this persistent span through justified component and port-coordinate maps.",
+            ],
+        ))
+    end
+    if persistence.subspace_persistent && residual_supported &&
+       !isempty(persistence.right_nullities) &&
+       first(persistence.right_nullities) > 0
+        variables = first(evaluations).point.variables
+        positions = Dict(variable => index for (index, variable) in enumerate(variables))
+        leverage = zeros(T, length(variables))
+        for estimate in persistence.estimates
+            leverage .+= vec(sum(abs2, estimate.directions; dims = 2)) /
+                estimate.right_nullity
+        end
+        leverage ./= length(persistence.estimates)
+        maximum_leverage = maximum(leverage; init = zero(T))
+        material_positions = findall(value -> value >=
+            support_threshold * maximum_leverage, leverage)
+        group_fractions = Dict{String,T}()
+        mapped_positions = Set{Int}()
+        for (raw_name, raw_variables) in coordinate_groups
+            raw_variables isa AbstractVector || continue
+            group_positions = unique(Int[
+                get(positions, variable, 0) for variable in raw_variables
+                if variable isa MOI.VariableIndex &&
+                   !iszero(get(positions, variable, 0))
+            ])
+            isempty(group_positions) && continue
+            union!(mapped_positions, group_positions)
+            group_fractions[String(raw_name)] = sum(leverage[group_positions])
+        end
+        mapped_fraction = isempty(mapped_positions) ? zero(T) :
+            sum(leverage[sort!(collect(mapped_positions))])
+        unmapped_fraction = max(zero(T), one(T) - mapped_fraction)
+        report.metadata[:sparse_qr_persistent_material_variable_indices] =
+            join((variables[index].value for index in material_positions), ",")
+        report.metadata[:sparse_qr_persistent_variable_leverage_scores] =
+            join(leverage, ",")
+        report.metadata[:sparse_qr_persistent_coordinate_group_count] =
+            string(length(group_fractions))
+        report.metadata[:sparse_qr_persistent_coordinate_group_energy_fractions] =
+            join(("$name=$(group_fractions[name])" for name in
+                  sort!(collect(keys(group_fractions)))), ";")
+        report.metadata[:sparse_qr_persistent_unmapped_coordinate_energy_fraction] =
+            string(unmapped_fraction)
+        push!(report, Finding(
+            :sparse_qr_persistent_coordinate_support_localized;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "Persistent sparse-QR nullspace leverage has been localized in model coordinates and plugin-owned coordinate groups.",
+            why_it_matters = "Basis-invariant row leverage localizes the repeated span without interpreting arbitrary basis columns or inventing component semantics.",
+            evidence = [Evidence("Persistent sparse-QR coordinate leverage";
+                details = [
+                    "material_variable_indices" => join((
+                        variables[index].value for index in material_positions
+                    ), ","),
+                    "support_relative_threshold" => support_threshold,
+                    "coordinate_group_energy_fractions" => group_fractions,
+                    "mapped_coordinate_energy_fraction" => mapped_fraction,
+                    "unmapped_coordinate_energy_fraction" => unmapped_fraction,
+                ])],
+            affected = [EntityRef(:variable, variables[index].value)
+                for index in material_positions],
+            suggested_actions = [
+                "Use the group fractions to prioritize coordinate-map completion; do not treat overlapping group fractions as an additive partition.",
+            ],
+        ))
+    end
+    if persistence.subspace_persistent && residual_supported &&
+       !isempty(expected_modes) && !isempty(evaluations)
+        variables = first(evaluations).point.variables
+        positions = Dict(variable => index for (index, variable) in enumerate(variables))
+        aligned_names = Symbol[]
+        unaligned_names = Symbol[]
+        mode_columns = Vector{Vector{T}}()
+        for mode in expected_modes
+            direction = zeros(T, length(variables))
+            aligned = true
+            for (variable, coefficient) in zip(mode.variables, mode.direction)
+                position = get(positions, variable, 0)
+                if iszero(position)
+                    aligned = false
+                    break
+                end
+                direction[position] += T(coefficient)
+            end
+            if !aligned || iszero(norm(direction))
+                push!(unaligned_names, mode.name)
+                continue
+            end
+            push!(aligned_names, mode.name)
+            push!(mode_columns, direction / norm(direction))
+        end
+        report.metadata[:sparse_qr_persistent_aligned_expected_mode_count] =
+            string(length(aligned_names))
+        report.metadata[:sparse_qr_persistent_unaligned_expected_mode_names] =
+            join(string.(unaligned_names), ",")
+        if isempty(mode_columns)
+            push!(report, Finding(
+                :sparse_qr_persistent_expected_mode_projection_unavailable;
+                severity = SeverityInfo,
+                domain = RepresentationalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = "None of the declared expected modes can be aligned with the persistent sparse-QR coordinates.",
+                why_it_matters = "A component or port declaration cannot explain a numerical direction until it has an explicit map into the common model-coordinate scope.",
+                suggested_actions = [
+                    "Complete the plugin-owned terminal-to-model coordinate maps before interpreting the persistent span.",
+                ],
+            ))
+            return report
+        end
+        mode_matrix = hcat(mode_columns...)
+        decomposition = svd(mode_matrix; full = false)
+        scale = maximum(decomposition.S; init = zero(T))
+        threshold = mode_span_tolerance * max(one(T), scale)
+        mode_rank = count(value -> value > threshold, decomposition.S)
+        mode_basis = mode_rank == 0 ? zeros(T, length(variables), 0) :
+            Matrix(decomposition.U[:, 1:mode_rank])
+        maximum_mode_residuals = T[]
+        unexplained_energies = T[]
+        unexplained_coordinate_energy = zeros(T, length(variables))
+        for estimate in persistence.estimates
+            push!(maximum_mode_residuals, maximum((
+                norm(direction - estimate.directions *
+                    (transpose(estimate.directions) * direction))
+                for direction in mode_columns
+            ); init = zero(T)))
+            if estimate.right_nullity > 0
+                unexplained = estimate.directions - mode_basis *
+                    (transpose(mode_basis) * estimate.directions)
+                push!(unexplained_energies,
+                    T(norm(unexplained)^2 / estimate.right_nullity))
+                unexplained_coordinate_energy .+= vec(sum(abs2, unexplained;
+                    dims = 2))
+            end
+        end
+        maximum_mode_residual = maximum(maximum_mode_residuals; init = zero(T))
+        maximum_unexplained_energy = maximum(unexplained_energies; init = zero(T))
+        modes_supported = maximum_mode_residual <= mode_residual_tolerance
+        span_explained = maximum_unexplained_energy <= unexplained_tolerance
+        unexplained_total = sum(unexplained_coordinate_energy)
+        unexplained_scores = iszero(unexplained_total) ?
+            zeros(T, length(variables)) :
+            unexplained_coordinate_energy ./ unexplained_total
+        positions = Dict(variable => index for (index, variable) in enumerate(variables))
+        unexplained_group_fractions = Dict{String,T}()
+        for (raw_name, raw_variables) in coordinate_groups
+            raw_variables isa AbstractVector || continue
+            group_positions = unique(Int[
+                get(positions, variable, 0) for variable in raw_variables
+                if variable isa MOI.VariableIndex &&
+                   !iszero(get(positions, variable, 0))
+            ])
+            isempty(group_positions) && continue
+            unexplained_group_fractions[String(raw_name)] =
+                sum(unexplained_scores[group_positions])
+        end
+        report.metadata[:sparse_qr_persistent_expected_mode_span_rank] =
+            string(mode_rank)
+        report.metadata[:sparse_qr_persistent_expected_mode_maximum_residual] =
+            string(maximum_mode_residual)
+        report.metadata[:sparse_qr_persistent_expected_mode_maximum_unexplained_energy] =
+            string(maximum_unexplained_energy)
+        report.metadata[:sparse_qr_persistent_expected_modes_numerically_supported] =
+            string(modes_supported)
+        report.metadata[:sparse_qr_persistent_expected_mode_span_explains_nullspace] =
+            string(span_explained)
+        report.metadata[:sparse_qr_persistent_unexplained_coordinate_energy_scores] =
+            join(unexplained_scores, ",")
+        report.metadata[:sparse_qr_persistent_unexplained_coordinate_group_energy_fractions] =
+            join(("$name=$(unexplained_group_fractions[name])" for name in
+                  sort!(collect(keys(unexplained_group_fractions)))), ";")
+        projection_details = [
+            "aligned_mode_names" => join(string.(aligned_names), ","),
+            "unaligned_mode_names" => join(string.(unaligned_names), ","),
+            "aligned_mode_count" => length(aligned_names),
+            "independent_mode_rank" => mode_rank,
+            "persistent_right_nullity" => first(persistence.right_nullities),
+            "maximum_mode_to_nullspace_residual" => maximum_mode_residual,
+            "mode_residual_tolerance" => mode_residual_tolerance,
+            "maximum_unexplained_nullspace_energy_fraction" =>
+                maximum_unexplained_energy,
+            "unexplained_energy_tolerance" => unexplained_tolerance,
+            "unexplained_coordinate_group_energy_fractions" =>
+                unexplained_group_fractions,
+            "physical_interpretation_ready" => physical_interpretation_ready,
+            "physical_readiness_reason" => physical_readiness_reason,
+        ]
+        push!(report, Finding(modes_supported ?
+            :sparse_qr_persistent_declared_modes_numerically_supported :
+            :sparse_qr_persistent_declared_modes_not_supported;
+            severity = modes_supported ? SeverityInfo : SeverityWarning,
+            domain = RepresentationalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = modes_supported ?
+                "Every aligned plugin-declared mode lies in the persistent sparse-QR nullspace within tolerance." :
+                "At least one aligned plugin-declared mode does not lie in the persistent sparse-QR nullspace within tolerance.",
+            why_it_matters = "This compares declared model-coordinate directions with repeated numerical geometry without promoting the declarations to physical facts.",
+            evidence = [Evidence("Persistent sparse-QR declared-mode projection";
+                details = projection_details)],
+            suggested_actions = modes_supported ? [
+                "Inspect unexplained nullspace energy and source-schema readiness before assigning physical semantics.",
+            ] : [
+                "Inspect port maps, declared mode conventions, and persistent directions before changing the formulation.",
+            ],
+        ))
+        if !span_explained
+            push!(report, Finding(
+                :sparse_qr_persistent_nullspace_partially_unexplained;
+                severity = SeverityWarning,
+                domain = RepresentationalIssue,
+                basis = LocalInference,
+                confidence = ConfidenceHigh,
+                observation = "The aligned declared-mode span leaves material persistent nullspace energy unexplained.",
+                why_it_matters = "Known component or topology candidates do not span the complete repeated numerical freedom; missing declarations, representational freedoms, or other degeneracy mechanisms remain possible.",
+                evidence = [Evidence("Persistent sparse-QR unexplained span";
+                    details = projection_details)],
+                suggested_actions = [
+                    "Localize the orthogonal residual by component and port coordinates before proposing a physical cause.",
+                ],
+            ))
+        end
+        if physical_interpretation_ready && modes_supported
+            push!(report, Finding(
+                :sparse_qr_persistent_physical_modes_observed;
+                severity = SeverityInfo,
+                domain = PhysicalIssue,
+                basis = PhysicalExpectation,
+                confidence = ConfidenceHigh,
+                observation = "Schema-qualified plugin-declared physical modes are observed in the persistent sparse-QR nullspace.",
+                why_it_matters = "The declarations, coordinate maps, repeated numerical span, and source-schema gate agree under the recorded local policy.",
+                evidence = [Evidence("Persistent sparse-QR physical-mode observation";
+                    details = projection_details)],
+                suggested_actions = [
+                    "Retain the modes as expected local gauges and separately investigate any unexplained persistent span.",
+                ],
+            ))
+        elseif physical_interpretation_ready
+            push!(report, Finding(
+                :sparse_qr_persistent_physical_modes_not_observed;
+                severity = SeverityWarning,
+                domain = PhysicalIssue,
+                basis = PhysicalExpectation,
+                confidence = ConfidenceHigh,
+                observation = "Schema-qualified plugin-declared physical modes are not all observed in the persistent sparse-QR nullspace.",
+                why_it_matters = "A qualified declaration disagrees with repeated numerical geometry and should be investigated as a model, map, or operating-regime mismatch.",
+                evidence = [Evidence("Persistent sparse-QR physical-mode mismatch";
+                    details = projection_details)],
+                suggested_actions = [
+                    "Inspect the declared coordinate maps and component equations before revising either the model or physical expectation.",
+                ],
+            ))
+        else
+            push!(report, Finding(
+                :sparse_qr_persistent_physical_interpretation_blocked;
+                severity = SeverityWarning,
+                domain = RepresentationalIssue,
+                basis = StructuralProof,
+                confidence = ConfidenceCertain,
+                observation = modes_supported ?
+                    "Declared modes align numerically, but physical interpretation is blocked by the recorded readiness policy." :
+                    "Declared modes do not all align numerically, and interpretation of their physical presence or absence is blocked by the recorded readiness policy.",
+                why_it_matters = "Numerical alignment cannot restore source fields or device semantics that were lost before model construction.",
+                evidence = [Evidence("Persistent sparse-QR physical-readiness boundary";
+                    details = projection_details)],
+                suggested_actions = [
+                    "Restore or explicitly map the blocking source fields before attaching physical labels.",
+                ],
+            ))
+        end
+    end
+    return report
+end
+
+function analyze_sparse_qr_nullspace_persistence(
+    model::MOI.ModelLike,
+    points::AbstractVector{<:EvaluationPoint};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Union{Nothing,Real} = nothing,
+    kwargs...,
+)
+    evaluations = [
+        isnothing(relative_step) ? evaluate_numerical(model, point; cache) :
+        evaluate_numerical(model, point; cache, relative_step)
+        for point in points
+    ]
+    return analyze_sparse_qr_nullspace_persistence(evaluations; kwargs...)
+end
+
 function _finite_scaling_extrema(factors::AbstractVector{T}) where {T<:AbstractFloat}
     finite = filter(isfinite, factors)
     isempty(finite) && return (nothing, nothing)
@@ -3094,6 +3592,155 @@ function _evaluation_failure_findings(evaluation::NumericalEvaluation)
     return findings
 end
 
+_numerical_row_key(source::EntityRef) =
+    (source.kind, source.index, source.subindex,
+     source.function_type, source.set_type)
+
+"""Align public scalar constraint expressions with evaluated row sources."""
+function _scalar_function_by_source(model_snapshot::ModelSnapshot)
+    functions = Dict{Tuple,Any}()
+    for constraint in model_snapshot.constraints
+        constraint.set_value isa MOI.VectorNonlinearOracle && continue
+        rows = try
+            _scalar_rows(constraint.function_value)
+        catch
+            Any[]
+        end
+        for (row, function_value) in enumerate(rows)
+            source = _constraint_ref(
+                constraint; row = length(rows) == 1 ? nothing : row)
+            functions[_numerical_row_key(source)] = function_value
+        end
+    end
+    return functions
+end
+
+"""Classify zero-gradient rows whose exact expression has a quadratic center."""
+function _stationary_diagonal_quadratic_findings(
+    model::MOI.ModelLike,
+    model_snapshot::ModelSnapshot,
+    evaluation::NumericalEvaluation{T},
+    summary::JacobianScaleSummary;
+    activity_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    isempty(summary.zero_rows) && return (
+        findings = Finding[], recognized = 0, inactive = 0, active = 0,
+        violated = 0,
+    )
+    activity = constraint_feasibility_summary(
+        model, evaluation;
+        feasibility_tolerance = activity_tolerance,
+        active_tolerance = activity_tolerance,
+    )
+    functions = _scalar_function_by_source(model_snapshot)
+    variable_records = Dict(record.index => record for record in model_snapshot.variables)
+    findings = Finding[]
+    recognized = inactive_count = active_count = violated_count = 0
+    for row in summary.zero_rows
+        row <= length(activity.activities) || continue
+        source = evaluation.constraint_sources[row]
+        function_value = get(functions, _numerical_row_key(source), nothing)
+        function_value === nothing && continue
+        geometry = _positive_diagonal_quadratic_minimum(function_value)
+        isnothing(geometry) && (geometry =
+            _nonlinear_positive_diagonal_minimum(function_value))
+        isnothing(geometry) && continue
+        row_activity = activity.activities[row]
+        classification = row_activity.classification
+        status = if classification == :violated
+            violated_count += 1
+            :violated
+        elseif classification in
+               (:equality, :active_lower, :active_upper, :active_lower_upper)
+            active_count += 1
+            :active
+        elseif classification == :interior
+            inactive_count += 1
+            :inactive
+        else
+            continue
+        end
+        recognized += 1
+        isotropic = all(coefficient -> coefficient == first(geometry.coefficients),
+                        geometry.coefficients)
+        upper_radius_squared = if isotropic &&
+                                  !isnothing(row_activity.upper) &&
+                                  row_activity.upper >= geometry.minimum_value
+            geometry.axis_squared_multiplier *
+                (row_activity.upper - geometry.minimum_value) /
+                first(geometry.coefficients)
+        else
+            nothing
+        end
+        shape = isotropic ? "circular" : "positive diagonal quadratic"
+        code = status == :inactive ?
+            :inactive_stationary_diagonal_quadratic_row :
+            status == :active ?
+            :active_stationary_diagonal_quadratic_row :
+            :violated_stationary_diagonal_quadratic_row
+        severity = status == :inactive ? SeverityInfo :
+                   status == :active ? SeverityWarning : SeverityError
+        observation = status == :inactive ?
+            "A zero-gradient $shape row is strictly inactive at its exact quadratic center." :
+            status == :active ?
+            "A zero-gradient $shape row is active at its exact quadratic center." :
+            "A zero-gradient $shape row is violated at its exact quadratic center."
+        why = status == :inactive ?
+            "The row is locally flat but has slack, so it does not enter the selected active set and is not evidence of active-set singularity. It may still matter away from this point." :
+            status == :active ?
+            "An active constraint with a vanishing gradient is locally nonregular and can invalidate first-order constraint qualifications even when the quadratic geometry is intentional." :
+            "The selected point is infeasible and the violated row supplies no first-order correction direction at its center, which can make restoration particularly difficult."
+        affected = EntityRef[source]
+        for variable in geometry.variables
+            haskey(variable_records, variable) &&
+                push!(affected, _variable_ref(variable_records[variable]))
+        end
+        push!(findings, Finding(code;
+            severity = severity,
+            domain = NumericalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = observation,
+            why_it_matters = why,
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Stationary positive-diagonal quadratic row"; details = [
+                    "row" => row,
+                    "activity" => classification,
+                    "value" => row_activity.value,
+                    "lower" => row_activity.lower,
+                    "upper" => row_activity.upper,
+                    "lower_margin" => row_activity.lower_margin,
+                    "upper_margin" => row_activity.upper_margin,
+                    "minimum_value" => geometry.minimum_value,
+                    "center" => geometry.centers,
+                    "coefficients" => geometry.coefficients,
+                    "isotropic" => isotropic,
+                    "upper_radius_squared" => upper_radius_squared,
+                    "upper_radius" => isnothing(upper_radius_squared) ? nothing :
+                                      sqrt(upper_radius_squared),
+                    "activity_tolerance" => activity_tolerance,
+                ]),
+            ],
+            affected = affected,
+            suggested_actions = status == :inactive ? [
+                "Retain the raw zero-Jacobian evidence, but exclude this row from active-set singularity claims at the recorded point.",
+                "Compare at solved or nearby points before deciding whether the row is harmless or poorly initialized.",
+            ] : status == :active ? [
+                "Inspect exact quadratic geometry together with LICQ/MFCQ and restoration evidence.",
+                "If the active minimum is intended as a fixing, consider explicit bounds or substitution when appropriate.",
+            ] : [
+                "Move initialization away from the stationary infeasible center or correct the quadratic level if it is unintended.",
+                "Inspect restoration behavior without interpreting the zero gradient as a missing structural row.",
+            ],
+        ))
+    end
+    return (
+        findings = findings, recognized = recognized, inactive = inactive_count,
+        active = active_count, violated = violated_count,
+    )
+end
+
 function _scale_findings(
     evaluation::NumericalEvaluation,
     summary::JacobianScaleSummary;
@@ -3890,6 +4537,9 @@ function _analyze_numerical_evaluation(
     )
     append!(report.findings, derivative_report.findings)
     append!(report.findings, expression_report.findings)
+    stationary_quadratics = _stationary_diagonal_quadratic_findings(
+        model, model_snapshot, evaluation, summary)
+    append!(report.findings, stationary_quadratics.findings)
     append!(
         report.findings,
         _scale_findings(
@@ -3917,6 +4567,14 @@ function _analyze_numerical_evaluation(
         string(length(evaluation.jacobian_entries))
     report.metadata[:evaluation_failure_count] =
         string(length(evaluation.failures))
+    report.metadata[:stationary_diagonal_quadratic_row_count] =
+        string(stationary_quadratics.recognized)
+    report.metadata[:inactive_stationary_diagonal_quadratic_row_count] =
+        string(stationary_quadratics.inactive)
+    report.metadata[:active_stationary_diagonal_quadratic_row_count] =
+        string(stationary_quadratics.active)
+    report.metadata[:violated_stationary_diagonal_quadratic_row_count] =
+        string(stationary_quadratics.violated)
     method_counts = Dict{Symbol,Int}()
     for method in evaluation.jacobian_row_methods
         method_counts[method] = get(method_counts, method, 0) + 1

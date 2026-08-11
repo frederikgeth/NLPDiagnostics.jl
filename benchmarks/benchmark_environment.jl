@@ -62,6 +62,58 @@ function _benchmark_git_state(root = normpath(joinpath(@__DIR__, "..")))
     end
 end
 
+function _benchmark_git_root(path::AbstractString)
+    current = isdir(path) ? abspath(path) : dirname(abspath(path))
+    while true
+        isdir(joinpath(current, ".git")) && return current
+        parent = dirname(current)
+        parent == current && return nothing
+        current = parent
+    end
+end
+
+function _benchmark_package_source_state(name::AbstractString)
+    binding = Symbol(name)
+    isdefined(Main, binding) || return Dict{String,Any}(
+        "available" => false,
+        "reason" => "module_not_loaded",
+    )
+    mod = getfield(Main, binding)
+    source_path = try
+        pathof(mod)
+    catch
+        nothing
+    end
+    source_path isa AbstractString || return Dict{String,Any}(
+        "available" => false,
+        "reason" => "module_source_path_unavailable",
+    )
+    root = _benchmark_git_root(source_path)
+    isnothing(root) && return Dict{String,Any}(
+        "available" => false,
+        "reason" => "git_root_unavailable",
+        "source_path" => source_path,
+    )
+    state = _benchmark_git_state(root)
+    return Dict{String,Any}(
+        "available" => true,
+        "source_path" => source_path,
+        "git_root" => root,
+        "git_revision" => get(state, "revision", "unavailable"),
+        "git_dirty" => get(state, "dirty", nothing),
+        "git_diff_fingerprint" => get(state, "diff_fingerprint", nothing),
+        "git_changed_path_count" => get(state, "changed_path_count", nothing),
+        "git_untracked_path_count" => get(state, "untracked_path_count", nothing),
+    )
+end
+
+function _benchmark_package_source_states()
+    return Dict{String,Any}(
+        name => _benchmark_package_source_state(name)
+        for name in ("NLPDiagnostics", "BMOPFTools")
+    )
+end
+
 function _benchmark_environment()
     packages = Dict{String,Any}(
         "NLPDiagnostics" => _benchmark_optional_package_version("NLPDiagnostics"),
@@ -79,6 +131,7 @@ function _benchmark_environment()
         "word_size" => Sys.WORD_SIZE,
         "threads" => Threads.nthreads(),
         "packages" => packages,
+        "package_source_states" => _benchmark_package_source_states(),
         "git_revision" => git["revision"],
         "git_dirty" => git["dirty"],
         "git_diff_fingerprint" => git["diff_fingerprint"],
@@ -89,9 +142,22 @@ end
 
 function _benchmark_environment_fingerprint(environment = _benchmark_environment())
     packages = get(environment, "packages", Dict{String,Any}())
+    source_states = get(environment, "package_source_states", Dict{String,Any}())
+    stable_source_states = Dict{String,Any}()
+    for name in sort!(collect(keys(source_states)))
+        state = source_states[name]
+        state isa AbstractDict || continue
+        stable_source_states[String(name)] = Dict{String,Any}(
+            "available" => get(state, "available", false),
+            "git_revision" => get(state, "git_revision", "unavailable"),
+            "git_dirty" => get(state, "git_dirty", nothing),
+            "git_diff_fingerprint" => get(state, "git_diff_fingerprint", nothing),
+        )
+    end
     stable = Dict(
         "julia_version" => get(environment, "julia_version", "unknown"),
         "packages" => Dict(key => packages[key] for key in sort!(collect(keys(packages)))),
+        "package_source_states" => stable_source_states,
         "git_revision" => get(environment, "git_revision", "unknown"),
         "git_dirty" => get(environment, "git_dirty", nothing),
         "git_diff_fingerprint" => get(environment, "git_diff_fingerprint", nothing),

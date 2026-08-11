@@ -1699,6 +1699,89 @@ function _validate_multiconductor_smoke(path, summary)
             "The multiconductor smoke summary does not record an explicit dense-analysis budget.",
             Dict("summary_path" => path);
             suggested_action = "Record the dense rank budget before comparing fixture-level numerical evidence."))
+    aggregate = get(summary, "aggregate", Dict())
+    if haskey(readiness, "numerical_profile_complete")
+        get(readiness, "numerical_profile_complete", false) === true ||
+            push!(findings, _finding(
+                "multiconductor_numerical_profile_incomplete", "warning",
+                "Numerical conditioning snapshots are missing for one or more successful fixtures.",
+                Dict("summary_path" => path,
+                    "numerical_profile_case_count" => get(aggregate,
+                        "numerical_profile_case_count", 0));
+                suggested_action = "Regenerate the summary from complete numerical-stage reports."))
+        get(readiness, "numerical_evaluations_finite", false) === true ||
+            push!(findings, _finding(
+                "multiconductor_numerical_evaluation_failure", "warning",
+                "At least one fixture reports a numerical evaluation failure.",
+                Dict("summary_path" => path,
+                    "evaluation_failure_count" => get(aggregate,
+                        "numerical_evaluation_failure_count", 0));
+                suggested_action = "Inspect domain and overflow findings at the recorded evaluation point."))
+        get(readiness, "derivative_evaluations_clear", false) === true ||
+            push!(findings, _finding(
+                "multiconductor_derivative_evaluation_issue", "warning",
+                "At least one fixture reports a first- or second-derivative issue.",
+                Dict("summary_path" => path,
+                    "derivative_issue_count" => get(aggregate,
+                        "numerical_derivative_issue_count", 0));
+                suggested_action = "Resolve derivative-domain or non-finite derivative evidence before rank interpretation."))
+        get(readiness, "no_active_zero_jacobian_rows", false) === true ||
+            push!(findings, _finding(
+                "multiconductor_active_zero_jacobian_rows", "warning",
+                "One or more zero-Jacobian rows are selected by the local active-set policy.",
+                Dict("summary_path" => path,
+                    "case_count" => get(aggregate,
+                        "active_zero_jacobian_row_case_count", 0),
+                    "row_count" => get(aggregate,
+                        "active_zero_jacobian_row_count", 0));
+                suggested_action = "Inspect stationary active constraints before interpreting active-set rank or constraint qualifications."))
+    end
+    if haskey(readiness, "initialization_profile_complete")
+        get(readiness, "initialization_profile_complete", false) === true ||
+            push!(findings, _finding(
+                "multiconductor_initialization_profile_incomplete", "warning",
+                "Initialization feasibility evidence is missing for one or more successful fixtures.",
+                Dict("summary_path" => path,
+                    "initialization_profile_case_count" => get(aggregate,
+                        "initialization_profile_case_count", 0));
+                suggested_action = "Preserve active-set feasibility findings at the selected start point."))
+        get(readiness, "initialization_feasible", false) === true ||
+            push!(findings, _finding(
+                "multiconductor_initialization_infeasible", "warning",
+                "The selected initialization violates one or more model constraints.",
+                Dict("summary_path" => path,
+                    "violation_case_count" => get(aggregate,
+                        "initialization_violation_case_count", 0),
+                    "violation_count" => get(aggregate,
+                        "initialization_feasibility_violation_count", 0),
+                    "maximum_feasibility_violation" => get(aggregate,
+                        "maximum_initialization_feasibility_violation", nothing));
+                suggested_action = "Compare against a solved or physics-informed start before attributing solver behavior to conditioning."))
+    end
+    if haskey(readiness, "solver_result_point_available")
+        get(readiness, "solver_result_point_available", false) === true ||
+            push!(findings, _finding(
+                "multiconductor_solver_result_point_unavailable", "warning",
+                "A requested point solve did not expose a public solver-result point for every fixture.",
+                Dict("summary_path" => path,
+                    "requested_case_count" => get(aggregate,
+                        "point_solve_requested_case_count", 0),
+                    "available_case_count" => get(aggregate,
+                        "point_solve_result_available_case_count", 0));
+                suggested_action = "Inspect solver termination and public result status before profiling the endpoint."))
+        get(readiness, "solver_result_point_feasible", false) === true ||
+            push!(findings, _finding(
+                "multiconductor_solver_result_point_not_feasible", "warning",
+                "At least one requested solver-result point lacks FEASIBLE_POINT primal status.",
+                Dict("summary_path" => path,
+                    "requested_case_count" => get(aggregate,
+                        "point_solve_requested_case_count", 0),
+                    "feasible_case_count" => get(aggregate,
+                        "point_solve_feasible_case_count", 0),
+                    "termination_status_counts" => get(aggregate,
+                        "point_solve_termination_status_counts", Dict()));
+                suggested_action = "Treat non-feasible endpoints as endpoint-conditioned evidence, not feasible-point calibration."))
+    end
     dense_budget = _int(get(summary, "rank_max_dense_entries", 0))
     crosscheck_scaling = string(get(summary,
         "smallest_singular_backend_crosscheck_scaling", "none"))
@@ -1935,6 +2018,72 @@ function _validate_multiconductor_smoke(path, summary)
             suggested_action = "Regenerate the campaign before interpreting any column-scaled candidate as an original-coordinate mode.",
         ))
     end
+    if haskey(readiness, "sparse_qr_nullspace") &&
+       get(readiness, "sparse_qr_nullspace", false) !== true
+        aggregate = get(summary, "aggregate", Dict())
+        push!(findings, _finding(
+            "multiconductor_sparse_qr_nullspace_unavailable", "warning",
+            "A requested guarded sparse-QR nullspace extraction was unavailable for one or more fixtures.",
+            Dict("summary_path" => path,
+                 "requested_case_count" => get(aggregate,
+                     "sparse_qr_nullspace_requested_case_count", 0),
+                 "available_case_count" => get(aggregate,
+                     "sparse_qr_nullspace_available_case_count", 0));
+            suggested_action = "Inspect input-nonzero, factor-fill, and nullspace-storage guards before interpreting the missing third-backend evidence.",
+        ))
+    end
+    if haskey(readiness, "sparse_qr_nullspace_dense_calibration") &&
+       get(readiness, "sparse_qr_nullspace_dense_calibration", false) !== true
+        aggregate = get(summary, "aggregate", Dict())
+        push!(findings, _finding(
+            "multiconductor_sparse_qr_nullspace_dense_calibration_unavailable",
+            "warning",
+            "A requested sparse-QR versus dense-SVD nullspace calibration was unavailable.",
+            Dict("summary_path" => path,
+                 "requested_case_count" => get(aggregate,
+                     "sparse_qr_nullspace_dense_requested_case_count", 0),
+                 "available_case_count" => get(aggregate,
+                     "sparse_qr_nullspace_dense_available_case_count", 0));
+            suggested_action = "Use dense arbitration only on fixtures inside both sparse-factor and dense-entry guards.",
+        ))
+    end
+    sparse_qr_relations = get(get(summary, "aggregate", Dict()),
+        "sparse_qr_nullspace_dense_relation_counts", Dict())
+    sparse_qr_relations isa AbstractDict || (sparse_qr_relations = Dict())
+    sparse_qr_disagreements = sum(_int(get(sparse_qr_relations, relation, 0))
+        for relation in ("dimension_disagreement", "subspace_disagreement"))
+    sparse_qr_disagreements > 0 && push!(findings, _finding(
+        "multiconductor_sparse_qr_nullspace_dense_disagreement", "warning",
+        "Sparse QR and guarded dense SVD disagree on nullspace dimension or span for one or more fixtures.",
+        Dict("summary_path" => path, "relation_counts" => sparse_qr_relations);
+        suggested_action = "Inspect pivot/singular-value thresholds, scaling, and direct residuals before selecting either nullspace.",
+    ))
+    for (key, code, observation, action) in (
+        ("sparse_qr_nullspace_persistence",
+         "multiconductor_sparse_qr_persistence_unavailable",
+         "A requested sparse-QR persistence analysis was unavailable.",
+         "Inspect aligned coordinates, derivative availability, and sparse-factor guards at every supplied point."),
+        ("sparse_qr_nullspace_repeatability",
+         "multiconductor_sparse_qr_repeatability_failure",
+         "Sparse-QR nullspace spans were not repeatable at identical coordinates.",
+         "Resolve deterministic repeatability before interpreting nearby-point behavior."),
+        ("sparse_qr_nullspace_nearby_persistence",
+         "multiconductor_sparse_qr_nearby_not_persistent",
+         "Sparse-QR nullspace dimension or span changed over the requested nearby-point probes.",
+         "Sweep smaller radii and inspect rank thresholds and derivative provenance."),
+        ("sparse_qr_nullspace_persistence_residual_support",
+         "multiconductor_sparse_qr_persistence_residual_failure",
+         "At least one persistence span failed its direct original-Jacobian residual gate.",
+         "Withhold downstream component or physical projection for unsupported spans."),
+    )
+        haskey(readiness, key) && get(readiness, key, false) !== true &&
+            push!(findings, _finding(
+                code, "warning", observation,
+                Dict("summary_path" => path, "aggregate" => get(
+                    summary, "aggregate", Dict()));
+                suggested_action = action,
+            ))
+    end
     if haskey(readiness, "smallest_singular_backend_dense_calibration") &&
        get(readiness, "smallest_singular_backend_dense_calibration", false) !== true
         aggregate = get(summary, "aggregate", Dict())
@@ -2004,11 +2153,19 @@ function _validate_multiconductor_smoke(path, summary)
     end
     aggregate = get(summary, "aggregate", Dict())
     aggregate isa AbstractDict || (aggregate = Dict())
-    _int(get(aggregate, "source_schema_warning_count", 0)) > 0 && push!(findings,
-        _finding("multiconductor_smoke_source_schema_warning", "warning",
-            "The source loader dropped or could not represent fields in one or more fixtures.",
+    source_warning_count = _int(get(aggregate, "source_schema_warning_count", 0))
+    if source_warning_count > 0
+        mapping_complete = get(readiness, "source_schema_mapping_complete", false) === true
+        push!(findings,
+        _finding(mapping_complete ?
+                "multiconductor_smoke_source_schema_warnings_accounted" :
+                "multiconductor_smoke_source_schema_warning",
+            mapping_complete ? "info" : "warning",
+            mapping_complete ?
+                "The source loader emitted fidelity warnings, and all blocking fields are covered by explicit mappings or behavior contracts." :
+                "The source loader dropped or could not represent fields in one or more fixtures.",
             Dict("summary_path" => path,
-                 "source_schema_warning_count" => get(aggregate, "source_schema_warning_count", 0),
+                 "source_schema_warning_count" => source_warning_count,
                  "field_counts" => get(aggregate, "source_schema_warning_field_counts", Dict()),
                  "scope_counts" => get(aggregate, "source_schema_warning_scope_counts", Dict()),
                  "impact_counts" => get(aggregate, "source_schema_warning_impact_counts", Dict()),
@@ -2016,7 +2173,10 @@ function _validate_multiconductor_smoke(path, summary)
                  "field_policies" => get(aggregate, "source_schema_field_policies", Dict()),
                  "fixture_counts" => get(aggregate, "source_schema_warning_fixture_counts", Dict()),
                  "message_counts" => get(aggregate, "source_schema_warning_message_counts", Dict()));
-            suggested_action = "Inspect the retained source-schema warnings before assigning physical meaning to fixture metadata."))
+            suggested_action = mapping_complete ?
+                "Retain the raw warnings and mapping contract as provenance; preserve the distinction between source behavior and active BMOPF constraints." :
+                "Inspect the retained source-schema warnings before assigning physical meaning to fixture metadata."))
+    end
     return Dict{String,Any}(
         "summary_path" => path,
         "case_count" => _int(get(summary, "case_count", 0)),
@@ -2105,6 +2265,114 @@ function _validate_multiconductor_crosscheck_comparison(path, summary)
     )
 end
 
+function _validate_sparse_qr_nullspace_comparison(path, summary)
+    findings = Any[]
+    readiness = get(summary, "readiness", Dict())
+    readiness isa AbstractDict || (readiness = Dict())
+    paired = _int(get(summary, "paired_case_count", 0))
+    paired > 0 || push!(findings, _finding(
+        "sparse_qr_nullspace_comparison_empty", "warning",
+        "The sparse-QR policy comparison contains no paired fixtures.",
+        Dict("summary_path" => path);
+        suggested_action = "Compare summaries with explicit common fixture names.",
+    ))
+    for (key, code, observation, action) in (
+        ("paired_case_coverage", "sparse_qr_nullspace_case_coverage_mismatch",
+         "The sparse-QR comparison does not cover the same fixture set.",
+         "Interpret only explicitly paired fixtures."),
+        ("environment_compatible", "sparse_qr_nullspace_environment_mismatch",
+         "The sparse-QR summaries have incompatible environment fingerprints.",
+         "Repeat both policies in the same Julia and dependency environment."),
+        ("same_point_policy", "sparse_qr_nullspace_point_policy_mismatch",
+         "The sparse-QR summaries use different evaluation-point policies.",
+         "Keep the evaluation point fixed when calibrating scaling."),
+        ("distinct_policy", "sparse_qr_nullspace_policy_not_distinct",
+         "The sparse-QR summaries record identical policies.",
+         "Change one explicit scaling or resource policy."),
+        ("all_sparse_qr_estimates_available",
+         "sparse_qr_nullspace_estimate_unavailable",
+         "At least one paired sparse-QR estimate is unavailable.",
+         "Inspect input, factor-fill, and nullspace-storage guards."),
+    )
+        get(readiness, key, false) === true || push!(findings, _finding(
+            code, "warning", observation,
+            Dict("summary_path" => path, "readiness" => readiness);
+            suggested_action = action,
+        ))
+    end
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "paired_case_count" => paired,
+        "readiness" => readiness,
+        "findings" => findings,
+    )
+end
+
+function _validate_formulation_intervention_comparison(path, summary)
+    findings = Any[]
+    readiness = _dict(get(summary, "readiness", nothing))
+    paired = _int(get(summary, "paired_case_count", 0))
+    label = strip(String(get(summary, "intervention_label", "")))
+    isempty(label) && push!(findings, _finding(
+        "formulation_intervention_label_missing", "warning",
+        "The formulation comparison does not name the intervention.",
+        Dict("summary_path" => path);
+        suggested_action = "Record a narrow description of the intended formulation change."))
+    paired > 0 || push!(findings, _finding(
+        "formulation_intervention_comparison_empty", "warning",
+        "The formulation comparison contains no paired fixtures.",
+        Dict("summary_path" => path);
+        suggested_action = "Compare summaries with explicit common fixture names."))
+    for (key, code, observation, action) in (
+        ("paired_case_coverage", "formulation_intervention_case_coverage_mismatch",
+         "The formulation comparison does not cover the same fixture set.",
+         "Interpret only explicitly paired fixtures."),
+        ("fixture_identity_matches", "formulation_intervention_fixture_identity_mismatch",
+         "At least one paired source fixture differs or lacks a content hash.",
+         "Use byte-identical source fixtures on both sides."),
+        ("same_point_policy", "formulation_intervention_point_policy_mismatch",
+         "The formulation comparison changes the evaluation-point policy.",
+         "Repeat both formulations under the same point policy."),
+        ("same_sparse_qr_policy", "formulation_intervention_sparse_qr_policy_mismatch",
+         "The formulation comparison changes the sparse-QR policy.",
+         "Use identical scaling, thresholds, and resource guards."),
+        ("same_persistence_policy", "formulation_intervention_persistence_policy_mismatch",
+         "The formulation comparison changes the repeat/nearby policy.",
+         "Use identical repeat counts, radii, seed, and alignment threshold."),
+        ("all_estimates_available", "formulation_intervention_estimate_unavailable",
+         "At least one paired sparse-QR or persistence estimate is unavailable.",
+         "Resolve the numerical resource or evaluation gate before interpretation."),
+        ("source_provenance_available", "formulation_intervention_source_provenance_missing",
+         "BMOPFTools source provenance is not available on both sides.",
+         "Regenerate both campaigns with package source-state provenance."),
+        ("formulation_source_changed", "formulation_intervention_source_change_unrecorded",
+         "The report does not identify a changed BMOPFTools source state.",
+         "Verify that the intended formulation revision was loaded."),
+    )
+        get(readiness, key, false) === true || push!(findings, _finding(
+            code, "warning", observation,
+            Dict("summary_path" => path, "readiness" => readiness);
+            suggested_action = action))
+    end
+    get(readiness, "isolated_formulation_revision", false) === true ||
+        push!(findings, _finding(
+            "formulation_intervention_revision_not_isolated", "warning",
+            "The formulation revision is not represented by two distinct clean BMOPFTools commits.",
+            Dict("summary_path" => path,
+                "baseline_bmopftools_source" => get(summary,
+                    "baseline_bmopftools_source", nothing),
+                "candidate_bmopftools_source" => get(summary,
+                    "candidate_bmopftools_source", nothing));
+            suggested_action = "Use clean revisions with a reviewable intervention diff before making a causal claim."))
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "intervention_label" => label,
+        "paired_case_count" => paired,
+        "readiness" => readiness,
+        "findings" => findings,
+    )
+end
+
 function _validate_multiconductor_point_comparison(path, summary)
     findings = Any[]
     readiness = get(summary, "readiness", Dict())
@@ -2141,6 +2409,43 @@ function _validate_multiconductor_point_comparison(path, summary)
         Dict("summary_path" => path, "paired_case_count" => paired);
         suggested_action = "Use an explicit completion or synthetic policy before interpreting point-local changes."
     ))
+    get(readiness, "numerical_profile_pair_available", false) === true ||
+        push!(findings, _finding(
+            "multiconductor_point_numerical_profile_overlap_incomplete", "warning",
+            "The paired point comparison lacks numerical-profile evidence for one or more successful fixtures.",
+            Dict("summary_path" => path, "successful_case_overlap" => overlap);
+            suggested_action = "Retain row/column statistics and sparse-factor conditioning screens at both points before interpreting numerical changes."
+        ))
+    get(readiness, "initialization_profile_pair_available", false) === true ||
+        push!(findings, _finding(
+            "multiconductor_point_initialization_profile_overlap_incomplete", "warning",
+            "The paired point comparison lacks feasibility-profile evidence for one or more successful fixtures.",
+            Dict("summary_path" => path, "successful_case_overlap" => overlap);
+            suggested_action = "Retain constraint-violation counts and maxima at both points before attributing changes to initialization."
+        ))
+    candidate_policy = string(get(summary, "candidate_point_policy", ""))
+    if candidate_policy == "ipopt_result"
+        candidate_results = _int(get(readiness,
+            "candidate_solver_result_point_count", 0))
+        candidate_results == overlap || push!(findings, _finding(
+            "multiconductor_point_solver_result_overlap_incomplete", "warning",
+            "Not every successful paired fixture has a public Ipopt solver-result point.",
+            Dict("summary_path" => path,
+                 "successful_case_overlap" => overlap,
+                 "candidate_solver_result_point_count" => candidate_results);
+            suggested_action = "Inspect termination, result count, and point-extraction provenance before treating the candidate side as a solved-point campaign."
+        ))
+        get(readiness, "candidate_solver_results_feasible", false) === true ||
+            push!(findings, _finding(
+                "multiconductor_point_solver_results_not_feasible", "warning",
+                "One or more candidate Ipopt result points are not reported as feasible by the public solver status.",
+                Dict("summary_path" => path,
+                     "candidate_solver_result_point_count" => candidate_results,
+                     "candidate_feasible_solver_result_count" => get(readiness,
+                         "candidate_feasible_solver_result_count", 0));
+                suggested_action = "Do not use infeasible or unavailable solver endpoints as feasible-point calibration evidence."
+            ))
+    end
     dense_budget = max(
         _int(get(readiness, "baseline_dense_budget", 0)),
         _int(get(readiness, "candidate_dense_budget", 0)),
@@ -2548,6 +2853,8 @@ function main()
     multiconductor_reports = Any[]
     multiconductor_probe_comparisons = Any[]
     multiconductor_crosscheck_comparisons = Any[]
+    sparse_qr_nullspace_comparisons = Any[]
+    formulation_intervention_comparisons = Any[]
     multiconductor_point_comparisons = Any[]
     operator_reports = Any[]
     repeat_reports = Any[]
@@ -2600,6 +2907,12 @@ function main()
         elseif startswith(report_version, "bmopf-multiconductor-crosscheck-comparison-")
             report = _validate_multiconductor_crosscheck_comparison(path, summary)
             push!(multiconductor_crosscheck_comparisons, report)
+        elseif startswith(report_version, "bmopf-sparse-qr-nullspace-comparison-")
+            report = _validate_sparse_qr_nullspace_comparison(path, summary)
+            push!(sparse_qr_nullspace_comparisons, report)
+        elseif startswith(report_version, "bmopf-formulation-intervention-comparison-")
+            report = _validate_formulation_intervention_comparison(path, summary)
+            push!(formulation_intervention_comparisons, report)
         elseif startswith(report_version, "bmopf-multiconductor-point-comparison-")
             report = _validate_multiconductor_point_comparison(path, summary)
             push!(multiconductor_point_comparisons, report)
@@ -2661,6 +2974,9 @@ function main()
         "multiconductor_probe_comparisons" => multiconductor_probe_comparisons,
         "multiconductor_crosscheck_comparisons" =>
             multiconductor_crosscheck_comparisons,
+        "sparse_qr_nullspace_comparisons" => sparse_qr_nullspace_comparisons,
+        "formulation_intervention_comparisons" =>
+            formulation_intervention_comparisons,
         "multiconductor_point_comparisons" => multiconductor_point_comparisons,
         "operator_reports" => operator_reports,
         "solver_repeat_reports" => solver_repeat_reports,

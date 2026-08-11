@@ -49,6 +49,14 @@ read-only snapshot through the public MOI model API and reports:
 - controlled row/column scaling interventions for that crosscheck, with
   transformed-coordinate labels and mapped residual audits against the
   original Jacobian; and
+- a guarded rank-revealing SuiteSparseQR nullspace construction with direct
+  original-Jacobian residuals, factor-fill evidence, and small-case dense-SVD
+  subspace calibration; and
+- identical- and nearby-point sparse-QR persistence checks using principal
+  angles, basis-invariant coordinate leverage, plugin coordinate groups, and
+  explicit physical-readiness gates; and
+- controlled formulation-intervention comparisons with fixture, numerical-
+  policy, dependency-source, dimension, rank, nullity, and support gates; and
 - explicit Hessian-of-the-Lagrangian and reduced-Hessian curvature tools;
 - reproducible solver-independent formulation profile cases; and
 - finite first- and second-derivative domain checks;

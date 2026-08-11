@@ -430,6 +430,33 @@ struct SparseQRNullspaceDenseCalibration{T<:AbstractFloat}
     threshold_margin_factor::T
 end
 
+"""
+Cross-point persistence evidence for rank-revealing sparse-QR nullspaces.
+
+Pairs with identical coordinate values are retained separately from pairs at
+distinct nearby points. Subspaces are compared through principal cosines, so
+arbitrary basis signs and rotations do not affect the result. This is repeated
+local numerical evidence, not an exact-rank or physical-mode certificate.
+"""
+struct SparseQRNullspacePersistenceEstimate{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    estimates::Vector{SparseQRNullspaceEstimate{T}}
+    point_labels::Vector{String}
+    ranks::Vector{Int}
+    right_nullities::Vector{Int}
+    pair_indices::Vector{NTuple{2,Int}}
+    pair_relative_point_distances::Vector{T}
+    pair_minimum_principal_cosines::Vector{T}
+    minimum_repeat_principal_cosine::Union{Nothing,T}
+    minimum_nearby_principal_cosine::Union{Nothing,T}
+    maximum_relative_residual::Union{Nothing,T}
+    rank_stable::Bool
+    subspace_persistent::Bool
+    subspace_alignment_threshold::T
+    minimum_evaluations::Int
+end
+
 """Iterative sparse-matvec probe for one candidate right-null direction."""
 struct IterativeNullspaceEstimate{T<:AbstractFloat}
     available::Bool

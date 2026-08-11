@@ -177,6 +177,60 @@ function _smallest_crosscheck(case)
     )
 end
 
+function _numerical_profile(case)
+    raw = _dict(get(case, "numerical_profile", nothing))
+    return Dict{String,Any}(
+        "available" => _bool(get(raw, "available", false)),
+        "sparse_qr_condition_proxy" => _float(get(raw,
+            "sparse_qr_condition_proxy", nothing)),
+        "sparse_qr_factorization_relative_residual" => _float(get(raw,
+            "sparse_qr_factorization_relative_residual", nothing)),
+        "evaluation_failure_count" => _int(get(raw,
+            "evaluation_failure_count", 0)),
+        "derivative_issue_count" => _int(get(raw,
+            "derivative_issue_count", 0)),
+        "active_zero_jacobian_row_count" => _int(get(raw,
+            "active_zero_jacobian_row_count", 0)),
+        "inactive_zero_jacobian_row_count" => _int(get(raw,
+            "inactive_zero_jacobian_row_count", 0)),
+        "inactive_stationary_diagonal_quadratic_row_count" => _int(get(raw,
+            "inactive_stationary_diagonal_quadratic_row_count", 0)),
+        "active_stationary_diagonal_quadratic_row_count" => _int(get(raw,
+            "active_stationary_diagonal_quadratic_row_count", 0)),
+        "violated_stationary_diagonal_quadratic_row_count" => _int(get(raw,
+            "violated_stationary_diagonal_quadratic_row_count", 0)),
+    )
+end
+
+function _initialization_profile(case)
+    raw = _dict(get(case, "initialization_profile", nothing))
+    return Dict{String,Any}(
+        "available" => _bool(get(raw, "available", false)),
+        "point_label" => get(raw, "point_label", nothing),
+        "point_provenance_kind" => get(raw,
+            "point_provenance_kind", nothing),
+        "feasibility_violation_count" => _int(get(raw,
+            "feasibility_violation_count", 0)),
+        "maximum_feasibility_violation" => _float(get(raw,
+            "maximum_feasibility_violation", nothing)),
+    )
+end
+
+function _point_solve(case)
+    raw = _dict(get(case, "point_solve", nothing))
+    return Dict{String,Any}(
+        "requested" => _bool(get(raw, "requested", false)),
+        "solver" => get(raw, "solver", "none"),
+        "termination_status" => get(raw, "termination_status", "not_requested"),
+        "primal_status" => get(raw, "primal_status", "not_requested"),
+        "result_count" => _int(get(raw, "result_count", 0)),
+        "solver_result_point_available" => _bool(get(raw,
+            "solver_result_point_available", false)),
+        "solver_result_point_fingerprint" => get(raw,
+            "solver_result_point_fingerprint", nothing),
+    )
+end
+
 function _delta(left, right)
     l, r = _float(left), _float(right)
     isnothing(l) || isnothing(r) ? nothing : r - l
@@ -242,6 +296,12 @@ function main()
         left_probe, right_probe = _probe(left), _probe(right)
         left_crosscheck, right_crosscheck =
             _smallest_crosscheck(left), _smallest_crosscheck(right)
+        left_numerical, right_numerical =
+            _numerical_profile(left), _numerical_profile(right)
+        left_initialization, right_initialization =
+            _initialization_profile(left), _initialization_profile(right)
+        left_point_solve, right_point_solve =
+            _point_solve(left), _point_solve(right)
         alignment_status = _alignment_status(left_modes, right_modes)
         port_map_status = _port_map_alignment_status(left_voltage_alignment, left_current_alignment)
         candidate_port_map_status = _port_map_alignment_status(right_voltage_alignment, right_current_alignment)
@@ -312,6 +372,47 @@ function main()
                 left_crosscheck["minimum_principal_cosine"],
                 right_crosscheck["minimum_principal_cosine"],
             ),
+            "baseline_numerical_profile" => left_numerical,
+            "candidate_numerical_profile" => right_numerical,
+            "sparse_qr_condition_proxy_delta" => _delta(
+                left_numerical["sparse_qr_condition_proxy"],
+                right_numerical["sparse_qr_condition_proxy"]),
+            "active_zero_jacobian_row_count_delta" =>
+                right_numerical["active_zero_jacobian_row_count"] -
+                left_numerical["active_zero_jacobian_row_count"],
+            "inactive_stationary_diagonal_quadratic_row_count_delta" =>
+                right_numerical[
+                    "inactive_stationary_diagonal_quadratic_row_count"] -
+                left_numerical[
+                    "inactive_stationary_diagonal_quadratic_row_count"],
+            "active_stationary_diagonal_quadratic_row_count_delta" =>
+                right_numerical[
+                    "active_stationary_diagonal_quadratic_row_count"] -
+                left_numerical[
+                    "active_stationary_diagonal_quadratic_row_count"],
+            "violated_stationary_diagonal_quadratic_row_count_delta" =>
+                right_numerical[
+                    "violated_stationary_diagonal_quadratic_row_count"] -
+                left_numerical[
+                    "violated_stationary_diagonal_quadratic_row_count"],
+            "inactive_stationary_quadratic_rows_eliminated" =>
+                left_numerical[
+                    "inactive_stationary_diagonal_quadratic_row_count"] > 0 &&
+                right_numerical[
+                    "inactive_stationary_diagonal_quadratic_row_count"] == 0,
+            "baseline_initialization_profile" => left_initialization,
+            "candidate_initialization_profile" => right_initialization,
+            "feasibility_violation_count_delta" =>
+                right_initialization["feasibility_violation_count"] -
+                left_initialization["feasibility_violation_count"],
+            "maximum_feasibility_violation_delta" => _delta(
+                left_initialization["maximum_feasibility_violation"],
+                right_initialization["maximum_feasibility_violation"]),
+            "feasibility_violations_eliminated" =>
+                left_initialization["feasibility_violation_count"] > 0 &&
+                right_initialization["feasibility_violation_count"] == 0,
+            "baseline_point_solve" => left_point_solve,
+            "candidate_point_solve" => right_point_solve,
         ))
     end
     same_environment = get(baseline, "environment_fingerprint", nothing) ==
@@ -348,6 +449,22 @@ function main()
     crosscheck_convergence_changes = count(row ->
         row["smallest_crosscheck_restarted_convergence_changed"] ||
         row["smallest_crosscheck_harmonic_convergence_changed"], paired)
+    numerical_profile_overlap = count(row ->
+        row["baseline_numerical_profile"]["available"] &&
+        row["candidate_numerical_profile"]["available"], paired)
+    initialization_profile_overlap = count(row ->
+        row["baseline_initialization_profile"]["available"] &&
+        row["candidate_initialization_profile"]["available"], paired)
+    feasibility_eliminated = count(row ->
+        row["feasibility_violations_eliminated"], paired)
+    inactive_stationary_eliminated = count(row ->
+        row["inactive_stationary_quadratic_rows_eliminated"], paired)
+    candidate_solver_result_points = count(row ->
+        row["candidate_point_solve"]["requested"] &&
+        row["candidate_point_solve"]["solver_result_point_available"], paired)
+    candidate_feasible_solver_results = count(row ->
+        row["candidate_point_solve"]["requested"] &&
+        row["candidate_point_solve"]["primal_status"] == "FEASIBLE_POINT", paired)
     findings = Any[]
     isempty(missing_baseline) && isempty(missing_candidate) || push!(findings, Dict(
         "code" => "multiconductor_point_case_coverage_mismatch", "severity" => "warning",
@@ -425,6 +542,30 @@ function main()
                            "convergence_change_count" => crosscheck_convergence_changes),
         "suggested_action" => "Inspect convergence flags, value differences, and principal-angle evidence before attributing the change to model geometry.",
     ))
+    candidate_solver_result_points > candidate_feasible_solver_results &&
+        push!(findings, Dict(
+            "code" => "multiconductor_point_candidate_solver_result_not_feasible",
+            "severity" => "warning",
+            "observation" => "At least one candidate solver-result point lacks FEASIBLE_POINT primal status.",
+            "evidence" => Dict(
+                "solver_result_point_count" => candidate_solver_result_points,
+                "feasible_solver_result_count" => candidate_feasible_solver_results),
+            "suggested_action" => "Treat those cases as endpoint-conditioned rather than feasible-point comparisons.",
+        ))
+    feasibility_eliminated > 0 && push!(findings, Dict(
+        "code" => "multiconductor_point_feasibility_violations_eliminated",
+        "severity" => "info",
+        "observation" => "The candidate point eliminates all recorded feasibility violations for one or more fixtures.",
+        "evidence" => Dict("case_count" => feasibility_eliminated),
+        "suggested_action" => "Compare local rank, conditioning, and active geometry before attributing solver behavior to the original start.",
+    ))
+    inactive_stationary_eliminated > 0 && push!(findings, Dict(
+        "code" => "multiconductor_point_inactive_stationary_quadratic_rows_eliminated",
+        "severity" => "info",
+        "observation" => "Inactive zero-gradient positive-diagonal quadratic rows at the baseline point are nonstationary at the candidate point.",
+        "evidence" => Dict("case_count" => inactive_stationary_eliminated),
+        "suggested_action" => "Treat the baseline zero rows as point-local initialization geometry, not structural row loss.",
+    ))
     readiness = Dict{String,Any}(
         "paired_case_coverage" => isempty(missing_baseline) && isempty(missing_candidate) && !isempty(paired),
         "environment_compatible" => same_environment,
@@ -464,6 +605,21 @@ function main()
         "smallest_crosscheck_relation_change_count" => crosscheck_relation_changes,
         "smallest_crosscheck_convergence_change_count" =>
             crosscheck_convergence_changes,
+        "numerical_profile_pair_available" => numerical_profile_overlap ==
+            successful_overlap && successful_overlap > 0,
+        "initialization_profile_pair_available" =>
+            initialization_profile_overlap == successful_overlap &&
+            successful_overlap > 0,
+        "candidate_solver_result_point_count" => candidate_solver_result_points,
+        "candidate_feasible_solver_result_count" =>
+            candidate_feasible_solver_results,
+        "candidate_solver_results_feasible" =>
+            candidate_solver_result_points > 0 &&
+            candidate_solver_result_points == candidate_feasible_solver_results,
+        "feasibility_violations_eliminated_case_count" =>
+            feasibility_eliminated,
+        "inactive_stationary_quadratic_rows_eliminated_case_count" =>
+            inactive_stationary_eliminated,
     )
     payload = Dict{String,Any}(
         "report_version" => "bmopf-multiconductor-point-comparison-v1",

@@ -1310,6 +1310,62 @@ is necessarily only a non-unique slice and cannot be interpreted as complete.
 `smallest_singular_backend_crosscheck_dense_calibration=true`; candidate
 convergence alignment and oracle subspace alignment remain separate policies.
 
+## Rank-revealing sparse-QR nullspace construction
+
+`sparse_qr_nullspace_estimate(evaluation)` is a genuinely different third
+extraction path for a local right nullspace. It factorizes the optionally
+diagonally scaled sparse Jacobian with SuiteSparseQR, applies the recorded pivot
+threshold, solves the leading triangular block against the free columns, maps
+column-scaled directions back to the original coordinates, and orthonormalizes
+them there. Every returned direction is then audited directly with the original
+Jacobian operator. It therefore avoids a normal-equation iteration and does not
+square the singular spectrum.
+
+The result preserves rank policy, pivot magnitudes and threshold, row and
+column permutations, diagonal scaling, input and factor nonzeros, fill ratio,
+mapped directions, orthogonality loss, and both absolute and relative `Jv`
+residuals. `analyze_sparse_qr_nullspace` emits findings for unavailable work,
+no right nullspace under the policy, supported candidates, residual failure,
+and unexpectedly large factor fill. This is still a tolerance-local numerical
+construction: a stable QR nullity is not proof of exact rank and does not label
+a direction as a physical gauge.
+
+Three explicit resource guards bound input nonzeros, factor nonzeros, and
+materialized nullspace entries. The input and basis guards prevent their
+respective work before allocation. SuiteSparseQR must, however, complete the
+factorization before its actual fill is known; `max_factor_nonzeros` therefore
+rejects an oversized factor after construction and is an evidence-retention
+guard, not a symbolic pre-factorization memory guarantee. Large campaigns
+should keep the stage opt-in and use conservative input-size selection.
+
+For small cases,
+`sparse_qr_nullspace_dense_calibration(evaluation)` compares the mapped QR
+subspace with guarded dense SVD under the same scaling and rank tolerances. It
+separates dimension disagreement, threshold ambiguity, subspace agreement,
+and subspace disagreement. `profile_case` and `analyze` expose the stage through
+`check_sparse_qr_nullspace=true`; dense calibration additionally requires
+`sparse_qr_nullspace_dense_calibration=true` and an explicit positive dense
+entry budget. The default stage remains disabled.
+
+`sparse_qr_nullspace_persistence(evaluations)` and
+`analyze_sparse_qr_nullspace_persistence` extend this evidence across two or
+more explicitly supplied points. Every extraction uses the same scaling, rank,
+and resource policy. Pairwise comparisons retain normalized coordinate
+distance and the minimum principal cosine of the complete right-nullspace
+spans. Zero-distance pairs are classified as identical-coordinate repeats;
+nonzero pairs are nearby-point evidence. A persistent label requires stable
+rank/nullity, principal-angle alignment, and direct original-Jacobian residual
+support at every point.
+
+The analyzer can also receive plugin-projected `ExpectedNullspaceMode`
+declarations and named coordinate groups. It reports mode-to-nullspace
+residuals, the independent declared-mode rank, the fraction of persistent
+nullspace energy left unexplained, basis-invariant variable leverage, group
+energy fractions, and energy outside all declared groups. A caller-controlled
+physical-readiness gate is mandatory: numerical agreement is reported without
+a physical label when source or device semantics are incomplete, and numerical
+disagreement is not interpreted as physical absence under that boundary.
+
 ## Active-set dependence fingerprints
 
 When the selected active Jacobian fails its LICQ-style rank screen,
@@ -1499,6 +1555,23 @@ both-unconverged insufficient-budget control. On Hilbert, the harmonic tracker
 recovers the dense value near `1.08e-7` while the normal-operator tracker
 settles near `3.62e-6`. Extreme scaling is not declared solved: dense targets
 below the spectrum-resolution floor are labeled numerically unresolved.
+
+## Stationary positive-diagonal quadratic rows
+
+Numerical analysis crosschecks zero Jacobian rows against exact recognized
+positive-diagonal quadratic geometry and generic scalar activity. It emits
+separate findings for rows that are strictly inactive, active, or violated at
+their exact quadratic center. An inactive row remains local derivative evidence
+but is explicitly excluded from active-set singularity claims. An active
+stationary row is locally nonregular; a violated stationary row combines
+infeasibility with no first-order correction direction at the center.
+
+The evidence records the actual lower/upper levels, quadratic minimum, centers,
+coefficients, activity margins, and—when the form is isotropic—the radius
+implied by the upper level. No unit right-hand side is assumed. Thus
+`a(x²+y²) <= b` at the center is classified using the radius implied by `a`
+and `b`, including non-unit and shifted forms recognized by the exact
+quadratic normalizer.
 
 ## Current limits
 
