@@ -156,6 +156,25 @@ bmopf_jacobian_row_family_scale_attribution(context, evaluation) =
 bmopf_jacobian_row_family_scaling_experiment(context, evaluation; kwargs...) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP support are required for BMOPF Jacobian row-family scaling experiments")._bmopf_jacobian_row_family_scaling_experiment(context, evaluation; kwargs...)
+"""Construct an explicit physical diagonal-scaling map from BMOPFTools semantic keys."""
+bmopf_diagonal_scaling_map(context, evaluation) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF physical scaling maps")._bmopf_diagonal_scaling_map(context, evaluation)
+"""Compare two staged BMOPF evaluations after mapping coordinates, sets, and residuals to physical units."""
+bmopf_scaling_covariance_report(reference_context, reference_evaluation,
+                                candidate_context, candidate_evaluation; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF scaling covariance")._bmopf_scaling_covariance_report(
+            reference_context, reference_evaluation,
+            candidate_context, candidate_evaluation; kwargs...)
+"""Compare BMOPF solver-coordinate Jacobian geometry after the physical covariance gate."""
+bmopf_scaling_coordinate_geometry_report(
+    reference_context, reference_evaluation,
+    candidate_context, candidate_evaluation; kwargs...,
+) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required for BMOPF scaling-geometry comparison")._bmopf_scaling_coordinate_geometry_report(
+        reference_context, reference_evaluation,
+        candidate_context, candidate_evaluation; kwargs...)
 """Report complete public semantic-registry coverage for evaluated BMOPF rows."""
 bmopf_constraint_registry_coverage_report(context, evaluation) =
     _bmopf_extension(:BMOPFToolsJuMPExt,

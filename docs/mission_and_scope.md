@@ -30,6 +30,13 @@ between a finding and a failed solve is descriptive evidence. A repeatable,
 mechanism-specific intervention that changes the predicted solver behaviour is
 substantially stronger evidence.
 
+Research hypotheses and candidate contributions are maintained separately from
+stable package claims. For nondimensionalisation and block-scaling work, the
+living research ledger records mathematical invariants, experiment gates,
+negative results, and the current publication boundary. Failed strategies remain
+in that record with their evidence instead of being removed from the project
+history.
+
 ## Evidence contract
 
 Every diagnostic conclusion must preserve:

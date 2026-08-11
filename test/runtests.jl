@@ -22,6 +22,7 @@ include("rank_calibration.jl")
 include("randomized_rank_oracles.jl")
 include("point_provenance.jl")
 include("fingerprints_and_crosscheck.jl")
+include("scaling_covariance.jl")
 
 if Base.find_package("Ipopt") !== nothing
     import Ipopt
@@ -192,6 +193,13 @@ if Base.find_package("BMOPFTools") === nothing
 end
 else
 import BMOPFTools
+
+if Base.find_package("Ipopt") !== nothing &&
+   isdefined(BMOPFTools, :ClassicPerUnitScaling) &&
+   hasmethod(BMOPFTools.build_opf_model, Tuple{Dict{String,Any}})
+    import Ipopt
+    include("bmopf_scaling_covariance.jl")
+end
 
 @testset "BMOPFTools terminal adapter" begin
     @test Base.get_extension(NLPDiagnostics, :BMOPFToolsExt) !== nothing

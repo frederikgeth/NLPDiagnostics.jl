@@ -343,6 +343,635 @@ function jacobian_row_family_scaling_experiment(
     )
 end
 
+"""Scalar model-coordinate bounds attached to one semantic constraint row."""
+struct ScalarConstraintBounds{T<:AbstractFloat}
+    lower::Union{Nothing,T}
+    upper::Union{Nothing,T}
+end
+
+function ScalarConstraintBounds(
+    lower::Union{Nothing,Real}, upper::Union{Nothing,Real})
+    values = Real[value for value in (lower, upper) if !isnothing(value)]
+    T = isempty(values) ? Float64 : float(promote_type(map(typeof, values)...))
+    converted_lower = isnothing(lower) || !isfinite(lower) ? nothing : T(lower)
+    converted_upper = isnothing(upper) || !isfinite(upper) ? nothing : T(upper)
+    !isnothing(converted_lower) && !isnothing(converted_upper) &&
+        converted_lower > converted_upper && throw(ArgumentError(
+            "constraint lower bound exceeds upper bound"))
+    return ScalarConstraintBounds{T}(converted_lower, converted_upper)
+end
+
+"""
+    DiagonalScalingMap(name; variable_keys, variable_scales,
+                       constraint_keys, constraint_scales,
+                       objective_scale=1, constraint_bounds=nothing)
+
+Declare how one model coordinate system maps to common physical coordinates.
+For variables, `x_physical[i] = variable_scales[i] * x_model[i]`. For
+constraint functions, `g_physical[j] = constraint_scales[j] * g_model[j]`.
+The objective follows `f_physical = objective_scale * f_model`.
+
+Keys are semantic identities, not display labels: covariance comparisons use
+them to align differently ordered models. Every scale must be finite and
+strictly positive. Optional scalar bounds are expressed in model coordinates
+and are transformed by the corresponding constraint scale. This type describes
+diagonal coordinate changes only; it does not claim global model equivalence.
+"""
+struct DiagonalScalingMap{T<:AbstractFloat}
+    name::String
+    variable_keys::Vector{String}
+    variable_scales::Vector{T}
+    constraint_keys::Vector{String}
+    constraint_scales::Vector{T}
+    objective_scale::T
+    constraint_bounds::Union{Nothing,Vector{ScalarConstraintBounds{T}}}
+end
+
+function DiagonalScalingMap(
+    name::AbstractString;
+    variable_keys,
+    variable_scales,
+    constraint_keys,
+    constraint_scales,
+    objective_scale::Real = 1.0,
+    constraint_bounds = nothing,
+)
+    isempty(strip(name)) && throw(ArgumentError("scaling-map name must not be empty"))
+    vkeys = string.(collect(variable_keys))
+    ckeys = string.(collect(constraint_keys))
+    vscales_input = collect(variable_scales)
+    cscales_input = collect(constraint_scales)
+    length(vkeys) == length(vscales_input) || throw(DimensionMismatch(
+        "variable key and scale lengths differ"))
+    length(ckeys) == length(cscales_input) || throw(DimensionMismatch(
+        "constraint key and scale lengths differ"))
+    length(unique(vkeys)) == length(vkeys) || throw(ArgumentError(
+        "variable keys must be unique"))
+    length(unique(ckeys)) == length(ckeys) || throw(ArgumentError(
+        "constraint keys must be unique"))
+    T = float(promote_type(
+        typeof(objective_scale),
+        map(typeof, vscales_input)...,
+        map(typeof, cscales_input)...,
+    ))
+    vscales = T.(vscales_input)
+    cscales = T.(cscales_input)
+    oscale = T(objective_scale)
+    for (kind, keys, scales) in (
+        ("variable", vkeys, vscales), ("constraint", ckeys, cscales))
+        for (key, scale) in zip(keys, scales)
+            isfinite(scale) && scale > zero(T) || throw(ArgumentError(
+                "$kind scale for $(repr(key)) must be finite and positive, got $scale"))
+        end
+    end
+    isfinite(oscale) && oscale > zero(T) || throw(ArgumentError(
+        "objective scale must be finite and positive, got $objective_scale"))
+    normalized_bounds = if isnothing(constraint_bounds)
+        nothing
+    else
+        raw_bounds = collect(constraint_bounds)
+        length(raw_bounds) == length(ckeys) || throw(DimensionMismatch(
+            "constraint key and bound lengths differ"))
+        normalized = ScalarConstraintBounds{T}[]
+        for item in raw_bounds
+            bound = item isa ScalarConstraintBounds ? item :
+                item isa Tuple && length(item) == 2 ?
+                    ScalarConstraintBounds(item...) :
+                    throw(ArgumentError(
+                        "constraint_bounds entries must be ScalarConstraintBounds or (lower, upper) tuples"))
+            push!(normalized, ScalarConstraintBounds{T}(
+                isnothing(bound.lower) ? nothing : T(bound.lower),
+                isnothing(bound.upper) ? nothing : T(bound.upper),
+            ))
+        end
+        normalized
+    end
+    return DiagonalScalingMap{T}(
+        String(name), vkeys, vscales, ckeys, cscales, oscale,
+        normalized_bounds,
+    )
+end
+
+function _scaling_alignment(reference_keys, candidate_keys, kind)
+    reference_set = Set(reference_keys)
+    candidate_set = Set(candidate_keys)
+    missing = sort!(collect(setdiff(reference_set, candidate_set)))
+    extra = sort!(collect(setdiff(candidate_set, reference_set)))
+    isempty(missing) && isempty(extra) || throw(ArgumentError(
+        "$kind semantic keys differ; missing=$(repr(missing)), extra=$(repr(extra))"))
+    candidate_positions = Dict(key => index for (index, key) in pairs(candidate_keys))
+    return [candidate_positions[key] for key in reference_keys]
+end
+
+function _covariance_metric(reference, candidate, absolute_tolerance, relative_tolerance)
+    length(reference) == length(candidate) || throw(DimensionMismatch(
+        "covariance vectors have different lengths"))
+    all(isfinite, reference) && all(isfinite, candidate) ||
+        return _unavailable_covariance_metric(
+            "one or both physical-coordinate vectors contain non-finite values",
+            length(reference),
+        )
+    differences = abs.(reference .- candidate)
+    scales = max.(abs.(reference), abs.(candidate))
+    bounds = absolute_tolerance .+ relative_tolerance .* scales
+    relative = differences ./ max.(scales, absolute_tolerance)
+    return Dict{String,Any}(
+        "available" => true,
+        "entry_count" => length(reference),
+        "passed" => all(differences .<= bounds),
+        "maximum_absolute_difference" => isempty(differences) ? 0.0 : maximum(differences),
+        "maximum_relative_difference" => isempty(relative) ? 0.0 : maximum(relative),
+    )
+end
+
+_unavailable_covariance_metric(reason, count=0) = Dict{String,Any}(
+    "available" => false,
+    "entry_count" => count,
+    "passed" => nothing,
+    "reason" => reason,
+)
+
+function _physical_jacobian(evaluation, scaling::DiagonalScalingMap)
+    matrix = _combined_jacobian_matrix(evaluation)
+    return scaling.constraint_scales .* matrix ./ transpose(scaling.variable_scales)
+end
+
+function _physical_jacobian_entries(evaluation, scaling::DiagonalScalingMap)
+    entries = Dict{Tuple{String,String},Float64}()
+    for entry in evaluation.jacobian_entries
+        key = (
+            scaling.constraint_keys[entry.row],
+            scaling.variable_keys[entry.column],
+        )
+        value = Float64(entry.value) * scaling.constraint_scales[entry.row] /
+            scaling.variable_scales[entry.column]
+        entries[key] = get(entries, key, 0.0) + value
+    end
+    return entries
+end
+
+function _constraint_set_covariance_metric(
+    reference_scaling::DiagonalScalingMap,
+    candidate_scaling::DiagonalScalingMap,
+    constraint_alignment,
+    absolute_tolerance,
+    relative_tolerance,
+)
+    reference_bounds = reference_scaling.constraint_bounds
+    candidate_bounds = candidate_scaling.constraint_bounds
+    if isnothing(reference_bounds) || isnothing(candidate_bounds)
+        return _unavailable_covariance_metric(
+            isnothing(reference_bounds) && isnothing(candidate_bounds) ?
+                "neither scaling map declares scalar constraint bounds" :
+                "only one scaling map declares scalar constraint bounds",
+        )
+    end
+    aligned_candidate = candidate_bounds[constraint_alignment]
+    topology_agrees = true
+    reference_values = Float64[]
+    candidate_values = Float64[]
+    for row in eachindex(reference_bounds)
+        reference_bound = reference_bounds[row]
+        candidate_bound = aligned_candidate[row]
+        for field in (:lower, :upper)
+            reference_value = getfield(reference_bound, field)
+            candidate_value = getfield(candidate_bound, field)
+            if isnothing(reference_value) != isnothing(candidate_value)
+                topology_agrees = false
+            elseif !isnothing(reference_value)
+                push!(reference_values,
+                    Float64(reference_value * reference_scaling.constraint_scales[row]))
+                candidate_row = constraint_alignment[row]
+                push!(candidate_values,
+                    Float64(candidate_value * candidate_scaling.constraint_scales[candidate_row]))
+            end
+        end
+    end
+    metric = _covariance_metric(
+        reference_values, candidate_values, absolute_tolerance, relative_tolerance)
+    metric["row_count"] = length(reference_bounds)
+    metric["bound_topology_agrees"] = topology_agrees
+    metric["passed"] = topology_agrees && metric["available"] && metric["passed"]
+    return metric
+end
+
+function _physical_constraint_violation(value, bound, scale)
+    physical_value = value * scale
+    lower = isnothing(bound.lower) ? nothing : bound.lower * scale
+    upper = isnothing(bound.upper) ? nothing : bound.upper * scale
+    lower_violation = isnothing(lower) ? zero(physical_value) :
+        max(lower - physical_value, zero(physical_value))
+    upper_violation = isnothing(upper) ? zero(physical_value) :
+        max(physical_value - upper, zero(physical_value))
+    return max(lower_violation, upper_violation)
+end
+
+function _constraint_residual_covariance_metric(
+    reference,
+    reference_scaling::DiagonalScalingMap,
+    candidate,
+    candidate_scaling::DiagonalScalingMap,
+    constraint_alignment,
+    absolute_tolerance,
+    relative_tolerance,
+)
+    if isnothing(reference_scaling.constraint_bounds) ||
+       isnothing(candidate_scaling.constraint_bounds)
+        return _unavailable_covariance_metric(
+            "one or both scaling maps omit scalar constraint bounds")
+    end
+    all(!ismissing, reference.constraint_values) &&
+        all(!ismissing, candidate.constraint_values) || return
+            _unavailable_covariance_metric(
+                "one or both evaluations have missing constraint-function values")
+    reference_values = Float64.(reference.constraint_values)
+    candidate_values = Float64.(candidate.constraint_values)
+    reference_residuals = [
+        _physical_constraint_violation(
+            reference_values[row], reference_scaling.constraint_bounds[row],
+            reference_scaling.constraint_scales[row])
+        for row in eachindex(reference_values)
+    ]
+    candidate_residuals = [
+        begin
+            candidate_row = constraint_alignment[row]
+            _physical_constraint_violation(
+                candidate_values[candidate_row],
+                candidate_scaling.constraint_bounds[candidate_row],
+                candidate_scaling.constraint_scales[candidate_row])
+        end for row in eachindex(reference_values)
+    ]
+    return _covariance_metric(reference_residuals, candidate_residuals,
+        absolute_tolerance, relative_tolerance)
+end
+
+"""
+    scaling_covariance_report(reference, reference_scaling,
+                              candidate, candidate_scaling; kwargs...)
+
+Test whether two recorded evaluations transform to the same physical point,
+constraint-function values, objective, first derivatives, and Jacobian. The
+report aligns rows and columns by semantic keys, so model order may differ.
+
+This is a coordinate-covariance test, not by itself a full model-equivalence
+certificate. Constraint sets and offsets must also be mapped, and both
+evaluations must represent the same physical operating point, before a solver
+comparison can be attributed to nondimensionalisation alone. Incomplete
+derivatives are reported as unavailable rather than treated as zeros.
+"""
+function scaling_covariance_report(
+    reference::NumericalEvaluation,
+    reference_scaling::DiagonalScalingMap,
+    candidate::NumericalEvaluation,
+    candidate_scaling::DiagonalScalingMap;
+    absolute_tolerance::Real = 1e-9,
+    relative_tolerance::Real = 1e-7,
+    max_dense_entries::Integer = 100_000,
+)
+    absolute_tolerance >= 0 || throw(ArgumentError(
+        "absolute_tolerance must be nonnegative"))
+    relative_tolerance >= 0 || throw(ArgumentError(
+        "relative_tolerance must be nonnegative"))
+    max_dense_entries >= 0 || throw(ArgumentError(
+        "max_dense_entries must be nonnegative"))
+    length(reference.point.values) == length(reference_scaling.variable_keys) ||
+        throw(DimensionMismatch("reference variable scaling does not match evaluation"))
+    length(candidate.point.values) == length(candidate_scaling.variable_keys) ||
+        throw(DimensionMismatch("candidate variable scaling does not match evaluation"))
+    length(reference.constraint_sources) == length(reference_scaling.constraint_keys) ||
+        throw(DimensionMismatch("reference constraint scaling does not match evaluation"))
+    length(candidate.constraint_sources) == length(candidate_scaling.constraint_keys) ||
+        throw(DimensionMismatch("candidate constraint scaling does not match evaluation"))
+
+    variable_alignment = _scaling_alignment(
+        reference_scaling.variable_keys, candidate_scaling.variable_keys, "variable")
+    constraint_alignment = _scaling_alignment(
+        reference_scaling.constraint_keys, candidate_scaling.constraint_keys, "constraint")
+
+    reference_point = reference.point.values .* reference_scaling.variable_scales
+    candidate_point = (candidate.point.values .* candidate_scaling.variable_scales)[
+        variable_alignment]
+    point_metric = _covariance_metric(
+        reference_point, candidate_point, absolute_tolerance, relative_tolerance)
+    point_metric["provenance_complete"] =
+        reference.point.provenance.complete && candidate.point.provenance.complete
+
+    constraint_metric = if all(!ismissing, reference.constraint_values) &&
+                           all(!ismissing, candidate.constraint_values)
+        reference_values = Float64.(reference.constraint_values) .*
+            reference_scaling.constraint_scales
+        candidate_values = (Float64.(candidate.constraint_values) .*
+            candidate_scaling.constraint_scales)[constraint_alignment]
+        _covariance_metric(reference_values, candidate_values,
+            absolute_tolerance, relative_tolerance)
+    else
+        _unavailable_covariance_metric(
+            "one or both evaluations have missing constraint-function values")
+    end
+
+    constraint_set_metric = _constraint_set_covariance_metric(
+        reference_scaling, candidate_scaling, constraint_alignment,
+        absolute_tolerance, relative_tolerance)
+    constraint_residual_metric = _constraint_residual_covariance_metric(
+        reference, reference_scaling, candidate, candidate_scaling,
+        constraint_alignment, absolute_tolerance, relative_tolerance)
+
+    objective_metric = if reference.objective_value isa Real &&
+                          candidate.objective_value isa Real
+        _covariance_metric(
+            [Float64(reference.objective_value) * reference_scaling.objective_scale],
+            [Float64(candidate.objective_value) * candidate_scaling.objective_scale],
+            absolute_tolerance, relative_tolerance)
+    else
+        _unavailable_covariance_metric("one or both objective values are unavailable")
+    end
+
+    gradient_metric = if length(reference.objective_gradient) ==
+                             length(reference_scaling.variable_keys) &&
+                         length(candidate.objective_gradient) ==
+                             length(candidate_scaling.variable_keys) &&
+                         all(!ismissing, reference.objective_gradient) &&
+                         all(!ismissing, candidate.objective_gradient)
+        reference_gradient = Float64.(reference.objective_gradient) .*
+            reference_scaling.objective_scale ./ reference_scaling.variable_scales
+        candidate_gradient = (Float64.(candidate.objective_gradient) .*
+            candidate_scaling.objective_scale ./ candidate_scaling.variable_scales)[
+                variable_alignment]
+        _covariance_metric(reference_gradient, candidate_gradient,
+            absolute_tolerance, relative_tolerance)
+    else
+        _unavailable_covariance_metric(
+            "one or both objective gradients are incomplete")
+    end
+
+    derivative_complete = all(method ->
+        !(method in _JACOBIAN_INCOMPLETE_METHODS), reference.jacobian_row_methods) &&
+        all(method -> !(method in _JACOBIAN_INCOMPLETE_METHODS),
+            candidate.jacobian_row_methods)
+    jacobian_metric = if !derivative_complete
+        _unavailable_covariance_metric(
+            "one or both Jacobians have unavailable or partial rows")
+    else
+        reference_entries = _physical_jacobian_entries(
+            reference, reference_scaling)
+        candidate_entries = _physical_jacobian_entries(
+            candidate, candidate_scaling)
+        semantic_entries = sort!(collect(union(
+            keys(reference_entries), keys(candidate_entries))))
+        reference_values = [get(reference_entries, key, 0.0)
+            for key in semantic_entries]
+        candidate_values = [get(candidate_entries, key, 0.0)
+            for key in semantic_entries]
+        metric = _covariance_metric(reference_values, candidate_values,
+            absolute_tolerance, relative_tolerance)
+        reference_support = Set(key for (key, value) in reference_entries if !iszero(value))
+        candidate_support = Set(key for (key, value) in candidate_entries if !iszero(value))
+        metric["comparison_backend"] = "semantic_sparse_entries"
+        metric["semantic_entry_count"] = length(semantic_entries)
+        metric["reference_combined_nonzero_count"] = length(reference_support)
+        metric["candidate_combined_nonzero_count"] = length(candidate_support)
+        metric["exact_sparse_support_agrees"] =
+            reference_support == candidate_support
+        dense_entries = length(reference_scaling.variable_keys) *
+            length(reference_scaling.constraint_keys)
+        dense_rank_available = dense_entries <= max_dense_entries
+        metric["physical_rank_available"] = dense_rank_available
+        if dense_rank_available
+            reference_jacobian = _physical_jacobian(reference, reference_scaling)
+            candidate_jacobian = _physical_jacobian(
+                candidate, candidate_scaling)[constraint_alignment, variable_alignment]
+            reference_singular_values = svdvals(reference_jacobian)
+            candidate_singular_values = svdvals(candidate_jacobian)
+            reference_threshold = isempty(reference_singular_values) ? 0.0 :
+                max(size(reference_jacobian)...) * eps(Float64) *
+                maximum(reference_singular_values)
+            candidate_threshold = isempty(candidate_singular_values) ? 0.0 :
+                max(size(candidate_jacobian)...) * eps(Float64) *
+                maximum(candidate_singular_values)
+            metric["reference_physical_rank"] = count(>(reference_threshold),
+                reference_singular_values)
+            metric["candidate_physical_rank"] = count(>(candidate_threshold),
+                candidate_singular_values)
+            metric["physical_rank_agrees"] =
+                metric["reference_physical_rank"] ==
+                metric["candidate_physical_rank"]
+        else
+            metric["reference_physical_rank"] = nothing
+            metric["candidate_physical_rank"] = nothing
+            metric["physical_rank_agrees"] = nothing
+            metric["physical_rank_reason"] =
+                "dense rank comparison exceeds max_dense_entries=$max_dense_entries"
+        end
+        metric
+    end
+
+    metrics = Dict{String,Any}(
+        "physical_point" => point_metric,
+        "constraint_function_values" => constraint_metric,
+        "constraint_sets" => constraint_set_metric,
+        "constraint_residuals" => constraint_residual_metric,
+        "objective_value" => objective_metric,
+        "objective_gradient" => gradient_metric,
+        "physical_jacobian" => jacobian_metric,
+    )
+    available = [metric for metric in values(metrics) if metric["available"]]
+    required_names = ("physical_point", "constraint_function_values", "physical_jacobian")
+    required_available = all(metrics[name]["available"] for name in required_names)
+    overall = required_available ? all(metrics[name]["passed"] for name in required_names) : nothing
+    equivalence_names = (
+        "physical_point", "constraint_function_values", "constraint_sets",
+        "constraint_residuals", "physical_jacobian",
+    )
+    equivalence_available = all(metrics[name]["available"] for name in equivalence_names)
+    equivalence_gate = equivalence_available ?
+        all(metrics[name]["passed"] for name in equivalence_names) : nothing
+    return Dict{String,Any}(
+        "report_version" => "diagonal-scaling-covariance-v1",
+        "reference_policy" => reference_scaling.name,
+        "candidate_policy" => candidate_scaling.name,
+        "absolute_tolerance" => Float64(absolute_tolerance),
+        "relative_tolerance" => Float64(relative_tolerance),
+        "semantic_alignment" => true,
+        "mathematical_rank_invariance_under_declared_maps" => true,
+        "overall_covariant" => overall,
+        "equivalence_gate_passed" => equivalence_gate,
+        "constraint_set_coverage_complete" =>
+            constraint_set_metric["available"] &&
+            constraint_residual_metric["available"],
+        "available_check_count" => length(available),
+        "passed_available_check_count" => count(metric -> metric["passed"] === true, available),
+        "metrics" => metrics,
+        "qualification" => Dict{String,Any}(
+            "claim" => "same-point diagonal coordinate covariance",
+            "does_not_establish" => [
+                "coupled or non-diagonally transformed set covariance",
+                "global mathematical equivalence",
+                "solver trajectory equivalence",
+                "superiority of either scaling policy",
+            ],
+        ),
+    )
+end
+
+function _scaling_geometry_ratio(candidate, reference)
+    candidate isa Real && reference isa Real || return nothing
+    isfinite(candidate) && isfinite(reference) && reference > 0 || return nothing
+    return Float64(candidate / reference)
+end
+
+function _scaling_geometry_relation(candidate, reference;
+                                    relative_tolerance::Real)
+    candidate isa Real && reference isa Real || return "unavailable"
+    isfinite(candidate) && isfinite(reference) || return "nonfinite"
+    isapprox(candidate, reference; rtol=relative_tolerance, atol=0.0) &&
+        return "approximately_equal"
+    return candidate < reference ? "candidate_lower" : "candidate_higher"
+end
+
+function _solver_coordinate_jacobian_geometry(
+    evaluation::NumericalEvaluation;
+    max_dense_entries::Integer,
+)
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    scale = jacobian_scale_summary(evaluation)
+    derivative_complete = length(evaluation.jacobian_row_methods) == rows &&
+        all(method -> !(method in _JACOBIAN_INCOMPLETE_METHODS),
+            evaluation.jacobian_row_methods)
+    summary = Dict{String,Any}(
+        "available" => derivative_complete,
+        "row_count" => rows,
+        "column_count" => columns,
+        "stored_entry_count" => length(evaluation.jacobian_entries),
+        "zero_row_count" => length(scale.zero_rows),
+        "zero_column_count" => length(scale.zero_columns),
+        "nonfinite_row_count" => length(scale.nonfinite_rows),
+        "nonfinite_column_count" => length(scale.nonfinite_columns),
+        "smallest_positive_row_norm" => scale.smallest_positive_row_norm,
+        "largest_finite_row_norm" => scale.largest_finite_row_norm,
+        "row_norm_spread" => scale.row_scale_ratio,
+        "smallest_positive_column_norm" => scale.smallest_positive_column_norm,
+        "largest_finite_column_norm" => scale.largest_finite_column_norm,
+        "column_norm_spread" => scale.column_scale_ratio,
+        "norm" => string(scale.norm),
+        "spectrum_available" => false,
+        "rank" => nothing,
+        "condition_proxy" => nothing,
+    )
+    if !derivative_complete
+        summary["reason"] = "Jacobian contains unavailable or partial rows"
+        return summary
+    end
+    if rows * columns > max_dense_entries
+        summary["reason"] =
+            "dense spectrum exceeds max_dense_entries=$max_dense_entries"
+        return summary
+    end
+    matrix = zeros(Float64, rows, columns)
+    for entry in evaluation.jacobian_entries
+        matrix[entry.row, entry.column] += Float64(entry.value)
+    end
+    all(isfinite, matrix) || begin
+        summary["reason"] = "Jacobian contains nonfinite entries"
+        return summary
+    end
+    singular_values = svdvals(matrix)
+    threshold = isempty(singular_values) ? 0.0 :
+        max(size(matrix)...) * eps(Float64) * maximum(singular_values)
+    retained = filter(value -> value > threshold, singular_values)
+    summary["spectrum_available"] = true
+    summary["rank"] = length(retained)
+    summary["rank_threshold"] = threshold
+    summary["largest_singular_value"] = isempty(retained) ? nothing : first(retained)
+    summary["smallest_retained_singular_value"] =
+        isempty(retained) ? nothing : last(retained)
+    summary["condition_proxy"] = isempty(retained) ? nothing :
+        first(retained) / last(retained)
+    return summary
+end
+
+"""
+    scaling_coordinate_geometry_report(reference, reference_scaling,
+                                       candidate, candidate_scaling; kwargs...)
+
+Compare the *solver-coordinate* Jacobian geometry of two scaling policies only
+after applying the physical covariance gate. The report retains row/column norm
+spreads, zero patterns, and a guarded dense singular-value condition proxy. It
+does not collapse these observations into a score or claim that either policy
+will make a nonlinear solver faster.
+
+`comparison_qualified` is true only when coordinates, scalar constraint sets,
+physical violations, constraint values, and physical Jacobians agree at points
+whose provenance is complete. A failed or unavailable covariance check blocks
+all scaling-merit interpretation while preserving the raw observations.
+"""
+function scaling_coordinate_geometry_report(
+    reference::NumericalEvaluation,
+    reference_scaling::DiagonalScalingMap,
+    candidate::NumericalEvaluation,
+    candidate_scaling::DiagonalScalingMap;
+    absolute_tolerance::Real = 1e-9,
+    relative_tolerance::Real = 1e-7,
+    max_dense_entries::Integer = 100_000,
+)
+    covariance = scaling_covariance_report(
+        reference, reference_scaling, candidate, candidate_scaling;
+        absolute_tolerance, relative_tolerance, max_dense_entries)
+    reference_geometry = _solver_coordinate_jacobian_geometry(
+        reference; max_dense_entries)
+    candidate_geometry = _solver_coordinate_jacobian_geometry(
+        candidate; max_dense_entries)
+    provenance_complete = reference.point.provenance.complete &&
+        candidate.point.provenance.complete
+    qualified = covariance["equivalence_gate_passed"] === true &&
+        provenance_complete && reference_geometry["available"] &&
+        candidate_geometry["available"]
+    comparisons = Dict{String,Any}()
+    for metric in ("row_norm_spread", "column_norm_spread", "condition_proxy")
+        reference_value = reference_geometry[metric]
+        candidate_value = candidate_geometry[metric]
+        comparisons[metric] = Dict{String,Any}(
+            "reference" => reference_value,
+            "candidate" => candidate_value,
+            "candidate_to_reference_ratio" =>
+                _scaling_geometry_ratio(candidate_value, reference_value),
+            "relation" => _scaling_geometry_relation(
+                candidate_value, reference_value; relative_tolerance),
+        )
+    end
+    comparisons["zero_pattern"] = Dict{String,Any}(
+        "reference_zero_rows" => reference_geometry["zero_row_count"],
+        "candidate_zero_rows" => candidate_geometry["zero_row_count"],
+        "reference_zero_columns" => reference_geometry["zero_column_count"],
+        "candidate_zero_columns" => candidate_geometry["zero_column_count"],
+        "counts_agree" =>
+            reference_geometry["zero_row_count"] ==
+                candidate_geometry["zero_row_count"] &&
+            reference_geometry["zero_column_count"] ==
+                candidate_geometry["zero_column_count"],
+    )
+    return Dict{String,Any}(
+        "report_version" => "scaling-coordinate-geometry-v1",
+        "reference_policy" => reference_scaling.name,
+        "candidate_policy" => candidate_scaling.name,
+        "comparison_qualified" => qualified,
+        "point_provenance_complete" => provenance_complete,
+        "covariance" => covariance,
+        "reference_geometry" => reference_geometry,
+        "candidate_geometry" => candidate_geometry,
+        "comparisons" => comparisons,
+        "interpretation" => qualified ?
+            "Local solver-coordinate geometry may be compared under the declared physical equivalence gate." :
+            "Scaling-merit interpretation is blocked; inspect covariance, point provenance, and derivative coverage.",
+        "does_not_establish" => [
+            "global model equivalence",
+            "solver trajectory equivalence",
+            "better convergence or robustness",
+            "a universally superior scaling policy",
+        ],
+    )
+end
+
 """
     analyze_jacobian_row_family_perturbations(evaluation, row_labels; kwargs...)
 

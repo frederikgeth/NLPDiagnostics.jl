@@ -1113,6 +1113,212 @@ function _bmopf_power_base(context)
     return Float64(value)
 end
 
+_bmopf_ac_voltage_scale(context, bus::String) =
+    isnothing(BMOPFTools.opf_bases(context)) ? 1.0 : _bmopf_voltage_base(context, bus)
+
+function _bmopf_dc_voltage_scale(context, bus::String)
+    bases = BMOPFTools.opf_bases(context)
+    isnothing(bases) && return 1.0
+    hasproperty(bases, :v_dc_base) || return nothing
+    value = get(getproperty(bases, :v_dc_base), bus, nothing)
+    value isa Real && isfinite(value) && value > 0 || return nothing
+    return Float64(value)
+end
+
+function _bmopf_dc_current_scale(context, bus::String)
+    bases = BMOPFTools.opf_bases(context)
+    isnothing(bases) && return 1.0
+    hasproperty(bases, :i_dc_base) || return nothing
+    value = get(getproperty(bases, :i_dc_base), bus, nothing)
+    value isa Real && isfinite(value) && value > 0 || return nothing
+    return Float64(value)
+end
+
+_bmopf_index_id(index) = index isa Tuple && !isempty(index) ? string(first(index)) : string(index)
+_bmopf_index_bus(index) = index isa Tuple && !isempty(index) ? string(first(index)) : nothing
+
+function _bmopf_network_component(network, family::AbstractString, id)
+    components = get(network, String(family), Dict())
+    components isa AbstractDict || return nothing
+    component = get(components, string(id), nothing)
+    return component isa AbstractDict ? component : nothing
+end
+
+function _bmopf_component_bus(network, family::AbstractString, id; field="bus")
+    component = _bmopf_network_component(network, family, id)
+    isnothing(component) && return nothing
+    bus = get(component, field, nothing)
+    return bus isa AbstractString ? String(bus) : nothing
+end
+
+function _bmopf_variable_physical_scale(context, key)
+    network = BMOPFTools.opf_network(context)
+    family = key.family
+    index = key.index
+    if family in (:vr, :vi)
+        bus = _bmopf_index_bus(index)
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:voltage)
+    elseif family in (:cr_gnd, :ci_gnd)
+        bus = _bmopf_index_bus(index)
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:cr_fr, :ci_fr, :cr_to, :ci_to)
+        bus = _bmopf_component_bus(network, "line", _bmopf_index_id(index); field="bus_from")
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:cr_sw, :ci_sw)
+        bus = _bmopf_component_bus(network, "switch", _bmopf_index_id(index); field="bus_from")
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:crd, :cid)
+        bus = _bmopf_component_bus(network, "load", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:crg, :cig)
+        bus = _bmopf_component_bus(network, "generator", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:cr_src, :ci_src)
+        bus = _bmopf_component_bus(network, "voltage_source", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:cri, :cii)
+        bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:p_ibr, :q_ibr, :pdc_src)
+        scale = _bmopf_power_base(context)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family == :u_ibr
+        bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:voltage)
+    elseif family in (:load_voltage_squared,)
+        bus = _bmopf_component_bus(network, "load", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:voltage_squared)
+    elseif family in (:load_voltage_magnitude,)
+        bus = _bmopf_component_bus(network, "load", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:voltage)
+    elseif family == :tap
+        return (scale=1.0, quantity=:dimensionless)
+    elseif family == :v_dc
+        bus = _bmopf_index_bus(index)
+        scale = isnothing(bus) ? nothing : _bmopf_dc_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_voltage)
+    elseif family == :idc_gnd
+        bus = _bmopf_index_bus(index)
+        scale = isnothing(bus) ? nothing : _bmopf_dc_current_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_current)
+    elseif family == :idc_br
+        bus = _bmopf_component_bus(network, "dc_branch", _bmopf_index_id(index); field="bus_from")
+        scale = isnothing(bus) ? nothing : _bmopf_dc_current_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_current)
+    elseif family == :idc_conv
+        bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index); field="dc_bus")
+        scale = isnothing(bus) ? nothing : _bmopf_dc_current_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_current)
+    elseif family == :idc_load
+        bus = _bmopf_component_bus(network, "dc_load", _bmopf_index_id(index); field="dc_bus")
+        scale = isnothing(bus) ? nothing : _bmopf_dc_current_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_current)
+    elseif family == :idc_src
+        bus = _bmopf_component_bus(network, "dc_source", _bmopf_index_id(index); field="dc_bus")
+        scale = isnothing(bus) ? nothing : _bmopf_dc_current_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_current)
+    end
+    return nothing
+end
+
+function _bmopf_constraint_physical_scale(context, key)
+    network = BMOPFTools.opf_network(context)
+    family = key.family
+    index = key.index
+    family_text = string(family)
+    for suffix in ("_lower_bound", "_upper_bound", "_fixed")
+        endswith(family_text, suffix) || continue
+        variable_family = Symbol(first(family_text, length(family_text) - length(suffix)))
+        return _bmopf_variable_physical_scale(
+            context, BMOPFTools.OpfModelKey(:variable, variable_family, index))
+    end
+    if family in (:ground_voltage_real, :ground_voltage_imag,
+                  :source_voltage_real, :source_voltage_imag)
+        bus = family in (:ground_voltage_real, :ground_voltage_imag) ?
+            _bmopf_index_bus(index) :
+            _bmopf_component_bus(network, "voltage_source", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:voltage)
+    elseif family in (:kcl_r, :kcl_i)
+        bus = _bmopf_index_bus(index)
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
+    elseif family in (:line_voltage_drop_real, :line_voltage_drop_imag,
+                      :switch_voltage_coupling_real, :switch_voltage_coupling_imag)
+        component_family = startswith(family_text, "line_") ? "line" : "switch"
+        bus = _bmopf_component_bus(
+            network, component_family, _bmopf_index_id(index); field="bus_from")
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:voltage)
+    elseif family in (:line_current_thermal, :switch_current_thermal)
+        component_family = startswith(family_text, "line_") ? "line" : "switch"
+        bus = _bmopf_component_bus(
+            network, component_family, _bmopf_index_id(index); field="bus_from")
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:current_squared)
+    elseif family in (:line_angle_lower, :line_angle_upper)
+        bus = _bmopf_component_bus(network, "line", _bmopf_index_id(index); field="bus_from")
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:voltage_squared)
+    elseif startswith(family_text, "bus_")
+        bus = _bmopf_index_bus(index)
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:voltage_squared)
+    elseif family in (:load_power_real, :load_power_imag)
+        scale = _bmopf_power_base(context)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family in (:load_voltage_squared_definition,
+                      :load_voltage_squared_lower_bound,
+                      :load_voltage_squared_upper_bound,
+                      :load_voltage_magnitude_definition)
+        bus = _bmopf_component_bus(network, "load", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:voltage_squared)
+    elseif family in (:load_voltage_magnitude_lower_bound,
+                      :load_voltage_magnitude_upper_bound)
+        bus = _bmopf_component_bus(network, "load", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:voltage)
+    elseif family in (:generator_p_lower, :generator_p_upper,
+                      :generator_q_lower, :generator_q_upper,
+                      :source_p_lower, :source_p_upper,
+                      :source_q_lower, :source_q_upper,
+                      :ibr_p_lower, :ibr_p_upper, :ibr_q_lower, :ibr_q_upper,
+                      :ibr_power_factor, :ibr_q_volt_var,
+                      :ibr_power_link_p, :ibr_power_link_q,
+                      :ibr_dc_power_lower, :ibr_dc_power_upper)
+        scale = _bmopf_power_base(context)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family in (:ibr_power_circle,)
+        scale = _bmopf_power_base(context)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:power_squared)
+    elseif family in (:ibr_current_thermal, :ibr_neutral_current_thermal)
+        bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:current_squared)
+    elseif family in (:ibr_voltage_magnitude_definition,)
+        bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale^2, quantity=:voltage_squared)
+    elseif family in (:ibr_voltage_magnitude_lower_bound,)
+        bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:voltage)
+    end
+    return nothing
+end
+
 function _bmopf_floating_neutral_components(context)
     network = BMOPFTools.opf_network(context)
     canonical = Dict{String,Any}(string(key) => value for (key, value) in network)
@@ -1924,6 +2130,244 @@ function _bmopf_constraint_semantic_row_map(context, evaluation)
         end
     end
     return rows
+end
+
+function _bmopf_constraint_result_keys(context)
+    result = Dict{
+        Tuple{Int,String,String,Union{Nothing,Int}},
+        Any,
+    }()
+    for key in BMOPFTools.opf_object_keys(context; kind=:constraint)
+        object = try
+            BMOPFTools.opf_object(context, key)
+        catch
+            nothing
+        end
+        object isa JuMP.ConstraintRef || continue
+        index = JuMP.index(object)
+        index isa MOI.ConstraintIndex || continue
+        function_type, set_type = _bmopf_constraint_type_strings(index)
+        result[(index.value, function_type, set_type, nothing)] = key
+    end
+    return result
+end
+
+function _bmopf_scaling_policy_label(context)
+    policy = BMOPFTools.opf_scaling_policy(context)
+    record = BMOPFTools.opf_scaling_policy_data(policy)
+    kind = string(get(record, "kind", "unknown"))
+    name = get(record, "name", nothing)
+    return isnothing(name) ? kind : "$kind/$(string(name))"
+end
+
+function _bmopf_diagonal_scaling_map(context, evaluation)
+    owner = _bmopf_context_model(context)
+    backend = JuMP.backend(owner)
+    model_variables = MOI.get(backend, MOI.ListOfVariableIndices())
+    evaluation.point.variables == model_variables || throw(ArgumentError(
+        "BMOPF evaluation variable order does not match the staged model"))
+
+    registry = Dict{MOI.VariableIndex,Vector{Any}}()
+    for key in BMOPFTools.opf_object_keys(context; kind=:variable)
+        object = try
+            BMOPFTools.opf_object(context, key)
+        catch
+            nothing
+        end
+        object isa JuMP.VariableRef || continue
+        push!(get!(registry, JuMP.index(object), Any[]), key)
+    end
+    variable_keys = String[]
+    variable_scales = Float64[]
+    variable_quantities = String[]
+    unsupported_variables = Dict{String,Any}[]
+    for variable in model_variables
+        aliases = sort!(get(registry, variable, Any[]); by=_bmopf_key_label)
+        if isempty(aliases)
+            push!(unsupported_variables, Dict(
+                "variable" => variable.value,
+                "reason" => "no public BMOPFTools variable key"))
+            continue
+        end
+        contracts = [_bmopf_variable_physical_scale(context, key) for key in aliases]
+        if any(isnothing, contracts)
+            push!(unsupported_variables, Dict(
+                "variable" => variable.value,
+                "keys" => _bmopf_key_label.(aliases),
+                "reason" => "one or more semantic aliases lack a physical-scale contract"))
+            continue
+        end
+        scales = [Float64(contract.scale) for contract in contracts]
+        quantities = [contract.quantity for contract in contracts]
+        if !all(scale -> isapprox(scale, first(scales); rtol=1e-12, atol=0.0), scales) ||
+           length(unique(quantities)) != 1
+            push!(unsupported_variables, Dict(
+                "variable" => variable.value,
+                "keys" => _bmopf_key_label.(aliases),
+                "reason" => "semantic aliases disagree on physical quantity or scale"))
+            continue
+        end
+        push!(variable_keys, _bmopf_key_label(first(aliases)))
+        push!(variable_scales, first(scales))
+        push!(variable_quantities, string(first(quantities)))
+    end
+
+    key_lookup = _bmopf_constraint_result_keys(context)
+    row_bounds = NLPDiagnostics._evaluated_row_bounds(backend, evaluation)
+    constraint_keys = String[]
+    constraint_scales = Float64[]
+    constraint_quantities = String[]
+    constraint_bounds = Tuple{Union{Nothing,Float64},Union{Nothing,Float64}}[]
+    unsupported_rows = Dict{String,Any}[]
+    seen_constraint_keys = Set{String}()
+    for (row, source) in enumerate(evaluation.constraint_sources)
+        source_key = _bmopf_constraint_source_key(source)
+        key = isnothing(source_key) ? nothing : get(key_lookup, source_key, nothing)
+        if isnothing(key)
+            parent_key = _bmopf_constraint_source_key(source; subindex=nothing)
+            key = isnothing(parent_key) ? nothing : get(key_lookup, parent_key, nothing)
+        end
+        if isnothing(key)
+            push!(unsupported_rows, Dict(
+                "row" => row, "reason" => "no public BMOPFTools constraint key"))
+            continue
+        end
+        contract = _bmopf_constraint_physical_scale(context, key)
+        if isnothing(contract)
+            push!(unsupported_rows, Dict(
+                "row" => row, "key" => _bmopf_key_label(key),
+                "reason" => "constraint family lacks a physical residual-scale contract"))
+            continue
+        end
+        bound = isnothing(row_bounds) ? nothing : row_bounds[row]
+        if isnothing(bound)
+            push!(unsupported_rows, Dict(
+                "row" => row, "key" => _bmopf_key_label(key),
+                "reason" => "constraint set has no scalar-bound representation"))
+            continue
+        end
+        label = _bmopf_key_label(key)
+        !isnothing(source.subindex) && (label *= ":row=$(source.subindex)")
+        if label in seen_constraint_keys
+            push!(unsupported_rows, Dict(
+                "row" => row, "key" => label,
+                "reason" => "semantic constraint-row key is not unique"))
+            continue
+        end
+        push!(seen_constraint_keys, label)
+        lower, upper = bound
+        push!(constraint_keys, label)
+        push!(constraint_scales, Float64(contract.scale))
+        push!(constraint_quantities, string(contract.quantity))
+        push!(constraint_bounds, (
+            isnothing(lower) || !isfinite(lower) ? nothing : Float64(lower),
+            isnothing(upper) || !isfinite(upper) ? nothing : Float64(upper),
+        ))
+    end
+
+    variable_complete = isempty(unsupported_variables) &&
+        length(variable_keys) == length(model_variables)
+    row_complete = isempty(unsupported_rows) &&
+        length(constraint_keys) == length(evaluation.constraint_sources)
+    available = variable_complete && row_complete
+    scaling_map = available ? NLPDiagnostics.DiagonalScalingMap(
+        _bmopf_scaling_policy_label(context);
+        variable_keys,
+        variable_scales,
+        constraint_keys,
+        constraint_scales,
+        objective_scale=1.0,
+        constraint_bounds,
+    ) : nothing
+    return Dict{String,Any}(
+        "report_version" => "bmopf-diagonal-scaling-map-v1",
+        "available" => available,
+        "policy" => _bmopf_scaling_policy_label(context),
+        "map" => scaling_map,
+        "variable_count" => length(model_variables),
+        "mapped_variable_count" => length(variable_keys),
+        "constraint_row_count" => length(evaluation.constraint_sources),
+        "mapped_constraint_row_count" => length(constraint_keys),
+        "variable_quantities" => variable_quantities,
+        "constraint_quantities" => constraint_quantities,
+        "unsupported_variables" => unsupported_variables,
+        "unsupported_constraint_rows" => unsupported_rows,
+        "constraint_bounds_available" => !isnothing(row_bounds),
+        "claim_scope" => "explicit diagonal physical-coordinate and scalar-residual scaling",
+    )
+end
+
+function _bmopf_scaling_covariance_report(
+    reference_context,
+    reference_evaluation,
+    candidate_context,
+    candidate_evaluation;
+    kwargs...,
+)
+    reference_build = _bmopf_diagonal_scaling_map(
+        reference_context, reference_evaluation)
+    candidate_build = _bmopf_diagonal_scaling_map(
+        candidate_context, candidate_evaluation)
+    if !reference_build["available"] || !candidate_build["available"]
+        return Dict{String,Any}(
+            "report_version" => "bmopf-scaling-covariance-v1",
+            "available" => false,
+            "equivalence_gate_passed" => nothing,
+            "reason" => "one or both BMOPF semantic scaling maps are incomplete",
+            "reference_map" => reference_build,
+            "candidate_map" => candidate_build,
+        )
+    end
+    report = NLPDiagnostics.scaling_covariance_report(
+        reference_evaluation, reference_build["map"],
+        candidate_evaluation, candidate_build["map"]; kwargs...)
+    report["report_version"] = "bmopf-scaling-covariance-v1"
+    report["available"] = true
+    report["reference_map_coverage"] = Dict(
+        key => value for (key, value) in reference_build if key != "map")
+    report["candidate_map_coverage"] = Dict(
+        key => value for (key, value) in candidate_build if key != "map")
+    report["qualification"]["claim"] =
+        "same-point BMOPF diagonal coordinate, scalar-set, and residual covariance"
+    return report
+end
+
+function _bmopf_scaling_coordinate_geometry_report(
+    reference_context,
+    reference_evaluation,
+    candidate_context,
+    candidate_evaluation;
+    kwargs...,
+)
+    reference_build = _bmopf_diagonal_scaling_map(
+        reference_context, reference_evaluation)
+    candidate_build = _bmopf_diagonal_scaling_map(
+        candidate_context, candidate_evaluation)
+    if !reference_build["available"] || !candidate_build["available"]
+        return Dict{String,Any}(
+            "report_version" => "bmopf-scaling-coordinate-geometry-v1",
+            "available" => false,
+            "comparison_qualified" => false,
+            "reason" => "one or both BMOPF semantic scaling maps are incomplete",
+            "reference_map" => reference_build,
+            "candidate_map" => candidate_build,
+        )
+    end
+    report = NLPDiagnostics.scaling_coordinate_geometry_report(
+        reference_evaluation, reference_build["map"],
+        candidate_evaluation, candidate_build["map"]; kwargs...)
+    report["report_version"] = "bmopf-scaling-coordinate-geometry-v1"
+    report["available"] = true
+    report["reference_map_coverage"] = Dict(
+        key => value for (key, value) in reference_build if key != "map")
+    report["candidate_map_coverage"] = Dict(
+        key => value for (key, value) in candidate_build if key != "map")
+    report["qualification"] = Dict{String,Any}(
+        "claim" => "same-point local BMOPF solver-coordinate geometry comparison",
+        "requires_solver_experiment_for_merit" => true,
+        "requires_endpoint_kkt_gate" => true,
+    )
+    return report
 end
 
 const _BMOPF_CONSTRAINT_COMPONENT_FAMILY_PREFIXES = (

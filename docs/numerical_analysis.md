@@ -1620,6 +1620,36 @@ not directly comparable with the unscaled spectrum. The mapped residual is
 useful evidence about an original-coordinate direction; it is still not a rank,
 nullity, or physical-mode certificate.
 
+## Physical covariance and scaling-policy geometry
+
+`DiagonalScalingMap` declares semantic variable and scalar-residual keys plus
+their model-to-physical diagonal scales. Optional `ScalarConstraintBounds`
+carry each row's model-coordinate lower and upper bounds. The generic
+`scaling_covariance_report` aligns two independently ordered evaluations and
+checks the physical point, constraint functions, scalar sets, feasibility
+violations, objective, gradient, and Jacobian. Missing derivatives or bounds
+make the relevant claim unavailable; they are never inferred from zeros.
+Physical Jacobians are compared as semantic-keyed combined sparse entries, so
+covariance itself does not require dense materialization. `max_dense_entries`
+only controls the optional dense physical-rank and raw condition-proxy evidence;
+zero disables that dense supplement.
+
+The stricter `equivalence_gate_passed` field requires agreement of coordinates,
+constraint functions, scalar sets, violations, and the physical Jacobian. It is
+a same-point local transformation check, not a global equivalence proof. In
+particular, coupled or non-diagonally transformed sets remain outside this
+contract.
+
+`scaling_coordinate_geometry_report` runs that gate before comparing the raw
+solver-coordinate Jacobians. It retains row/column infinity-norm spreads, zero
+patterns, and—within budget—a guarded dense singular-value condition proxy for
+each policy. Sparse norm geometry remains available when that spectrum is
+guarded.
+`comparison_qualified=false` blocks merit interpretation while preserving raw
+coverage evidence. Even a qualified result is local linear-algebra evidence:
+solver convergence, robustness, KKT accuracy, and total work require matched
+solver experiments at physically equivalent initial and endpoint states.
+
 ## Sparse-QR rank resource budgets
 
 `sparse_qr_rank_estimate` records independent `max_input_nonzeros` and

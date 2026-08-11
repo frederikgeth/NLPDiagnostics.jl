@@ -1166,6 +1166,62 @@ as the multiconductor campaign: representational unit losses are retained as
 context, while device-semantic and physical/operating-point losses block the
 `physical_metadata_complete` readiness gate until explicitly mapped.
 
+## Controlled nondimensionalisation experiments
+
+BMOPFTools now exposes typed `SIUnitsScaling`, `ClassicPerUnitScaling`, and
+`ConsistentPerUnitScaling` policies. The custom policy accepts an explicit
+power base and a complete compatible AC voltage-base map, while deriving
+current, impedance, and admittance bases from dimensional identities. It does
+not yet represent arbitrary independent voltage/current/power bases; those
+would require scale coefficients in the engine equations. The effective policy
+is retained in BMOPFTools research provenance, so campaign records can identify
+the actual coordinate system rather than infer it from `per_unit=true`.
+
+The generic `DiagonalScalingMap`, `scaling_covariance_report`, and
+`scaling_coordinate_geometry_report` form the first trust gate for comparing
+two policies. They align variables and scalar constraint rows by semantic keys;
+map points, constraint functions, scalar sets, feasibility violations,
+objectives, gradients, and Jacobians to common physical units; and report
+coverage separately from tolerance agreement. Incomplete derivative rows or
+missing scalar-bound semantics are unavailable, never zero-filled. Dense
+rank and singular-value work remains guarded by `max_dense_entries`; physical
+Jacobian covariance uses semantic-keyed combined sparse entries and remains
+available when dense work is disabled.
+
+`bmopf_diagonal_scaling_map` derives the declarations from BMOPFTools' public
+variable and constraint registries. It does not parse JuMP names. Every alias
+for a model variable must agree on quantity and physical scale, every evaluated
+scalar row must have a unique registered key, and every set must admit a scalar
+bound representation. Unsupported variables and rows are returned explicitly;
+an incomplete adapter cannot produce a covariance or geometry verdict.
+
+`bmopf_scaling_covariance_report` applies the full same-point gate.
+`bmopf_scaling_coordinate_geometry_report` then compares raw solver-coordinate
+row/column spreads, zero patterns, rank, and a guarded condition proxy. The
+latter deliberately reports observations instead of a score. A policy with a
+smaller local proxy has not thereby been shown to converge faster or more
+robustly.
+
+The first truth-labelled integration fixture compares classic 1 MVA per-unit
+coordinates with a custom 500 V / 200 kVA policy. All physical-coordinate,
+function, set, violation, and Jacobian checks pass. The custom coordinates
+change both raw row and column spreads from 1 to 2 and raise the local dense
+condition proxy from about 14.2 to 20.0. This is useful precisely because it is
+not a predetermined win for custom bases: the gate establishes that the
+geometry difference comes from coordinates, while the geometry report leaves
+solver merit unresolved. A negative control changes one physical line
+resistance and is rejected through the physical-Jacobian check despite complete
+semantic alignment.
+
+This remains a local diagonal covariance test, not a full model-equivalence
+certificate. The current contract covers the AC bus, line, switch, source,
+load, generator, ground, and supported IBR families exercised by the fixture.
+Transformer/n-winding cross-side current scales, coupled/non-diagonal set
+transforms, and several DC residual families remain explicit coverage gaps.
+Before attributing solver behavior to scaling, a campaign must also hold
+physical initialization, perturbations, termination tolerances, and endpoint
+KKT interpretation fixed.
+
 The same evidence is available directly from a staged context through
 `NLPDiagnostics.bmopf_source_schema_report(context)`. It is attached to both
 the BMOPF context profile and `bmopf_analyze_opf` report, with aggregate

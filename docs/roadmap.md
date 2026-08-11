@@ -4,6 +4,12 @@ This roadmap orders work by the evidence needed for later claims. A numerical
 or physical interpretation should not be implemented before the structural and
 evaluation layers can expose its supporting evidence.
 
+The roadmap tracks implementation order. The separate
+[`nondimensionalisation_research.md`](nondimensionalisation_research.md) is the
+living scientific ledger for flexible physical bases, residual-block scaling,
+and complex transformations. It retains hypotheses, invariants, rejected ideas,
+experiment protocols, and the current publication boundary as results evolve.
+
 ## 2026 architecture review: consolidate and calibrate
 
 The project remains correctly motivated and its main architectural decisions
@@ -65,6 +71,19 @@ stability is recorded only for a distinct-option v3 campaign with complete
 manifest, baseline-pair, and row-family trajectory coverage. Historical
 schemas become legacy smoke observations and incomplete v3 runs become explicit
 coverage observations.
+
+The typed-policy part of the third increment now has a working end-to-end AC
+truth gate. BMOPFTools has explicit SI, classic per-unit, and custom consistent
+per-unit policy types, validates topology/base compatibility, and records the
+effective policy in research provenance. NLPDiagnostics maps public BMOPFTools
+semantic variable and constraint keys to physical scales, transforms scalar
+sets and violations as well as functions and derivatives, and blocks geometry
+comparison when coverage or covariance is incomplete. A small classic-versus-
+custom fixture passes every physical gate, while a changed physical line
+coefficient is rejected. Remaining before corpus-wide comparative scaling
+claims are trusted: extend the explicit contracts to transformer/n-winding and
+DC families, map a shared feasible physical state into every policy, and run
+matched solver/tolerance/KKT experiments.
 
 ### Status at the review boundary
 
@@ -3104,3 +3123,47 @@ The next ordered major items are:
    endpoints whose source, mapping, derivative, active-set, and KKT evidence
    passes. Full column rank at these saved points is not by itself a proof that
    no physical gauge or collapse mode exists.
+
+## 2026-08-11 physical scaling-covariance checkpoint
+
+The first nondimensionalisation trust gate is now complete for a supported
+small AC formulation. Generic covariance includes semantic coordinate
+alignment, constraint-function values, scalar sets and bounds, physical
+feasibility violations, objectives, gradients, and Jacobians. The stricter
+equivalence gate requires all model-defining local checks except the optional
+objective checks. A separate coordinate-geometry report exposes raw row/column
+spread and an optional guarded condition proxy only after that gate and complete
+point provenance pass. Physical Jacobian covariance now compares semantic
+combined sparse entries, so disabling dense rank/SVD work does not disable the
+equivalence gate.
+
+The BMOPFTools adapter derives scales from public registry keys and declared
+bases; it does not infer families from JuMP names. Classic 1 MVA per-unit and a
+custom 500 V / 200 kVA policy pass all 21 integration checks at the same
+physical completed-start point. Their raw geometry differs materially, while a
+line-resistance negative control is rejected by the physical-Jacobian gate.
+This establishes that the mechanism can distinguish a coordinate intervention
+from a changed physical model on the labelled fixture.
+
+The next ordered major items are:
+
+1. solve or import one feasible physical state, map it into at least SI,
+   classic, and two custom policies, and repeat covariance, active-set, rank,
+   and local geometry checks at that shared state;
+2. define physical semantics for solver feasibility, complementarity, and KKT
+   tolerances so matched Ipopt/MadNLP traces compare equivalent stopping tests,
+   not merely identical option strings;
+3. extend explicit scale contracts to transformer and n-winding currents and
+   residuals, then to AC/DC converter and DC-network families, with one positive
+   and one physical-parameter negative control per formulation class;
+4. add semantic row/column-family attribution to the now sparse-capable
+   coordinate-geometry summary, preserving unavailable dense spectral evidence;
+   and
+5. only after these gates, run the multi-time 99-bus policy matrix and judge
+   strategies from paired work, restoration, KKT, and robustness evidence.
+
+The project is therefore ready to *design* flexible-base experiments and learn
+from small truth-labelled cases. It is not yet ready to rank policies on the
+large multiconductor corpus: the remaining work is concentrated in shared
+feasible-point mapping, stopping-test semantics, and formulation-family
+coverage rather than another generic diagnostic feature wave.

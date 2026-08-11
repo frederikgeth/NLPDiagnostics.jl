@@ -144,6 +144,10 @@ capability survey.
 
 The ordered implementation plan is maintained in
 [`docs/roadmap.md`](docs/roadmap.md).
+The evolving hypotheses, invariants, negative-result protocol, experiment
+ladder, and publication boundary for flexible nondimensionalisation and complex
+block scaling are maintained in
+[`docs/nondimensionalisation_research.md`](docs/nondimensionalisation_research.md).
 The package, solver-extension, domain-extension, and scientific-calibration
 test boundaries are documented in [`docs/testing.md`](docs/testing.md).
 Bounded empirical results and their trust limitations are recorded in
