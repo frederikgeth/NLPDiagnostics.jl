@@ -36,6 +36,612 @@ function _rank_calibration_evaluation(
     )
 end
 
+@testset "multi-seed Golub-Kahan dense-oracle coverage" begin
+    cases = [
+        (name = "dependent square", matrix = [1.0 2.0; 2.0 4.0], nullity = 1),
+        (name = "underdetermined", matrix = [1.0 0.0 1.0; 0.0 1.0 1.0], nullity = 1),
+        (name = "full column rank", matrix = [1.0 0.0; 0.0 1.0; 1.0 1.0], nullity = 0),
+        (name = "cluster and zero", matrix = Matrix(Diagonal([1.0, 1.0e-6, 0.0])), nullity = 1),
+        (name = "zero rectangular", matrix = zeros(2, 3), nullity = 3),
+    ]
+    policy = NLPDiagnostics.RankPolicy(
+        Float64;
+        backend = :dense_svd,
+        relative_tolerance = 1.0e-8,
+        compute_vectors = true,
+        provenance = :multi_seed_coverage_corpus,
+    )
+    agreement_count = 0
+    for case in cases
+        evaluation = _rank_calibration_evaluation(case.matrix; label = case.name)
+        calibration = NLPDiagnostics.golub_kahan_dense_calibration(
+            evaluation;
+            dense_policy = policy,
+            seed_count = 6,
+            steps = size(case.matrix, 2),
+            residual_relative_tolerance = 1.0e-8,
+        )
+        @test calibration.available
+        @test calibration.dense_right_nullity == case.nullity
+        @test calibration.candidate_span_rank == case.nullity
+        @test calibration.relation in (
+            :subspace_agreement, :dimension_agreement_no_candidate,
+        )
+        case.nullity > 0 && @test something(
+            calibration.minimum_principal_cosine, 0.0,
+        ) >= 0.99
+        agreement_count += calibration.relation in (
+            :subspace_agreement, :dimension_agreement_no_candidate,
+        )
+    end
+    @test agreement_count == length(cases)
+
+    # Deliberately inadequate one-step projections must expose misses rather
+    # than being promoted to rank conclusions. The zero operator is the one
+    # easy exception because independent seeds themselves span its nullspace.
+    short_budget_cases = filter(case -> case.nullity > 0, cases)
+    miss_count = 0
+    for case in short_budget_cases
+        calibration = NLPDiagnostics.golub_kahan_dense_calibration(
+            _rank_calibration_evaluation(case.matrix; label = "short $(case.name)");
+            dense_policy = policy,
+            seed_count = 6,
+            steps = 1,
+            residual_relative_tolerance = 1.0e-8,
+        )
+        miss_count += calibration.relation == :candidate_miss
+    end
+    @test miss_count == 3
+    @test length(short_budget_cases) == 4
+end
+
+@testset "restarted smallest-direction adversarial oracle" begin
+    diagonal = _rank_calibration_evaluation(
+        Matrix(Diagonal([1.0, 0.1, 0.01, 0.001]));
+        label = "restarted diagonal",
+    )
+    diagonal_calibration =
+        NLPDiagnostics.restarted_smallest_singular_dense_calibration(
+            diagonal;
+            dimension = 2,
+            iterations = 20,
+            convergence_tolerance = 1.0e-10,
+            singular_value_relative_tolerance = 1.0e-8,
+        )
+    @test diagonal_calibration.available
+    @test diagonal_calibration.relation == :agreement
+    @test diagonal_calibration.estimate.converged
+    @test diagonal_calibration.estimate.singular_values ≈ [0.001, 0.01]
+        rtol = 1.0e-8
+    @test diagonal_calibration.dense_singular_values ≈ [0.001, 0.01]
+        rtol = 1.0e-12
+    @test diagonal_calibration.estimate.completed_iterations <= 10
+    @test size(diagonal_calibration.estimate.singular_value_histories, 2) ==
+        diagonal_calibration.estimate.completed_iterations
+    @test size(
+        diagonal_calibration.estimate.normal_relative_residual_histories,
+    ) == size(diagonal_calibration.estimate.singular_value_histories)
+    @test maximum(
+        diagonal_calibration.estimate.relative_normal_residual_norms,
+    ) <= 1.0e-10
+    @test maximum(diagonal_calibration.estimate.triplet_backward_errors) <=
+        1.0e-8
+    @test something(diagonal_calibration.minimum_principal_cosine, 0.0) >= 0.99
+    @test diagonal_calibration.dense_target_subspace_unique
+
+    clustered = NLPDiagnostics.restarted_smallest_singular_dense_calibration(
+        _rank_calibration_evaluation(
+            Matrix(Diagonal([1.0, 0.1, 0.001001, 0.001]));
+            label = "clustered smallest pair",
+        );
+        dimension = 2,
+        iterations = 20,
+        convergence_tolerance = 1.0e-10,
+        singular_value_relative_tolerance = 1.0e-8,
+    )
+    @test clustered.relation == :agreement
+    @test clustered.estimate.singular_values ≈ [0.001, 0.001001]
+        rtol = 1.0e-8
+
+    repeated = NLPDiagnostics.restarted_smallest_singular_dense_calibration(
+        _rank_calibration_evaluation(
+            Matrix(Diagonal([1.0, 0.1, 0.001, 0.001]));
+            label = "repeated smallest pair",
+        );
+        dimension = 1,
+        iterations = 20,
+        convergence_tolerance = 1.0e-10,
+        singular_value_relative_tolerance = 1.0e-8,
+    )
+    @test repeated.relation == :agreement_nonunique_subspace
+    @test !repeated.dense_target_subspace_unique
+
+    seed_left = [
+        sin(i * j) + cos((i + 2) * j) for i in 1:6, j in 1:6
+    ]
+    seed_right = [
+        cos(2 * i * j) + sin((i + 1) * (j + 2)) for i in 1:6, j in 1:6
+    ]
+    left_basis = Matrix(qr(seed_left).Q)
+    right_basis = Matrix(qr(seed_right).Q)
+    planted_matrix = left_basis *
+        Diagonal([5.0, 2.0, 0.5, 0.1, 0.01, 0.001]) *
+        transpose(right_basis)
+    planted = NLPDiagnostics.restarted_smallest_singular_dense_calibration(
+        _rank_calibration_evaluation(
+            planted_matrix; label = "planted rotated spectrum",
+        );
+        dimension = 2,
+        iterations = 50,
+        convergence_tolerance = 1.0e-10,
+        singular_value_relative_tolerance = 1.0e-8,
+    )
+    @test planted.relation == :agreement
+    @test planted.estimate.singular_values ≈ [0.001, 0.01] rtol = 1.0e-8
+    @test something(planted.minimum_principal_cosine, 0.0) >= 0.99
+
+    planted_null_matrix = left_basis *
+        Diagonal([5.0, 2.0, 0.5, 0.1, 0.0, 0.0]) *
+        transpose(right_basis)
+    planted_null =
+        NLPDiagnostics.restarted_smallest_singular_dense_calibration(
+            _rank_calibration_evaluation(
+                planted_null_matrix; label = "planted rotated nullspace",
+            );
+            dimension = 2,
+            iterations = 50,
+            convergence_tolerance = 1.0e-10,
+            singular_value_relative_tolerance = 1.0e-8,
+        )
+    @test planted_null.relation == :dense_target_numerically_unresolved
+    @test planted_null.dense_target_subspace_unique
+    @test !planted_null.dense_target_numerically_resolved
+    @test maximum(planted_null.estimate.relative_operator_residual_norms) <=
+        1.0e-12
+    @test something(planted_null.minimum_principal_cosine, 0.0) >= 0.99
+
+    rectangular_null =
+        NLPDiagnostics.restarted_smallest_singular_dense_calibration(
+            _rank_calibration_evaluation(
+                [1.0 0.0 1.0; 0.0 1.0 1.0];
+                label = "restarted rectangular null",
+            );
+            dimension = 1,
+            iterations = 20,
+            convergence_tolerance = 1.0e-10,
+            singular_value_relative_tolerance = 1.0e-8,
+        )
+    @test rectangular_null.relation == :agreement
+    @test only(rectangular_null.estimate.relative_operator_residual_norms) <=
+        1.0e-12
+
+    zero_operator = NLPDiagnostics.restarted_smallest_singular_dense_calibration(
+        _rank_calibration_evaluation(
+            zeros(2, 3); label = "restarted zero operator",
+        );
+        dimension = 2,
+        iterations = 10,
+        convergence_tolerance = 1.0e-10,
+    )
+    @test zero_operator.relation == :agreement_nonunique_subspace
+    @test zero_operator.estimate.converged
+    @test zero_operator.estimate.breakdown == :exact_invariant_subspace
+
+    # A stationary Ritz candidate can still omit the true smallest direction
+    # when the normal spectrum is severely compressed. This is a required
+    # dense-oracle false-convergence control, not a tolerated flaky case.
+    hilbert = [1.0 / (row + column - 1) for row in 1:6, column in 1:6]
+    hilbert_calibration =
+        NLPDiagnostics.restarted_smallest_singular_dense_calibration(
+            _rank_calibration_evaluation(
+                hilbert; label = "Hilbert false convergence control",
+            );
+            dimension = 1,
+            iterations = 100,
+            convergence_tolerance = 1.0e-8,
+            singular_value_relative_tolerance = 1.0e-6,
+        )
+    @test hilbert_calibration.estimate.converged
+    @test hilbert_calibration.relation == :singular_value_disagreement
+    @test only(hilbert_calibration.relative_singular_value_errors) > 1.0e-6
+
+    badly_scaled = NLPDiagnostics.restarted_smallest_singular_dense_calibration(
+        _rank_calibration_evaluation(
+            Matrix(Diagonal([1.0e8, 1.0, 1.0e-8]));
+            label = "normal-spectrum scaling control",
+        );
+        dimension = 1,
+        iterations = 50,
+        convergence_tolerance = 1.0e-10,
+    )
+    @test badly_scaled.relation == :candidate_unconverged
+    @test badly_scaled.estimate.breakdown == :trial_subspace_stagnation
+
+    insufficient = NLPDiagnostics.restarted_smallest_singular_dense_calibration(
+        diagonal;
+        dimension = 1,
+        iterations = 1,
+        minimum_iterations = 1,
+        convergence_tolerance = 0.0,
+    )
+    @test insufficient.relation == :candidate_unconverged
+    @test insufficient.estimate.breakdown == :iteration_limit
+
+    guarded = NLPDiagnostics.restarted_smallest_singular_candidates(
+        diagonal; dimension = 2, max_basis_entries = 1,
+    )
+    @test !guarded.available
+    @test occursin("exceeds max_basis_entries", guarded.reason)
+    dense_guarded =
+        NLPDiagnostics.restarted_smallest_singular_dense_calibration(
+            diagonal; dimension = 1, dense_max_entries = 1,
+        )
+    @test !dense_guarded.available
+    @test occursin("exceeding guard", dense_guarded.reason)
+
+    candidate_report =
+        NLPDiagnostics.analyze_restarted_smallest_singular_candidates(
+            _rank_calibration_evaluation(
+                [1.0 0.0 1.0; 0.0 1.0 1.0];
+                label = "restarted report",
+            );
+            dimension = 1,
+            iterations = 20,
+            convergence_tolerance = 1.0e-10,
+            near_null_relative_tolerance = 1.0e-10,
+        )
+    @test length(NLPDiagnostics.findings(
+        candidate_report, :restarted_smallest_singular_candidate_converged,
+    )) == 1
+    @test length(NLPDiagnostics.findings(
+        candidate_report, :restarted_smallest_singular_near_null_candidate,
+    )) == 1
+    disagreement_report =
+        NLPDiagnostics.analyze_restarted_smallest_singular_dense_calibration(
+            _rank_calibration_evaluation(
+                hilbert; label = "Hilbert report",
+            );
+            dimension = 1,
+            iterations = 100,
+            convergence_tolerance = 1.0e-8,
+            singular_value_relative_tolerance = 1.0e-6,
+        )
+    @test length(NLPDiagnostics.findings(
+        disagreement_report,
+        :restarted_smallest_singular_dense_calibration_disagreement,
+    )) == 1
+
+    @test_throws ArgumentError NLPDiagnostics.restarted_smallest_singular_candidates(
+        diagonal; dimension = 0,
+    )
+    @test_throws ArgumentError NLPDiagnostics.restarted_smallest_singular_candidates(
+        diagonal; dimension = 1, iterations = 1, minimum_iterations = 2,
+    )
+    @test_throws DimensionMismatch NLPDiagnostics.restarted_smallest_singular_candidates(
+        diagonal; dimension = 1, initial_directions = zeros(3, 1),
+    )
+end
+
+@testset "harmonic Golub-Kahan adversarial oracle" begin
+    diagonal = _rank_calibration_evaluation(
+        Matrix(Diagonal([1.0, 0.1, 0.01, 0.001]));
+        label = "harmonic diagonal",
+    )
+    diagonal_calibration =
+        NLPDiagnostics.harmonic_golub_kahan_dense_calibration(
+            diagonal;
+            dimension = 2,
+            steps_per_seed = 3,
+            cycles = 6,
+            retained_dimension = 3,
+            convergence_tolerance = 1.0e-10,
+            value_change_tolerance = 1.0e-10,
+            singular_value_relative_tolerance = 1.0e-8,
+        )
+    @test diagonal_calibration.available
+    @test diagonal_calibration.relation == :agreement
+    @test diagonal_calibration.estimate.converged
+    @test diagonal_calibration.estimate.breakdown == :converged
+    @test diagonal_calibration.estimate.singular_values ≈ [0.001, 0.01]
+        rtol = 1.0e-8
+    @test diagonal_calibration.dense_singular_values ≈ [0.001, 0.01]
+        rtol = 1.0e-12
+    @test size(diagonal_calibration.estimate.harmonic_value_histories, 2) ==
+        diagonal_calibration.estimate.completed_cycles
+    @test size(diagonal_calibration.estimate.singular_value_histories) ==
+        size(diagonal_calibration.estimate.triplet_backward_error_histories)
+    @test length(diagonal_calibration.estimate.trial_dimensions) ==
+        diagonal_calibration.estimate.completed_cycles
+    @test length(diagonal_calibration.estimate.projected_metric_ranks) ==
+        diagonal_calibration.estimate.completed_cycles
+    @test maximum(diagonal_calibration.estimate.triplet_backward_errors) <=
+        1.0e-10
+    @test something(diagonal_calibration.minimum_principal_cosine, 0.0) >= 0.99
+
+    repeated = NLPDiagnostics.harmonic_golub_kahan_dense_calibration(
+        _rank_calibration_evaluation(
+            Matrix(Diagonal([1.0, 0.1, 0.001, 0.001]));
+            label = "harmonic repeated smallest pair",
+        );
+        dimension = 1,
+        steps_per_seed = 3,
+        cycles = 6,
+        retained_dimension = 2,
+        convergence_tolerance = 1.0e-10,
+        value_change_tolerance = 1.0e-10,
+        singular_value_relative_tolerance = 1.0e-8,
+    )
+    @test repeated.relation == :agreement_nonunique_subspace
+    @test !repeated.dense_target_subspace_unique
+
+    rectangular_null =
+        NLPDiagnostics.harmonic_golub_kahan_dense_calibration(
+            _rank_calibration_evaluation(
+                [1.0 0.0 1.0; 0.0 1.0 1.0];
+                label = "harmonic rectangular null",
+            );
+            dimension = 1,
+            steps_per_seed = 2,
+            cycles = 6,
+            retained_dimension = 2,
+            convergence_tolerance = 1.0e-10,
+            value_change_tolerance = 1.0e-10,
+            singular_value_relative_tolerance = 1.0e-8,
+        )
+    @test rectangular_null.relation == :agreement
+    @test rectangular_null.estimate.converged
+    @test only(rectangular_null.estimate.relative_operator_residual_norms) <=
+        1.0e-12
+
+    zero_operator = NLPDiagnostics.harmonic_golub_kahan_dense_calibration(
+        _rank_calibration_evaluation(
+            zeros(2, 3); label = "harmonic zero operator",
+        );
+        dimension = 2,
+        steps_per_seed = 2,
+        cycles = 4,
+        retained_dimension = 3,
+        convergence_tolerance = 1.0e-10,
+        value_change_tolerance = 1.0e-10,
+    )
+    @test zero_operator.relation == :agreement_nonunique_subspace
+    @test zero_operator.estimate.converged
+    @test all(iszero, zero_operator.estimate.singular_values)
+    @test all(iszero, zero_operator.estimate.projected_metric_ranks)
+
+    # This control is the reason for retaining an independent harmonic path:
+    # the normal-residual tracker can converge to the wrong singular value,
+    # while a small thick-restarted zero-target projection reaches the oracle.
+    hilbert = [1.0 / (row + column - 1) for row in 1:6, column in 1:6]
+    hilbert_evaluation = _rank_calibration_evaluation(
+        hilbert; label = "harmonic Hilbert recovery",
+    )
+    harmonic_hilbert =
+        NLPDiagnostics.harmonic_golub_kahan_dense_calibration(
+            hilbert_evaluation;
+            dimension = 1,
+            steps_per_seed = 2,
+            cycles = 8,
+            retained_dimension = 2,
+            convergence_tolerance = 1.0e-8,
+            value_change_tolerance = 1.0e-8,
+            singular_value_relative_tolerance = 1.0e-6,
+        )
+    restarted_hilbert =
+        NLPDiagnostics.restarted_smallest_singular_dense_calibration(
+            hilbert_evaluation;
+            dimension = 1,
+            iterations = 100,
+            convergence_tolerance = 1.0e-8,
+            singular_value_relative_tolerance = 1.0e-6,
+        )
+    @test harmonic_hilbert.relation == :agreement
+    @test harmonic_hilbert.estimate.converged
+    @test restarted_hilbert.relation == :singular_value_disagreement
+    @test only(harmonic_hilbert.relative_singular_value_errors) <= 1.0e-6
+    @test something(harmonic_hilbert.minimum_principal_cosine, 0.0) >= 0.99
+
+    # Dense-oracle value errors are target-local. Normalizing only by the
+    # largest singular value would incorrectly accept this missed 1e-8 mode.
+    badly_scaled = NLPDiagnostics.harmonic_golub_kahan_dense_calibration(
+        _rank_calibration_evaluation(
+            Matrix(Diagonal([1.0e8, 1.0, 1.0e-8]));
+            label = "harmonic scaling disagreement control",
+        );
+        dimension = 1,
+        steps_per_seed = 2,
+        cycles = 8,
+        retained_dimension = 2,
+        convergence_tolerance = 1.0e-8,
+        value_change_tolerance = 1.0e-8,
+        singular_value_relative_tolerance = 1.0e-6,
+    )
+    @test badly_scaled.estimate.converged
+    @test badly_scaled.dense_target_subspace_unique
+    @test badly_scaled.relation == :dense_target_numerically_unresolved
+    @test !badly_scaled.dense_target_numerically_resolved
+    @test only(badly_scaled.relative_singular_value_errors) > 1.0e6
+
+    insufficient = NLPDiagnostics.harmonic_golub_kahan_dense_calibration(
+        diagonal;
+        dimension = 1,
+        steps_per_seed = 1,
+        cycles = 1,
+        retained_dimension = 2,
+        minimum_cycles = 1,
+        convergence_tolerance = 0.0,
+        value_change_tolerance = 0.0,
+    )
+    @test insufficient.relation == :candidate_unconverged
+    @test insufficient.estimate.breakdown == :cycle_limit
+
+    guarded = NLPDiagnostics.harmonic_golub_kahan_candidates(
+        diagonal; dimension = 2, max_basis_entries = 1,
+    )
+    @test !guarded.available
+    @test occursin("exceeds max_basis_entries", guarded.reason)
+    dense_guarded = NLPDiagnostics.harmonic_golub_kahan_dense_calibration(
+        diagonal; dimension = 1, dense_max_entries = 1,
+    )
+    @test !dense_guarded.available
+    @test occursin("exceeding guard", dense_guarded.reason)
+
+    candidate_report = NLPDiagnostics.analyze_harmonic_golub_kahan_candidates(
+        _rank_calibration_evaluation(
+            [1.0 0.0 1.0; 0.0 1.0 1.0];
+            label = "harmonic report",
+        );
+        dimension = 1,
+        steps_per_seed = 2,
+        cycles = 6,
+        retained_dimension = 2,
+        convergence_tolerance = 1.0e-10,
+        value_change_tolerance = 1.0e-10,
+        near_null_relative_tolerance = 1.0e-10,
+    )
+    @test length(NLPDiagnostics.findings(
+        candidate_report, :harmonic_golub_kahan_candidate_converged,
+    )) == 1
+    @test length(NLPDiagnostics.findings(
+        candidate_report, :harmonic_golub_kahan_candidate,
+    )) == 1
+    @test length(NLPDiagnostics.findings(
+        candidate_report, :harmonic_golub_kahan_near_null_candidate,
+    )) == 1
+    @test haskey(
+        candidate_report.metadata,
+        :harmonic_golub_kahan_projected_metric_conditions,
+    )
+    disagreement_report =
+        NLPDiagnostics.analyze_harmonic_golub_kahan_dense_calibration(
+            _rank_calibration_evaluation(
+                Matrix(Diagonal([1.0e8, 1.0, 1.0e-8]));
+                label = "harmonic scaled report",
+            );
+            dimension = 1,
+            steps_per_seed = 2,
+            cycles = 8,
+            retained_dimension = 2,
+            convergence_tolerance = 1.0e-8,
+            value_change_tolerance = 1.0e-8,
+            singular_value_relative_tolerance = 1.0e-6,
+        )
+    @test length(NLPDiagnostics.findings(
+        disagreement_report,
+        :harmonic_golub_kahan_dense_calibration_disagreement,
+    )) == 1
+
+    @test_throws ArgumentError NLPDiagnostics.harmonic_golub_kahan_candidates(
+        diagonal; dimension = 0,
+    )
+    @test_throws ArgumentError NLPDiagnostics.harmonic_golub_kahan_candidates(
+        diagonal; dimension = 2, retained_dimension = 1,
+    )
+    @test_throws ArgumentError NLPDiagnostics.harmonic_golub_kahan_candidates(
+        diagonal; dimension = 1, cycles = 1, minimum_cycles = 2,
+    )
+    @test_throws DimensionMismatch NLPDiagnostics.harmonic_golub_kahan_candidates(
+        diagonal; dimension = 1, initial_directions = zeros(3, 1),
+    )
+end
+
+@testset "smallest-direction backend crosscheck" begin
+    diagonal = _rank_calibration_evaluation(
+        Matrix(Diagonal([1.0, 0.1, 0.01, 0.001]));
+        label = "backend agreement diagonal",
+    )
+    agreement = NLPDiagnostics.smallest_singular_backend_crosscheck(
+        diagonal;
+        dimension = 2,
+        restarted_iterations = 20,
+        restarted_convergence_tolerance = 1.0e-10,
+        harmonic_steps_per_seed = 3,
+        harmonic_cycles = 6,
+        harmonic_retained_dimension = 3,
+        harmonic_convergence_tolerance = 1.0e-10,
+        harmonic_value_change_tolerance = 1.0e-10,
+        singular_value_relative_tolerance = 1.0e-6,
+    )
+    @test agreement.available
+    @test agreement.relation == :agreement
+    @test agreement.restarted.converged
+    @test agreement.harmonic.converged
+    @test maximum(agreement.relative_singular_value_differences) <= 1.0e-6
+    @test something(agreement.minimum_principal_cosine, 0.0) >= 0.99
+
+    hilbert = [1.0 / (row + column - 1) for row in 1:6, column in 1:6]
+    hilbert_disagreement =
+        NLPDiagnostics.smallest_singular_backend_crosscheck(
+            _rank_calibration_evaluation(
+                hilbert; label = "backend Hilbert disagreement",
+            );
+            dimension = 1,
+            restarted_iterations = 100,
+            restarted_convergence_tolerance = 1.0e-8,
+            harmonic_steps_per_seed = 2,
+            harmonic_cycles = 8,
+            harmonic_retained_dimension = 2,
+            harmonic_convergence_tolerance = 1.0e-8,
+            harmonic_value_change_tolerance = 1.0e-8,
+            singular_value_relative_tolerance = 1.0e-3,
+        )
+    @test hilbert_disagreement.available
+    @test hilbert_disagreement.restarted.converged
+    @test hilbert_disagreement.harmonic.converged
+    @test hilbert_disagreement.relation == :singular_value_disagreement
+    @test only(hilbert_disagreement.relative_singular_value_differences) >
+        1.0e-3
+
+    rectangular_null = NLPDiagnostics.smallest_singular_backend_crosscheck(
+        _rank_calibration_evaluation(
+            [1.0 0.0 1.0; 0.0 1.0 1.0];
+            label = "backend null agreement",
+        );
+        dimension = 1,
+        restarted_iterations = 20,
+        restarted_convergence_tolerance = 1.0e-10,
+        harmonic_steps_per_seed = 2,
+        harmonic_cycles = 6,
+        harmonic_retained_dimension = 2,
+        harmonic_convergence_tolerance = 1.0e-10,
+        harmonic_value_change_tolerance = 1.0e-10,
+    )
+    @test rectangular_null.relation == :agreement
+    @test only(rectangular_null.relative_singular_value_differences) == 0.0
+
+    guarded = NLPDiagnostics.smallest_singular_backend_crosscheck(
+        diagonal; dimension = 2, max_basis_entries = 1,
+    )
+    @test !guarded.available
+    @test guarded.relation == :unavailable
+    @test occursin("both candidate engines", guarded.reason)
+
+    report = NLPDiagnostics.analyze_smallest_singular_backend_crosscheck(
+        diagonal;
+        dimension = 2,
+        restarted_iterations = 20,
+        restarted_convergence_tolerance = 1.0e-10,
+        harmonic_steps_per_seed = 3,
+        harmonic_cycles = 6,
+        harmonic_retained_dimension = 3,
+        harmonic_convergence_tolerance = 1.0e-10,
+        harmonic_value_change_tolerance = 1.0e-10,
+    )
+    @test length(NLPDiagnostics.findings(
+        report, :smallest_singular_backend_crosscheck_agreement,
+    )) == 1
+    @test report.metadata[
+        :smallest_singular_backend_crosscheck_relation,
+    ] == "agreement"
+
+    @test_throws ArgumentError NLPDiagnostics.smallest_singular_backend_crosscheck(
+        diagonal; singular_value_relative_tolerance = -1.0,
+    )
+    @test_throws ArgumentError NLPDiagnostics.smallest_singular_backend_crosscheck(
+        diagonal; subspace_alignment_threshold = 2.0,
+    )
+end
+
 @testset "rank backend calibration corpus" begin
     cases = [
         (
@@ -211,5 +817,184 @@ end
     @test_throws ArgumentError NLPDiagnostics.jacobian_rank_estimate(
         dependent,
         NLPDiagnostics.RankPolicy(Float64; backend = :sparse_qr),
+    )
+
+    diagonal = _rank_calibration_evaluation(
+        [4.0 0.0; 0.0 2.0]; label = "Golub-Kahan diagonal",
+    )
+    diagonal_gk = NLPDiagnostics.golub_kahan_ritz_estimate(
+        diagonal; steps = 2,
+    )
+    @test diagonal_gk.available
+    @test diagonal_gk.completed_steps == 2
+    @test diagonal_gk.operator_source == :assembled_sparse
+    @test diagonal_gk.singular_values ≈ [4.0, 2.0] rtol = 1.0e-12
+    @test maximum(diagonal_gk.relative_backward_errors) <= 1.0e-12
+    @test diagonal_gk.projection_relative_residual <= 1.0e-12
+    @test diagonal_gk.left_orthogonality_loss <= 1.0e-12
+    @test diagonal_gk.right_orthogonality_loss <= 1.0e-12
+
+    underdetermined = _rank_calibration_evaluation(
+        [1.0 0.0 1.0; 0.0 1.0 1.0];
+        label = "Golub-Kahan underdetermined",
+    )
+    underdetermined_gk = NLPDiagnostics.golub_kahan_ritz_estimate(
+        underdetermined; steps = 3,
+    )
+    @test underdetermined_gk.available
+    @test underdetermined_gk.breakdown == :left_recurrence
+    @test underdetermined_gk.singular_values ≈ [sqrt(3.0), 1.0] rtol = 1.0e-12
+    @test size(underdetermined_gk.projected_right_null_directions) == (3, 1)
+    @test only(underdetermined_gk.projected_right_null_relative_residual_norms) <=
+          1.0e-12
+    gk_report = NLPDiagnostics.analyze_golub_kahan_probe(
+        underdetermined; steps = 3, residual_relative_tolerance = 1.0e-10,
+    )
+    @test length(NLPDiagnostics.findings(
+        gk_report, :golub_kahan_projected_right_null_candidate,
+    )) == 1
+    @test isempty(NLPDiagnostics.findings(
+        gk_report, :golub_kahan_ritz_residual_large,
+    ))
+
+    rank_deficient_gk = NLPDiagnostics.golub_kahan_ritz_estimate(
+        _rank_calibration_evaluation(
+            [4.0 0.0; 0.0 0.0]; label = "Golub-Kahan exact null",
+        ); steps = 2,
+    )
+    @test rank_deficient_gk.available
+    @test size(rank_deficient_gk.projected_right_null_directions, 2) == 1
+    @test only(rank_deficient_gk.projected_right_null_relative_residual_norms) <=
+          1.0e-12
+
+    diagonal_scaled_gk = NLPDiagnostics.golub_kahan_ritz_estimate(
+        _rank_calibration_evaluation(
+            1.0e9 .* [4.0 0.0; 0.0 2.0];
+            label = "scaled Golub-Kahan diagonal",
+        ); steps = 2,
+    )
+    @test diagonal_scaled_gk.singular_values ./ 1.0e9 ≈
+          diagonal_gk.singular_values rtol = 1.0e-12
+    @test maximum(diagonal_scaled_gk.relative_backward_errors) <= 1.0e-12
+    @test_throws ArgumentError NLPDiagnostics.golub_kahan_ritz_estimate(
+        diagonal; steps = 0,
+    )
+    @test_throws DimensionMismatch NLPDiagnostics.golub_kahan_ritz_estimate(
+        diagonal; steps = 2, seed = [1.0],
+    )
+    @test_throws ArgumentError NLPDiagnostics.golub_kahan_ritz_estimate(
+        diagonal; steps = 2, seed = [0.0, 0.0],
+    )
+
+    multi_seed = NLPDiagnostics.multi_seed_golub_kahan_estimate(
+        underdetermined;
+        seed_count = 4,
+        steps = 3,
+        residual_relative_tolerance = 1.0e-10,
+    )
+    @test multi_seed.available
+    @test multi_seed.available_seed_count == 4
+    @test multi_seed.retained_candidate_counts == fill(1, 4)
+    @test multi_seed.candidate_span_rank == 1
+    @test maximum(multi_seed.candidate_basis_relative_residual_norms) <= 1.0e-12
+    @test multi_seed.comparable_seed_pair_count == 6
+    @test multi_seed.agreeing_seed_pair_count == 6
+    @test something(multi_seed.minimum_pairwise_principal_cosine, 0.0) >= 0.99
+
+    multi_seed_report = NLPDiagnostics.analyze_multi_seed_golub_kahan_probe(
+        underdetermined;
+        seed_count = 4,
+        steps = 3,
+        residual_relative_tolerance = 1.0e-10,
+    )
+    @test length(NLPDiagnostics.findings(
+        multi_seed_report, :multi_seed_golub_kahan_candidate_span,
+    )) == 1
+    @test length(NLPDiagnostics.findings(
+        multi_seed_report, :multi_seed_golub_kahan_candidate_span_stable,
+    )) == 1
+
+    guarded_multi_seed = NLPDiagnostics.multi_seed_golub_kahan_estimate(
+        underdetermined; seed_count = 4, steps = 3, max_basis_entries = 1,
+    )
+    @test !guarded_multi_seed.available
+    @test occursin("exceeds max_basis_entries", guarded_multi_seed.reason)
+    guarded_report = NLPDiagnostics.analyze_multi_seed_golub_kahan_probe(
+        underdetermined; seed_count = 4, steps = 3, max_basis_entries = 1,
+    )
+    @test length(NLPDiagnostics.findings(
+        guarded_report, :multi_seed_golub_kahan_probe_unavailable,
+    )) == 1
+
+    dense_policy = NLPDiagnostics.RankPolicy(
+        Float64;
+        backend = :dense_svd,
+        relative_tolerance = 1.0e-8,
+        compute_vectors = true,
+        provenance = :golub_kahan_test,
+    )
+    dense_agreement = NLPDiagnostics.golub_kahan_dense_calibration(
+        underdetermined;
+        dense_policy,
+        seed_count = 4,
+        steps = 3,
+        residual_relative_tolerance = 1.0e-10,
+    )
+    @test dense_agreement.available
+    @test dense_agreement.relation == :subspace_agreement
+    @test dense_agreement.dense_right_nullity == 1
+    @test dense_agreement.candidate_span_rank == 1
+    @test dense_agreement.detected_fraction == 1.0
+    @test something(dense_agreement.minimum_principal_cosine, 0.0) >= 0.99
+    agreement_report = NLPDiagnostics.analyze_golub_kahan_dense_calibration(
+        underdetermined;
+        dense_policy,
+        seed_count = 4,
+        steps = 3,
+        residual_relative_tolerance = 1.0e-10,
+    )
+    @test length(NLPDiagnostics.findings(
+        agreement_report, :golub_kahan_dense_calibration_agreement,
+    )) == 1
+
+    deliberate_miss = NLPDiagnostics.golub_kahan_dense_calibration(
+        underdetermined;
+        dense_policy,
+        seed_count = 4,
+        steps = 1,
+        residual_relative_tolerance = 1.0e-10,
+    )
+    @test deliberate_miss.available
+    @test deliberate_miss.relation == :candidate_miss
+    @test deliberate_miss.candidate_span_rank == 0
+    @test deliberate_miss.detected_fraction == 0.0
+    miss_report = NLPDiagnostics.analyze_golub_kahan_dense_calibration(
+        underdetermined;
+        dense_policy,
+        seed_count = 4,
+        steps = 1,
+        residual_relative_tolerance = 1.0e-10,
+    )
+    @test length(NLPDiagnostics.findings(
+        miss_report, :golub_kahan_dense_calibration_disagreement,
+    )) == 1
+
+    scaled_multi_seed = NLPDiagnostics.multi_seed_golub_kahan_estimate(
+        _rank_calibration_evaluation(
+            1.0e9 .* [1.0 0.0 1.0; 0.0 1.0 1.0];
+            label = "scaled multi-seed Golub-Kahan",
+        );
+        seed_count = 4,
+        steps = 3,
+        residual_relative_tolerance = 1.0e-10,
+    )
+    @test scaled_multi_seed.candidate_span_rank == multi_seed.candidate_span_rank
+    @test maximum(scaled_multi_seed.candidate_basis_relative_residual_norms) <=
+          1.0e-12
+    @test_throws ArgumentError NLPDiagnostics.multi_seed_golub_kahan_estimate(
+        underdetermined; seed_count = 0,
+    )
+    @test_throws ArgumentError NLPDiagnostics.multi_seed_golub_kahan_estimate(
+        underdetermined; seed_agreement_threshold = 1.1,
     )
 end

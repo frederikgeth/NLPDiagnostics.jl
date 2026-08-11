@@ -688,9 +688,15 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     per_unit_ports = NLPDiagnostics.bmopf_terminal_port_metadata(per_unit_context)
     @test all(port.metadata["physical_voltage_base_V"] == "230.0" for port in per_unit_ports)
     per_unit_semantics = NLPDiagnostics.bmopf_terminal_port_coordinate_semantics(per_unit_context)
-    @test all(item.nominal_scale == 1.0 for item in per_unit_semantics)
+    @test all(isnothing(item.nominal_scale) for item in per_unit_semantics)
     @test all(item.units["voltage"] == "p.u." for item in per_unit_semantics)
     @test all(occursin("230.0 V", item.description) for item in per_unit_semantics)
+    @test all(length(item.terminal_semantics) == 2 for item in per_unit_semantics)
+    @test all(item.terminal_semantics[1].role == :phase for item in per_unit_semantics)
+    @test all(item.terminal_semantics[1].nominal_scale == 1.0 for item in per_unit_semantics)
+    @test all(item.terminal_semantics[2].role == :ground_reference for item in per_unit_semantics)
+    @test all(item.terminal_semantics[2].expected_value == 0.0 for item in per_unit_semantics)
+    @test all(isnothing(item.terminal_semantics[2].nominal_scale) for item in per_unit_semantics)
     coordinate_point = NLPDiagnostics.EvaluationPoint(
         JuMP.index.([vr_a, vr_n, vi_a, vi_n]), [1.0, 0.0, 0.0, 0.0],
     )
@@ -700,6 +706,42 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test isempty(scale_report.findings)
     @test scale_report.metadata[:bmopf_terminal_port_coordinate_scale_basis] ==
           "per-unit model coordinates (nominal coordinate one)"
+    bad_ground_point = NLPDiagnostics.EvaluationPoint(
+        JuMP.index.([vr_a, vr_n, vi_a, vi_n]), [1.0, 1.0e-4, 0.0, 0.0],
+    )
+    bad_ground_report = NLPDiagnostics.bmopf_terminal_port_coordinate_scale_report(
+        per_unit_context, bad_ground_point,
+    )
+    @test length(findings(
+        bad_ground_report, :component_port_expected_coordinate_value_mismatch,
+    )) == 1
+    floating_neutral_net = deepcopy(net)
+    empty!(floating_neutral_net["bus"]["bus"]["perfectly_grounded_terminals"])
+    floating_neutral_context = TestBMOPFContext(
+        model, floating_neutral_net, objects, (v_base = Dict("bus" => 230.0),),
+    )
+    floating_neutral_semantics =
+        NLPDiagnostics.bmopf_terminal_port_coordinate_semantics(
+            floating_neutral_context,
+        )
+    @test all(item.terminal_semantics[2].role == :neutral
+              for item in floating_neutral_semantics)
+    @test all(isnothing(item.terminal_semantics[2].expected_value)
+              for item in floating_neutral_semantics)
+    floating_neutral_point = NLPDiagnostics.EvaluationPoint(
+        JuMP.index.([vr_a, vr_n, vi_a, vi_n]), [1.0, 1.0e-12, 0.0, -0.2],
+    )
+    floating_neutral_report =
+        NLPDiagnostics.bmopf_terminal_port_coordinate_scale_report(
+            floating_neutral_context, floating_neutral_point,
+        )
+    @test isempty(findings(
+        floating_neutral_report, :component_port_nominal_scale_mismatch,
+    ))
+    @test isempty(findings(
+        floating_neutral_report,
+        :component_port_expected_coordinate_value_mismatch,
+    ))
     differentiability_report = NLPDiagnostics.bmopf_opf_differentiability_report(context)
     @test differentiability_report.metadata[:bmopf_opf_differentiability_available] == "false"
     @test length(findings(differentiability_report, :bmopf_opf_differentiability_unavailable)) == 1
@@ -1456,6 +1498,7 @@ end
         "summarize_bmopf_restoration_campaign.jl",
         "launch_bmopf_solver_option_perturbations.jl",
         "summarize_bmopf_solver_option_perturbations.jl",
+        "calibrate_restarted_smallest_singular.jl",
     )
     for script in scripts
         source = read(joinpath(benchmark_directory, script), String)
@@ -1588,6 +1631,18 @@ end
     @test occursin("baseline_comparisons_available", option_summary)
     @test occursin("model_semantic_contract_changed", option_summary)
     @test occursin("multiconductor_semantic_gate_passed", option_summary)
+    restarted_calibration = read(
+        joinpath(benchmark_directory,
+            "calibrate_restarted_smallest_singular.jl"), String,
+    )
+    @test occursin("smallest-singular-cross-backend-calibration-v2",
+        restarted_calibration)
+    @test occursin("harmonic_relation_counts", restarted_calibration)
+    @test occursin("crosscheck_relation_counts", restarted_calibration)
+    @test occursin("hilbert_false_convergence_control",
+        restarted_calibration)
+    @test occursin("badly_scaled_full_rank_control",
+        restarted_calibration)
     option_summary_module = Module(:NLPDiagnosticsOptionSummaryContract)
     Base.include(option_summary_module, joinpath(
         benchmark_directory, "summarize_bmopf_solver_option_perturbations.jl",
@@ -2198,6 +2253,72 @@ end
     @test_throws ArgumentError NLPDiagnostics.PortCoordinateSemantics(
         :transformer, "tx_1", "high"; quantity = :voltage, nominal_scale = 0.0,
     )
+    neutral_coordinate = NLPDiagnostics.PortTerminalCoordinateSemantics(
+        "n"; role = :neutral,
+    )
+    phase_coordinate = NLPDiagnostics.PortTerminalCoordinateSemantics(
+        "a"; role = :phase, nominal_scale = 1.0,
+    )
+    grounded_coordinate = NLPDiagnostics.PortTerminalCoordinateSemantics(
+        "g"; role = :ground_reference, expected_value = 0.0,
+        absolute_tolerance = 1.0e-8,
+    )
+    terminal_semantics = NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "high";
+        quantity = :voltage, representation = :rectangular_real,
+        units = Dict("voltage" => "p.u."), nominal_scale = 1.0,
+        terminal_semantics = [neutral_coordinate, phase_coordinate],
+    )
+    neutral_map = NLPDiagnostics.PortCoordinateMap(
+        :transformer, "tx_1", "high",
+        MOI.VariableIndex[MOI.VariableIndex(1)];
+        terminal_to_variable = reshape([1.0, 0.0], 1, 2),
+    )
+    neutral_scale_report = NLPDiagnostics._port_coordinate_scale_findings(
+        [terminal_semantics], [neutral_map],
+        NLPDiagnostics.EvaluationPoint(
+            MOI.VariableIndex[MOI.VariableIndex(1)], [1.0e-12],
+        ); mismatch_factor = 1.0e3,
+    )
+    @test isempty(findings(
+        neutral_scale_report, :component_port_nominal_scale_mismatch,
+    ))
+    @test neutral_scale_report.metadata[
+        :component_port_intentionally_unscaled_coordinate_count
+    ] == "1"
+    grounded_semantics = NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "high";
+        quantity = :voltage, representation = :rectangular_real,
+        terminal_semantics = [grounded_coordinate, phase_coordinate],
+    )
+    grounded_value_report = NLPDiagnostics._port_coordinate_scale_findings(
+        [grounded_semantics], [neutral_map],
+        NLPDiagnostics.EvaluationPoint(
+            MOI.VariableIndex[MOI.VariableIndex(1)], [1.0e-5],
+        ),
+    )
+    @test length(findings(
+        grounded_value_report,
+        :component_port_expected_coordinate_value_mismatch,
+    )) == 1
+    @test_throws ArgumentError NLPDiagnostics.PortTerminalCoordinateSemantics(
+        "n"; expected_value = 0.0,
+    )
+    @test_throws ArgumentError NLPDiagnostics.PortTerminalCoordinateSemantics(
+        "n"; nominal_scale = 0.0,
+    )
+    mismatched_terminal_semantics = NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "high";
+        quantity = :voltage, terminal_semantics = [neutral_coordinate],
+    )
+    mismatched_terminal_report =
+        NLPDiagnostics._component_port_coordinate_semantics_findings(
+            [rank_deficient_port], [mismatched_terminal_semantics], [coordinate_map],
+        )
+    @test length(findings(
+        mismatched_terminal_report,
+        :component_port_terminal_semantics_dimension_mismatch,
+    )) == 1
     @test NLPDiagnostics.PortCoordinateSemantics(
         :transformer, "tx_1", "angle";
         quantity = :angle, representation = :polar,

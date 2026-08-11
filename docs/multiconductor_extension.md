@@ -38,7 +38,10 @@ For each port, the plugin should specify:
   an optional stable `PortNullspaceMode` name when the plugin needs to retain
   its own physical identifier; and
 - quantity (`:voltage`, `:current`, `:power`, `:angle`, or `:generic`),
-  representation, unit convention, and optional positive nominal scale; and
+  representation, unit convention, and optional positive nominal scale;
+- optional ordered `PortTerminalCoordinateSemantics` entries carrying a
+  terminal label, plugin-defined role, per-terminal nominal scale, and an
+  explicit expected value plus absolute tolerance; and
 - terminal-to-MOI-variable coordinates where numerical comparison is intended.
 
 Optionally declare `PortNullspaceModeSemantics` for a named mode. Its category
@@ -58,19 +61,29 @@ claim. `port_expected_nullspace_summary` exposes the same candidate matrix,
 coordinate scope, rank, and tolerance to plugins and downstream tooling; the
 same independent-rank context is retained by generic degeneracy, active-set,
 and reduced-Hessian persistence reports.
-When a port declares `nominal_scale`, the generic numerical stage compares it
-only through an explicit map row containing one terminal coordinate. Mixed
-terminal-coordinate maps or absent maps remain an unavailable generic scale projection and
-require a plugin-supplied transformed-scale rule rather than a guessed scalar
-scale. Mixed maps are also flagged during static metadata validation, before a
-numerical point is available.
-The current nominal scale is port-wide. That is insufficient when phase and
-neutral/common-mode terminal coordinates have different expected operating
-magnitudes. In particular, the balanced delta calibration fixture drives its
-free neutral rectangular coordinates close to zero and triggers a misleading
-1 p.u. mismatch. Until terminal-role-specific scales or an expected-zero
-coordinate contract are implemented, multiconductor port-scale findings are
-local screening evidence only and must not motivate automatic rescaling.
+When a port declares `nominal_scale`, or an ordered terminal entry declares its
+own scale, the generic numerical stage compares it only through an explicit map
+row containing one terminal coordinate. An ordered per-terminal declaration
+overrides the port-wide scale, including with `nothing`: this is how a plugin
+states that a floating neutral must not inherit a phase-voltage scale. The
+ordered declaration count must equal the coordinate-map column count. Mixed
+terminal-coordinate maps or absent maps remain an unavailable generic scale
+projection and require a plugin-supplied transformed-scale rule rather than a
+guessed scalar scale. Mixed maps and dimension mismatches are also flagged
+during static metadata validation, before a numerical point is available.
+
+An expected coordinate value is never inferred from `role`. A plugin must
+declare both the value and its absolute tolerance. The generic core then checks
+the mapped value at the explicit evaluation point and reports a separate
+`component_port_expected_coordinate_value_mismatch`; it does not turn that
+local observation into a feasibility or grounding proof.
+
+The BMOPFTools voltage adapter now uses this contract. Energized phase
+terminals receive the 1 p.u. coordinate scale, explicitly grounded terminals
+receive a zero reference with a model-coordinate tolerance, and ungrounded
+neutral terminals deliberately receive neither. The balanced-delta false
+positive that motivated this change is therefore removed by physical terminal
+metadata, not by variable-name parsing or a generic near-zero exception.
 For the same direct rows, the map-adjusted port scale must agree with any
 component-coordinate nominal scale on the mapped MOI variable. Supplying a
 scale on only one side is likewise reported as an incomplete shared-coordinate

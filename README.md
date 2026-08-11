@@ -37,6 +37,12 @@ read-only snapshot through the public MOI model API and reports:
 - guarded local Jacobian rank, conditioning, and nullspace evidence; and
 - checked sparse/MOI Jacobian product operators with explicit product
   provenance for large-model numerical-method experiments; and
+- opt-in single- and deterministic multi-seed Golub--Kahan Ritz projections
+  with direct lifted residual, orthogonality, cross-seed principal-angle, and
+  guarded dense-oracle calibration evidence; and
+- an opt-in restarted locally optimal smallest-direction candidate tracker
+  with convergence histories, matrix-free normal products, and explicit
+  adversarial dense-oracle disagreement evidence; and
 - explicit Hessian-of-the-Lagrangian and reduced-Hessian curvature tools;
 - reproducible solver-independent formulation profile cases; and
 - finite first- and second-derivative domain checks;

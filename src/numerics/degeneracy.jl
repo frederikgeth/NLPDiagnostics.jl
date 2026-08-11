@@ -798,6 +798,1327 @@ function iterative_jacobian_spectrum_estimate(
     )
 end
 
+function _gk_reorthogonalize!(
+    vector::AbstractVector{T}, basis::AbstractMatrix{T}, columns::Integer,
+) where {T<:AbstractFloat}
+    columns <= 0 && return vector
+    # Two modified Gram--Schmidt passes keep loss of orthogonality inspectable
+    # without silently trusting the three-term recurrence in finite precision.
+    for _ in 1:2, column in 1:Int(columns)
+        vector .-= dot(view(basis, :, column), vector) .* view(basis, :, column)
+    end
+    return vector
+end
+
+function _gk_orthogonality_loss(basis::AbstractMatrix{T}) where {T<:AbstractFloat}
+    size(basis, 2) == 0 && return zero(T)
+    return T(opnorm(transpose(basis) * basis - I, Inf))
+end
+
+"""
+    golub_kahan_ritz_estimate(evaluation; steps = 20, kwargs...)
+
+Generate finite Golub--Kahan left and right Krylov bases using only Jacobian
+and transposed-Jacobian products. Singular triplets are extracted from the
+small projected matrix and lifted to model coordinates. Every triplet is
+checked with direct `Jv - sigma*u` and `J'u - sigma*v` residuals.
+
+This is a bounded projection probe. Its smallest Ritz value is not a certified
+smallest singular value, and absence of a projected null candidate does not
+establish full rank.
+"""
+function golub_kahan_ritz_estimate(
+    evaluation::NumericalEvaluation{T};
+    steps::Integer = 20,
+    breakdown_tolerance::Real = sqrt(eps(T)),
+    projection_relative_tolerance::Real =
+        max(length(evaluation.constraint_sources), length(evaluation.point.variables), 1) * eps(T),
+    matrix_norm::Symbol = :frobenius,
+    seed::Union{Nothing,AbstractVector{<:Real}} = nothing,
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
+) where {T<:AbstractFloat}
+    steps > 0 || throw(ArgumentError("steps must be positive"))
+    breakdown_tol = T(breakdown_tolerance)
+    isfinite(breakdown_tol) && breakdown_tol >= zero(T) ||
+        throw(ArgumentError("breakdown_tolerance must be finite and nonnegative"))
+    projection_tol = T(projection_relative_tolerance)
+    isfinite(projection_tol) && projection_tol >= zero(T) ||
+        throw(ArgumentError(
+            "projection_relative_tolerance must be finite and nonnegative",
+        ))
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    requested = Int(steps)
+    unavailable(reason) = GolubKahanRitzEstimate{T}(
+        false, String(reason), evaluation.point, requested, 0, operator.source,
+        :unavailable, T[], T[], zeros(T, 0, 0), T[], zeros(T, rows, 0),
+        zeros(T, columns, 0), T[], T[], T[], nothing, nothing, nothing,
+        nothing, nothing, zeros(T, columns, 0), T[], T[],
+    )
+    rows > 0 || return unavailable("Jacobian has no constraint rows")
+    columns > 0 || return unavailable("Jacobian has no variable columns")
+    operator.available || return unavailable(something(operator.reason, "operator unavailable"))
+    operator.point == evaluation.point || throw(ArgumentError(
+        "Jacobian operator and evaluation points do not match",
+    ))
+    # An underdetermined problem may require one step beyond the row-space
+    # dimension before the left recurrence exposes the remaining right-space
+    # direction. Never request more than `rows + 1` orthogonal left recurrences.
+    maximum_steps = min(requested, columns, rows + 1)
+    norm_value = T(_matrix_norm(operator.assembled_matrix, matrix_norm))
+    isfinite(norm_value) || return unavailable("Jacobian matrix norm is non-finite")
+
+    left_basis = zeros(T, rows, maximum_steps)
+    right_basis = zeros(T, columns, maximum_steps + 1)
+    initial = isnothing(seed) ?
+        T[sin(T(index)) + cos(T(2 * index)) for index in 1:columns] :
+        T.(seed)
+    length(initial) == columns || throw(DimensionMismatch(
+        "Golub--Kahan seed has length $(length(initial)); expected $columns",
+    ))
+    all(isfinite, initial) || throw(ArgumentError(
+        "Golub--Kahan seed must contain only finite values",
+    ))
+    seed_norm = norm(initial)
+    isfinite(seed_norm) && !iszero(seed_norm) ||
+        throw(ArgumentError("Golub--Kahan seed must have nonzero finite norm"))
+    right_basis[:, 1] .= initial ./ seed_norm
+    alphas = T[]
+    betas = T[]
+    completed = 0
+    right_columns = 1
+    breakdown = :none
+
+    for step in 1:maximum_steps
+        av = jacobian_product(operator, view(right_basis, :, step))
+        candidate_left = copy(av)
+        step > 1 && (candidate_left .-= betas[step - 1] .* view(left_basis, :, step - 1))
+        _gk_reorthogonalize!(candidate_left, left_basis, step - 1)
+        alpha = norm(candidate_left)
+        threshold = breakdown_tol * max(one(T), norm(av), norm_value)
+        if !isfinite(alpha)
+            return unavailable("Golub--Kahan left recurrence became non-finite")
+        elseif alpha <= threshold
+            breakdown = :left_recurrence
+            right_columns = step
+            break
+        end
+        push!(alphas, alpha)
+        left_basis[:, step] .= candidate_left ./ alpha
+        completed = step
+        right_columns = step
+
+        atu = jacobian_transpose_product(operator, view(left_basis, :, step))
+        candidate_right = atu .- alpha .* view(right_basis, :, step)
+        _gk_reorthogonalize!(candidate_right, right_basis, step)
+        beta = norm(candidate_right)
+        threshold = breakdown_tol * max(one(T), norm(atu), norm_value)
+        if !isfinite(beta)
+            return unavailable("Golub--Kahan right recurrence became non-finite")
+        elseif beta <= threshold
+            breakdown = :right_recurrence
+            break
+        elseif step < maximum_steps
+            push!(betas, beta)
+            right_basis[:, step + 1] .= candidate_right ./ beta
+            right_columns = step + 1
+        end
+    end
+
+    U = left_basis[:, 1:completed]
+    V = right_basis[:, 1:right_columns]
+    AV = right_columns == 0 ? zeros(T, rows, 0) : _jacobian_products(operator, V)
+    projection = transpose(U) * AV
+    projection_residual = norm(AV - U * projection) / max(one(T), norm(AV))
+    left_loss = _gk_orthogonality_loss(U)
+    right_loss = _gk_orthogonality_loss(V)
+
+    singular_values = T[]
+    left_directions = zeros(T, rows, 0)
+    right_directions = zeros(T, columns, 0)
+    primal_residuals = T[]
+    dual_residuals = T[]
+    backward_errors = T[]
+    rank_threshold = zero(T)
+    projected_null_directions = zeros(T, columns, 0)
+    projected_null_residuals = T[]
+    projected_null_relative_residuals = T[]
+    if right_columns > 0
+        if completed == 0
+            projected_null_directions = copy(V)
+        else
+            factor = svd(projection; full = true)
+            singular_values = T.(factor.S)
+            triplet_count = length(singular_values)
+            left_directions = U * Matrix(factor.U[:, 1:triplet_count])
+            right_directions = V * Matrix(factor.V[:, 1:triplet_count])
+            for index in 1:triplet_count
+                sigma = singular_values[index]
+                primal = norm(jacobian_product(
+                    operator, view(right_directions, :, index),
+                ) - sigma .* view(left_directions, :, index))
+                dual = norm(jacobian_transpose_product(
+                    operator, view(left_directions, :, index),
+                ) - sigma .* view(right_directions, :, index))
+                push!(primal_residuals, primal)
+                push!(dual_residuals, dual)
+                push!(backward_errors,
+                      hypot(primal, dual) / max(norm_value, sigma, eps(T)))
+            end
+            rank_threshold = projection_tol *
+                (isempty(singular_values) ? one(T) : maximum(singular_values))
+            projected_rank = count(value -> value > rank_threshold, singular_values)
+            if projected_rank < right_columns
+                projected_null_directions = V *
+                    Matrix(factor.V[:, (projected_rank + 1):right_columns])
+            end
+        end
+        for index in axes(projected_null_directions, 2)
+            residual = norm(jacobian_product(
+                operator, view(projected_null_directions, :, index),
+            ))
+            push!(projected_null_residuals, residual)
+            push!(projected_null_relative_residuals,
+                  _relative_residual(residual, norm_value,
+                                     norm(view(projected_null_directions, :, index))))
+        end
+    end
+    all(isfinite, vcat(primal_residuals, dual_residuals, backward_errors,
+                       projected_null_residuals)) ||
+        return unavailable("Golub--Kahan residual audit became non-finite")
+    return GolubKahanRitzEstimate{T}(
+        true, nothing, evaluation.point, requested, completed, operator.source,
+        breakdown, alphas, betas, projection, singular_values,
+        left_directions, right_directions, primal_residuals, dual_residuals,
+        backward_errors, norm_value, projection_residual, left_loss, right_loss,
+        rank_threshold, projected_null_directions, projected_null_residuals,
+        projected_null_relative_residuals,
+    )
+end
+
+function _golub_kahan_seed(::Type{T}, columns::Integer, seed_index::Integer) where {T<:AbstractFloat}
+    k = Int(seed_index)
+    return T[
+        sin(T((k + 1) * index)) + cos(T((2 * k + 1) * index)) +
+        T(0.5) * sin(T((k + 3) * (index + 1)))
+        for index in 1:Int(columns)
+    ]
+end
+
+function _candidate_basis(
+    operator::JacobianLinearOperator{T},
+    directions::Matrix{T},
+    relative_tolerance::T,
+) where {T<:AbstractFloat}
+    columns = size(directions, 1)
+    isempty(directions) && return (
+        zeros(T, columns, 0), T[], T[], zero(T),
+    )
+    factor = svd(directions; full = false)
+    values = T.(factor.S)
+    threshold = relative_tolerance * maximum(values; init = zero(T))
+    rank = count(value -> value > threshold, values)
+    basis = rank == 0 ? zeros(T, columns, 0) : Matrix(factor.U[:, 1:rank])
+    matrix_norm = T(_matrix_norm(operator.assembled_matrix, :frobenius))
+    residuals = T[
+        _relative_residual(
+            norm(jacobian_product(operator, view(basis, :, index))),
+            matrix_norm,
+            norm(view(basis, :, index)),
+        ) for index in axes(basis, 2)
+    ]
+    return basis, residuals, values, threshold
+end
+
+function _principal_cosines(left::AbstractMatrix{T}, right::AbstractMatrix{T}) where {T<:AbstractFloat}
+    (size(left, 2) == 0 || size(right, 2) == 0) && return T[]
+    left_basis = Matrix(qr(left).Q[:, 1:size(left, 2)])
+    right_basis = Matrix(qr(right).Q[:, 1:size(right, 2)])
+    return clamp.(T.(svdvals(transpose(left_basis) * right_basis)), zero(T), one(T))
+end
+
+"""
+    multi_seed_golub_kahan_estimate(evaluation; seed_count = 4, steps = 20, kwargs...)
+
+Run independent deterministic Golub--Kahan projections and consolidate only
+projected-null candidates that pass a direct full-Jacobian residual test. The
+result records cross-seed subspace agreement and a hard basis-storage guard.
+It remains a candidate screen: an empty candidate span does not establish full
+rank, and `candidate_span_rank` is not a nullity estimate.
+"""
+function multi_seed_golub_kahan_estimate(
+    evaluation::NumericalEvaluation{T};
+    seed_count::Integer = 4,
+    steps::Integer = 20,
+    residual_relative_tolerance::Real = sqrt(eps(T)),
+    candidate_span_relative_tolerance::Real = sqrt(eps(T)),
+    seed_agreement_threshold::Real = 0.98,
+    max_basis_entries::Integer = 1_000_000,
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
+    kwargs...,
+) where {T<:AbstractFloat}
+    seed_count > 0 || throw(ArgumentError("seed_count must be positive"))
+    steps > 0 || throw(ArgumentError("steps must be positive"))
+    max_basis_entries >= 0 || throw(ArgumentError(
+        "max_basis_entries must be nonnegative",
+    ))
+    seed_count <= typemax(Int) || throw(ArgumentError("seed_count is too large"))
+    steps <= typemax(Int) || throw(ArgumentError("steps is too large"))
+    max_basis_entries <= typemax(Int) || throw(ArgumentError(
+        "max_basis_entries is too large",
+    ))
+    residual_tolerance = T(residual_relative_tolerance)
+    span_tolerance = T(candidate_span_relative_tolerance)
+    agreement_threshold = T(seed_agreement_threshold)
+    isfinite(residual_tolerance) && residual_tolerance >= zero(T) ||
+        throw(ArgumentError("residual_relative_tolerance must be finite and nonnegative"))
+    isfinite(span_tolerance) && span_tolerance >= zero(T) ||
+        throw(ArgumentError("candidate_span_relative_tolerance must be finite and nonnegative"))
+    isfinite(agreement_threshold) && zero(T) <= agreement_threshold <= one(T) ||
+        throw(ArgumentError("seed_agreement_threshold must lie in [0, 1]"))
+
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    requested_seeds = Int(seed_count)
+    requested_steps = Int(steps)
+    maximum_steps = min(requested_steps, columns, rows + 1)
+    estimated_entries_wide = big(requested_seeds) *
+        (big(rows) * maximum_steps + big(columns) * (maximum_steps + 1))
+    estimated_entries = estimated_entries_wide > typemax(Int) ?
+        typemax(Int) : Int(estimated_entries_wide)
+    empty_estimates = GolubKahanRitzEstimate{T}[]
+    unavailable(reason) = MultiSeedGolubKahanEstimate{T}(
+        false, String(reason), evaluation.point, requested_seeds, 0,
+        requested_steps, operator.source, residual_tolerance, span_tolerance,
+        empty_estimates, Int[],
+        zeros(T, columns, 0), T[], Int[], zeros(T, columns, 0), T[], 0,
+        T[], zero(T), 0, 0, nothing, agreement_threshold,
+        estimated_entries, Int(max_basis_entries),
+    )
+    operator.available || return unavailable(something(operator.reason, "operator unavailable"))
+    estimated_entries_wide <= max_basis_entries || return unavailable(
+        "estimated Golub--Kahan basis storage $estimated_entries_wide entries exceeds max_basis_entries=$(Int(max_basis_entries))",
+    )
+
+    estimates = GolubKahanRitzEstimate{T}[]
+    counts = Int[]
+    retained = Matrix{T}[]
+    retained_residuals = T[]
+    sources = Int[]
+    per_seed = Matrix{T}[]
+    for seed_index in 1:requested_seeds
+        estimate = golub_kahan_ritz_estimate(
+            evaluation;
+            steps = requested_steps,
+            seed = _golub_kahan_seed(T, columns, seed_index),
+            operator = operator,
+            kwargs...,
+        )
+        push!(estimates, estimate)
+        if !estimate.available
+            push!(counts, 0)
+            push!(per_seed, zeros(T, columns, 0))
+            continue
+        end
+        selected = findall(
+            value -> value <= residual_tolerance,
+            estimate.projected_right_null_relative_residual_norms,
+        )
+        directions = estimate.projected_right_null_directions[:, selected]
+        push!(counts, length(selected))
+        push!(per_seed, directions)
+        isempty(selected) || push!(retained, directions)
+        append!(retained_residuals,
+                estimate.projected_right_null_relative_residual_norms[selected])
+        append!(sources, fill(seed_index, length(selected)))
+    end
+    available_count = count(estimate -> estimate.available, estimates)
+    available_count > 0 || return unavailable(
+        join(unique(something(estimate.reason, "projection unavailable") for estimate in estimates), "; "),
+    )
+    retained_matrix = isempty(retained) ? zeros(T, columns, 0) : hcat(retained...)
+    basis, basis_residuals, span_values, span_threshold = _candidate_basis(
+        operator, retained_matrix, span_tolerance,
+    )
+
+    comparable_pairs = 0
+    agreeing_pairs = 0
+    minimum_cosine = nothing
+    for left_index in 1:(requested_seeds - 1), right_index in (left_index + 1):requested_seeds
+        left = per_seed[left_index]
+        right = per_seed[right_index]
+        (size(left, 2) == 0 || size(right, 2) == 0) && continue
+        comparable_pairs += 1
+        cosines = _principal_cosines(left, right)
+        pair_minimum = isempty(cosines) ? zero(T) : minimum(cosines)
+        minimum_cosine = isnothing(minimum_cosine) ? pair_minimum :
+            min(minimum_cosine, pair_minimum)
+        size(left, 2) == size(right, 2) &&
+            pair_minimum >= agreement_threshold && (agreeing_pairs += 1)
+    end
+    return MultiSeedGolubKahanEstimate{T}(
+        true, nothing, evaluation.point, requested_seeds, available_count,
+        requested_steps, operator.source, residual_tolerance, span_tolerance,
+        estimates, counts, retained_matrix,
+        retained_residuals, sources, basis, basis_residuals, size(basis, 2),
+        span_values, span_threshold, comparable_pairs, agreeing_pairs,
+        minimum_cosine, agreement_threshold, estimated_entries,
+        Int(max_basis_entries),
+    )
+end
+
+function _orthonormal_trial_basis(
+    trial::AbstractMatrix{T}, relative_tolerance::T,
+) where {T<:AbstractFloat}
+    size(trial, 2) == 0 && return zeros(T, size(trial, 1), 0)
+    factor = svd(trial; full = false)
+    threshold = relative_tolerance * maximum(factor.S; init = zero(T))
+    rank = count(value -> value > threshold, factor.S)
+    return rank == 0 ? zeros(T, size(trial, 1), 0) :
+        Matrix(factor.U[:, 1:rank])
+end
+
+function _smallest_candidate_audit(
+    operator::JacobianLinearOperator{T},
+    directions::AbstractMatrix{T},
+    matrix_norm::T,
+) where {T<:AbstractFloat}
+    dimension = size(directions, 2)
+    left = zeros(T, operator.rows, dimension)
+    singular_values = zeros(T, dimension)
+    operator_residuals = zeros(T, dimension)
+    relative_operator_residuals = zeros(T, dimension)
+    normal_residuals = zeros(T, dimension)
+    relative_normal_residuals = zeros(T, dimension)
+    backward_errors = zeros(T, dimension)
+    normal_scale = max(matrix_norm^2, eps(T))
+    for index in 1:dimension
+        direction = view(directions, :, index)
+        av = jacobian_product(operator, direction)
+        sigma = norm(av)
+        singular_values[index] = sigma
+        operator_residuals[index] = sigma
+        relative_operator_residuals[index] = _relative_residual(
+            sigma, matrix_norm, norm(direction),
+        )
+        normal_product = jacobian_transpose_product(operator, av)
+        normal_residual = norm(normal_product - sigma^2 .* direction)
+        normal_residuals[index] = normal_residual
+        relative_normal_residuals[index] = normal_residual /
+            max(normal_scale, sigma^2, eps(T))
+        if sigma > eps(T) * max(one(T), matrix_norm)
+            left[:, index] .= av ./ sigma
+            dual_residual = norm(
+                jacobian_transpose_product(operator, view(left, :, index)) -
+                sigma .* direction,
+            )
+            backward_errors[index] = dual_residual /
+                max(matrix_norm, sigma, eps(T))
+        else
+            # A near-null right direction has no stable associated left
+            # singular vector. Its directly scaled J*v residual is the useful
+            # candidate evidence.
+            backward_errors[index] = relative_operator_residuals[index]
+        end
+    end
+    return (
+        left, singular_values, operator_residuals, relative_operator_residuals,
+        normal_residuals, relative_normal_residuals, backward_errors,
+    )
+end
+
+"""
+    restarted_smallest_singular_candidates(evaluation; dimension = 1, kwargs...)
+
+Track a candidate smallest right-singular subspace using restarted locally
+optimal Rayleigh--Ritz steps on a matrix-free normal operator. Each cycle uses
+only `J*v` and `J'*u`, retains singular-value, normal-residual, backward-error,
+and principal-angle histories, and enforces an explicit trial-basis work guard.
+
+This method does not form `J'J`, but its spectrum is still squared. Convergence
+therefore establishes only a stationary candidate subspace for the requested
+finite-precision policy; it is not a numerical-rank certificate.
+"""
+function restarted_smallest_singular_candidates(
+    evaluation::NumericalEvaluation{T};
+    dimension::Integer = 1,
+    iterations::Integer = 50,
+    minimum_iterations::Integer = 2,
+    convergence_tolerance::Real = sqrt(eps(T)),
+    subspace_alignment_threshold::Real = 0.999,
+    trial_basis_relative_tolerance::Real = 10 * eps(T),
+    max_basis_entries::Integer = 1_000_000,
+    initial_directions::Union{Nothing,AbstractMatrix{<:Real}} = nothing,
+    matrix_norm::Symbol = :frobenius,
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
+) where {T<:AbstractFloat}
+    dimension > 0 || throw(ArgumentError("dimension must be positive"))
+    iterations > 0 || throw(ArgumentError("iterations must be positive"))
+    minimum_iterations > 0 || throw(ArgumentError(
+        "minimum_iterations must be positive",
+    ))
+    minimum_iterations <= iterations || throw(ArgumentError(
+        "minimum_iterations must not exceed iterations",
+    ))
+    max_basis_entries >= 0 || throw(ArgumentError(
+        "max_basis_entries must be nonnegative",
+    ))
+    for (name, value) in (
+        ("dimension", dimension), ("iterations", iterations),
+        ("minimum_iterations", minimum_iterations),
+        ("max_basis_entries", max_basis_entries),
+    )
+        value <= typemax(Int) || throw(ArgumentError("$name is too large"))
+    end
+    convergence_tol = T(convergence_tolerance)
+    alignment_threshold = T(subspace_alignment_threshold)
+    basis_tolerance = T(trial_basis_relative_tolerance)
+    isfinite(convergence_tol) && convergence_tol >= zero(T) ||
+        throw(ArgumentError("convergence_tolerance must be finite and nonnegative"))
+    isfinite(alignment_threshold) && zero(T) <= alignment_threshold <= one(T) ||
+        throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    isfinite(basis_tolerance) && basis_tolerance >= zero(T) ||
+        throw(ArgumentError("trial_basis_relative_tolerance must be finite and nonnegative"))
+
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    requested_dimension = Int(dimension)
+    requested_iterations = Int(iterations)
+    minimum_iteration_count = Int(minimum_iterations)
+    requested_dimension <= columns || throw(ArgumentError(
+        "dimension $requested_dimension exceeds the $columns Jacobian columns",
+    ))
+    estimated_entries_wide = big(columns) * (6 * requested_dimension) +
+        big(rows) * (3 * requested_dimension) +
+        big(3) * requested_dimension * requested_iterations
+    estimated_entries = estimated_entries_wide > typemax(Int) ?
+        typemax(Int) : Int(estimated_entries_wide)
+    empty_history = zeros(T, requested_dimension, 0)
+    unavailable(reason) = RestartedSmallestSingularCandidateEstimate{T}(
+        false, String(reason), evaluation.point, requested_dimension,
+        requested_iterations, 0, minimum_iteration_count, false, operator.source, :unavailable,
+        empty_history, empty_history, empty_history,
+        Union{Nothing,T}[], zeros(T, columns, 0), zeros(T, rows, 0),
+        T[], T[], T[], T[], T[], T[], nothing, nothing, convergence_tol,
+        alignment_threshold, basis_tolerance, estimated_entries,
+        Int(max_basis_entries),
+    )
+    rows > 0 || return unavailable("Jacobian has no constraint rows")
+    columns > 0 || return unavailable("Jacobian has no variable columns")
+    operator.available || return unavailable(something(operator.reason, "operator unavailable"))
+    operator.point == evaluation.point || throw(ArgumentError(
+        "Jacobian operator and evaluation points do not match",
+    ))
+    estimated_entries_wide <= max_basis_entries || return unavailable(
+        "estimated restarted trial storage $estimated_entries_wide entries exceeds max_basis_entries=$(Int(max_basis_entries))",
+    )
+    norm_value = T(_matrix_norm(operator.assembled_matrix, matrix_norm))
+    isfinite(norm_value) || return unavailable("Jacobian matrix norm is non-finite")
+
+    initial = if isnothing(initial_directions)
+        hcat((
+            _golub_kahan_seed(T, columns, seed_index)
+            for seed_index in 1:requested_dimension
+        )...)
+    else
+        size(initial_directions) == (columns, requested_dimension) ||
+            throw(DimensionMismatch(
+                "initial_directions has size $(size(initial_directions)); expected ($columns, $requested_dimension)",
+            ))
+        T.(initial_directions)
+    end
+    all(isfinite, initial) || throw(ArgumentError(
+        "initial_directions must contain only finite values",
+    ))
+    X = _orthonormal_trial_basis(initial, basis_tolerance)
+    size(X, 2) == requested_dimension || throw(ArgumentError(
+        "initial_directions do not span the requested dimension",
+    ))
+    previous_search = zeros(T, columns, 0)
+    previous_directions = nothing
+    singular_histories = Vector{Vector{T}}()
+    normal_histories = Vector{Vector{T}}()
+    backward_histories = Vector{Vector{T}}()
+    alignments = Union{Nothing,T}[]
+    converged = false
+    breakdown = :iteration_limit
+    completed = 0
+    final_audit = nothing
+
+    for iteration in 1:requested_iterations
+        AX = _jacobian_products(operator, X)
+        normal_products = hcat((
+            jacobian_transpose_product(operator, view(AX, :, index))
+            for index in axes(AX, 2)
+        )...)
+        projected = Symmetric(
+            (transpose(X) * normal_products +
+             transpose(normal_products) * X) ./ 2,
+        )
+        factor = eigen(projected)
+        order = sortperm(factor.values)
+        rotation = Matrix(factor.vectors[:, order])
+        X = X * rotation
+        audit = _smallest_candidate_audit(operator, X, norm_value)
+        final_audit = audit
+        push!(singular_histories, copy(audit[2]))
+        push!(normal_histories, copy(audit[6]))
+        push!(backward_histories, copy(audit[7]))
+        alignment = if isnothing(previous_directions)
+            nothing
+        else
+            cosines = _principal_cosines(previous_directions, X)
+            isempty(cosines) ? zero(T) : minimum(cosines)
+        end
+        push!(alignments, alignment)
+        completed = iteration
+        if iteration >= minimum_iteration_count &&
+           maximum(audit[6]; init = zero(T)) <= convergence_tol &&
+           !isnothing(alignment) && alignment >= alignment_threshold
+            converged = true
+            breakdown = :converged
+            break
+        end
+        iteration == requested_iterations && break
+        previous_directions = copy(X)
+
+        residual = hcat((
+            jacobian_transpose_product(
+                operator, jacobian_product(operator, view(X, :, index)),
+            ) - audit[2][index]^2 .* view(X, :, index)
+            for index in axes(X, 2)
+        )...)
+        trial = hcat(X, residual, previous_search)
+        basis = _orthonormal_trial_basis(trial, basis_tolerance)
+        if size(basis, 2) <= requested_dimension
+            if maximum(audit[6]; init = zero(T)) <= convergence_tol
+                converged = true
+                breakdown = :exact_invariant_subspace
+            else
+                breakdown = :trial_subspace_stagnation
+            end
+            break
+        end
+        AB = _jacobian_products(operator, basis)
+        local_factor = eigen(Symmetric(transpose(AB) * AB))
+        local_order = sortperm(local_factor.values)
+        selected = local_order[1:requested_dimension]
+        next_directions = basis * Matrix(local_factor.vectors[:, selected])
+        previous_search = next_directions - X * (transpose(X) * next_directions)
+        next_basis = _orthonormal_trial_basis(next_directions, basis_tolerance)
+        size(next_basis, 2) == requested_dimension || begin
+            breakdown = :candidate_subspace_rank_loss
+            break
+        end
+        X = next_basis
+    end
+
+    isnothing(final_audit) && return unavailable(
+        "restarted candidate audit did not complete",
+    )
+    singular_history = isempty(singular_histories) ? empty_history :
+        hcat(singular_histories...)
+    normal_history = isempty(normal_histories) ? empty_history :
+        hcat(normal_histories...)
+    backward_history = isempty(backward_histories) ? empty_history :
+        hcat(backward_histories...)
+    return RestartedSmallestSingularCandidateEstimate{T}(
+        true, nothing, evaluation.point, requested_dimension,
+        requested_iterations, completed, minimum_iteration_count, converged, operator.source,
+        breakdown, singular_history, normal_history, backward_history,
+        alignments, X, final_audit[1], final_audit[2], final_audit[3],
+        final_audit[4], final_audit[5], final_audit[6], final_audit[7],
+        norm_value, _gk_orthogonality_loss(X), convergence_tol,
+        alignment_threshold, basis_tolerance, estimated_entries,
+        Int(max_basis_entries),
+    )
+end
+
+"""
+    restarted_smallest_singular_dense_calibration(evaluation; kwargs...)
+
+Compare the restarted candidate subspace with a guarded dense SVD in original
+Jacobian coordinates. The comparison is intended for a small adversarial
+oracle corpus and is unavailable when the dense-entry guard is exceeded.
+"""
+function _target_relative_singular_value_errors(
+    candidate_values::AbstractVector{T},
+    dense_values::AbstractVector{T},
+    global_scale::T,
+) where {T<:AbstractFloat}
+    floor = eps(T) * max(global_scale, one(T))
+    denominators = all(iszero, dense_values) ?
+        fill(max(global_scale, one(T)), length(dense_values)) :
+        max.(abs.(dense_values), floor)
+    return abs.(candidate_values - dense_values) ./ denominators
+end
+
+function _dense_target_numerically_resolved(
+    dense_values::AbstractVector{T},
+    global_scale::T,
+    rows::Int,
+    columns::Int,
+) where {T<:AbstractFloat}
+    all(iszero, dense_values) && return true
+    resolution_floor = eps(T) * max(global_scale, one(T)) * max(rows, columns)
+    return minimum(abs, dense_values; init = T(Inf)) > resolution_floor
+end
+
+function _dense_target_subspace_unique(
+    sorted_values::AbstractVector{T},
+    requested_dimension::Int,
+    columns::Int,
+    relative_tolerance::T,
+    global_scale::T,
+) where {T<:AbstractFloat}
+    requested_dimension == columns && return true
+    lower = sorted_values[requested_dimension]
+    upper = sorted_values[requested_dimension + 1]
+    local_scale = max(abs(lower), abs(upper), eps(T) * max(global_scale, one(T)))
+    return abs(upper - lower) > relative_tolerance * local_scale
+end
+
+function restarted_smallest_singular_dense_calibration(
+    evaluation::NumericalEvaluation{T};
+    dimension::Integer = 1,
+    dense_max_entries::Integer = 4_000_000,
+    singular_value_relative_tolerance::Real = 1.0e-6,
+    subspace_alignment_threshold::Real = 0.98,
+    kwargs...,
+) where {T<:AbstractFloat}
+    dense_max_entries >= 0 || throw(ArgumentError(
+        "dense_max_entries must be nonnegative",
+    ))
+    dense_max_entries <= typemax(Int) || throw(ArgumentError(
+        "dense_max_entries is too large",
+    ))
+    value_tolerance = T(singular_value_relative_tolerance)
+    alignment_threshold = T(subspace_alignment_threshold)
+    isfinite(value_tolerance) && value_tolerance >= zero(T) ||
+        throw(ArgumentError(
+            "singular_value_relative_tolerance must be finite and nonnegative",
+        ))
+    isfinite(alignment_threshold) && zero(T) <= alignment_threshold <= one(T) ||
+        throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    estimate = restarted_smallest_singular_candidates(
+        evaluation; dimension = dimension,
+        subspace_alignment_threshold = alignment_threshold, kwargs...,
+    )
+    requested_dimension = Int(dimension)
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    unavailable(reason) = RestartedSmallestSingularDenseCalibration{T}(
+        false, String(reason), evaluation.point, :unavailable, estimate, T[],
+        zeros(T, columns, 0), T[], nothing, false, false, value_tolerance,
+        alignment_threshold, Int(dense_max_entries),
+    )
+    estimate.available || return unavailable(
+        "candidate estimate unavailable: $(something(estimate.reason, "unknown reason"))",
+    )
+    big(rows) * columns <= dense_max_entries || return unavailable(
+        "dense Jacobian would contain $(big(rows) * columns) entries, exceeding guard $(Int(dense_max_entries))",
+    )
+    incomplete_rows = findall(
+        method -> method in _JACOBIAN_INCOMPLETE_METHODS,
+        evaluation.jacobian_row_methods,
+    )
+    isempty(incomplete_rows) || return unavailable(
+        "Jacobian rows $(join(incomplete_rows, ',')) are incomplete",
+    )
+    matrix = _combined_jacobian_matrix(evaluation)
+    all(isfinite, matrix) || return unavailable(
+        "Jacobian contains non-finite combined entries",
+    )
+    factor = svd(matrix; full = true)
+    all_values = vcat(T.(factor.S), zeros(T, columns - length(factor.S)))
+    order = sortperm(all_values)
+    selected = order[1:requested_dimension]
+    dense_values = all_values[selected]
+    dense_directions = Matrix(factor.V[:, selected])
+    candidate_order = sortperm(estimate.singular_values)
+    candidate_values = estimate.singular_values[candidate_order]
+    candidate_directions = estimate.directions[:, candidate_order]
+    scale = max(maximum(T.(factor.S); init = zero(T)), eps(T))
+    sorted_dense_values = sort(all_values)
+    target_subspace_unique = _dense_target_subspace_unique(
+        sorted_dense_values, requested_dimension, columns, value_tolerance,
+        scale,
+    )
+    relative_errors = _target_relative_singular_value_errors(
+        candidate_values, dense_values, scale,
+    )
+    target_numerically_resolved = _dense_target_numerically_resolved(
+        dense_values, scale, rows, columns,
+    )
+    cosines = _principal_cosines(dense_directions, candidate_directions)
+    minimum_cosine = isempty(cosines) ? nothing : minimum(cosines)
+    relation = if !estimate.converged
+        :candidate_unconverged
+    elseif !target_numerically_resolved
+        :dense_target_numerically_unresolved
+    elseif maximum(relative_errors; init = zero(T)) > value_tolerance
+        :singular_value_disagreement
+    elseif target_subspace_unique &&
+           something(minimum_cosine, zero(T)) < alignment_threshold
+        :subspace_disagreement
+    elseif !target_subspace_unique
+        :agreement_nonunique_subspace
+    else
+        :agreement
+    end
+    return RestartedSmallestSingularDenseCalibration{T}(
+        true, nothing, evaluation.point, relation, estimate, dense_values,
+        dense_directions, relative_errors, minimum_cosine,
+        target_subspace_unique, target_numerically_resolved, value_tolerance,
+        alignment_threshold, Int(dense_max_entries),
+    )
+end
+
+function _golub_kahan_trial_space(
+    evaluation::NumericalEvaluation{T},
+    operator::JacobianLinearOperator{T},
+    seeds::AbstractVector{<:AbstractVector{<:Real}},
+    steps::Int,
+    basis_tolerance::T,
+) where {T<:AbstractFloat}
+    spaces = Matrix{T}[]
+    for seed in seeds
+        estimate = golub_kahan_ritz_estimate(
+            evaluation; steps = steps, seed = seed, operator = operator,
+        )
+        estimate.available || return nothing, estimate.reason
+        space = hcat(
+            estimate.right_directions,
+            estimate.projected_right_null_directions,
+        )
+        size(space, 2) == 0 || push!(spaces, space)
+    end
+    isempty(spaces) && return nothing, "Golub--Kahan seeds generated no right trial space"
+    basis = _orthonormal_trial_basis(hcat(spaces...), basis_tolerance)
+    return basis, nothing
+end
+
+function _harmonic_zero_target_extract(
+    operator::JacobianLinearOperator{T},
+    basis::Matrix{T},
+    retained_dimension::Int,
+    metric_tolerance::T,
+    matrix_norm::T,
+) where {T<:AbstractFloat}
+    AB = _jacobian_products(operator, basis)
+    normal_products = hcat((
+        jacobian_transpose_product(operator, view(AB, :, index))
+        for index in axes(AB, 2)
+    )...)
+    metric_matrix = transpose(AB) * AB
+    metric = Symmetric((metric_matrix + transpose(metric_matrix)) ./ 2)
+    squared_metric_matrix = transpose(normal_products) * normal_products
+    squared_metric = Symmetric(
+        (squared_metric_matrix + transpose(squared_metric_matrix)) ./ 2,
+    )
+    metric_factor = eigen(metric)
+    metric_values = max.(T.(metric_factor.values), zero(T))
+    metric_scale = maximum(metric_values; init = zero(T))
+    threshold = metric_tolerance * metric_scale
+    positive = findall(value -> value > threshold, metric_values)
+    null_indices = findall(value -> value <= threshold, metric_values)
+    candidates = Matrix{T}[]
+    harmonic_values = T[]
+    if !isempty(null_indices)
+        push!(candidates, basis * Matrix(metric_factor.vectors[:, null_indices]))
+        append!(harmonic_values, zeros(T, length(null_indices)))
+    end
+    if !isempty(positive)
+        transform = Matrix(metric_factor.vectors[:, positive]) *
+            Diagonal(inv.(sqrt.(metric_values[positive])))
+        harmonic_projection = Symmetric(
+            transpose(transform) * Matrix(squared_metric) * transform,
+        )
+        harmonic_factor = eigen(harmonic_projection)
+        order = sortperm(harmonic_factor.values)
+        positive_vectors = transform * Matrix(harmonic_factor.vectors[:, order])
+        push!(candidates, basis * positive_vectors)
+        append!(harmonic_values,
+                sqrt.(max.(T.(harmonic_factor.values[order]), zero(T))))
+    end
+    directions = isempty(candidates) ? zeros(T, size(basis, 1), 0) :
+        hcat(candidates...)
+    # Do not orthogonalize the harmonic Ritz vectors as a block here. A block
+    # SVD would rotate candidates belonging to distinct projected values and
+    # sever the link between each direction, its harmonic value, and its direct
+    # singular-triplet audit. Individual normalization preserves that evidence.
+    valid = Int[]
+    for index in axes(directions, 2)
+        direction_norm = norm(view(directions, :, index))
+        if isfinite(direction_norm) && direction_norm > eps(T)
+            directions[:, index] ./= direction_norm
+            push!(valid, index)
+        end
+    end
+    directions = directions[:, valid]
+    harmonic_values = harmonic_values[valid]
+    audit = _smallest_candidate_audit(operator, directions, matrix_norm)
+    order = sortperm(audit[2])
+    keep = min(retained_dimension, length(order))
+    selected = order[1:keep]
+    directions = directions[:, selected]
+    harmonic_values = harmonic_values[selected]
+    # Recompute after the final orthogonal selection so every retained column's
+    # direct evidence matches the returned direction exactly.
+    audit = _smallest_candidate_audit(operator, directions, matrix_norm)
+    metric_rank = length(positive)
+    metric_condition = isempty(positive) ? nothing :
+        maximum(metric_values[positive]) / minimum(metric_values[positive])
+    return directions, harmonic_values, audit, metric_rank, metric_condition
+end
+
+"""
+    harmonic_golub_kahan_candidates(evaluation; dimension = 1, kwargs...)
+
+Use thick-restarted Golub--Kahan trial spaces and a zero-target harmonic
+generalized projection to track candidate smallest singular directions. The
+method retains direct singular-triplet audits and refuses convergence without
+residual, value-history, and principal-angle stability.
+"""
+function harmonic_golub_kahan_candidates(
+    evaluation::NumericalEvaluation{T};
+    dimension::Integer = 1,
+    steps_per_seed::Integer = 6,
+    cycles::Integer = 8,
+    retained_dimension::Integer = max(Int(dimension) + 1, 2),
+    minimum_cycles::Integer = 2,
+    convergence_tolerance::Real = sqrt(eps(T)),
+    value_change_tolerance::Real = sqrt(eps(T)),
+    subspace_alignment_threshold::Real = 0.999,
+    projected_metric_relative_tolerance::Real = 10 * eps(T),
+    trial_basis_relative_tolerance::Real = 10 * eps(T),
+    max_basis_entries::Integer = 1_000_000,
+    initial_directions::Union{Nothing,AbstractMatrix{<:Real}} = nothing,
+    matrix_norm::Symbol = :frobenius,
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
+) where {T<:AbstractFloat}
+    for (name, value) in (
+        ("dimension", dimension), ("steps_per_seed", steps_per_seed),
+        ("cycles", cycles), ("retained_dimension", retained_dimension),
+        ("minimum_cycles", minimum_cycles),
+    )
+        value > 0 || throw(ArgumentError("$name must be positive"))
+        value <= typemax(Int) || throw(ArgumentError("$name is too large"))
+    end
+    retained_dimension >= dimension || throw(ArgumentError(
+        "retained_dimension must be at least dimension",
+    ))
+    minimum_cycles <= cycles || throw(ArgumentError(
+        "minimum_cycles must not exceed cycles",
+    ))
+    max_basis_entries >= 0 || throw(ArgumentError(
+        "max_basis_entries must be nonnegative",
+    ))
+    max_basis_entries <= typemax(Int) || throw(ArgumentError(
+        "max_basis_entries is too large",
+    ))
+    requested_dimension = Int(dimension)
+    steps = Int(steps_per_seed)
+    requested_cycles = Int(cycles)
+    retained = Int(retained_dimension)
+    minimum_cycle_count = Int(minimum_cycles)
+    convergence_tol = T(convergence_tolerance)
+    value_tolerance = T(value_change_tolerance)
+    alignment_threshold = T(subspace_alignment_threshold)
+    metric_tolerance = T(projected_metric_relative_tolerance)
+    basis_tolerance = T(trial_basis_relative_tolerance)
+    for (name, value) in (
+        ("convergence_tolerance", convergence_tol),
+        ("value_change_tolerance", value_tolerance),
+        ("projected_metric_relative_tolerance", metric_tolerance),
+        ("trial_basis_relative_tolerance", basis_tolerance),
+    )
+        isfinite(value) && value >= zero(T) || throw(ArgumentError(
+            "$name must be finite and nonnegative",
+        ))
+    end
+    isfinite(alignment_threshold) && zero(T) <= alignment_threshold <= one(T) ||
+        throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    requested_dimension <= columns || throw(ArgumentError(
+        "dimension $requested_dimension exceeds the $columns Jacobian columns",
+    ))
+    retained = min(retained, columns)
+    estimated_entries_wide =
+        big(retained) * steps * (big(rows) + columns) +
+        big(retained) * (big(rows) + 4 * columns) +
+        big(3) * requested_dimension * requested_cycles
+    estimated_entries = estimated_entries_wide > typemax(Int) ?
+        typemax(Int) : Int(estimated_entries_wide)
+    empty_history = zeros(T, requested_dimension, 0)
+    unavailable(reason) = HarmonicGolubKahanCandidateEstimate{T}(
+        false, String(reason), evaluation.point, requested_dimension, steps,
+        requested_cycles, 0, retained, minimum_cycle_count, false,
+        operator.source, :unavailable, Int[], Int[], Union{Nothing,T}[],
+        empty_history, empty_history, empty_history, Union{Nothing,T}[],
+        Union{Nothing,T}[], zeros(T, columns, 0), zeros(T, rows, 0), T[],
+        T[], T[], T[], T[], nothing, nothing, convergence_tol,
+        value_tolerance, alignment_threshold, metric_tolerance,
+        basis_tolerance, estimated_entries, Int(max_basis_entries),
+    )
+    rows > 0 || return unavailable("Jacobian has no constraint rows")
+    columns > 0 || return unavailable("Jacobian has no variable columns")
+    operator.available || return unavailable(something(operator.reason, "operator unavailable"))
+    operator.point == evaluation.point || throw(ArgumentError(
+        "Jacobian operator and evaluation points do not match",
+    ))
+    estimated_entries_wide <= max_basis_entries || return unavailable(
+        "estimated harmonic Golub--Kahan storage $estimated_entries_wide entries exceeds max_basis_entries=$(Int(max_basis_entries))",
+    )
+    norm_value = T(_matrix_norm(operator.assembled_matrix, matrix_norm))
+    isfinite(norm_value) || return unavailable("Jacobian matrix norm is non-finite")
+
+    seeds = if isnothing(initial_directions)
+        [
+            _golub_kahan_seed(T, columns, seed_index)
+            for seed_index in 1:requested_dimension
+        ]
+    else
+        size(initial_directions, 1) == columns || throw(DimensionMismatch(
+            "initial_directions has $(size(initial_directions, 1)) rows; expected $columns",
+        ))
+        size(initial_directions, 2) >= requested_dimension || throw(ArgumentError(
+            "initial_directions must contain at least $requested_dimension columns",
+        ))
+        converted = T.(initial_directions)
+        all(isfinite, converted) || throw(ArgumentError(
+            "initial_directions must contain only finite values",
+        ))
+        [copy(view(converted, :, index)) for index in axes(converted, 2)]
+    end
+    trial_dimensions = Int[]
+    metric_ranks = Int[]
+    metric_conditions = Union{Nothing,T}[]
+    harmonic_histories = Vector{Vector{T}}()
+    singular_histories = Vector{Vector{T}}()
+    backward_histories = Vector{Vector{T}}()
+    alignments = Union{Nothing,T}[]
+    value_changes = Union{Nothing,T}[]
+    previous_directions = nothing
+    previous_values = nothing
+    completed = 0
+    converged = false
+    breakdown = :cycle_limit
+    final_directions = zeros(T, columns, 0)
+    final_harmonic = T[]
+    final_audit = nothing
+
+    for cycle in 1:requested_cycles
+        basis, reason = _golub_kahan_trial_space(
+            evaluation, operator, seeds, steps, basis_tolerance,
+        )
+        isnothing(basis) && return unavailable(something(reason, "trial space unavailable"))
+        if size(basis, 2) < requested_dimension
+            breakdown = :trial_subspace_rank_loss
+            break
+        end
+        directions, harmonic_values, audit, metric_rank, metric_condition =
+            _harmonic_zero_target_extract(
+                operator, basis, retained, metric_tolerance, norm_value,
+            )
+        if size(directions, 2) < requested_dimension
+            breakdown = :harmonic_candidate_rank_loss
+            break
+        end
+        requested_directions = directions[:, 1:requested_dimension]
+        requested_audit = _smallest_candidate_audit(
+            operator, requested_directions, norm_value,
+        )
+        requested_harmonic = harmonic_values[1:requested_dimension]
+        push!(trial_dimensions, size(basis, 2))
+        push!(metric_ranks, metric_rank)
+        push!(metric_conditions, metric_condition)
+        push!(harmonic_histories, copy(requested_harmonic))
+        push!(singular_histories, copy(requested_audit[2]))
+        push!(backward_histories, copy(requested_audit[7]))
+        alignment = if isnothing(previous_directions)
+            nothing
+        else
+            cosines = _principal_cosines(
+                previous_directions, requested_directions,
+            )
+            isempty(cosines) ? zero(T) : minimum(cosines)
+        end
+        value_change = if isnothing(previous_values)
+            nothing
+        else
+            maximum(abs.(requested_audit[2] - previous_values); init = zero(T)) /
+                max(norm_value, maximum(requested_audit[2]; init = zero(T)), eps(T))
+        end
+        push!(alignments, alignment)
+        push!(value_changes, value_change)
+        completed = cycle
+        final_directions = requested_directions
+        final_harmonic = requested_harmonic
+        final_audit = requested_audit
+        if cycle >= minimum_cycle_count &&
+           maximum(requested_audit[7]; init = zero(T)) <= convergence_tol &&
+           !isnothing(alignment) && alignment >= alignment_threshold &&
+           !isnothing(value_change) && value_change <= value_tolerance
+            converged = true
+            breakdown = :converged
+            break
+        end
+        previous_directions = copy(requested_directions)
+        previous_values = copy(requested_audit[2])
+        seeds = [copy(view(directions, :, index)) for index in axes(directions, 2)]
+    end
+    isnothing(final_audit) && return unavailable(
+        "harmonic Golub--Kahan candidate audit did not complete ($breakdown)",
+    )
+    return HarmonicGolubKahanCandidateEstimate{T}(
+        true, nothing, evaluation.point, requested_dimension, steps,
+        requested_cycles, completed, retained, minimum_cycle_count, converged,
+        operator.source, breakdown, trial_dimensions, metric_ranks,
+        metric_conditions, hcat(harmonic_histories...),
+        hcat(singular_histories...), hcat(backward_histories...), alignments,
+        value_changes, final_directions, final_audit[1], final_harmonic,
+        final_audit[2], final_audit[4], final_audit[6], final_audit[7],
+        norm_value, _gk_orthogonality_loss(final_directions), convergence_tol,
+        value_tolerance, alignment_threshold, metric_tolerance,
+        basis_tolerance, estimated_entries, Int(max_basis_entries),
+    )
+end
+
+"""Guarded dense-SVD comparison for harmonic Golub--Kahan candidates."""
+function harmonic_golub_kahan_dense_calibration(
+    evaluation::NumericalEvaluation{T};
+    dimension::Integer = 1,
+    dense_max_entries::Integer = 4_000_000,
+    singular_value_relative_tolerance::Real = 1.0e-6,
+    subspace_alignment_threshold::Real = 0.98,
+    kwargs...,
+) where {T<:AbstractFloat}
+    dense_max_entries >= 0 || throw(ArgumentError(
+        "dense_max_entries must be nonnegative",
+    ))
+    dense_max_entries <= typemax(Int) || throw(ArgumentError(
+        "dense_max_entries is too large",
+    ))
+    value_tolerance = T(singular_value_relative_tolerance)
+    alignment_threshold = T(subspace_alignment_threshold)
+    isfinite(value_tolerance) && value_tolerance >= zero(T) ||
+        throw(ArgumentError(
+            "singular_value_relative_tolerance must be finite and nonnegative",
+        ))
+    isfinite(alignment_threshold) && zero(T) <= alignment_threshold <= one(T) ||
+        throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    estimate = harmonic_golub_kahan_candidates(
+        evaluation; dimension = dimension,
+        subspace_alignment_threshold = alignment_threshold, kwargs...,
+    )
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    requested_dimension = Int(dimension)
+    unavailable(reason) = HarmonicGolubKahanDenseCalibration{T}(
+        false, String(reason), evaluation.point, :unavailable, estimate, T[],
+        zeros(T, columns, 0), T[], nothing, false, false, value_tolerance,
+        alignment_threshold, Int(dense_max_entries),
+    )
+    estimate.available || return unavailable(
+        "candidate estimate unavailable: $(something(estimate.reason, "unknown reason"))",
+    )
+    big(rows) * columns <= dense_max_entries || return unavailable(
+        "dense Jacobian would contain $(big(rows) * columns) entries, exceeding guard $(Int(dense_max_entries))",
+    )
+    incomplete_rows = findall(
+        method -> method in _JACOBIAN_INCOMPLETE_METHODS,
+        evaluation.jacobian_row_methods,
+    )
+    isempty(incomplete_rows) || return unavailable(
+        "Jacobian rows $(join(incomplete_rows, ',')) are incomplete",
+    )
+    matrix = _combined_jacobian_matrix(evaluation)
+    all(isfinite, matrix) || return unavailable(
+        "Jacobian contains non-finite combined entries",
+    )
+    factor = svd(matrix; full = true)
+    all_values = vcat(T.(factor.S), zeros(T, columns - length(factor.S)))
+    order = sortperm(all_values)
+    selected = order[1:requested_dimension]
+    dense_values = all_values[selected]
+    dense_directions = Matrix(factor.V[:, selected])
+    candidate_order = sortperm(estimate.singular_values)
+    candidate_values = estimate.singular_values[candidate_order]
+    candidate_directions = estimate.directions[:, candidate_order]
+    scale = max(maximum(T.(factor.S); init = zero(T)), eps(T))
+    sorted_dense_values = sort(all_values)
+    target_subspace_unique = _dense_target_subspace_unique(
+        sorted_dense_values, requested_dimension, columns, value_tolerance,
+        scale,
+    )
+    relative_errors = _target_relative_singular_value_errors(
+        candidate_values, dense_values, scale,
+    )
+    target_numerically_resolved = _dense_target_numerically_resolved(
+        dense_values, scale, rows, columns,
+    )
+    cosines = _principal_cosines(dense_directions, candidate_directions)
+    minimum_cosine = isempty(cosines) ? nothing : minimum(cosines)
+    relation = if !estimate.converged
+        :candidate_unconverged
+    elseif !target_numerically_resolved
+        :dense_target_numerically_unresolved
+    elseif maximum(relative_errors; init = zero(T)) > value_tolerance
+        :singular_value_disagreement
+    elseif target_subspace_unique &&
+           something(minimum_cosine, zero(T)) < alignment_threshold
+        :subspace_disagreement
+    elseif !target_subspace_unique
+        :agreement_nonunique_subspace
+    else
+        :agreement
+    end
+    return HarmonicGolubKahanDenseCalibration{T}(
+        true, nothing, evaluation.point, relation, estimate, dense_values,
+        dense_directions, relative_errors, minimum_cosine,
+        target_subspace_unique, target_numerically_resolved, value_tolerance,
+        alignment_threshold,
+        Int(dense_max_entries),
+    )
+end
+
+"""
+    smallest_singular_backend_crosscheck(evaluation; dimension = 1, kwargs...)
+
+Compare the locally optimal normal-operator tracker with the zero-target
+harmonic Golub--Kahan tracker without forming a dense Jacobian. Agreement is
+finite-search evidence only; disagreement is classified by backend
+convergence, candidate values, and principal-angle alignment.
+"""
+function smallest_singular_backend_crosscheck(
+    evaluation::NumericalEvaluation{T};
+    dimension::Integer = 1,
+    restarted_iterations::Integer = 50,
+    restarted_minimum_iterations::Integer = 2,
+    restarted_convergence_tolerance::Real = sqrt(eps(T)),
+    restarted_alignment_threshold::Real = 0.999,
+    restarted_trial_basis_relative_tolerance::Real = 10 * eps(T),
+    harmonic_steps_per_seed::Integer = 6,
+    harmonic_cycles::Integer = 8,
+    harmonic_retained_dimension::Integer = max(Int(dimension) + 1, 2),
+    harmonic_minimum_cycles::Integer = 2,
+    harmonic_convergence_tolerance::Real = sqrt(eps(T)),
+    harmonic_value_change_tolerance::Real = sqrt(eps(T)),
+    harmonic_alignment_threshold::Real = 0.999,
+    harmonic_projected_metric_relative_tolerance::Real = 10 * eps(T),
+    harmonic_trial_basis_relative_tolerance::Real = 10 * eps(T),
+    singular_value_relative_tolerance::Real = 1.0e-4,
+    near_zero_relative_tolerance::Real = sqrt(eps(T)),
+    subspace_alignment_threshold::Real = 0.98,
+    max_basis_entries::Integer = 1_000_000,
+    matrix_norm::Symbol = :frobenius,
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
+) where {T<:AbstractFloat}
+    value_tolerance = T(singular_value_relative_tolerance)
+    zero_tolerance = T(near_zero_relative_tolerance)
+    alignment_threshold = T(subspace_alignment_threshold)
+    for (name, value) in (
+        ("singular_value_relative_tolerance", value_tolerance),
+        ("near_zero_relative_tolerance", zero_tolerance),
+    )
+        isfinite(value) && value >= zero(T) || throw(ArgumentError(
+            "$name must be finite and nonnegative",
+        ))
+    end
+    isfinite(alignment_threshold) && zero(T) <= alignment_threshold <= one(T) ||
+        throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    restarted = restarted_smallest_singular_candidates(
+        evaluation;
+        dimension = dimension,
+        iterations = restarted_iterations,
+        minimum_iterations = restarted_minimum_iterations,
+        convergence_tolerance = restarted_convergence_tolerance,
+        subspace_alignment_threshold = restarted_alignment_threshold,
+        trial_basis_relative_tolerance =
+            restarted_trial_basis_relative_tolerance,
+        max_basis_entries = max_basis_entries,
+        matrix_norm = matrix_norm,
+        operator = operator,
+    )
+    harmonic = harmonic_golub_kahan_candidates(
+        evaluation;
+        dimension = dimension,
+        steps_per_seed = harmonic_steps_per_seed,
+        cycles = harmonic_cycles,
+        retained_dimension = harmonic_retained_dimension,
+        minimum_cycles = harmonic_minimum_cycles,
+        convergence_tolerance = harmonic_convergence_tolerance,
+        value_change_tolerance = harmonic_value_change_tolerance,
+        subspace_alignment_threshold = harmonic_alignment_threshold,
+        projected_metric_relative_tolerance =
+            harmonic_projected_metric_relative_tolerance,
+        trial_basis_relative_tolerance =
+            harmonic_trial_basis_relative_tolerance,
+        max_basis_entries = max_basis_entries,
+        matrix_norm = matrix_norm,
+        operator = operator,
+    )
+    unavailable_reason = if !restarted.available && !harmonic.available
+        "both candidate engines are unavailable: restarted=$(restarted.reason); harmonic=$(harmonic.reason)"
+    elseif !restarted.available
+        "restarted candidate engine is unavailable: $(restarted.reason)"
+    elseif !harmonic.available
+        "harmonic candidate engine is unavailable: $(harmonic.reason)"
+    else
+        nothing
+    end
+    if !isnothing(unavailable_reason)
+        return SmallestSingularBackendCrosscheck{T}(
+            false, unavailable_reason, evaluation.point, :unavailable,
+            restarted, harmonic, T[], nothing, value_tolerance,
+            zero_tolerance, alignment_threshold,
+        )
+    end
+    restarted_order = sortperm(restarted.singular_values)
+    harmonic_order = sortperm(harmonic.singular_values)
+    restarted_values = restarted.singular_values[restarted_order]
+    harmonic_values = harmonic.singular_values[harmonic_order]
+    restarted_directions = restarted.directions[:, restarted_order]
+    harmonic_directions = harmonic.directions[:, harmonic_order]
+    scale = max(
+        something(restarted.matrix_norm, zero(T)),
+        something(harmonic.matrix_norm, zero(T)), eps(T),
+    )
+    differences = similar(restarted_values)
+    for index in eachindex(differences)
+        local_scale = max(
+            abs(restarted_values[index]), abs(harmonic_values[index]),
+            eps(T) * max(scale, one(T)),
+        )
+        differences[index] =
+            max(abs(restarted_values[index]), abs(harmonic_values[index])) <=
+            zero_tolerance * scale ? zero(T) :
+            abs(restarted_values[index] - harmonic_values[index]) / local_scale
+    end
+    cosines = _principal_cosines(restarted_directions, harmonic_directions)
+    minimum_cosine = isempty(cosines) ? nothing : minimum(cosines)
+    relation = if !restarted.converged && !harmonic.converged
+        :both_unconverged
+    elseif !restarted.converged
+        :restarted_unconverged
+    elseif !harmonic.converged
+        :harmonic_unconverged
+    elseif maximum(differences; init = zero(T)) > value_tolerance
+        :singular_value_disagreement
+    elseif something(minimum_cosine, zero(T)) < alignment_threshold
+        :subspace_disagreement
+    else
+        :agreement
+    end
+    return SmallestSingularBackendCrosscheck{T}(
+        true, nothing, evaluation.point, relation, restarted, harmonic,
+        differences, minimum_cosine, value_tolerance, zero_tolerance,
+        alignment_threshold,
+    )
+end
+
 """
     sparse_jacobian_pattern_estimate(evaluation; zero_tolerance = 0)
 
@@ -908,6 +2229,79 @@ function jacobian_rank_estimate(
         provenance,
     )
     return jacobian_rank_estimate(evaluation, policy)
+end
+
+"""
+    golub_kahan_dense_calibration(evaluation; dense_policy, kwargs...)
+
+Compare a multi-seed Golub--Kahan candidate span with a guarded dense-SVD
+right nullspace on the same evaluated Jacobian. This is a calibration oracle
+for representative small matrices, not a production fallback for large ones.
+`relation` distinguishes missed dense directions, over-capture, and subspace
+disagreement even when the reported dimensions coincide.
+"""
+function golub_kahan_dense_calibration(
+    evaluation::NumericalEvaluation{T};
+    dense_policy::RankPolicy{T} = RankPolicy(
+        T;
+        backend = :dense_svd,
+        relative_tolerance = max(
+            length(evaluation.constraint_sources),
+            length(evaluation.point.variables),
+            1,
+        ) * eps(T),
+        compute_vectors = true,
+        provenance = :golub_kahan_calibration,
+    ),
+    subspace_alignment_threshold::Real = 0.98,
+    kwargs...,
+) where {T<:AbstractFloat}
+    dense_policy.backend == :dense_svd || throw(ArgumentError(
+        "dense_policy must use the :dense_svd backend",
+    ))
+    dense_policy.compute_vectors || throw(ArgumentError(
+        "dense_policy.compute_vectors must be true for subspace calibration",
+    ))
+    alignment_threshold = T(subspace_alignment_threshold)
+    isfinite(alignment_threshold) && zero(T) <= alignment_threshold <= one(T) ||
+        throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    dense = jacobian_rank_estimate(evaluation, dense_policy)
+    probe = multi_seed_golub_kahan_estimate(evaluation; kwargs...)
+    unavailable(reason) = GolubKahanDenseCalibration{T}(
+        false, String(reason), evaluation.point, :unavailable, dense, probe,
+        dense.right_nullity, probe.candidate_span_rank, nothing, nothing,
+    )
+    dense.available || return unavailable(
+        "dense SVD unavailable: $(something(dense.reason, "unknown reason"))",
+    )
+    probe.available || return unavailable(
+        "multi-seed probe unavailable: $(something(probe.reason, "unknown reason"))",
+    )
+
+    dense_nullity = dense.right_nullity
+    candidate_rank = probe.candidate_span_rank
+    detected_fraction = iszero(dense_nullity) ? nothing :
+        T(min(candidate_rank, dense_nullity) / dense_nullity)
+    minimum_cosine = nothing
+    if dense_nullity > 0 && candidate_rank > 0
+        cosines = _principal_cosines(dense.right_nullspace, probe.candidate_basis)
+        isempty(cosines) || (minimum_cosine = minimum(cosines))
+    end
+    relation = if candidate_rank < dense_nullity
+        :candidate_miss
+    elseif candidate_rank > dense_nullity
+        :candidate_overcapture
+    elseif iszero(dense_nullity)
+        :dimension_agreement_no_candidate
+    elseif something(minimum_cosine, zero(T)) >= alignment_threshold
+        :subspace_agreement
+    else
+        :dimension_agreement_subspace_mismatch
+    end
+    return GolubKahanDenseCalibration{T}(
+        true, nothing, evaluation.point, relation, dense, probe,
+        dense_nullity, candidate_rank, detected_fraction, minimum_cosine,
+    )
 end
 
 function jacobian_rank_estimate(

@@ -438,6 +438,239 @@ struct IterativeJacobianSpectrumEstimate{T<:AbstractFloat}
 end
 
 """
+Finite-step Golub--Kahan Ritz projection of a local Jacobian operator.
+
+The singular values belong to the generated projection, not necessarily to the
+full Jacobian. Direct primal and dual residuals make each lifted Ritz triplet
+inspectable. `projected_right_null_directions` are candidates from the small
+projected problem and carry direct full-operator residuals; they are not a rank
+or nullity certificate.
+"""
+struct GolubKahanRitzEstimate{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    requested_steps::Int
+    completed_steps::Int
+    operator_source::Symbol
+    breakdown::Symbol
+    alphas::Vector{T}
+    betas::Vector{T}
+    projection::Matrix{T}
+    singular_values::Vector{T}
+    left_directions::Matrix{T}
+    right_directions::Matrix{T}
+    primal_residual_norms::Vector{T}
+    dual_residual_norms::Vector{T}
+    relative_backward_errors::Vector{T}
+    matrix_norm::Union{Nothing,T}
+    projection_relative_residual::Union{Nothing,T}
+    left_orthogonality_loss::Union{Nothing,T}
+    right_orthogonality_loss::Union{Nothing,T}
+    projection_rank_threshold::Union{Nothing,T}
+    projected_right_null_directions::Matrix{T}
+    projected_right_null_residual_norms::Vector{T}
+    projected_right_null_relative_residual_norms::Vector{T}
+end
+
+"""
+Deterministic multi-seed Golub--Kahan candidate-subspace evidence.
+
+Each element of `estimates` is an independently seeded finite projection.
+Only projected-null directions whose direct full-operator residual passes the
+requested threshold are retained. `candidate_basis` spans their consolidated
+coordinate-space union. Its dimension is a candidate-span dimension, not an
+estimate or certificate of the full Jacobian nullity.
+"""
+struct MultiSeedGolubKahanEstimate{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    requested_seed_count::Int
+    available_seed_count::Int
+    requested_steps::Int
+    operator_source::Symbol
+    residual_relative_tolerance::T
+    candidate_span_relative_tolerance::T
+    estimates::Vector{GolubKahanRitzEstimate{T}}
+    retained_candidate_counts::Vector{Int}
+    retained_directions::Matrix{T}
+    retained_relative_residual_norms::Vector{T}
+    retained_source_seeds::Vector{Int}
+    candidate_basis::Matrix{T}
+    candidate_basis_relative_residual_norms::Vector{T}
+    candidate_span_rank::Int
+    candidate_span_singular_values::Vector{T}
+    candidate_span_threshold::T
+    comparable_seed_pair_count::Int
+    agreeing_seed_pair_count::Int
+    minimum_pairwise_principal_cosine::Union{Nothing,T}
+    seed_agreement_threshold::T
+    estimated_basis_entries::Int
+    max_basis_entries::Int
+end
+
+"""
+Small-matrix oracle comparison for a multi-seed Golub--Kahan candidate span.
+
+The dense SVD uses an explicit `RankPolicy`; the comparison therefore reports
+agreement under that policy rather than treating either numerical threshold as
+mathematical truth.
+"""
+struct GolubKahanDenseCalibration{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    relation::Symbol
+    dense_estimate::JacobianRankEstimate{T}
+    probe_estimate::MultiSeedGolubKahanEstimate{T}
+    dense_right_nullity::Int
+    candidate_span_rank::Int
+    detected_fraction::Union{Nothing,T}
+    minimum_principal_cosine::Union{Nothing,T}
+end
+
+"""
+Restarted locally optimal candidates for the smallest singular directions.
+
+The implementation applies the normal operator only through consecutive
+Jacobian and transposed-Jacobian products; it never assembles `J'J`. Because
+the normal spectrum squares the Jacobian condition number, the result is a
+candidate tracker rather than a rank or smallest-singular-value certificate.
+Histories retain the evidence needed to diagnose convergence and stagnation.
+"""
+struct RestartedSmallestSingularCandidateEstimate{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    requested_dimension::Int
+    requested_iterations::Int
+    completed_iterations::Int
+    minimum_iterations::Int
+    converged::Bool
+    operator_source::Symbol
+    breakdown::Symbol
+    singular_value_histories::Matrix{T}
+    normal_relative_residual_histories::Matrix{T}
+    triplet_backward_error_histories::Matrix{T}
+    subspace_alignment_history::Vector{Union{Nothing,T}}
+    directions::Matrix{T}
+    left_directions::Matrix{T}
+    singular_values::Vector{T}
+    operator_residual_norms::Vector{T}
+    relative_operator_residual_norms::Vector{T}
+    normal_residual_norms::Vector{T}
+    relative_normal_residual_norms::Vector{T}
+    triplet_backward_errors::Vector{T}
+    matrix_norm::Union{Nothing,T}
+    right_orthogonality_loss::Union{Nothing,T}
+    convergence_tolerance::T
+    subspace_alignment_threshold::T
+    trial_basis_relative_tolerance::T
+    estimated_basis_entries::Int
+    max_basis_entries::Int
+end
+
+"""Guarded dense-oracle comparison for restarted smallest-direction candidates."""
+struct RestartedSmallestSingularDenseCalibration{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    relation::Symbol
+    estimate::RestartedSmallestSingularCandidateEstimate{T}
+    dense_singular_values::Vector{T}
+    dense_directions::Matrix{T}
+    relative_singular_value_errors::Vector{T}
+    minimum_principal_cosine::Union{Nothing,T}
+    dense_target_subspace_unique::Bool
+    dense_target_numerically_resolved::Bool
+    singular_value_relative_tolerance::T
+    subspace_alignment_threshold::T
+    dense_max_entries::Int
+end
+
+"""
+Thick-restarted zero-target harmonic Golub--Kahan candidate evidence.
+
+Right trial spaces come from Golub--Kahan products. Candidate extraction solves
+the harmonic generalized projection for the normal operator at target zero,
+while direct singular-triplet residuals are audited in the original Jacobian
+coordinates. This is independent evidence from the locally optimal normal
+residual tracker, but remains a finite-subspace candidate method.
+"""
+struct HarmonicGolubKahanCandidateEstimate{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    requested_dimension::Int
+    steps_per_seed::Int
+    requested_cycles::Int
+    completed_cycles::Int
+    retained_dimension::Int
+    minimum_cycles::Int
+    converged::Bool
+    operator_source::Symbol
+    breakdown::Symbol
+    trial_dimensions::Vector{Int}
+    projected_metric_ranks::Vector{Int}
+    projected_metric_condition_histories::Vector{Union{Nothing,T}}
+    harmonic_value_histories::Matrix{T}
+    singular_value_histories::Matrix{T}
+    triplet_backward_error_histories::Matrix{T}
+    subspace_alignment_history::Vector{Union{Nothing,T}}
+    relative_value_change_history::Vector{Union{Nothing,T}}
+    directions::Matrix{T}
+    left_directions::Matrix{T}
+    harmonic_values::Vector{T}
+    singular_values::Vector{T}
+    relative_operator_residual_norms::Vector{T}
+    relative_normal_residual_norms::Vector{T}
+    triplet_backward_errors::Vector{T}
+    matrix_norm::Union{Nothing,T}
+    right_orthogonality_loss::Union{Nothing,T}
+    convergence_tolerance::T
+    value_change_tolerance::T
+    subspace_alignment_threshold::T
+    projected_metric_relative_tolerance::T
+    trial_basis_relative_tolerance::T
+    estimated_basis_entries::Int
+    max_basis_entries::Int
+end
+
+"""Guarded dense-oracle comparison for harmonic Golub--Kahan candidates."""
+struct HarmonicGolubKahanDenseCalibration{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    relation::Symbol
+    estimate::HarmonicGolubKahanCandidateEstimate{T}
+    dense_singular_values::Vector{T}
+    dense_directions::Matrix{T}
+    relative_singular_value_errors::Vector{T}
+    minimum_principal_cosine::Union{Nothing,T}
+    dense_target_subspace_unique::Bool
+    dense_target_numerically_resolved::Bool
+    singular_value_relative_tolerance::T
+    subspace_alignment_threshold::T
+    dense_max_entries::Int
+end
+
+"""Dense-free comparison of the two independent smallest-direction engines."""
+struct SmallestSingularBackendCrosscheck{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    relation::Symbol
+    restarted::RestartedSmallestSingularCandidateEstimate{T}
+    harmonic::HarmonicGolubKahanCandidateEstimate{T}
+    relative_singular_value_differences::Vector{T}
+    minimum_principal_cosine::Union{Nothing,T}
+    singular_value_relative_tolerance::T
+    near_zero_relative_tolerance::T
+    subspace_alignment_threshold::T
+end
+
+"""
 A local Jacobian linear operator with explicit product provenance.
 
 The assembled sparse matrix remains available for inspection. When `source`
@@ -935,6 +1168,58 @@ struct PortCoordinateMap{T<:AbstractFloat}
     description::String
 end
 
+"""
+Physical interpretation of one ordered terminal coordinate within a port.
+
+`nominal_scale` is the scale of this coordinate in model units. An absent
+scale is meaningful: it prevents a port-wide phase scale from being applied to
+coordinates such as a floating neutral. `expected_value` is checked only when
+an explicit positive `absolute_tolerance` is also supplied. `role` is
+plugin-defined explanatory metadata; the generic core never infers physics
+from the label.
+"""
+struct PortTerminalCoordinateSemantics
+    label::String
+    role::Symbol
+    nominal_scale::Union{Nothing,Float64}
+    expected_value::Union{Nothing,Float64}
+    absolute_tolerance::Union{Nothing,Float64}
+    description::String
+end
+
+function PortTerminalCoordinateSemantics(
+    label;
+    role::Symbol = :generic,
+    nominal_scale::Union{Nothing,Real} = nothing,
+    expected_value::Union{Nothing,Real} = nothing,
+    absolute_tolerance::Union{Nothing,Real} = nothing,
+    description::AbstractString = "",
+)
+    isempty(strip(string(label))) &&
+        throw(ArgumentError("terminal coordinate label must be nonempty"))
+    isempty(String(role)) &&
+        throw(ArgumentError("terminal coordinate role must be nonempty"))
+    !isnothing(nominal_scale) &&
+        (!isfinite(nominal_scale) || nominal_scale <= 0) &&
+        throw(ArgumentError("terminal coordinate nominal_scale must be finite and positive"))
+    !isnothing(expected_value) && !isfinite(expected_value) &&
+        throw(ArgumentError("terminal coordinate expected_value must be finite"))
+    !isnothing(absolute_tolerance) &&
+        (!isfinite(absolute_tolerance) || absolute_tolerance <= 0) &&
+        throw(ArgumentError("terminal coordinate absolute_tolerance must be finite and positive"))
+    xor(isnothing(expected_value), isnothing(absolute_tolerance)) &&
+        throw(ArgumentError(
+            "terminal coordinate expected_value and absolute_tolerance must be supplied together",
+        ))
+    return PortTerminalCoordinateSemantics(
+        string(label), role,
+        isnothing(nominal_scale) ? nothing : Float64(nominal_scale),
+        isnothing(expected_value) ? nothing : Float64(expected_value),
+        isnothing(absolute_tolerance) ? nothing : Float64(absolute_tolerance),
+        String(description),
+    )
+end
+
 """Plugin-declared physical interpretation of one port's terminal coordinates."""
 struct PortCoordinateSemantics
     component_type::Symbol
@@ -944,6 +1229,7 @@ struct PortCoordinateSemantics
     representation::Symbol
     units::Dict{String,String}
     nominal_scale::Union{Nothing,Float64}
+    terminal_semantics::Vector{PortTerminalCoordinateSemantics}
     description::String
 end
 
@@ -959,7 +1245,25 @@ function PortCoordinateSemantics(
 )
     return PortCoordinateSemantics(
         component_type, component_id, port_id, quantity, representation,
-        units, nothing, description,
+        units, nothing, PortTerminalCoordinateSemantics[], description,
+    )
+end
+
+
+"""Compatibility construction for the former positional nominal-scale layout."""
+function PortCoordinateSemantics(
+    component_type::Symbol,
+    component_id::String,
+    port_id::String,
+    quantity::Symbol,
+    representation::Symbol,
+    units::Dict{String,String},
+    nominal_scale::Union{Nothing,Float64},
+    description::String,
+)
+    return PortCoordinateSemantics(
+        component_type, component_id, port_id, quantity, representation,
+        units, nominal_scale, PortTerminalCoordinateSemantics[], description,
     )
 end
 
@@ -1416,6 +1720,8 @@ function PortCoordinateSemantics(
     representation::Symbol = :generic,
     units::AbstractDict = Dict{String,String}(),
     nominal_scale::Union{Nothing,Real} = nothing,
+    terminal_semantics::AbstractVector{<:PortTerminalCoordinateSemantics} =
+        PortTerminalCoordinateSemantics[],
     description::AbstractString = "",
 )
     all(!isempty(strip(string(value))) for value in (component_type, component_id, port_id)) ||
@@ -1429,10 +1735,14 @@ function PortCoordinateSemantics(
     !isnothing(nominal_scale) &&
         (!isfinite(nominal_scale) || nominal_scale <= 0) &&
         throw(ArgumentError("port coordinate nominal_scale must be finite and positive"))
+    labels = getfield.(terminal_semantics, :label)
+    length(unique(labels)) == length(labels) ||
+        throw(ArgumentError("terminal coordinate semantic labels must be unique"))
     return PortCoordinateSemantics(
         component_type, string(component_id), string(port_id), quantity, representation,
         Dict(string(key) => string(value) for (key, value) in units),
-        isnothing(nominal_scale) ? nothing : Float64(nominal_scale), String(description),
+        isnothing(nominal_scale) ? nothing : Float64(nominal_scale),
+        collect(terminal_semantics), String(description),
     )
 end
 

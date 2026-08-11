@@ -887,6 +887,865 @@ function analyze_iterative_jacobian_spectrum_probe(
 end
 
 """
+    analyze_golub_kahan_probe(evaluation; steps = 20, kwargs...)
+
+Turn a finite Golub--Kahan projection into evidence-bearing findings. Lifted
+Ritz triplets are audited against the full operator. A retained projected-null
+direction is reported only when its direct relative residual passes the
+caller's threshold; neither its presence nor absence is a rank certificate.
+"""
+function analyze_golub_kahan_probe(
+    evaluation::NumericalEvaluation{T};
+    steps::Integer = 20,
+    residual_relative_tolerance::Real = sqrt(eps(T)),
+    ritz_backward_error_tolerance::Real = sqrt(eps(T)),
+    support_relative::Real = 0.1,
+    operator::JacobianLinearOperator = jacobian_linear_operator(evaluation),
+    kwargs...,
+) where {T<:AbstractFloat}
+    residual_tolerance = T(residual_relative_tolerance)
+    backward_tolerance = T(ritz_backward_error_tolerance)
+    isfinite(residual_tolerance) && residual_tolerance >= zero(T) ||
+        throw(ArgumentError(
+            "residual_relative_tolerance must be finite and nonnegative",
+        ))
+    isfinite(backward_tolerance) && backward_tolerance >= zero(T) ||
+        throw(ArgumentError(
+            "ritz_backward_error_tolerance must be finite and nonnegative",
+        ))
+    zero(T) < support_relative <= one(T) ||
+        throw(ArgumentError("support_relative must lie in (0, 1]"))
+    estimate = golub_kahan_ritz_estimate(
+        evaluation; steps = steps, operator = operator, kwargs...,
+    )
+    report = DiagnosticReport()
+    report.metadata[:stage] = "golub_kahan_ritz_probe"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:golub_kahan_available] = string(estimate.available)
+    report.metadata[:golub_kahan_requested_steps] = string(steps)
+    report.metadata[:golub_kahan_completed_steps] = string(estimate.completed_steps)
+    report.metadata[:golub_kahan_operator_source] = string(estimate.operator_source)
+    report.metadata[:golub_kahan_breakdown] = string(estimate.breakdown)
+    report.metadata[:golub_kahan_residual_relative_tolerance] =
+        string(residual_tolerance)
+    report.metadata[:golub_kahan_ritz_backward_error_tolerance] =
+        string(backward_tolerance)
+    if !estimate.available
+        push!(report, Finding(:golub_kahan_probe_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The requested Golub--Kahan Jacobian projection is unavailable: $(estimate.reason).",
+            why_it_matters = "No Ritz or projected-null evidence is reported without a complete finite product path.",
+            evidence = [_point_evidence(evaluation.point), Evidence(
+                "Golub--Kahan projection availability"; details = [
+                    "requested_steps" => steps, "reason" => estimate.reason,
+                ],
+            )],
+            suggested_actions = ["Resolve incomplete/non-finite derivative evidence or use a guarded dense SVD on a smaller calibration case."],
+        ))
+        return report
+    end
+    report.metadata[:golub_kahan_singular_values] =
+        join(estimate.singular_values, ",")
+    report.metadata[:golub_kahan_ritz_relative_backward_errors] =
+        join(estimate.relative_backward_errors, ",")
+    report.metadata[:golub_kahan_projection_relative_residual] =
+        string(estimate.projection_relative_residual)
+    report.metadata[:golub_kahan_left_orthogonality_loss] =
+        string(estimate.left_orthogonality_loss)
+    report.metadata[:golub_kahan_right_orthogonality_loss] =
+        string(estimate.right_orthogonality_loss)
+    report.metadata[:golub_kahan_projection_rank_threshold] =
+        string(estimate.projection_rank_threshold)
+
+    poor_ritz = findall(error -> error > backward_tolerance,
+                        estimate.relative_backward_errors)
+    report.metadata[:golub_kahan_large_ritz_backward_error_count] =
+        string(length(poor_ritz))
+    isempty(poor_ritz) || push!(report, Finding(
+        :golub_kahan_ritz_residual_large;
+        severity = SeverityWarning, domain = NumericalIssue,
+        basis = NumericalObservation, confidence = ConfidenceHigh,
+        observation = "$(length(poor_ritz)) lifted Golub--Kahan Ritz triplet(s) exceed the requested direct backward-error threshold.",
+        why_it_matters = "Projection singular values with large full-operator residuals are not reliable approximations to Jacobian singular triplets at the current Krylov budget.",
+        evidence = [_point_evidence(evaluation.point), Evidence(
+            "Lifted Golub--Kahan Ritz residual audit"; details = [
+                "indices" => join(poor_ritz, ","),
+                "singular_values" => join(estimate.singular_values, ","),
+                "primal_residual_norms" => join(estimate.primal_residual_norms, ","),
+                "dual_residual_norms" => join(estimate.dual_residual_norms, ","),
+                "relative_backward_errors" => join(estimate.relative_backward_errors, ","),
+                "relative_backward_error_tolerance" => backward_tolerance,
+            ],
+        )],
+        suggested_actions = ["Increase the explicit Golub--Kahan step budget and compare against dense SVD on a representative smaller matrix."],
+    ))
+
+    retained = 0
+    for index in axes(estimate.projected_right_null_directions, 2)
+        relative_residual =
+            estimate.projected_right_null_relative_residual_norms[index]
+        relative_residual <= residual_tolerance || continue
+        direction = view(estimate.projected_right_null_directions, :, index)
+        magnitude = maximum(abs, direction; init = zero(T))
+        support = iszero(magnitude) ? Int[] : findall(
+            value -> abs(value) >= T(support_relative) * magnitude, direction,
+        )
+        variables = evaluation.point.variables[support]
+        push!(report, Finding(:golub_kahan_projected_right_null_candidate;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceMedium,
+            observation = "Golub--Kahan projected-null candidate $index has direct relative Jacobian residual $relative_residual below threshold $residual_tolerance.",
+            why_it_matters = "The generated Krylov subspace contains a locally insensitive candidate direction. This finite projection does not establish the full Jacobian's rank or nullity.",
+            evidence = [_point_evidence(evaluation.point), Evidence(
+                "Golub--Kahan projected-null residual"; details = [
+                    "candidate" => index,
+                    "residual_norm" => estimate.projected_right_null_residual_norms[index],
+                    "relative_residual" => relative_residual,
+                    "relative_tolerance" => residual_tolerance,
+                    "matrix_norm" => estimate.matrix_norm,
+                    "breakdown" => estimate.breakdown,
+                    "completed_steps" => estimate.completed_steps,
+                    "support_variables" => join(
+                        (variable.value for variable in variables), ",",
+                    ),
+                    "support_relative" => support_relative,
+                ],
+            )],
+            affected = EntityRef[
+                EntityRef(:variable, variable.value) for variable in variables
+            ],
+            suggested_actions = ["Compare the candidate with structural unmatched coordinates, plugin-declared physical modes, and guarded dense SVD when feasible."],
+        ))
+        retained += 1
+    end
+    report.metadata[:golub_kahan_projected_right_null_candidate_count] =
+        string(size(estimate.projected_right_null_directions, 2))
+    report.metadata[:golub_kahan_retained_right_null_candidate_count] =
+        string(retained)
+    return report
+end
+
+"""
+    analyze_multi_seed_golub_kahan_probe(evaluation; kwargs...)
+
+Report deterministic cross-seed coverage and consolidated direct-residual
+candidate evidence. No finding from this stage certifies rank or nullity.
+"""
+function analyze_multi_seed_golub_kahan_probe(
+    evaluation::NumericalEvaluation{T};
+    support_relative::Real = 0.1,
+    kwargs...,
+) where {T<:AbstractFloat}
+    zero(T) < support_relative <= one(T) ||
+        throw(ArgumentError("support_relative must lie in (0, 1]"))
+    estimate = multi_seed_golub_kahan_estimate(evaluation; kwargs...)
+    report = DiagnosticReport()
+    report.metadata[:stage] = "multi_seed_golub_kahan_probe"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:multi_seed_golub_kahan_available] = string(estimate.available)
+    report.metadata[:multi_seed_golub_kahan_requested_seed_count] =
+        string(estimate.requested_seed_count)
+    report.metadata[:multi_seed_golub_kahan_available_seed_count] =
+        string(estimate.available_seed_count)
+    report.metadata[:multi_seed_golub_kahan_requested_steps] =
+        string(estimate.requested_steps)
+    report.metadata[:multi_seed_golub_kahan_residual_relative_tolerance] =
+        string(estimate.residual_relative_tolerance)
+    report.metadata[:multi_seed_golub_kahan_candidate_span_relative_tolerance] =
+        string(estimate.candidate_span_relative_tolerance)
+    report.metadata[:multi_seed_golub_kahan_estimated_basis_entries] =
+        string(estimate.estimated_basis_entries)
+    report.metadata[:multi_seed_golub_kahan_max_basis_entries] =
+        string(estimate.max_basis_entries)
+    if !estimate.available
+        push!(report, Finding(:multi_seed_golub_kahan_probe_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The requested multi-seed Golub--Kahan probe is unavailable: $(estimate.reason).",
+            why_it_matters = "No candidate-coverage conclusion is drawn when the operator path or bounded-work contract is unavailable.",
+            evidence = [_point_evidence(evaluation.point), Evidence(
+                "Multi-seed Golub--Kahan availability"; details = [
+                    "reason" => estimate.reason,
+                    "estimated_basis_entries" => estimate.estimated_basis_entries,
+                    "max_basis_entries" => estimate.max_basis_entries,
+                ],
+            )],
+            suggested_actions = ["Reduce the seed/step budget, raise the explicit storage guard on an appropriate machine, or calibrate a smaller representative matrix."],
+        ))
+        return report
+    end
+
+    report.metadata[:multi_seed_golub_kahan_retained_candidate_counts] =
+        join(estimate.retained_candidate_counts, ",")
+    report.metadata[:multi_seed_golub_kahan_retained_candidate_count] =
+        string(size(estimate.retained_directions, 2))
+    report.metadata[:multi_seed_golub_kahan_candidate_span_rank] =
+        string(estimate.candidate_span_rank)
+    report.metadata[:multi_seed_golub_kahan_candidate_basis_relative_residuals] =
+        join(estimate.candidate_basis_relative_residual_norms, ",")
+    report.metadata[:multi_seed_golub_kahan_comparable_seed_pair_count] =
+        string(estimate.comparable_seed_pair_count)
+    report.metadata[:multi_seed_golub_kahan_agreeing_seed_pair_count] =
+        string(estimate.agreeing_seed_pair_count)
+    report.metadata[:multi_seed_golub_kahan_minimum_pairwise_principal_cosine] =
+        string(estimate.minimum_pairwise_principal_cosine)
+
+    if iszero(estimate.candidate_span_rank)
+        push!(report, Finding(:multi_seed_golub_kahan_no_retained_candidate;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "No projected-null direction from $(estimate.available_seed_count) available deterministic seed(s) passed the requested direct-residual screen.",
+            why_it_matters = "This records finite-probe coverage only; absence of a retained direction does not establish full rank or exclude a missed null mode.",
+            evidence = [_point_evidence(evaluation.point), Evidence(
+                "Multi-seed candidate coverage"; details = [
+                    "retained_candidate_counts" => join(estimate.retained_candidate_counts, ","),
+                    "requested_steps" => estimate.requested_steps,
+                    "available_seed_count" => estimate.available_seed_count,
+                ],
+            )],
+            suggested_actions = ["Increase the explicit step or seed budget and compare miss rates with guarded dense SVD on representative smaller matrices."],
+        ))
+        return report
+    end
+
+    row_magnitudes = vec(maximum(abs.(estimate.candidate_basis); dims = 2))
+    maximum_magnitude = maximum(row_magnitudes; init = zero(T))
+    support = iszero(maximum_magnitude) ? Int[] : findall(
+        value -> value >= T(support_relative) * maximum_magnitude,
+        row_magnitudes,
+    )
+    variables = evaluation.point.variables[support]
+    push!(report, Finding(:multi_seed_golub_kahan_candidate_span;
+        severity = SeverityInfo, domain = NumericalIssue,
+        basis = NumericalObservation, confidence = ConfidenceMedium,
+        observation = "$(estimate.available_seed_count) deterministic projection(s) retained a consolidated candidate span of dimension $(estimate.candidate_span_rank).",
+        why_it_matters = "The span collects locally insensitive directions that passed direct full-operator residual checks. It is finite-budget evidence, not a Jacobian-nullity certificate.",
+        evidence = [_point_evidence(evaluation.point), Evidence(
+            "Consolidated Golub--Kahan candidate span"; details = [
+                "candidate_span_rank" => estimate.candidate_span_rank,
+                "retained_candidate_counts" => join(estimate.retained_candidate_counts, ","),
+                "basis_relative_residuals" => join(estimate.candidate_basis_relative_residual_norms, ","),
+                "span_singular_values" => join(estimate.candidate_span_singular_values, ","),
+                "span_threshold" => estimate.candidate_span_threshold,
+                "support_variables" => join((variable.value for variable in variables), ","),
+            ],
+        )],
+        affected = EntityRef[
+            EntityRef(:variable, variable.value) for variable in variables
+        ],
+        suggested_actions = ["Compare this candidate span with structural unmatched coordinates, declared physical modes, and dense-SVD calibration evidence where affordable."],
+    ))
+
+    if estimate.comparable_seed_pair_count > 0
+        stable = estimate.agreeing_seed_pair_count ==
+            estimate.comparable_seed_pair_count
+        push!(report, Finding(stable ?
+            :multi_seed_golub_kahan_candidate_span_stable :
+            :multi_seed_golub_kahan_candidate_span_seed_sensitive;
+            severity = stable ? SeverityInfo : SeverityWarning,
+            domain = NumericalIssue, basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = stable ?
+                "All $(estimate.comparable_seed_pair_count) comparable nonempty seed pairs agree in dimension and principal-angle threshold." :
+                "Only $(estimate.agreeing_seed_pair_count) of $(estimate.comparable_seed_pair_count) comparable nonempty seed pairs agree in dimension and principal-angle threshold.",
+            why_it_matters = stable ?
+                "Repeated deterministic starts support reproducibility of the finite candidate span, while still not certifying completeness." :
+                "Seed sensitivity is direct evidence that the current Krylov budget does not robustly resolve the candidate subspace.",
+            evidence = [Evidence("Cross-seed subspace comparison"; details = [
+                "comparable_seed_pair_count" => estimate.comparable_seed_pair_count,
+                "agreeing_seed_pair_count" => estimate.agreeing_seed_pair_count,
+                "minimum_pairwise_principal_cosine" => estimate.minimum_pairwise_principal_cosine,
+                "seed_agreement_threshold" => estimate.seed_agreement_threshold,
+            ])],
+            suggested_actions = stable ?
+                ["Retain the direct residuals and validate coverage against dense SVD on the calibration corpus."] :
+                ["Increase the step budget before interpreting the candidate span, then rerun the dense-SVD calibration corpus."],
+        ))
+    end
+    return report
+end
+
+"""Report a guarded dense-SVD oracle comparison for the multi-seed probe."""
+function analyze_golub_kahan_dense_calibration(
+    evaluation::NumericalEvaluation{T}; kwargs...,
+) where {T<:AbstractFloat}
+    calibration = golub_kahan_dense_calibration(evaluation; kwargs...)
+    report = DiagnosticReport()
+    report.metadata[:stage] = "golub_kahan_dense_calibration"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:golub_kahan_dense_calibration_available] =
+        string(calibration.available)
+    report.metadata[:golub_kahan_dense_calibration_relation] =
+        string(calibration.relation)
+    report.metadata[:golub_kahan_dense_right_nullity] =
+        string(calibration.dense_right_nullity)
+    report.metadata[:golub_kahan_candidate_span_rank] =
+        string(calibration.candidate_span_rank)
+    report.metadata[:golub_kahan_dense_detected_fraction] =
+        string(calibration.detected_fraction)
+    report.metadata[:golub_kahan_dense_minimum_principal_cosine] =
+        string(calibration.minimum_principal_cosine)
+    if !calibration.available
+        push!(report, Finding(:golub_kahan_dense_calibration_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The dense-SVD Golub--Kahan calibration is unavailable: $(calibration.reason).",
+            why_it_matters = "The candidate probe has not been compared with the small-matrix oracle for this evaluation.",
+            evidence = [_point_evidence(evaluation.point)],
+            suggested_actions = ["Use this calibration only on representative matrices within the explicit dense and Krylov work guards."],
+        ))
+        return report
+    end
+    relation = calibration.relation
+    adverse = relation in (
+        :candidate_miss, :candidate_overcapture,
+        :dimension_agreement_subspace_mismatch,
+    )
+    push!(report, Finding(adverse ?
+        :golub_kahan_dense_calibration_disagreement :
+        :golub_kahan_dense_calibration_agreement;
+        severity = adverse ? SeverityWarning : SeverityInfo,
+        domain = NumericalIssue, basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = "Under the explicit dense rank policy, the multi-seed candidate comparison is $(relation).",
+        why_it_matters = adverse ?
+            "This is measured evidence that the current projection budget or threshold semantics do not reproduce the dense small-matrix oracle." :
+            "This calibration case agrees under the stated thresholds, contributing bounded evidence about candidate-screen coverage.",
+        evidence = [_point_evidence(evaluation.point), Evidence(
+            "Dense-SVD versus multi-seed Golub--Kahan"; details = [
+                "relation" => relation,
+                "dense_right_nullity" => calibration.dense_right_nullity,
+                "candidate_span_rank" => calibration.candidate_span_rank,
+                "detected_fraction" => calibration.detected_fraction,
+                "minimum_principal_cosine" => calibration.minimum_principal_cosine,
+                "dense_relative_tolerance" => calibration.dense_estimate.relative_tolerance,
+                "dense_absolute_threshold" => calibration.dense_estimate.absolute_threshold,
+            ],
+        )],
+        suggested_actions = adverse ?
+            ["Treat the sparse probe as a candidate screen, increase its budget, and record the miss in the calibration ledger."] :
+            ["Expand the corpus across scaling, clustered singular values, rectangular shapes, and deliberately insufficient budgets before trusting large-model coverage."],
+    ))
+    return report
+end
+
+function _history_metadata(matrix::AbstractMatrix)
+    return join((join(view(matrix, row, :), ",") for row in axes(matrix, 1)), ";")
+end
+
+"""
+    analyze_restarted_smallest_singular_candidates(evaluation; kwargs...)
+
+Report convergence histories and final direct residual audits for the
+matrix-free restarted smallest-direction candidate tracker. Converged results
+remain candidates because the normal-operator spectrum is squared and a finite
+trial subspace can omit smaller directions.
+"""
+function analyze_restarted_smallest_singular_candidates(
+    evaluation::NumericalEvaluation{T};
+    support_relative::Real = 0.1,
+    near_null_relative_tolerance::Real = sqrt(eps(T)),
+    kwargs...,
+) where {T<:AbstractFloat}
+    zero(T) < support_relative <= one(T) ||
+        throw(ArgumentError("support_relative must lie in (0, 1]"))
+    null_tolerance = T(near_null_relative_tolerance)
+    isfinite(null_tolerance) && null_tolerance >= zero(T) ||
+        throw(ArgumentError(
+            "near_null_relative_tolerance must be finite and nonnegative",
+        ))
+    estimate = restarted_smallest_singular_candidates(evaluation; kwargs...)
+    report = DiagnosticReport()
+    report.metadata[:stage] = "restarted_smallest_singular_candidates"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:restarted_smallest_singular_available] =
+        string(estimate.available)
+    report.metadata[:restarted_smallest_singular_requested_dimension] =
+        string(estimate.requested_dimension)
+    report.metadata[:restarted_smallest_singular_requested_iterations] =
+        string(estimate.requested_iterations)
+    report.metadata[:restarted_smallest_singular_completed_iterations] =
+        string(estimate.completed_iterations)
+    report.metadata[:restarted_smallest_singular_converged] =
+        string(estimate.converged)
+    report.metadata[:restarted_smallest_singular_breakdown] =
+        string(estimate.breakdown)
+    report.metadata[:restarted_smallest_singular_operator_source] =
+        string(estimate.operator_source)
+    report.metadata[:restarted_smallest_singular_estimated_basis_entries] =
+        string(estimate.estimated_basis_entries)
+    report.metadata[:restarted_smallest_singular_max_basis_entries] =
+        string(estimate.max_basis_entries)
+    if !estimate.available
+        push!(report, Finding(:restarted_smallest_singular_probe_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The restarted smallest-direction probe is unavailable: $(estimate.reason).",
+            why_it_matters = "No candidate is emitted when its product path or bounded-work contract is unavailable.",
+            evidence = [_point_evidence(evaluation.point), Evidence(
+                "Restarted candidate availability"; details = [
+                    "reason" => estimate.reason,
+                    "estimated_basis_entries" => estimate.estimated_basis_entries,
+                    "max_basis_entries" => estimate.max_basis_entries,
+                ],
+            )],
+            suggested_actions = ["Reduce the requested block dimension, raise the explicit guard on an appropriate machine, or calibrate a smaller matrix."],
+        ))
+        return report
+    end
+
+    report.metadata[:restarted_smallest_singular_values] =
+        join(estimate.singular_values, ",")
+    report.metadata[:restarted_smallest_singular_relative_normal_residuals] =
+        join(estimate.relative_normal_residual_norms, ",")
+    report.metadata[:restarted_smallest_singular_triplet_backward_errors] =
+        join(estimate.triplet_backward_errors, ",")
+    report.metadata[:restarted_smallest_singular_value_histories] =
+        _history_metadata(estimate.singular_value_histories)
+    report.metadata[:restarted_smallest_singular_normal_residual_histories] =
+        _history_metadata(estimate.normal_relative_residual_histories)
+    report.metadata[:restarted_smallest_singular_backward_error_histories] =
+        _history_metadata(estimate.triplet_backward_error_histories)
+    report.metadata[:restarted_smallest_singular_subspace_alignment_history] =
+        join(string.(estimate.subspace_alignment_history), ",")
+    report.metadata[:restarted_smallest_singular_right_orthogonality_loss] =
+        string(estimate.right_orthogonality_loss)
+
+    push!(report, Finding(estimate.converged ?
+        :restarted_smallest_singular_candidate_converged :
+        :restarted_smallest_singular_candidate_unconverged;
+        severity = estimate.converged ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue, basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = estimate.converged ?
+            "The requested $(estimate.requested_dimension)-direction restarted candidate subspace met its residual and stability policy after $(estimate.completed_iterations) iteration(s)." :
+            "The requested restarted candidate subspace stopped as $(estimate.breakdown) after $(estimate.completed_iterations) iteration(s) without meeting its complete convergence policy.",
+        why_it_matters = estimate.converged ?
+            "This supports stationarity and reproducibility inside the explored trial spaces, but does not prove that no smaller singular direction was omitted." :
+            "Unconverged or stagnant candidates must not be interpreted as smallest singular directions, nullspaces, or rank evidence.",
+        evidence = [_point_evidence(evaluation.point), Evidence(
+            "Restarted candidate convergence"; details = [
+                "breakdown" => estimate.breakdown,
+                "completed_iterations" => estimate.completed_iterations,
+                "convergence_tolerance" => estimate.convergence_tolerance,
+                "subspace_alignment_threshold" => estimate.subspace_alignment_threshold,
+                "relative_normal_residuals" => join(estimate.relative_normal_residual_norms, ","),
+                "subspace_alignment_history" => join(string.(estimate.subspace_alignment_history), ","),
+            ],
+        )],
+        suggested_actions = estimate.converged ?
+            ["Compare the candidate values and span against guarded dense SVD on representative small matrices and across scaling policies."] :
+            ["Increase the iteration/block budget, inspect the retained history for stagnation, and record dense-oracle misses on a smaller calibration case."],
+    ))
+
+    for index in axes(estimate.directions, 2)
+        direction = view(estimate.directions, :, index)
+        magnitude = maximum(abs, direction; init = zero(T))
+        support = iszero(magnitude) ? Int[] : findall(
+            value -> abs(value) >= T(support_relative) * magnitude, direction,
+        )
+        variables = evaluation.point.variables[support]
+        push!(report, Finding(:restarted_smallest_singular_candidate;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = estimate.converged ? ConfidenceMedium : ConfidenceLow,
+            observation = "Restarted candidate $index has Rayleigh singular-value proxy $(estimate.singular_values[index]) and direct triplet backward error $(estimate.triplet_backward_errors[index]).",
+            why_it_matters = "This local direction is a reproducible target for solver and formulation experiments only when its convergence, residual, and dense-oracle evidence are considered together.",
+            evidence = [_point_evidence(evaluation.point), Evidence(
+                "Restarted smallest-direction audit"; details = [
+                    "candidate" => index,
+                    "singular_value_proxy" => estimate.singular_values[index],
+                    "operator_residual_norm" => estimate.operator_residual_norms[index],
+                    "relative_operator_residual" => estimate.relative_operator_residual_norms[index],
+                    "normal_residual_norm" => estimate.normal_residual_norms[index],
+                    "relative_normal_residual" => estimate.relative_normal_residual_norms[index],
+                    "triplet_backward_error" => estimate.triplet_backward_errors[index],
+                    "matrix_norm" => estimate.matrix_norm,
+                    "support_variables" => join((variable.value for variable in variables), ","),
+                ],
+            )],
+            affected = EntityRef[
+                EntityRef(:variable, variable.value) for variable in variables
+            ],
+            suggested_actions = ["Compare this direction with structural freedom, expected physical modes, nearby iterates, and dense calibration before assigning a degeneracy class."],
+        ))
+        estimate.relative_operator_residual_norms[index] <= null_tolerance ||
+            continue
+        push!(report, Finding(:restarted_smallest_singular_near_null_candidate;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = estimate.converged ? ConfidenceMedium : ConfidenceLow,
+            observation = "Restarted candidate $index has direct relative Jacobian residual $(estimate.relative_operator_residual_norms[index]) below $null_tolerance.",
+            why_it_matters = "The observed direction is locally insensitive under the stated scaling, but the finite restarted search does not establish Jacobian nullity or completeness.",
+            evidence = [_point_evidence(evaluation.point)],
+            affected = EntityRef[
+                EntityRef(:variable, variable.value) for variable in variables
+            ],
+            suggested_actions = ["Cross-check the direction against dense SVD or declared physical modes and repeat it at trusted nearby points."],
+        ))
+    end
+    return report
+end
+
+"""Report the guarded dense-oracle comparison for restarted candidates."""
+function analyze_restarted_smallest_singular_dense_calibration(
+    evaluation::NumericalEvaluation{T}; kwargs...,
+) where {T<:AbstractFloat}
+    calibration = restarted_smallest_singular_dense_calibration(
+        evaluation; kwargs...,
+    )
+    report = DiagnosticReport()
+    report.metadata[:stage] = "restarted_smallest_singular_dense_calibration"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:restarted_dense_calibration_available] =
+        string(calibration.available)
+    report.metadata[:restarted_dense_calibration_relation] =
+        string(calibration.relation)
+    if !calibration.available
+        push!(report, Finding(:restarted_smallest_singular_dense_calibration_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The restarted-candidate dense calibration is unavailable: $(calibration.reason).",
+            why_it_matters = "No dense-oracle agreement claim is made outside both explicit work guards.",
+            evidence = [_point_evidence(evaluation.point)],
+            suggested_actions = ["Use dense calibration only on a bounded representative matrix."],
+        ))
+        return report
+    end
+    report.metadata[:restarted_dense_singular_values] =
+        join(calibration.dense_singular_values, ",")
+    report.metadata[:restarted_dense_relative_singular_value_errors] =
+        join(calibration.relative_singular_value_errors, ",")
+    report.metadata[:restarted_dense_minimum_principal_cosine] =
+        string(calibration.minimum_principal_cosine)
+    report.metadata[:restarted_dense_target_subspace_unique] =
+        string(calibration.dense_target_subspace_unique)
+    report.metadata[:restarted_dense_target_numerically_resolved] =
+        string(calibration.dense_target_numerically_resolved)
+    agreement = calibration.relation in (
+        :agreement, :agreement_nonunique_subspace,
+    )
+    push!(report, Finding(agreement ?
+        :restarted_smallest_singular_dense_calibration_agreement :
+        :restarted_smallest_singular_dense_calibration_disagreement;
+        severity = agreement ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue, basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = "The restarted candidate comparison with guarded dense SVD is $(calibration.relation).",
+        why_it_matters = agreement ?
+            "This adds bounded oracle evidence under explicit value, subspace, and work policies." :
+            "The finite restarted search does not reproduce the dense oracle under the stated policies and must remain candidate-only.",
+        evidence = [_point_evidence(evaluation.point), Evidence(
+            "Restarted candidate versus dense SVD"; details = [
+                "relation" => calibration.relation,
+                "candidate_values" => join(calibration.estimate.singular_values, ","),
+                "dense_values" => join(calibration.dense_singular_values, ","),
+                "relative_value_errors" => join(calibration.relative_singular_value_errors, ","),
+                "minimum_principal_cosine" => calibration.minimum_principal_cosine,
+                "dense_target_subspace_unique" => calibration.dense_target_subspace_unique,
+                "dense_target_numerically_resolved" => calibration.dense_target_numerically_resolved,
+            ],
+        )],
+        suggested_actions = agreement ?
+            ["Retain this case in the oracle corpus and expand scaling and clustered-spectrum controls."] :
+            ["Inspect convergence history, trial-basis rank, scaling sensitivity, and insufficient-budget behavior before increasing trust."],
+    ))
+    return report
+end
+
+"""
+    analyze_harmonic_golub_kahan_candidates(evaluation; kwargs...)
+
+Report thick-restarted, zero-target harmonic Golub--Kahan candidates together
+with their projected-metric conditioning and direct singular-triplet audits.
+The harmonic values are projection evidence; the direct Jacobian residuals are
+the quantities used to describe the returned physical-coordinate directions.
+"""
+function analyze_harmonic_golub_kahan_candidates(
+    evaluation::NumericalEvaluation{T};
+    support_relative::Real = 0.1,
+    near_null_relative_tolerance::Real = sqrt(eps(T)),
+    kwargs...,
+) where {T<:AbstractFloat}
+    zero(T) < support_relative <= one(T) ||
+        throw(ArgumentError("support_relative must lie in (0, 1]"))
+    null_tolerance = T(near_null_relative_tolerance)
+    isfinite(null_tolerance) && null_tolerance >= zero(T) ||
+        throw(ArgumentError(
+            "near_null_relative_tolerance must be finite and nonnegative",
+        ))
+    estimate = harmonic_golub_kahan_candidates(evaluation; kwargs...)
+    report = DiagnosticReport()
+    report.metadata[:stage] = "harmonic_golub_kahan_candidates"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:harmonic_golub_kahan_available] = string(estimate.available)
+    report.metadata[:harmonic_golub_kahan_requested_dimension] =
+        string(estimate.requested_dimension)
+    report.metadata[:harmonic_golub_kahan_steps_per_seed] =
+        string(estimate.steps_per_seed)
+    report.metadata[:harmonic_golub_kahan_requested_cycles] =
+        string(estimate.requested_cycles)
+    report.metadata[:harmonic_golub_kahan_completed_cycles] =
+        string(estimate.completed_cycles)
+    report.metadata[:harmonic_golub_kahan_retained_dimension] =
+        string(estimate.retained_dimension)
+    report.metadata[:harmonic_golub_kahan_converged] = string(estimate.converged)
+    report.metadata[:harmonic_golub_kahan_breakdown] = string(estimate.breakdown)
+    report.metadata[:harmonic_golub_kahan_operator_source] =
+        string(estimate.operator_source)
+    report.metadata[:harmonic_golub_kahan_estimated_basis_entries] =
+        string(estimate.estimated_basis_entries)
+    report.metadata[:harmonic_golub_kahan_max_basis_entries] =
+        string(estimate.max_basis_entries)
+    if !estimate.available
+        push!(report, Finding(:harmonic_golub_kahan_probe_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The harmonic Golub--Kahan probe is unavailable: $(estimate.reason).",
+            why_it_matters = "No candidate is emitted when the product path, projected problem, or bounded-work contract is unavailable.",
+            evidence = [_point_evidence(evaluation.point), Evidence(
+                "Harmonic candidate availability"; details = [
+                    "reason" => estimate.reason,
+                    "estimated_basis_entries" => estimate.estimated_basis_entries,
+                    "max_basis_entries" => estimate.max_basis_entries,
+                ],
+            )],
+            suggested_actions = ["Reduce the trial and retained dimensions, raise the explicit guard on an appropriate machine, or use a bounded calibration matrix."],
+        ))
+        return report
+    end
+
+    report.metadata[:harmonic_golub_kahan_values] =
+        join(estimate.harmonic_values, ",")
+    report.metadata[:harmonic_golub_kahan_singular_values] =
+        join(estimate.singular_values, ",")
+    report.metadata[:harmonic_golub_kahan_triplet_backward_errors] =
+        join(estimate.triplet_backward_errors, ",")
+    report.metadata[:harmonic_golub_kahan_trial_dimensions] =
+        join(estimate.trial_dimensions, ",")
+    report.metadata[:harmonic_golub_kahan_projected_metric_ranks] =
+        join(estimate.projected_metric_ranks, ",")
+    report.metadata[:harmonic_golub_kahan_projected_metric_conditions] =
+        join(string.(estimate.projected_metric_condition_histories), ",")
+    report.metadata[:harmonic_golub_kahan_value_histories] =
+        _history_metadata(estimate.singular_value_histories)
+    report.metadata[:harmonic_golub_kahan_backward_error_histories] =
+        _history_metadata(estimate.triplet_backward_error_histories)
+    report.metadata[:harmonic_golub_kahan_subspace_alignment_history] =
+        join(string.(estimate.subspace_alignment_history), ",")
+    report.metadata[:harmonic_golub_kahan_relative_value_change_history] =
+        join(string.(estimate.relative_value_change_history), ",")
+    report.metadata[:harmonic_golub_kahan_right_orthogonality_loss] =
+        string(estimate.right_orthogonality_loss)
+
+    push!(report, Finding(estimate.converged ?
+        :harmonic_golub_kahan_candidate_converged :
+        :harmonic_golub_kahan_candidate_unconverged;
+        severity = estimate.converged ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue, basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = estimate.converged ?
+            "The requested $(estimate.requested_dimension)-direction harmonic candidate subspace met its direct residual, value-history, and principal-angle policy after $(estimate.completed_cycles) cycle(s)." :
+            "The harmonic candidate search stopped as $(estimate.breakdown) after $(estimate.completed_cycles) cycle(s) without meeting its complete convergence policy.",
+        why_it_matters = estimate.converged ?
+            "This is independent zero-target projection evidence, but a finite trial space can still omit a smaller singular direction." :
+            "An unstable harmonic candidate must not be promoted to a smallest singular direction, nullspace, or rank conclusion.",
+        evidence = [_point_evidence(evaluation.point), Evidence(
+            "Harmonic convergence and projected metric"; details = [
+                "breakdown" => estimate.breakdown,
+                "completed_cycles" => estimate.completed_cycles,
+                "trial_dimensions" => join(estimate.trial_dimensions, ","),
+                "projected_metric_ranks" => join(estimate.projected_metric_ranks, ","),
+                "projected_metric_conditions" => join(string.(estimate.projected_metric_condition_histories), ","),
+                "triplet_backward_errors" => join(estimate.triplet_backward_errors, ","),
+                "subspace_alignment_history" => join(string.(estimate.subspace_alignment_history), ","),
+                "relative_value_change_history" => join(string.(estimate.relative_value_change_history), ","),
+            ],
+        )],
+        suggested_actions = estimate.converged ?
+            ["Compare this independent candidate span with the locally optimal tracker and guarded dense SVD on representative small models."] :
+            ["Increase the cycle, step, or retained-subspace budget and inspect projected-metric conditioning before interpreting the candidate."],
+    ))
+
+    for index in axes(estimate.directions, 2)
+        direction = view(estimate.directions, :, index)
+        magnitude = maximum(abs, direction; init = zero(T))
+        support = iszero(magnitude) ? Int[] : findall(
+            value -> abs(value) >= T(support_relative) * magnitude,
+            direction,
+        )
+        variables = evaluation.point.variables[support]
+        push!(report, Finding(:harmonic_golub_kahan_candidate;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = estimate.converged ? ConfidenceMedium : ConfidenceLow,
+            observation = "Harmonic candidate $index has projection value $(estimate.harmonic_values[index]), direct singular value $(estimate.singular_values[index]), and triplet backward error $(estimate.triplet_backward_errors[index]).",
+            why_it_matters = "Projection and direct audits are retained separately so projected ill-conditioning cannot silently become physical-coordinate evidence.",
+            evidence = [_point_evidence(evaluation.point), Evidence(
+                "Harmonic smallest-direction audit"; details = [
+                    "candidate" => index,
+                    "harmonic_projection_value" => estimate.harmonic_values[index],
+                    "direct_singular_value" => estimate.singular_values[index],
+                    "relative_operator_residual" => estimate.relative_operator_residual_norms[index],
+                    "relative_normal_residual" => estimate.relative_normal_residual_norms[index],
+                    "triplet_backward_error" => estimate.triplet_backward_errors[index],
+                    "support_variables" => join((variable.value for variable in variables), ","),
+                ],
+            )],
+            affected = EntityRef[
+                EntityRef(:variable, variable.value) for variable in variables
+            ],
+            suggested_actions = ["Compare this direction with structural freedom, expected physical modes, scaling variants, and the independent restarted backend."],
+        ))
+        estimate.relative_operator_residual_norms[index] <= null_tolerance ||
+            continue
+        push!(report, Finding(:harmonic_golub_kahan_near_null_candidate;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = estimate.converged ? ConfidenceMedium : ConfidenceLow,
+            observation = "Harmonic candidate $index has direct relative Jacobian residual $(estimate.relative_operator_residual_norms[index]) below $null_tolerance.",
+            why_it_matters = "The direction is locally insensitive under the stated scaling, but the finite harmonic search does not establish nullity or completeness.",
+            evidence = [_point_evidence(evaluation.point)],
+            affected = EntityRef[
+                EntityRef(:variable, variable.value) for variable in variables
+            ],
+            suggested_actions = ["Cross-check against dense SVD or declared physical modes and repeat at trusted nearby points."],
+        ))
+    end
+    return report
+end
+
+"""Report the guarded dense-oracle comparison for harmonic candidates."""
+function analyze_harmonic_golub_kahan_dense_calibration(
+    evaluation::NumericalEvaluation{T}; kwargs...,
+) where {T<:AbstractFloat}
+    calibration = harmonic_golub_kahan_dense_calibration(
+        evaluation; kwargs...,
+    )
+    report = DiagnosticReport()
+    report.metadata[:stage] = "harmonic_golub_kahan_dense_calibration"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:harmonic_dense_calibration_available] =
+        string(calibration.available)
+    report.metadata[:harmonic_dense_calibration_relation] =
+        string(calibration.relation)
+    if !calibration.available
+        push!(report, Finding(:harmonic_golub_kahan_dense_calibration_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The harmonic-candidate dense calibration is unavailable: $(calibration.reason).",
+            why_it_matters = "No dense-oracle agreement claim is made outside both explicit work guards.",
+            evidence = [_point_evidence(evaluation.point)],
+            suggested_actions = ["Use dense calibration only on a bounded representative matrix."],
+        ))
+        return report
+    end
+    report.metadata[:harmonic_dense_singular_values] =
+        join(calibration.dense_singular_values, ",")
+    report.metadata[:harmonic_dense_relative_singular_value_errors] =
+        join(calibration.relative_singular_value_errors, ",")
+    report.metadata[:harmonic_dense_minimum_principal_cosine] =
+        string(calibration.minimum_principal_cosine)
+    report.metadata[:harmonic_dense_target_subspace_unique] =
+        string(calibration.dense_target_subspace_unique)
+    report.metadata[:harmonic_dense_target_numerically_resolved] =
+        string(calibration.dense_target_numerically_resolved)
+    agreement = calibration.relation in (
+        :agreement, :agreement_nonunique_subspace,
+    )
+    push!(report, Finding(agreement ?
+        :harmonic_golub_kahan_dense_calibration_agreement :
+        :harmonic_golub_kahan_dense_calibration_disagreement;
+        severity = agreement ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue, basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = "The harmonic candidate comparison with guarded dense SVD is $(calibration.relation).",
+        why_it_matters = agreement ?
+            "This adds bounded oracle evidence for the zero-target projection under explicit value, subspace, and work policies." :
+            "The finite harmonic search does not reproduce the dense oracle under the stated policies and must remain candidate-only.",
+        evidence = [_point_evidence(evaluation.point), Evidence(
+            "Harmonic candidate versus dense SVD"; details = [
+                "relation" => calibration.relation,
+                "candidate_values" => join(calibration.estimate.singular_values, ","),
+                "dense_values" => join(calibration.dense_singular_values, ","),
+                "relative_value_errors" => join(calibration.relative_singular_value_errors, ","),
+                "minimum_principal_cosine" => calibration.minimum_principal_cosine,
+                "dense_target_subspace_unique" => calibration.dense_target_subspace_unique,
+                "dense_target_numerically_resolved" => calibration.dense_target_numerically_resolved,
+            ],
+        )],
+        suggested_actions = agreement ?
+            ["Retain the case in the cross-backend oracle corpus and expand scaling and clustered-spectrum controls."] :
+            ["Inspect trial-space growth, projected-metric conditioning, scaling sensitivity, and insufficient-budget behavior."],
+    ))
+    return report
+end
+
+"""Report the dense-free comparison between independent candidate engines."""
+function analyze_smallest_singular_backend_crosscheck(
+    evaluation::NumericalEvaluation{T}; kwargs...,
+) where {T<:AbstractFloat}
+    crosscheck = smallest_singular_backend_crosscheck(evaluation; kwargs...)
+    report = DiagnosticReport()
+    report.metadata[:stage] = "smallest_singular_backend_crosscheck"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:smallest_singular_backend_crosscheck_available] =
+        string(crosscheck.available)
+    report.metadata[:smallest_singular_backend_crosscheck_relation] =
+        string(crosscheck.relation)
+    report.metadata[:smallest_singular_backend_crosscheck_restarted_converged] =
+        string(crosscheck.restarted.converged)
+    report.metadata[:smallest_singular_backend_crosscheck_harmonic_converged] =
+        string(crosscheck.harmonic.converged)
+    if !crosscheck.available
+        push!(report, Finding(:smallest_singular_backend_crosscheck_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "The independent smallest-direction backend crosscheck is unavailable: $(crosscheck.reason).",
+            why_it_matters = "No backend-agreement statement is emitted unless both candidate engines complete their bounded product paths.",
+            evidence = [_point_evidence(evaluation.point)],
+            suggested_actions = ["Reduce the requested budgets or inspect each backend's availability reason."],
+        ))
+        return report
+    end
+    report.metadata[:smallest_singular_backend_crosscheck_relative_value_differences] =
+        join(crosscheck.relative_singular_value_differences, ",")
+    report.metadata[:smallest_singular_backend_crosscheck_minimum_principal_cosine] =
+        string(crosscheck.minimum_principal_cosine)
+    agreement = crosscheck.relation == :agreement
+    push!(report, Finding(agreement ?
+        :smallest_singular_backend_crosscheck_agreement :
+        :smallest_singular_backend_crosscheck_disagreement;
+        severity = agreement ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue, basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = "The restarted normal-operator and zero-target harmonic candidate engines have relation $(crosscheck.relation).",
+        why_it_matters = agreement ?
+            "Independent finite-search agreement raises confidence in the observed candidate span, but does not prove completeness or rank." :
+            "Backend disagreement is evidence that search budget, scaling, spectral compression, or non-unique target subspaces still limits interpretation.",
+        evidence = [_point_evidence(evaluation.point), Evidence(
+            "Independent smallest-direction backend comparison"; details = [
+                "relation" => crosscheck.relation,
+                "restarted_converged" => crosscheck.restarted.converged,
+                "harmonic_converged" => crosscheck.harmonic.converged,
+                "restarted_values" => join(crosscheck.restarted.singular_values, ","),
+                "harmonic_values" => join(crosscheck.harmonic.singular_values, ","),
+                "relative_value_differences" => join(crosscheck.relative_singular_value_differences, ","),
+                "minimum_principal_cosine" => crosscheck.minimum_principal_cosine,
+                "value_tolerance" => crosscheck.singular_value_relative_tolerance,
+                "near_zero_relative_tolerance" => crosscheck.near_zero_relative_tolerance,
+                "subspace_alignment_threshold" => crosscheck.subspace_alignment_threshold,
+            ],
+        )],
+        suggested_actions = agreement ?
+            ["Validate representative small cases against dense SVD and classify the direction using structural and physical evidence."] :
+            ["Inspect both convergence histories and projected conditioning, repeat under explicit scaling policies, and use guarded dense SVD on a smaller representative case."],
+    ))
+    return report
+end
+
+"""
     analyze_iterative_right_nullspace_probe(model, point; cache, relative_step, ...)
 
 Evaluate `model` at `point`, then run the explicit sparse candidate-direction

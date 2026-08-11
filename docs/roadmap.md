@@ -141,16 +141,53 @@ Jacobian operator now preserves `:assembled_sparse` versus
 transpose products only after a deterministic consistency screen against the
 assembled entries; incomplete/non-finite rows are unavailable and callback
 disagreement falls back explicitly. Existing right, left, and spectrum probes
-now use this boundary and publish their operator source. The remaining major
-gap in this gate is the standard smallest-singular/operator algorithm and its
-multi-seed orthogonality/stability calibration; the shifted normal-operator
-iteration remains candidate evidence only.
+now use this boundary and publish their operator source. A fully
+reorthogonalized Golub--Kahan Ritz projection is also implemented on that
+boundary. It publishes recurrence coefficients, projection residual,
+left/right orthogonality loss, lifted primal/dual Ritz residuals,
+dimensionless backward errors, and directly screened projected-null
+candidates. A deterministic multi-seed layer now retains each seed's raw
+projection, consolidates only directly screened candidates, audits the
+consolidated basis against the full operator, compares nonempty seed subspaces
+by principal cosines, and enforces a pre-allocation basis-storage guard. A
+typed dense-SVD oracle comparison records misses, over-capture, equal-dimension
+subspace disagreement, and agreement under an explicit `RankPolicy`.
 
-The first operator-boundary increment is therefore complete. The next
-numerical-algebra implementation item is a standard Golub--Kahan/LSMR-class
-backend with explicit bidiagonal residuals, reorthogonalization evidence,
-multi-seed stability, and dense-SVD calibration. It must enter as a second
-candidate backend before replacing the existing shifted iteration.
+On the current five-matrix exact/rectangular/clustered/zero corpus, a six-seed
+full-column budget reproduces all five dense right-nullspace dimensions and
+aligns every nonempty candidate span. The deliberate one-step negative control
+misses three of four rank-deficient cases; the zero operator is recovered from
+the independent starts. This measured failure is retained as a regression
+test and prevents absence of a candidate from becoming a full-rank claim.
+The remaining major gap is an independent smallest-singular backend that does
+not rely only on the squared normal spectrum; none of the current operator
+probes is a rank certificate.
+
+The operator boundary, finite Golub--Kahan projection, deterministic multi-seed
+coverage layer, and first dense-oracle disagreement table are therefore
+complete. A restarted locally optimal block candidate tracker is now also
+implemented. It uses only `J*v` and `J'*u`, retains value, normal-residual,
+backward-error, and subspace-alignment histories, and distinguishes repeated
+dense target subspaces from alignment failures. It does not assemble `J'J`, but
+its Rayleigh--Ritz search still inherits the squared normal spectrum.
+
+The first executable adversarial corpus contains ten cases. Five have ordinary
+dense agreement, two have agreement with explicitly non-unique target
+subspaces, two are expected unconverged controls, and one is an expected dense
+singular-value disagreement. The disagreement is scientifically important: on
+the 6-by-6 Hilbert matrix the tracker meets its internal stationarity policy at
+approximately `3.62e-6`, while dense SVD reports approximately `1.08e-7`.
+The badly scaled `diag(1e8, 1, 1e-8)` case stagnates rather than inventing a
+small direction. These are retained regression outcomes.
+
+The next numerical-algebra implementation item is therefore an independent
+smallest-singular backend that does not rely only on the squared normal
+spectrum: harmonic/restarted Golub--Kahan, Jacobi--Davidson SVD, or a vetted
+LSMR/LSQR-based extraction. The oracle corpus must simultaneously expand to
+cancellation at sampled nonlinear points, randomized rectangular matrices,
+and scaling/preconditioning interventions. All operator backends remain
+candidate screens until cross-backend miss and over-capture tables are
+populated.
 
 Exit criteria:
 
@@ -172,11 +209,14 @@ relative and absolute tolerance, matrix norm, work guard, vector policy, and
 provenance. The SuiteSparseQR-backed path preserves row/column permutations
 and, under a separate dense-evidence guard, a relative factorization residual.
 Iterative left/right candidates now carry dimensionless backward residuals,
-and a 91-assertion calibration corpus covers exact, rectangular, zero,
-clustered, ill-conditioned, scale-sensitive, and absolute-threshold cases.
-This does not complete the gate: a standard Golub--Kahan operator backend,
-MOI `:JacVec` integration, broader adversarial matrices, and calibrated
-false-positive/false-negative summaries remain outstanding.
+and the 143-assertion core rank calibration block plus the 27-assertion
+multi-seed oracle block cover exact, rectangular, zero,
+clustered, ill-conditioned, scale-sensitive, absolute-threshold, and
+Golub--Kahan residual cases. MOI `:JacVec` integration and the first standard
+projection backend are complete. This does not complete the gate: broader
+adversarial matrices, an independent non-normal-equation backend, nonlinear
+cancellation cases, and cross-backend corpus-level false-positive/false-negative
+summaries remain outstanding.
 
 ### Trust gate B: evaluation-point and derivative provenance
 
@@ -1988,15 +2028,39 @@ material-under-policy KCL/line-voltage trajectory changes; the difference
 disappeared by 25 iterations, and the two adaptive globalizations agreed.
 This is now a useful bounded solver-method profiling case.
 
-The same campaign exposed a higher-priority multiconductor metadata gap. The
-balanced delta case's neutral real/imaginary voltage coordinates converge near
-zero but inherit the port-wide 1 p.u. voltage nominal scale, producing two
-recurrent nominal-scale mismatch warnings. Before scaling findings are trusted
-on multiconductor models, extend `PortCoordinateSemantics` with per-terminal
-scale/role information (including expected-zero or reference coordinates),
-project it through `PortCoordinateMap`, and add balanced/unbalanced neutral
-positive and negative controls. Do not suppress the warning by variable name
-or by a generic near-zero exception.
+The same campaign exposed a higher-priority multiconductor metadata gap: the
+balanced delta case's near-zero neutral coordinates inherited the port-wide
+1 p.u. phase scale. That gap is now closed. Ordered
+`PortTerminalCoordinateSemantics` overrides the port scale per terminal,
+explicit ground references carry zero targets and tolerances, and ungrounded
+neutrals carry no phase-scale assumption. Generic map projection validates the
+ordering and reports expected-value violations separately. BMOPFTools tests
+cover grounded-zero, grounded-nonzero, near-zero floating-neutral, and
+materially displaced floating-neutral controls; no variable-name or generic
+near-zero suppression is used. A fresh 25-iteration monotone/native-start delta
+run checked 42 terminal scales and eight ground-reference values, retained 12
+intentionally unscaled neutral mappings, and emitted neither of the scale or
+expected-value mismatch codes.
+
+That full v4 regression matrix is now repeated from one frozen development-tree
+state. All 24 observations, 16 baseline comparisons, and eight direct
+adaptive-profile comparisons passed their artifact, trace, pairing, and
+multiconductor semantic gates under one environment fingerprint. Neither
+terminal mismatch code occurred anywhere, scale projection remained available,
+and no model-semantic contract changed. The earlier numerical behavior was
+preserved: the five-step monotone/zero-start delta cell alone remained
+failure-classified, both adaptive profiles resolved it, all profiles agreed by
+25 iterations, and the adaptive profiles were mutually identical. The small
+zero-start delta KCL/line-voltage trajectory differences also reproduced. This
+closes the terminal-semantics regression item.
+
+The next multiconductor trust item is no longer another metadata layer. It is
+to compare plugin-declared visible/hidden port modes with observed Jacobian
+candidate subspaces at physically justified solver-result or captured-iterate
+points, first on truth-labelled small fixtures and then on sparse-guarded BMOPF
+cases. Dense SVD remains the small-fixture oracle; the new multi-seed
+Golub--Kahan layer may supply candidates on larger cases only after its broader
+adversarial calibration table is populated.
 
 The bounded numerical stage is now validated as well. On the same 30-bus LN
 case it retained 19 solver records and emitted numerical findings for finite

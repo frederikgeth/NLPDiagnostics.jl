@@ -59,6 +59,7 @@ export PortConstitutiveMap
 export PortTopologyNullspace
 export PortCoordinateMap
 export PortCoordinateSemantics
+export PortTerminalCoordinateSemantics
 export ComponentCoordinateSemantics
 export PortTopologyCoordinateProjection
 export PortExpectedNullspaceSummary
@@ -131,6 +132,14 @@ export SparseQRRankEstimate
 export IterativeNullspaceEstimate
 export IterativeNullspaceSubspaceEstimate
 export IterativeJacobianSpectrumEstimate
+export GolubKahanRitzEstimate
+export MultiSeedGolubKahanEstimate
+export GolubKahanDenseCalibration
+export RestartedSmallestSingularCandidateEstimate
+export RestartedSmallestSingularDenseCalibration
+export HarmonicGolubKahanCandidateEstimate
+export HarmonicGolubKahanDenseCalibration
+export SmallestSingularBackendCrosscheck
 export JacobianLinearOperator
 export JacobianScaleSummary
 export HessianEntry
@@ -314,9 +323,25 @@ export iterative_right_nullspace_estimate
 export iterative_right_nullspace_subspace_estimate
 export iterative_left_nullspace_subspace_estimate
 export iterative_jacobian_spectrum_estimate
+export golub_kahan_ritz_estimate
+export multi_seed_golub_kahan_estimate
+export golub_kahan_dense_calibration
+export restarted_smallest_singular_candidates
+export restarted_smallest_singular_dense_calibration
+export harmonic_golub_kahan_candidates
+export harmonic_golub_kahan_dense_calibration
+export smallest_singular_backend_crosscheck
 export analyze_iterative_right_nullspace_probe
 export analyze_iterative_left_nullspace_probe
 export analyze_iterative_jacobian_spectrum_probe
+export analyze_golub_kahan_probe
+export analyze_multi_seed_golub_kahan_probe
+export analyze_golub_kahan_dense_calibration
+export analyze_restarted_smallest_singular_candidates
+export analyze_restarted_smallest_singular_dense_calibration
+export analyze_harmonic_golub_kahan_candidates
+export analyze_harmonic_golub_kahan_dense_calibration
+export analyze_smallest_singular_backend_crosscheck
 export analyze_iterative_right_nullspace_persistence
 export analyze_iterative_left_nullspace_persistence
 export constraint_feasibility_summary
@@ -1120,7 +1145,15 @@ function analyze_component_coordinate_scales(
     return report
 end
 
-"""Compare declared port nominal scales only through simple explicit coordinate maps."""
+"""
+Compare declared port coordinate semantics only through simple explicit maps.
+
+Ordered per-terminal declarations override the port-wide nominal scale. This
+lets a plugin deliberately leave a floating neutral unscaled while retaining a
+phase scale on adjacent coordinates. Explicit expected values are checked with
+their declared absolute tolerances; roles alone never trigger a numerical
+assumption.
+"""
 function _port_coordinate_scale_findings(
     semantics::AbstractVector{<:PortCoordinateSemantics},
     coordinate_maps::AbstractVector{<:PortCoordinateMap},
@@ -1131,27 +1164,71 @@ function _port_coordinate_scale_findings(
         "mismatch_factor must be finite and greater than one",
     ))
     report = DiagnosticReport()
-    report.metadata[:component_port_nominal_scale_declaration_count] = string(count(
-        item -> !isnothing(item.nominal_scale), semantics,
-    ))
+    port_scale_declarations = count(item -> !isnothing(item.nominal_scale), semantics)
+    terminal_scale_declarations = sum(
+        count(entry -> !isnothing(entry.nominal_scale), item.terminal_semantics)
+        for item in semantics; init = 0,
+    )
+    expected_value_declarations = sum(
+        count(entry -> !isnothing(entry.expected_value), item.terminal_semantics)
+        for item in semantics; init = 0,
+    )
+    report.metadata[:component_port_nominal_scale_declaration_count] =
+        string(port_scale_declarations + terminal_scale_declarations)
+    report.metadata[:component_port_wide_nominal_scale_declaration_count] =
+        string(port_scale_declarations)
+    report.metadata[:component_port_terminal_nominal_scale_declaration_count] =
+        string(terminal_scale_declarations)
+    report.metadata[:component_port_terminal_expected_value_declaration_count] =
+        string(expected_value_declarations)
     values = Dict(zip(point.variables, point.values))
     maps_by_key = Dict{Tuple{Symbol,String,String},Vector{PortCoordinateMap}}()
     for map in coordinate_maps
         key = (map.component_type, map.component_id, map.port_id)
         push!(get!(maps_by_key, key, PortCoordinateMap[]), map)
     end
-    checked = 0
-    unavailable = 0
-    direct_checks = Dict{MOI.VariableIndex,Vector{Tuple{PortCoordinateSemantics,Int,Float64,Float64}}}()
     for item in semantics
-        isnothing(item.nominal_scale) && continue
+        isempty(item.terminal_semantics) && continue
+        key = (item.component_type, item.component_id, item.port_id)
+        for map in get(maps_by_key, key, PortCoordinateMap[])
+            length(item.terminal_semantics) == size(map.terminal_to_variable, 2) && continue
+            push!(report, Finding(:component_port_terminal_semantics_dimension_mismatch;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Port coordinate semantics declares $(length(item.terminal_semantics)) ordered terminal entries, but its coordinate map has $(size(map.terminal_to_variable, 2)) terminal columns.",
+                why_it_matters = "Per-terminal roles, scales, and expected values cannot be projected unless their ordering and dimension match the explicit coordinate map.",
+                evidence = [Evidence("Port terminal-semantics dimensions"; details = [
+                    "component_type" => item.component_type,
+                    "component_id" => item.component_id,
+                    "port_id" => item.port_id,
+                    "semantic_terminal_labels" => join(getfield.(item.terminal_semantics, :label), ","),
+                    "semantic_terminal_count" => length(item.terminal_semantics),
+                    "map_terminal_count" => size(map.terminal_to_variable, 2),
+                ])],
+                suggested_actions = ["Declare one ordered terminal semantic entry per coordinate-map column."],
+            ))
+        end
+    end
+    checked = 0
+    expected_checked = 0
+    unavailable = 0
+    intentionally_unscaled = 0
+    direct_checks = Dict{MOI.VariableIndex,Vector{NamedTuple}}()
+    expected_checks = Dict{MOI.VariableIndex,Vector{NamedTuple}}()
+    for item in semantics
         key = (item.component_type, item.component_id, item.port_id)
         maps = get(maps_by_key, key, PortCoordinateMap[])
         if isempty(maps)
-            unavailable += 1
+            (!isnothing(item.nominal_scale) || !isempty(item.terminal_semantics)) &&
+                (unavailable += 1)
             continue
         end
         for map in maps
+            if !isempty(item.terminal_semantics) &&
+               length(item.terminal_semantics) != size(map.terminal_to_variable, 2)
+                unavailable += max(length(map.variables), 1)
+                continue
+            end
             for (row, variable) in enumerate(map.variables)
                 haskey(values, variable) || continue
                 nonzero = findall(value -> !iszero(value), view(map.terminal_to_variable, row, :))
@@ -1159,40 +1236,75 @@ function _port_coordinate_scale_findings(
                     unavailable += 1
                     continue
                 end
-                nominal = abs(map.terminal_to_variable[row, only(nonzero)]) *
-                          something(item.nominal_scale)
-                isfinite(nominal) && nominal > 0 || (unavailable += 1; continue)
-                checked += 1
-                push!(get!(direct_checks, variable,
-                          Tuple{PortCoordinateSemantics,Int,Float64,Float64}[]),
-                      (item, only(nonzero),
-                       Float64(map.terminal_to_variable[row, only(nonzero)]), Float64(nominal)))
+                terminal = only(nonzero)
+                coefficient = Float64(map.terminal_to_variable[row, terminal])
+                terminal_declaration = isempty(item.terminal_semantics) ? nothing :
+                                       item.terminal_semantics[terminal]
+                nominal_scale = isnothing(terminal_declaration) ? item.nominal_scale :
+                                terminal_declaration.nominal_scale
+                if isnothing(nominal_scale)
+                    isnothing(terminal_declaration) || (intentionally_unscaled += 1)
+                else
+                    nominal = abs(coefficient) * nominal_scale
+                    if isfinite(nominal) && nominal > 0
+                        checked += 1
+                        push!(get!(direct_checks, variable, NamedTuple[]), (
+                            item = item,
+                            terminal = terminal,
+                            terminal_label = isnothing(terminal_declaration) ?
+                                string(terminal) : terminal_declaration.label,
+                            terminal_role = isnothing(terminal_declaration) ?
+                                :unspecified : terminal_declaration.role,
+                            coefficient = coefficient,
+                            nominal = Float64(nominal),
+                        ))
+                    else
+                        unavailable += 1
+                    end
+                end
+                if !isnothing(terminal_declaration) &&
+                   !isnothing(terminal_declaration.expected_value)
+                    expected_checked += 1
+                    push!(get!(expected_checks, variable, NamedTuple[]), (
+                        item = item,
+                        terminal = terminal,
+                        terminal_label = terminal_declaration.label,
+                        terminal_role = terminal_declaration.role,
+                        coefficient = coefficient,
+                        expected_value = coefficient * something(terminal_declaration.expected_value),
+                        absolute_tolerance = abs(coefficient) *
+                            something(terminal_declaration.absolute_tolerance),
+                    ))
+                end
             end
         end
     end
     for variable in sort!(collect(Base.keys(direct_checks)); by = index -> index.value)
-        groups = Vector{Vector{Tuple{PortCoordinateSemantics,Int,Float64,Float64}}}()
+        groups = Vector{Vector{NamedTuple}}()
         for check in direct_checks[variable]
             group_index = findfirst(group -> isapprox(
-                check[4], first(group)[4]; rtol = sqrt(eps(Float64)), atol = 0.0,
+                check.nominal, first(group).nominal;
+                rtol = sqrt(eps(Float64)), atol = 0.0,
             ), groups)
             isnothing(group_index) ? push!(groups, [check]) : push!(groups[group_index], check)
         end
-        sort!(groups; by = group -> first(group)[4])
+        sort!(groups; by = group -> first(group).nominal)
         for group in groups
-            nominal = first(group)[4]
+            nominal = first(group).nominal
             value = values[variable]
             ratio = abs(value) / nominal
             (ratio > mismatch_factor || (!iszero(value) && ratio < inv(mismatch_factor))) || continue
             direction = ratio > mismatch_factor ? "larger" : "smaller"
             declarations = join(sort!(unique([
-                "$(item.component_type):$(item.component_id):$(item.port_id)" for
-                (item, _, _, _) in group
+                "$(check.item.component_type):$(check.item.component_id):$(check.item.port_id)" for
+                check in group
             ])), ", ")
-            terminal_coordinates = join(sort!(unique(string(terminal) for
-                (_, terminal, _, _) in group)), ", ")
-            coefficients = join(sort!(unique(string(coefficient) for
-                (_, _, coefficient, _) in group)), ", ")
+            terminal_coordinates = join(sort!(unique(
+                check.terminal_label for check in group)), ", ")
+            terminal_roles = join(sort!(unique(
+                string(check.terminal_role) for check in group)), ", ")
+            coefficients = join(sort!(unique(string(check.coefficient) for
+                check in group)), ", ")
             push!(report, Finding(:component_port_nominal_scale_mismatch;
                 severity = SeverityWarning, domain = NumericalIssue,
                 basis = LocalInference, confidence = ConfidenceHigh,
@@ -1201,6 +1313,7 @@ function _port_coordinate_scale_findings(
                 evidence = [Evidence("Declared port coordinate scale"; details = [
                     "ports" => declarations,
                     "terminal_coordinates" => terminal_coordinates,
+                    "terminal_roles" => terminal_roles,
                     "terminal_to_variable_coefficients" => coefficients,
                     "value" => value,
                     "nominal_scale" => nominal,
@@ -1212,7 +1325,55 @@ function _port_coordinate_scale_findings(
             ))
         end
     end
+    for variable in sort!(collect(Base.keys(expected_checks)); by = index -> index.value)
+        groups = Vector{Vector{NamedTuple}}()
+        for check in expected_checks[variable]
+            group_index = findfirst(group ->
+                isapprox(check.expected_value, first(group).expected_value;
+                         rtol = sqrt(eps(Float64)), atol = 0.0) &&
+                isapprox(check.absolute_tolerance, first(group).absolute_tolerance;
+                         rtol = sqrt(eps(Float64)), atol = 0.0), groups)
+            isnothing(group_index) ? push!(groups, [check]) :
+                push!(groups[group_index], check)
+        end
+        for group in groups
+            expected_value = first(group).expected_value
+            tolerance = first(group).absolute_tolerance
+            value = values[variable]
+            error = abs(value - expected_value)
+            error <= tolerance && continue
+            declarations = join(sort!(unique([
+                "$(check.item.component_type):$(check.item.component_id):$(check.item.port_id)" for
+                check in group
+            ])), ", ")
+            terminal_coordinates = join(sort!(unique(
+                check.terminal_label for check in group)), ", ")
+            terminal_roles = join(sort!(unique(
+                string(check.terminal_role) for check in group)), ", ")
+            push!(report, Finding(:component_port_expected_coordinate_value_mismatch;
+                severity = SeverityWarning, domain = PhysicalIssue,
+                basis = LocalInference, confidence = ConfidenceHigh,
+                observation = "Mapped port coordinate v$(variable.value) differs from its explicitly declared expected value by $(error), exceeding tolerance $(tolerance).",
+                why_it_matters = "This plugin-declared reference or expected coordinate is inconsistent with the supplied local point; the declaration, point provenance, and model fixing convention should be checked together.",
+                evidence = [Evidence("Declared port coordinate expected value"; details = [
+                    "ports" => declarations,
+                    "terminal_coordinates" => terminal_coordinates,
+                    "terminal_roles" => terminal_roles,
+                    "value" => value,
+                    "expected_value" => expected_value,
+                    "absolute_error" => error,
+                    "absolute_tolerance" => tolerance,
+                ])],
+                affected = [EntityRef(:variable, variable.value)],
+                suggested_actions = ["Verify the plugin's reference-coordinate declaration and inspect whether the supplied point satisfies the corresponding fixed/reference equation."],
+            ))
+        end
+    end
     report.metadata[:component_port_nominal_scale_checked_variable_count] = string(checked)
+    report.metadata[:component_port_expected_value_checked_variable_count] =
+        string(expected_checked)
+    report.metadata[:component_port_intentionally_unscaled_coordinate_count] =
+        string(intentionally_unscaled)
     report.metadata[:component_port_nominal_scale_projection_unavailable_count] = string(unavailable)
     unavailable == 0 || push!(report, Finding(:component_port_nominal_scale_projection_unavailable;
         severity = SeverityInfo, domain = RepresentationalIssue,
@@ -1852,6 +2013,28 @@ function _component_port_coordinate_semantics_findings(
         key = (map.component_type, map.component_id, map.port_id)
         push!(get!(maps_by_key, key, PortCoordinateMap[]), map)
     end
+    for item in semantics
+        isempty(item.terminal_semantics) && continue
+        key = (item.component_type, item.component_id, item.port_id)
+        for map in get(maps_by_key, key, PortCoordinateMap[])
+            length(item.terminal_semantics) == size(map.terminal_to_variable, 2) && continue
+            push!(report, Finding(:component_port_terminal_semantics_dimension_mismatch;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Port coordinate semantics declares $(length(item.terminal_semantics)) ordered terminal entries, but its coordinate map has $(size(map.terminal_to_variable, 2)) terminal columns.",
+                why_it_matters = "Per-terminal roles, scales, and expected values cannot be projected unless their ordering and dimension match the explicit coordinate map.",
+                evidence = [Evidence("Port terminal-semantics dimensions"; details = [
+                    "component_type" => item.component_type,
+                    "component_id" => item.component_id,
+                    "port_id" => item.port_id,
+                    "semantic_terminal_labels" => join(getfield.(item.terminal_semantics, :label), ","),
+                    "semantic_terminal_count" => length(item.terminal_semantics),
+                    "map_terminal_count" => size(map.terminal_to_variable, 2),
+                ])],
+                suggested_actions = ["Declare one ordered terminal semantic entry per coordinate-map column."],
+            ))
+        end
+    end
     variables_to_semantics = Dict{MOI.VariableIndex,Vector{PortCoordinateSemantics}}()
     for item in semantics
         key = (item.component_type, item.component_id, item.port_id)
@@ -1890,13 +2073,18 @@ function _component_port_coordinate_semantics_findings(
     end
     effective_scales = Dict{MOI.VariableIndex,Vector{Tuple{PortCoordinateSemantics,Float64}}}()
     for item in semantics
-        isnothing(item.nominal_scale) && continue
         key = (item.component_type, item.component_id, item.port_id)
         for map in get(maps_by_key, key, PortCoordinateMap[]), (row, variable) in enumerate(map.variables)
+            !isempty(item.terminal_semantics) &&
+                length(item.terminal_semantics) != size(map.terminal_to_variable, 2) &&
+                continue
             nonzero = findall(value -> !iszero(value), view(map.terminal_to_variable, row, :))
             length(nonzero) == 1 || continue
-            scale = abs(map.terminal_to_variable[row, only(nonzero)]) *
-                    something(item.nominal_scale)
+            terminal = only(nonzero)
+            nominal = isempty(item.terminal_semantics) ? item.nominal_scale :
+                      item.terminal_semantics[terminal].nominal_scale
+            isnothing(nominal) && continue
+            scale = abs(map.terminal_to_variable[row, terminal]) * something(nominal)
             isfinite(scale) && scale > 0 || continue
             push!(get!(effective_scales, variable, Tuple{PortCoordinateSemantics,Float64}[]),
                   (item, Float64(scale)))
@@ -1925,7 +2113,9 @@ function _component_port_coordinate_semantics_findings(
         ))
     end
     for item in semantics
-        isnothing(item.nominal_scale) && continue
+        has_coordinate_scale = !isnothing(item.nominal_scale) ||
+            any(entry -> !isnothing(entry.nominal_scale), item.terminal_semantics)
+        has_coordinate_scale || continue
         key = (item.component_type, item.component_id, item.port_id)
         mixed_rows = Tuple{PortCoordinateMap,Int}[]
         for map in get(maps_by_key, key, PortCoordinateMap[]), row in axes(map.terminal_to_variable, 1)
@@ -1945,7 +2135,11 @@ function _component_port_coordinate_semantics_findings(
                 "component_type" => item.component_type,
                 "component_id" => item.component_id,
                 "port_id" => item.port_id,
-                "nominal_scale" => something(item.nominal_scale),
+                "port_nominal_scale" => something(item.nominal_scale, "unspecified"),
+                "terminal_nominal_scales" => join((
+                    "$(entry.label)=$(something(entry.nominal_scale, "unspecified"))" for
+                    entry in item.terminal_semantics
+                ), ","),
                 "model_variables" => rows,
             ])],
             affected = [EntityRef(:variable, map.variables[row].value) for (map, row) in mixed_rows],
@@ -2009,9 +2203,16 @@ function _component_port_coordinate_semantics_cross_layer_findings(
             push!(get!(ports_by_variable, variable, PortCoordinateSemantics[]), item)
             nonzero = findall(value -> !iszero(value), view(map.terminal_to_variable, row, :))
             length(nonzero) == 1 || continue
-            scale = isnothing(item.nominal_scale) ? nothing :
-                    abs(map.terminal_to_variable[row, only(nonzero)]) *
-                    something(item.nominal_scale)
+            terminal = only(nonzero)
+            nominal = if isempty(item.terminal_semantics)
+                item.nominal_scale
+            elseif length(item.terminal_semantics) == size(map.terminal_to_variable, 2)
+                item.terminal_semantics[terminal].nominal_scale
+            else
+                nothing
+            end
+            scale = isnothing(nominal) ? nothing :
+                    abs(map.terminal_to_variable[row, terminal]) * something(nominal)
             !isnothing(scale) && (!isfinite(scale) || scale <= 0) && continue
             push!(get!(port_scales_by_variable, variable,
                       Tuple{PortCoordinateSemantics,Union{Nothing,Float64}}[]),
@@ -4800,6 +5001,50 @@ function analyze(
     iterative_spectrum_probe_iterations::Integer = 100,
     iterative_spectrum_probe_convergence_tolerance::Real = sqrt(eps(Float64)),
     iterative_spectrum_probe_spread_threshold::Real = 1.0e6,
+    golub_kahan_probe_steps::Union{Nothing,Integer} = nothing,
+    golub_kahan_probe_breakdown_tolerance::Real = sqrt(eps(Float64)),
+    golub_kahan_probe_projection_relative_tolerance::Union{Nothing,Real} = nothing,
+    golub_kahan_probe_residual_relative_tolerance::Real = sqrt(eps(Float64)),
+    golub_kahan_probe_ritz_backward_error_tolerance::Real = sqrt(eps(Float64)),
+    golub_kahan_probe_support_relative::Real = 0.1,
+    multi_seed_golub_kahan_probe_seed_count::Union{Nothing,Integer} = nothing,
+    multi_seed_golub_kahan_probe_steps::Integer = 20,
+    multi_seed_golub_kahan_probe_residual_relative_tolerance::Real = sqrt(eps(Float64)),
+    multi_seed_golub_kahan_probe_candidate_span_relative_tolerance::Real = sqrt(eps(Float64)),
+    multi_seed_golub_kahan_probe_seed_agreement_threshold::Real = 0.98,
+    multi_seed_golub_kahan_probe_max_basis_entries::Integer = 1_000_000,
+    multi_seed_golub_kahan_probe_support_relative::Real = 0.1,
+    restarted_smallest_singular_candidate_dimension::Union{Nothing,Integer} = nothing,
+    restarted_smallest_singular_candidate_iterations::Integer = 50,
+    restarted_smallest_singular_candidate_minimum_iterations::Integer = 2,
+    restarted_smallest_singular_candidate_convergence_tolerance::Real = sqrt(eps(Float64)),
+    restarted_smallest_singular_candidate_alignment_threshold::Real = 0.999,
+    restarted_smallest_singular_candidate_trial_basis_relative_tolerance::Real = 10 * eps(Float64),
+    restarted_smallest_singular_candidate_max_basis_entries::Integer = 1_000_000,
+    restarted_smallest_singular_candidate_support_relative::Real = 0.1,
+    restarted_smallest_singular_candidate_near_null_relative_tolerance::Real = sqrt(eps(Float64)),
+    harmonic_golub_kahan_candidate_dimension::Union{Nothing,Integer} = nothing,
+    harmonic_golub_kahan_candidate_steps_per_seed::Integer = 6,
+    harmonic_golub_kahan_candidate_cycles::Integer = 8,
+    harmonic_golub_kahan_candidate_retained_dimension::Union{Nothing,Integer} = nothing,
+    harmonic_golub_kahan_candidate_minimum_cycles::Integer = 2,
+    harmonic_golub_kahan_candidate_convergence_tolerance::Real = sqrt(eps(Float64)),
+    harmonic_golub_kahan_candidate_value_change_tolerance::Real = sqrt(eps(Float64)),
+    harmonic_golub_kahan_candidate_alignment_threshold::Real = 0.999,
+    harmonic_golub_kahan_candidate_projected_metric_relative_tolerance::Real = 10 * eps(Float64),
+    harmonic_golub_kahan_candidate_trial_basis_relative_tolerance::Real = 10 * eps(Float64),
+    harmonic_golub_kahan_candidate_max_basis_entries::Integer = 1_000_000,
+    harmonic_golub_kahan_candidate_support_relative::Real = 0.1,
+    harmonic_golub_kahan_candidate_near_null_relative_tolerance::Real = sqrt(eps(Float64)),
+    smallest_singular_backend_crosscheck_dimension::Union{Nothing,Integer} = nothing,
+    smallest_singular_backend_crosscheck_restarted_iterations::Integer = 50,
+    smallest_singular_backend_crosscheck_harmonic_steps_per_seed::Integer = 6,
+    smallest_singular_backend_crosscheck_harmonic_cycles::Integer = 8,
+    smallest_singular_backend_crosscheck_harmonic_retained_dimension::Union{Nothing,Integer} = nothing,
+    smallest_singular_backend_crosscheck_value_tolerance::Real = 1.0e-4,
+    smallest_singular_backend_crosscheck_near_zero_tolerance::Real = sqrt(eps(Float64)),
+    smallest_singular_backend_crosscheck_alignment_threshold::Real = 0.98,
+    smallest_singular_backend_crosscheck_max_basis_entries::Integer = 1_000_000,
     check_iterative_right_nullspace_persistence::Bool = false,
     check_iterative_left_nullspace_persistence::Bool = false,
     check_iteration_jacobian_condition_persistence::Bool = false,
@@ -4841,6 +5086,14 @@ function analyze(
         isnothing(point) && isnothing(evaluation) && !check_initialization &&
         isnothing(iteration_bindings) && throw(ArgumentError(
             "iterative sparse probes require an explicit point, supplied evaluation, check_initialization = true, or iteration_bindings",
+        ))
+    (!isnothing(golub_kahan_probe_steps) ||
+     !isnothing(multi_seed_golub_kahan_probe_seed_count) ||
+     !isnothing(restarted_smallest_singular_candidate_dimension) ||
+     !isnothing(harmonic_golub_kahan_candidate_dimension) ||
+     !isnothing(smallest_singular_backend_crosscheck_dimension)) &&
+        isnothing(point) && isnothing(evaluation) && throw(ArgumentError(
+            "Golub-Kahan projection probes require an explicit point or supplied evaluation",
         ))
     !isnothing(jacobian_rank_tolerance_sweep_tolerances) &&
         isnothing(point) && isnothing(evaluation) && !check_initialization && throw(ArgumentError(
@@ -5124,6 +5377,136 @@ function analyze(
             append!(report.findings, probe_report.findings)
             merge!(report.metadata, probe_report.metadata)
             stages *= ",iterative_jacobian_spectrum_probe"
+        end
+        if !isnothing(golub_kahan_probe_steps)
+            projection_relative_tolerance =
+                isnothing(golub_kahan_probe_projection_relative_tolerance) ?
+                max(length(numerical_evaluation.constraint_sources),
+                    length(numerical_evaluation.point.variables), 1) *
+                    eps(eltype(numerical_evaluation.point.values)) :
+                golub_kahan_probe_projection_relative_tolerance
+            probe_report = analyze_golub_kahan_probe(
+                numerical_evaluation;
+                steps = golub_kahan_probe_steps,
+                breakdown_tolerance = golub_kahan_probe_breakdown_tolerance,
+                projection_relative_tolerance =
+                    projection_relative_tolerance,
+                residual_relative_tolerance =
+                    golub_kahan_probe_residual_relative_tolerance,
+                ritz_backward_error_tolerance =
+                    golub_kahan_probe_ritz_backward_error_tolerance,
+                support_relative = golub_kahan_probe_support_relative,
+            )
+            append!(report.findings, probe_report.findings)
+            merge!(report.metadata, probe_report.metadata)
+            stages *= ",golub_kahan_ritz_probe"
+        end
+        if !isnothing(multi_seed_golub_kahan_probe_seed_count)
+            probe_report = analyze_multi_seed_golub_kahan_probe(
+                numerical_evaluation;
+                seed_count = multi_seed_golub_kahan_probe_seed_count,
+                steps = multi_seed_golub_kahan_probe_steps,
+                residual_relative_tolerance =
+                    multi_seed_golub_kahan_probe_residual_relative_tolerance,
+                candidate_span_relative_tolerance =
+                    multi_seed_golub_kahan_probe_candidate_span_relative_tolerance,
+                seed_agreement_threshold =
+                    multi_seed_golub_kahan_probe_seed_agreement_threshold,
+                max_basis_entries =
+                    multi_seed_golub_kahan_probe_max_basis_entries,
+                support_relative =
+                    multi_seed_golub_kahan_probe_support_relative,
+            )
+            append!(report.findings, probe_report.findings)
+            merge!(report.metadata, probe_report.metadata)
+            stages *= ",multi_seed_golub_kahan_probe"
+        end
+        if !isnothing(restarted_smallest_singular_candidate_dimension)
+            probe_report = analyze_restarted_smallest_singular_candidates(
+                numerical_evaluation;
+                dimension = restarted_smallest_singular_candidate_dimension,
+                iterations = restarted_smallest_singular_candidate_iterations,
+                minimum_iterations =
+                    restarted_smallest_singular_candidate_minimum_iterations,
+                convergence_tolerance =
+                    restarted_smallest_singular_candidate_convergence_tolerance,
+                subspace_alignment_threshold =
+                    restarted_smallest_singular_candidate_alignment_threshold,
+                trial_basis_relative_tolerance =
+                    restarted_smallest_singular_candidate_trial_basis_relative_tolerance,
+                max_basis_entries =
+                    restarted_smallest_singular_candidate_max_basis_entries,
+                support_relative =
+                    restarted_smallest_singular_candidate_support_relative,
+                near_null_relative_tolerance =
+                    restarted_smallest_singular_candidate_near_null_relative_tolerance,
+            )
+            append!(report.findings, probe_report.findings)
+            merge!(report.metadata, probe_report.metadata)
+            stages *= ",restarted_smallest_singular_candidates"
+        end
+        if !isnothing(harmonic_golub_kahan_candidate_dimension)
+            retained_dimension = isnothing(
+                harmonic_golub_kahan_candidate_retained_dimension,
+            ) ? max(Int(harmonic_golub_kahan_candidate_dimension) + 1, 2) :
+                harmonic_golub_kahan_candidate_retained_dimension
+            probe_report = analyze_harmonic_golub_kahan_candidates(
+                numerical_evaluation;
+                dimension = harmonic_golub_kahan_candidate_dimension,
+                steps_per_seed =
+                    harmonic_golub_kahan_candidate_steps_per_seed,
+                cycles = harmonic_golub_kahan_candidate_cycles,
+                retained_dimension = retained_dimension,
+                minimum_cycles = harmonic_golub_kahan_candidate_minimum_cycles,
+                convergence_tolerance =
+                    harmonic_golub_kahan_candidate_convergence_tolerance,
+                value_change_tolerance =
+                    harmonic_golub_kahan_candidate_value_change_tolerance,
+                subspace_alignment_threshold =
+                    harmonic_golub_kahan_candidate_alignment_threshold,
+                projected_metric_relative_tolerance =
+                    harmonic_golub_kahan_candidate_projected_metric_relative_tolerance,
+                trial_basis_relative_tolerance =
+                    harmonic_golub_kahan_candidate_trial_basis_relative_tolerance,
+                max_basis_entries =
+                    harmonic_golub_kahan_candidate_max_basis_entries,
+                support_relative =
+                    harmonic_golub_kahan_candidate_support_relative,
+                near_null_relative_tolerance =
+                    harmonic_golub_kahan_candidate_near_null_relative_tolerance,
+            )
+            append!(report.findings, probe_report.findings)
+            merge!(report.metadata, probe_report.metadata)
+            stages *= ",harmonic_golub_kahan_candidates"
+        end
+        if !isnothing(smallest_singular_backend_crosscheck_dimension)
+            retained_dimension = isnothing(
+                smallest_singular_backend_crosscheck_harmonic_retained_dimension,
+            ) ? max(
+                Int(smallest_singular_backend_crosscheck_dimension) + 1, 2,
+            ) : smallest_singular_backend_crosscheck_harmonic_retained_dimension
+            probe_report = analyze_smallest_singular_backend_crosscheck(
+                numerical_evaluation;
+                dimension = smallest_singular_backend_crosscheck_dimension,
+                restarted_iterations =
+                    smallest_singular_backend_crosscheck_restarted_iterations,
+                harmonic_steps_per_seed =
+                    smallest_singular_backend_crosscheck_harmonic_steps_per_seed,
+                harmonic_cycles =
+                    smallest_singular_backend_crosscheck_harmonic_cycles,
+                harmonic_retained_dimension = retained_dimension,
+                singular_value_relative_tolerance =
+                    smallest_singular_backend_crosscheck_value_tolerance,
+                near_zero_relative_tolerance =
+                    smallest_singular_backend_crosscheck_near_zero_tolerance,
+                subspace_alignment_threshold =
+                    smallest_singular_backend_crosscheck_alignment_threshold,
+                max_basis_entries =
+                    smallest_singular_backend_crosscheck_max_basis_entries,
+            )
+            append!(report.findings, probe_report.findings)
+            merge!(report.metadata, probe_report.metadata)
+            stages *= ",smallest_singular_backend_crosscheck"
         end
         if !isnothing(jacobian_rank_tolerance_sweep_tolerances)
             sweep_report = analyze_jacobian_rank_tolerance_sweep(

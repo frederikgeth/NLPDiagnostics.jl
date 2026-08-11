@@ -188,6 +188,86 @@ MOI.eval_hessian_lagrangian_product(::CrosscheckJacVecEvaluator, values, x, dire
     )
     @test native_probe_report.metadata[:iterative_probe_operator_source] ==
         "hybrid_moi_jacvec"
+    native_gk_report = NLPDiagnostics.analyze_golub_kahan_probe(
+        jacvec_evaluation;
+        steps = 1,
+        operator = native_operator,
+    )
+    @test native_gk_report.metadata[:golub_kahan_available] == "true"
+    @test native_gk_report.metadata[:golub_kahan_operator_source] ==
+        "hybrid_moi_jacvec"
+    combined_gk_report = NLPDiagnostics.analyze(
+        jacvec_model;
+        evaluation = jacvec_evaluation,
+        golub_kahan_probe_steps = 1,
+    )
+    @test occursin(
+        "golub_kahan_ritz_probe", combined_gk_report.metadata[:stages],
+    )
+    combined_multi_seed_gk_report = NLPDiagnostics.analyze(
+        jacvec_model;
+        evaluation = jacvec_evaluation,
+        multi_seed_golub_kahan_probe_seed_count = 3,
+        multi_seed_golub_kahan_probe_steps = 1,
+    )
+    @test occursin(
+        "multi_seed_golub_kahan_probe",
+        combined_multi_seed_gk_report.metadata[:stages],
+    )
+    @test combined_multi_seed_gk_report.metadata[
+        :multi_seed_golub_kahan_available,
+    ] == "true"
+    combined_restarted_report = NLPDiagnostics.analyze(
+        jacvec_model;
+        evaluation = jacvec_evaluation,
+        restarted_smallest_singular_candidate_dimension = 1,
+        restarted_smallest_singular_candidate_iterations = 3,
+    )
+    @test occursin(
+        "restarted_smallest_singular_candidates",
+        combined_restarted_report.metadata[:stages],
+    )
+    @test combined_restarted_report.metadata[
+        :restarted_smallest_singular_available,
+    ] == "true"
+    combined_harmonic_report = NLPDiagnostics.analyze(
+        jacvec_model;
+        evaluation = jacvec_evaluation,
+        harmonic_golub_kahan_candidate_dimension = 1,
+        harmonic_golub_kahan_candidate_steps_per_seed = 1,
+        harmonic_golub_kahan_candidate_cycles = 3,
+    )
+    @test occursin(
+        "harmonic_golub_kahan_candidates",
+        combined_harmonic_report.metadata[:stages],
+    )
+    @test combined_harmonic_report.metadata[
+        :harmonic_golub_kahan_available,
+    ] == "true"
+    combined_backend_crosscheck_report = NLPDiagnostics.analyze(
+        jacvec_model;
+        evaluation = jacvec_evaluation,
+        smallest_singular_backend_crosscheck_dimension = 1,
+        smallest_singular_backend_crosscheck_restarted_iterations = 3,
+        smallest_singular_backend_crosscheck_harmonic_steps_per_seed = 1,
+        smallest_singular_backend_crosscheck_harmonic_cycles = 3,
+    )
+    @test occursin(
+        "smallest_singular_backend_crosscheck",
+        combined_backend_crosscheck_report.metadata[:stages],
+    )
+    @test combined_backend_crosscheck_report.metadata[
+        :smallest_singular_backend_crosscheck_available,
+    ] == "true"
+    @test_throws ArgumentError NLPDiagnostics.analyze(
+        jacvec_model; golub_kahan_probe_steps = 1,
+    )
+    @test_throws ArgumentError NLPDiagnostics.analyze(
+        jacvec_model; harmonic_golub_kahan_candidate_dimension = 1,
+    )
+    @test_throws ArgumentError NLPDiagnostics.analyze(
+        jacvec_model; smallest_singular_backend_crosscheck_dimension = 1,
+    )
     jacvec_report = NLPDiagnostics.analyze_jacobian_directional_crosscheck(
         jacvec_model,
         jacvec_evaluation;

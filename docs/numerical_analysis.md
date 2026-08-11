@@ -1160,6 +1160,95 @@ corresponding explicit report wrapper. It reports large spread proxies as
 heuristics and retains the probe dimension, convergence, residuals, and
 threshold; it never labels a proxy as a condition number.
 
+`golub_kahan_ritz_estimate(evaluation; steps = 20)` is the first standard
+Krylov projection backend on the same operator boundary. It builds fully
+reorthogonalized Golub--Kahan left/right bases without forming `J'J`, computes
+the small projected SVD, and lifts every retained Ritz triplet. The result
+records the projection matrix, recurrence coefficients, basis orthogonality
+loss, projection residual, and direct primal/dual residuals
+`norm(J*v - sigma*u)` and `norm(J'*u - sigma*v)`. Its dimensionless combined
+backward errors are therefore inspectable independently of convergence prose.
+
+For an underdetermined Krylov projection, numerical null directions of the
+small projected matrix are lifted and checked with the full operator. Only a
+candidate whose direct `norm(J*v)/(norm(J)*norm(v))` passes the requested
+threshold is emitted by `analyze_golub_kahan_probe`. This does not make the
+smallest projected Ritz value a bound on the full smallest singular value, and
+absence of a projected-null candidate does not establish full rank. The probe
+is opt-in through `golub_kahan_probe_steps` on the combined `analyze` API.
+
+`multi_seed_golub_kahan_estimate(evaluation; seed_count = 4, steps = 20)`
+runs independent deterministic starts and retains only directions that pass the
+same direct full-operator residual screen. It preserves the individual
+projections, their retained-candidate counts, and their seed provenance. The
+retained directions are consolidated by an explicit relative singular-value
+threshold; the resulting `candidate_basis` carries its own full-operator
+relative residuals. `candidate_span_rank` is only the dimension of this
+finite-probe union. It is deliberately not named or interpreted as Jacobian
+nullity.
+
+Pairs of nonempty seed subspaces are compared by principal cosines. Dimension
+agreement and a caller-selected cosine threshold produce reproducibility
+evidence; disagreement produces seed-sensitivity evidence. Empty candidate
+sets are never treated as evidence of full rank. A hard `max_basis_entries`
+guard is checked before the repeated bases are allocated. The corresponding
+report is `analyze_multi_seed_golub_kahan_probe`, and the combined `analyze`
+API exposes it only when `multi_seed_golub_kahan_probe_seed_count` is supplied.
+
+For representative matrices within the dense-work guard,
+`golub_kahan_dense_calibration` and
+`analyze_golub_kahan_dense_calibration` compare the candidate span with the
+guarded dense-SVD right nullspace under an explicit `RankPolicy`. Outcomes
+distinguish candidate misses, over-capture, equal-dimension subspace mismatch,
+subspace agreement, and the no-candidate/full-column-rank oracle case. These
+are calibration outcomes under stated numerical thresholds, not mathematical
+truth labels supplied by the implementation.
+
+## Restarted smallest-direction candidates
+
+`restarted_smallest_singular_candidates(evaluation; dimension = 1)` adds a
+restarted locally optimal block Rayleigh--Ritz search. Its trial space combines
+the current candidate block, the matrix-free normal residual, and the previous
+search direction. Normal products are evaluated as consecutive `J*v` and
+`J'*u` calls; the full `J'J` matrix is never assembled.
+
+Although the matrix is not formed, the method still sees the squared normal
+spectrum. Severe conditioning can therefore erase useful trial directions or
+make a stationary Ritz vector different from the true smallest singular
+direction. The result is intentionally named a candidate estimate and records:
+
+- singular-value proxy history for every requested direction;
+- dimensionless normal-residual and singular-triplet backward-error histories;
+- principal-angle alignment between successive candidate subspaces;
+- final direct `norm(J*v)/(norm(J)*norm(v))` evidence;
+- right-basis orthogonality loss and operator provenance; and
+- an up-front guard covering trial bases and retained histories.
+
+Convergence requires both a normal-residual threshold and successive-subspace
+alignment after the requested minimum iteration count. An exactly invariant
+subspace may terminate earlier when no trial expansion remains and every normal
+residual already passes. Neither outcome proves global smallest-singular
+coverage. `analyze_restarted_smallest_singular_candidates` emits a separate
+convergence/coverage finding and one inspectable finding per candidate. A
+near-null finding additionally requires the direct relative `J*v` residual;
+it still does not assert nullity.
+
+`restarted_smallest_singular_dense_calibration` compares the candidate with a
+guarded full dense SVD on small matrices. It distinguishes unconverged searches,
+singular-value disagreement, subspace disagreement, ordinary agreement, and
+agreement where the dense target subspace is non-unique because the selection
+boundary cuts through a repeated singular-value cluster. The corresponding
+report wrapper is
+`analyze_restarted_smallest_singular_dense_calibration`.
+
+The deterministic executable corpus is
+`benchmarks/calibrate_restarted_smallest_singular.jl`. Its first ten cases
+include separated and clustered spectra, a repeated smallest value, rotated
+planted spectra and nullspaces, a rectangular nullspace, the zero operator, a
+Hilbert false-convergence control, a badly scaled full-rank stagnation control,
+and an insufficient-iteration control. The adverse controls are required
+expected results, not ignored failures.
+
 ## Active-set dependence fingerprints
 
 When the selected active Jacobian fails its LICQ-style rank screen,
@@ -1283,9 +1372,21 @@ dependency_report = analyze_iterative_left_nullspace_probe(
 spectrum_report = analyze_iterative_jacobian_spectrum_probe(
     model, point; probe_dimension = 2, iterations = 200,
 )
+golub_kahan_report = analyze_golub_kahan_probe(
+    evaluation; steps = 20,
+)
+multi_seed_report = analyze_multi_seed_golub_kahan_probe(
+    evaluation; seed_count = 6, steps = 20,
+)
+dense_oracle_report = analyze_golub_kahan_dense_calibration(
+    evaluation; seed_count = 6, steps = 20,
+)
+restarted_report = analyze_restarted_smallest_singular_candidates(
+    evaluation; dimension = 2, iterations = 50,
+)
 ```
 
-All three functions also accept a values vector or an already captured
+The shifted iterative functions also accept a values vector or an already captured
 `NumericalEvaluation`. Passing an evaluation avoids re-evaluating the model;
 the model/point and model/values overloads only provide a non-mutating
 convenience path through `evaluate_numerical`.
@@ -1318,6 +1419,28 @@ numbers or singular-value bounds. All reports retain their requested probe
 dimension, iteration budget, availability, and convergence evidence so a result
 can be reproduced or discounted appropriately.
 
+The Golub--Kahan reports are deliberately separate from those shifted probes.
+They report lifted Ritz backward errors and directly screened projected-null
+candidates. The deterministic multi-seed layer adds candidate-span
+consolidation and principal-angle stability. On the current five-matrix dense
+oracle corpus, a six-seed full-column budget reproduces all five dense
+right-nullspace dimensions and aligned nonempty subspaces. A deliberately
+inadequate one-step budget misses three of four rank-deficient cases; the zero
+operator is the easy exception because independent starting directions already
+span its nullspace. This negative control is why the API remains a candidate
+screen.
+
+The locally optimal restarted candidate tracker now supplies the first
+restarted history-bearing method, but it is not an independent certificate. In
+the ten-case adversarial artifact it agrees with dense SVD on five cases and
+agrees with non-unique-subspace semantics on two. The insufficient-budget and
+badly scaled controls remain unconverged. More importantly, the 6-by-6 Hilbert
+case satisfies the internal stationarity policy while disagreeing with the
+dense smallest singular value (`3.62e-6` candidate versus `1.08e-7` dense).
+That measured false convergence confirms that the next independent backend
+should avoid relying only on the squared normal spectrum—for example, a vetted
+harmonic Golub--Kahan, Jacobi--Davidson SVD, or LSMR/LSQR-based extraction.
+
 ## Current limits
 
 - Finite differences are probing evidence, not exact derivatives.
@@ -1325,7 +1448,8 @@ can be reproduced or discounted appropriately.
 - Complete MOI variable starts can be inspected explicitly with
   `analyze_initialization`.
 - Dense SVD remains the authoritative local numerical nullspace path; sparse
-  QR and the opt-in iterative candidate probe complement it for larger models.
+  QR, shifted candidate probes, and the opt-in Golub--Kahan projection
+  complement it for larger models.
 - Active-set selection and multiplier recovery remain explicit user or
   solver-extension responsibilities. The generic active-set selector handles
   scalar and coordinate-wise product-bound semantics, but not coupled-set

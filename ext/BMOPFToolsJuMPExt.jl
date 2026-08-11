@@ -29,6 +29,75 @@ function _bmopf_bus_terminals(context)
             if bus isa AbstractDict]
 end
 
+function _bmopf_neutral_terminal_labels(context)
+    try
+        return Set(String.(BMOPFTools.opf_neutral_labels(context)))
+    catch error
+        error isa MethodError || rethrow()
+        return Set(["n", "neutral"])
+    end
+end
+
+"""Build ordered voltage-coordinate semantics from public BMOPF terminal data."""
+function _bmopf_voltage_terminal_semantics(
+    context, bus::String, terminals::Vector{String},
+)
+    network = BMOPFTools.opf_network(context)
+    buses = get(network, "bus", Dict())
+    bus_data = get(buses, bus, Dict())
+    explicitly_grounded = Set(String.(
+        bus_data isa AbstractDict ?
+        get(bus_data, "perfectly_grounded_terminals", String[]) : String[],
+    ))
+    # BMOPFTools also treats the declared neutral of a voltage-source bus as a
+    # zero-voltage ground reference. Derive that only from public network data.
+    source_bus = any(
+        source isa AbstractDict && string(get(source, "bus", "")) == bus for
+        source in values(get(network, "voltage_source", Dict()))
+    )
+    neutral_labels = _bmopf_neutral_terminal_labels(context)
+    declared_neutral = if bus_data isa AbstractDict &&
+                          haskey(bus_data, "neutral_terminal")
+        string(bus_data["neutral_terminal"])
+    else
+        candidates = [terminal for terminal in terminals if terminal in neutral_labels]
+        length(candidates) == 1 ? only(candidates) : nothing
+    end
+    source_bus && !isnothing(declared_neutral) &&
+        push!(explicitly_grounded, declared_neutral)
+
+    per_unit = !isnothing(BMOPFTools.opf_bases(context))
+    voltage_base = _bmopf_voltage_base(context, bus)
+    reference_tolerance = sqrt(eps(Float64)) *
+        (per_unit ? 1.0 : something(voltage_base, 1.0))
+    return NLPDiagnostics.PortTerminalCoordinateSemantics[
+        if terminal in explicitly_grounded
+            NLPDiagnostics.PortTerminalCoordinateSemantics(
+                terminal;
+                role = :ground_reference,
+                nominal_scale = nothing,
+                expected_value = 0.0,
+                absolute_tolerance = reference_tolerance,
+                description = "BMOPFTools public network data declares this terminal fixed to ground reference",
+            )
+        elseif terminal in neutral_labels
+            NLPDiagnostics.PortTerminalCoordinateSemantics(
+                terminal;
+                role = :neutral,
+                nominal_scale = nothing,
+                description = "Explicit neutral voltage; no phase-voltage coordinate scale is inferred",
+            )
+        else
+            NLPDiagnostics.PortTerminalCoordinateSemantics(
+                terminal;
+                role = :phase,
+                nominal_scale = per_unit ? 1.0 : nothing,
+                description = "BMOPFTools phase-terminal voltage coordinate",
+            )
+        end for terminal in terminals
+    ]
+end
+
 function _bmopf_terminal_variables(context, bus::String, terminals::Vector{String}, component::Symbol)
     variables = MOI.VariableIndex[]
     for terminal in terminals
@@ -133,7 +202,9 @@ function _bmopf_append_attachment_port!(ports, maps, semantics, connections, ski
             quantity = :voltage,
             representation = _bmopf_representation(component),
             units = Dict("voltage" => unit),
-            nominal_scale = per_unit ? 1.0 : nothing,
+            terminal_semantics = _bmopf_voltage_terminal_semantics(
+                context, bus, device_terminals,
+            ),
             description = "BMOPFTools $(component_type) $(component_id) $(port_role) terminal voltage attached to bus $(bus)",
         ))
         push!(connections, NLPDiagnostics.PortConnectionMetadata(
@@ -3789,9 +3860,12 @@ function _bmopf_terminal_port_coordinate_semantics(context)
                 quantity = :voltage,
                 representation = _bmopf_representation(component),
                 units = Dict("voltage" => unit),
-                # The declared nominal scale is in model coordinates. A per-unit
-                # voltage has nominal coordinate 1, not its physical V base.
-                nominal_scale = per_unit ? 1.0 : nothing,
+                # Ordered terminal declarations prevent phase-voltage scale one
+                # from being assigned to a floating neutral and attach an
+                # explicit zero/tolerance only to physical ground references.
+                terminal_semantics = _bmopf_voltage_terminal_semantics(
+                    context, bus, terminals,
+                ),
                 description = description,
             ))
         end

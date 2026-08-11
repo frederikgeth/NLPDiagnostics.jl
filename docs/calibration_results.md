@@ -139,3 +139,112 @@ This campaign ran from one content-fingerprinted development tree but not a
 clean commit. It is suitable for directing implementation and selecting future
 solver experiments; release or publication claims should repeat it from a
 clean tagged revision.
+
+## 2026-08-11: terminal semantics and Golub--Kahan software calibration
+
+Status: **software-qualified; bounded benchmark confirmation complete**.
+
+The multiconductor port contract now distinguishes phase, neutral, and ground
+reference coordinates through ordered terminal declarations. Unit tests cover
+both grounded and floating neutrals: an explicit ground must satisfy its zero
+target within the declared model-coordinate tolerance, while a floating
+neutral is allowed to be either near zero or materially displaced without
+inheriting the phase-voltage nominal scale.
+
+A fresh 25-iteration monotone/native-start run of `pf_delta_load.dss` completed
+as `solver_and_source_domain_consistent`. Its context report checked 42 mapped
+terminal scales and eight explicit ground-reference values, retained 12
+intentionally unscaled neutral coordinate mappings, and reported zero scale
+projection failures. Neither `component_port_nominal_scale_mismatch` nor
+`component_port_expected_coordinate_value_mismatch` was present. This confirms
+the original two false positives are removed in the motivating fixture.
+
+The full 24-cell v4 option matrix has now also been repeated from one frozen
+development-tree state. All 24 observations, 16 baseline comparisons, and eight
+direct adaptive-profile comparisons passed artifact, trajectory, and
+multiconductor semantic-readiness gates. Every observation used environment
+fingerprint
+`7e93b6daade2aefb51527005ca67c4126c9751730ed5fc95266326c9641d1238`
+at Git revision `3a8cd230ceb8c7d93a9b58872f03b919196bd822`, with dirty-tree diff
+fingerprint
+`45acc7916c0a788d9576ca23cb42c04119008980c5cdeaa0f38ac182e6e5d888`.
+There were zero model-semantic contract changes and zero occurrences of either
+terminal scale or expected-value mismatch code. The free-neutral fixture
+checked 32 mapped scales and eight ground values while retaining 14
+intentionally unscaled coordinates; the delta fixture checked 42 scales and
+eight ground values while retaining 12 intentionally unscaled coordinates.
+Neither fixture had a scale-projection failure.
+
+The controlled numerical signal was preserved. Exactly one observation—the
+five-iteration monotone/zero-start delta run—remained failure-classified; both
+adaptive profiles changed that cell to source-domain consistency. All profiles
+were consistent at 25 iterations, and no run entered restoration. The two
+adaptive profiles agreed on every direct comparison. Against monotone, both
+adaptive profiles changed the zero-start delta KCL-real and real/imaginary
+line-voltage post-first peaks at both budgets by approximately `5.57e-10`,
+`3.89e-10`, and `-6.43e-10`, respectively. These are material under the
+campaign's declared numerical comparison tolerance but remain unnormalized raw
+model-coordinate trajectory differences, not physical defect evidence.
+
+Two context finding-code comparisons changed because the failure-classified
+five-step baseline carried `bmopf_opf_differentiability_not_ready` while the
+adaptive endpoints did not. This is endpoint-conditioned evidence and was not
+a semantic-contract change. The rerun therefore closes the terminal-semantics
+regression gate while retaining the delta fixture as a bounded
+initialization/algorithm profiling case.
+
+The Golub--Kahan operator calibration now includes deterministic multi-seed
+coverage. A six-seed full-column budget matches the guarded dense-SVD right
+nullity on all five oracle cases: dependent square, rectangular
+underdetermined, full-column-rank rectangular, clustered-small-plus-zero, and
+zero rectangular matrices. Every nonempty consolidated span has minimum
+principal cosine at least `0.99` with the dense reference. The deliberately
+inadequate one-step budget misses three of the four rank-deficient cases; only
+the zero operator is recovered because independent seeds directly span its
+nullspace. This negative control is retained as explicit false-negative
+evidence rather than hidden by a favorable default budget.
+
+Single-projection singular values still agree on diagonal, scaled diagonal,
+exactly rank-deficient, and rectangular underdetermined matrices; lifted Ritz
+backward errors are directly bounded and the rectangular/right-null cases
+produce full-operator residuals below `1e-12`. The complete package and local
+Ipopt/MadNLP/PowerModels/BMOPFTools extension targets pass; the standalone
+multi-seed oracle block has 27 assertions, the core rank block has 143, and the
+BMOPFTools staged-adapter subsection has 312. This validates software contracts
+and exposes one bounded miss-rate experiment. It does not yet validate
+smallest-singular coverage on adversarial or large-model matrices.
+
+## 2026-08-11: restarted smallest-direction adversarial calibration
+
+Status: **software-qualified candidate method; adverse numerical controls
+retained**.
+
+The restarted locally optimal block tracker was evaluated through
+`benchmarks/calibrate_restarted_smallest_singular.jl` on ten deterministic
+dense-oracle cases. All expected relations matched:
+
+- five ordinary dense agreements: separated diagonal, clustered smallest pair,
+  rotated planted spectrum, rotated planted two-dimensional nullspace, and a
+  rectangular right nullspace;
+- two agreements with a deliberately non-unique dense target subspace: a
+  repeated smallest singular value when requesting one direction, and the zero
+  operator;
+- two expected unconverged results: an insufficient one-iteration budget and
+  the badly scaled full-rank matrix `diag(1e8, 1, 1e-8)`; and
+- one expected false-convergence control on the 6-by-6 Hilbert matrix.
+
+The Hilbert result is the most important outcome. The normal-residual and
+successive-subspace policy converged to a stationary candidate near `3.62e-6`,
+while dense SVD reported a smallest singular value near `1.08e-7`. The
+scale-normalized value error was approximately `2.17e-6`, above the declared
+`1e-6` oracle comparison tolerance. Thus internal convergence is demonstrably
+insufficient to claim smallest-singular coverage. The public report preserves
+this as `singular_value_disagreement`.
+
+The badly scaled control stopped at `trial_subspace_stagnation` with a candidate
+near `2.96e7`, rather than misreporting the dense `1e-8` direction. This is an
+honest coverage failure caused by squared-spectrum and finite-precision trial
+space loss. The next backend must provide independent evidence through a
+harmonic Golub--Kahan, Jacobi--Davidson SVD, or vetted LSMR/LSQR-class method;
+the restarted normal-operator tracker remains useful for numerical-method
+experiments but is not promoted to a rank backend.
