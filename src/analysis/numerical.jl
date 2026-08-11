@@ -3929,6 +3929,37 @@ function _rank_findings(
             variable in evaluation.point.variables
         ],
     )
+    if !isnothing(sparse_qr) && !sparse_qr.available
+        resource_guarded = occursin("exceeding max_", something(sparse_qr.reason, ""))
+        push!(findings, Finding(
+            resource_guarded ? :sparse_qr_rank_resource_guarded :
+                :sparse_qr_rank_unavailable;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceCertain,
+            observation = resource_guarded ?
+                "Sparse QR rank analysis was skipped by an explicit nonzero budget." :
+                "Sparse QR rank analysis is unavailable at point \"$(evaluation.point.label)\".",
+            why_it_matters = resource_guarded ?
+                "A resource skip bounds what was computed and must not be interpreted as full rank, rank deficiency, or a numerical failure." :
+                "An unavailable sparse factorization cannot support a numerical-rank conclusion.",
+            evidence = [_point_evidence(evaluation.point), Evidence(
+                "Sparse QR rank availability"; details = [
+                    "reason" => sparse_qr.reason,
+                    "input_nonzeros" => sparse_qr.input_nonzeros,
+                    "factor_nonzeros" => sparse_qr.factor_nonzeros,
+                    "fill_ratio" => sparse_qr.fill_ratio,
+                    "max_input_nonzeros" => sparse_qr.max_input_nonzeros,
+                    "max_factor_nonzeros" => sparse_qr.max_factor_nonzeros,
+                ],
+            )],
+            suggested_actions = resource_guarded ?
+                ["Increase the recorded sparse budget only in an isolated, resource-monitored campaign."] :
+                ["Inspect derivative completeness and the recorded sparse-factorization reason."],
+            affected = affected,
+        ))
+    end
     if !unscaled.available
         if !isnothing(sparse_pattern) && sparse_pattern.available &&
            sparse_pattern.rank_upper_bound < min(sparse_pattern.rows, sparse_pattern.columns)
@@ -4430,6 +4461,8 @@ function _analyze_numerical_evaluation(
     rank_absolute_tolerance::Real = zero(T),
     rank_matrix_norm::Symbol = :frobenius,
     rank_max_dense_entries::Integer = 4_000_000,
+    sparse_qr_rank_max_input_nonzeros::Integer = 1_000_000,
+    sparse_qr_rank_max_factor_nonzeros::Integer = 4_000_000,
     jacobian_condition_threshold::Real = 1.0e10,
     component_scale_mismatch_factor::Real = 1.0e3,
 ) where {T<:AbstractFloat}
@@ -4465,6 +4498,8 @@ function _analyze_numerical_evaluation(
         relative_tolerance = rank_relative_tolerance,
         absolute_tolerance = rank_absolute_tolerance,
         matrix_norm = rank_matrix_norm,
+        max_input_nonzeros = sparse_qr_rank_max_input_nonzeros,
+        max_factor_nonzeros = sparse_qr_rank_max_factor_nonzeros,
         provenance = :analyze_numerical,
     )
     scaled_sparse_qr = sparse_qr_rank_estimate(
@@ -4473,6 +4508,8 @@ function _analyze_numerical_evaluation(
         absolute_tolerance = rank_absolute_tolerance,
         scaling = :row_column,
         matrix_norm = rank_matrix_norm,
+        max_input_nonzeros = sparse_qr_rank_max_input_nonzeros,
+        max_factor_nonzeros = sparse_qr_rank_max_factor_nonzeros,
         provenance = :analyze_numerical,
     )
     model_snapshot = snapshot(model)
@@ -4595,6 +4632,7 @@ function _analyze_numerical_evaluation(
     report.metadata[:jacobian_rank] = string(unscaled_rank.rank)
     report.metadata[:jacobian_rank_scaling] = string(unscaled_rank.scaling)
     report.metadata[:jacobian_rank_available] = string(unscaled_rank.available)
+    report.metadata[:jacobian_rank_reason] = string(unscaled_rank.reason)
     report.metadata[:jacobian_rank_relative_tolerance] =
         string(unscaled_rank.policy.relative_tolerance)
     report.metadata[:jacobian_rank_absolute_tolerance] =
@@ -4612,6 +4650,8 @@ function _analyze_numerical_evaluation(
     report.metadata[:sparse_qr_rank_scaling] = string(sparse_qr.scaling)
     report.metadata[:sparse_qr_row_column_rank] = string(scaled_sparse_qr.rank)
     report.metadata[:sparse_qr_condition_proxy] = string(sparse_qr.condition_proxy)
+    report.metadata[:scaled_sparse_qr_condition_proxy] =
+        string(scaled_sparse_qr.condition_proxy)
     report.metadata[:sparse_qr_method] = string(sparse_qr.method)
     report.metadata[:sparse_qr_absolute_tolerance] =
         string(sparse_qr.policy.absolute_tolerance)
@@ -4624,6 +4664,24 @@ function _analyze_numerical_evaluation(
         string(sparse_qr.factorization_relative_residual)
     report.metadata[:sparse_qr_factorization_residual_reason] =
         string(sparse_qr.factorization_residual_reason)
+    report.metadata[:sparse_qr_rank_reason] = string(sparse_qr.reason)
+    report.metadata[:sparse_qr_input_nonzeros] = string(sparse_qr.input_nonzeros)
+    report.metadata[:sparse_qr_factor_nonzeros] = string(sparse_qr.factor_nonzeros)
+    report.metadata[:sparse_qr_fill_ratio] = string(sparse_qr.fill_ratio)
+    report.metadata[:sparse_qr_max_input_nonzeros] =
+        string(sparse_qr.max_input_nonzeros)
+    report.metadata[:sparse_qr_max_factor_nonzeros] =
+        string(sparse_qr.max_factor_nonzeros)
+    report.metadata[:scaled_sparse_qr_rank_available] =
+        string(scaled_sparse_qr.available)
+    report.metadata[:scaled_sparse_qr_rank_reason] =
+        string(scaled_sparse_qr.reason)
+    report.metadata[:scaled_sparse_qr_input_nonzeros] =
+        string(scaled_sparse_qr.input_nonzeros)
+    report.metadata[:scaled_sparse_qr_factor_nonzeros] =
+        string(scaled_sparse_qr.factor_nonzeros)
+    report.metadata[:scaled_sparse_qr_fill_ratio] =
+        string(scaled_sparse_qr.fill_ratio)
     report.metadata[:dense_sparse_qr_unscaled_rank_agree] = string(
         unscaled_rank.available && sparse_qr.available &&
         unscaled_rank.rank == sparse_qr.rank,

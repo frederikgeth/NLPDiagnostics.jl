@@ -156,6 +156,17 @@ crosscheck = analyze_jacobian_directional_crosscheck(
 )
 ```
 
+Pass `row_indices` to audit an explicit row subset and
+`direction_policy=:dense_deterministic` when each direction should exercise
+all coordinates. The combined `analyze` and `profile_case` paths can select the
+same subset by recorded provenance with
+`jacobian_directional_crosscheck_row_methods`, for example
+`[:central_finite_difference]`. Perturbed evaluations use a values-only path:
+they preserve ordinary, NLP-block, and nonlinear-oracle row order without
+reconstructing a full Jacobian at every side. Metadata retains the selected
+rows, selected method counts, direction policy, comparisons, mismatches, and
+domain limitations.
+
 `jacobian_directional_crosscheck_mismatch` is local numerical evidence, not a
 diagnosis of an automatic-differentiation defect. Truncation, cancellation,
 nonsmoothness, and domain crossings are competing explanations. The separate
@@ -1608,3 +1619,19 @@ Jacobian. Scaled singular values remain values of a different operator and are
 not directly comparable with the unscaled spectrum. The mapped residual is
 useful evidence about an original-coordinate direction; it is still not a rank,
 nullity, or physical-mode certificate.
+
+## Sparse-QR rank resource budgets
+
+`sparse_qr_rank_estimate` records independent `max_input_nonzeros` and
+`max_factor_nonzeros` budgets. The combined Jacobian nonzero count is checked
+before SuiteSparseQR is invoked. The realized nonzeros in the triangular `R`
+factor and its fill ratio are recorded after factorization; if the factor
+budget is exceeded, the estimate is unavailable and the measured fill remains
+evidence. The factor cap therefore prevents downstream use and oversized
+nullspace work, but it is not a pre-factorization memory guarantee.
+
+`analyze_numerical` and `profile_case` default to one million input nonzeros
+and four million factor nonzeros. A resource breach emits
+`sparse_qr_rank_resource_guarded`, not a rank finding. Dense work remains
+independently controlled by `rank_max_dense_entries`: dense entry count,
+sparse input size, and factor fill describe different costs.

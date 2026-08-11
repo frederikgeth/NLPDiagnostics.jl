@@ -427,8 +427,17 @@ function sparse_qr_rank_estimate(
     scaling::Symbol = :none,
     matrix_norm::Symbol = :frobenius,
     max_dense_entries::Integer = 100_000,
+    max_input_nonzeros::Integer = 1_000_000,
+    max_factor_nonzeros::Integer = 4_000_000,
     provenance::Symbol = :default,
 ) where {T<:AbstractFloat}
+    for (name, value) in (
+        ("max_input_nonzeros", max_input_nonzeros),
+        ("max_factor_nonzeros", max_factor_nonzeros),
+    )
+        value >= 0 || throw(ArgumentError("$name must be nonnegative"))
+        value <= typemax(Int) || throw(ArgumentError("$name is too large"))
+    end
     policy = RankPolicy(
         T;
         backend = :sparse_qr,
@@ -440,7 +449,9 @@ function sparse_qr_rank_estimate(
         compute_vectors = false,
         provenance,
     )
-    return sparse_qr_rank_estimate(evaluation, policy)
+    return _sparse_qr_rank_estimate(
+        evaluation, policy, Int(max_input_nonzeros), Int(max_factor_nonzeros),
+    )
 end
 
 function sparse_qr_nullspace_estimate(
@@ -853,18 +864,40 @@ function sparse_qr_rank_estimate(
     evaluation::NumericalEvaluation{T},
     policy::RankPolicy{T},
 ) where {T<:AbstractFloat}
+    return _sparse_qr_rank_estimate(
+        evaluation, policy, 1_000_000, 4_000_000,
+    )
+end
+
+function _sparse_qr_rank_estimate(
+    evaluation::NumericalEvaluation{T},
+    policy::RankPolicy{T},
+    max_input_nonzeros::Int,
+    max_factor_nonzeros::Int,
+) where {T<:AbstractFloat}
     policy.backend == :sparse_qr ||
         throw(ArgumentError("sparse_qr_rank_estimate requires a :sparse_qr RankPolicy"))
     rows, columns = length(evaluation.constraint_sources), length(evaluation.point.variables)
     pattern = sparse_jacobian_pattern_estimate(evaluation)
-    unavailable(reason) = SparseQRRankEstimate{T}(
+    unavailable(
+        reason;
+        input_nonzeros = 0,
+        factor_nonzeros = 0,
+        fill_ratio = nothing,
+    ) = SparseQRRankEstimate{T}(
         false, reason, evaluation.point, policy, :suitesparse_qr,
         policy.scaling, rows, columns, 0, T[], policy.relative_tolerance,
         policy.absolute_tolerance, nothing, nothing, Int[], Int[], nothing,
-        nothing,
+        nothing, input_nonzeros, factor_nonzeros, fill_ratio,
+        max_input_nonzeros, max_factor_nonzeros,
     )
     !pattern.available && return unavailable(pattern.reason)
     matrix = _combined_sparse_jacobian_matrix(evaluation)
+    input_nonzeros = nnz(matrix)
+    input_nonzeros <= max_input_nonzeros || return unavailable(
+        "combined Jacobian has $input_nonzeros nonzeros, exceeding max_input_nonzeros=$max_input_nonzeros";
+        input_nonzeros,
+    )
     try
         if policy.scaling in (:row, :row_column)
             row_norms = [norm(matrix[row, :]) for row in 1:rows]
@@ -875,7 +908,14 @@ function sparse_qr_rank_estimate(
             matrix = matrix * spdiagm(0 => T[iszero(value) ? one(T) : inv(value) for value in column_norms])
         end
         factorization = qr(matrix)
-        pivots = T.(abs.(diag(factorization.R)))
+        R = sparse(factorization.R)
+        factor_nonzeros = nnz(R)
+        fill_ratio = T(factor_nonzeros) / T(max(input_nonzeros, 1))
+        factor_nonzeros <= max_factor_nonzeros || return unavailable(
+            "SuiteSparseQR R factor has $factor_nonzeros nonzeros, exceeding max_factor_nonzeros=$max_factor_nonzeros";
+            input_nonzeros, factor_nonzeros, fill_ratio,
+        )
+        pivots = T.(abs.(diag(R)))
         threshold = isempty(pivots) ? policy.absolute_tolerance : max(
             policy.absolute_tolerance,
             policy.relative_tolerance * maximum(pivots),
@@ -907,6 +947,8 @@ function sparse_qr_rank_estimate(
             policy.relative_tolerance, threshold, proxy, norm_value,
             row_permutation, column_permutation,
             relative_factorization_residual, residual_reason,
+            input_nonzeros, factor_nonzeros, fill_ratio,
+            max_input_nonzeros, max_factor_nonzeros,
         )
     catch error
         return unavailable(sprint(showerror, error))

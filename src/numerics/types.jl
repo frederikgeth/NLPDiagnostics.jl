@@ -356,7 +356,13 @@ struct SparseJacobianPatternEstimate{T<:AbstractFloat}
     unmatched_columns::Vector{Int}
 end
 
-"""Sparse-QR local rank estimate with inspectable factorization evidence."""
+"""
+Sparse-QR local rank estimate with inspectable factorization evidence.
+
+Input nonzeros are guarded before factorization. Factor nonzeros and fill are
+measured after SuiteSparseQR constructs `R`; exceeding that budget makes the
+estimate unavailable but does not claim that factor allocation was avoided.
+"""
 struct SparseQRRankEstimate{T<:AbstractFloat}
     available::Bool
     reason::Union{Nothing,String}
@@ -376,6 +382,11 @@ struct SparseQRRankEstimate{T<:AbstractFloat}
     column_permutation::Vector{Int}
     factorization_relative_residual::Union{Nothing,T}
     factorization_residual_reason::Union{Nothing,String}
+    input_nonzeros::Int
+    factor_nonzeros::Int
+    fill_ratio::Union{Nothing,T}
+    max_input_nonzeros::Int
+    max_factor_nonzeros::Int
 end
 
 """

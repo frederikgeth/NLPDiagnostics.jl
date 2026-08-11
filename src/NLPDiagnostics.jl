@@ -4977,6 +4977,8 @@ function analyze(
     jacobian_directional_crosscheck_relative_step::Real = cbrt(eps(Float64)),
     jacobian_directional_crosscheck_absolute_tolerance::Real = 0.0,
     jacobian_directional_crosscheck_relative_tolerance::Real = sqrt(eps(Float64)),
+    jacobian_directional_crosscheck_row_methods::Union{Nothing,AbstractVector{Symbol}} = nothing,
+    jacobian_directional_crosscheck_direction_policy::Symbol = :coordinate_then_dense,
     check_objective_gradient_directional_crosscheck::Bool = false,
     objective_gradient_directional_crosscheck_direction_count::Integer = 3,
     objective_gradient_directional_crosscheck_relative_step::Real = cbrt(eps(Float64)),
@@ -5312,6 +5314,12 @@ function analyze(
         merge!(report.metadata, component_rank_report.metadata)
         stages *= ",numerical"
         if check_jacobian_directional_crosscheck
+            directional_rows = isnothing(
+                jacobian_directional_crosscheck_row_methods,
+            ) ? nothing : findall(
+                method -> method in jacobian_directional_crosscheck_row_methods,
+                numerical_evaluation.jacobian_row_methods,
+            )
             crosscheck_report = analyze_jacobian_directional_crosscheck(
                 model,
                 numerical_evaluation;
@@ -5319,6 +5327,9 @@ function analyze(
                 relative_step = jacobian_directional_crosscheck_relative_step,
                 absolute_tolerance = jacobian_directional_crosscheck_absolute_tolerance,
                 relative_tolerance = jacobian_directional_crosscheck_relative_tolerance,
+                row_indices = directional_rows,
+                direction_policy =
+                    jacobian_directional_crosscheck_direction_policy,
                 cache = cache,
             )
             append!(report.findings, crosscheck_report.findings)

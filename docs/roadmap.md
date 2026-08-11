@@ -3020,3 +3020,87 @@ The next ordered major items are now:
 4. begin physical mode fingerprinting only for cases whose source contract,
    terminal maps, point provenance, numerical rank crosschecks, and persistence
    gates all pass.
+
+## 2026-08-11 randomized-oracle and medium sparse checkpoint
+
+The randomized rank-oracle gate and first medium sparse gate are complete.
+All 18 away-from-threshold hard controls pass across three seeds. Four of nine
+clustered-threshold cases deliberately expose dense-SVD/sparse-QR disagreement,
+confirming that reports must preserve backend-specific threshold evidence
+rather than merge ranks into one apparent fact.
+
+Sparse-QR rank estimation now has explicit input-nonzero and realized-factor
+nonzero budgets. Both limits, observed nonzeros, fill, and skip reasons flow
+through numerical metadata and BMOPF campaign fingerprints. The first 99-bus
+LN/LG pair stayed far below the selected 200k input and one-million-factor
+budgets and required no dense algebra. Both were locally full column rank under
+unscaled and row-column QR policies, but LN showed materially larger row-scale
+and pivot-spread proxies.
+
+The next ordered major items are:
+
+1. eliminate or independently crosscheck the 96 finite-difference rows so the
+   99-bus rank and scaling observations do not depend on one derivative path;
+2. classify the extra saved-result `cr_to`/`ci_to` records as an explicit
+   result-schema projection contract and expose the four BMOPFTools
+   differentiability qualifications in the campaign summary;
+3. repeat the 99-bus LN/LG pair across at least three time points and a
+   controlled row/column scaling grid, preserving rank, pivots, fill, row
+   families, and point feasibility;
+4. add process-level elapsed-time and memory limits around large isolated
+   benchmark children, because a post-factorization fill cap is not a hard
+   memory bound; and
+5. only after those gates, correlate persistent scale families with Ipopt and
+   MadNLP traces and begin expected-versus-observed physical mode
+   fingerprinting.
+
+## 2026-08-11 crosschecked multi-time medium checkpoint
+
+The five gates above are now implemented and exercised for the bounded 99-bus
+tier. Jacobian directional crosschecks can select rows by derivative
+provenance and use deterministic dense directions without rebuilding a full
+Jacobian at each perturbation. Across LN/LG at t01, t12, and t24, all 96
+finite-difference rows passed 288 comparisons per case with zero mismatch or
+domain loss.
+
+Saved-result `cr_to`/`ci_to` records are now covered by an explicit derived
+output projection contract: 784 records per case are projected, while all
+1,968 staged coordinates map with no fallback or unresolved family. The exact
+four BMOPFTools differentiability qualifications are persisted as evidence,
+not reduced to a readiness boolean or count.
+
+All six sparse Jacobians remain full column rank under unscaled and
+row/column-scaled SuiteSparseQR, with fill ratios below 2.0. Unscaled
+retained-pivot proxies vary from about 37.6 to 5,327 across time and
+formulation, whereas the scaled proxies stay in the narrow 22.48--25.02 range.
+That is repeatable evidence of scale-sensitive numerical geometry, not
+time-varying structural rank. The midday proxy spike occurs without the
+generic large-row-norm-spread finding, so a single global scaling ratio is not
+an adequate explanation.
+
+The point-calibration launcher now enforces per-child elapsed-time limits and
+an optional polled RSS ceiling, while recording monitor availability and peak
+RSS. All six children completed inside 600 seconds and 4 GiB; observed peaks
+were about 2.60--2.69 GiB. The consolidated artifact applies explicit point,
+derivative, rank, and resource gates, and all six pass for local numerical
+comparison. It deliberately does not promote BMOPFTools differentiability
+readiness: the reconstructed staged models report `OPTIMIZE_NOT_CALLED`.
+
+The next ordered major items are:
+
+1. attribute the 96 finite-difference rows to semantic constraint and operator
+   families, replace fallback derivatives where BMOPFTools can expose exact
+   formulas, and retain the crosscheck as a regression oracle;
+2. explain the t12 unscaled pivot-spread spike with row-family, column-family,
+   permutation, and retained-pivot attribution rather than another aggregate
+   condition score;
+3. run matched Ipopt and MadNLP traces at t01/t12/t24 under declared solver
+   scaling policies, correlating iteration, restoration, KKT, and active-set
+   events with the attributed scale mechanisms;
+4. reduce campaign memory/serialization pressure before attempting the
+   538-bus tier, retaining an explicit resource skip when the predicted sparse
+   work or RSS budget is unsafe; and
+5. begin expected-versus-observed physical-mode fingerprints only at solver
+   endpoints whose source, mapping, derivative, active-set, and KKT evidence
+   passes. Full column rank at these saved points is not by itself a proof that
+   no physical gauge or collapse mode exists.

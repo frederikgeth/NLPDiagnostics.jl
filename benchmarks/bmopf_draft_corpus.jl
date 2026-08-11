@@ -4,7 +4,10 @@
 # defaults to two 30-bus representatives. Pass NLPDIAGNOSTICS_BMOPF_CASES with
 # comma-separated relative paths to select another snapshot, including a 538-bus
 # case. Dense rank/SVD stages are skipped once the Jacobian entry count exceeds
-# NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES (250_000 by default). Set
+# NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES (250_000 by default). Sparse QR
+# is independently bounded by NLPDIAGNOSTICS_BMOPF_SPARSE_QR_MAX_INPUT_NONZEROS
+# and NLPDIAGNOSTICS_BMOPF_SPARSE_QR_MAX_FACTOR_NONZEROS. A breached budget is
+# retained as an explicit unavailable/resource-guard finding. Set
 # NLPDIAGNOSTICS_BMOPF_ANALYSIS_MODE=structural for static/structural evidence
 # only: it requests no point evaluation or derivative analysis.
 #
@@ -22,6 +25,9 @@
 # NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS=bus_voltage=si,line_current=pu.
 # Set NLPDIAGNOSTICS_BMOPF_RESUME=true to reuse only matching successful
 # records. Set NLPDIAGNOSTICS_BMOPF_FORCE=true to rerun selected cases.
+# Set NLPDIAGNOSTICS_BMOPF_CROSSCHECK_FINITE_DIFFERENCE_ROWS=true to compare
+# finite-difference-provenance rows against deterministic dense-direction
+# central differences of perturbed constraint values.
 
 using NLPDiagnostics
 using BMOPFTools
@@ -32,7 +38,7 @@ using SHA
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
-const _RUNNER_VERSION = "bmopf-draft-corpus-v10"
+const _RUNNER_VERSION = "bmopf-draft-corpus-v12"
 
 const _DEFAULT_CASES = [
     "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
@@ -53,6 +59,29 @@ function _dense_entry_limit()
     end
     limit >= 0 || error("NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES must be nonnegative")
     return limit
+end
+
+function _nonnegative_env_int(name, default)
+    raw = get(ENV, name, string(default))
+    value = try
+        parse(Int, raw)
+    catch
+        error("$name must be a nonnegative integer, got '$raw'")
+    end
+    value >= 0 || error("$name must be nonnegative")
+    return value
+end
+
+function _positive_env_float(name, default)
+    raw = get(ENV, name, string(default))
+    value = try
+        parse(Float64, raw)
+    catch
+        error("$name must be a positive finite number, got '$raw'")
+    end
+    isfinite(value) && value > 0.0 ||
+        error("$name must be a positive finite number")
+    return value
 end
 
 function _saved_result_path(snapshot_path, result_units)
@@ -257,7 +286,10 @@ end
 
 function _case_fingerprint(
     root, relative, point_policy, analysis_mode, dense_entry_limit,
+    sparse_qr_max_input_nonzeros, sparse_qr_max_factor_nonzeros,
     include_floating_neutral_candidates, family_scaling_experiment_families,
+    crosscheck_finite_difference_rows, crosscheck_direction_count,
+    crosscheck_relative_step,
     environment_fingerprint = _benchmark_environment_fingerprint(),
 )
     snapshot_path = joinpath(root, relative)
@@ -274,8 +306,13 @@ function _case_fingerprint(
         point_policy,
         analysis_mode,
         string(dense_entry_limit),
+        string(sparse_qr_max_input_nonzeros),
+        string(sparse_qr_max_factor_nonzeros),
         string(include_floating_neutral_candidates),
         join(family_scaling_experiment_families, ","),
+        string(crosscheck_finite_difference_rows),
+        string(crosscheck_direction_count),
+        string(crosscheck_relative_step),
         result_units,
         result_field_units,
         result_suffix,
@@ -317,12 +354,30 @@ function main()
         "unknown NLPDIAGNOSTICS_BMOPF_ANALYSIS_MODE='$analysis_mode' (use profile or structural)",
     )
     dense_entry_limit = _dense_entry_limit()
+    sparse_qr_max_input_nonzeros = _nonnegative_env_int(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_MAX_INPUT_NONZEROS", 1_000_000,
+    )
+    sparse_qr_max_factor_nonzeros = _nonnegative_env_int(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_MAX_FACTOR_NONZEROS", 4_000_000,
+    )
     include_floating_neutral_candidates = _env_flag(
         "NLPDIAGNOSTICS_BMOPF_INCLUDE_FLOATING_NEUTRAL_CANDIDATES";
         default = false,
     )
     family_scaling_experiment_families =
         _family_scaling_experiment_families()
+    crosscheck_finite_difference_rows = _env_flag(
+        "NLPDIAGNOSTICS_BMOPF_CROSSCHECK_FINITE_DIFFERENCE_ROWS";
+        default = false,
+    )
+    crosscheck_direction_count = _nonnegative_env_int(
+        "NLPDIAGNOSTICS_BMOPF_CROSSCHECK_DIRECTION_COUNT", 3,
+    )
+    crosscheck_relative_step = _positive_env_float(
+        "NLPDIAGNOSTICS_BMOPF_CROSSCHECK_RELATIVE_STEP", cbrt(eps(Float64)),
+    )
+    crosscheck_finite_difference_rows && crosscheck_direction_count == 0 &&
+        error("NLPDIAGNOSTICS_BMOPF_CROSSCHECK_DIRECTION_COUNT must be positive when the finite-difference row crosscheck is enabled")
     resume = _env_flag("NLPDIAGNOSTICS_BMOPF_RESUME")
     force = _env_flag("NLPDIAGNOSTICS_BMOPF_FORCE")
     force && (resume = false)
@@ -333,8 +388,12 @@ function main()
     for relative in selected_cases
         fingerprint = _case_fingerprint(
             root, relative, point_policy, analysis_mode, dense_entry_limit,
+            sparse_qr_max_input_nonzeros, sparse_qr_max_factor_nonzeros,
             include_floating_neutral_candidates,
             family_scaling_experiment_families,
+            crosscheck_finite_difference_rows,
+            crosscheck_direction_count,
+            crosscheck_relative_step,
             environment_fingerprint,
         )
         push!(manifest_cases, Dict(
@@ -352,7 +411,13 @@ function main()
         "result_units" => lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_UNITS", "si")),
         "result_field_units" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS", ""),
         "include_floating_neutral_candidates" => include_floating_neutral_candidates,
+        "crosscheck_finite_difference_rows" => crosscheck_finite_difference_rows,
+        "crosscheck_direction_count" => crosscheck_direction_count,
+        "crosscheck_relative_step" => crosscheck_relative_step,
+        "crosscheck_direction_policy" => "dense_deterministic",
         "rank_max_dense_entries" => dense_entry_limit,
+        "sparse_qr_max_input_nonzeros" => sparse_qr_max_input_nonzeros,
+        "sparse_qr_max_factor_nonzeros" => sparse_qr_max_factor_nonzeros,
         "resume" => resume,
         "force" => force,
         "environment" => environment,
@@ -397,7 +462,22 @@ function main()
                         include_initialization = true,
                         include_floating_neutral_candidates = include_floating_neutral_candidates,
                         rank_max_dense_entries = dense_entry_limit,
+                        sparse_qr_rank_max_input_nonzeros =
+                            sparse_qr_max_input_nonzeros,
+                        sparse_qr_rank_max_factor_nonzeros =
+                            sparse_qr_max_factor_nonzeros,
                         jacobian_rank_tolerance_sweep_max_dense_entries = dense_entry_limit,
+                        check_jacobian_directional_crosscheck =
+                            crosscheck_finite_difference_rows,
+                        jacobian_directional_crosscheck_row_methods =
+                            [:central_finite_difference,
+                             :partial_central_finite_difference],
+                        jacobian_directional_crosscheck_direction_count =
+                            crosscheck_direction_count,
+                        jacobian_directional_crosscheck_relative_step =
+                            crosscheck_relative_step,
+                        jacobian_directional_crosscheck_direction_policy =
+                            :dense_deterministic,
                     ),
                 )
                 saved_mapping = mapping_sink[]
@@ -475,11 +555,19 @@ function main()
                 "analysis_mode" => analysis_mode,
                 "point_policy" => point_policy,
                 "include_floating_neutral_candidates" => include_floating_neutral_candidates,
+                "crosscheck_finite_difference_rows" => crosscheck_finite_difference_rows,
+                "crosscheck_direction_count" => crosscheck_direction_count,
+                "crosscheck_relative_step" => crosscheck_relative_step,
+                "crosscheck_direction_policy" => "dense_deterministic",
                 "integrity_preflight" => preflight,
                 "model_variable_count" => variable_count,
                 row_count_key => constraint_row_count,
                 "jacobian_dense_entry_count" => jacobian_entries,
                 "rank_max_dense_entries" => dense_entry_limit,
+                "sparse_qr_max_input_nonzeros" =>
+                    sparse_qr_max_input_nonzeros,
+                "sparse_qr_max_factor_nonzeros" =>
+                    sparse_qr_max_factor_nonzeros,
                 "dense_rank_analysis_eligible" => isnothing(jacobian_entries) ? false : jacobian_entries <= dense_entry_limit,
                 "derivative_evaluation_requested" => analysis_mode == "profile",
                 "build_seconds" => run.build_seconds,
@@ -494,10 +582,18 @@ function main()
                 "campaign_fingerprint" => fingerprint,
                 "result_file" => basename(result_path), "analysis_mode" => analysis_mode,
                 "point_policy" => point_policy,
+                "crosscheck_finite_difference_rows" => crosscheck_finite_difference_rows,
+                "crosscheck_direction_count" => crosscheck_direction_count,
+                "crosscheck_relative_step" => crosscheck_relative_step,
+                "crosscheck_direction_policy" => "dense_deterministic",
                 "model_variable_count" => variable_count,
                 row_count_key => constraint_row_count,
                 "jacobian_dense_entry_count" => jacobian_entries,
                 "rank_max_dense_entries" => dense_entry_limit,
+                "sparse_qr_max_input_nonzeros" =>
+                    sparse_qr_max_input_nonzeros,
+                "sparse_qr_max_factor_nonzeros" =>
+                    sparse_qr_max_factor_nonzeros,
                 "dense_rank_analysis_eligible" => isnothing(jacobian_entries) ? false : jacobian_entries <= dense_entry_limit,
                 "derivative_evaluation_requested" => analysis_mode == "profile",
                 "generic_finding_count" => generic_findings,
@@ -535,7 +631,13 @@ function main()
         "result_units" => lowercase(get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_UNITS", "si")),
         "result_field_units" => get(ENV, "NLPDIAGNOSTICS_BMOPF_RESULT_FIELD_UNITS", ""),
         "include_floating_neutral_candidates" => include_floating_neutral_candidates,
+        "crosscheck_finite_difference_rows" => crosscheck_finite_difference_rows,
+        "crosscheck_direction_count" => crosscheck_direction_count,
+        "crosscheck_relative_step" => crosscheck_relative_step,
+        "crosscheck_direction_policy" => "dense_deterministic",
         "rank_max_dense_entries" => dense_entry_limit,
+        "sparse_qr_max_input_nonzeros" => sparse_qr_max_input_nonzeros,
+        "sparse_qr_max_factor_nonzeros" => sparse_qr_max_factor_nonzeros,
         "resume" => resume,
         "force" => force,
         "environment" => environment,

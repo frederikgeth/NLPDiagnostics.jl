@@ -1,21 +1,127 @@
-function _directional_crosscheck_directions(::Type{T}, dimension::Integer, count::Integer) where {T<:AbstractFloat}
+function _directional_crosscheck_directions(
+    ::Type{T}, dimension::Integer, count::Integer;
+    policy::Symbol = :coordinate_then_dense,
+) where {T<:AbstractFloat}
     dimension > 0 || return Vector{Vector{T}}()
     count > 0 || throw(ArgumentError("directional cross-check count must be positive"))
+    policy in (:coordinate_then_dense, :dense_deterministic) ||
+        throw(ArgumentError(
+            "direction policy must be :coordinate_then_dense or :dense_deterministic",
+        ))
     directions = Vector{Vector{T}}()
-    for column in 1:min(dimension, count)
-        direction = zeros(T, dimension)
-        direction[column] = one(T)
-        push!(directions, direction)
+    if policy == :coordinate_then_dense
+        for column in 1:min(dimension, count)
+            direction = zeros(T, dimension)
+            direction[column] = one(T)
+            push!(directions, direction)
+        end
     end
     while length(directions) < count
-        direction = T[
-            isodd(index + length(directions)) ? one(T) : -one(T) for
-            index in 1:dimension
+        direction_index = length(directions) + 1
+        direction = policy == :coordinate_then_dense ? T[
+            isodd(index + length(directions)) ? one(T) : -one(T)
+            for index in 1:dimension
+        ] : T[
+            sin(T(index * (direction_index + 1))) +
+            cos(T((index + 2) * (2 * direction_index + 1)))
+            for index in 1:dimension
         ]
+        norm(direction) > zero(T) || throw(ArgumentError(
+            "deterministic direction construction produced a zero vector",
+        ))
         direction ./= norm(direction)
         push!(directions, direction)
     end
     return directions
+end
+
+"""Evaluate scalar constraint values without constructing any derivatives."""
+function _directional_crosscheck_constraint_values(
+    model::MOI.ModelLike,
+    point::EvaluationPoint{T},
+) where {T<:AbstractFloat}
+    point.variables == MOI.get(model, MOI.ListOfVariableIndices()) ||
+        throw(ArgumentError(
+            "evaluation-point variable order does not match ListOfVariableIndices",
+        ))
+    model_snapshot = snapshot(model)
+    lookup = _point_lookup(point)
+    values = Union{Missing,T}[]
+    sources = EntityRef[]
+    failures = EvaluationFailure[]
+
+    functions, ordinary_sources = _ordinary_rows(model_snapshot)
+    for (function_value, source) in zip(functions, ordinary_sources)
+        raw = _safe_value(
+            model, function_value, lookup, source, :constraint_value, failures,
+        )
+        push!(values, _convert_value(T, raw))
+        push!(sources, source)
+    end
+
+    block = _optional_nlp_block(model)
+    if !isnothing(block)
+        evaluator = block.evaluator
+        capability = evaluator_capabilities(evaluator)
+        try
+            MOI.initialize(evaluator, copy(capability.requested_features))
+            block_values = zeros(T, length(block.constraint_bounds))
+            MOI.eval_constraint(evaluator, block_values, copy(point.values))
+            append!(values, block_values)
+        catch exception
+            append!(values, fill(missing, length(block.constraint_bounds)))
+            push!(failures, EvaluationFailure(
+                :constraint_value,
+                :nlp_block,
+                EntityRef(:nlp_block, 1; function_type = string(typeof(evaluator))),
+                string(typeof(exception)),
+                sprint(showerror, exception),
+            ))
+        end
+        append!(sources, [
+            _nlp_constraint_ref(row, evaluator)
+            for row in eachindex(block.constraint_bounds)
+        ])
+    end
+
+    for constraint in model_snapshot.constraints
+        set = constraint.set_value
+        set isa MOI.VectorNonlinearOracle || continue
+        source = _constraint_ref(constraint)
+        inputs = try
+            MOI.Utilities.eval_variables(
+                variable -> lookup[variable], model, constraint.function_value,
+            )
+        catch exception
+            push!(failures, EvaluationFailure(
+                :oracle_input, :nonlinear_oracle, source,
+                string(typeof(exception)), sprint(showerror, exception),
+            ))
+            append!(values, fill(missing, set.output_dimension))
+            append!(sources, [
+                _constraint_ref(constraint; row)
+                for row in 1:set.output_dimension
+            ])
+            continue
+        end
+        oracle_values = zeros(T, set.output_dimension)
+        try
+            set.eval_f(oracle_values, copy(inputs))
+            append!(values, oracle_values)
+        catch exception
+            append!(values, fill(missing, set.output_dimension))
+            push!(failures, EvaluationFailure(
+                :constraint_value, :nonlinear_oracle, source,
+                string(typeof(exception)), sprint(showerror, exception),
+            ))
+        end
+        append!(sources, [
+            _constraint_ref(constraint; row)
+            for row in 1:set.output_dimension
+        ])
+    end
+    return (constraint_values = values, constraint_sources = sources,
+            failures = failures)
 end
 
 function _directional_crosscheck_point(
@@ -131,6 +237,8 @@ function analyze_jacobian_directional_crosscheck(
     relative_step::Real = cbrt(eps(T)),
     absolute_tolerance::Real = zero(T),
     relative_tolerance::Real = sqrt(eps(T)),
+    row_indices::Union{Nothing,AbstractVector{<:Integer}} = nothing,
+    direction_policy::Symbol = :coordinate_then_dense,
     cache::EvaluationCache = EvaluationCache(),
 ) where {T<:AbstractFloat}
     direction_count > 0 || throw(ArgumentError("direction_count must be positive"))
@@ -138,6 +246,10 @@ function analyze_jacobian_directional_crosscheck(
     absolute_tolerance >= 0 || throw(ArgumentError("absolute_tolerance must be nonnegative"))
     relative_tolerance >= 0 || throw(ArgumentError("relative_tolerance must be nonnegative"))
     _validate_evaluation_variable_order(model, evaluation)
+    direction_policy in (:coordinate_then_dense, :dense_deterministic) ||
+        throw(ArgumentError(
+            "direction_policy must be :coordinate_then_dense or :dense_deterministic",
+        ))
 
     report = _directional_crosscheck_report(
         "jacobian_directional_crosscheck",
@@ -166,6 +278,47 @@ function analyze_jacobian_directional_crosscheck(
         return report
     end
 
+    selected_rows = if isnothing(row_indices)
+        collect(1:row_count)
+    else
+        unique(Int.(row_indices))
+    end
+    all(row -> 1 <= row <= row_count, selected_rows) ||
+        throw(ArgumentError("row_indices must lie in 1:$row_count"))
+    sort!(selected_rows)
+    report.metadata[:row_selection] =
+        isnothing(row_indices) ? "all" : "explicit"
+    report.metadata[:selected_row_count] = string(length(selected_rows))
+    report.metadata[:selected_rows] = join(selected_rows, ",")
+    selected_method_counts = Dict{Symbol,Int}()
+    for row in selected_rows
+        method = evaluation.jacobian_row_methods[row]
+        selected_method_counts[method] = get(selected_method_counts, method, 0) + 1
+    end
+    report.metadata[:selected_row_method_counts] = join((
+        "$(method)=$(count)" for (method, count) in
+        sort!(collect(selected_method_counts); by = pair -> string(first(pair)))
+    ), ",")
+    report.metadata[:direction_policy] = string(direction_policy)
+    if isempty(selected_rows)
+        push!(report, Finding(
+            :jacobian_directional_crosscheck_no_selected_rows;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceCertain,
+            observation = "No Jacobian rows matched the requested directional cross-check selection.",
+            why_it_matters = "An empty targeted audit provides no derivative-consistency evidence.",
+            evidence = [_point_evidence(evaluation.point)],
+            suggested_actions = [
+                "Inspect the recorded Jacobian row-method counts and select a nonempty provenance class.",
+            ],
+        ))
+        report.metadata[:directions_tested] = "0"
+        report.metadata[:constraint_directional_comparisons] = "0"
+        return report
+    end
+
     jacobian, unavailable_rows = _directional_crosscheck_jacobian(evaluation)
     nlp_rows = findall(source -> source.kind == :nlp_constraint, evaluation.constraint_sources)
     nlp_jacvec_advertised = !isnothing(_optional_nlp_block(model)) && any(
@@ -174,7 +327,10 @@ function analyze_jacobian_directional_crosscheck(
     report.metadata[:jacvec_available] = string(nlp_jacvec_advertised)
     scale = max(one(T), maximum(abs, evaluation.point.values; init = zero(T)))
     step = convert(T, relative_step) * scale
-    directions = _directional_crosscheck_directions(T, length(evaluation.point.variables), direction_count)
+    directions = _directional_crosscheck_directions(
+        T, length(evaluation.point.variables), direction_count;
+        policy = direction_policy,
+    )
     mismatches = NamedTuple[]
     domain_limited = NamedTuple[]
     jacvec_sources = Set{String}()
@@ -184,17 +340,17 @@ function analyze_jacobian_directional_crosscheck(
         plus = nothing
         minus = nothing
         try
-            plus = evaluate_numerical(
+            plus = _directional_crosscheck_constraint_values(
                 model,
-                _directional_crosscheck_point(evaluation.point, direction, step, direction_index, :plus);
-                cache = cache,
-                relative_step = relative_step,
+                _directional_crosscheck_point(
+                    evaluation.point, direction, step, direction_index, :plus,
+                ),
             )
-            minus = evaluate_numerical(
+            minus = _directional_crosscheck_constraint_values(
                 model,
-                _directional_crosscheck_point(evaluation.point, direction, step, direction_index, :minus);
-                cache = cache,
-                relative_step = relative_step,
+                _directional_crosscheck_point(
+                    evaluation.point, direction, step, direction_index, :minus,
+                ),
             )
         catch exception
             push!(domain_limited, (direction = direction_index, row = 0, reason = sprint(showerror, exception)))
@@ -202,7 +358,16 @@ function analyze_jacobian_directional_crosscheck(
         end
         jacvec, jacvec_source = _try_nlp_jacobian_product(model, evaluation.point, direction)
         push!(jacvec_sources, jacvec_source)
-        for row in 1:row_count
+        plus.constraint_sources == evaluation.constraint_sources &&
+            minus.constraint_sources == evaluation.constraint_sources || begin
+            push!(domain_limited, (
+                direction = direction_index,
+                row = 0,
+                reason = "constraint-value row order changed under perturbation",
+            ))
+            continue
+        end
+        for row in selected_rows
             row in unavailable_rows && continue
             plus_value = plus.constraint_values[row]
             minus_value = minus.constraint_values[row]

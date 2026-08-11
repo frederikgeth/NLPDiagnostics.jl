@@ -19,6 +19,7 @@ mutable struct TestNLPEvaluator <: MOI.AbstractNLPEvaluator
 end
 
 include("rank_calibration.jl")
+include("randomized_rank_oracles.jl")
 include("point_provenance.jl")
 include("fingerprints_and_crosscheck.jl")
 
@@ -1036,6 +1037,30 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test length(findings(saved_mapping_report, :bmopf_saved_result_unregistered_model_coordinates)) == 1
     @test only(findings(saved_mapping_report, :bmopf_saved_result_mapping_coverage)).domain ==
           NLPDiagnostics.RepresentationalIssue
+    projected_mapping = merge(saved_point, (
+        projected_saved_coordinate_counts_by_family = Dict(
+            "cr_to" => 2, "ci_to" => 2,
+        ),
+        saved_result_projection_contracts = Dict(
+            "cr_to" => "derived to-side export",
+            "ci_to" => "derived to-side export",
+        ),
+    ))
+    projected_mapping_report =
+        NLPDiagnostics.bmopf_result_mapping_report(projected_mapping)
+    @test projected_mapping_report.metadata[
+        :bmopf_saved_result_projected_record_count
+    ] == "4"
+    @test projected_mapping_report.metadata[
+        :bmopf_saved_result_projected_families
+    ] == "ci_to,cr_to"
+    @test length(findings(
+        projected_mapping_report,
+        :bmopf_saved_result_projection_contract_applied,
+    )) == 1
+    @test isempty(findings(
+        projected_mapping_report, :bmopf_saved_result_unresolved_records,
+    ))
     @test_throws ArgumentError NLPDiagnostics.bmopf_result_mapping_report((;))
     saved_case = NLPDiagnostics.bmopf_saved_result_profile_case(
         "saved-result-test", per_unit_context, saved_result;
@@ -1556,11 +1581,13 @@ end
         "compare_bmopf_source_solver_matrices.jl",
         "correlate_bmopf_structural_family_omission.jl",
         "summarize_bmopf_sparse_corpus.jl",
+        "summarize_bmopf_medium_calibration.jl",
         "validate_bmopf_residual_trends.jl",
         "summarize_bmopf_restoration_campaign.jl",
         "launch_bmopf_solver_option_perturbations.jl",
         "summarize_bmopf_solver_option_perturbations.jl",
         "calibrate_restarted_smallest_singular.jl",
+        "calibrate_randomized_rank_oracles.jl",
     )
     for script in scripts
         source = read(joinpath(benchmark_directory, script), String)
@@ -1574,7 +1601,7 @@ end
         joinpath(benchmark_directory, "summarize_bmopf_point_calibration.jl"),
         String,
     )
-    @test occursin("bmopf-point-calibration-launcher-v1", launcher)
+    @test occursin("bmopf-point-calibration-launcher-v2", launcher)
     @test occursin("NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES\"] = \"0\"", launcher)
     @test occursin("expected_child_count", launcher)
     @test occursin("case_isolation", launcher)
@@ -1582,6 +1609,8 @@ end
     @test occursin("resume-skip", launcher)
     @test occursin("previous_attempts", launcher)
     @test occursin("elapsed_seconds", launcher)
+    @test occursin("NLPDIAGNOSTICS_BMOPF_CALIBRATION_MAX_RSS_MIB", launcher)
+    @test occursin("process_memory_limit", launcher)
     @test occursin("child_case_failure", launcher)
     @test occursin("child_cases_empty", launcher)
     @test occursin("bmopf-point-calibration-v2", summary)
@@ -1705,6 +1734,14 @@ end
         restarted_calibration)
     @test occursin("badly_scaled_full_rank_control",
         restarted_calibration)
+    randomized_calibration = read(
+        joinpath(benchmark_directory,
+            "calibrate_randomized_rank_oracles.jl"), String,
+    )
+    @test occursin("seeded-randomized-rank-oracles-v1",
+        randomized_calibration)
+    @test occursin("threshold_backend_disagreement_count",
+        randomized_calibration)
     option_summary_module = Module(:NLPDiagnosticsOptionSummaryContract)
     Base.include(option_summary_module, joinpath(
         benchmark_directory, "summarize_bmopf_solver_option_perturbations.jl",
@@ -6951,6 +6988,22 @@ end
         @test sparse_qr.available
         @test sparse_qr.rank == 1
         @test sparse_qr.condition_proxy == 1.0
+        resource_guarded_report = NLPDiagnostics.analyze_numerical(
+            model, [0.0, 0.0];
+            rank_max_dense_entries = 0,
+            sparse_qr_rank_max_input_nonzeros = 0,
+        )
+        @test length(findings(
+            resource_guarded_report, :sparse_qr_rank_resource_guarded,
+        )) == 1
+        @test resource_guarded_report.metadata[:sparse_qr_rank_available] ==
+            "false"
+        @test resource_guarded_report.metadata[:sparse_qr_input_nonzeros] ==
+            "4"
+        @test occursin(
+            "max_input_nonzeros=0",
+            resource_guarded_report.metadata[:sparse_qr_rank_reason],
+        )
         scaled_sparse_qr = NLPDiagnostics.sparse_qr_rank_estimate(
             evaluation;
             scaling = :row_column,

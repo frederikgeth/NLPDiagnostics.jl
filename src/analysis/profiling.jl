@@ -339,11 +339,15 @@ function profile_case(
     rank_relative_tolerance::Real =
         max(length(case.point.variables), 1) * eps(T),
     rank_max_dense_entries::Integer = 4_000_000,
+    sparse_qr_rank_max_input_nonzeros::Integer = 1_000_000,
+    sparse_qr_rank_max_factor_nonzeros::Integer = 4_000_000,
     check_jacobian_directional_crosscheck::Bool = false,
     jacobian_directional_crosscheck_direction_count::Integer = 3,
     jacobian_directional_crosscheck_relative_step::Real = cbrt(eps(T)),
     jacobian_directional_crosscheck_absolute_tolerance::Real = 0.0,
     jacobian_directional_crosscheck_relative_tolerance::Real = sqrt(eps(T)),
+    jacobian_directional_crosscheck_row_methods::Union{Nothing,AbstractVector{Symbol}} = nothing,
+    jacobian_directional_crosscheck_direction_policy::Symbol = :coordinate_then_dense,
     check_objective_gradient_directional_crosscheck::Bool = false,
     objective_gradient_directional_crosscheck_direction_count::Integer = 3,
     objective_gradient_directional_crosscheck_relative_step::Real = cbrt(eps(T)),
@@ -459,6 +463,10 @@ function profile_case(
         jacobian_condition_threshold = jacobian_condition_threshold,
         rank_relative_tolerance = rank_relative_tolerance,
         rank_max_dense_entries = rank_max_dense_entries,
+        sparse_qr_rank_max_input_nonzeros =
+            sparse_qr_rank_max_input_nonzeros,
+        sparse_qr_rank_max_factor_nonzeros =
+            sparse_qr_rank_max_factor_nonzeros,
     ))
 
     if !isnothing(iterative_right_nullspace_probe_dimension)
@@ -693,6 +701,12 @@ function profile_case(
     end
 
     if check_jacobian_directional_crosscheck
+        directional_rows = isnothing(
+            jacobian_directional_crosscheck_row_methods,
+        ) ? nothing : findall(
+            method -> method in jacobian_directional_crosscheck_row_methods,
+            evaluation.jacobian_row_methods,
+        )
         crosscheck_report = _profile_stage!(
             timings,
             allocations,
@@ -704,6 +718,9 @@ function profile_case(
                 relative_step = jacobian_directional_crosscheck_relative_step,
                 absolute_tolerance = jacobian_directional_crosscheck_absolute_tolerance,
                 relative_tolerance = jacobian_directional_crosscheck_relative_tolerance,
+                row_indices = directional_rows,
+                direction_policy =
+                    jacobian_directional_crosscheck_direction_policy,
                 cache = cache,
             ),
         )

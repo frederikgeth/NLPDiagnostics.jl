@@ -620,3 +620,74 @@ it does not assume a right-hand side near one.
 
 Artifacts are under `/private/tmp/nlpdiag-bmopf-five-fixture-start-v3` and
 `/private/tmp/nlpdiag-bmopf-five-fixture-ipopt-result-v2`.
+
+## 2026-08-11: seeded rank oracles and first sparse-only 99-bus profiles
+
+The deterministic randomized corpus contains 27 records over seeds 11, 29,
+and 47. Eighteen hard controls cover tall full-column-rank matrices, wide
+matrices with planted right nullity three, twenty-decade diagonal scaling,
+row-column equilibration, and a nonlinear cancellation Jacobian at and near
+its rank-changing point. Dense SVD and SuiteSparseQR matched every hard
+expectation.
+
+The remaining nine records plant singular values around three explicit
+relative thresholds. Four produce different dense-SVD and sparse-QR ranks
+under the same nominal tolerance. These are successful adverse controls: QR
+pivots and singular values have different finite-precision semantics, so a
+clustered threshold does not define a unique backend-independent numerical
+rank. The artifact is
+`/private/tmp/nlpdiag-randomized-rank-oracles.json`.
+
+The first medium sparse-only campaign profiled one 99-bus LN and one 99-bus LG
+snapshot at mapped SI saved-result points. Each staged Jacobian has 2,208 rows,
+1,968 columns, 12,886 stored nonzeros, and 4,345,344 possible dense entries.
+Dense rank was disabled. Both unscaled and row-column-scaled SuiteSparseQR
+retained all 1,968 columns. The unscaled factors contained 25,572 nonzeros for
+LN and 25,605 for LG, with fill ratios 1.984 and 1.987. The corresponding
+retained-pivot spread proxies were 183.1 and 37.6.
+
+The strongest preliminary contrast is row scaling: the LN positive row norms
+span approximately `3.55e9`, versus `6.28e7` for LG. This is a local numerical
+observation, not a condition number or explanation of solver behavior. Both
+profiles still contain 96 central-finite-difference rows, BMOPFTools withholds
+an unqualified differentiability claim, and the result files contain 784
+`cr_to`/`ci_to` records that do not correspond to independent staged-model
+coordinates. All 1,968 registered model coordinates were nevertheless mapped
+without fallback. Artifacts are under
+`/private/tmp/nlpdiag-bmopf-99bus-sparse-v1`.
+
+## 2026-08-11: crosschecked multi-time 99-bus profiles
+
+Six fresh-process profiles covered 99-bus LN and LG snapshots at t01, t12, and
+t24 using mapped SI saved results. Every case mapped all 1,968 staged
+coordinates without fallback. Each result also contained 784 `cr_to`/`ci_to`
+records; these are now retained under the declared derived line-to-current
+projection contract rather than reported as unresolved model coordinates.
+
+All 96 central-finite-difference rows per case were selected by provenance and
+tested in three deterministic dense directions. The 1,728 total row-direction
+comparisons had zero mismatches and zero domain-limited evaluations. This
+supports use of the assembled Jacobians for the present local rank/scaling
+comparison, while not proving differentiability away from the tested points.
+
+Unscaled and row/column-scaled SuiteSparseQR both retained all 1,968 columns in
+all six cases. Fill ratios stayed between 1.984 and 1.994. Unscaled
+retained-pivot spread proxies varied strongly with time: LN was approximately
+183, 5,327, and 902; LG was approximately 37.6, 5,300, and 900. After
+row/column scaling, all six proxies lay between 22.48 and 25.02. The stable
+scaled range and invariant rank are evidence for strong coordinate-scale
+sensitivity, not a time-varying structural degeneracy. The generic
+large-row-spread finding appeared at t01 but not t12/t24, so the midday proxy
+spike cannot be explained solely by the global row-norm ratio; family and pivot
+attribution is the next diagnostic step.
+
+Each isolated child completed inside the 600-second and 4-GiB RSS budgets.
+Peak observed RSS ranged from about 2.60 to 2.69 GiB, which is acceptable for
+this bounded experiment but too high to extrapolate casually to 538-bus
+profiles. BMOPFTools retained four exact qualifications per case, including
+nonconvex/local-solution semantics, absence of LICQ/KKT/second-order
+certification, active-set locality for 288 inequalities, and
+`OPTIMIZE_NOT_CALLED` on the reconstructed staged model.
+
+Artifacts are under `/private/tmp/nlpdiag-bmopf-99bus-multitime-v2`; the
+consolidated gate record is `medium_profile_summary.json`.

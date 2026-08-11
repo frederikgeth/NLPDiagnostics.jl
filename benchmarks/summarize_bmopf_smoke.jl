@@ -139,6 +139,9 @@ function main()
     saved_result_fallback_coordinates = 0
     saved_result_unresolved_records = 0
     saved_result_unresolved_families = Dict{String,Int}()
+    saved_result_projected_records = 0
+    saved_result_projected_families = Dict{String,Int}()
+    saved_result_projection_contracts = Set{String}()
     saved_result_unregistered_model_coordinates = 0
     saved_result_unmapped_registered_coordinates = 0
     saved_result_mapping_fractions = Float64[]
@@ -622,6 +625,21 @@ function main()
                     "mapped_registered_coordinate_fraction" => parse(Float64, metadata["bmopf_saved_result_registered_coordinate_fraction"]),
                     "result_units" => metadata["bmopf_saved_result_units"],
                     "field_units" => get(metadata, "bmopf_saved_result_field_units", nothing),
+                    "projected_saved_record_count" => _int(get(
+                        metadata,
+                        "bmopf_saved_result_projected_record_count",
+                        0,
+                    )),
+                    "projected_families" => get(
+                        metadata,
+                        "bmopf_saved_result_projected_families",
+                        "",
+                    ),
+                    "projection_contracts" => get(
+                        metadata,
+                        "bmopf_saved_result_projection_contracts",
+                        "",
+                    ),
                 )
                 fraction = parse(Float64, metadata[
                     "bmopf_saved_result_registered_coordinate_fraction",
@@ -635,14 +653,41 @@ function main()
                 if "bmopf_saved_result_unit_scale_suspicious" in mapping_codes
                     saved_result_unit_scale_warning_cases += 1
                 end
-                if any(startswith(code, "bmopf_saved_result_") for code in mapping_codes if
-                       code != "bmopf_saved_result_mapping_coverage")
+                if any(
+                    startswith(String(get(finding, "code", "")),
+                               "bmopf_saved_result_") &&
+                    String(get(finding, "severity", "")) in ("warning", "error")
+                    for finding in saved_mapping["findings"]
+                )
                     saved_result_mapping_warning_cases += 1
                 end
                 saved_result_cases += 1
                 saved_result_fallback_coordinates += fallback
                 saved_result_unregistered_model_coordinates += parse(Int, metadata["bmopf_saved_result_unregistered_model_coordinate_count"])
                 saved_result_unmapped_registered_coordinates += parse(Int, metadata["bmopf_saved_result_unmapped_registered_coordinate_count"])
+                projected_count = _int(get(
+                    metadata,
+                    "bmopf_saved_result_projected_record_count",
+                    0,
+                ))
+                saved_result_projected_records += projected_count
+                projected_family_string = String(get(
+                    metadata,
+                    "bmopf_saved_result_projected_families",
+                    "",
+                ))
+                for family in filter(!isempty, split(projected_family_string, ','))
+                    saved_result_projected_families[family] = get(
+                        saved_result_projected_families, family, 0,
+                    ) + 1
+                end
+                projection_contract = String(get(
+                    metadata,
+                    "bmopf_saved_result_projection_contracts",
+                    "",
+                ))
+                isempty(projection_contract) ||
+                    push!(saved_result_projection_contracts, projection_contract)
                 for finding in saved_mapping["findings"]
                     finding["code"] == "bmopf_saved_result_unresolved_records" || continue
                     details = Dict(finding["evidence"][1]["details"])
@@ -799,6 +844,9 @@ function main()
             "fallback_coordinate_count" => saved_result_fallback_coordinates,
             "unresolved_saved_record_count" => saved_result_unresolved_records,
             "unresolved_record_family_counts" => _sorted_counts(saved_result_unresolved_families),
+            "projected_saved_record_count" => saved_result_projected_records,
+            "projected_family_case_counts" => _sorted_counts(saved_result_projected_families),
+            "projection_contracts" => sort!(collect(saved_result_projection_contracts)),
             "unregistered_model_coordinate_count" => saved_result_unregistered_model_coordinates,
             "unmapped_registered_coordinate_count" => saved_result_unmapped_registered_coordinates,
             "mapping_fraction_minimum" => isempty(saved_result_mapping_fractions) ? nothing : minimum(saved_result_mapping_fractions),

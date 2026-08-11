@@ -980,6 +980,15 @@ making any fallback visible in a benchmark comparison. The smoke summarizer
 also aggregates unresolved saved-result records by exported family, so a
 repeated `ci_to`/`cr_to` boundary is distinguishable from case-specific loss.
 
+For the staged IVR formulation, exported line `cr_to`/`ci_to` values are
+derived result records rather than additional model coordinates when the
+public registry owns the corresponding from-side current pair. The adapter now
+records this as an explicit projection contract, with projected record counts
+and contract text. It does not count those records as unresolved mapping loss.
+This contract says only why no coordinate is expected; checking whether the
+derived export is numerically consistent with the mapped state remains a
+separate residual task.
+
 To inspect whether the SI and PU files themselves use a consistent convention,
 run `benchmarks/compare_bmopf_saved_result_units.jl <benchmark-root>`. It
 compares paired numeric leaves and reports observed `PU / SI` magnitude ratios
@@ -1836,4 +1845,58 @@ and guarded dense SVD agreed on full column rank at both points, and all seven
 repeat/nearby evaluations per solved fixture retained zero right nullity. The
 sparse-QR factor-diagonal ratio changed with the operating point, so it remains
 a local conditioning screen rather than a formulation invariant. Source
-`vminpu`/`vmaxpu` loss still blocks physical absence claims.
+`vminpu`/`vmaxpu` loss blocked physical absence claims in that historical
+campaign; the later source-behavior contract checkpoint supersedes this gate.
+
+## Sparse-only medium campaigns
+
+`benchmarks/bmopf_draft_corpus.jl` accepts three independent work controls:
+
+- `NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES` bounds dense SVD work;
+- `NLPDIAGNOSTICS_BMOPF_SPARSE_QR_MAX_INPUT_NONZEROS` checks the combined
+  sparse Jacobian before factorization; and
+- `NLPDIAGNOSTICS_BMOPF_SPARSE_QR_MAX_FACTOR_NONZEROS` bounds acceptance of
+  the realized SuiteSparseQR `R` factor.
+
+All three values participate in the campaign fingerprint and are copied into
+case and index records. Setting the dense limit to zero is the supported
+sparse-only policy. A sparse budget breach is retained as explicit resource
+evidence rather than treated as rank deficiency or a failed profile. Because
+factor fill is only known after SuiteSparseQR constructs the factor, isolate
+larger cases in child processes with external elapsed-time and memory guards.
+
+`benchmarks/launch_bmopf_point_calibration.jl` provides that isolation for an
+explicit case list. `NLPDIAGNOSTICS_BMOPF_CALIBRATION_TIMEOUT_SECONDS` is a
+hard elapsed-time boundary. Set
+`NLPDIAGNOSTICS_BMOPF_CALIBRATION_MAX_RSS_MIB` to a positive value to poll the
+child resident set and terminate a child that crosses the budget. The manifest
+records the budget, maximum observed RSS, and monitor availability; zero leaves
+the RSS limit disabled rather than implying that memory was bounded.
+
+Set `NLPDIAGNOSTICS_BMOPF_CROSSCHECK_FINITE_DIFFERENCE_ROWS=true` to select
+Jacobian rows by finite-difference provenance and compare their recorded
+products against central differences of constraint values in deterministic
+dense directions. The selected rows, methods, direction policy, comparisons,
+mismatches, and domain-limited probes are persisted. This is independent
+whole-row perturbation evidence, not a proof of smoothness or global derivative
+correctness.
+
+The first bounded 99-bus LN/LG saved-result pair used a zero dense budget,
+200,000 input-nonzero budget, and one-million-factor-nonzero budget. Both
+Jacobians had 12,886 input nonzeros and about 25.6k factor nonzeros, so 99-bus
+is a practical medium tier for repeated sparse experiments on this corpus.
+The bounded three-time-point follow-up covered LN and LG at t01, t12, and t24.
+All six cases retained full column rank under unscaled and row/column-scaled
+SuiteSparseQR, with factor fill below 2.0. All 96 finite-difference rows in each
+case passed three dense directions (288 comparisons per case) with no mismatch
+or domain loss. Unscaled retained-pivot proxies ranged from about 37.6 to
+5,327, while row/column-scaled proxies stayed between about 22.5 and 25.1.
+This supports a coordinate-scaling interpretation of the proxy variation; it
+does not establish a condition number or solver difficulty.
+
+Use `benchmarks/summarize_bmopf_medium_calibration.jl` on the calibration
+directory to retain these gates and exact BMOPFTools qualifications in one
+artifact. BMOPFTools still withheld an unqualified differentiability claim in
+this campaign because the reconstructed staged model itself was not optimized;
+saved-result profiles therefore remain local equation/Jacobian evidence, not
+certified solution sensitivities.

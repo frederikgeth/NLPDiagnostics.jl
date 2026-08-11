@@ -1319,12 +1319,22 @@ function _bmopf_result_voltage_point(
     mapped_variables = Set{MOI.VariableIndex}()
     mapped_by_family = Dict{Symbol,Int}()
     unresolved_by_family = Dict{Symbol,Int}()
-    function assign!(key, value)
+    projected_by_family = Dict{Symbol,Int}()
+    projection_contracts = Dict{String,String}()
+    function assign!(key, value; projection_contract = nothing)
         value isa Real && isfinite(value) || return
         object = try BMOPFTools.opf_object(context, key) catch; nothing end
         if !(object isa JuMP.VariableRef)
             family = key.family
-            unresolved_by_family[family] = get(unresolved_by_family, family, 0) + 1
+            if isnothing(projection_contract)
+                unresolved_by_family[family] =
+                    get(unresolved_by_family, family, 0) + 1
+            else
+                projected_by_family[family] =
+                    get(projected_by_family, family, 0) + 1
+                projection_contracts[string(family)] =
+                    string(projection_contract)
+            end
             return
         end
         position = get(positions, JuMP.index(object), nothing)
@@ -1339,8 +1349,10 @@ function _bmopf_result_voltage_point(
         family = key.family
         mapped_by_family[family] = get(mapped_by_family, family, 0) + 1
     end
-    assign_scaled!(key, value, base) =
-        value isa Real && isfinite(value) && assign!(key, Float64(value) / base)
+    assign_scaled!(key, value, base; projection_contract = nothing) =
+        value isa Real && isfinite(value) && assign!(
+            key, Float64(value) / base; projection_contract,
+        )
     for (bus, terminals) in buses
         terminals isa AbstractDict || continue
         base = field_policy[:bus_voltage] == :si ? _bmopf_voltage_base(context, string(bus)) : 1.0
@@ -1439,8 +1451,50 @@ function _bmopf_result_voltage_point(
                     position <= length(key_terminals) || continue
                     entry = get(line_result, terminal, nothing)
                     entry isa AbstractDict || continue
-                    assign_scaled!(BMOPFTools.opf_line_current_key(string(line_id), position; side), get(entry, rfield, nothing), base)
-                    assign_scaled!(BMOPFTools.opf_line_current_key(string(line_id), position; side, component = :imag), get(entry, replace(rfield, "cr" => "ci"), nothing), base)
+                    real_key = BMOPFTools.opf_line_current_key(
+                        string(line_id), position; side,
+                    )
+                    imag_key = BMOPFTools.opf_line_current_key(
+                        string(line_id), position; side, component = :imag,
+                    )
+                    projection_contract = if side == :to
+                        from_real = try
+                            BMOPFTools.opf_object(
+                                context,
+                                BMOPFTools.opf_line_current_key(
+                                    string(line_id), position; side = :from,
+                                ),
+                            )
+                        catch
+                            nothing
+                        end
+                        from_imag = try
+                            BMOPFTools.opf_object(
+                                context,
+                                BMOPFTools.opf_line_current_key(
+                                    string(line_id), position;
+                                    side = :from, component = :imag,
+                                ),
+                            )
+                        catch
+                            nothing
+                        end
+                        from_real isa JuMP.VariableRef &&
+                            from_imag isa JuMP.VariableRef ?
+                            "derived line-to current export; staged IVR owns one from-side branch-current coordinate pair" :
+                            nothing
+                    else
+                        nothing
+                    end
+                    assign_scaled!(
+                        real_key, get(entry, rfield, nothing), base;
+                        projection_contract,
+                    )
+                    assign_scaled!(
+                        imag_key,
+                        get(entry, replace(rfield, "cr" => "ci"), nothing),
+                        base; projection_contract,
+                    )
                 end
             end
     end
@@ -1534,6 +1588,8 @@ function _bmopf_result_voltage_point(
         result_units = result_units,
         field_units = Dict{Symbol,Symbol}(field_policy),
         mapped_coordinate_counts_by_family = Dict(string(key) => value for (key, value) in mapped_by_family),
+        projected_saved_coordinate_counts_by_family = Dict(string(key) => value for (key, value) in projected_by_family),
+        saved_result_projection_contracts = projection_contracts,
         unresolved_saved_coordinate_counts_by_family = Dict(string(key) => value for (key, value) in unresolved_by_family),
     )
 end
@@ -1586,6 +1642,20 @@ function _bmopf_result_mapping_report(mapping)
     report.metadata[:bmopf_saved_result_units] = string(mapping.result_units)
     report.metadata[:bmopf_saved_result_field_units] = _bmopf_result_field_units_string(mapping.field_units)
     report.metadata[:bmopf_saved_result_mapped_families] = join(sort!(collect(keys(mapping.mapped_coordinate_counts_by_family))), ",")
+    projected = hasproperty(
+        mapping, :projected_saved_coordinate_counts_by_family,
+    ) ? mapping.projected_saved_coordinate_counts_by_family : Dict{String,Int}()
+    projection_contracts = hasproperty(
+        mapping, :saved_result_projection_contracts,
+    ) ? mapping.saved_result_projection_contracts : Dict{String,String}()
+    report.metadata[:bmopf_saved_result_projected_record_count] =
+        string(sum(values(projected); init = 0))
+    report.metadata[:bmopf_saved_result_projected_families] =
+        join(sort!(collect(keys(projected))), ",")
+    report.metadata[:bmopf_saved_result_projection_contracts] = join((
+        "$key=$(value)" for (key, value) in
+        sort!(collect(projection_contracts); by = first)
+    ), ";")
     report.metadata[:bmopf_saved_result_unresolved_families] = join(sort!(collect(keys(mapping.unresolved_saved_coordinate_counts_by_family))), ",")
     push!(report, NLPDiagnostics.Finding(:bmopf_saved_result_mapping_coverage;
         severity = fallback == 0 ? NLPDiagnostics.SeverityInfo : NLPDiagnostics.SeverityWarning,
@@ -1644,6 +1714,31 @@ function _bmopf_result_mapping_report(mapping)
         ))
     end
     unresolved = mapping.unresolved_saved_coordinate_counts_by_family
+    if !isempty(projected)
+        push!(report, NLPDiagnostics.Finding(
+            :bmopf_saved_result_projection_contract_applied;
+            severity = NLPDiagnostics.SeverityInfo,
+            domain = NLPDiagnostics.RepresentationalIssue,
+            basis = NLPDiagnostics.StructuralProof,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = "$(sum(values(projected))) saved-result coordinate record(s) were intentionally projected out under a declared staged-formulation contract.",
+            why_it_matters = "These exported derived quantities are not missing model coordinates and must not be counted as adapter loss; their numerical consistency with the mapped state remains a separate check.",
+            evidence = [NLPDiagnostics.Evidence(
+                "BMOPF saved-result projection contract"; details = [
+                    "counts_by_family" => join((
+                        "$key=$(value)" for (key, value) in
+                        sort!(collect(projected))
+                    ), ","),
+                    "contracts" => report.metadata[
+                        :bmopf_saved_result_projection_contracts
+                    ],
+                ],
+            )],
+            suggested_actions = [
+                "Use a derived-output residual check before making claims about whole-result consistency; model-coordinate mapping is already complete under this contract.",
+            ],
+        ))
+    end
     if !isempty(unresolved)
         push!(report, NLPDiagnostics.Finding(:bmopf_saved_result_unresolved_records;
             severity = NLPDiagnostics.SeverityWarning,
@@ -2295,6 +2390,10 @@ function _bmopf_saved_result_profile_case(
         "unmapped_registered_coordinate_count" => mapping.unmapped_registered_coordinate_count,
         "mapped_registered_coordinate_fraction" => mapping.mapped_registered_coordinate_fraction,
         "mapped_coordinate_counts_by_family" => mapping.mapped_coordinate_counts_by_family,
+        "projected_saved_coordinate_counts_by_family" =>
+            mapping.projected_saved_coordinate_counts_by_family,
+        "saved_result_projection_contracts" =>
+            mapping.saved_result_projection_contracts,
         "unresolved_saved_coordinate_counts_by_family" => mapping.unresolved_saved_coordinate_counts_by_family,
     )
     merge!(case_metadata, Dict(string(key) => value for (key, value) in metadata))
@@ -3670,6 +3769,10 @@ function _bmopf_opf_differentiability_report(context; kwargs...)
     report.metadata[:bmopf_opf_differentiability_weakly_active_count] = string(length(engine_report.weakly_active_constraints))
     report.metadata[:bmopf_opf_differentiability_violated_count] = string(length(engine_report.violated_constraints))
     report.metadata[:bmopf_opf_differentiability_unused_coefficient_count] = string(length(engine_report.unused_coefficient_keys))
+    report.metadata[:bmopf_opf_differentiability_qualification_count] =
+        string(length(engine_report.qualifications))
+    report.metadata[:bmopf_opf_differentiability_qualifications] =
+        join(engine_report.qualifications, " || ")
     for (records, category, domain) in (
         (engine_report.nonsmooth_operators, :nonsmooth_operator, NLPDiagnostics.MathematicalIssue),
         (engine_report.dynamic_branches, :dynamic_branch, NLPDiagnostics.RepresentationalIssue),
@@ -3705,6 +3808,28 @@ function _bmopf_opf_differentiability_report(context; kwargs...)
             suggested_actions = ["Check semantic coefficient keys, device ownership, and the staged build specification."],
         ))
     end
+    for (index, qualification) in enumerate(engine_report.qualifications)
+        push!(report, NLPDiagnostics.Finding(
+            :bmopf_opf_differentiability_qualification;
+            severity = NLPDiagnostics.SeverityInfo,
+            domain = NLPDiagnostics.NumericalIssue,
+            basis = NLPDiagnostics.LocalInference,
+            confidence = NLPDiagnostics.ConfidenceCertain,
+            observation = qualification,
+            why_it_matters = "This is an engine-owned boundary on how local derivative and sensitivity evidence may be interpreted; it is not itself a proof of degeneracy or nonsmoothness.",
+            evidence = [NLPDiagnostics.Evidence(
+                "BMOPFTools differentiability qualification"; details = [
+                    "qualification_index" => index,
+                    "qualification_count" => length(engine_report.qualifications),
+                    "termination_status" => engine_report.termination_status,
+                    "ready" => engine_report.ready,
+                ],
+            )],
+            suggested_actions = [
+                "Retain this qualification beside any derivative, active-set, KKT, or sensitivity conclusion derived from this operating point.",
+            ],
+        ))
+    end
     if !engine_report.ready
         push!(report, NLPDiagnostics.Finding(:bmopf_opf_differentiability_not_ready;
             severity = NLPDiagnostics.SeverityInfo,
@@ -3716,6 +3841,7 @@ function _bmopf_opf_differentiability_report(context; kwargs...)
             evidence = [NLPDiagnostics.Evidence("BMOPFTools differentiability readiness"; details = [
                 "termination_status" => engine_report.termination_status,
                 "qualification_count" => length(engine_report.qualifications),
+                "qualifications" => join(engine_report.qualifications, " || "),
             ])],
             suggested_actions = ["Review BMOPFTools qualifications alongside NLPDiagnostics derivative, active-set, and postmortem findings."],
         ))

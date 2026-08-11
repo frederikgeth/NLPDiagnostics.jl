@@ -805,11 +805,15 @@ end
         @test dense.right_nullity == case.right_nullity
         @test dense.policy.provenance == :calibration_corpus
         @test sparse.policy.provenance == :calibration_corpus
-        @test sparse.method == :suitesparse_qr
+    @test sparse.method == :suitesparse_qr
         @test sort(sparse.row_permutation) == collect(1:size(case.matrix, 1))
         @test sort(sparse.column_permutation) == collect(1:size(case.matrix, 2))
         @test !isnothing(sparse.factorization_relative_residual)
         @test sparse.factorization_relative_residual <= 1.0e-12
+        @test sparse.input_nonzeros == count(!iszero, case.matrix)
+        @test sparse.factor_nonzeros >= 0
+        @test sparse.max_input_nonzeros == 1_000_000
+        @test sparse.max_factor_nonzeros == 4_000_000
         if dense.right_nullity > 0
             @test norm(case.matrix * dense.right_nullspace) <= 1.0e-10
         end
@@ -877,6 +881,22 @@ end
     @test unscaled.rank == 1
     @test scaled.rank == 2
     @test sparse_scaled.rank == 2
+
+    qr_rank_input_guard = NLPDiagnostics.sparse_qr_rank_estimate(
+        badly_scaled; max_input_nonzeros = 0,
+    )
+    @test !qr_rank_input_guard.available
+    @test qr_rank_input_guard.input_nonzeros == 2
+    @test occursin("max_input_nonzeros=0", qr_rank_input_guard.reason)
+    qr_rank_factor_guard = NLPDiagnostics.sparse_qr_rank_estimate(
+        badly_scaled; max_factor_nonzeros = 0,
+    )
+    @test !qr_rank_factor_guard.available
+    @test qr_rank_factor_guard.factor_nonzeros > 0
+    @test occursin("max_factor_nonzeros=0", qr_rank_factor_guard.reason)
+    @test_throws ArgumentError NLPDiagnostics.sparse_qr_rank_estimate(
+        badly_scaled; max_input_nonzeros = -1,
+    )
 
     qr_null_evaluation = _rank_calibration_evaluation(
         [1.0 0.0 1.0; 0.0 1.0 1.0];

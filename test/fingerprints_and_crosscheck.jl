@@ -59,6 +59,41 @@ MOI.eval_hessian_lagrangian_product(::CrosscheckJacVecEvaluator, values, x, dire
     @test consistent.metadata[:constraint_directional_comparisons] == "1"
     @test consistent.metadata[:mismatch_count] == "0"
 
+    subset_model = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
+    subset_variables = MOI.add_variables(subset_model, 2)
+    for variable in subset_variables
+        MOI.add_constraint(subset_model, variable, MOI.EqualTo(0.0))
+    end
+    subset_evaluation = NLPDiagnostics.evaluate_numerical(
+        subset_model, [1.0, 2.0],
+    )
+    subset_report = NLPDiagnostics.analyze_jacobian_directional_crosscheck(
+        subset_model,
+        subset_evaluation;
+        direction_count = 2,
+        row_indices = [2],
+        direction_policy = :dense_deterministic,
+    )
+    @test subset_report.metadata[:row_selection] == "explicit"
+    @test subset_report.metadata[:selected_row_count] == "1"
+    @test subset_report.metadata[:selected_rows] == "2"
+    @test subset_report.metadata[:direction_policy] == "dense_deterministic"
+    @test subset_report.metadata[:constraint_directional_comparisons] == "2"
+    @test subset_report.metadata[:mismatch_count] == "0"
+    empty_subset_report = NLPDiagnostics.analyze_jacobian_directional_crosscheck(
+        subset_model, subset_evaluation; row_indices = Int[],
+    )
+    @test length(NLPDiagnostics.findings(
+        empty_subset_report;
+        code = :jacobian_directional_crosscheck_no_selected_rows,
+    )) == 1
+    @test_throws ArgumentError NLPDiagnostics.analyze_jacobian_directional_crosscheck(
+        subset_model, subset_evaluation; row_indices = [3],
+    )
+    @test_throws ArgumentError NLPDiagnostics.analyze_jacobian_directional_crosscheck(
+        subset_model, subset_evaluation; direction_policy = :unknown,
+    )
+
     mismatched = NLPDiagnostics.NumericalEvaluation{Float64}(
         evaluation.point,
         evaluation.objective_value,

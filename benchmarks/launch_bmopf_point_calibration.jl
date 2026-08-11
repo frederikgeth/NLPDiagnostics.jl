@@ -14,6 +14,12 @@ children per policy. Override them with
 `NLPDIAGNOSTICS_BMOPF_CALIBRATION_REPETITIONS`. Dense numerical algebra is
 disabled by default; opt in with the ordinary
 `NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES` variable.
+
+Every explicitly selected case runs in its own child process. Set
+`NLPDIAGNOSTICS_BMOPF_CALIBRATION_MAX_RSS_MIB` to a positive value to poll the
+child resident set and terminate it when the declared memory budget is
+crossed. Zero (the default) disables the RSS limit but records that fact; the
+elapsed-time limit remains active.
 """
 
 using JSON
@@ -46,6 +52,15 @@ function _positive_seconds(name, default)
     value = tryparse(Float64, raw)
     isnothing(value) && error("$name must be numeric, got '$raw'")
     value > 0 || error("$name must be positive, got $value")
+    return value
+end
+
+function _nonnegative_memory_mib(name, default)
+    raw = get(ENV, name, string(default))
+    value = tryparse(Float64, raw)
+    isnothing(value) && error("$name must be numeric, got '$raw'")
+    isfinite(value) && value >= 0 ||
+        error("$name must be finite and nonnegative, got $value")
     return value
 end
 
@@ -110,35 +125,78 @@ function _attempt_record(entry)
         "attempt" => get(entry, "attempt", 1),
         "status" => get(entry, "status", "unknown"),
         "process_timeout" => get(entry, "process_timeout", false),
+        "process_memory_limit_exceeded" => get(
+            entry, "process_memory_limit_exceeded", false,
+        ),
         "process_exit_code" => get(entry, "process_exit_code", nothing),
         "process_wait_error" => get(entry, "process_wait_error", nothing),
         "elapsed_seconds" => get(entry, "elapsed_seconds", nothing),
         "child_timeout_seconds" => get(entry, "child_timeout_seconds", nothing),
+        "max_rss_kib_budget" => get(entry, "max_rss_kib_budget", nothing),
+        "maximum_observed_rss_kib" => get(
+            entry, "maximum_observed_rss_kib", nothing,
+        ),
+        "rss_monitor_available" => get(
+            entry, "rss_monitor_available", nothing,
+        ),
         "process_log" => get(entry, "process_log", nothing),
     )
 end
 
-function _wait_for_process(process, timeout_seconds)
+function _process_rss_kib(process)
+    pid = try
+        getpid(process)
+    catch
+        return nothing
+    end
+    output = try
+        readchomp(ignorestatus(`ps -o rss= -p $pid`))
+    catch
+        return nothing
+    end
+    return tryparse(Int, strip(output))
+end
+
+function _terminate_process(process, timeout_seconds)
+    try
+        Base.kill(process, Base.SIGTERM)
+    catch
+        Base.kill(process)
+    end
+    grace_deadline = time() + min(10.0, max(1.0, timeout_seconds / 20))
+    while Base.process_running(process) && time() < grace_deadline
+        sleep(0.1)
+    end
+    Base.process_running(process) && try
+        Base.kill(process, Base.SIGKILL)
+    catch
+        Base.kill(process)
+    end
+end
+
+function _wait_for_process(process, timeout_seconds, max_rss_kib)
     deadline = time() + timeout_seconds
+    maximum_rss_kib = nothing
+    rss_monitor_available = max_rss_kib > 0 ? false : nothing
+    memory_limit_exceeded = false
     while Base.process_running(process) && time() < deadline
+        if max_rss_kib > 0
+            rss = _process_rss_kib(process)
+            if !isnothing(rss)
+                rss_monitor_available = true
+                maximum_rss_kib = isnothing(maximum_rss_kib) ? rss :
+                                  max(maximum_rss_kib, rss)
+                if rss > max_rss_kib
+                    memory_limit_exceeded = true
+                    break
+                end
+            end
+        end
         sleep(0.1)
     end
     timed_out = Base.process_running(process)
-    if timed_out
-        try
-            Base.kill(process, Base.SIGTERM)
-        catch
-            Base.kill(process)
-        end
-        grace_deadline = time() + min(10.0, max(1.0, timeout_seconds / 20))
-        while Base.process_running(process) && time() < grace_deadline
-            sleep(0.1)
-        end
-        Base.process_running(process) && try
-            Base.kill(process, Base.SIGKILL)
-        catch
-            Base.kill(process)
-        end
+    if timed_out || memory_limit_exceeded
+        _terminate_process(process, timeout_seconds)
     end
     wait_error = nothing
     try
@@ -146,12 +204,19 @@ function _wait_for_process(process, timeout_seconds)
     catch error
         wait_error = sprint(showerror, error)
     end
-    exit_code = timed_out ? nothing : try
+    exit_code = timed_out || memory_limit_exceeded ? nothing : try
         process.exitcode
     catch
         nothing
     end
-    return timed_out, exit_code, wait_error
+    return (
+        timed_out = timed_out && !memory_limit_exceeded,
+        memory_limit_exceeded = memory_limit_exceeded,
+        maximum_rss_kib = maximum_rss_kib,
+        rss_monitor_available = rss_monitor_available,
+        exit_code = exit_code,
+        wait_error = wait_error,
+    )
 end
 
 function _child_environment(root, output_dir, specification, case_selector)
@@ -188,8 +253,8 @@ function _child_environment(root, output_dir, specification, case_selector)
 end
 
 function _run_child(script, project, root, output_root, point_name,
-                    specification, replicate, timeout_seconds, case_selector,
-                    attempt)
+                    specification, replicate, timeout_seconds, max_rss_kib,
+                    case_selector, attempt)
     output_dir = joinpath(
         output_root, point_name, "replicate_$(replicate)",
         _case_slug(case_selector),
@@ -206,8 +271,9 @@ function _run_child(script, project, root, output_root, point_name,
             stdout = io, stderr = io,
         ); wait = false)
     end
-    timed_out, exit_code, wait_error =
-        _wait_for_process(process, timeout_seconds)
+    process_result = _wait_for_process(
+        process, timeout_seconds, max_rss_kib,
+    )
     elapsed_seconds = time() - started_at
     index_path = joinpath(output_dir, "index.json")
     index = if isfile(index_path)
@@ -228,9 +294,12 @@ function _run_child(script, project, root, output_root, point_name,
         status = String(get(case, "status", "unknown"))
         statuses[status] = get(statuses, status, 0) + 1
     end
-    status = if timed_out
+    status = if process_result.memory_limit_exceeded
+        "process_memory_limit"
+    elseif process_result.timed_out
         "process_timeout"
-    elseif !isnothing(wait_error) || exit_code != 0
+    elseif !isnothing(process_result.wait_error) ||
+           process_result.exit_code != 0
         "process_exit"
     elseif isempty(cases)
         "child_cases_empty"
@@ -249,11 +318,16 @@ function _run_child(script, project, root, output_root, point_name,
         "result_suffix" => specification.result_suffix,
         "output_directory" => output_dir,
         "process_log" => basename(process_log),
-        "process_timeout" => timed_out,
-        "process_exit_code" => exit_code,
-        "process_wait_error" => wait_error,
+        "process_timeout" => process_result.timed_out,
+        "process_memory_limit_exceeded" =>
+            process_result.memory_limit_exceeded,
+        "process_exit_code" => process_result.exit_code,
+        "process_wait_error" => process_result.wait_error,
         "elapsed_seconds" => elapsed_seconds,
         "child_timeout_seconds" => timeout_seconds,
+        "max_rss_kib_budget" => max_rss_kib == 0 ? nothing : max_rss_kib,
+        "maximum_observed_rss_kib" => process_result.maximum_rss_kib,
+        "rss_monitor_available" => process_result.rss_monitor_available,
         "attempt" => attempt,
         "previous_attempts" => Any[],
         "status" => status,
@@ -269,15 +343,18 @@ function _run_child(script, project, root, output_root, point_name,
 end
 
 function _manifest(root, output_root, project, points, repetitions,
-                   timeout_seconds, case_selectors, resume, entries)
+                   timeout_seconds, max_rss_kib, case_selectors, resume,
+                   entries)
     return Dict{String,Any}(
-        "runner_version" => "bmopf-point-calibration-launcher-v1",
+        "runner_version" => "bmopf-point-calibration-launcher-v2",
         "benchmark_root" => root,
         "output_root" => output_root,
         "project" => project,
         "points" => points,
         "repetitions" => repetitions,
         "child_timeout_seconds" => timeout_seconds,
+        "max_rss_kib_budget" => max_rss_kib == 0 ? nothing : max_rss_kib,
+        "rss_limit_enabled" => max_rss_kib > 0,
         "case_isolation" => !all(isnothing, case_selectors),
         "case_selectors" => case_selectors,
         "resume" => resume,
@@ -304,7 +381,8 @@ end
 
 
 function _resume_entries(manifest_path, root, project, points, repetitions,
-                         case_selectors, rank_max_dense_entries)
+                         case_selectors, rank_max_dense_entries,
+                         max_rss_kib)
     isfile(manifest_path) || return Dict{String,Any}[]
     manifest = JSON.parsefile(manifest_path)
     manifest isa AbstractDict || error("existing calibration manifest is not an object")
@@ -315,6 +393,7 @@ function _resume_entries(manifest_path, root, project, points, repetitions,
         "repetitions" => repetitions,
         "case_selectors" => case_selectors,
         "rank_max_dense_entries" => rank_max_dense_entries,
+        "max_rss_kib_budget" => max_rss_kib == 0 ? nothing : max_rss_kib,
         "family_scaling_experiments" => get(
             ENV, "NLPDIAGNOSTICS_BMOPF_FAMILY_SCALING_EXPERIMENTS", "",
         ),
@@ -359,12 +438,17 @@ function main()
     timeout_seconds = _positive_seconds(
         "NLPDIAGNOSTICS_BMOPF_CALIBRATION_TIMEOUT_SECONDS", 900,
     )
+    max_rss_mib = _nonnegative_memory_mib(
+        "NLPDIAGNOSTICS_BMOPF_CALIBRATION_MAX_RSS_MIB", 0,
+    )
+    max_rss_kib = max_rss_mib == 0 ? 0 : ceil(Int, max_rss_mib * 1024)
     resume = _boolean("NLPDIAGNOSTICS_BMOPF_CALIBRATION_RESUME", false)
     script = abspath(joinpath(@__DIR__, "bmopf_draft_corpus.jl"))
     manifest_path = joinpath(output_root, "calibration_index.json")
     entries = resume ? _resume_entries(
         manifest_path, root, project, points, repetitions, case_selectors,
         get(ENV, "NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES", "0"),
+        max_rss_kib,
     ) : Dict{String,Any}[]
     for point in points, replicate in 1:repetitions, case_selector in case_selectors
         key = _entry_key(point, replicate, case_selector)
@@ -386,20 +470,20 @@ function main()
         entry = _run_child(
             script, project, root, output_root, point,
             _CALIBRATION_POINTS[point], replicate, timeout_seconds,
-            case_selector, attempt,
+            max_rss_kib, case_selector, attempt,
         )
         entry["previous_attempts"] = previous_attempts
         push!(entries, entry)
         write(manifest_path, JSON.json(_manifest(
             root, output_root, project, points, repetitions,
-            timeout_seconds, case_selectors, resume, entries,
+            timeout_seconds, max_rss_kib, case_selectors, resume, entries,
         )))
         label = isnothing(case_selector) ? "selected corpus" : case_selector
         println("$point replicate $replicate $label: $(entry["status"])")
     end
     write(manifest_path, JSON.json(_manifest(
         root, output_root, project, points, repetitions,
-        timeout_seconds, case_selectors, resume, entries,
+        timeout_seconds, max_rss_kib, case_selectors, resume, entries,
     )))
     println("wrote BMOPF point-calibration manifest to $manifest_path")
 end
