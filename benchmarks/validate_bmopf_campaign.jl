@@ -1700,6 +1700,32 @@ function _validate_multiconductor_smoke(path, summary)
             Dict("summary_path" => path);
             suggested_action = "Record the dense rank budget before comparing fixture-level numerical evidence."))
     dense_budget = _int(get(summary, "rank_max_dense_entries", 0))
+    crosscheck_scaling = string(get(summary,
+        "smallest_singular_backend_crosscheck_scaling", "none"))
+    crosscheck_scaling in ("none", "row", "column", "row_column") ||
+        push!(findings, _finding(
+            "multiconductor_crosscheck_scaling_policy_invalid", "error",
+            "The multiconductor summary records an unsupported smallest-direction scaling policy.",
+            Dict("summary_path" => path, "scaling" => crosscheck_scaling);
+            suggested_action = "Use none, row, column, or row_column and regenerate the campaign.",
+        ))
+    scaled_cases_mutated = String[]
+    for raw_case in get(summary, "cases", Any[])
+        raw_case isa AbstractDict || continue
+        crosscheck = get(raw_case,
+            "smallest_singular_backend_crosscheck", Dict())
+        crosscheck isa AbstractDict || continue
+        get(crosscheck, "model_modified", false) === true && push!(
+            scaled_cases_mutated,
+            string(get(raw_case, "name", "unknown")),
+        )
+    end
+    isempty(scaled_cases_mutated) || push!(findings, _finding(
+        "multiconductor_crosscheck_scaling_mutated_model", "error",
+        "A controlled smallest-direction scaling record reports model mutation.",
+        Dict("summary_path" => path, "cases" => scaled_cases_mutated);
+        suggested_action = "Discard the run and restore the non-mutating linearization-only intervention contract.",
+    ))
     dense_budget > 0 && get(readiness, "dense_physical_mode_rank_complete", false) !== true && push!(findings,
         _finding("multiconductor_smoke_dense_mode_rank_incomplete", "warning",
             "A positive dense budget was requested, but dense physical-mode rank evidence is incomplete across the successful fixtures.",
@@ -1878,6 +1904,104 @@ function _validate_multiconductor_smoke(path, summary)
             suggested_action = "Inspect sparse Jacobian provenance and probe failure reasons before interpreting candidate directions.",
         ))
     end
+    if haskey(readiness, "smallest_singular_backend_crosscheck") &&
+       get(readiness, "smallest_singular_backend_crosscheck", false) !== true
+        aggregate = get(summary, "aggregate", Dict())
+        push!(findings, _finding(
+            "multiconductor_smallest_singular_crosscheck_unavailable", "warning",
+            "A requested dense-free smallest-direction backend crosscheck was unavailable for one or more fixtures.",
+            Dict("summary_path" => path,
+                 "requested_case_count" => get(aggregate,
+                     "smallest_singular_crosscheck_requested_case_count", 0),
+                 "available_case_count" => get(aggregate,
+                     "smallest_singular_crosscheck_available_case_count", 0),
+                 "relation_counts" => get(aggregate,
+                     "smallest_singular_crosscheck_relation_counts", Dict()));
+            suggested_action = "Inspect the bounded product paths and basis guard before drawing any smallest-direction conclusion.",
+        ))
+    end
+    if haskey(readiness, "smallest_singular_backend_original_coordinate_audit") &&
+       get(readiness,
+           "smallest_singular_backend_original_coordinate_audit", false) !== true
+        aggregate = get(summary, "aggregate", Dict())
+        push!(findings, _finding(
+            "multiconductor_smallest_singular_original_audit_unavailable", "warning",
+            "A requested scaled smallest-direction crosscheck lacks a direct mapped audit against the original Jacobian.",
+            Dict("summary_path" => path,
+                 "requested_case_count" => get(aggregate,
+                     "smallest_singular_crosscheck_requested_case_count", 0),
+                 "original_audit_case_count" => get(aggregate,
+                     "smallest_singular_crosscheck_original_audit_case_count", 0));
+            suggested_action = "Regenerate the campaign before interpreting any column-scaled candidate as an original-coordinate mode.",
+        ))
+    end
+    if haskey(readiness, "smallest_singular_backend_dense_calibration") &&
+       get(readiness, "smallest_singular_backend_dense_calibration", false) !== true
+        aggregate = get(summary, "aggregate", Dict())
+        push!(findings, _finding(
+            "multiconductor_smallest_singular_dense_calibration_unavailable", "warning",
+            "A requested guarded dense smallest-direction calibration was unavailable for one or both engines.",
+            Dict("summary_path" => path,
+                 "requested_case_count" => get(aggregate,
+                     "smallest_singular_dense_calibration_requested_case_count", 0),
+                 "restarted_available_case_count" => get(aggregate,
+                     "restarted_smallest_singular_dense_available_case_count", 0),
+                 "harmonic_available_case_count" => get(aggregate,
+                     "harmonic_smallest_singular_dense_available_case_count", 0));
+            suggested_action = "Restrict dense oracle work to representative fixtures within the explicit dense-entry guard.",
+        ))
+    end
+    if haskey(readiness,
+        "smallest_singular_backend_crosscheck_dimension_covers_structural_minimum") &&
+       get(readiness,
+           "smallest_singular_backend_crosscheck_dimension_covers_structural_minimum",
+           false) !== true
+        aggregate = get(summary, "aggregate", Dict())
+        push!(findings, _finding(
+            "multiconductor_smallest_singular_crosscheck_dimension_below_structural_nullity",
+            "warning",
+            "A requested candidate dimension is below the structurally unavoidable right nullity of a wide Jacobian.",
+            Dict("summary_path" => path,
+                 "underdimensioned_case_count" => get(aggregate,
+                     "smallest_singular_crosscheck_underdimensioned_case_count", 0));
+            suggested_action = "Request at least columns minus rows before comparing complete right-nullspace candidate spans.",
+        ))
+    end
+    if haskey(readiness, "smallest_singular_backend_crosscheck_agreement") &&
+       get(readiness, "smallest_singular_backend_crosscheck", false) === true &&
+       get(readiness, "smallest_singular_backend_crosscheck_agreement", false) !== true
+        aggregate = get(summary, "aggregate", Dict())
+        disagreement_count = _int(get(aggregate,
+            "smallest_singular_crosscheck_disagreement_case_count", 0))
+        inconclusive_count = _int(get(aggregate,
+            "smallest_singular_crosscheck_inconclusive_case_count", 0))
+        if disagreement_count > 0
+            push!(findings, _finding(
+                "multiconductor_smallest_singular_crosscheck_disagreement", "warning",
+                "Converged independent sparse smallest-direction engines disagree for one or more requested fixtures.",
+                Dict("summary_path" => path,
+                     "agreement_case_count" => get(aggregate,
+                         "smallest_singular_crosscheck_agreement_case_count", 0),
+                     "inconclusive_case_count" => inconclusive_count,
+                     "disagreement_case_count" => disagreement_count,
+                     "relation_counts" => get(aggregate,
+                         "smallest_singular_crosscheck_relation_counts", Dict()));
+                suggested_action = "Inspect value and subspace disagreement, repeat under explicit scaling, and use a guarded dense oracle on representative small fixtures.",
+            ))
+        elseif inconclusive_count > 0
+            push!(findings, _finding(
+                "multiconductor_smallest_singular_crosscheck_inconclusive", "info",
+                "At least one bounded smallest-direction engine did not converge for one or more requested fixtures.",
+                Dict("summary_path" => path,
+                     "agreement_case_count" => get(aggregate,
+                         "smallest_singular_crosscheck_agreement_case_count", 0),
+                     "inconclusive_case_count" => inconclusive_count,
+                     "relation_counts" => get(aggregate,
+                         "smallest_singular_crosscheck_relation_counts", Dict()));
+                suggested_action = "Retain this as coverage evidence and repeat with a larger explicit work budget before comparing candidate values or spans.",
+            ))
+        end
+    end
     aggregate = get(summary, "aggregate", Dict())
     aggregate isa AbstractDict || (aggregate = Dict())
     _int(get(aggregate, "source_schema_warning_count", 0)) > 0 && push!(findings,
@@ -1931,6 +2055,48 @@ function _validate_multiconductor_probe_comparison(path, summary)
         Dict("summary_path" => path);
         suggested_action = "Keep probe dimension fixed when comparing convergence or residual changes."
     ))
+    return Dict{String,Any}(
+        "summary_path" => path,
+        "paired_case_count" => paired,
+        "readiness" => readiness,
+        "findings" => findings,
+    )
+end
+
+function _validate_multiconductor_crosscheck_comparison(path, summary)
+    findings = Any[]
+    readiness = get(summary, "readiness", Dict())
+    readiness isa AbstractDict || (readiness = Dict())
+    paired = _int(get(summary, "paired_case_count", 0))
+    paired > 0 || push!(findings, _finding(
+        "multiconductor_crosscheck_comparison_empty", "warning",
+        "The smallest-direction numerical-policy comparison contains no paired fixtures.",
+        Dict("summary_path" => path);
+        suggested_action = "Compare summaries with explicit common fixture names."
+    ))
+    for (key, code, observation, action) in (
+        ("paired_case_coverage", "multiconductor_crosscheck_case_coverage_mismatch",
+         "The numerical-policy comparison does not cover the same fixture set.",
+         "Interpret only explicitly paired fixtures."),
+        ("environment_compatible", "multiconductor_crosscheck_environment_mismatch",
+         "The numerical-policy summaries have incompatible environment fingerprints.",
+         "Repeat both budgets on the same source revision and dependency environment."),
+        ("same_point_policy", "multiconductor_crosscheck_point_policy_mismatch",
+         "The numerical-policy summaries use different evaluation-point policies.",
+         "Keep the evaluation point fixed when calibrating work budgets."),
+        ("dimension_aligned", "multiconductor_crosscheck_dimension_mismatch",
+         "The paired crosschecks request different candidate dimensions.",
+         "Keep candidate dimension fixed when comparing convergence."),
+        ("distinct_work_policy", "multiconductor_crosscheck_work_policy_not_distinct",
+         "The paired summaries record identical crosscheck numerical policies.",
+         "Change an explicit iteration, cycle, basis-storage, or scaling policy."),
+    )
+        get(readiness, key, false) === true || push!(findings, _finding(
+            code, "warning", observation,
+            Dict("summary_path" => path, "readiness" => readiness);
+            suggested_action = action,
+        ))
+    end
     return Dict{String,Any}(
         "summary_path" => path,
         "paired_case_count" => paired,
@@ -2019,6 +2185,28 @@ function _validate_multiconductor_point_comparison(path, summary)
                  "mode_match_available_case_count" => get(readiness, "mode_match_available_case_count", 0));
             suggested_action = "Serialize the local expected-mode comparison before interpreting candidate visibility as an observed gauge."
     ))
+    crosscheck_requested = _int(get(readiness,
+        "smallest_crosscheck_requested_pair_count", 0))
+    crosscheck_requested > 0 &&
+        get(readiness, "smallest_crosscheck_dimension_aligned", false) !== true &&
+        push!(findings, _finding(
+            "multiconductor_point_smallest_crosscheck_dimension_mismatch", "warning",
+            "The paired smallest-direction crosschecks requested different candidate dimensions.",
+            Dict("summary_path" => path,
+                 "requested_pair_count" => crosscheck_requested);
+            suggested_action = "Keep candidate dimension and work budgets fixed before comparing backend relations across points."
+        ))
+    crosscheck_requested > 0 &&
+        get(readiness, "smallest_crosscheck_pair_available", false) !== true &&
+        push!(findings, _finding(
+            "multiconductor_point_smallest_crosscheck_overlap_incomplete", "warning",
+            "The paired point comparison lacks complete dense-free smallest-direction crosscheck evidence.",
+            Dict("summary_path" => path,
+                 "requested_pair_count" => crosscheck_requested,
+                 "available_pair_count" => get(readiness,
+                     "smallest_crosscheck_available_pair_count", 0));
+            suggested_action = "Inspect product-path failures and the basis-entry guard before interpreting point-local relation changes."
+        ))
     return Dict{String,Any}(
         "summary_path" => path, "paired_case_count" => paired,
         "readiness" => readiness, "findings" => findings,
@@ -2359,6 +2547,7 @@ function main()
     trace_comparison_reports = Any[]
     multiconductor_reports = Any[]
     multiconductor_probe_comparisons = Any[]
+    multiconductor_crosscheck_comparisons = Any[]
     multiconductor_point_comparisons = Any[]
     operator_reports = Any[]
     repeat_reports = Any[]
@@ -2408,6 +2597,9 @@ function main()
         elseif startswith(report_version, "bmopf-multiconductor-probe-comparison-")
             report = _validate_multiconductor_probe_comparison(path, summary)
             push!(multiconductor_probe_comparisons, report)
+        elseif startswith(report_version, "bmopf-multiconductor-crosscheck-comparison-")
+            report = _validate_multiconductor_crosscheck_comparison(path, summary)
+            push!(multiconductor_crosscheck_comparisons, report)
         elseif startswith(report_version, "bmopf-multiconductor-point-comparison-")
             report = _validate_multiconductor_point_comparison(path, summary)
             push!(multiconductor_point_comparisons, report)
@@ -2467,6 +2659,8 @@ function main()
         "trace_comparison_reports" => trace_comparison_reports,
         "multiconductor_reports" => multiconductor_reports,
         "multiconductor_probe_comparisons" => multiconductor_probe_comparisons,
+        "multiconductor_crosscheck_comparisons" =>
+            multiconductor_crosscheck_comparisons,
         "multiconductor_point_comparisons" => multiconductor_point_comparisons,
         "operator_reports" => operator_reports,
         "solver_repeat_reports" => solver_repeat_reports,

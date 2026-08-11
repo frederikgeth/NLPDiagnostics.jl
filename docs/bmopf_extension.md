@@ -351,6 +351,45 @@ skip every dense rank stage explicitly. This is the intended default safeguard
 for large feeder benchmarks, not a claim that no numerical diagnosis is
 possible.
 
+The smoke runner also exposes the independent dense-free smallest-direction
+crosscheck as an opt-in calibration stage. Set
+`NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_DIMENSION` to a positive candidate
+dimension; zero or an unset value disables it. Its bounded work controls are
+`NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_RESTARTED_ITERATIONS` (default 50),
+`NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_HARMONIC_STEPS_PER_SEED` (6),
+`NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_HARMONIC_CYCLES` (8), and
+`NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_MAX_BASIS_ENTRIES` (1,000,000).
+This stage uses Jacobian products and remains independent of the dense-entry
+budget. Each case records availability, convergence of both engines, their
+classified relation, relative candidate-value differences, and principal-angle
+evidence. The aggregate summary and campaign validator distinguish unavailable
+work, backend nonconvergence, and actual value/subspace disagreement. Agreement
+is candidate-screen evidence; it is not a rank or nullity certificate.
+
+For small representative fixtures only, set
+`NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_DENSE_CALIBRATION=true` together
+with a positive `NLPDIAGNOSTICS_BMOPF_RANK_MAX_DENSE_ENTRIES`. The profile then
+runs guarded dense-SVD comparisons for both candidate engines under the same
+search budgets and records each engine's oracle relation, dense target values,
+relative value errors, and principal-angle evidence. The dense-entry guard is
+checked independently for each calibration; requesting this option never
+authorizes unbounded densification.
+
+`benchmarks/compare_bmopf_multiconductor_points.jl` carries the same evidence
+across point policies. It reports availability, convergence, relation changes,
+candidate-value-difference changes, and principal-angle changes only when the
+underlying evidence exists. Keep candidate dimension and work budgets fixed
+when using this comparison to study initialization sensitivity.
+
+For same-point work-budget calibration, use
+`benchmarks/compare_bmopf_multiconductor_crosschecks.jl`. It requires compatible
+environment fingerprints, identical point policies, aligned candidate
+dimensions, and distinct recorded work policies. The artifact counts restarted
+and harmonic convergence gains/losses, agreement gains/losses, and relation
+changes while retaining per-case value-difference and principal-angle deltas.
+This is the appropriate comparison for deciding whether an unconverged BMOPF
+screen merely needs more bounded work; it still does not establish rank.
+
 `benchmarks/bmopf_draft_corpus.jl` reads the `.bmopf.json` snapshots in the
 BMOPFDraftData benchmark repository using BMOPFTools' public `parse_bmopf`
 interface. By default it selects two 30-bus representatives; it never sweeps
@@ -1681,3 +1720,18 @@ The option summary also aggregates the solve-time environment fingerprints and
 records a separate summary-time environment. Git provenance distinguishes a
 clean revision from modified source using a content fingerprint; it never
 stores the source diff itself in the report.
+
+## Smallest-direction scaling interventions
+
+The smoke runner accepts
+`NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_SCALING=none|row|column|row_column`.
+The selected policy, factor extrema, transformed-coordinate convention,
+backend values and backward errors, and mapped original-Jacobian residuals are
+retained per fixture. `compare_bmopf_multiconductor_crosschecks.jl` recognizes
+a scaling-only policy change, preserves it as a controlled intervention, and
+explicitly marks the two scaled spectra as not directly comparable.
+
+The campaign validator rejects unsupported policies or any record that claims
+the source model was mutated. It also requires a mapped original-coordinate
+audit for requested crosschecks. This intervention changes a recorded local
+linearization only; it is neither a BMOPF reformulation nor solver scaling.

@@ -129,6 +129,8 @@ export JacobianRankEstimate
 export RankPolicy
 export SparseJacobianPatternEstimate
 export SparseQRRankEstimate
+export SparseQRNullspaceEstimate
+export SparseQRNullspaceDenseCalibration
 export IterativeNullspaceEstimate
 export IterativeNullspaceSubspaceEstimate
 export IterativeJacobianSpectrumEstimate
@@ -316,6 +318,8 @@ export jacobian_row_family_scaling_experiment
 export jacobian_rank_estimate
 export sparse_jacobian_pattern_estimate
 export sparse_qr_rank_estimate
+export sparse_qr_nullspace_estimate
+export sparse_qr_nullspace_dense_calibration
 export jacobian_linear_operator
 export jacobian_product
 export jacobian_transpose_product
@@ -342,6 +346,8 @@ export analyze_restarted_smallest_singular_dense_calibration
 export analyze_harmonic_golub_kahan_candidates
 export analyze_harmonic_golub_kahan_dense_calibration
 export analyze_smallest_singular_backend_crosscheck
+export analyze_sparse_qr_nullspace
+export analyze_sparse_qr_nullspace_dense_calibration
 export analyze_iterative_right_nullspace_persistence
 export analyze_iterative_left_nullspace_persistence
 export constraint_feasibility_summary
@@ -5045,6 +5051,18 @@ function analyze(
     smallest_singular_backend_crosscheck_near_zero_tolerance::Real = sqrt(eps(Float64)),
     smallest_singular_backend_crosscheck_alignment_threshold::Real = 0.98,
     smallest_singular_backend_crosscheck_max_basis_entries::Integer = 1_000_000,
+    smallest_singular_backend_crosscheck_scaling::Symbol = :none,
+    check_sparse_qr_nullspace::Bool = false,
+    sparse_qr_nullspace_scaling::Symbol = :none,
+    sparse_qr_nullspace_relative_tolerance::Real = sqrt(eps(Float64)),
+    sparse_qr_nullspace_absolute_tolerance::Real = 0.0,
+    sparse_qr_nullspace_residual_relative_tolerance::Real = sqrt(eps(Float64)),
+    sparse_qr_nullspace_fill_ratio_warning_threshold::Real = 20,
+    sparse_qr_nullspace_max_input_nonzeros::Integer = 1_000_000,
+    sparse_qr_nullspace_max_factor_nonzeros::Integer = 4_000_000,
+    sparse_qr_nullspace_max_nullspace_entries::Integer = 1_000_000,
+    sparse_qr_nullspace_dense_calibration::Bool = false,
+    sparse_qr_nullspace_dense_max_entries::Integer = 4_000_000,
     check_iterative_right_nullspace_persistence::Bool = false,
     check_iterative_left_nullspace_persistence::Bool = false,
     check_iteration_jacobian_condition_persistence::Bool = false,
@@ -5091,7 +5109,8 @@ function analyze(
      !isnothing(multi_seed_golub_kahan_probe_seed_count) ||
      !isnothing(restarted_smallest_singular_candidate_dimension) ||
      !isnothing(harmonic_golub_kahan_candidate_dimension) ||
-     !isnothing(smallest_singular_backend_crosscheck_dimension)) &&
+     !isnothing(smallest_singular_backend_crosscheck_dimension) ||
+     check_sparse_qr_nullspace) &&
         isnothing(point) && isnothing(evaluation) && throw(ArgumentError(
             "Golub-Kahan projection probes require an explicit point or supplied evaluation",
         ))
@@ -5480,13 +5499,20 @@ function analyze(
             stages *= ",harmonic_golub_kahan_candidates"
         end
         if !isnothing(smallest_singular_backend_crosscheck_dimension)
+            scaling_intervention = _diagonally_scaled_jacobian_evaluation(
+                numerical_evaluation,
+                smallest_singular_backend_crosscheck_scaling,
+            )
             retained_dimension = isnothing(
                 smallest_singular_backend_crosscheck_harmonic_retained_dimension,
             ) ? max(
                 Int(smallest_singular_backend_crosscheck_dimension) + 1, 2,
             ) : smallest_singular_backend_crosscheck_harmonic_retained_dimension
             probe_report = analyze_smallest_singular_backend_crosscheck(
-                numerical_evaluation;
+                scaling_intervention.evaluation;
+                original_evaluation_for_scaled_audit = numerical_evaluation,
+                column_scaling_for_original_audit =
+                    scaling_intervention.column_scaling,
                 dimension = smallest_singular_backend_crosscheck_dimension,
                 restarted_iterations =
                     smallest_singular_backend_crosscheck_restarted_iterations,
@@ -5504,9 +5530,58 @@ function analyze(
                 max_basis_entries =
                     smallest_singular_backend_crosscheck_max_basis_entries,
             )
+            _annotate_smallest_singular_scaling_intervention!(
+                probe_report,
+                scaling_intervention;
+                emit_finding = true,
+            )
             append!(report.findings, probe_report.findings)
             merge!(report.metadata, probe_report.metadata)
             stages *= ",smallest_singular_backend_crosscheck"
+        end
+        if check_sparse_qr_nullspace
+            sparse_qr_report = analyze_sparse_qr_nullspace(
+                numerical_evaluation;
+                relative_tolerance = sparse_qr_nullspace_relative_tolerance,
+                absolute_tolerance = sparse_qr_nullspace_absolute_tolerance,
+                scaling = sparse_qr_nullspace_scaling,
+                residual_relative_tolerance =
+                    sparse_qr_nullspace_residual_relative_tolerance,
+                fill_ratio_warning_threshold =
+                    sparse_qr_nullspace_fill_ratio_warning_threshold,
+                max_input_nonzeros = sparse_qr_nullspace_max_input_nonzeros,
+                max_factor_nonzeros = sparse_qr_nullspace_max_factor_nonzeros,
+                max_nullspace_entries = sparse_qr_nullspace_max_nullspace_entries,
+            )
+            append!(report.findings, sparse_qr_report.findings)
+            merge!(report.metadata, sparse_qr_report.metadata)
+            stages *= ",sparse_qr_nullspace"
+            if sparse_qr_nullspace_dense_calibration
+                sparse_qr_dense_report =
+                    analyze_sparse_qr_nullspace_dense_calibration(
+                        numerical_evaluation;
+                        relative_tolerance =
+                            sparse_qr_nullspace_relative_tolerance,
+                        absolute_tolerance =
+                            sparse_qr_nullspace_absolute_tolerance,
+                        scaling = sparse_qr_nullspace_scaling,
+                        max_input_nonzeros =
+                            sparse_qr_nullspace_max_input_nonzeros,
+                        max_factor_nonzeros =
+                            sparse_qr_nullspace_max_factor_nonzeros,
+                        max_nullspace_entries =
+                            sparse_qr_nullspace_max_nullspace_entries,
+                        dense_max_entries =
+                            sparse_qr_nullspace_dense_max_entries,
+                    )
+                append!(report.findings, sparse_qr_dense_report.findings)
+                merge!(report.metadata, sparse_qr_dense_report.metadata)
+                stages *= ",sparse_qr_nullspace_dense_calibration"
+            end
+        elseif sparse_qr_nullspace_dense_calibration
+            throw(ArgumentError(
+                "sparse-QR nullspace dense calibration requires check_sparse_qr_nullspace = true",
+            ))
         end
         if !isnothing(jacobian_rank_tolerance_sweep_tolerances)
             sweep_report = analyze_jacobian_rank_tolerance_sweep(

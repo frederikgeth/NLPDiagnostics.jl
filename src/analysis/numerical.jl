@@ -1388,6 +1388,299 @@ function analyze_restarted_smallest_singular_candidates(
     return report
 end
 
+function analyze_sparse_qr_nullspace(
+    evaluation::NumericalEvaluation{T};
+    support_relative::Real = 0.1,
+    residual_relative_tolerance::Real = sqrt(eps(T)),
+    fill_ratio_warning_threshold::Real = 20,
+    kwargs...,
+) where {T<:AbstractFloat}
+    zero(T) < support_relative <= one(T) || throw(ArgumentError(
+        "support_relative must lie in (0, 1]",
+    ))
+    residual_tolerance = T(residual_relative_tolerance)
+    fill_threshold = T(fill_ratio_warning_threshold)
+    isfinite(residual_tolerance) && residual_tolerance >= zero(T) ||
+        throw(ArgumentError(
+            "residual_relative_tolerance must be finite and nonnegative",
+        ))
+    isfinite(fill_threshold) && fill_threshold > zero(T) ||
+        throw(ArgumentError(
+            "fill_ratio_warning_threshold must be finite and positive",
+        ))
+    estimate = sparse_qr_nullspace_estimate(evaluation; kwargs...)
+    report = DiagnosticReport()
+    report.metadata[:stage] = "sparse_qr_nullspace"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:sparse_qr_nullspace_available] = string(estimate.available)
+    report.metadata[:sparse_qr_nullspace_scaling] = string(estimate.policy.scaling)
+    report.metadata[:sparse_qr_nullspace_rank] = string(estimate.rank)
+    report.metadata[:sparse_qr_right_nullity] = string(estimate.right_nullity)
+    report.metadata[:sparse_qr_nullspace_absolute_threshold] =
+        string(estimate.absolute_threshold)
+    report.metadata[:sparse_qr_nullspace_relative_residuals] =
+        join(estimate.relative_residual_norms, ",")
+    report.metadata[:sparse_qr_nullspace_orthogonality_loss] =
+        string(estimate.orthogonality_loss)
+    report.metadata[:sparse_qr_nullspace_input_nonzeros] =
+        string(estimate.input_nonzeros)
+    report.metadata[:sparse_qr_nullspace_factor_nonzeros] =
+        string(estimate.factor_nonzeros)
+    report.metadata[:sparse_qr_nullspace_fill_ratio] =
+        string(estimate.fill_ratio)
+    report.metadata[:sparse_qr_nullspace_max_input_nonzeros] =
+        string(estimate.max_input_nonzeros)
+    report.metadata[:sparse_qr_nullspace_max_factor_nonzeros] =
+        string(estimate.max_factor_nonzeros)
+    report.metadata[:sparse_qr_nullspace_max_nullspace_entries] =
+        string(estimate.max_nullspace_entries)
+    if !estimate.available
+        push!(report, Finding(:sparse_qr_nullspace_unavailable;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The guarded SuiteSparseQR right-nullspace extraction is unavailable: $(estimate.reason).",
+            why_it_matters = "No sparse-QR direction or nullity conclusion is emitted outside the explicit input, factor-fill, and basis-storage contracts.",
+            evidence = [_point_evidence(evaluation.point), Evidence(
+                "Sparse-QR nullspace work guards"; details = [
+                    "input_nonzeros" => estimate.input_nonzeros,
+                    "factor_nonzeros" => estimate.factor_nonzeros,
+                    "max_input_nonzeros" => estimate.max_input_nonzeros,
+                    "max_factor_nonzeros" => estimate.max_factor_nonzeros,
+                    "max_nullspace_entries" => estimate.max_nullspace_entries,
+                ],
+            )],
+            suggested_actions = [
+                "Inspect the recorded guard or factorization reason; raise a budget only for an intentionally bounded case.",
+            ],
+        ))
+        return report
+    end
+    if iszero(estimate.right_nullity)
+        push!(report, Finding(:sparse_qr_no_right_nullspace_under_policy;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceMedium,
+            observation = "SuiteSparseQR retained all $(estimate.columns) Jacobian columns under the declared pivot policy.",
+            why_it_matters = "This is tolerance-local full-column-rank evidence, not proof that smaller unresolved singular directions are absent.",
+            evidence = [_point_evidence(evaluation.point)],
+            suggested_actions = [
+                "Use guarded dense SVD or an independent operator method before treating full-column-rank evidence as definitive.",
+            ],
+        ))
+        return report
+    end
+    maximum_residual = maximum(
+        estimate.relative_residual_norms; init = zero(T),
+    )
+    residuals_pass = maximum_residual <= residual_tolerance
+    affected_indices = Set{Int}()
+    for direction in eachcol(estimate.directions)
+        magnitude = maximum(abs, direction; init = zero(T))
+        iszero(magnitude) && continue
+        for index in findall(
+            value -> abs(value) >= T(support_relative) * magnitude,
+            direction,
+        )
+            push!(affected_indices, index)
+        end
+    end
+    push!(report, Finding(residuals_pass ?
+        :sparse_qr_right_nullspace_candidate :
+        :sparse_qr_right_nullspace_residual_failure;
+        severity = residuals_pass ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = residuals_pass ? ConfidenceMedium : ConfidenceHigh,
+        observation = "SuiteSparseQR constructed $(estimate.right_nullity) original-coordinate right-nullspace candidate direction(s); the largest direct relative Jacobian residual is $maximum_residual.",
+        why_it_matters = residuals_pass ?
+            "This is independent rank-revealing-factorization evidence that avoids normal-spectrum squaring, while remaining pivot-threshold and operating-point dependent." :
+            "The triangular nullspace construction does not satisfy its direct original-Jacobian audit and must not be interpreted as a nullspace.",
+        evidence = [_point_evidence(evaluation.point), Evidence(
+            "Sparse-QR right-nullspace audit"; details = [
+                "rank" => estimate.rank,
+                "right_nullity" => estimate.right_nullity,
+                "scaling" => estimate.policy.scaling,
+                "pivot_threshold" => estimate.absolute_threshold,
+                "relative_residuals" => join(estimate.relative_residual_norms, ","),
+                "residual_tolerance" => residual_tolerance,
+                "orthogonality_loss" => estimate.orthogonality_loss,
+                "input_nonzeros" => estimate.input_nonzeros,
+                "factor_nonzeros" => estimate.factor_nonzeros,
+                "fill_ratio" => estimate.fill_ratio,
+            ],
+        )],
+        affected = EntityRef[
+            EntityRef(:variable, evaluation.point.variables[index].value)
+            for index in sort!(collect(affected_indices))
+        ],
+        suggested_actions = residuals_pass ? [
+            "Compare the dimension and span with guarded dense SVD, structural nullity, and the independent smallest-direction engines.",
+        ] : [
+            "Inspect pivot threshold, scaling, triangular conditioning, and factorization fill before increasing trust.",
+        ],
+    ))
+    if !isnothing(estimate.fill_ratio) && estimate.fill_ratio >= fill_threshold
+        push!(report, Finding(:sparse_qr_nullspace_large_factor_fill;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "SuiteSparseQR factor fill ratio $(estimate.fill_ratio) exceeds the declared warning threshold $fill_threshold.",
+            why_it_matters = "Large fill can make this extraction unsuitable for larger network Jacobians even when the current factorization completed.",
+            evidence = [_point_evidence(evaluation.point)],
+            suggested_actions = [
+                "Retain sparse QR as a bounded representative-case backend and prefer matrix-free methods on larger decks.",
+            ],
+        ))
+    end
+    return report
+end
+
+function analyze_sparse_qr_nullspace_dense_calibration(
+    evaluation::NumericalEvaluation{T}; kwargs...,
+) where {T<:AbstractFloat}
+    calibration = sparse_qr_nullspace_dense_calibration(
+        evaluation; kwargs...,
+    )
+    report = DiagnosticReport()
+    report.metadata[:stage] = "sparse_qr_nullspace_dense_calibration"
+    report.metadata[:evaluation_point_label] = evaluation.point.label
+    report.metadata[:sparse_qr_nullspace_dense_calibration_available] =
+        string(calibration.available)
+    report.metadata[:sparse_qr_nullspace_dense_calibration_relation] =
+        string(calibration.relation)
+    if !calibration.available
+        push!(report, Finding(:sparse_qr_nullspace_dense_calibration_unavailable;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "Sparse-QR nullspace dense calibration is unavailable: $(calibration.reason).",
+            why_it_matters = "No oracle comparison is made unless both guarded backends complete.",
+            evidence = [_point_evidence(evaluation.point)],
+            suggested_actions = [
+                "Use dense calibration only on an explicitly bounded representative Jacobian.",
+            ],
+        ))
+        return report
+    end
+    report.metadata[:sparse_qr_nullspace_dense_rank] =
+        string(calibration.dense_estimate.rank)
+    report.metadata[:sparse_qr_nullspace_dense_right_nullity] =
+        string(calibration.dense_estimate.right_nullity)
+    report.metadata[:sparse_qr_nullspace_dense_minimum_principal_cosine] =
+        string(calibration.minimum_principal_cosine)
+    report.metadata[:sparse_qr_nullspace_dense_threshold_ambiguous] =
+        string(calibration.dense_threshold_ambiguous)
+    agreement = calibration.relation in (
+        :subspace_agreement,
+        :agreement_no_nullspace,
+    )
+    ambiguous = calibration.relation in (
+        :dense_rank_threshold_ambiguous,
+        :agreement_no_nullspace_threshold_ambiguous,
+    )
+    push!(report, Finding(agreement ?
+        :sparse_qr_nullspace_dense_calibration_agreement :
+        ambiguous ?
+            :sparse_qr_nullspace_dense_calibration_ambiguous :
+            :sparse_qr_nullspace_dense_calibration_disagreement;
+        severity = agreement || ambiguous ? SeverityInfo : SeverityWarning,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = ambiguous ? ConfidenceLow : ConfidenceHigh,
+        observation = "The sparse-QR nullspace comparison with guarded dense SVD is $(calibration.relation).",
+        why_it_matters = agreement ?
+            "Two independent factorizations agree under the stated rank, scaling, subspace, and work policies." :
+            ambiguous ?
+                "A dense singular value lies near the declared rank threshold, so dimension or span agreement cannot be promoted beyond threshold-sensitive evidence." :
+                "The sparse-QR and dense-SVD nullspace evidence disagree under the declared policies.",
+        evidence = [_point_evidence(evaluation.point), Evidence(
+            "Sparse QR versus dense SVD nullspace"; details = [
+                "relation" => calibration.relation,
+                "sparse_rank" => calibration.estimate.rank,
+                "dense_rank" => calibration.dense_estimate.rank,
+                "sparse_right_nullity" => calibration.estimate.right_nullity,
+                "dense_right_nullity" => calibration.dense_estimate.right_nullity,
+                "minimum_principal_cosine" => calibration.minimum_principal_cosine,
+                "dense_threshold_ambiguous" => calibration.dense_threshold_ambiguous,
+                "threshold_margin_factor" => calibration.threshold_margin_factor,
+            ],
+        )],
+        suggested_actions = agreement ? [
+            "Retain the case in the nullspace oracle corpus and repeat under nearby tolerances and points.",
+        ] : [
+            "Inspect pivot and singular-value threshold margins, direct residuals, and scaling before choosing either dimension.",
+        ],
+    ))
+    return report
+end
+
+function _finite_scaling_extrema(factors::AbstractVector{T}) where {T<:AbstractFloat}
+    finite = filter(isfinite, factors)
+    isempty(finite) && return (nothing, nothing)
+    return (minimum(finite), maximum(finite))
+end
+
+function _annotate_smallest_singular_scaling_intervention!(
+    report::DiagnosticReport,
+    intervention;
+    emit_finding::Bool = false,
+)
+    scaling = intervention.scaling
+    row_minimum, row_maximum =
+        _finite_scaling_extrema(intervention.row_scaling)
+    column_minimum, column_maximum =
+        _finite_scaling_extrema(intervention.column_scaling)
+    transformed_coordinates = scaling in (:column, :row_column)
+    report.metadata[:smallest_singular_backend_crosscheck_scaling] =
+        string(scaling)
+    report.metadata[:smallest_singular_backend_crosscheck_coordinate_system] =
+        transformed_coordinates ? "diagonally_transformed_variables" :
+        "original_variables"
+    report.metadata[:smallest_singular_backend_crosscheck_row_scaling_minimum] =
+        string(row_minimum)
+    report.metadata[:smallest_singular_backend_crosscheck_row_scaling_maximum] =
+        string(row_maximum)
+    report.metadata[:smallest_singular_backend_crosscheck_column_scaling_minimum] =
+        string(column_minimum)
+    report.metadata[:smallest_singular_backend_crosscheck_column_scaling_maximum] =
+        string(column_maximum)
+    report.metadata[:smallest_singular_backend_crosscheck_model_modified] = "false"
+    if emit_finding && scaling != :none
+        push!(report, Finding(
+            :smallest_singular_backend_crosscheck_scaling_intervention;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "The smallest-direction engines were applied to a point-local $scaling diagonally scaled Jacobian.",
+            why_it_matters = transformed_coordinates ?
+                "Column scaling changes the candidate coordinate metric. Returned spans and singular values are scaled-system evidence and must be mapped and audited before physical interpretation." :
+                "Row scaling changes the residual metric. Returned singular values describe the scaled linearization, not solver scaling or a modified model.",
+            evidence = [Evidence("Controlled Jacobian scaling intervention"; details = [
+                "scaling" => scaling,
+                "coordinate_system" => transformed_coordinates ?
+                    "diagonally_transformed_variables" : "original_variables",
+                "row_factor_minimum" => row_minimum,
+                "row_factor_maximum" => row_maximum,
+                "column_factor_minimum" => column_minimum,
+                "column_factor_maximum" => column_maximum,
+                "model_modified" => false,
+                "solver_scaling_changed" => false,
+            ])],
+            suggested_actions = [
+                "Compare against the unscaled run at the same point and work budget.",
+                "Do not assign a physical mode label from a column-scaled candidate without mapping it to original coordinates and directly auditing the original Jacobian.",
+            ],
+        ))
+    end
+    return report
+end
+
 """Report the guarded dense-oracle comparison for restarted candidates."""
 function analyze_restarted_smallest_singular_dense_calibration(
     evaluation::NumericalEvaluation{T}; kwargs...,
@@ -1682,10 +1975,54 @@ function analyze_harmonic_golub_kahan_dense_calibration(
     return report
 end
 
+function _mapped_original_candidate_residuals(
+    original_evaluation::NumericalEvaluation{T},
+    directions::AbstractMatrix{T},
+    column_scaling::AbstractVector{<:Real},
+) where {T<:AbstractFloat}
+    length(column_scaling) == length(original_evaluation.point.variables) ||
+        throw(DimensionMismatch(
+            "column scaling does not align with original Jacobian columns",
+        ))
+    size(directions, 1) == length(column_scaling) || throw(DimensionMismatch(
+        "candidate directions do not align with column scaling",
+    ))
+    operator = jacobian_linear_operator(original_evaluation)
+    operator.available || return T[], T[]
+    matrix_norm = T(_matrix_norm(operator.assembled_matrix, :frobenius))
+    residuals = T[]
+    mapped_norms = T[]
+    for index in axes(directions, 2)
+        mapped = T.(column_scaling) .* view(directions, :, index)
+        mapped_norm = norm(mapped)
+        push!(mapped_norms, mapped_norm)
+        if iszero(mapped_norm)
+            push!(residuals, T(Inf))
+            continue
+        end
+        mapped ./= mapped_norm
+        push!(residuals, _relative_residual(
+            norm(jacobian_product(operator, mapped)),
+            matrix_norm,
+            one(T),
+        ))
+    end
+    return residuals, mapped_norms
+end
+
 """Report the dense-free comparison between independent candidate engines."""
 function analyze_smallest_singular_backend_crosscheck(
-    evaluation::NumericalEvaluation{T}; kwargs...,
+    evaluation::NumericalEvaluation{T};
+    original_evaluation_for_scaled_audit::Union{Nothing,NumericalEvaluation{T}} = nothing,
+    column_scaling_for_original_audit::Union{Nothing,AbstractVector{<:Real}} = nothing,
+    kwargs...,
 ) where {T<:AbstractFloat}
+    xor(
+        isnothing(original_evaluation_for_scaled_audit),
+        isnothing(column_scaling_for_original_audit),
+    ) && throw(ArgumentError(
+        "original_evaluation_for_scaled_audit and column_scaling_for_original_audit must be supplied together",
+    ))
     crosscheck = smallest_singular_backend_crosscheck(evaluation; kwargs...)
     report = DiagnosticReport()
     report.metadata[:stage] = "smallest_singular_backend_crosscheck"
@@ -1698,6 +2035,45 @@ function analyze_smallest_singular_backend_crosscheck(
         string(crosscheck.restarted.converged)
     report.metadata[:smallest_singular_backend_crosscheck_harmonic_converged] =
         string(crosscheck.harmonic.converged)
+    report.metadata[:smallest_singular_backend_crosscheck_restarted_breakdown] =
+        string(crosscheck.restarted.breakdown)
+    report.metadata[:smallest_singular_backend_crosscheck_harmonic_breakdown] =
+        string(crosscheck.harmonic.breakdown)
+    report.metadata[:smallest_singular_backend_crosscheck_restarted_completed_iterations] =
+        string(crosscheck.restarted.completed_iterations)
+    report.metadata[:smallest_singular_backend_crosscheck_harmonic_completed_cycles] =
+        string(crosscheck.harmonic.completed_cycles)
+    structural_minimum_right_nullity = max(
+        length(evaluation.point.variables) - length(evaluation.constraint_sources), 0,
+    )
+    requested_dimension = crosscheck.restarted.requested_dimension
+    report.metadata[:smallest_singular_backend_crosscheck_structural_minimum_right_nullity] =
+        string(structural_minimum_right_nullity)
+    report.metadata[:smallest_singular_backend_crosscheck_dimension_covers_structural_minimum] =
+        string(requested_dimension >= structural_minimum_right_nullity)
+    if requested_dimension < structural_minimum_right_nullity
+        push!(report, Finding(
+            :smallest_singular_backend_crosscheck_dimension_below_structural_nullity;
+            severity = SeverityWarning,
+            domain = MathematicalIssue,
+            basis = StructuralProof,
+            confidence = ConfidenceHigh,
+            observation = "The requested candidate dimension $requested_dimension is below the structurally unavoidable right nullity $structural_minimum_right_nullity of this wide Jacobian.",
+            why_it_matters = "A lower-dimensional candidate slice cannot cover the full structurally guaranteed nullspace, and its span is non-unique.",
+            evidence = [_point_evidence(evaluation.point), Evidence(
+                "Rectangular Jacobian dimension bound"; details = [
+                    "rows" => length(evaluation.constraint_sources),
+                    "columns" => length(evaluation.point.variables),
+                    "requested_dimension" => requested_dimension,
+                    "structural_minimum_right_nullity" =>
+                        structural_minimum_right_nullity,
+                ],
+            )],
+            suggested_actions = [
+                "Request at least the columns-minus-rows dimension before comparing a complete right-nullspace candidate span.",
+            ],
+        ))
+    end
     if !crosscheck.available
         push!(report, Finding(:smallest_singular_backend_crosscheck_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
@@ -1711,19 +2087,71 @@ function analyze_smallest_singular_backend_crosscheck(
     end
     report.metadata[:smallest_singular_backend_crosscheck_relative_value_differences] =
         join(crosscheck.relative_singular_value_differences, ",")
+    report.metadata[:smallest_singular_backend_crosscheck_restarted_values] =
+        join(crosscheck.restarted.singular_values, ",")
+    report.metadata[:smallest_singular_backend_crosscheck_harmonic_values] =
+        join(crosscheck.harmonic.singular_values, ",")
+    report.metadata[:smallest_singular_backend_crosscheck_restarted_backward_errors] =
+        join(crosscheck.restarted.triplet_backward_errors, ",")
+    report.metadata[:smallest_singular_backend_crosscheck_harmonic_backward_errors] =
+        join(crosscheck.harmonic.triplet_backward_errors, ",")
+    if !isnothing(original_evaluation_for_scaled_audit)
+        original_evaluation_for_scaled_audit.point == evaluation.point ||
+            throw(ArgumentError(
+                "scaled and original Jacobian evaluations must use the same point",
+            ))
+        restarted_original_residuals, restarted_mapped_norms =
+            _mapped_original_candidate_residuals(
+                original_evaluation_for_scaled_audit,
+                crosscheck.restarted.directions,
+                column_scaling_for_original_audit,
+            )
+        harmonic_original_residuals, harmonic_mapped_norms =
+            _mapped_original_candidate_residuals(
+                original_evaluation_for_scaled_audit,
+                crosscheck.harmonic.directions,
+                column_scaling_for_original_audit,
+            )
+        report.metadata[:smallest_singular_backend_crosscheck_restarted_original_relative_residuals] =
+            join(restarted_original_residuals, ",")
+        report.metadata[:smallest_singular_backend_crosscheck_harmonic_original_relative_residuals] =
+            join(harmonic_original_residuals, ",")
+        report.metadata[:smallest_singular_backend_crosscheck_restarted_mapped_direction_norms] =
+            join(restarted_mapped_norms, ",")
+        report.metadata[:smallest_singular_backend_crosscheck_harmonic_mapped_direction_norms] =
+            join(harmonic_mapped_norms, ",")
+        report.metadata[:smallest_singular_backend_crosscheck_original_audit_available] =
+            string(
+                length(restarted_original_residuals) ==
+                    size(crosscheck.restarted.directions, 2) &&
+                length(harmonic_original_residuals) ==
+                    size(crosscheck.harmonic.directions, 2),
+            )
+    else
+        report.metadata[:smallest_singular_backend_crosscheck_original_audit_available] =
+            "false"
+    end
     report.metadata[:smallest_singular_backend_crosscheck_minimum_principal_cosine] =
         string(crosscheck.minimum_principal_cosine)
     agreement = crosscheck.relation == :agreement
-    push!(report, Finding(agreement ?
+    convergence_limited = crosscheck.relation in (
+        :both_unconverged, :restarted_unconverged, :harmonic_unconverged,
+    )
+    finding_code = agreement ?
         :smallest_singular_backend_crosscheck_agreement :
-        :smallest_singular_backend_crosscheck_disagreement;
-        severity = agreement ? SeverityInfo : SeverityWarning,
+        convergence_limited ?
+            :smallest_singular_backend_crosscheck_inconclusive :
+            :smallest_singular_backend_crosscheck_disagreement
+    push!(report, Finding(finding_code;
+        severity = agreement || convergence_limited ? SeverityInfo : SeverityWarning,
         domain = NumericalIssue, basis = NumericalObservation,
         confidence = ConfidenceHigh,
         observation = "The restarted normal-operator and zero-target harmonic candidate engines have relation $(crosscheck.relation).",
         why_it_matters = agreement ?
             "Independent finite-search agreement raises confidence in the observed candidate span, but does not prove completeness or rank." :
-            "Backend disagreement is evidence that search budget, scaling, spectral compression, or non-unique target subspaces still limits interpretation.",
+            convergence_limited ?
+                "At least one bounded search did not meet its convergence policy, so candidate values or spans cannot yet be compared as backend disagreement." :
+                "Converged backend disagreement is evidence that scaling, spectral compression, or a non-unique target subspace still limits interpretation.",
         evidence = [_point_evidence(evaluation.point), Evidence(
             "Independent smallest-direction backend comparison"; details = [
                 "relation" => crosscheck.relation,
@@ -1733,6 +2161,15 @@ function analyze_smallest_singular_backend_crosscheck(
                 "harmonic_values" => join(crosscheck.harmonic.singular_values, ","),
                 "relative_value_differences" => join(crosscheck.relative_singular_value_differences, ","),
                 "minimum_principal_cosine" => crosscheck.minimum_principal_cosine,
+                "original_coordinate_audit_available" => get(report.metadata,
+                    :smallest_singular_backend_crosscheck_original_audit_available,
+                    "false"),
+                "restarted_original_relative_residuals" => get(report.metadata,
+                    :smallest_singular_backend_crosscheck_restarted_original_relative_residuals,
+                    ""),
+                "harmonic_original_relative_residuals" => get(report.metadata,
+                    :smallest_singular_backend_crosscheck_harmonic_original_relative_residuals,
+                    ""),
                 "value_tolerance" => crosscheck.singular_value_relative_tolerance,
                 "near_zero_relative_tolerance" => crosscheck.near_zero_relative_tolerance,
                 "subspace_alignment_threshold" => crosscheck.subspace_alignment_threshold,
@@ -1740,7 +2177,9 @@ function analyze_smallest_singular_backend_crosscheck(
         )],
         suggested_actions = agreement ?
             ["Validate representative small cases against dense SVD and classify the direction using structural and physical evidence."] :
-            ["Inspect both convergence histories and projected conditioning, repeat under explicit scaling policies, and use guarded dense SVD on a smaller representative case."],
+            convergence_limited ?
+                ["Increase the explicit work budget or adjust the declared convergence policy; retain this result as coverage evidence only."] :
+                ["Inspect projected conditioning, repeat under explicit scaling policies, and use guarded dense SVD on a smaller representative case."],
     ))
     return report
 end

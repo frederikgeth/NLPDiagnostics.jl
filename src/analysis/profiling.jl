@@ -320,8 +320,9 @@ Run the generic static, expression, stable-reformulation, numerical, active-set,
 and structural-numerical degeneracy stages for one labeled `ProfileCase`. No
 solver is invoked and no model data is modified. The result retains timing and
 derivative-provenance counts alongside the full reports so formulation cases can
-be compared reproducibly. The iterative sparse probes are disabled by default;
-set either probe dimension keyword to record explicit additional probe stages.
+be compared reproducibly. The iterative sparse probes and independent
+smallest-direction backend crosscheck are disabled by default; set their
+dimension keywords to record explicit additional probe stages.
 expected_mode_free_coordinate_policy is passed to the degeneracy stage and
 defaults to the conservative :strict policy.
 expected_mode_tangent_policy optionally retains plugin-declared fixed/reference
@@ -374,6 +375,32 @@ function profile_case(
     iterative_spectrum_probe_iterations::Integer = 100,
     iterative_spectrum_probe_convergence_tolerance::Real = sqrt(eps(T)),
     iterative_spectrum_probe_spread_threshold::Real = 1.0e6,
+    smallest_singular_backend_crosscheck_dimension::Union{Nothing,Integer} = nothing,
+    smallest_singular_backend_crosscheck_restarted_iterations::Integer = 50,
+    smallest_singular_backend_crosscheck_restarted_alignment_threshold::Real = 0.999,
+    smallest_singular_backend_crosscheck_harmonic_steps_per_seed::Integer = 6,
+    smallest_singular_backend_crosscheck_harmonic_cycles::Integer = 8,
+    smallest_singular_backend_crosscheck_harmonic_alignment_threshold::Real = 0.999,
+    smallest_singular_backend_crosscheck_harmonic_retained_dimension::Union{Nothing,Integer} = nothing,
+    smallest_singular_backend_crosscheck_value_tolerance::Real = 1.0e-4,
+    smallest_singular_backend_crosscheck_near_zero_tolerance::Real = sqrt(eps(T)),
+    smallest_singular_backend_crosscheck_alignment_threshold::Real = 0.98,
+    smallest_singular_backend_crosscheck_max_basis_entries::Integer = 1_000_000,
+    smallest_singular_backend_crosscheck_scaling::Symbol = :none,
+    smallest_singular_backend_crosscheck_dense_calibration::Bool = false,
+    smallest_singular_backend_crosscheck_dense_max_entries::Integer =
+        rank_max_dense_entries,
+    check_sparse_qr_nullspace::Bool = false,
+    sparse_qr_nullspace_scaling::Symbol = :none,
+    sparse_qr_nullspace_relative_tolerance::Real = rank_relative_tolerance,
+    sparse_qr_nullspace_absolute_tolerance::Real = 0.0,
+    sparse_qr_nullspace_residual_relative_tolerance::Real = sqrt(eps(T)),
+    sparse_qr_nullspace_fill_ratio_warning_threshold::Real = 20,
+    sparse_qr_nullspace_max_input_nonzeros::Integer = 1_000_000,
+    sparse_qr_nullspace_max_factor_nonzeros::Integer = 4_000_000,
+    sparse_qr_nullspace_max_nullspace_entries::Integer = 1_000_000,
+    sparse_qr_nullspace_dense_calibration::Bool = false,
+    sparse_qr_nullspace_dense_max_entries::Integer = rank_max_dense_entries,
     jacobian_rank_tolerance_sweep_tolerances::Union{Nothing,AbstractVector{<:Real}} = nothing,
     jacobian_rank_tolerance_sweep_scaling::Symbol = :none,
     jacobian_rank_tolerance_sweep_max_dense_entries::Integer = 4_000_000,
@@ -482,6 +509,172 @@ function profile_case(
             ),
         )
         _append_profile_probe!(numerical_report, probe_report)
+    end
+
+    if !isnothing(smallest_singular_backend_crosscheck_dimension)
+        scaling_intervention = _profile_stage!(
+            timings,
+            allocations,
+            :smallest_singular_backend_crosscheck_scaling_intervention,
+            () -> _diagonally_scaled_jacobian_evaluation(
+                evaluation,
+                smallest_singular_backend_crosscheck_scaling,
+            ),
+        )
+        crosscheck_evaluation = scaling_intervention.evaluation
+        retained_dimension = isnothing(
+            smallest_singular_backend_crosscheck_harmonic_retained_dimension,
+        ) ? max(Int(smallest_singular_backend_crosscheck_dimension) + 1, 2) :
+            smallest_singular_backend_crosscheck_harmonic_retained_dimension
+        crosscheck_report = _profile_stage!(
+            timings,
+            allocations,
+            :smallest_singular_backend_crosscheck,
+            () -> analyze_smallest_singular_backend_crosscheck(
+                crosscheck_evaluation;
+                original_evaluation_for_scaled_audit = evaluation,
+                column_scaling_for_original_audit =
+                    scaling_intervention.column_scaling,
+                dimension = smallest_singular_backend_crosscheck_dimension,
+                restarted_iterations =
+                    smallest_singular_backend_crosscheck_restarted_iterations,
+                restarted_alignment_threshold =
+                    smallest_singular_backend_crosscheck_restarted_alignment_threshold,
+                harmonic_steps_per_seed =
+                    smallest_singular_backend_crosscheck_harmonic_steps_per_seed,
+                harmonic_cycles =
+                    smallest_singular_backend_crosscheck_harmonic_cycles,
+                harmonic_alignment_threshold =
+                    smallest_singular_backend_crosscheck_harmonic_alignment_threshold,
+                harmonic_retained_dimension = retained_dimension,
+                singular_value_relative_tolerance =
+                    smallest_singular_backend_crosscheck_value_tolerance,
+                near_zero_relative_tolerance =
+                    smallest_singular_backend_crosscheck_near_zero_tolerance,
+                subspace_alignment_threshold =
+                    smallest_singular_backend_crosscheck_alignment_threshold,
+                max_basis_entries =
+                    smallest_singular_backend_crosscheck_max_basis_entries,
+            ),
+        )
+        _annotate_smallest_singular_scaling_intervention!(
+            crosscheck_report,
+            scaling_intervention;
+            emit_finding = true,
+        )
+        _append_profile_probe!(numerical_report, crosscheck_report)
+
+        if smallest_singular_backend_crosscheck_dense_calibration
+            restarted_dense_report = _profile_stage!(
+                timings,
+                allocations,
+                :restarted_smallest_singular_dense_calibration,
+                () -> analyze_restarted_smallest_singular_dense_calibration(
+                    crosscheck_evaluation;
+                    dimension = smallest_singular_backend_crosscheck_dimension,
+                    iterations =
+                        smallest_singular_backend_crosscheck_restarted_iterations,
+                    subspace_alignment_threshold =
+                        smallest_singular_backend_crosscheck_alignment_threshold,
+                    candidate_subspace_alignment_threshold =
+                        smallest_singular_backend_crosscheck_restarted_alignment_threshold,
+                    dense_max_entries =
+                        smallest_singular_backend_crosscheck_dense_max_entries,
+                    singular_value_relative_tolerance =
+                        smallest_singular_backend_crosscheck_value_tolerance,
+                    max_basis_entries =
+                        smallest_singular_backend_crosscheck_max_basis_entries,
+                ),
+            )
+            _annotate_smallest_singular_scaling_intervention!(
+                restarted_dense_report,
+                scaling_intervention,
+            )
+            _append_profile_probe!(numerical_report, restarted_dense_report)
+            harmonic_dense_report = _profile_stage!(
+                timings,
+                allocations,
+                :harmonic_golub_kahan_dense_calibration,
+                () -> analyze_harmonic_golub_kahan_dense_calibration(
+                    crosscheck_evaluation;
+                    dimension = smallest_singular_backend_crosscheck_dimension,
+                    steps_per_seed =
+                        smallest_singular_backend_crosscheck_harmonic_steps_per_seed,
+                    cycles = smallest_singular_backend_crosscheck_harmonic_cycles,
+                    retained_dimension = retained_dimension,
+                    subspace_alignment_threshold =
+                        smallest_singular_backend_crosscheck_alignment_threshold,
+                    candidate_subspace_alignment_threshold =
+                        smallest_singular_backend_crosscheck_harmonic_alignment_threshold,
+                    dense_max_entries =
+                        smallest_singular_backend_crosscheck_dense_max_entries,
+                    singular_value_relative_tolerance =
+                        smallest_singular_backend_crosscheck_value_tolerance,
+                    max_basis_entries =
+                        smallest_singular_backend_crosscheck_max_basis_entries,
+                ),
+            )
+            _annotate_smallest_singular_scaling_intervention!(
+                harmonic_dense_report,
+                scaling_intervention,
+            )
+            _append_profile_probe!(numerical_report, harmonic_dense_report)
+        end
+    elseif smallest_singular_backend_crosscheck_dense_calibration
+        throw(ArgumentError(
+            "smallest-singular dense calibration requires a crosscheck dimension",
+        ))
+    end
+
+    if check_sparse_qr_nullspace
+        sparse_qr_report = _profile_stage!(
+            timings,
+            allocations,
+            :sparse_qr_nullspace,
+            () -> analyze_sparse_qr_nullspace(
+                evaluation;
+                relative_tolerance = sparse_qr_nullspace_relative_tolerance,
+                absolute_tolerance = sparse_qr_nullspace_absolute_tolerance,
+                scaling = sparse_qr_nullspace_scaling,
+                residual_relative_tolerance =
+                    sparse_qr_nullspace_residual_relative_tolerance,
+                fill_ratio_warning_threshold =
+                    sparse_qr_nullspace_fill_ratio_warning_threshold,
+                max_input_nonzeros = sparse_qr_nullspace_max_input_nonzeros,
+                max_factor_nonzeros = sparse_qr_nullspace_max_factor_nonzeros,
+                max_nullspace_entries =
+                    sparse_qr_nullspace_max_nullspace_entries,
+            ),
+        )
+        _append_profile_probe!(numerical_report, sparse_qr_report)
+        if sparse_qr_nullspace_dense_calibration
+            sparse_qr_dense_report = _profile_stage!(
+                timings,
+                allocations,
+                :sparse_qr_nullspace_dense_calibration,
+                () -> analyze_sparse_qr_nullspace_dense_calibration(
+                    evaluation;
+                    relative_tolerance =
+                        sparse_qr_nullspace_relative_tolerance,
+                    absolute_tolerance =
+                        sparse_qr_nullspace_absolute_tolerance,
+                    scaling = sparse_qr_nullspace_scaling,
+                    max_input_nonzeros =
+                        sparse_qr_nullspace_max_input_nonzeros,
+                    max_factor_nonzeros =
+                        sparse_qr_nullspace_max_factor_nonzeros,
+                    max_nullspace_entries =
+                        sparse_qr_nullspace_max_nullspace_entries,
+                    dense_max_entries =
+                        sparse_qr_nullspace_dense_max_entries,
+                ),
+            )
+            _append_profile_probe!(numerical_report, sparse_qr_dense_report)
+        end
+    elseif sparse_qr_nullspace_dense_calibration
+        throw(ArgumentError(
+            "sparse-QR nullspace dense calibration requires check_sparse_qr_nullspace = true",
+        ))
     end
 
     if !isnothing(jacobian_rank_tolerance_sweep_tolerances)

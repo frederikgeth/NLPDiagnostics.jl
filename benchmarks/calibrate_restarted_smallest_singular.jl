@@ -64,7 +64,7 @@ function _cases()
             minimum_iterations = 2,
             convergence_tolerance = 1.0e-10,
             value_tolerance = 1.0e-8,
-            expected_relation = :dense_target_numerically_unresolved,
+            expected_relation = :agreement,
         ),
         (
             name = "clustered_smallest_pair",
@@ -104,7 +104,7 @@ function _cases()
             minimum_iterations = 2,
             convergence_tolerance = 1.0e-10,
             value_tolerance = 1.0e-8,
-            expected_relation = :agreement,
+            expected_relation = :dense_target_numerically_unresolved,
         ),
         (
             name = "rectangular_right_nullspace",

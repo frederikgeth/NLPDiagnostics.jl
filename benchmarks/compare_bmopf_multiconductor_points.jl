@@ -3,7 +3,8 @@
 """Compare two BMOPF multiconductor point-policy summaries.
 
 The comparison is deliberately point-local. It reports contract, physical-mode,
-and iterative-probe changes without promoting them to physical or rank claims.
+iterative-probe, and independent smallest-direction crosscheck changes without
+promoting them to physical or rank claims.
 """
 
 using JSON
@@ -156,6 +157,26 @@ function _probe(case)
     )
 end
 
+function _smallest_crosscheck(case)
+    raw = _dict(get(case, "smallest_singular_backend_crosscheck", nothing))
+    differences = Float64[]
+    for value in get(raw, "relative_value_differences", Any[])
+        parsed = _float(value)
+        isnothing(parsed) || push!(differences, parsed)
+    end
+    Dict(
+        "requested_dimension" => _int(get(raw, "requested_dimension", 0)),
+        "available" => _bool(get(raw, "available", false)),
+        "relation" => String(get(raw, "relation", "not_requested")),
+        "restarted_converged" => _bool(get(raw, "restarted_converged", false)),
+        "harmonic_converged" => _bool(get(raw, "harmonic_converged", false)),
+        "maximum_relative_value_difference" =>
+            (isempty(differences) ? nothing : maximum(differences)),
+        "minimum_principal_cosine" =>
+            _float(get(raw, "minimum_principal_cosine", nothing)),
+    )
+end
+
 function _delta(left, right)
     l, r = _float(left), _float(right)
     isnothing(l) || isnothing(r) ? nothing : r - l
@@ -219,6 +240,8 @@ function main()
         right_current_alignment = _alignment(right_contract, "current_coordinate_alignment")
         left_modes, right_modes = _modes(left), _modes(right)
         left_probe, right_probe = _probe(left), _probe(right)
+        left_crosscheck, right_crosscheck =
+            _smallest_crosscheck(left), _smallest_crosscheck(right)
         alignment_status = _alignment_status(left_modes, right_modes)
         port_map_status = _port_map_alignment_status(left_voltage_alignment, left_current_alignment)
         candidate_port_map_status = _port_map_alignment_status(right_voltage_alignment, right_current_alignment)
@@ -266,6 +289,29 @@ function main()
             "candidate_probe" => right_probe,
             "probe_convergence_changed" => left_probe["converged"] != right_probe["converged"],
             "probe_candidate_count_delta" => right_probe["candidate_count"] - left_probe["candidate_count"],
+            "baseline_smallest_crosscheck" => left_crosscheck,
+            "candidate_smallest_crosscheck" => right_crosscheck,
+            "smallest_crosscheck_dimension_aligned" =>
+                left_crosscheck["requested_dimension"] ==
+                right_crosscheck["requested_dimension"],
+            "smallest_crosscheck_availability_changed" =>
+                left_crosscheck["available"] != right_crosscheck["available"],
+            "smallest_crosscheck_relation_changed" =>
+                left_crosscheck["relation"] != right_crosscheck["relation"],
+            "smallest_crosscheck_restarted_convergence_changed" =>
+                left_crosscheck["restarted_converged"] !=
+                right_crosscheck["restarted_converged"],
+            "smallest_crosscheck_harmonic_convergence_changed" =>
+                left_crosscheck["harmonic_converged"] !=
+                right_crosscheck["harmonic_converged"],
+            "smallest_crosscheck_maximum_relative_value_difference_delta" => _delta(
+                left_crosscheck["maximum_relative_value_difference"],
+                right_crosscheck["maximum_relative_value_difference"],
+            ),
+            "smallest_crosscheck_minimum_principal_cosine_delta" => _delta(
+                left_crosscheck["minimum_principal_cosine"],
+                right_crosscheck["minimum_principal_cosine"],
+            ),
         ))
     end
     same_environment = get(baseline, "environment_fingerprint", nothing) ==
@@ -287,6 +333,21 @@ function main()
     mode_match_available = count(row -> row["baseline_mode_matches"]["mode_count"] > 0 &&
         row["candidate_mode_matches"]["mode_count"] > 0, paired)
     mode_match_status_changes = count(row -> row["mode_match_status_changed"], paired)
+    crosscheck_requested_overlap = count(row ->
+        row["baseline_smallest_crosscheck"]["requested_dimension"] > 0 &&
+        row["candidate_smallest_crosscheck"]["requested_dimension"] > 0, paired)
+    crosscheck_available_overlap = count(row ->
+        row["baseline_smallest_crosscheck"]["available"] &&
+        row["candidate_smallest_crosscheck"]["available"], paired)
+    crosscheck_dimension_aligned = count(row ->
+        row["smallest_crosscheck_dimension_aligned"], paired)
+    crosscheck_relation_changes = count(row ->
+        row["smallest_crosscheck_relation_changed"] &&
+        row["baseline_smallest_crosscheck"]["available"] &&
+        row["candidate_smallest_crosscheck"]["available"], paired)
+    crosscheck_convergence_changes = count(row ->
+        row["smallest_crosscheck_restarted_convergence_changed"] ||
+        row["smallest_crosscheck_harmonic_convergence_changed"], paired)
     findings = Any[]
     isempty(missing_baseline) && isempty(missing_candidate) || push!(findings, Dict(
         "code" => "multiconductor_point_case_coverage_mismatch", "severity" => "warning",
@@ -348,6 +409,22 @@ function main()
                            "alignment_blocked_case_count" => alignment_blocked),
         "suggested_action" => "Inspect terminal-to-model coordinate maps and source metadata before interpreting the rank change as a physical mode or formulation defect.",
     ))
+    crosscheck_requested_overlap > crosscheck_available_overlap && push!(findings, Dict(
+        "code" => "multiconductor_point_smallest_crosscheck_overlap_incomplete",
+        "severity" => "warning",
+        "observation" => "The smallest-direction backend crosscheck was requested at both points but was not available for every paired fixture.",
+        "evidence" => Dict("requested_pair_count" => crosscheck_requested_overlap,
+                           "available_pair_count" => crosscheck_available_overlap),
+        "suggested_action" => "Inspect the product-path and basis-guard evidence before comparing point-local candidate relations.",
+    ))
+    crosscheck_relation_changes > 0 && push!(findings, Dict(
+        "code" => "multiconductor_point_smallest_crosscheck_relation_changed",
+        "severity" => "info",
+        "observation" => "One or more paired fixtures changed independent-backend relation across evaluation points.",
+        "evidence" => Dict("relation_change_count" => crosscheck_relation_changes,
+                           "convergence_change_count" => crosscheck_convergence_changes),
+        "suggested_action" => "Inspect convergence flags, value differences, and principal-angle evidence before attributing the change to model geometry.",
+    ))
     readiness = Dict{String,Any}(
         "paired_case_coverage" => isempty(missing_baseline) && isempty(missing_candidate) && !isempty(paired),
         "environment_compatible" => same_environment,
@@ -378,6 +455,15 @@ function main()
         "baseline_mode_tangent_policy" => baseline_tangent_policy,
         "candidate_mode_tangent_policy" => candidate_tangent_policy,
         "ambiguous_rank_change_count" => ambiguous_rank_changes,
+        "smallest_crosscheck_requested_pair_count" => crosscheck_requested_overlap,
+        "smallest_crosscheck_available_pair_count" => crosscheck_available_overlap,
+        "smallest_crosscheck_pair_available" => crosscheck_requested_overlap == 0 ||
+            crosscheck_available_overlap == crosscheck_requested_overlap,
+        "smallest_crosscheck_dimension_aligned" =>
+            crosscheck_dimension_aligned == length(paired),
+        "smallest_crosscheck_relation_change_count" => crosscheck_relation_changes,
+        "smallest_crosscheck_convergence_change_count" =>
+            crosscheck_convergence_changes,
     )
     payload = Dict{String,Any}(
         "report_version" => "bmopf-multiconductor-point-comparison-v1",

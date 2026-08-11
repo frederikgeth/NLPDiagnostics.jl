@@ -64,6 +64,85 @@ function _combined_sparse_jacobian_matrix(
     )
 end
 
+function _jacobian_diagonal_scaling(
+    matrix::AbstractMatrix{T}, scaling::Symbol,
+) where {T<:AbstractFloat}
+    scaling in (:none, :row, :column, :row_column) || throw(ArgumentError(
+        "scaling must be :none, :row, :column, or :row_column",
+    ))
+    rows, columns = size(matrix)
+    row_scaling = ones(T, rows)
+    column_scaling = ones(T, columns)
+    scaled = copy(matrix)
+    if scaling in (:row, :row_column)
+        for row in axes(scaled, 1)
+            row_norm = norm(view(scaled, row, :))
+            if isfinite(row_norm) && !iszero(row_norm)
+                factor = inv(row_norm)
+                isfinite(factor) && (row_scaling[row] = factor)
+            end
+        end
+        scaled = Diagonal(row_scaling) * scaled
+    end
+    if scaling in (:column, :row_column)
+        for column in axes(scaled, 2)
+            column_norm = norm(view(scaled, :, column))
+            if isfinite(column_norm) && !iszero(column_norm)
+                factor = inv(column_norm)
+                isfinite(factor) && (column_scaling[column] = factor)
+            end
+        end
+        scaled = scaled * Diagonal(column_scaling)
+    end
+    return (
+        matrix = scaled,
+        row_scaling = row_scaling,
+        column_scaling = column_scaling,
+    )
+end
+
+"""
+Build a point-local diagonally scaled Jacobian evaluation for a controlled
+numerical intervention. Row factors are computed first, followed by column
+factors, exactly as in `RankPolicy(...; scaling = ...)`. Zero-norm rows or
+columns retain factor one. The model, point values, function values, and
+derivative provenance are not modified.
+"""
+function _diagonally_scaled_jacobian_evaluation(
+    evaluation::NumericalEvaluation{T}, scaling::Symbol,
+) where {T<:AbstractFloat}
+    combined = _combined_sparse_jacobian_matrix(evaluation)
+    intervention = _jacobian_diagonal_scaling(combined, scaling)
+    entries = JacobianEntry{T}[
+        JacobianEntry{T}(
+            entry.row,
+            entry.column,
+            entry.value * intervention.row_scaling[entry.row] *
+                intervention.column_scaling[entry.column],
+        ) for entry in evaluation.jacobian_entries
+    ]
+    scaled_evaluation = NumericalEvaluation{T}(
+        evaluation.point,
+        evaluation.objective_value,
+        evaluation.objective_source,
+        copy(evaluation.objective_gradient),
+        copy(evaluation.constraint_values),
+        copy(evaluation.constraint_sources),
+        entries,
+        copy(evaluation.jacobian_row_methods),
+        copy(evaluation.capabilities),
+        copy(evaluation.failures),
+        copy(evaluation.call_statistics),
+        evaluation.objective_gradient_method,
+    )
+    return (
+        evaluation = scaled_evaluation,
+        scaling = scaling,
+        row_scaling = intervention.row_scaling,
+        column_scaling = intervention.column_scaling,
+    )
+end
+
 function _unavailable_jacobian_linear_operator(
     evaluation::NumericalEvaluation{T},
     reason::AbstractString,
@@ -362,6 +441,293 @@ function sparse_qr_rank_estimate(
         provenance,
     )
     return sparse_qr_rank_estimate(evaluation, policy)
+end
+
+function sparse_qr_nullspace_estimate(
+    evaluation::NumericalEvaluation{T};
+    relative_tolerance::Real = max(
+        length(evaluation.constraint_sources),
+        length(evaluation.point.variables),
+        1,
+    ) * eps(T),
+    absolute_tolerance::Real = zero(T),
+    scaling::Symbol = :none,
+    matrix_norm::Symbol = :frobenius,
+    max_input_nonzeros::Integer = 1_000_000,
+    max_factor_nonzeros::Integer = 4_000_000,
+    max_nullspace_entries::Integer = 1_000_000,
+    provenance::Symbol = :default,
+) where {T<:AbstractFloat}
+    for (name, value) in (
+        ("max_input_nonzeros", max_input_nonzeros),
+        ("max_factor_nonzeros", max_factor_nonzeros),
+        ("max_nullspace_entries", max_nullspace_entries),
+    )
+        value >= 0 || throw(ArgumentError("$name must be nonnegative"))
+        value <= typemax(Int) || throw(ArgumentError("$name is too large"))
+    end
+    policy = RankPolicy(
+        T;
+        backend = :sparse_qr,
+        scaling,
+        relative_tolerance,
+        absolute_tolerance,
+        matrix_norm,
+        max_dense_entries = 0,
+        compute_vectors = true,
+        provenance,
+    )
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    input_limit = Int(max_input_nonzeros)
+    factor_limit = Int(max_factor_nonzeros)
+    nullspace_limit = Int(max_nullspace_entries)
+    unavailable(
+        reason;
+        rank = 0,
+        pivots = T[],
+        threshold = policy.absolute_tolerance,
+        row_scaling = ones(T, rows),
+        column_scaling = ones(T, columns),
+        row_permutation = Int[],
+        column_permutation = Int[],
+        input_nonzeros = 0,
+        factor_nonzeros = 0,
+        fill_ratio = nothing,
+    ) = SparseQRNullspaceEstimate{T}(
+        false, String(reason), evaluation.point, policy, rows, columns,
+        rank, max(columns - rank, 0), pivots, threshold, row_scaling,
+        column_scaling, row_permutation, column_permutation,
+        zeros(T, columns, 0), T[], T[], nothing, nothing,
+        input_nonzeros, factor_nonzeros, fill_ratio, input_limit,
+        factor_limit, nullspace_limit,
+    )
+
+    pattern = sparse_jacobian_pattern_estimate(evaluation)
+    pattern.available || return unavailable(pattern.reason)
+    matrix = _combined_sparse_jacobian_matrix(evaluation)
+    input_nonzeros = nnz(matrix)
+    input_nonzeros <= input_limit || return unavailable(
+        "combined Jacobian has $input_nonzeros nonzeros, exceeding max_input_nonzeros=$input_limit";
+        input_nonzeros,
+    )
+    scaling_intervention = _jacobian_diagonal_scaling(matrix, scaling)
+    scaled = sparse(scaling_intervention.matrix)
+    all(isfinite, nonzeros(scaled)) || return unavailable(
+        "scaled Jacobian contains non-finite entries";
+        row_scaling = scaling_intervention.row_scaling,
+        column_scaling = scaling_intervention.column_scaling,
+        input_nonzeros,
+    )
+    try
+        factorization = qr(scaled)
+        R = sparse(factorization.R)
+        factor_nonzeros = nnz(R)
+        fill_ratio = T(factor_nonzeros) / T(max(input_nonzeros, 1))
+        pivots = collect(T, abs.(diag(R)))
+        threshold = isempty(pivots) ? policy.absolute_tolerance : max(
+            policy.absolute_tolerance,
+            policy.relative_tolerance * maximum(pivots),
+        )
+        retained = pivots .> threshold
+        rank = count(retained)
+        row_permutation = Int.(factorization.prow)
+        column_permutation = Int.(factorization.pcol)
+        factor_nonzeros <= factor_limit || return unavailable(
+            "SuiteSparseQR R factor has $factor_nonzeros nonzeros, exceeding max_factor_nonzeros=$factor_limit";
+            rank, pivots, threshold,
+            row_scaling = scaling_intervention.row_scaling,
+            column_scaling = scaling_intervention.column_scaling,
+            row_permutation, column_permutation, input_nonzeros,
+            factor_nonzeros, fill_ratio,
+        )
+        rank <= length(pivots) || return unavailable(
+            "estimated QR rank exceeds the available diagonal pivots";
+            rank, pivots, threshold,
+            row_scaling = scaling_intervention.row_scaling,
+            column_scaling = scaling_intervention.column_scaling,
+            row_permutation, column_permutation, input_nonzeros,
+            factor_nonzeros, fill_ratio,
+        )
+        leading_profile = all(retained[1:rank]) &&
+            all(.!retained[(rank + 1):end])
+        leading_profile || return unavailable(
+            "QR pivots above the declared threshold do not form a leading block";
+            rank, pivots, threshold,
+            row_scaling = scaling_intervention.row_scaling,
+            column_scaling = scaling_intervention.column_scaling,
+            row_permutation, column_permutation, input_nonzeros,
+            factor_nonzeros, fill_ratio,
+        )
+        nullity = columns - rank
+        big(columns) * nullity <= nullspace_limit || return unavailable(
+            "right-nullspace basis would contain $(big(columns) * nullity) entries, exceeding max_nullspace_entries=$nullspace_limit";
+            rank, pivots, threshold,
+            row_scaling = scaling_intervention.row_scaling,
+            column_scaling = scaling_intervention.column_scaling,
+            row_permutation, column_permutation, input_nonzeros,
+            factor_nonzeros, fill_ratio,
+        )
+        directions = zeros(T, columns, nullity)
+        if nullity > 0
+            permuted = zeros(T, columns, nullity)
+            permuted[(rank + 1):columns, :] .= Matrix{T}(I, nullity, nullity)
+            if rank > 0
+                R11 = UpperTriangular(R[1:rank, 1:rank])
+                R12 = Matrix(R[1:rank, (rank + 1):columns])
+                permuted[1:rank, :] .= -(R11 \ R12)
+            end
+            scaled_directions = zeros(T, columns, nullity)
+            scaled_directions[column_permutation, :] .= permuted
+            mapped = scaled_directions .* scaling_intervention.column_scaling
+            mapped_factorization = qr(mapped)
+            mapped_pivots = abs.(diag(mapped_factorization.R))
+            mapped_threshold = sqrt(eps(T)) *
+                maximum(mapped_pivots; init = zero(T))
+            count(value -> value > mapped_threshold, mapped_pivots) == nullity ||
+                return unavailable(
+                    "mapped QR nullspace lost dimension in original coordinates";
+                    rank, pivots, threshold,
+                    row_scaling = scaling_intervention.row_scaling,
+                    column_scaling = scaling_intervention.column_scaling,
+                    row_permutation, column_permutation, input_nonzeros,
+                    factor_nonzeros, fill_ratio,
+                )
+            directions .= Matrix(mapped_factorization.Q[:, 1:nullity])
+        end
+        operator = jacobian_linear_operator(evaluation)
+        operator.available || return unavailable(
+            something(operator.reason, "original Jacobian operator unavailable");
+            rank, pivots, threshold,
+            row_scaling = scaling_intervention.row_scaling,
+            column_scaling = scaling_intervention.column_scaling,
+            row_permutation, column_permutation, input_nonzeros,
+            factor_nonzeros, fill_ratio,
+        )
+        norm_value = T(_matrix_norm(operator.assembled_matrix, matrix_norm))
+        residual_norms = T[
+            norm(jacobian_product(operator, view(directions, :, index)))
+            for index in axes(directions, 2)
+        ]
+        relative_residuals = T[
+            _relative_residual(
+                residual_norms[index], norm_value,
+                norm(view(directions, :, index)),
+            ) for index in eachindex(residual_norms)
+        ]
+        orthogonality_loss = nullity == 0 ? zero(T) : T(norm(
+            transpose(directions) * directions - Matrix{T}(I, nullity, nullity),
+        ))
+        return SparseQRNullspaceEstimate{T}(
+            true, nothing, evaluation.point, policy, rows, columns, rank,
+            nullity, pivots, threshold, scaling_intervention.row_scaling,
+            scaling_intervention.column_scaling, row_permutation,
+            column_permutation, directions, residual_norms,
+            relative_residuals, norm_value, orthogonality_loss,
+            input_nonzeros, factor_nonzeros, fill_ratio, input_limit,
+            factor_limit, nullspace_limit,
+        )
+    catch error
+        return unavailable(
+            "SuiteSparseQR nullspace extraction failed: $(sprint(showerror, error))";
+            row_scaling = scaling_intervention.row_scaling,
+            column_scaling = scaling_intervention.column_scaling,
+            input_nonzeros,
+        )
+    end
+end
+
+function sparse_qr_nullspace_dense_calibration(
+    evaluation::NumericalEvaluation{T};
+    relative_tolerance::Real = max(
+        length(evaluation.constraint_sources),
+        length(evaluation.point.variables),
+        1,
+    ) * eps(T),
+    absolute_tolerance::Real = zero(T),
+    scaling::Symbol = :none,
+    matrix_norm::Symbol = :frobenius,
+    max_input_nonzeros::Integer = 1_000_000,
+    max_factor_nonzeros::Integer = 4_000_000,
+    max_nullspace_entries::Integer = 1_000_000,
+    dense_max_entries::Integer = 4_000_000,
+    subspace_alignment_threshold::Real = 0.98,
+    threshold_margin_factor::Real = 10,
+    provenance::Symbol = :dense_calibration,
+) where {T<:AbstractFloat}
+    alignment_threshold = T(subspace_alignment_threshold)
+    margin = T(threshold_margin_factor)
+    isfinite(alignment_threshold) && zero(T) <= alignment_threshold <= one(T) ||
+        throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
+    isfinite(margin) && margin > one(T) || throw(ArgumentError(
+        "threshold_margin_factor must be finite and greater than one",
+    ))
+    estimate = sparse_qr_nullspace_estimate(
+        evaluation;
+        relative_tolerance,
+        absolute_tolerance,
+        scaling,
+        matrix_norm,
+        max_input_nonzeros,
+        max_factor_nonzeros,
+        max_nullspace_entries,
+        provenance,
+    )
+    dense_policy = RankPolicy(
+        T;
+        backend = :dense_svd,
+        scaling,
+        relative_tolerance,
+        absolute_tolerance,
+        matrix_norm,
+        max_dense_entries = dense_max_entries,
+        compute_vectors = true,
+        provenance,
+    )
+    dense = jacobian_rank_estimate(evaluation, dense_policy)
+    unavailable(reason) = SparseQRNullspaceDenseCalibration{T}(
+        false, String(reason), evaluation.point, :unavailable, estimate,
+        dense, nothing, false, alignment_threshold, margin,
+    )
+    estimate.available || return unavailable(
+        "sparse-QR nullspace unavailable: $(estimate.reason)",
+    )
+    dense.available || return unavailable(
+        "dense SVD unavailable: $(dense.reason)",
+    )
+    threshold = dense.absolute_threshold
+    ambiguous = if iszero(threshold)
+        false
+    else
+        any(value -> value > zero(T) &&
+            threshold / margin <= value <= threshold * margin,
+            dense.singular_values)
+    end
+    minimum_cosine = nothing
+    if estimate.right_nullity == dense.right_nullity &&
+       estimate.right_nullity > 0
+        cosines = _principal_cosines(
+            estimate.directions,
+            dense.right_nullspace,
+        )
+        isempty(cosines) || (minimum_cosine = minimum(cosines))
+    end
+    relation = if estimate.right_nullity != dense.right_nullity
+        :dimension_disagreement
+    elseif iszero(estimate.right_nullity)
+        ambiguous ? :agreement_no_nullspace_threshold_ambiguous :
+            :agreement_no_nullspace
+    elseif ambiguous
+        :dense_rank_threshold_ambiguous
+    elseif something(minimum_cosine, zero(T)) >= alignment_threshold
+        :subspace_agreement
+    else
+        :subspace_disagreement
+    end
+    return SparseQRNullspaceDenseCalibration{T}(
+        true, nothing, evaluation.point, relation, estimate, dense,
+        minimum_cosine, ambiguous, alignment_threshold, margin,
+    )
 end
 
 function sparse_qr_rank_estimate(
@@ -1484,6 +1850,8 @@ function restarted_smallest_singular_dense_calibration(
     dense_max_entries::Integer = 4_000_000,
     singular_value_relative_tolerance::Real = 1.0e-6,
     subspace_alignment_threshold::Real = 0.98,
+    candidate_subspace_alignment_threshold::Real =
+        subspace_alignment_threshold,
     kwargs...,
 ) where {T<:AbstractFloat}
     dense_max_entries >= 0 || throw(ArgumentError(
@@ -1502,7 +1870,9 @@ function restarted_smallest_singular_dense_calibration(
         throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
     estimate = restarted_smallest_singular_candidates(
         evaluation; dimension = dimension,
-        subspace_alignment_threshold = alignment_threshold, kwargs...,
+        subspace_alignment_threshold =
+            candidate_subspace_alignment_threshold,
+        kwargs...,
     )
     requested_dimension = Int(dimension)
     rows = length(evaluation.constraint_sources)
@@ -1857,8 +2227,14 @@ function harmonic_golub_kahan_candidates(
         final_directions = requested_directions
         final_harmonic = requested_harmonic
         final_audit = requested_audit
+        # At a true or numerically resolved null direction the normalized left
+        # singular vector is undefined, so the two-sided triplet backward error
+        # can be large even when J*v is at roundoff. Accept the smaller of the
+        # direct null residual and triplet audit as the per-direction stopping
+        # measure; both remain exposed separately in the returned evidence.
+        convergence_errors = min.(requested_audit[4], requested_audit[7])
         if cycle >= minimum_cycle_count &&
-           maximum(requested_audit[7]; init = zero(T)) <= convergence_tol &&
+           maximum(convergence_errors; init = zero(T)) <= convergence_tol &&
            !isnothing(alignment) && alignment >= alignment_threshold &&
            !isnothing(value_change) && value_change <= value_tolerance
             converged = true
@@ -1893,6 +2269,8 @@ function harmonic_golub_kahan_dense_calibration(
     dense_max_entries::Integer = 4_000_000,
     singular_value_relative_tolerance::Real = 1.0e-6,
     subspace_alignment_threshold::Real = 0.98,
+    candidate_subspace_alignment_threshold::Real =
+        subspace_alignment_threshold,
     kwargs...,
 ) where {T<:AbstractFloat}
     dense_max_entries >= 0 || throw(ArgumentError(
@@ -1911,7 +2289,9 @@ function harmonic_golub_kahan_dense_calibration(
         throw(ArgumentError("subspace_alignment_threshold must lie in [0, 1]"))
     estimate = harmonic_golub_kahan_candidates(
         evaluation; dimension = dimension,
-        subspace_alignment_threshold = alignment_threshold, kwargs...,
+        subspace_alignment_threshold =
+            candidate_subspace_alignment_threshold,
+        kwargs...,
     )
     rows = length(evaluation.constraint_sources)
     columns = length(evaluation.point.variables)
@@ -2333,23 +2713,10 @@ function jacobian_rank_estimate(
         "Jacobian contains non-finite combined entries",
     )
 
-    row_scaling = ones(T, rows)
-    column_scaling = ones(T, columns)
-    scaled = copy(matrix)
-    if policy.scaling in (:row, :row_column)
-        for row in axes(scaled, 1)
-            row_norm = norm(view(scaled, row, :))
-            iszero(row_norm) || (row_scaling[row] = inv(row_norm))
-        end
-        scaled .*= row_scaling
-    end
-    if policy.scaling in (:column, :row_column)
-        for column in axes(scaled, 2)
-            column_norm = norm(view(scaled, :, column))
-            iszero(column_norm) || (column_scaling[column] = inv(column_norm))
-        end
-        scaled .*= transpose(column_scaling)
-    end
+    intervention = _jacobian_diagonal_scaling(matrix, policy.scaling)
+    row_scaling = intervention.row_scaling
+    column_scaling = intervention.column_scaling
+    scaled = intervention.matrix
 
     if iszero(rows) || iszero(columns)
         right_nullspace =

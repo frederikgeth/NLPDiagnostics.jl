@@ -159,9 +159,11 @@ aligns every nonempty candidate span. The deliberate one-step negative control
 misses three of four rank-deficient cases; the zero operator is recovered from
 the independent starts. This measured failure is retained as a regression
 test and prevents absence of a candidate from becoming a full-rank claim.
-The remaining major gap is an independent smallest-singular backend that does
-not rely only on the squared normal spectrum; none of the current operator
-probes is a rank certificate.
+An independent smallest-singular candidate backend is now implemented. It uses
+Golub--Kahan-generated right trial spaces, a zero-target harmonic generalized
+projection, thick restart, projected-metric diagnostics, and direct
+physical-coordinate audits. None of the current operator probes is a rank
+certificate.
 
 The operator boundary, finite Golub--Kahan projection, deterministic multi-seed
 coverage layer, and first dense-oracle disagreement table are therefore
@@ -180,14 +182,55 @@ approximately `3.62e-6`, while dense SVD reports approximately `1.08e-7`.
 The badly scaled `diag(1e8, 1, 1e-8)` case stagnates rather than inventing a
 small direction. These are retained regression outcomes.
 
-The next numerical-algebra implementation item is therefore an independent
-smallest-singular backend that does not rely only on the squared normal
-spectrum: harmonic/restarted Golub--Kahan, Jacobi--Davidson SVD, or a vetted
-LSMR/LSQR-based extraction. The oracle corpus must simultaneously expand to
-cancellation at sampled nonlinear points, randomized rectangular matrices,
-and scaling/preconditioning interventions. All operator backends remain
-candidate screens until cross-backend miss and over-capture tables are
-populated.
+The harmonic backend recovers the dense smallest singular direction on the
+6-by-6 Hilbert false-convergence control where the normal-operator tracker does
+not. A typed dense-free crosscheck now distinguishes backend nonconvergence,
+value disagreement, subspace disagreement, and agreement. The ten-case v2
+artifact records seven cross-backend agreements plus three required adverse
+relations. Guarded dense comparison also distinguishes unresolved targets
+below a Float64 spectrum-resolution floor and uses target-local errors for
+resolved nonzero singular values.
+
+The remaining numerical-algebra items are corpus and method work: cancellation
+at sampled nonlinear points, randomized rectangular matrices, repeated-point
+scaling stability, and BMOPF sparse-product campaign summaries. A third vetted backend
+(Jacobi--Davidson SVD or an LSMR/LSQR-class extraction) remains desirable, but
+is no longer the blocker for beginning guarded large-model profiling. All
+operator backends remain candidate screens until miss, disagreement, and
+stability tables are populated.
+
+The first BMOPF bridge is now implemented. The multiconductor smoke runner can
+opt into the restarted/harmonic dense-free crosscheck with explicit iteration,
+cycle, and basis-storage budgets. Per-case artifacts retain availability,
+backend convergence, relation, value differences, and principal-angle evidence;
+the smoke summary, validator, and point-policy comparison expose separate
+availability and agreement gates. Dense analysis remains disabled independently.
+An environment- and point-compatible work-budget comparator separately counts
+convergence and agreement gains/losses, so increasing numerical work is not
+confounded with changing initialization.
+Small fixtures can additionally request two guarded dense-oracle comparisons,
+with the candidate convergence alignment policy kept distinct from the oracle
+subspace-alignment policy. This is the arbitration path for converged backend
+disagreement; it remains disabled for large BMOPF decks.
+
+The first BMOPF checkpoint is complete. At a fixed completed-start point,
+raising the bounded work policy made the harmonic engine converge on both a
+grounded-neutral and wye-delta representative, but did not improve restarted
+convergence. Dense SVD validated the harmonic result on the full-rank grounded
+case and exposed the restarted miss. The 51-by-54 transformer is qualitatively
+different: its thresholded rank is 48, rectangularity guarantees three right
+null directions, and three additional singular values lie between roughly
+`1e-15` and `4e-12`. A dimension-two request was structurally underdimensioned;
+a dimension-six request reached internally converged candidates but neither
+engine resolved the dense low-end cluster. The scaling intervention described
+in the checkpoint below is now complete; repeated-point stability and a third
+extraction method remain next.
+Physical fingerprinting remains downstream of those results and of source-
+schema readiness.
+The immediate experimental step is a bounded five-fixture start-versus-zero
+campaign, followed by repeated-point and scaling-policy runs. Those runs must
+measure relation stability and backend miss/disagreement rates before any
+candidate direction is given a physical label.
 
 Exit criteria:
 
@@ -213,10 +256,11 @@ and the 143-assertion core rank calibration block plus the 27-assertion
 multi-seed oracle block cover exact, rectangular, zero,
 clustered, ill-conditioned, scale-sensitive, absolute-threshold, and
 Golub--Kahan residual cases. MOI `:JacVec` integration and the first standard
-projection backend are complete. This does not complete the gate: broader
-adversarial matrices, an independent non-normal-equation backend, nonlinear
-cancellation cases, and cross-backend corpus-level false-positive/false-negative
-summaries remain outstanding.
+projection backend are complete. The independent harmonic backend and typed
+dense-free crosscheck are also complete. This does not complete the gate:
+broader adversarial matrices, nonlinear cancellation cases, a third vetted
+backend, repeated-point scaling persistence, and cross-backend corpus-level
+false-positive/false-negative summaries remain outstanding.
 
 ### Trust gate B: evaluation-point and derivative provenance
 
@@ -2736,3 +2780,29 @@ smoke result. Because the solve-time schema predated dirty-tree content
 fingerprinting and the run used a modified checkout, it remains a development
 calibration result that must be repeated on a fixed clean revision before
 publication. Full details are in `docs/calibration_results.md`.
+
+## 2026-08-11 numerical-algebra checkpoint: scaling intervention complete
+
+The generic profile and BMOPF campaign paths now share the dense-rank policy's
+diagonal scaling semantics, preserve factor and coordinate evidence, and map
+column-scaled directions back for a direct original-Jacobian audit. On the
+transformer, row-column scaling greatly improved mutual span alignment and
+exposed four roundoff-level mapped directions, but did not make the six-value
+dense target numerically resolvable and caused the restarted tracker to exhaust
+its work budget. Scaling is therefore an experimental control, not the
+resolution.
+
+The next ordered numerical-algebra items are:
+
+1. add a third smallest-singular extraction path that avoids forming or
+   iterating solely on the squared normal spectrum;
+2. add mapped-candidate alignment against the original guarded dense subspace,
+   while retaining an explicit unresolved-target classification;
+3. repeat baseline and scaling policies at identical and nearby trusted points
+   to separate deterministic algorithm behavior from operating-point
+   sensitivity; and
+4. expand the oracle corpus with randomized rectangular and nonlinear
+   cancellation cases before promoting any backend to a default diagnostic.
+
+Physical mode fingerprinting remains downstream of these gates and of the
+PowerIO/BMOPFTools source-schema readiness work.

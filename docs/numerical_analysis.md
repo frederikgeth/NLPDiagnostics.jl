@@ -1241,6 +1241,16 @@ boundary cuts through a repeated singular-value cluster. The corresponding
 report wrapper is
 `analyze_restarted_smallest_singular_dense_calibration`.
 
+Dense comparison now separates a numerically resolved target from a singular
+value below the precision implied by the largest singular value and matrix
+dimension. The latter produces `dense_target_numerically_unresolved`; it is
+not counted as agreement or disagreement. For resolved nonzero targets, value
+errors are normalized by the target singular value rather than only by
+`norm(J)`. Exact zero targets use a global-scale residual comparison. This
+prevents an extreme spectrum such as `diag(1e8, 1, 1e-8)` from receiving a
+misleading value-agreement label while acknowledging that Float64 dense SVD is
+not an exact oracle at condition number `1e16`.
+
 The deterministic executable corpus is
 `benchmarks/calibrate_restarted_smallest_singular.jl`. Its first ten cases
 include separated and clustered spectra, a repeated smallest value, rotated
@@ -1248,6 +1258,57 @@ planted spectra and nullspaces, a rectangular nullspace, the zero operator, a
 Hilbert false-convergence control, a badly scaled full-rank stagnation control,
 and an insufficient-iteration control. The adverse controls are required
 expected results, not ignored failures.
+
+## Harmonic smallest-direction candidates and backend crosscheck
+
+`harmonic_golub_kahan_candidates(evaluation; dimension = 1)` constructs right
+trial spaces with fully reorthogonalized Golub--Kahan products, then solves a
+zero-target harmonic generalized projection in each finite trial space. Thick
+restart retains more directions than are requested, which is essential for
+recovering compressed low-end spectra without assembling `J'J`. The result
+keeps the harmonic projection values distinct from direct physical-coordinate
+singular-value and residual audits. It also records trial dimensions,
+projected-metric ranks and condition estimates, value and backward-error
+histories, principal-angle stability, product provenance, and an up-front
+storage guard.
+
+Convergence requires cycle-to-cycle value and subspace stability plus, for each
+candidate, either a two-sided singular-triplet backward error or a direct
+near-null residual. The alternative is necessary because a left singular
+vector is undefined at an exact zero singular value. Both raw audits remain in
+the evidence. As with every finite product method in the package, convergence
+means stability inside explored trial spaces; it is not a rank certificate.
+`analyze_harmonic_golub_kahan_candidates` reports the convergence policy,
+projection conditioning, individual candidate support, and direct near-null
+evidence. `harmonic_golub_kahan_dense_calibration` provides the guarded small
+matrix oracle comparison using the same target-resolution semantics described
+above.
+
+`smallest_singular_backend_crosscheck` is the scalable trust path when dense
+SVD is prohibited. It runs the locally optimal normal-operator tracker and the
+zero-target harmonic tracker on the same checked Jacobian operator. It reports
+separate relations for unavailable or unconverged engines, singular-value
+disagreement, subspace disagreement, and agreement. Near-zero candidate values
+are compared through their direct global-scale residual semantics so harmless
+roundoff does not create a value mismatch. Cross-backend agreement raises
+confidence but proves neither completeness nor numerical rank; disagreement is
+valuable coverage or scaling evidence. The report wrapper is
+`analyze_smallest_singular_backend_crosscheck`, and all three candidate paths
+remain opt-in in the combined `analyze` API. The two engines are
+algorithmically independent but statistically correlated: both use the same
+Jacobian products and both ultimately interrogate the low end of the normal
+operator. Agreement is therefore stronger than a repeat run, but weaker than
+agreement with a genuinely different precision model or a resolved dense
+oracle.
+
+For a wide Jacobian, `columns - rows` is a structurally unavoidable lower bound
+on right nullity. The crosscheck report records this bound and emits
+`smallest_singular_backend_crosscheck_dimension_below_structural_nullity` when
+the requested candidate dimension is smaller. In that case the returned span
+is necessarily only a non-unique slice and cannot be interpreted as complete.
+`profile_case` can also opt into both guarded dense-oracle calibrations through
+`smallest_singular_backend_crosscheck_dense_calibration=true`; candidate
+convergence alignment and oracle subspace alignment remain separate policies.
 
 ## Active-set dependence fingerprints
 
@@ -1430,16 +1491,14 @@ operator is the easy exception because independent starting directions already
 span its nullspace. This negative control is why the API remains a candidate
 screen.
 
-The locally optimal restarted candidate tracker now supplies the first
-restarted history-bearing method, but it is not an independent certificate. In
-the ten-case adversarial artifact it agrees with dense SVD on five cases and
-agrees with non-unique-subspace semantics on two. The insufficient-budget and
-badly scaled controls remain unconverged. More importantly, the 6-by-6 Hilbert
-case satisfies the internal stationarity policy while disagreeing with the
-dense smallest singular value (`3.62e-6` candidate versus `1.08e-7` dense).
-That measured false convergence confirms that the next independent backend
-should avoid relying only on the squared normal spectrum—for example, a vetted
-harmonic Golub--Kahan, Jacobi--Davidson SVD, or LSMR/LSQR-based extraction.
+The locally optimal restarted candidate tracker and independent harmonic
+tracker now form a two-backend candidate system. In the ten-case v2 artifact,
+their dense-free comparison has seven agreements, the required Hilbert value
+disagreement, one restarted-unconverged scaling control, and one
+both-unconverged insufficient-budget control. On Hilbert, the harmonic tracker
+recovers the dense value near `1.08e-7` while the normal-operator tracker
+settles near `3.62e-6`. Extreme scaling is not declared solved: dense targets
+below the spectrum-resolution floor are labeled numerically unresolved.
 
 ## Current limits
 
@@ -1447,12 +1506,32 @@ harmonic Golub--Kahan, Jacobi--Davidson SVD, or LSMR/LSQR-based extraction.
 - No automatic starting-point selection is performed.
 - Complete MOI variable starts can be inspected explicitly with
   `analyze_initialization`.
-- Dense SVD remains the authoritative local numerical nullspace path; sparse
-  QR, shifted candidate probes, and the opt-in Golub--Kahan projection
-  complement it for larger models.
+- Guarded dense SVD is the small-matrix reference path only when its target is
+  numerically resolved under the recorded spectrum policy. Sparse QR, shifted
+  probes, harmonic and locally optimal candidates, and their crosscheck
+  complement it for larger models; none is a mathematical rank certificate.
 - Active-set selection and multiplier recovery remain explicit user or
   solver-extension responsibilities. The generic active-set selector handles
   scalar and coordinate-wise product-bound semantics, but not coupled-set
   semantics.
 - Physical scaling and expected nullspaces belong in plugins rather than this
   generic layer.
+
+## Controlled diagonal scaling for smallest-direction experiments
+
+`profile_case` and the combined `analyze` entry point accept
+`smallest_singular_backend_crosscheck_scaling = :none`, `:row`, `:column`, or
+`:row_column`. The intervention uses the same one-pass Euclidean semantics as
+`RankPolicy`: finite nonzero rows are normalized first, then finite nonzero
+columns of the row-scaled matrix. It changes only a copied point-local
+Jacobian. It does not modify the MOI model, alter feasibility tolerances, or
+claim to reproduce Ipopt or MadNLP scaling.
+
+Every scaled report records the factor extrema and coordinate convention.
+Column-scaled candidates live in transformed coordinates. Before any such
+candidate is interpreted, the profiler maps it back with the recorded column
+diagonal, normalizes it, and directly audits its residual against the original
+Jacobian. Scaled singular values remain values of a different operator and are
+not directly comparable with the unscaled spectrum. The mapped residual is
+useful evidence about an original-coordinate direction; it is still not a rank,
+nullity, or physical-mode certificate.

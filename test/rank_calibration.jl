@@ -569,12 +569,64 @@ end
     @test maximum(agreement.relative_singular_value_differences) <= 1.0e-6
     @test something(agreement.minimum_principal_cosine, 0.0) >= 0.99
 
+    scaling_matrix = [3.0 0.0 1.0; 4.0 2.0 0.0]
+    scaling_evaluation = _rank_calibration_evaluation(
+        scaling_matrix; label = "smallest-direction scaling intervention",
+    )
+    scaling_rank = NLPDiagnostics.jacobian_rank_estimate(
+        scaling_evaluation,
+        NLPDiagnostics.RankPolicy(
+            Float64;
+            scaling = :row_column,
+            compute_vectors = false,
+        ),
+    )
+    scaling_intervention =
+        NLPDiagnostics._diagonally_scaled_jacobian_evaluation(
+            scaling_evaluation,
+            :row_column,
+        )
+    scaled_operator = NLPDiagnostics.jacobian_linear_operator(
+        scaling_intervention.evaluation,
+    )
+    @test Matrix(scaled_operator.assembled_matrix) ≈
+        Diagonal(scaling_rank.row_scaling) * scaling_matrix *
+        Diagonal(scaling_rank.column_scaling)
+    @test scaling_intervention.row_scaling == scaling_rank.row_scaling
+    @test scaling_intervention.column_scaling == scaling_rank.column_scaling
+    scaling_report = NLPDiagnostics.analyze_smallest_singular_backend_crosscheck(
+        scaling_intervention.evaluation;
+        original_evaluation_for_scaled_audit = scaling_evaluation,
+        column_scaling_for_original_audit =
+            scaling_intervention.column_scaling,
+        dimension = 1,
+        restarted_iterations = 10,
+        harmonic_steps_per_seed = 2,
+        harmonic_cycles = 4,
+    )
+    @test scaling_report.metadata[
+        :smallest_singular_backend_crosscheck_original_audit_available,
+    ] == "true"
+    @test !isempty(scaling_report.metadata[
+        :smallest_singular_backend_crosscheck_restarted_original_relative_residuals,
+    ])
+    @test_throws ArgumentError NLPDiagnostics.analyze_smallest_singular_backend_crosscheck(
+        scaling_intervention.evaluation;
+        original_evaluation_for_scaled_audit = scaling_evaluation,
+        dimension = 1,
+    )
+    @test_throws ArgumentError NLPDiagnostics._diagonally_scaled_jacobian_evaluation(
+        scaling_evaluation,
+        :unsupported,
+    )
+
     hilbert = [1.0 / (row + column - 1) for row in 1:6, column in 1:6]
+    hilbert_evaluation = _rank_calibration_evaluation(
+        hilbert; label = "backend Hilbert disagreement",
+    )
     hilbert_disagreement =
         NLPDiagnostics.smallest_singular_backend_crosscheck(
-            _rank_calibration_evaluation(
-                hilbert; label = "backend Hilbert disagreement",
-            );
+            hilbert_evaluation;
             dimension = 1,
             restarted_iterations = 100,
             restarted_convergence_tolerance = 1.0e-8,
@@ -609,6 +661,27 @@ end
     @test rectangular_null.relation == :agreement
     @test only(rectangular_null.relative_singular_value_differences) == 0.0
 
+    underdimensioned = NLPDiagnostics.analyze_smallest_singular_backend_crosscheck(
+        _rank_calibration_evaluation(
+            [1.0 0.0 1.0 0.0; 0.0 1.0 0.0 1.0];
+            label = "underdimensioned rectangular crosscheck",
+        );
+        dimension = 1,
+        restarted_iterations = 10,
+        harmonic_steps_per_seed = 2,
+        harmonic_cycles = 4,
+    )
+    @test underdimensioned.metadata[
+        :smallest_singular_backend_crosscheck_structural_minimum_right_nullity,
+    ] == "2"
+    @test underdimensioned.metadata[
+        :smallest_singular_backend_crosscheck_dimension_covers_structural_minimum,
+    ] == "false"
+    @test length(NLPDiagnostics.findings(
+        underdimensioned,
+        :smallest_singular_backend_crosscheck_dimension_below_structural_nullity,
+    )) == 1
+
     guarded = NLPDiagnostics.smallest_singular_backend_crosscheck(
         diagonal; dimension = 2, max_basis_entries = 1,
     )
@@ -633,6 +706,30 @@ end
     @test report.metadata[
         :smallest_singular_backend_crosscheck_relation,
     ] == "agreement"
+
+    inconclusive_report = NLPDiagnostics.analyze_smallest_singular_backend_crosscheck(
+        hilbert_evaluation;
+        dimension = 1,
+        restarted_iterations = 2,
+        restarted_convergence_tolerance = 0.0,
+        restarted_alignment_threshold = 1.0,
+        harmonic_steps_per_seed = 1,
+        harmonic_cycles = 2,
+        harmonic_convergence_tolerance = 0.0,
+        harmonic_value_change_tolerance = 0.0,
+        harmonic_alignment_threshold = 1.0,
+    )
+    @test inconclusive_report.metadata[
+        :smallest_singular_backend_crosscheck_relation,
+    ] == "both_unconverged"
+    @test length(NLPDiagnostics.findings(
+        inconclusive_report,
+        :smallest_singular_backend_crosscheck_inconclusive,
+    )) == 1
+    @test isempty(NLPDiagnostics.findings(
+        inconclusive_report,
+        :smallest_singular_backend_crosscheck_disagreement,
+    ))
 
     @test_throws ArgumentError NLPDiagnostics.smallest_singular_backend_crosscheck(
         diagonal; singular_value_relative_tolerance = -1.0,
@@ -779,6 +876,101 @@ end
     @test unscaled.rank == 1
     @test scaled.rank == 2
     @test sparse_scaled.rank == 2
+
+    qr_null_evaluation = _rank_calibration_evaluation(
+        [1.0 0.0 1.0; 0.0 1.0 1.0];
+        label = "sparse QR right nullspace",
+    )
+    qr_null = NLPDiagnostics.sparse_qr_nullspace_estimate(
+        qr_null_evaluation;
+        relative_tolerance = 1.0e-10,
+    )
+    @test qr_null.available
+    @test qr_null.rank == 2
+    @test qr_null.right_nullity == 1
+    @test size(qr_null.directions) == (3, 1)
+    @test only(qr_null.relative_residual_norms) <= 1.0e-12
+    @test qr_null.orthogonality_loss <= 1.0e-12
+    @test qr_null.factor_nonzeros > 0
+    @test qr_null.fill_ratio > 0
+
+    qr_null_scaled = NLPDiagnostics.sparse_qr_nullspace_estimate(
+        _rank_calibration_evaluation(
+            [1.0e8 0.0 1.0e8; 0.0 1.0e-8 1.0e-8];
+            label = "scaled sparse QR right nullspace",
+        );
+        scaling = :row_column,
+        relative_tolerance = 1.0e-10,
+    )
+    @test qr_null_scaled.available
+    @test qr_null_scaled.right_nullity == 1
+    @test only(qr_null_scaled.relative_residual_norms) <= 1.0e-12
+    @test qr_null_scaled.column_scaling != ones(3)
+
+    qr_zero = NLPDiagnostics.sparse_qr_nullspace_estimate(
+        _rank_calibration_evaluation(
+            zeros(2, 3); label = "zero sparse QR nullspace",
+        );
+        relative_tolerance = 1.0e-10,
+    )
+    @test qr_zero.available
+    @test qr_zero.rank == 0
+    @test qr_zero.right_nullity == 3
+    @test qr_zero.directions' * qr_zero.directions ≈ Matrix{Float64}(I, 3, 3)
+
+    qr_full = NLPDiagnostics.sparse_qr_nullspace_estimate(
+        _rank_calibration_evaluation(
+            [1.0 0.0; 0.0 1.0; 1.0 1.0];
+            label = "full-column sparse QR nullspace",
+        );
+        relative_tolerance = 1.0e-10,
+    )
+    @test qr_full.available
+    @test qr_full.right_nullity == 0
+    @test size(qr_full.directions) == (2, 0)
+
+    qr_dense_calibration =
+        NLPDiagnostics.sparse_qr_nullspace_dense_calibration(
+            qr_null_evaluation;
+            relative_tolerance = 1.0e-10,
+            dense_max_entries = 100,
+        )
+    @test qr_dense_calibration.available
+    @test qr_dense_calibration.relation == :subspace_agreement
+    @test something(qr_dense_calibration.minimum_principal_cosine, 0.0) >=
+        1.0 - 1.0e-12
+    @test !qr_dense_calibration.dense_threshold_ambiguous
+
+    qr_report = NLPDiagnostics.analyze_sparse_qr_nullspace(
+        qr_null_evaluation;
+        relative_tolerance = 1.0e-10,
+    )
+    @test length(NLPDiagnostics.findings(
+        qr_report, :sparse_qr_right_nullspace_candidate,
+    )) == 1
+    qr_dense_report =
+        NLPDiagnostics.analyze_sparse_qr_nullspace_dense_calibration(
+            qr_null_evaluation;
+            relative_tolerance = 1.0e-10,
+            dense_max_entries = 100,
+        )
+    @test length(NLPDiagnostics.findings(
+        qr_dense_report,
+        :sparse_qr_nullspace_dense_calibration_agreement,
+    )) == 1
+
+    @test !NLPDiagnostics.sparse_qr_nullspace_estimate(
+        qr_null_evaluation; max_input_nonzeros = 0,
+    ).available
+    @test !NLPDiagnostics.sparse_qr_nullspace_estimate(
+        qr_null_evaluation; max_factor_nonzeros = 0,
+    ).available
+    @test !NLPDiagnostics.sparse_qr_nullspace_estimate(
+        qr_null_evaluation; max_nullspace_entries = 0,
+    ).available
+    @test_throws ArgumentError NLPDiagnostics.sparse_qr_nullspace_estimate(
+        qr_null_evaluation; max_factor_nonzeros = -1,
+    )
 
     dependent = _rank_calibration_evaluation(
         [1.0 1.0; 2.0 2.0];

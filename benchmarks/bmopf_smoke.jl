@@ -114,6 +114,37 @@ function _optional_positive_integer(name::AbstractString; default = 0)
     return iszero(value) ? nothing : value
 end
 
+function _boolean_environment(name::AbstractString; default = false)
+    raw = lowercase(strip(get(ENV, name, string(default))))
+    raw in ("true", "1", "yes") && return true
+    raw in ("false", "0", "no") && return false
+    error("$name must be true or false, got '$raw'")
+end
+
+function _smallest_crosscheck_scaling()
+    raw = lowercase(strip(get(
+        ENV,
+        "NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_SCALING",
+        "none",
+    )))
+    raw in ("none", "row", "column", "row_column") || error(
+        "NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_SCALING must be none, row, column, or row_column",
+    )
+    return Symbol(raw)
+end
+
+function _sparse_qr_nullspace_scaling()
+    raw = lowercase(strip(get(
+        ENV,
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_SCALING",
+        "none",
+    )))
+    raw in ("none", "row", "column", "row_column") || error(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_SCALING must be none, row, column, or row_column",
+    )
+    return Symbol(raw)
+end
+
 function _expected_mode_free_coordinate_policy()
     raw = lowercase(strip(get(
         ENV,
@@ -632,6 +663,50 @@ function main()
         "NLPDIAGNOSTICS_BMOPF_ITERATIVE_RIGHT_PROBE_ITERATIONS";
         default = 50,
     ), 50)
+    smallest_crosscheck_dimension = _optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_DIMENSION",
+    )
+    smallest_crosscheck_restarted_iterations = something(_optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_RESTARTED_ITERATIONS";
+        default = 50,
+    ), 50)
+    smallest_crosscheck_restarted_alignment_threshold = 0.999
+    smallest_crosscheck_harmonic_steps = something(_optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_HARMONIC_STEPS_PER_SEED";
+        default = 6,
+    ), 6)
+    smallest_crosscheck_harmonic_cycles = something(_optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_HARMONIC_CYCLES";
+        default = 8,
+    ), 8)
+    smallest_crosscheck_harmonic_alignment_threshold = 0.999
+    smallest_crosscheck_max_basis_entries = something(_optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_MAX_BASIS_ENTRIES";
+        default = 1_000_000,
+    ), 1_000_000)
+    smallest_crosscheck_scaling = _smallest_crosscheck_scaling()
+    smallest_crosscheck_dense_calibration = _boolean_environment(
+        "NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_DENSE_CALIBRATION",
+    )
+    sparse_qr_nullspace = _boolean_environment(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE",
+    )
+    sparse_qr_nullspace_scaling = _sparse_qr_nullspace_scaling()
+    sparse_qr_nullspace_max_input_nonzeros = something(_optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_MAX_INPUT_NONZEROS";
+        default = 1_000_000,
+    ), 1_000_000)
+    sparse_qr_nullspace_max_factor_nonzeros = something(_optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_MAX_FACTOR_NONZEROS";
+        default = 4_000_000,
+    ), 4_000_000)
+    sparse_qr_nullspace_max_entries = something(_optional_positive_integer(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_MAX_ENTRIES";
+        default = 1_000_000,
+    ), 1_000_000)
+    sparse_qr_nullspace_dense_calibration = _boolean_environment(
+        "NLPDIAGNOSTICS_BMOPF_SPARSE_QR_NULLSPACE_DENSE_CALIBRATION",
+    )
     expected_mode_free_coordinate_policy = _expected_mode_free_coordinate_policy()
     environment = _benchmark_environment()
     environment_fingerprint = _benchmark_environment_fingerprint(environment)
@@ -657,6 +732,38 @@ function main()
                         expected_mode_free_coordinate_policy,
                     iterative_right_nullspace_probe_dimension = iterative_probe_dimension,
                     iterative_right_nullspace_probe_iterations = iterative_probe_iterations,
+                    smallest_singular_backend_crosscheck_dimension =
+                        smallest_crosscheck_dimension,
+                    smallest_singular_backend_crosscheck_restarted_iterations =
+                        smallest_crosscheck_restarted_iterations,
+                    smallest_singular_backend_crosscheck_restarted_alignment_threshold =
+                        smallest_crosscheck_restarted_alignment_threshold,
+                    smallest_singular_backend_crosscheck_harmonic_steps_per_seed =
+                        smallest_crosscheck_harmonic_steps,
+                    smallest_singular_backend_crosscheck_harmonic_cycles =
+                        smallest_crosscheck_harmonic_cycles,
+                    smallest_singular_backend_crosscheck_harmonic_alignment_threshold =
+                        smallest_crosscheck_harmonic_alignment_threshold,
+                    smallest_singular_backend_crosscheck_max_basis_entries =
+                        smallest_crosscheck_max_basis_entries,
+                    smallest_singular_backend_crosscheck_scaling =
+                        smallest_crosscheck_scaling,
+                    smallest_singular_backend_crosscheck_dense_calibration =
+                        smallest_crosscheck_dense_calibration,
+                    smallest_singular_backend_crosscheck_dense_max_entries =
+                        dense_entry_limit,
+                    check_sparse_qr_nullspace = sparse_qr_nullspace,
+                    sparse_qr_nullspace_scaling =
+                        sparse_qr_nullspace_scaling,
+                    sparse_qr_nullspace_max_input_nonzeros =
+                        sparse_qr_nullspace_max_input_nonzeros,
+                    sparse_qr_nullspace_max_factor_nonzeros =
+                        sparse_qr_nullspace_max_factor_nonzeros,
+                    sparse_qr_nullspace_max_nullspace_entries =
+                        sparse_qr_nullspace_max_entries,
+                    sparse_qr_nullspace_dense_calibration =
+                        sparse_qr_nullspace_dense_calibration,
+                    sparse_qr_nullspace_dense_max_entries = dense_entry_limit,
                 ),
             )
             source_behavior_auxiliary_model =
@@ -730,6 +837,35 @@ function main()
                 "rank_max_dense_entries" => dense_entry_limit,
                 "iterative_right_nullspace_probe_dimension" => iterative_probe_dimension,
                 "iterative_right_nullspace_probe_iterations" => iterative_probe_iterations,
+                "smallest_singular_backend_crosscheck_dimension" =>
+                    smallest_crosscheck_dimension,
+                "smallest_singular_backend_crosscheck_restarted_iterations" =>
+                    smallest_crosscheck_restarted_iterations,
+                "smallest_singular_backend_crosscheck_restarted_alignment_threshold" =>
+                    smallest_crosscheck_restarted_alignment_threshold,
+                "smallest_singular_backend_crosscheck_harmonic_steps_per_seed" =>
+                    smallest_crosscheck_harmonic_steps,
+                "smallest_singular_backend_crosscheck_harmonic_cycles" =>
+                    smallest_crosscheck_harmonic_cycles,
+                "smallest_singular_backend_crosscheck_harmonic_alignment_threshold" =>
+                    smallest_crosscheck_harmonic_alignment_threshold,
+                "smallest_singular_backend_crosscheck_max_basis_entries" =>
+                    smallest_crosscheck_max_basis_entries,
+                "smallest_singular_backend_crosscheck_scaling" =>
+                    string(smallest_crosscheck_scaling),
+                "smallest_singular_backend_crosscheck_dense_calibration" =>
+                    smallest_crosscheck_dense_calibration,
+                "sparse_qr_nullspace" => sparse_qr_nullspace,
+                "sparse_qr_nullspace_scaling" =>
+                    string(sparse_qr_nullspace_scaling),
+                "sparse_qr_nullspace_max_input_nonzeros" =>
+                    sparse_qr_nullspace_max_input_nonzeros,
+                "sparse_qr_nullspace_max_factor_nonzeros" =>
+                    sparse_qr_nullspace_max_factor_nonzeros,
+                "sparse_qr_nullspace_max_entries" =>
+                    sparse_qr_nullspace_max_entries,
+                "sparse_qr_nullspace_dense_calibration" =>
+                    sparse_qr_nullspace_dense_calibration,
                 "expected_mode_free_coordinate_policy" =>
                     expected_mode_free_coordinate_policy,
                 "expected_mode_tangent_policy" => isnothing(expected_mode_tangent_policy) ?
@@ -761,6 +897,35 @@ function main()
                 "rank_max_dense_entries" => dense_entry_limit,
                 "iterative_right_nullspace_probe_dimension" => iterative_probe_dimension,
                 "iterative_right_nullspace_probe_iterations" => iterative_probe_iterations,
+                "smallest_singular_backend_crosscheck_dimension" =>
+                    smallest_crosscheck_dimension,
+                "smallest_singular_backend_crosscheck_restarted_iterations" =>
+                    smallest_crosscheck_restarted_iterations,
+                "smallest_singular_backend_crosscheck_restarted_alignment_threshold" =>
+                    smallest_crosscheck_restarted_alignment_threshold,
+                "smallest_singular_backend_crosscheck_harmonic_steps_per_seed" =>
+                    smallest_crosscheck_harmonic_steps,
+                "smallest_singular_backend_crosscheck_harmonic_cycles" =>
+                    smallest_crosscheck_harmonic_cycles,
+                "smallest_singular_backend_crosscheck_harmonic_alignment_threshold" =>
+                    smallest_crosscheck_harmonic_alignment_threshold,
+                "smallest_singular_backend_crosscheck_max_basis_entries" =>
+                    smallest_crosscheck_max_basis_entries,
+                "smallest_singular_backend_crosscheck_scaling" =>
+                    string(smallest_crosscheck_scaling),
+                "smallest_singular_backend_crosscheck_dense_calibration" =>
+                    smallest_crosscheck_dense_calibration,
+                "sparse_qr_nullspace" => sparse_qr_nullspace,
+                "sparse_qr_nullspace_scaling" =>
+                    string(sparse_qr_nullspace_scaling),
+                "sparse_qr_nullspace_max_input_nonzeros" =>
+                    sparse_qr_nullspace_max_input_nonzeros,
+                "sparse_qr_nullspace_max_factor_nonzeros" =>
+                    sparse_qr_nullspace_max_factor_nonzeros,
+                "sparse_qr_nullspace_max_entries" =>
+                    sparse_qr_nullspace_max_entries,
+                "sparse_qr_nullspace_dense_calibration" =>
+                    sparse_qr_nullspace_dense_calibration,
                 "expected_mode_tangent_policy" => isnothing(expected_mode_tangent_policy) ?
                     "none" : string(expected_mode_tangent_policy.name),
                 "dense_rank_analysis_eligible" => jacobian_entries <= dense_entry_limit,
@@ -787,6 +952,35 @@ function main()
                 "rank_max_dense_entries" => dense_entry_limit,
                 "iterative_right_nullspace_probe_dimension" => iterative_probe_dimension,
                 "iterative_right_nullspace_probe_iterations" => iterative_probe_iterations,
+                "smallest_singular_backend_crosscheck_dimension" =>
+                    smallest_crosscheck_dimension,
+                "smallest_singular_backend_crosscheck_restarted_iterations" =>
+                    smallest_crosscheck_restarted_iterations,
+                "smallest_singular_backend_crosscheck_restarted_alignment_threshold" =>
+                    smallest_crosscheck_restarted_alignment_threshold,
+                "smallest_singular_backend_crosscheck_harmonic_steps_per_seed" =>
+                    smallest_crosscheck_harmonic_steps,
+                "smallest_singular_backend_crosscheck_harmonic_cycles" =>
+                    smallest_crosscheck_harmonic_cycles,
+                "smallest_singular_backend_crosscheck_harmonic_alignment_threshold" =>
+                    smallest_crosscheck_harmonic_alignment_threshold,
+                "smallest_singular_backend_crosscheck_max_basis_entries" =>
+                    smallest_crosscheck_max_basis_entries,
+                "smallest_singular_backend_crosscheck_scaling" =>
+                    string(smallest_crosscheck_scaling),
+                "smallest_singular_backend_crosscheck_dense_calibration" =>
+                    smallest_crosscheck_dense_calibration,
+                "sparse_qr_nullspace" => sparse_qr_nullspace,
+                "sparse_qr_nullspace_scaling" =>
+                    string(sparse_qr_nullspace_scaling),
+                "sparse_qr_nullspace_max_input_nonzeros" =>
+                    sparse_qr_nullspace_max_input_nonzeros,
+                "sparse_qr_nullspace_max_factor_nonzeros" =>
+                    sparse_qr_nullspace_max_factor_nonzeros,
+                "sparse_qr_nullspace_max_entries" =>
+                    sparse_qr_nullspace_max_entries,
+                "sparse_qr_nullspace_dense_calibration" =>
+                    sparse_qr_nullspace_dense_calibration,
                 "expected_mode_tangent_policy" => "unavailable",
                 "integrity_preflight" => preflight,
             )))
@@ -797,6 +991,10 @@ function main()
                 "source_behavior_solver" => source_behavior_solver,
                 "source_behavior_solver_attributes" => source_behavior_solver_attributes,
                 "source_snapshot" => source_snapshot,
+                "rank_max_dense_entries" => dense_entry_limit,
+                "iterative_right_nullspace_probe_dimension" => iterative_probe_dimension,
+                "smallest_singular_backend_crosscheck_dimension" =>
+                    smallest_crosscheck_dimension,
             ))
             println("$(spec.name): ERROR — $(sprint(showerror, error))")
         end
@@ -809,6 +1007,33 @@ function main()
         "source_behavior_solver" => source_behavior_solver,
         "source_behavior_solver_attributes" => source_behavior_solver_attributes,
         "rank_max_dense_entries" => dense_entry_limit,
+        "smallest_singular_backend_crosscheck_dimension" =>
+            smallest_crosscheck_dimension,
+        "smallest_singular_backend_crosscheck_restarted_iterations" =>
+            smallest_crosscheck_restarted_iterations,
+        "smallest_singular_backend_crosscheck_restarted_alignment_threshold" =>
+            smallest_crosscheck_restarted_alignment_threshold,
+        "smallest_singular_backend_crosscheck_harmonic_steps_per_seed" =>
+            smallest_crosscheck_harmonic_steps,
+        "smallest_singular_backend_crosscheck_harmonic_cycles" =>
+            smallest_crosscheck_harmonic_cycles,
+        "smallest_singular_backend_crosscheck_harmonic_alignment_threshold" =>
+            smallest_crosscheck_harmonic_alignment_threshold,
+        "smallest_singular_backend_crosscheck_max_basis_entries" =>
+            smallest_crosscheck_max_basis_entries,
+        "smallest_singular_backend_crosscheck_scaling" =>
+            string(smallest_crosscheck_scaling),
+        "smallest_singular_backend_crosscheck_dense_calibration" =>
+            smallest_crosscheck_dense_calibration,
+        "sparse_qr_nullspace" => sparse_qr_nullspace,
+        "sparse_qr_nullspace_scaling" => string(sparse_qr_nullspace_scaling),
+        "sparse_qr_nullspace_max_input_nonzeros" =>
+            sparse_qr_nullspace_max_input_nonzeros,
+        "sparse_qr_nullspace_max_factor_nonzeros" =>
+            sparse_qr_nullspace_max_factor_nonzeros,
+        "sparse_qr_nullspace_max_entries" => sparse_qr_nullspace_max_entries,
+        "sparse_qr_nullspace_dense_calibration" =>
+            sparse_qr_nullspace_dense_calibration,
         "expected_mode_free_coordinate_policy" =>
             expected_mode_free_coordinate_policy,
         "expected_mode_tangent_policy" => get(

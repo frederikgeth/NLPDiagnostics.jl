@@ -31,6 +31,20 @@ function _float_list(value)
     return result
 end
 
+function _float(value)
+    value isa Number && isfinite(Float64(value)) && return Float64(value)
+    try
+        parsed = parse(Float64, String(value))
+        return isfinite(parsed) ? parsed : nothing
+    catch
+        return nothing
+    end
+end
+
+_bool(value) = value === true ||
+    (value isa AbstractString && lowercase(strip(String(value))) in
+        ("true", "1", "yes"))
+
 function _count_csv!(counts::Dict{String,Int}, value)
     value isa AbstractString || return counts
     for token in split(value, ',')
@@ -291,6 +305,50 @@ function _case_record(root, entry)
     catch
         nothing
     end
+    crosscheck_dimension = _int(get(entry,
+        "smallest_singular_backend_crosscheck_dimension",
+        get(record, "smallest_singular_backend_crosscheck_dimension", 0)))
+    crosscheck_restarted_iterations = _int(get(entry,
+        "smallest_singular_backend_crosscheck_restarted_iterations",
+        get(record, "smallest_singular_backend_crosscheck_restarted_iterations", 0)))
+    crosscheck_restarted_alignment_threshold = _float(get(entry,
+        "smallest_singular_backend_crosscheck_restarted_alignment_threshold",
+        get(record,
+            "smallest_singular_backend_crosscheck_restarted_alignment_threshold",
+            nothing)))
+    crosscheck_harmonic_steps = _int(get(entry,
+        "smallest_singular_backend_crosscheck_harmonic_steps_per_seed",
+        get(record, "smallest_singular_backend_crosscheck_harmonic_steps_per_seed", 0)))
+    crosscheck_harmonic_cycles = _int(get(entry,
+        "smallest_singular_backend_crosscheck_harmonic_cycles",
+        get(record, "smallest_singular_backend_crosscheck_harmonic_cycles", 0)))
+    crosscheck_harmonic_alignment_threshold = _float(get(entry,
+        "smallest_singular_backend_crosscheck_harmonic_alignment_threshold",
+        get(record,
+            "smallest_singular_backend_crosscheck_harmonic_alignment_threshold",
+            nothing)))
+    crosscheck_max_basis_entries = _int(get(entry,
+        "smallest_singular_backend_crosscheck_max_basis_entries",
+        get(record, "smallest_singular_backend_crosscheck_max_basis_entries", 0)))
+    crosscheck_scaling = string(get(entry,
+        "smallest_singular_backend_crosscheck_scaling",
+        get(record, "smallest_singular_backend_crosscheck_scaling", "none")))
+    crosscheck_available = lowercase(string(get(numerical_metadata,
+        "smallest_singular_backend_crosscheck_available", "false"))) == "true"
+    crosscheck_restarted_converged = lowercase(string(get(numerical_metadata,
+        "smallest_singular_backend_crosscheck_restarted_converged", "false"))) == "true"
+    crosscheck_harmonic_converged = lowercase(string(get(numerical_metadata,
+        "smallest_singular_backend_crosscheck_harmonic_converged", "false"))) == "true"
+    crosscheck_relation = crosscheck_dimension > 0 ? string(get(numerical_metadata,
+        "smallest_singular_backend_crosscheck_relation", "unavailable")) : "not_requested"
+    numerical_code_counts = _as_dict(get(numerical, "finding_code_counts", nothing))
+    dense_calibration_requested = _bool(get(entry,
+        "smallest_singular_backend_crosscheck_dense_calibration",
+        get(record, "smallest_singular_backend_crosscheck_dense_calibration", false)))
+    restarted_dense_available = _bool(get(numerical_metadata,
+        "restarted_dense_calibration_available", false))
+    harmonic_dense_available = _bool(get(numerical_metadata,
+        "harmonic_dense_calibration_available", false))
     return Dict{String,Any}(
         "name" => get(entry, "name", "unknown"),
         "fixture" => get(record, "fixture", nothing),
@@ -392,6 +450,122 @@ function _case_record(root, entry)
             "residual_scale" => probe_residual_scale,
             "unavailable_finding_count" => probe_unavailable_count,
         ),
+        "smallest_singular_backend_crosscheck" => Dict(
+            "requested_dimension" => crosscheck_dimension,
+            "restarted_iterations" => crosscheck_restarted_iterations,
+            "restarted_alignment_threshold" =>
+                crosscheck_restarted_alignment_threshold,
+            "harmonic_steps_per_seed" => crosscheck_harmonic_steps,
+            "harmonic_cycles" => crosscheck_harmonic_cycles,
+            "harmonic_alignment_threshold" =>
+                crosscheck_harmonic_alignment_threshold,
+            "max_basis_entries" => crosscheck_max_basis_entries,
+            "scaling" => crosscheck_scaling,
+            "coordinate_system" => string(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_coordinate_system",
+                crosscheck_scaling in ("column", "row_column") ?
+                    "diagonally_transformed_variables" : "original_variables")),
+            "row_scaling_minimum" => _float(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_row_scaling_minimum", nothing)),
+            "row_scaling_maximum" => _float(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_row_scaling_maximum", nothing)),
+            "column_scaling_minimum" => _float(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_column_scaling_minimum", nothing)),
+            "column_scaling_maximum" => _float(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_column_scaling_maximum", nothing)),
+            "model_modified" => _bool(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_model_modified", false)),
+            "available" => crosscheck_dimension > 0 && crosscheck_available,
+            "relation" => crosscheck_relation,
+            "restarted_converged" => crosscheck_dimension > 0 &&
+                crosscheck_restarted_converged,
+            "harmonic_converged" => crosscheck_dimension > 0 &&
+                crosscheck_harmonic_converged,
+            "restarted_breakdown" => string(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_restarted_breakdown",
+                "unavailable")),
+            "harmonic_breakdown" => string(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_harmonic_breakdown",
+                "unavailable")),
+            "restarted_completed_iterations" => _int(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_restarted_completed_iterations", 0)),
+            "harmonic_completed_cycles" => _int(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_harmonic_completed_cycles", 0)),
+            "restarted_values" => _float_list(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_restarted_values", "")),
+            "harmonic_values" => _float_list(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_harmonic_values", "")),
+            "restarted_backward_errors" => _float_list(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_restarted_backward_errors", "")),
+            "harmonic_backward_errors" => _float_list(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_harmonic_backward_errors", "")),
+            "original_coordinate_audit_available" => _bool(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_original_audit_available", false)),
+            "restarted_original_relative_residuals" => _float_list(get(
+                numerical_metadata,
+                "smallest_singular_backend_crosscheck_restarted_original_relative_residuals",
+                "")),
+            "harmonic_original_relative_residuals" => _float_list(get(
+                numerical_metadata,
+                "smallest_singular_backend_crosscheck_harmonic_original_relative_residuals",
+                "")),
+            "restarted_mapped_direction_norms" => _float_list(get(
+                numerical_metadata,
+                "smallest_singular_backend_crosscheck_restarted_mapped_direction_norms",
+                "")),
+            "harmonic_mapped_direction_norms" => _float_list(get(
+                numerical_metadata,
+                "smallest_singular_backend_crosscheck_harmonic_mapped_direction_norms",
+                "")),
+            "relative_value_differences" => _float_list(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_relative_value_differences", "")),
+            "minimum_principal_cosine" => _float(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_minimum_principal_cosine", nothing)),
+            "structural_minimum_right_nullity" => _int(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_structural_minimum_right_nullity", 0)),
+            "dimension_covers_structural_minimum" => _bool(get(numerical_metadata,
+                "smallest_singular_backend_crosscheck_dimension_covers_structural_minimum",
+                true)),
+            "agreement_finding_count" => _int(get(numerical_code_counts,
+                "smallest_singular_backend_crosscheck_agreement", 0)),
+            "inconclusive_finding_count" => _int(get(numerical_code_counts,
+                "smallest_singular_backend_crosscheck_inconclusive", 0)),
+            "disagreement_finding_count" => _int(get(numerical_code_counts,
+                "smallest_singular_backend_crosscheck_disagreement", 0)),
+            "unavailable_finding_count" => _int(get(numerical_code_counts,
+                "smallest_singular_backend_crosscheck_unavailable", 0)),
+            "dense_calibration" => Dict(
+                "requested" => dense_calibration_requested,
+                "restarted_available" => dense_calibration_requested &&
+                    restarted_dense_available,
+                "restarted_relation" => dense_calibration_requested ?
+                    string(get(numerical_metadata,
+                        "restarted_dense_calibration_relation", "unavailable")) :
+                    "not_requested",
+                "restarted_dense_values" => _float_list(get(numerical_metadata,
+                    "restarted_dense_singular_values", "")),
+                "restarted_relative_value_errors" => _float_list(get(
+                    numerical_metadata,
+                    "restarted_dense_relative_singular_value_errors", "")),
+                "restarted_minimum_principal_cosine" => _float(get(
+                    numerical_metadata,
+                    "restarted_dense_minimum_principal_cosine", nothing)),
+                "harmonic_available" => dense_calibration_requested &&
+                    harmonic_dense_available,
+                "harmonic_relation" => dense_calibration_requested ?
+                    string(get(numerical_metadata,
+                        "harmonic_dense_calibration_relation", "unavailable")) :
+                    "not_requested",
+                "harmonic_dense_values" => _float_list(get(numerical_metadata,
+                    "harmonic_dense_singular_values", "")),
+                "harmonic_relative_value_errors" => _float_list(get(
+                    numerical_metadata,
+                    "harmonic_dense_relative_singular_value_errors", "")),
+                "harmonic_minimum_principal_cosine" => _float(get(
+                    numerical_metadata,
+                    "harmonic_dense_minimum_principal_cosine", nothing)),
+            ),
+        ),
     )
 end
 
@@ -467,6 +641,22 @@ function main()
     iterative_probe_candidate_count = 0
     iterative_probe_unavailable_count = 0
     iterative_probe_no_small_residual_count = 0
+    crosscheck_requested_cases = 0
+    crosscheck_available_cases = 0
+    crosscheck_restarted_converged_cases = 0
+    crosscheck_harmonic_converged_cases = 0
+    crosscheck_agreement_cases = 0
+    crosscheck_inconclusive_cases = 0
+    crosscheck_disagreement_cases = 0
+    crosscheck_unavailable_count = 0
+    crosscheck_original_audit_cases = 0
+    crosscheck_relation_counts = Dict{String,Int}()
+    crosscheck_underdimensioned_cases = 0
+    dense_calibration_requested_cases = 0
+    restarted_dense_available_cases = 0
+    harmonic_dense_available_cases = 0
+    restarted_dense_relation_counts = Dict{String,Int}()
+    harmonic_dense_relation_counts = Dict{String,Int}()
     mode_status_counts = Dict{String,Int}()
     mode_projection_cases = 0
     mode_projection_visible_count = 0
@@ -671,6 +861,53 @@ function main()
             iterative_probe_unavailable_count += _int(get(probe, "unavailable_finding_count", 0))
             iterative_probe_no_small_residual_count += _int(get(probe, "no_small_residual_count", 0))
         end
+        crosscheck = _as_dict(get(case,
+            "smallest_singular_backend_crosscheck", nothing))
+        crosscheck_dimension = _int(get(crosscheck, "requested_dimension", 0))
+        if crosscheck_dimension > 0
+            crosscheck_requested_cases += 1
+            available = get(crosscheck, "available", false) === true
+            available && (crosscheck_available_cases += 1)
+            get(crosscheck, "original_coordinate_audit_available", false) === true &&
+                (crosscheck_original_audit_cases += 1)
+            get(crosscheck, "restarted_converged", false) === true &&
+                (crosscheck_restarted_converged_cases += 1)
+            get(crosscheck, "harmonic_converged", false) === true &&
+                (crosscheck_harmonic_converged_cases += 1)
+            relation = String(get(crosscheck, "relation", "unavailable"))
+            crosscheck_relation_counts[relation] =
+                get(crosscheck_relation_counts, relation, 0) + 1
+            relation == "agreement" && (crosscheck_agreement_cases += 1)
+            available && relation in ("both_unconverged", "restarted_unconverged",
+                                      "harmonic_unconverged") &&
+                (crosscheck_inconclusive_cases += 1)
+            available && relation in ("singular_value_disagreement",
+                                      "subspace_disagreement") &&
+                (crosscheck_disagreement_cases += 1)
+            crosscheck_unavailable_count += _int(get(crosscheck,
+                "unavailable_finding_count", 0))
+            get(crosscheck, "dimension_covers_structural_minimum", true) === false &&
+                (crosscheck_underdimensioned_cases += 1)
+            dense_calibration = _as_dict(get(crosscheck,
+                "dense_calibration", nothing))
+            if get(dense_calibration, "requested", false) === true
+                dense_calibration_requested_cases += 1
+                get(dense_calibration, "restarted_available", false) === true &&
+                    (restarted_dense_available_cases += 1)
+                get(dense_calibration, "harmonic_available", false) === true &&
+                    (harmonic_dense_available_cases += 1)
+                restarted_relation = String(get(dense_calibration,
+                    "restarted_relation", "unavailable"))
+                harmonic_relation = String(get(dense_calibration,
+                    "harmonic_relation", "unavailable"))
+                restarted_dense_relation_counts[restarted_relation] = get(
+                    restarted_dense_relation_counts, restarted_relation, 0,
+                ) + 1
+                harmonic_dense_relation_counts[harmonic_relation] = get(
+                    harmonic_dense_relation_counts, harmonic_relation, 0,
+                ) + 1
+            end
+        end
     end
     successful = get(status_counts, "ok", 0)
     findings = Any[]
@@ -779,6 +1016,68 @@ function main()
                                "converged_case_count" => iterative_probe_converged_cases),
             "suggested_action" => "Treat candidate residuals as incomplete numerical evidence and vary the iteration budget before interpreting a direction.",
         ))
+    crosscheck_requested_cases > crosscheck_available_cases && push!(findings, Dict(
+        "code" => "multiconductor_smallest_singular_crosscheck_unavailable",
+        "severity" => "warning",
+        "observation" => "The requested dense-free smallest-direction backend crosscheck was unavailable for one or more fixtures.",
+        "evidence" => Dict("requested_case_count" => crosscheck_requested_cases,
+                           "available_case_count" => crosscheck_available_cases,
+                           "unavailable_finding_count" => crosscheck_unavailable_count,
+                           "relation_counts" => crosscheck_relation_counts),
+        "suggested_action" => "Inspect the product-path provenance and basis-entry guard; do not interpret missing backend evidence as a rank result.",
+    ))
+    crosscheck_underdimensioned_cases > 0 && push!(findings, Dict(
+        "code" => "multiconductor_smallest_singular_crosscheck_dimension_below_structural_nullity",
+        "severity" => "warning",
+        "observation" => "One or more requested candidate dimensions are below the structurally unavoidable right nullity of a wide Jacobian.",
+        "evidence" => Dict("requested_case_count" => crosscheck_requested_cases,
+                           "underdimensioned_case_count" =>
+                               crosscheck_underdimensioned_cases),
+        "suggested_action" => "Request at least columns minus rows before comparing complete right-nullspace candidate spans.",
+    ))
+    crosscheck_inconclusive_cases > 0 && push!(findings, Dict(
+        "code" => "multiconductor_smallest_singular_crosscheck_inconclusive",
+        "severity" => "info",
+        "observation" => "At least one bounded smallest-direction engine did not converge for one or more fixtures.",
+        "evidence" => Dict("available_case_count" => crosscheck_available_cases,
+                           "agreement_case_count" => crosscheck_agreement_cases,
+                           "inconclusive_case_count" => crosscheck_inconclusive_cases,
+                           "relation_counts" => crosscheck_relation_counts,
+                           "restarted_converged_case_count" =>
+                               crosscheck_restarted_converged_cases,
+                           "harmonic_converged_case_count" =>
+                               crosscheck_harmonic_converged_cases),
+        "suggested_action" => "Treat these cases as coverage evidence and repeat with a larger explicit work budget before comparing candidate values or spans.",
+    ))
+    crosscheck_disagreement_cases > 0 && push!(findings, Dict(
+        "code" => "multiconductor_smallest_singular_crosscheck_disagreement",
+        "severity" => "warning",
+        "observation" => "Converged independent sparse smallest-direction engines disagree for one or more fixtures.",
+        "evidence" => Dict("available_case_count" => crosscheck_available_cases,
+                           "agreement_case_count" => crosscheck_agreement_cases,
+                           "inconclusive_case_count" => crosscheck_inconclusive_cases,
+                           "disagreement_case_count" => crosscheck_disagreement_cases,
+                           "relation_counts" => crosscheck_relation_counts,
+                           "restarted_converged_case_count" =>
+                               crosscheck_restarted_converged_cases,
+                           "harmonic_converged_case_count" =>
+                               crosscheck_harmonic_converged_cases),
+        "suggested_action" => "Treat disagreement as search-budget or spectral-compression evidence, repeat under larger bounded budgets, and use dense SVD only on representative small fixtures.",
+    ))
+    dense_calibration_requested_cases > min(restarted_dense_available_cases,
+                                             harmonic_dense_available_cases) &&
+        push!(findings, Dict(
+            "code" => "multiconductor_smallest_singular_dense_calibration_unavailable",
+            "severity" => "warning",
+            "observation" => "A requested guarded dense smallest-direction calibration was unavailable for one or both engines.",
+            "evidence" => Dict("requested_case_count" =>
+                                   dense_calibration_requested_cases,
+                               "restarted_available_case_count" =>
+                                   restarted_dense_available_cases,
+                               "harmonic_available_case_count" =>
+                                   harmonic_dense_available_cases),
+            "suggested_action" => "Restrict the dense checkpoint to representative fixtures within the explicit entry guard.",
+        ))
     payload = Dict{String,Any}(
         "report_version" => "bmopf-multiconductor-smoke-summary-v1",
         "index_path" => index_path,
@@ -789,6 +1088,24 @@ function main()
         "source_behavior_solver_attributes" => get(index,
             "source_behavior_solver_attributes", Dict{String,Any}()),
         "rank_max_dense_entries" => get(index, "rank_max_dense_entries", nothing),
+        "smallest_singular_backend_crosscheck_dimension" => get(index,
+            "smallest_singular_backend_crosscheck_dimension", nothing),
+        "smallest_singular_backend_crosscheck_restarted_iterations" => get(index,
+            "smallest_singular_backend_crosscheck_restarted_iterations", nothing),
+        "smallest_singular_backend_crosscheck_restarted_alignment_threshold" => get(index,
+            "smallest_singular_backend_crosscheck_restarted_alignment_threshold", nothing),
+        "smallest_singular_backend_crosscheck_harmonic_steps_per_seed" => get(index,
+            "smallest_singular_backend_crosscheck_harmonic_steps_per_seed", nothing),
+        "smallest_singular_backend_crosscheck_harmonic_cycles" => get(index,
+            "smallest_singular_backend_crosscheck_harmonic_cycles", nothing),
+        "smallest_singular_backend_crosscheck_harmonic_alignment_threshold" => get(index,
+            "smallest_singular_backend_crosscheck_harmonic_alignment_threshold", nothing),
+        "smallest_singular_backend_crosscheck_max_basis_entries" => get(index,
+            "smallest_singular_backend_crosscheck_max_basis_entries", nothing),
+        "smallest_singular_backend_crosscheck_scaling" => get(index,
+            "smallest_singular_backend_crosscheck_scaling", "none"),
+        "smallest_singular_backend_crosscheck_dense_calibration" => get(index,
+            "smallest_singular_backend_crosscheck_dense_calibration", false),
         "expected_mode_free_coordinate_policy" => get(index,
             "expected_mode_free_coordinate_policy", "unknown"),
         "expected_mode_tangent_policy" => get(index,
@@ -888,6 +1205,38 @@ function main()
             "iterative_probe_candidate_count" => iterative_probe_candidate_count,
             "iterative_probe_unavailable_finding_count" => iterative_probe_unavailable_count,
             "iterative_probe_no_small_residual_finding_count" => iterative_probe_no_small_residual_count,
+            "smallest_singular_crosscheck_requested_case_count" =>
+                crosscheck_requested_cases,
+            "smallest_singular_crosscheck_available_case_count" =>
+                crosscheck_available_cases,
+            "smallest_singular_crosscheck_original_audit_case_count" =>
+                crosscheck_original_audit_cases,
+            "smallest_singular_crosscheck_restarted_converged_case_count" =>
+                crosscheck_restarted_converged_cases,
+            "smallest_singular_crosscheck_harmonic_converged_case_count" =>
+                crosscheck_harmonic_converged_cases,
+            "smallest_singular_crosscheck_agreement_case_count" =>
+                crosscheck_agreement_cases,
+            "smallest_singular_crosscheck_inconclusive_case_count" =>
+                crosscheck_inconclusive_cases,
+            "smallest_singular_crosscheck_disagreement_case_count" =>
+                crosscheck_disagreement_cases,
+            "smallest_singular_crosscheck_unavailable_finding_count" =>
+                crosscheck_unavailable_count,
+            "smallest_singular_crosscheck_relation_counts" =>
+                crosscheck_relation_counts,
+            "smallest_singular_crosscheck_underdimensioned_case_count" =>
+                crosscheck_underdimensioned_cases,
+            "smallest_singular_dense_calibration_requested_case_count" =>
+                dense_calibration_requested_cases,
+            "restarted_smallest_singular_dense_available_case_count" =>
+                restarted_dense_available_cases,
+            "harmonic_smallest_singular_dense_available_case_count" =>
+                harmonic_dense_available_cases,
+            "restarted_smallest_singular_dense_relation_counts" =>
+                restarted_dense_relation_counts,
+            "harmonic_smallest_singular_dense_relation_counts" =>
+                harmonic_dense_relation_counts,
             "physical_mode_comparison_status_counts" => mode_status_counts,
         ),
         "readiness" => Dict(
@@ -937,6 +1286,21 @@ function main()
                 unaligned_mode_count == 0,
             "iterative_right_nullspace_probe" => iterative_probe_requested_cases == 0 ||
                 iterative_probe_requested_cases == iterative_probe_available_cases,
+            "smallest_singular_backend_crosscheck" => crosscheck_requested_cases == 0 ||
+                crosscheck_requested_cases == crosscheck_available_cases,
+            "smallest_singular_backend_original_coordinate_audit" =>
+                crosscheck_requested_cases == 0 ||
+                crosscheck_requested_cases == crosscheck_original_audit_cases,
+            "smallest_singular_backend_crosscheck_dimension_covers_structural_minimum" =>
+                crosscheck_underdimensioned_cases == 0,
+            "smallest_singular_backend_crosscheck_agreement" =>
+                crosscheck_requested_cases == 0 ||
+                crosscheck_requested_cases == crosscheck_agreement_cases,
+            "smallest_singular_backend_dense_calibration" =>
+                dense_calibration_requested_cases == 0 ||
+                (dense_calibration_requested_cases ==
+                    restarted_dense_available_cases ==
+                    harmonic_dense_available_cases),
         ),
         "findings" => findings,
         "interpretation" => "Multiconductor contract aggregation only; port maps and physical modes are evidence records, not solver-independent physical certificates.",

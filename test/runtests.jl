@@ -1489,6 +1489,7 @@ end
         "summarize_bmopf_solver_sweep.jl",
         "summarize_bmopf_endpoint_triangulation.jl",
         "compare_bmopf_multiconductor_points.jl",
+        "compare_bmopf_multiconductor_crosschecks.jl",
         "summarize_bmopf_evidence_ledger.jl",
         "launch_bmopf_source_solver_matrix.jl",
         "compare_bmopf_source_solver_matrices.jl",
@@ -1940,6 +1941,44 @@ end
     @test occursin("mode_match_pair_available", point_comparison)
     @test occursin("mode_projection_policy_compatible", point_comparison)
     @test occursin("mode_tangent_policy_compatible", point_comparison)
+    @test occursin("smallest_crosscheck_pair_available", point_comparison)
+    @test occursin("smallest_crosscheck_relation_changed", point_comparison)
+    @test occursin("smallest_crosscheck_minimum_principal_cosine_delta",
+        point_comparison)
+    crosscheck_comparison = read(joinpath(
+        benchmark_directory, "compare_bmopf_multiconductor_crosschecks.jl"), String)
+    @test occursin("bmopf-multiconductor-crosscheck-comparison-v1",
+        crosscheck_comparison)
+    @test occursin("restarted_convergence_gain_count", crosscheck_comparison)
+    @test occursin("harmonic_convergence_gain_count", crosscheck_comparison)
+    @test occursin("agreement_gain_count", crosscheck_comparison)
+    @test occursin("distinct_work_policy", crosscheck_comparison)
+    @test occursin("scaling_intervention_only", crosscheck_comparison)
+    bmopf_smoke = read(joinpath(benchmark_directory, "bmopf_smoke.jl"), String)
+    multiconductor_summary = read(joinpath(
+        benchmark_directory, "summarize_bmopf_multiconductor_smoke.jl"), String)
+    @test occursin("NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_DIMENSION",
+        bmopf_smoke)
+    @test occursin("NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_DENSE_CALIBRATION",
+        bmopf_smoke)
+    @test occursin("NLPDIAGNOSTICS_BMOPF_SMALLEST_CROSSCHECK_SCALING",
+        bmopf_smoke)
+    @test occursin("smallest_singular_backend_crosscheck_max_basis_entries",
+        bmopf_smoke)
+    @test occursin("smallest_singular_crosscheck_relation_counts",
+        multiconductor_summary)
+    @test occursin("smallest_singular_backend_crosscheck_agreement",
+        multiconductor_summary)
+    @test occursin("smallest_singular_backend_crosscheck_scaling",
+        multiconductor_summary)
+    @test occursin("smallest_singular_backend_crosscheck_original_audit_available",
+        multiconductor_summary)
+    @test occursin("smallest_singular_backend_original_coordinate_audit",
+        multiconductor_summary)
+    @test occursin("restarted_smallest_singular_dense_relation_counts",
+        multiconductor_summary)
+    @test occursin("harmonic_smallest_singular_dense_relation_counts",
+        multiconductor_summary)
     @test occursin("physical_mode_projections", read(
         joinpath(benchmark_directory, "bmopf_smoke.jl"), String,
     ))
@@ -1983,6 +2022,15 @@ end
         joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
     ))
     @test occursin("multiconductor_point_rank_alignment_ambiguous", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
+    @test occursin("multiconductor_smallest_singular_crosscheck_disagreement", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
+    @test occursin("multiconductor_point_smallest_crosscheck_overlap_incomplete", read(
+        joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
+    ))
+    @test occursin("multiconductor_crosscheck_work_policy_not_distinct", read(
         joinpath(benchmark_directory, "validate_bmopf_campaign.jl"), String,
     ))
     ledger = read(
@@ -7605,6 +7653,80 @@ end
             sparse_probe_result.numerical_report,
             :iterative_jacobian_no_large_spectral_spread_proxy,
         )) == 1
+        crosscheck_profile_result = NLPDiagnostics.profile_case(
+            model,
+            case;
+            smallest_singular_backend_crosscheck_dimension = 1,
+            smallest_singular_backend_crosscheck_restarted_iterations = 5,
+            smallest_singular_backend_crosscheck_harmonic_steps_per_seed = 1,
+            smallest_singular_backend_crosscheck_harmonic_cycles = 3,
+            smallest_singular_backend_crosscheck_max_basis_entries = 100,
+            smallest_singular_backend_crosscheck_scaling = :row_column,
+            smallest_singular_backend_crosscheck_dense_calibration = true,
+            smallest_singular_backend_crosscheck_dense_max_entries = 100,
+            check_sparse_qr_nullspace = true,
+            sparse_qr_nullspace_dense_calibration = true,
+            sparse_qr_nullspace_dense_max_entries = 100,
+        )
+        @test haskey(crosscheck_profile_result.stage_seconds,
+            :smallest_singular_backend_crosscheck)
+        @test haskey(crosscheck_profile_result.stage_allocations,
+            :smallest_singular_backend_crosscheck)
+        @test haskey(crosscheck_profile_result.stage_seconds,
+            :smallest_singular_backend_crosscheck_scaling_intervention)
+        @test crosscheck_profile_result.numerical_report.metadata[
+            :smallest_singular_backend_crosscheck_available
+        ] == "true"
+        @test haskey(crosscheck_profile_result.numerical_report.metadata,
+            :smallest_singular_backend_crosscheck_relation)
+        @test haskey(crosscheck_profile_result.stage_seconds,
+            :restarted_smallest_singular_dense_calibration)
+        @test haskey(crosscheck_profile_result.stage_seconds,
+            :harmonic_golub_kahan_dense_calibration)
+        @test crosscheck_profile_result.numerical_report.metadata[
+            :restarted_dense_calibration_available
+        ] == "true"
+        @test crosscheck_profile_result.numerical_report.metadata[
+            :harmonic_dense_calibration_available
+        ] == "true"
+        @test crosscheck_profile_result.numerical_report.metadata[
+            :smallest_singular_backend_crosscheck_scaling
+        ] == "row_column"
+        @test crosscheck_profile_result.numerical_report.metadata[
+            :smallest_singular_backend_crosscheck_coordinate_system
+        ] == "diagonally_transformed_variables"
+        @test crosscheck_profile_result.numerical_report.metadata[
+            :smallest_singular_backend_crosscheck_model_modified
+        ] == "false"
+        @test crosscheck_profile_result.numerical_report.metadata[
+            :smallest_singular_backend_crosscheck_original_audit_available
+        ] == "true"
+        @test haskey(crosscheck_profile_result.numerical_report.metadata,
+            :smallest_singular_backend_crosscheck_restarted_original_relative_residuals)
+        @test haskey(crosscheck_profile_result.numerical_report.metadata,
+            :smallest_singular_backend_crosscheck_harmonic_original_relative_residuals)
+        @test length(findings(
+            crosscheck_profile_result.numerical_report,
+            :smallest_singular_backend_crosscheck_scaling_intervention,
+        )) == 1
+        @test haskey(crosscheck_profile_result.stage_seconds,
+            :sparse_qr_nullspace)
+        @test haskey(crosscheck_profile_result.stage_seconds,
+            :sparse_qr_nullspace_dense_calibration)
+        @test crosscheck_profile_result.numerical_report.metadata[
+            :sparse_qr_nullspace_available
+        ] == "true"
+        @test crosscheck_profile_result.numerical_report.metadata[
+            :sparse_qr_nullspace_dense_calibration_available
+        ] == "true"
+        @test_throws ArgumentError NLPDiagnostics.profile_case(
+            model, case;
+            smallest_singular_backend_crosscheck_dense_calibration = true,
+        )
+        @test_throws ArgumentError NLPDiagnostics.profile_case(
+            model, case;
+            sparse_qr_nullspace_dense_calibration = true,
+        )
         sweep_profile_result = NLPDiagnostics.profile_case(
             model,
             case;

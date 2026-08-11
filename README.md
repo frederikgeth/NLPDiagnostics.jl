@@ -43,6 +43,12 @@ read-only snapshot through the public MOI model API and reports:
 - an opt-in restarted locally optimal smallest-direction candidate tracker
   with convergence histories, matrix-free normal products, and explicit
   adversarial dense-oracle disagreement evidence; and
+- an independent thick-restarted zero-target harmonic Golub--Kahan candidate
+  tracker, projected-metric diagnostics, target-local dense calibration, and a
+  dense-free cross-backend value/subspace check; and
+- controlled row/column scaling interventions for that crosscheck, with
+  transformed-coordinate labels and mapped residual audits against the
+  original Jacobian; and
 - explicit Hessian-of-the-Lagrangian and reduced-Hessian curvature tools;
 - reproducible solver-independent formulation profile cases; and
 - finite first- and second-derivative domain checks;

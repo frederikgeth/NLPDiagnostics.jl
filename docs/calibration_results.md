@@ -214,37 +214,172 @@ BMOPFTools staged-adapter subsection has 312. This validates software contracts
 and exposes one bounded miss-rate experiment. It does not yet validate
 smallest-singular coverage on adversarial or large-model matrices.
 
-## 2026-08-11: restarted smallest-direction adversarial calibration
+## 2026-08-11: cross-backend smallest-direction adversarial calibration
 
 Status: **software-qualified candidate method; adverse numerical controls
 retained**.
 
-The restarted locally optimal block tracker was evaluated through
-`benchmarks/calibrate_restarted_smallest_singular.jl` on ten deterministic
-dense-oracle cases. All expected relations matched:
+The restarted locally optimal block tracker, the independent zero-target
+harmonic Golub--Kahan tracker, and their dense-free comparison were evaluated
+through `benchmarks/calibrate_restarted_smallest_singular.jl` on ten
+deterministic dense-oracle cases. The emitted schema is
+`smallest-singular-cross-backend-calibration-v2`; all expected relations
+matched.
 
-- five ordinary dense agreements: separated diagonal, clustered smallest pair,
-  rotated planted spectrum, rotated planted two-dimensional nullspace, and a
-  rectangular right nullspace;
+For the restarted tracker the relations were:
+
+- four ordinary dense agreements: separated diagonal, clustered smallest pair,
+  rotated planted spectrum, and a rectangular right nullspace;
 - two agreements with a deliberately non-unique dense target subspace: a
   repeated smallest singular value when requesting one direction, and the zero
   operator;
 - two expected unconverged results: an insufficient one-iteration budget and
   the badly scaled full-rank matrix `diag(1e8, 1, 1e-8)`; and
-- one expected false-convergence control on the 6-by-6 Hilbert matrix.
+- one expected false-convergence control on the 6-by-6 Hilbert matrix; and
+- one numerically unresolved dense target for the rotated planted nullspace,
+  whose computed dense singular values are below the Float64 resolution floor
+  implied by the full spectrum.
 
 The Hilbert result is the most important outcome. The normal-residual and
 successive-subspace policy converged to a stationary candidate near `3.62e-6`,
 while dense SVD reported a smallest singular value near `1.08e-7`. The
-scale-normalized value error was approximately `2.17e-6`, above the declared
-`1e-6` oracle comparison tolerance. Thus internal convergence is demonstrably
-insufficient to claim smallest-singular coverage. The public report preserves
-this as `singular_value_disagreement`.
+target-local value error exceeds the declared oracle comparison tolerance.
+Thus internal convergence is demonstrably insufficient to claim
+smallest-singular coverage. The public report preserves this as
+`singular_value_disagreement`.
 
-The badly scaled control stopped at `trial_subspace_stagnation` with a candidate
+The harmonic tracker has five ordinary agreements, two non-unique-subspace
+agreements, one intentionally unconverged insufficient-budget result, and two
+numerically unresolved dense targets. Most importantly, its two-step,
+thick-restarted Hilbert run reaches the dense value near `1.08e-7`, turning the
+required restarted false-convergence case into an ordinary harmonic agreement.
+This is the first measured independent-backend recovery rather than merely a
+second implementation with the same failure.
+
+The badly scaled control stopped the restarted engine at
+`trial_subspace_stagnation` with a candidate
 near `2.96e7`, rather than misreporting the dense `1e-8` direction. This is an
 honest coverage failure caused by squared-spectrum and finite-precision trial
-space loss. The next backend must provide independent evidence through a
-harmonic Golub--Kahan, Jacobi--Davidson SVD, or vetted LSMR/LSQR-class method;
-the restarted normal-operator tracker remains useful for numerical-method
-experiments but is not promoted to a rank backend.
+space loss. The harmonic engine converges under its global-scale residual
+policy, but the dense target is explicitly classified as numerically
+unresolved instead of agreement. This is scaling evidence, not validation of
+the harmonic value.
+
+The dense-free crosscheck reports seven agreements, the required Hilbert value
+disagreement, one restarted-unconverged scaled control, and one
+both-unconverged insufficient-budget control. These results qualify the
+crosscheck for guarded BMOPF profiling as candidate evidence. They do not
+qualify either backend as a rank oracle. Explicit row/column scaling is now
+covered below; the remaining calibration expansion is randomized rectangular
+and cancellation-induced nonlinear derivatives, a third extraction path, and
+BMOPF repeated-point stability.
+
+Regression coverage now includes 46 restarted-oracle assertions, 46
+harmonic-oracle assertions, 33 cross-backend assertions, 143 general rank
+calibration assertions, and 60 fingerprint/combined-API assertions. The full
+extension-environment target passes 1,595 assertions, including the
+Ipopt, MadNLP, PowerModels, and 312-assertion staged BMOPFTools adapter blocks.
+
+## 2026-08-11: first BMOPF cross-backend and dense-oracle checkpoints
+
+Status: **development calibration; useful negative and arbitration evidence,
+not a physical diagnosis**.
+
+The independent smallest-direction crosscheck was integrated into the guarded
+multiconductor smoke path and exercised on grounded-neutral,
+free-neutral-return, delta-load, unbalanced-line, and wye-delta-transformer
+fixtures. Dense work was disabled, candidate dimension was two, and the work
+policy used 100 restarted iterations plus 10 harmonic cycles of six steps.
+All five product paths were available at both the BMOPF completed-start point
+and the explicit zero probe. Four fixtures had both engines unconverged; only
+the transformer's restarted engine converged. The relation classes were
+identical across the two point policies. This is stable coverage failure, not
+evidence that the points have the same low-singular geometry.
+
+A fixed-revision two-fixture work-budget comparison increased the restarted
+budget from 100 to 500 and the harmonic budget from 6-by-10 to 8-by-50. It
+passed environment, point, fixture, dimension, and distinct-policy gates. The
+harmonic engine gained convergence on both fixtures, while the restarted engine
+gained none. Grounded-neutral changed from `both_unconverged` to
+`restarted_unconverged`. The transformer changed from
+`harmonic_unconverged` to `singular_value_disagreement`; its converged candidate
+values differed by roughly 99.9 percent and its minimum cross-backend principal
+cosine was approximately 0.20. Internal convergence therefore remains
+insufficient for coverage.
+
+Guarded dense SVD then arbitrated the two small matrices (1,972 and 2,754 dense
+entries). Grounded-neutral was full column rank, 34 of 34, with a repeated
+smallest singular value near `0.0180344057874866`. The harmonic backend matched
+both values to about `1e-11` relative error and had essentially unit subspace
+alignment. The restarted backend remained unconverged; its two dense-relative
+errors were approximately `0.026` and `9.40`. This is a positive harmonic case
+and a measured restarted miss.
+
+The transformer Jacobian had 51 rows, 54 columns, and estimated rank 48. Its
+right nullity under the dense threshold is therefore six, while rectangularity
+alone guarantees at least three. The original dimension-two request was below
+that structural lower bound and sampled a non-unique part of the zero target
+space. Both engines were consistent with the first two exact dense zeros under
+the declared global tolerance, despite poor mutual subspace alignment. This
+motivated the new structural candidate-dimension guard.
+
+Repeating the transformer at dimension six exposed a harder boundary. Dense
+SVD returned `0, 0, 0, 3.53e-15, 3.87e-13, 4.02e-12`; the last three targets are
+below the Float64 spectrum-resolution floor for this matrix. Both finite-search
+engines reported internal convergence, but restarted candidate values were
+roughly `0.038`--`0.376` and harmonic values roughly `9e-6`--`1.4e-4`.
+Accordingly both guarded oracle comparisons classified the dense target as
+numerically unresolved rather than agreement or disagreement. The rank-48
+screen is tolerance-local evidence of three additional near dependencies; it
+is not yet a trustworthy six-dimensional numerical or physical nullspace.
+
+These checkpoints changed the immediate priority. The scaling intervention is
+now recorded below; repeated-point stability and a method that can resolve or
+honestly bound clustered near-zero targets on wide matrices remain. The harmonic backend is already useful on the
+full-rank grounded case, but neither engine is a general BMOPF rank oracle.
+PowerIO/BMOPFTools source-schema warnings also remain active, so no direction
+from this campaign receives a physical label.
+
+## 2026-08-11: transformer diagonal-scaling intervention
+
+Status: **controlled numerical intervention; scaling changes search behavior
+but does not resolve the dense target**.
+
+The 51-by-54 wye-delta transformer was repeated at the same completed BMOPF
+start, candidate dimension six, 500 restarted iterations, 50 harmonic cycles
+of eight steps, and the same two-million-entry basis guard. The baseline and
+row-column summaries have matching environment and point fingerprints; the
+comparison identifies `scaling` as the only numerical-policy difference.
+
+Without scaling, both engines reported internal convergence but disagreed:
+restarted values were approximately `0.038`--`0.376`, harmonic values were
+approximately `9e-6`--`1.4e-4`, and the minimum principal cosine was `0.016`.
+Direct residuals after auditing the same directions against the original
+Jacobian were about `7e-7`--`7e-6` for restarted and `2e-10`--`2e-9` for
+harmonic.
+
+One-pass row-column scaling used row factors from about `2.48e-5` to `1` and
+column factors from about `0.568` to `4.03e4`. It produced a much more aligned
+scaled candidate span (minimum principal cosine about `0.990`), but the
+restarted engine hit its 500-iteration limit and the final direction still had
+a near-unit backend value difference. After mapping candidates back to the
+original coordinates, the first four directions from both engines had
+roundoff-level direct residuals. The remaining restarted direction reached
+about `5.9e-8`; the two remaining harmonic directions reached about `2.1e-12`
+and `3.6e-12`.
+
+This is useful algorithm evidence, but not a solved rank problem. Guarded dense
+SVD still classified both the unscaled and row-column-scaled six-value targets
+as numerically unresolved. Scaling moved the target values and substantially
+changed the search metric; it did not make those values directly comparable or
+turn the local rank-48 screen into a certificate. The next method-development
+step is an extraction path that avoids the squared normal spectrum, followed by
+same-point repeats and nearby trusted-point tests. Physical fingerprinting of
+the six-dimensional cluster remains premature.
+
+The corresponding artifacts are
+`/private/tmp/nlpdiag-bmopf-transformer-scaling-audit-none-v1/summary.json`,
+`/private/tmp/nlpdiag-bmopf-transformer-scaling-audit-row_column-v1/summary.json`,
+and the comparison and validation records in the latter directory. Validation
+reported no errors; remaining warnings concern source-schema readiness and the
+intentionally unresolved/inconclusive numerical relations.

@@ -378,6 +378,58 @@ struct SparseQRRankEstimate{T<:AbstractFloat}
     factorization_residual_reason::Union{Nothing,String}
 end
 
+"""
+Right-nullspace evidence constructed from a SuiteSparseQR rank-revealing
+factorization.
+
+The triangular solve is performed in the factorization's permuted, optionally
+scaled coordinates. `directions` are mapped back to the original variable
+coordinates, orthonormalized there, and audited directly against the original
+Jacobian. The result is local and tolerance-dependent; it is not an exact-rank
+or physical-gauge certificate.
+"""
+struct SparseQRNullspaceEstimate{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    policy::RankPolicy{T}
+    rows::Int
+    columns::Int
+    rank::Int
+    right_nullity::Int
+    diagonal_pivots::Vector{T}
+    absolute_threshold::T
+    row_scaling::Vector{T}
+    column_scaling::Vector{T}
+    row_permutation::Vector{Int}
+    column_permutation::Vector{Int}
+    directions::Matrix{T}
+    residual_norms::Vector{T}
+    relative_residual_norms::Vector{T}
+    matrix_norm::Union{Nothing,T}
+    orthogonality_loss::Union{Nothing,T}
+    input_nonzeros::Int
+    factor_nonzeros::Int
+    fill_ratio::Union{Nothing,T}
+    max_input_nonzeros::Int
+    max_factor_nonzeros::Int
+    max_nullspace_entries::Int
+end
+
+"""Guarded dense-SVD calibration of a sparse-QR right-nullspace estimate."""
+struct SparseQRNullspaceDenseCalibration{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    point::EvaluationPoint{T}
+    relation::Symbol
+    estimate::SparseQRNullspaceEstimate{T}
+    dense_estimate::JacobianRankEstimate{T}
+    minimum_principal_cosine::Union{Nothing,T}
+    dense_threshold_ambiguous::Bool
+    subspace_alignment_threshold::T
+    threshold_margin_factor::T
+end
+
 """Iterative sparse-matvec probe for one candidate right-null direction."""
 struct IterativeNullspaceEstimate{T<:AbstractFloat}
     available::Bool
