@@ -434,6 +434,7 @@ export bmopf_set_start_values!
 export bmopf_start_completion_point
 export bmopf_voltage_initialization_invariants_data
 export bmopf_initialization_scaling_covariance_report
+export bmopf_transformer_scaling_contract_data
 export bmopf_result_voltage_point
 export bmopf_result_mapping_report
 export bmopf_result_field_catalog

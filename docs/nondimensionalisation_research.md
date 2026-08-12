@@ -558,3 +558,80 @@ they form a strong falsification/control experiment for any claimed benefit of
 complex scaling. Only after that control should magnitude-plus-phase policies
 be compared on centre-tap, regulator, floating-neutral, delta-circulation, and
 larger sparse feeder cases.
+
+## Transformer transport is part of the scaling contract
+
+The multi-voltage audit exposed a distinction that the initial scaling design
+did not state strongly enough. Three contracts must be tested independently:
+
+1. **coordinate consistency** — voltage and current bases on each winding make
+   the transformed winding/KCL equations mathematically equivalent;
+2. **residual scaling** — each voltage, ampere-turn, power-link, and nameplate
+   row is presented to the solver at a useful magnitude; and
+3. **initialization covariance** — the same physical phasor, including vector
+   group, winding polarity, phase subset, and terminal permutation, is generated
+   under every coordinate policy.
+
+BMOPFTools now implements the third contract with one sparse complex transport
+system in per-bus nominal-voltage coordinates. The system uses source/ground
+anchors, galvanic conductor maps, single-phase winding pairs, anti-series
+centre-tap windings, Yd/Dy relations, open-delta regulators, and general
+WYE/DELTA n-winding coil incidence including `delta_roll`. This handles a
+single-phase branch taken from (for example) phase B even when its downstream
+terminal is named `1`; phase identity comes from the port map, not the label.
+Yd/Dy current seeds are computed after the global voltage transport so a local
+post-pass cannot overwrite the compositional solution.
+
+The engine exposes equation counts and maximum normalized residuals by
+relation family through `opf_initialization_data`. NLPDiagnostics carries that
+evidence in its voltage-start report and can require it with
+`require_phasor_transport=true` in native-start covariance comparisons. A new
+SI-versus-classic chained Yd/Dy test passes the complete physical model,
+function, residual, and Jacobian covariance gate; both transport solves have
+maximum normalized residual near `1.6e-12`. This is evidence for the represented
+connections, not for arbitrary transformer vector groups.
+
+### Consequence for local power bases
+
+A single global power base makes current continuity easy because
+`I_B=S_B/V_B` changes only with the voltage base. Allowing genuinely local
+power bases is more ambitious: a physical winding current represented on two
+different local current bases requires explicit conversion coefficients in
+ampere-turn and terminal-injection equations. Likewise, a power-link row and a
+KCL row need not share the same desirable residual base. The next design should
+therefore treat scaling as declared linear maps on semantic variable and
+residual blocks, rather than pretending that one modified per-unit data copy is
+sufficient.
+
+The falsification sequence is:
+
+1. retain the current physical-covariance and phasor-transport gates;
+2. vary transformer-side power/current bases while stamping all conversion
+   coefficients explicitly;
+3. compare per-equation-family Jacobian geometry and physical KKT endpoints;
+4. test centre-tap, open-delta regulator, n-winding delta, and phase-subset
+   fixtures before large feeders; and
+5. only then combine magnitude maps with complex/phase rotations.
+
+Zigzag remains outside the present BMOPF representation. It cannot be made
+trustworthy by another terminal-name heuristic: the schema needs an explicit
+winding-to-terminal connection matrix, which must be shared by model stamping,
+base propagation, initialization, and diagnostic expected-nullspace assembly.
+
+### Implemented proposal contract
+
+The first item in that falsification sequence is now executable.
+`opf_transformer_scaling_contract_data` partitions the staged BMOPF network
+into galvanically continuous zones, rejects within-zone power-base variation,
+and derives `I_base=S_base/V_base` plus exact side-to-side conversion ratios for
+every represented transformer interface. NLPDiagnostics wraps it with
+`bmopf_transformer_scaling_contract_data`, summarizes conversion ranges by
+physical quantity and subtype, and keeps algebraic `comparison_ready` separate
+from `model_experiment_ready`.
+
+On the chained Yd/Dy truth fixture, the proposed 10 MVA / 1 MVA / 100 kVA zone
+bases are algebraically admissible and require explicit current and power
+conversion at both transformer interfaces. The proposal is correctly marked
+not model-experiment-ready because BMOPFTools has not yet stamped those local
+base coefficients. This negative readiness result is a feature: it prevents
+solver-work claims before the coordinate transformation exists.

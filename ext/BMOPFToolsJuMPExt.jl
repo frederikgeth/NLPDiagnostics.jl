@@ -1704,6 +1704,107 @@ function _bmopf_wrapped_angle_separation(left::Real, right::Real)
     return abs(rem2pi(Float64(right) - Float64(left), RoundNearest))
 end
 
+function _bmopf_initialization_transport_data(
+        context; residual_tolerance::Real=1.0e-10)
+    residual_tolerance >= 0 || throw(ArgumentError(
+        "residual_tolerance must be nonnegative",
+    ))
+    evidence = try
+        BMOPFTools.opf_initialization_data(context)
+    catch error
+        error isa MethodError &&
+            error.f === BMOPFTools.opf_initialization_data || rethrow()
+        Dict{String,Any}(
+            "schema_version" => "bmopf-opf-initialization-unavailable",
+            "available" => false,
+            "reason" => "BMOPFTools does not expose opf_initialization_data for this context",
+        )
+    end
+    available = get(evidence, "available", false) === true
+    applied = get(evidence, "applied", false) === true
+    residual = get(
+        evidence, "maximum_normalized_physics_residual", nothing,
+    )
+    residual_passed = residual isa Real && isfinite(residual) &&
+        Float64(residual) <= residual_tolerance
+    unsupported = get(evidence, "unsupported_transformer_subtypes", String[])
+    unsupported_empty = unsupported isa AbstractVector && isempty(unsupported)
+    result = Dict{String,Any}(evidence)
+    result["residual_tolerance"] = Float64(residual_tolerance)
+    result["residual_passed"] = residual_passed
+    result["supported_representation_passed"] = unsupported_empty
+    result["transport_gate_passed"] =
+        available && applied && residual_passed && unsupported_empty
+    return result
+end
+
+"""Return qualified transformer-side base-conversion evidence for a proposal."""
+function _bmopf_transformer_scaling_contract_data(context; kwargs...)
+    engine = BMOPFTools.opf_transformer_scaling_contract_data(
+        context; kwargs...,
+    )
+    interfaces = get(engine, "interfaces", Dict{String,Any}[])
+    symmetric_factor(value) = begin
+        ratio = Float64(value)
+        max(ratio, inv(ratio))
+    end
+    function range_for(key)
+        values = Float64[
+            symmetric_factor(interface[key]) for interface in interfaces
+            if haskey(interface, key) && interface[key] isa Real &&
+               isfinite(interface[key]) && interface[key] > 0
+        ]
+        return Dict{String,Any}(
+            "available" => !isempty(values),
+            "minimum_symmetric_factor" => isempty(values) ? nothing : minimum(values),
+            "maximum_symmetric_factor" => isempty(values) ? nothing : maximum(values),
+        )
+    end
+    by_subtype = Dict{String,Int}()
+    for interface in interfaces
+        subtype = String(get(interface, "subtype", "unknown"))
+        by_subtype[subtype] = get(by_subtype, subtype, 0) + 1
+    end
+    comparison_ready = get(engine, "proposal_admissible", false) === true &&
+        get(engine, "power_product_identity_passed", false) === true
+    model_experiment_ready = comparison_ready &&
+        get(engine, "requires_new_transformer_stamping", false) !== true
+    result = Dict{String,Any}(engine)
+    result["schema_version"] =
+        "nlpdiagnostics-bmopf-transformer-scaling-contract-v1"
+    result["comparison_ready"] = comparison_ready
+    result["model_experiment_ready"] = model_experiment_ready
+    result["interface_count_by_subtype"] = by_subtype
+    result["conversion_ranges"] = Dict{String,Any}(
+        "voltage" => range_for("voltage_coordinate_ratio_to_from"),
+        "current" => range_for("current_coordinate_ratio_to_from"),
+        "power" => range_for("power_coordinate_ratio_to_from"),
+    )
+    result["interfaces_requiring_current_conversion"] = count(interface ->
+        get(interface, "requires_explicit_current_conversion", false) === true,
+        interfaces,
+    )
+    result["interfaces_requiring_power_conversion"] = count(interface ->
+        get(interface, "requires_explicit_power_conversion", false) === true,
+        interfaces,
+    )
+    result["qualification"] = Dict{String,Any}(
+        "claim" =>
+            "audited algebraic conversion requirements for transformer-local coordinate bases",
+        "comparison_ready_means" =>
+            "the proposal is complete, galvanically consistent, and satisfies V_base*I_base=S_base at every represented interface",
+        "model_experiment_ready_means" =>
+            "the current BMOPFTools model already applies the proposed coordinate contract",
+        "does_not_establish" => [
+            "improved conditioning",
+            "reduced solver work",
+            "physical endpoint acceptance",
+            "support for an unrepresented transformer connection",
+        ],
+    )
+    return result
+end
+
 """Return explicit voltage-pattern evidence for BMOPFTools-generated starts."""
 function _bmopf_voltage_initialization_invariants_data(
     context;
@@ -1711,6 +1812,7 @@ function _bmopf_voltage_initialization_invariants_data(
     magnitude_relative_tolerance::Real=1.0e-10,
     angle_absolute_tolerance::Real=1.0e-5,
     neutral_physical_tolerance::Real=1.0e-10,
+    transport_residual_tolerance::Real=1.0e-10,
 )
     magnitude_relative_tolerance >= 0 || throw(ArgumentError(
         "magnitude_relative_tolerance must be nonnegative",
@@ -1721,6 +1823,9 @@ function _bmopf_voltage_initialization_invariants_data(
     neutral_physical_tolerance >= 0 || throw(ArgumentError(
         "neutral_physical_tolerance must be nonnegative",
     ))
+    transport = _bmopf_initialization_transport_data(
+        context; residual_tolerance=transport_residual_tolerance,
+    )
     point = _bmopf_start_completion_point(
         context;
         missing_value,
@@ -1832,6 +1937,9 @@ function _bmopf_voltage_initialization_invariants_data(
         "checked_bus_count" => checked_bus_count,
         "balanced_three_phase_bus_count" => balanced_bus_count,
         "checked_invariants_passed" => checked_bus_count > 0 && checked_passed,
+        "phasor_transport" => transport,
+        "phasor_transport_passed" =>
+            get(transport, "transport_gate_passed", false) === true,
         "point_fingerprint" =>
             NLPDiagnostics.evaluation_point_fingerprint(point),
         "point_provenance" => Dict{String,Any}(
@@ -1861,6 +1969,8 @@ function _bmopf_initialization_scaling_covariance_report(
     missing_value::Real=0.0,
     semantic_blocks::Bool=true,
     require_canonical_voltage_pattern::Bool=false,
+    require_phasor_transport::Bool=false,
+    transport_residual_tolerance::Real=1.0e-10,
     covariance_kwargs...,
 )
     reference_point = _bmopf_start_completion_point(
@@ -1897,10 +2007,10 @@ function _bmopf_initialization_scaling_covariance_report(
             covariance_kwargs...,
         )
     reference_pattern = _bmopf_voltage_initialization_invariants_data(
-        reference_context; missing_value,
+        reference_context; missing_value, transport_residual_tolerance,
     )
     candidate_pattern = _bmopf_voltage_initialization_invariants_data(
-        candidate_context; missing_value,
+        candidate_context; missing_value, transport_residual_tolerance,
     )
     covariance_passed = get(
         covariance, "equivalence_gate_passed", false,
@@ -1911,6 +2021,10 @@ function _bmopf_initialization_scaling_covariance_report(
         get(reference_pattern, "balanced_three_phase_bus_count", 0) > 0 &&
         get(candidate_pattern, "balanced_three_phase_bus_count", 0) > 0
     )
+    transport_passed = !require_phasor_transport || (
+        get(reference_pattern, "phasor_transport_passed", false) === true &&
+        get(candidate_pattern, "phasor_transport_passed", false) === true
+    )
     return Dict{String,Any}(
         "schema_version" =>
             "bmopf-initialization-scaling-covariance-v1",
@@ -1919,7 +2033,11 @@ function _bmopf_initialization_scaling_covariance_report(
         "canonical_voltage_pattern_required" =>
             require_canonical_voltage_pattern,
         "canonical_voltage_pattern_passed" => pattern_passed,
-        "equivalence_gate_passed" => covariance_passed && pattern_passed,
+        "phasor_transport_required" => require_phasor_transport,
+        "phasor_transport_passed" => transport_passed,
+        "transport_residual_tolerance" => Float64(transport_residual_tolerance),
+        "equivalence_gate_passed" =>
+            covariance_passed && pattern_passed && transport_passed,
         "semantic_blocks" => semantic_blocks,
         "reference_scaling_policy" =>
             _bmopf_scaling_policy_label(reference_context),

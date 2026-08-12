@@ -17,6 +17,34 @@ function _bmopf_covariance_fixture()
     """; from_string=true)
 end
 
+function _bmopf_transformer_chain_initialization_fixture()
+    return BMOPFTools.parse_bmopf(raw"""
+    {"bus":{
+        "hv":{"terminal_names":["a","b","c","n"],
+              "perfectly_grounded_terminals":["n"]},
+        "delta":{"terminal_names":["a","b","c"]},
+        "lv":{"terminal_names":["a","b","c","n"],
+              "perfectly_grounded_terminals":["n"]}},
+     "voltage_source":{"source":{"bus":"hv",
+         "terminal_map":["a","b","c"],
+         "v_magnitude":[6350.0,6350.0,6350.0],
+         "v_angle":[0.29670597283903605,-1.7976891295541593,2.3911010752322315]}},
+     "transformer":{
+       "wye_delta":{"yd":{"bus_from":"hv","bus_to":"delta",
+         "terminal_map_from":["a","b","c","n"],
+         "terminal_map_to":["a","b","c"],
+         "v_nom_from":11000.0,"v_nom_to":415.0,"s_rating":500000.0,
+         "r_series_from":0.01,"x_series_from":0.02,
+         "r_series_to":0.00001,"x_series_to":0.00002}},
+       "delta_wye":{"dy":{"bus_from":"delta","bus_to":"lv",
+         "terminal_map_from":["a","b","c"],
+         "terminal_map_to":["a","b","c","n"],
+         "v_nom_from":415.0,"v_nom_to":230.0,"s_rating":100000.0,
+         "r_series_from":0.00001,"x_series_from":0.00002,
+         "r_series_to":0.00001,"x_series_to":0.00002}}}}
+    """; from_string=true)
+end
+
 function _bmopf_covariance_evaluation(context, label)
     BMOPFTools.opf_lifecycle(context) == :kcl_finalized ||
         BMOPFTools.enforce_kcl!(context)
@@ -49,6 +77,7 @@ end
             candidate_context;
             absolute_tolerance=1e-9,
             relative_tolerance=5e-9,
+            require_phasor_transport=true,
         )
     @test initialization_covariance["available"]
     @test initialization_covariance["initialization_covariance_passed"]
@@ -60,6 +89,14 @@ end
         "checked_invariants_passed"
     ]
     @test !initialization_covariance["canonical_voltage_pattern_required"]
+    @test initialization_covariance["phasor_transport_required"]
+    @test initialization_covariance["phasor_transport_passed"]
+    @test initialization_covariance["reference_voltage_pattern"][
+        "phasor_transport"
+    ]["residual_passed"]
+    @test initialization_covariance["candidate_voltage_pattern"][
+        "phasor_transport"
+    ]["transport_gate_passed"]
 
     reference_map = NLPDiagnostics.bmopf_diagonal_scaling_map(
         reference_context, reference_evaluation)
@@ -237,6 +274,61 @@ end
     @test block_rejected["available"]
     @test !block_rejected["metrics"]["physical_jacobian"]["passed"]
     @test !block_rejected["equivalence_gate_passed"]
+end
+
+@testset "BMOPF transformer-chain initialization covariance" begin
+    network = _bmopf_transformer_chain_initialization_fixture()
+    si_context = BMOPFTools.build_opf_model(
+        network;
+        scaling_policy=BMOPFTools.SIUnitsScaling(),
+        add_objective=false,
+    )
+    pu_context = BMOPFTools.build_opf_model(
+        network;
+        scaling_policy=BMOPFTools.ClassicPerUnitScaling(1.0e6),
+        add_objective=false,
+    )
+    report = NLPDiagnostics.bmopf_initialization_scaling_covariance_report(
+        si_context,
+        pu_context;
+        require_phasor_transport=true,
+        absolute_tolerance=1.0e-8,
+        relative_tolerance=1.0e-8,
+    )
+    @test report["equivalence_gate_passed"]
+    @test report["initialization_covariance_passed"]
+    @test report["phasor_transport_passed"]
+    for side in ("reference_voltage_pattern", "candidate_voltage_pattern")
+        transport = report[side]["phasor_transport"]
+        @test transport["equation_count_by_kind"]["wye_delta"] == 3
+        @test transport["equation_count_by_kind"]["delta_wye"] == 3
+        @test transport["maximum_normalized_physics_residual"] < 1.0e-10
+        @test isempty(transport["unsupported_transformer_subtypes"])
+    end
+
+    contract = NLPDiagnostics.bmopf_transformer_scaling_contract_data(
+        si_context;
+        voltage_bases=Dict(
+            "hv" => 6350.0,
+            "delta" => 415.0 / sqrt(3.0),
+            "lv" => 230.0 / sqrt(3.0),
+        ),
+        power_bases=Dict(
+            "hv" => 10.0e6,
+            "delta" => 1.0e6,
+            "lv" => 100.0e3,
+        ),
+    )
+    @test contract["comparison_ready"]
+    @test !contract["model_experiment_ready"]
+    @test contract["requires_new_transformer_stamping"]
+    @test contract["interfaces_requiring_current_conversion"] == 2
+    @test contract["interfaces_requiring_power_conversion"] == 2
+    @test contract["interface_count_by_subtype"]["wye_delta"] == 1
+    @test contract["interface_count_by_subtype"]["delta_wye"] == 1
+    @test contract["conversion_ranges"]["power"][
+        "maximum_symmetric_factor"
+    ] ≈ 10.0
 end
 
 @testset "BMOPF solved physical state across four scaling policies" begin

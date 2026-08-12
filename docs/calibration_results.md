@@ -833,3 +833,24 @@ The corrected full artifacts are
 `work/bmopf-stratified-ipopt-invariant-start-scaling-campaign.json` and
 `work/bmopf-stratified-madnlp-scaling-campaign.json`, each with a compact
 `-summary.json` companion.
+
+## 2026-08-12: compositional transformer initialization qualification
+
+A chained Yd/Dy fixture with a nonzero source angle now verifies generated
+phasors from SI and classic per-unit coordinates against the same ideal winding
+relations. Both engine transports report maximum normalized physics residuals
+of approximately `1.6e-12`, and the complete NLPDiagnostics initialization
+covariance gate passes for physical coordinates, constraint functions and sets,
+residuals, and Jacobian.
+
+The first run was correctly withheld: 12 dynamically created transformer
+coil-power variables were not yet present in the public registry before KCL
+finalization, so the semantic covariance map was incomplete. Publishing those
+variables immediately after device-physics construction fixed the evidence
+contract; no numerical tolerance was relaxed. This is an instrumentation
+result, not evidence that either scaling policy is superior.
+
+BMOPFTools' focused transformer-start suite now exercises actual-parent-phase
+single-phase laterals, centre-tap polarity, chained Yd/Dy phase shifts,
+n-winding `delta_roll`, and SI/per-unit physical covariance. Zigzag is recorded
+as unsupported because no schema-level connection matrix yet exists.

@@ -1261,7 +1261,13 @@ voltage starts in both model and physical coordinates. It checks zero explicit
 neutrals and, only on three-phase buses with an explicit reference, equal phase
 magnitudes and pairwise 120-degree separation. Delta and split-phase buses are
 not forced through that wye-pattern assumption. The report is pattern evidence,
-not an initial-feasibility claim.
+not an initial-feasibility claim. When the engine exposes
+`opf_initialization_data`, the same artifact also carries the network-wide
+phasor-transport equation counts, per-family residuals, unsupported transformer
+subtypes, and a separately qualified transport gate. This is the appropriate
+evidence for multi-voltage transformer chains, single-phase laterals,
+centre-tapped secondaries, and WYE/DELTA vector-group shifts; a balanced-wye
+pattern check cannot establish any of those relations.
 
 `bmopf_initialization_scaling_covariance_report` independently reads each
 policy's generated start and compares the complete physical point, functions,
@@ -1269,7 +1275,29 @@ sets, residuals, and Jacobian through authoritative semantic maps. Campaigns
 can now require this gate separately from common-start transport. The two gates
 answer different questions: whether the engine's native initialization is
 coordinate-invariant, and whether an experimental stratum was transported
-identically.
+identically. Set `require_phasor_transport=true` for transformer-rich campaigns;
+then both contexts must report an applied transport solve, no unsupported
+transformer subtype, and a residual below `transport_residual_tolerance`.
+Zigzag is presently a representation gap in BMOPFTools, so it must remain an
+explicitly unsupported connection until schema-level connection matrices and
+their matching OPF equations exist.
+
+`bmopf_transformer_scaling_contract_data` is the pre-mutation contract for
+local transformer-side voltage and power bases. It delegates topology and
+connection ownership to BMOPFTools, then reports galvanic-zone consistency,
+per-interface voltage/current/power conversion factors, symmetric conversion
+ranges, and the identity error in `V_base*I_base=S_base`. Two readiness flags
+are intentionally distinct:
+
+- `comparison_ready` means the proposal is complete and algebraically
+  self-consistent;
+- `model_experiment_ready` means the current engine has actually applied that
+  proposal to its equations.
+
+A local-power-base proposal can therefore be useful for designing the next
+intervention while remaining ineligible for solver-performance comparison.
+This prevents a table of attractive bases from being mistaken for a changed,
+covariance-qualified NLP.
 
 The first truth-labelled integration fixture compares classic 1 MVA per-unit
 coordinates with a custom 500 V / 200 kVA policy. All physical-coordinate,

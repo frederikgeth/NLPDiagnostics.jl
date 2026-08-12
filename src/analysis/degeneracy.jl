@@ -142,6 +142,11 @@ bmopf_initialization_scaling_covariance_report(
 ) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required for BMOPF initialization covariance")._bmopf_initialization_scaling_covariance_report(
         reference_context, candidate_context; kwargs...)
+"""Audit transformer-side conversion factors for proposed local voltage/power bases."""
+bmopf_transformer_scaling_contract_data(context; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for transformer scaling contracts")._bmopf_transformer_scaling_contract_data(
+            context; kwargs...)
 """Map saved BMOPF result coordinates into a labeled partial evaluation point."""
 bmopf_result_voltage_point(context, result; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to map a BMOPF result point")._bmopf_result_voltage_point(context, result; kwargs...)

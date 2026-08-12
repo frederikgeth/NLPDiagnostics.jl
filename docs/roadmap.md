@@ -3493,3 +3493,65 @@ The revised next major items, in order, are:
    them; and
 3. promote the surviving magnitude policies to the bounded 30-bus and
    multi-time 99-bus matrix with dense analysis disabled.
+
+## 2026-08-12 transformer-aware initialization and scaling checkpoint
+
+The initialization contract is now compositional across the represented
+network rather than a collection of local angle overrides. BMOPFTools solves a
+sparse, nominal-voltage-normalized ideal phasor transport system covering line
+and switch conductor maps, off-three-phase single-phase laterals, centre taps,
+Yd/Dy chains, regulators, and WYE/DELTA n-winding units. It publishes
+per-equation-family residual evidence through `opf_initialization_data`.
+NLPDiagnostics consumes this evidence and offers a mandatory phasor-transport
+gate alongside physical native-start covariance.
+
+The new chained Yd/Dy integration fixture initially found 12 unregistered
+transformer coil-power auxiliaries. BMOPFTools now publishes those variables at
+the device-physics stage, before KCL finalization, so a read-only diagnostic no
+longer needs to mutate staged construction to obtain complete semantic maps.
+The fixture now passes SI-versus-classic physical point, function, residual,
+set, and Jacobian covariance with transformer transport residuals near
+`1.6e-12`. Engine-focused transformer tests cover parent-phase inheritance,
+split-phase polarity, chained Yd/Dy equations, `delta_roll`, and physical
+SI/per-unit start invariance.
+
+This closes initialization covariance for currently represented transformer
+families. It does **not** close transformer nondimensionalisation research. The
+next major items are now:
+
+1. design explicit semantic variable/residual transforms that permit local
+   power/current bases on opposite transformer windings while preserving KCL,
+   ampere-turn, power-link, and nameplate equations exactly;
+2. build matched centre-tap, open-delta-regulator, n-winding delta, and
+   phase-subset scaling fixtures, requiring the new transport gate and complete
+   endpoint covariance;
+3. add an explicit connection-matrix representation for vector groups not
+   expressible as WYE/DELTA incidence—starting with zigzag—before claiming
+   initialization or scaling support for them;
+4. run the genuine phase-only orthogonal control on those fixtures, holding
+   magnitude bases fixed; and
+5. promote only surviving policies to bounded sparse feeder campaigns, with
+   dense decompositions disabled and solver linear-algebra telemetry retained.
+
+### Local transformer-base contract implemented
+
+The first roadmap item now has a non-mutating public contract. BMOPFTools
+partitions buses into galvanically continuous zones, validates that proposed
+power bases are constant inside each zone, and publishes the voltage/current/
+power conversion ratios required at each isolating transformer boundary.
+NLPDiagnostics reports symmetric conversion ranges and separate algebraic and
+model-application readiness gates. A 10 MVA → 1 MVA → 100 kVA chained Yd/Dy
+proposal passes its algebraic identities but is correctly withheld from solver
+experiments because local-base transformer stamping is not yet implemented.
+
+The immediate implementation sequence is therefore narrower and testable:
+
+1. introduce an experimental zone-local scaling policy whose base metadata
+   retains `S_base(bus)` and `I_base(bus)` instead of one scalar `s_base`;
+2. stamp explicit side-base coefficients into transformer voltage/current
+   coupling, terminal KCL injections, coil-power links, and ratings;
+3. update extraction, costs, and hook helpers to use component-local power
+   conversion rather than `bases.s_base`;
+4. require full SI-versus-local physical point/function/set/residual/Jacobian
+   covariance on the chained fixture; and
+5. only then run centre-tap, regulator, and n-winding solver experiments.
