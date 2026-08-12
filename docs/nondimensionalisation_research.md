@@ -635,3 +635,25 @@ conversion at both transformer interfaces. The proposal is correctly marked
 not model-experiment-ready because BMOPFTools has not yet stamped those local
 base coefficients. This negative readiness result is a feature: it prevents
 solver-work claims before the coordinate transformation exists.
+
+### First executable zone-local slice
+
+`ZonePerUnitScaling` now executes the same idea across an isolated
+single-phase transformer. It stores `S_base(bus)`, derives local current and
+impedance bases, stamps the `S_from/S_to` factor into ampere-turn balance and
+the reciprocal factor into cross-side leakage referral, and applies local
+power conversion to devices, ratings, costs, losses, and result extraction.
+
+The truth fixture uses 1 MVA on a 2.4 kV primary and 25 kVA on a 240 V
+secondary—a 40:1 power-coordinate change. SI, classic per-unit, and zone-local
+models agree on solved physical voltages, source/load powers, losses, and OPF
+objective. NLPDiagnostics also passes the same-start physical point,
+constraint-function, residual-set, Jacobian-support/rank, and physical-Jacobian
+covariance gate. During this test the adapter's remaining system-power-base
+assumption was exposed by a 0.975 relative derivative/set discrepancy and was
+replaced with bus/winding-local semantic scales.
+
+This is evidence of equivalence, not evidence of better conditioning. The
+connection-qualified boundary is intentionally narrow: cross-zone Yd/Dy,
+center-tap, n-winding, and AC/DC policies are rejected until their incidence
+and power-referral equations have corresponding covariance oracles.

@@ -1103,10 +1103,14 @@ function _bmopf_current_base(context, bus::String)
     return Float64(value)
 end
 
-"""Return the public system power base, or one for SI model coordinates."""
-function _bmopf_power_base(context)
+"""Return the public power base, optionally for one AC bus."""
+function _bmopf_power_base(context, bus::Union{Nothing,String}=nothing)
     bases = BMOPFTools.opf_bases(context)
     isnothing(bases) && return 1.0
+    if bus !== nothing && hasproperty(bases, :s_base_bus)
+        value = get(getproperty(bases, :s_base_bus), bus, nothing)
+        value isa Real && isfinite(value) && value > 0 && return Float64(value)
+    end
     hasproperty(bases, :s_base) || return nothing
     value = getproperty(bases, :s_base)
     value isa Real && isfinite(value) && value > 0 || return nothing
@@ -1268,9 +1272,22 @@ function _bmopf_variable_physical_scale(context, key)
         bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
         scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:current)
-    elseif family in (:p_ibr, :q_ibr, :pdc_src,
-                      :transformer_coil_p, :transformer_coil_q,
-                      :nwind_coil_p, :nwind_coil_q)
+    elseif family in (:p_ibr, :q_ibr)
+        bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family in (:transformer_coil_p, :transformer_coil_q)
+        side = _bmopf_tuple_entry(index, 2)
+        bus = isnothing(side) ? nothing :
+            _bmopf_transformer_side_bus(network, _bmopf_index_id(index), side)
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family in (:nwind_coil_p, :nwind_coil_q)
+        winding = _bmopf_tuple_entry(index, 2)
+        bus = _bmopf_nwind_bus(network, _bmopf_index_id(index), winding)
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family == :pdc_src
         scale = _bmopf_power_base(context)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
     elseif family == :u_ibr
@@ -1432,7 +1449,10 @@ function _bmopf_constraint_physical_scale(context, key)
         scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale^2, quantity=:current_squared)
     elseif family == :transformer_apparent_power_circle
-        scale = _bmopf_power_base(context)
+        side = _bmopf_tuple_entry(index, 2)
+        bus = isnothing(side) ? nothing :
+            _bmopf_transformer_side_bus(network, _bmopf_index_id(index), side)
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale^2, quantity=:power_squared)
     elseif family in (:nwind_ampere_turn_real, :nwind_ampere_turn_imag)
         bus = _bmopf_nwind_bus(network, _bmopf_index_id(index), 1)
@@ -1448,7 +1468,9 @@ function _bmopf_constraint_physical_scale(context, key)
         scale = isnothing(bus) ? nothing : _bmopf_current_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale^2, quantity=:current_squared)
     elseif family == :nwind_apparent_power_circle
-        scale = _bmopf_power_base(context)
+        winding = _bmopf_tuple_entry(index, 2)
+        bus = _bmopf_nwind_bus(network, _bmopf_index_id(index), winding)
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale^2, quantity=:power_squared)
     elseif family in (:line_angle_lower, :line_angle_upper)
         bus = _bmopf_component_bus(network, "line", _bmopf_index_id(index); field="bus_from")
@@ -1459,7 +1481,8 @@ function _bmopf_constraint_physical_scale(context, key)
         scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
         return isnothing(scale) ? nothing : (scale=scale^2, quantity=:voltage_squared)
     elseif family in (:load_power_real, :load_power_imag)
-        scale = _bmopf_power_base(context)
+        bus = _bmopf_component_bus(network, "load", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
     elseif family in (:load_voltage_squared_definition,
                       :load_voltage_squared_lower_bound,
@@ -1474,22 +1497,39 @@ function _bmopf_constraint_physical_scale(context, key)
         scale = isnothing(bus) ? nothing : _bmopf_ac_voltage_scale(context, bus)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:voltage)
     elseif family in (:generator_p_lower, :generator_p_upper,
-                      :generator_q_lower, :generator_q_upper,
-                      :source_p_lower, :source_p_upper,
-                      :source_q_lower, :source_q_upper,
-                      :ibr_p_lower, :ibr_p_upper, :ibr_q_lower, :ibr_q_upper,
+                      :generator_q_lower, :generator_q_upper)
+        bus = _bmopf_component_bus(network, "generator", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family in (:source_p_lower, :source_p_upper,
+                      :source_q_lower, :source_q_upper)
+        bus = _bmopf_component_bus(network, "voltage_source", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family in (:ibr_p_lower, :ibr_p_upper, :ibr_q_lower, :ibr_q_upper,
                       :ibr_power_factor, :ibr_q_volt_var,
                       :ibr_power_link_p, :ibr_power_link_q,
                       :ibr_dc_power_lower, :ibr_dc_power_upper)
-        scale = _bmopf_power_base(context)
+        bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
-    elseif family in (:power_link_p, :power_link_q,
-                      :transformer_power_link_p, :transformer_power_link_q,
-                      :nwind_power_link_p, :nwind_power_link_q)
+    elseif family in (:transformer_power_link_p, :transformer_power_link_q)
+        side = _bmopf_tuple_entry(index, 2)
+        bus = isnothing(side) ? nothing :
+            _bmopf_transformer_side_bus(network, _bmopf_index_id(index), side)
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family in (:nwind_power_link_p, :nwind_power_link_q)
+        winding = _bmopf_tuple_entry(index, 2)
+        bus = _bmopf_nwind_bus(network, _bmopf_index_id(index), winding)
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family in (:power_link_p, :power_link_q)
         scale = _bmopf_power_base(context)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
     elseif family in (:ibr_power_circle,)
-        scale = _bmopf_power_base(context)
+        bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale^2, quantity=:power_squared)
     elseif family in (:ibr_current_thermal, :ibr_neutral_current_thermal)
         bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
@@ -1768,6 +1808,7 @@ function _bmopf_transformer_scaling_contract_data(context; kwargs...)
     comparison_ready = get(engine, "proposal_admissible", false) === true &&
         get(engine, "power_product_identity_passed", false) === true
     model_experiment_ready = comparison_ready &&
+        get(engine, "applied_to_model", false) === true &&
         get(engine, "requires_new_transformer_stamping", false) !== true
     result = Dict{String,Any}(engine)
     result["schema_version"] =
@@ -2310,7 +2351,9 @@ function _bmopf_result_voltage_point(
                 assign_scaled!(key, get(entry, result_real, nothing), base)
                 assign_scaled!(BMOPFTools.OpfModelKey(key.kind, imag_family, key.index), get(entry, result_imag, nothing), base)
                 if section == "ibr"
-                    power_base = field_policy[:ibr_power] == :si ? _bmopf_power_base(context) : 1.0
+                    power_base = field_policy[:ibr_power] == :si ?
+                        _bmopf_power_base(
+                            context, string(get(component, "bus", ""))) : 1.0
                     isnothing(power_base) && continue
                     assign_scaled!(BMOPFTools.opf_ibr_power_key(string(id), position), get(entry, "pg", nothing), power_base)
                     assign_scaled!(BMOPFTools.opf_ibr_power_key(string(id), position; component = :reactive), get(entry, "qg", nothing), power_base)
@@ -7069,7 +7112,11 @@ function _bmopf_current_law_saved_power(context, source, component_type::Symbol,
     p isa Real && q isa Real && isfinite(p) && isfinite(q) || return nothing
     policy = _bmopf_result_field_units(result_units, field_units)
     family = component_type == :generator ? :generator_power : :ibr_power
-    scale = policy[family] == :si ? _bmopf_power_base(context) : 1.0
+    network = BMOPFTools.opf_network(context)
+    component = get(get(network, section, Dict()), component_id, nothing)
+    bus = component isa AbstractDict ? string(get(component, "bus", "")) : nothing
+    scale = policy[family] == :si && bus !== nothing ?
+        _bmopf_power_base(context, bus) : 1.0
     isnothing(scale) && return nothing
     return ComplexF64(Float64(p) / scale, Float64(q) / scale)
 end
@@ -7360,7 +7407,7 @@ function _bmopf_controller_curve_base(context, record::AbstractDict, index::Int,
         available = get(record, "p_avail", nothing)
         available isa Real || return nothing
         phase_count = max(length(_bmopf_current_law_voltage_pairs(context, record; component_type = :ibr)), 1)
-        power_base = _bmopf_power_base(context)
+        power_base = _bmopf_power_base(context, string(get(record, "bus", "")))
         return Float64(available) / phase_count / (isnothing(power_base) ? 1.0 : power_base)
     end
     return nothing

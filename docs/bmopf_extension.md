@@ -1299,6 +1299,16 @@ intervention while remaining ineligible for solver-performance comparison.
 This prevents a table of attractive bases from being mistaken for a changed,
 covariance-qualified NLP.
 
+BMOPFTools now provides a first qualified executable slice through
+`ZonePerUnitScaling`: power bases may differ across an isolated
+`single_phase` transformer and must remain constant inside each galvanic zone.
+For such a context, `applied_to_model` and `model_experiment_ready` are true.
+The adapter uses bus- and winding-local power bases for variables, residual
+sets, and Jacobian transformations; using the legacy system base here was a
+detected covariance failure, not a harmless reporting approximation. Yd/Dy,
+center-tap, n-winding, and AC/DC cross-zone changes remain rejected by the
+engine rather than being classified as ready.
+
 The first truth-labelled integration fixture compares classic 1 MVA per-unit
 coordinates with a custom 500 V / 200 kVA policy. All physical-coordinate,
 function, set, violation, and Jacobian checks pass. The custom coordinates

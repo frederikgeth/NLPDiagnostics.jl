@@ -3544,14 +3544,24 @@ model-application readiness gates. A 10 MVA → 1 MVA → 100 kVA chained Yd/Dy
 proposal passes its algebraic identities but is correctly withheld from solver
 experiments because local-base transformer stamping is not yet implemented.
 
-The immediate implementation sequence is therefore narrower and testable:
+The first executable slice of that sequence is complete. `ZonePerUnitScaling`
+retains `S_base(bus)` and derived `I/Z/Y` maps, applies a local base change
+across isolated single-phase transformers, and rejects unqualified cross-zone
+families. A 40:1 power-base fixture passes SI/local solved-state, loss,
+objective, initialization, constraint-set, residual, and physical-Jacobian
+covariance. NLPDiagnostics now consumes bus/winding-local power scales rather
+than the legacy scalar system base.
 
-1. introduce an experimental zone-local scaling policy whose base metadata
-   retains `S_base(bus)` and `I_base(bus)` instead of one scalar `s_base`;
-2. stamp explicit side-base coefficients into transformer voltage/current
-   coupling, terminal KCL injections, coil-power links, and ratings;
-3. update extraction, costs, and hook helpers to use component-local power
-   conversion rather than `bases.s_base`;
-4. require full SI-versus-local physical point/function/set/residual/Jacobian
-   covariance on the chained fixture; and
-5. only then run centre-tap, regulator, and n-winding solver experiments.
+The next sequence is:
+
+1. generalize side-base coefficients to Yd/Dy connection matrices, including
+   delta-arm impedance referral and winding-side power/rating auxiliaries;
+2. qualify center-tap anti-series legs and split-phase ratings, followed by
+   n-winding WYE/DELTA ampere-turn and leakage matrices;
+3. keep galvanically continuous regulators on one power base, but test their
+   voltage-base/tap initialization and shared-conductor covariance explicitly;
+4. add local-base-aware public hook helpers and AC/DC converter power-balance
+   coefficients before permitting different AC and DC power bases; and
+5. after each family clears equivalence, run matched solver campaigns comparing
+   KKT geometry, regularization, factorization work, endpoint quality, and
+   sensitivity to transported starts.

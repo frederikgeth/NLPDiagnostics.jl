@@ -45,6 +45,25 @@ function _bmopf_transformer_chain_initialization_fixture()
     """; from_string=true)
 end
 
+function _bmopf_zone_local_transformer_fixture()
+    return BMOPFTools.parse_bmopf(raw"""
+    {"bus":{
+        "hv":{"terminal_names":["a","n"],
+              "perfectly_grounded_terminals":["n"]},
+        "lv":{"terminal_names":["x","n"],
+              "perfectly_grounded_terminals":["n"]}},
+     "voltage_source":{"source":{"bus":"hv","terminal_map":["a"],
+         "v_magnitude":[2400.0],"v_angle":[0.17]}},
+     "transformer":{"single_phase":{"tx":{"bus_from":"hv","bus_to":"lv",
+         "terminal_map_from":["a","n"],"terminal_map_to":["x","n"],
+         "v_nom_from":2400.0,"v_nom_to":240.0,"s_rating":50000.0,
+         "r_series_from":1.0,"x_series_from":2.0,
+         "r_series_to":0.01,"x_series_to":0.02}}},
+     "load":{"load":{"bus":"lv","terminal_map":["x","n"],
+         "configuration":"WYE","p_nom":[10000.0],"q_nom":[3000.0]}}}
+    """; from_string=true)
+end
+
 function _bmopf_covariance_evaluation(context, label)
     BMOPFTools.opf_lifecycle(context) == :kcl_finalized ||
         BMOPFTools.enforce_kcl!(context)
@@ -52,6 +71,46 @@ function _bmopf_covariance_evaluation(context, label)
         context; missing_value=0.0, label)
     return NLPDiagnostics.evaluate_numerical(
         JuMP.backend(BMOPFTools.opf_model(context)), point)
+end
+
+@testset "BMOPF applied zone-local transformer scaling contract" begin
+    network = _bmopf_zone_local_transformer_fixture()
+    zone = BMOPFTools.ZonePerUnitScaling(
+        name=:diagnostic_zone_local,
+        voltage_bases=Dict("hv" => 2400.0, "lv" => 240.0),
+        power_bases=Dict("hv" => 1.0e6, "lv" => 25.0e3),
+    )
+    si_context = BMOPFTools.build_opf_model(
+        network; scaling_policy=BMOPFTools.SIUnitsScaling(),
+        add_objective=false,
+    )
+    local_context = BMOPFTools.build_opf_model(
+        network; scaling_policy=zone, add_objective=false,
+    )
+    contract = NLPDiagnostics.bmopf_transformer_scaling_contract_data(
+        local_context,
+    )
+    @test contract["comparison_ready"]
+    @test contract["model_experiment_ready"]
+    @test contract["applied_to_model"]
+    @test !contract["requires_new_transformer_stamping"]
+    @test contract["interfaces_requiring_current_conversion"] == 1
+    @test contract["interfaces_requiring_power_conversion"] == 1
+    @test contract["interface_count_by_subtype"] == Dict("single_phase" => 1)
+    @test contract["conversion_ranges"]["power"][
+        "maximum_symmetric_factor"
+    ] ≈ 40.0
+
+    initialization = NLPDiagnostics.bmopf_initialization_scaling_covariance_report(
+        si_context,
+        local_context;
+        require_phasor_transport=true,
+        absolute_tolerance=1.0e-8,
+        relative_tolerance=1.0e-8,
+    )
+    @test initialization["equivalence_gate_passed"]
+    @test initialization["initialization_covariance_passed"]
+    @test initialization["phasor_transport_passed"]
 end
 
 @testset "BMOPF cross-policy physical scaling covariance" begin
