@@ -691,3 +691,83 @@ certification, active-set locality for 288 inequalities, and
 
 Artifacts are under `/private/tmp/nlpdiag-bmopf-99bus-multitime-v2`; the
 consolidated gate record is `medium_profile_summary.json`.
+
+## 2026-08-12: objective-bearing BMOPF magnitude scaling
+
+The first start-stratified magnitude-only campaign completed 120 Ipopt solves:
+two compact objective-bearing case classes, four policies, three physical-start
+strata, and five fresh models per cell. Every stratum independently passed
+common-start physical covariance, intervention classification, semantic
+row/column geometry, objective-bearing endpoint covariance, physical KKT
+acceptance, stable provenance, and matched comparison coverage. All solves were
+locally optimal and none entered restoration.
+
+Across 15 observations per policy/case, callback-record ranges were 12--13
+(classic), 11--12 (lower local bases), 13--14 (aggressive high bases), and 18
+(SI) for the unbalanced three-phase fixture. The wye-delta transformer ranges
+were 17--18, 15--16, 18--25, and 19--21. Replicates within each start stratum
+were identical at the captured-work level; the ranges are therefore caused by
+the start strata, not process noise.
+
+The result supports three bounded conclusions: SI scaling is numerically poor
+on these fixtures; moderate local bases are promising; and aggressive bases
+can interact strongly with initialization through transformer equations. It
+also falsifies the idea that minimizing one global initial-Jacobian condition
+proxy is sufficient: the lower local-base transformer policy did less solver
+work despite a worse proxy than classic. This motivates family-resolved and
+trace-resolved scaling objectives.
+
+The reproducible artifact is
+`work/bmopf-stratified-scaling-campaign.json`. It is a local ignored research
+artifact (about 55 MiB), not a source-controlled golden file. The runner also
+writes a compact summary beside it (about 62 KiB) without discarding the full
+evidence record.
+
+## 2026-08-12: trace-resolved transformer mechanism pilot
+
+A bounded 16-solve campaign added eight event-preserving Jacobian-family
+snapshots to each Ipopt trace: four magnitude policies, native and seed-11
+physical starts, and two fresh replicates. All trace interpretations qualified
+with complete BMOPFTools row/column registry coverage. The work ranges were
+16 records for the lower local bases, 17--18 for classic, 18--22 for the
+aggressive high bases, and 21 for SI.
+
+SI's selected transformer current-coupling column spread reached about 6,351,
+and its voltage-column median moved from 1 to about 19.6, while the apparent
+power-circle rows remained around `1e-5`. The aggressive high-base policy
+instead concentrated growth in transformer-coil power columns; its selected
+reactive-power spread reached about 17.6. At the perturbed start, positive
+Ipopt regularization appeared twice for classic (maximum about 267) and twice
+for the aggressive policy (maximum about 26,667), but not for the lower-base
+or SI policies. The absence of regularization did not prevent SI from taking
+more iterations, so these mechanisms must remain separate evidence channels.
+
+Ipopt's public callback exposes no factorization count/time, inertia, pivot,
+fill, or backward-error statistics. The artifact records that absence and
+labels regularization as a proxy. MadNLP's callback does expose cumulative
+linear-solver time, factorization/backsolve counts, and evaluation counts; the
+adapter's monotonicity and coverage contracts are regression-tested; the full
+default MadNLP BMOPF campaign remains outstanding.
+
+## 2026-08-12: first MadNLP scaling-portability pilot
+
+The solver-parametric runner completed 16 transformer solves with MadNLP: four
+policies, native and seed-11 physical starts, and two fresh replicates. Every
+stratum campaign qualified, all endpoints passed the same physical KKT
+contract, and callback work was deterministic within each policy/start cell.
+Record ranges were 16--17 for classic, 16--17 for the lower local bases,
+19--21 for the aggressive high bases, and 20 for SI.
+
+MadNLP's cumulative callback counters were complete and monotone. On native
+first replicates the policies used 16, 17, 19, and 20 factorizations in the
+same order. On the perturbed start, classic used 23 factorizations for 17
+callback rows and the aggressive policy 33 for 21; their maximum
+regularizations were about 267 and 71,111. Lower-base used 16 factorizations
+and SI 20 without positive regularization. This confirms that callback count,
+regularization, and factorization work are distinct measures. The reported
+linear-solver times were below one millisecond and are not stable enough for a
+performance conclusion on this small fixture.
+
+Artifacts are `work/bmopf-madnlp-portability-pilot.json` and its compact
+`-summary.json` companion. The bounded pilot is not a substitute for the
+default five-repeat, three-stratum, two-case protocol.

@@ -1247,6 +1247,15 @@ trace and physical endpoint are not numerically equated; the artifact records
 their different roles and the fact that the last callback row can precede the
 public final result.
 
+`bmopf_iteration_trace_jacobian_family_geometry_data` applies the same public
+registry ownership to captured solver iterates. Each selected snapshot retains
+row- and column-family geometry, native callback metrics, and its point
+fingerprint; trajectory summaries retain first, last, minimum, maximum, and
+positive spread over the selected rows. Interpretation requires complete
+snapshot evaluation and complete BMOPFTools row/column registry coverage.
+Because callback coordinates are required, this path is presently available
+for the Ipopt adapter and explicitly unavailable for metric-only MadNLP traces.
+
 The first truth-labelled integration fixture compares classic 1 MVA per-unit
 coordinates with a custom 500 V / 200 kVA policy. All physical-coordinate,
 function, set, violation, and Jacobian checks pass. The custom coordinates
@@ -2034,3 +2043,82 @@ artifact. BMOPFTools still withheld an unqualified differentiability claim in
 this campaign because the reconstructed staged model itself was not optimized;
 saved-result profiles therefore remain local equation/Jacobian evidence, not
 certified solution sensitivities.
+
+## Matched scaling-run evidence
+
+`bmopf_variable_semantic_column_map` now labels every evaluated solver column
+from the public BMOPFTools variable registry. Both diagonal and semantic-block
+coordinate-geometry reports include row- and column-family comparisons plus a
+separate registry-coverage gate. Mathematical geometry remains available when
+a label is absent, but BMOPF interpretation is then unqualified.
+
+`bmopf_scaling_intervention_classification` compares authoritative semantic
+block maps and records whether a policy change is identity, magnitude-only,
+phase-like orthogonal, combined, or general linear. The algebraic phase-like
+label is not promoted to electrical phase semantics without component
+metadata.
+
+`bmopf_scaling_solver_experiment_comparison` joins two retained
+trace-plus-endpoint artifacts with the intervention, covariance, and geometry
+reports. It has no aggregate score. Qualification requires the declared
+intervention class, common physical model/point evidence, two accepted physical
+KKT endpoints, compatible solver telemetry semantics, complete registry
+coverage, and matching endpoint families. This is the contract to use for the
+first small magnitude-only campaign; phase-only experiments require a genuine
+rotation policy or controlled semantic-map intervention rather than a renamed
+positive scale.
+
+The executable pilot is
+`benchmarks/bmopf_magnitude_scaling_campaign.jl`. It builds a fresh model for
+every replicate, transports one classic-per-unit BMOPF start through physical
+semantic coordinates, and compares classic 1 MVA, SI, local 500 V / 200 kVA,
+and local 1500 V / 5 MVA policies. The default is two repeats and writes its
+complete artifact beneath `work/`.
+
+The first pilot completed all eight Ipopt solves with stable locally-optimal
+termination, no restoration rows, complete common-start covariance, accepted
+physical KKT endpoints, and passing provenance/intervention negative controls.
+Classic and both local-base policies retained four callback records and three
+line-search trials. SI retained five records and four trials. At the common
+start, the solver-coordinate Jacobian condition proxy was approximately 5.11
+for classic, 5.34 for the 500 V / 200 kVA policy, 5.84 for the 1500 V / 5 MVA
+policy, and 1964 for SI. The SI row- and column-norm spreads were each 1000
+times the classic spread.
+
+This is a mechanism-validating truth fixture, not evidence that one policy is
+universally faster. It has only one phase conductor, a feasibility objective,
+two deterministic repeats, and a tiny Jacobian. The result does show that the
+instrumentation can connect a deliberately magnitude-only coordinate change,
+family-resolved geometry, and reproducible solver work without changing the
+physical endpoint contract.
+
+The objective-bearing successor is
+`benchmarks/bmopf_stratified_scaling_campaign.jl`. It derives all candidate
+voltage bases from `opf_bases`, so transformer ratios remain owned by
+BMOPFTools; it does not reconstruct engineering semantics from variable names.
+The default study crosses two compact case classes, four magnitude policies,
+three deterministic physical-start strata, and five fresh replicates. Each
+stratum is independently aggregated first and then passed to
+`scaling_solver_experiment_stratified_campaign_data`, which refuses pooling
+unless policy coverage, reference policy, environment provenance, repeat floor,
+and all underlying campaign gates agree.
+
+The first default run qualified all 120 solves. The three-phase fixture used
+11--12 callback records for the lower local-base policy, 12--13 for classic,
+13--14 for the aggressive high-base policy, and 18 for SI. The transformer
+fixture used 15--16, 17--18, 18--25, and 19--21 respectively. All endpoints
+passed the declared physical KKT contract and no restoration occurred. The
+large 18--25 range for the high-base transformer policy is start sensitivity,
+not repeat noise: each five-run stratum was internally deterministic.
+
+Global Jacobian proxies must not be interpreted as a policy score. For example,
+the lower local-base transformer policy reduced solver work while its condition
+proxy was roughly 2.5--4.3 times classic at the retained starts. Conversely SI
+produced very large norm-spread/condition proxies and more work. Family-level
+geometry and trace evolution, rather than a single initial-point scalar, are
+the next attribution target.
+
+The runner writes both the full evidence artifact and a `-summary.json`
+companion. The summary keeps case/stratum gates, policy ranges, and comparison
+summaries while omitting repeated matrices and endpoint details; scientific
+audits should retain the full artifact.

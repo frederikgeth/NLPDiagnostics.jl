@@ -96,6 +96,29 @@ end
         )],
         objective_scale,
     )
+    intervention = NLPDiagnostics.scaling_intervention_classification(
+        reference_map, candidate_map,
+    )
+    @test intervention["available"]
+    @test intervention["classification"] == "magnitude_and_phase"
+    @test intervention["variables"]["classification"] ==
+          "phase_like_orthogonal"
+    @test intervention["constraints"]["classification"] ==
+          "phase_like_orthogonal"
+    @test !intervention["qualification"][
+        "phase_like_is_physical_phase_claim"
+    ]
+    phase_map = NLPDiagnostics.SemanticBlockScalingMap(
+        "phase-only";
+        variable_blocks=candidate_map.variable_blocks,
+        constraint_blocks=candidate_map.constraint_blocks,
+    )
+    @test NLPDiagnostics.scaling_intervention_classification(
+        reference_map, phase_map,
+    )["classification"] == "phase_only"
+    @test !NLPDiagnostics.scaling_intervention_classification(
+        reference_map, phase_map; max_dense_entries=1,
+    )["available"]
 
     report = NLPDiagnostics.scaling_covariance_report(
         reference, reference_map, candidate, candidate_map,
@@ -416,6 +439,9 @@ end
         )],
         constraint_blocks=reference_map.constraint_blocks,
     )
+    @test NLPDiagnostics.scaling_intervention_classification(
+        reference_map, magnitude_map,
+    )["classification"] == "magnitude_only"
     magnitude_geometry = NLPDiagnostics.scaling_coordinate_geometry_report(
         reference,
         reference_map,

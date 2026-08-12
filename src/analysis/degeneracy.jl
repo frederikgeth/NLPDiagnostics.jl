@@ -148,6 +148,14 @@ bmopf_constraint_feasibility_field_attribution(context, result; kwargs...) =
 bmopf_constraint_semantic_row_map(context, evaluation) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP support are required for BMOPF constraint-row semantics")._bmopf_constraint_semantic_row_map(context, evaluation)
+"""Return the BMOPFTools registry family for every solver-coordinate variable column."""
+bmopf_variable_semantic_column_map(context, evaluation) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF variable-column semantics")._bmopf_variable_semantic_column_map(context, evaluation)
+"""Trace BMOPF Jacobian family geometry over explicitly captured solver iterates."""
+bmopf_iteration_trace_jacobian_family_geometry_data(context, trace; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF trace-resolved Jacobian geometry")._bmopf_iteration_trace_jacobian_family_geometry_data(context, trace; kwargs...)
 """Attribute Jacobian row-scale evidence using public BMOPFTools row families."""
 bmopf_jacobian_row_family_scale_attribution(context, evaluation) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
@@ -187,6 +195,11 @@ bmopf_solver_trace_physical_endpoint_data(context, model, run; kwargs...) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP support are required for BMOPF trace-plus-endpoint artifacts")._bmopf_solver_trace_physical_endpoint_data(
             context, model, run; kwargs...)
+"""Compare two matched BMOPF trace-plus-physical-endpoint scaling runs."""
+bmopf_scaling_solver_experiment_comparison(reference, candidate; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for matched BMOPF scaling-solver comparisons")._bmopf_scaling_solver_experiment_comparison(
+            reference, candidate; kwargs...)
 """Compare two staged BMOPF evaluations after mapping coordinates, sets, and residuals to physical units."""
 bmopf_scaling_covariance_report(reference_context, reference_evaluation,
                                 candidate_context, candidate_evaluation; kwargs...) =
@@ -208,6 +221,14 @@ bmopf_block_scaling_covariance_report(
     candidate_context, candidate_evaluation; kwargs...,
 ) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required for BMOPF semantic block covariance")._bmopf_block_scaling_covariance_report(
+        reference_context, reference_evaluation,
+        candidate_context, candidate_evaluation; kwargs...)
+"""Classify a BMOPF coordinate-policy change using authoritative semantic blocks."""
+bmopf_scaling_intervention_classification(
+    reference_context, reference_evaluation,
+    candidate_context, candidate_evaluation; kwargs...,
+) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required for BMOPF scaling-intervention classification")._bmopf_scaling_intervention_classification(
         reference_context, reference_evaluation,
         candidate_context, candidate_evaluation; kwargs...)
 """Compare BMOPF coordinate geometry after the semantic block covariance gate."""

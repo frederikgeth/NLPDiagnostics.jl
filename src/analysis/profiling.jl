@@ -99,6 +99,7 @@ function _solver_trace_physical_endpoint_bundle(
         "acceptance_passed" =>
             get(physical_endpoint, "acceptance_passed", nothing),
         "solver_trace_profile" => profile_result_data(run),
+        "linear_solver_telemetry" => solver_linear_telemetry_data(run.trace),
         "last_captured_solver_record" => last_record,
         "physical_endpoint" => Dict{String,Any}(physical_endpoint),
         "evidence_relationship" => Dict{String,Any}(
@@ -165,6 +166,1160 @@ function solver_trace_physical_endpoint_data(
         profile.evaluation, map, duals; physical_kkt_kwargs...,
     )
     return _solver_trace_physical_endpoint_bundle(run, endpoint)
+end
+
+const _SCALING_EXPERIMENT_INTERVENTIONS = Set((
+    :baseline_repeat,
+    :magnitude_only,
+    :phase_only,
+    :magnitude_and_phase,
+    :general_coordinate_change,
+))
+
+function _physical_endpoint_tolerance_contract(endpoint::AbstractDict)
+    primal = get(
+        get(endpoint, "primal_feasibility", Dict()), "residuals", Dict(),
+    )
+    stationarity = get(
+        get(endpoint, "stationarity", Dict()), "stationarity", Dict(),
+    )
+    complementarity = get(
+        get(endpoint, "complementarity", Dict()), "sides", Dict(),
+    )
+    return Dict{String,Any}(
+        "primal_feasibility" => Dict{String,Any}(
+            string(key) => get(record, "absolute_tolerance", nothing)
+            for (key, record) in primal
+        ),
+        "stationarity" => Dict{String,Any}(
+            string(key) => get(record, "absolute_tolerance", nothing)
+            for (key, record) in stationarity
+        ),
+        "dual_feasibility" => Dict{String,Any}(
+            string(key) => get(record, "dual_absolute_tolerance", nothing)
+            for (key, record) in complementarity
+        ),
+        "complementarity" => Dict{String,Any}(
+            string(key) => get(
+                record, "complementarity_absolute_tolerance", nothing,
+            ) for (key, record) in complementarity
+        ),
+    )
+end
+
+"""
+    physical_endpoint_equivalence_report(
+        covariance_report, reference_endpoint, candidate_endpoint)
+
+Convert a same-point physical covariance report into an endpoint-equivalence
+gate. Physical points, constraint functions, sets, and Jacobians must remain
+covariant, both KKT endpoints must pass, and their complete physical tolerance
+contracts must agree. Near-zero constraint-residual differences are retained
+as evidence but are judged by the endpoint acceptance contracts rather than by
+an unrelated uniform covariance tolerance.
+"""
+function physical_endpoint_equivalence_report(
+    covariance_report::AbstractDict,
+    reference_endpoint::AbstractDict,
+    candidate_endpoint::AbstractDict,
+)
+    metrics = get(covariance_report, "metrics", Dict())
+    base_required_metrics = (
+        "physical_point",
+        "constraint_function_values",
+        "constraint_sets",
+        "physical_jacobian",
+    )
+    optional_objective_metrics = (
+        "objective_value",
+        "objective_gradient",
+    )
+    required_metrics = String[base_required_metrics...]
+    for metric in optional_objective_metrics
+        get(get(metrics, metric, Dict()), "available", false) === true &&
+            push!(required_metrics, metric)
+    end
+    metric_gates = Dict{String,Any}(
+        metric => get(get(metrics, metric, Dict()), "passed", nothing)
+        for metric in required_metrics
+    )
+    required_covariance_passed = all(
+        get(metric_gates, metric, nothing) === true for metric in required_metrics
+    )
+    reference_contract = _physical_endpoint_tolerance_contract(
+        reference_endpoint,
+    )
+    candidate_contract = _physical_endpoint_tolerance_contract(
+        candidate_endpoint,
+    )
+    tolerance_entry_count = sum(length, values(reference_contract); init=0) +
+        sum(length, values(candidate_contract); init=0)
+    contract_coverage_complete = tolerance_entry_count > 0 && all(
+        value -> !isnothing(value),
+        Iterators.flatten((values(section) for section in
+            values(reference_contract))),
+    ) && all(
+        value -> !isnothing(value),
+        Iterators.flatten((values(section) for section in
+            values(candidate_contract))),
+    )
+    tolerance_contracts_agree = reference_contract == candidate_contract
+    reference_accepted = get(
+        reference_endpoint, "acceptance_passed", nothing,
+    )
+    candidate_accepted = get(
+        candidate_endpoint, "acceptance_passed", nothing,
+    )
+    gate = required_covariance_passed && contract_coverage_complete &&
+        tolerance_contracts_agree && reference_accepted === true &&
+        candidate_accepted === true
+    return Dict{String,Any}(
+        "report_version" => "physical-endpoint-equivalence-v1",
+        "available" => true,
+        "equivalence_gate_passed" => gate,
+        "required_covariance_metrics" => metric_gates,
+        "objective_covariance_required" => Dict(
+            metric => metric in required_metrics for
+            metric in optional_objective_metrics
+        ),
+        "required_covariance_passed" => required_covariance_passed,
+        "reference_endpoint_accepted" => reference_accepted,
+        "candidate_endpoint_accepted" => candidate_accepted,
+        "tolerance_contract_coverage_complete" =>
+            contract_coverage_complete,
+        "tolerance_entry_count" => tolerance_entry_count,
+        "tolerance_contracts_agree" => tolerance_contracts_agree,
+        "reference_tolerance_contract" => reference_contract,
+        "candidate_tolerance_contract" => candidate_contract,
+        "constraint_residual_covariance" =>
+            get(metrics, "constraint_residuals", nothing),
+        "source_covariance_report" => covariance_report,
+        "qualification" => Dict{String,Any}(
+            "claim" =>
+                "physically covariant endpoint coordinates and derivatives with accepted common KKT tolerance semantics",
+            "constraint_residual_covariance_is_required" => false,
+            "reason" =>
+                "two accepted near-zero residual vectors need not have a stable relative or uniform absolute difference",
+            "does_not_establish" => [
+                "exact equality of endpoint coordinates",
+                "global solution uniqueness",
+                "solver-policy superiority",
+            ],
+        ),
+    )
+end
+
+function _scaling_experiment_trace(artifact::AbstractDict)
+    profile = get(artifact, "solver_trace_profile", nothing)
+    profile isa AbstractDict || return nothing
+    trace = get(profile, "iteration_trace", nothing)
+    return trace isa AbstractDict ? trace : nothing
+end
+
+function _scaling_experiment_endpoint(artifact::AbstractDict)
+    endpoint = get(artifact, "physical_endpoint", nothing)
+    return endpoint isa AbstractDict ? endpoint : nothing
+end
+
+function _scaling_experiment_work_summary(trace::AbstractDict)
+    records = get(trace, "records", Any[])
+    record_count = length(records)
+    line_search_values = [
+        get(record, "line_search_trials", nothing) for record in records
+        if get(record, "line_search_trials", nothing) isa Integer
+    ]
+    final_iterations = [
+        get(segment, "final_iteration", nothing) for
+        segment in get(trace, "segments", Any[])
+        if get(segment, "final_iteration", nothing) isa Integer
+    ]
+    return Dict{String,Any}(
+        "record_count" => record_count,
+        "segment_count" => get(trace, "segment_count", nothing),
+        "final_iteration_by_segment" => final_iterations,
+        "restoration_record_count" => count(
+            record -> get(record, "phase", "") == "restoration", records,
+        ),
+        "line_search_trial_coverage" => length(line_search_values),
+        "line_search_trial_coverage_complete" =>
+            length(line_search_values) == record_count,
+        "line_search_trial_sum" =>
+            length(line_search_values) == record_count ?
+            sum(line_search_values; init=0) : nothing,
+    )
+end
+
+function _scaling_experiment_metric_semantics(trace::AbstractDict)
+    fields = (
+        "objective",
+        "primal_infeasibility",
+        "dual_infeasibility",
+        "complementarity",
+        "barrier_parameter",
+    )
+    records = get(trace, "records", Any[])
+    result = Dict{String,Any}()
+    for field in fields
+        values = sort!(unique!(String[
+            string(value) for record in records
+            for value in (get(get(record, "metric_semantics", Dict()), field, nothing),)
+            if !isnothing(value)
+        ]))
+        result[field] = Dict{String,Any}(
+            "values" => values,
+            "internally_consistent" => length(values) <= 1,
+        )
+    end
+    return result
+end
+
+function _scaling_experiment_semantics_comparison(reference, candidate)
+    fields = sort!(collect(union(Set(keys(reference)), Set(keys(candidate)))))
+    records = Dict{String,Any}()
+    compatible = true
+    for field in fields
+        reference_values = get(get(reference, field, Dict()), "values", String[])
+        candidate_values = get(get(candidate, field, Dict()), "values", String[])
+        field_compatible = reference_values == candidate_values &&
+            length(reference_values) <= 1
+        compatible &= field_compatible
+        records[field] = Dict{String,Any}(
+            "reference" => reference_values,
+            "candidate" => candidate_values,
+            "compatible" => field_compatible,
+        )
+    end
+    return Dict{String,Any}(
+        "compatible" => compatible,
+        "metrics" => records,
+    )
+end
+
+function _scaling_experiment_numeric_comparison(reference, candidate)
+    ratio = candidate isa Real && reference isa Real && isfinite(candidate) &&
+        isfinite(reference) && reference > 0 ? Float64(candidate / reference) : nothing
+    return Dict{String,Any}(
+        "reference" => reference,
+        "candidate" => candidate,
+        "candidate_to_reference_ratio" => ratio,
+        "difference" => candidate isa Real && reference isa Real &&
+            isfinite(candidate) && isfinite(reference) ?
+            Float64(candidate - reference) : nothing,
+    )
+end
+
+function _scaling_experiment_work_comparison(reference, candidate)
+    scalar_metrics = (
+        "record_count",
+        "segment_count",
+        "restoration_record_count",
+        "line_search_trial_sum",
+    )
+    return Dict{String,Any}(
+        metric => _scaling_experiment_numeric_comparison(
+            get(reference, metric, nothing), get(candidate, metric, nothing),
+        ) for metric in scalar_metrics
+    )
+end
+
+function _scaling_experiment_family_endpoint_comparison(
+    reference_endpoint::AbstractDict,
+    candidate_endpoint::AbstractDict;
+    allow_numeric_comparison::Bool,
+)
+    string_key_get(dictionary, key, default=nothing) = haskey(dictionary, key) ?
+        dictionary[key] : haskey(dictionary, Symbol(key)) ?
+        dictionary[Symbol(key)] : default
+    reference_attribution = get(reference_endpoint, "semantic_attribution", nothing)
+    candidate_attribution = get(candidate_endpoint, "semantic_attribution", nothing)
+    if !(reference_attribution isa AbstractDict &&
+         candidate_attribution isa AbstractDict)
+        return Dict{String,Any}(
+            "available" => false,
+            "reason" => "one or both physical endpoints lack semantic attribution",
+        )
+    end
+    sections = Dict{String,Any}()
+    family_sets_agree = true
+    for section in ("primal_feasibility", "stationarity", "complementarity")
+        reference_families = get(
+            get(reference_attribution, section, Dict()), "families", Dict(),
+        )
+        candidate_families = get(
+            get(candidate_attribution, section, Dict()), "families", Dict(),
+        )
+        reference_names = Set(string.(keys(reference_families)))
+        candidate_names = Set(string.(keys(candidate_families)))
+        family_sets_agree &= reference_names == candidate_names
+        family_records = Dict{String,Any}()
+        for family in sort!(collect(intersect(reference_names, candidate_names)))
+            reference_family = string_key_get(
+                reference_families, family, Dict{String,Any}(),
+            )
+            candidate_family = string_key_get(
+                candidate_families, family, Dict{String,Any}(),
+            )
+            reference_maxima = get(reference_family, "maxima", Dict())
+            candidate_maxima = get(candidate_family, "maxima", Dict())
+            metrics = Dict{String,Any}()
+            for metric in sort!(collect(union(
+                Set(string.(keys(reference_maxima))),
+                Set(string.(keys(candidate_maxima))),
+            )))
+                metrics[metric] = allow_numeric_comparison ?
+                    _scaling_experiment_numeric_comparison(
+                        string_key_get(reference_maxima, metric),
+                        string_key_get(candidate_maxima, metric),
+                    ) : Dict{String,Any}(
+                        "reference" => string_key_get(reference_maxima, metric),
+                        "candidate" => string_key_get(candidate_maxima, metric),
+                        "candidate_to_reference_ratio" => nothing,
+                        "difference" => nothing,
+                        "withheld" => "physical covariance gate did not pass",
+                    )
+            end
+            family_records[family] = Dict{String,Any}(
+                "metrics" => metrics,
+                "reference_passed_count" =>
+                    get(reference_family, "passed_count", nothing),
+                "candidate_passed_count" =>
+                    get(candidate_family, "passed_count", nothing),
+                "reference_failed_count" =>
+                    get(reference_family, "failed_count", nothing),
+                "candidate_failed_count" =>
+                    get(candidate_family, "failed_count", nothing),
+            )
+        end
+        sections[section] = Dict{String,Any}(
+            "family_sets_agree" => reference_names == candidate_names,
+            "reference_only_families" =>
+                sort!(collect(setdiff(reference_names, candidate_names))),
+            "candidate_only_families" =>
+                sort!(collect(setdiff(candidate_names, reference_names))),
+            "families" => family_records,
+        )
+    end
+    return Dict{String,Any}(
+        "available" => true,
+        "numeric_comparison_allowed" => allow_numeric_comparison,
+        "family_sets_agree" => family_sets_agree,
+        "sections" => sections,
+    )
+end
+
+"""
+    scaling_solver_experiment_comparison(reference, candidate; ...)
+
+Build a score-free matched scaling-experiment artifact from two retained
+trace-plus-physical-endpoint artifacts. Solver-native work, physical endpoint
+acceptance, semantic family residuals, covariance, and coordinate geometry
+remain separate evidence layers. The caller must declare the intervention;
+this function does not infer that a policy changed only magnitude or phase.
+"""
+function scaling_solver_experiment_comparison(
+    reference::AbstractDict,
+    candidate::AbstractDict;
+    intervention::Symbol,
+    intervention_report::Union{Nothing,AbstractDict}=nothing,
+    covariance_report::Union{Nothing,AbstractDict}=nothing,
+    geometry_report::Union{Nothing,AbstractDict}=nothing,
+    hypothesis::AbstractString="",
+    metadata::AbstractDict=Dict{String,Any}(),
+)
+    intervention in _SCALING_EXPERIMENT_INTERVENTIONS || throw(ArgumentError(
+        "intervention must be one of $(sort!(collect(_SCALING_EXPERIMENT_INTERVENTIONS)))",
+    ))
+    reference_trace = _scaling_experiment_trace(reference)
+    candidate_trace = _scaling_experiment_trace(candidate)
+    reference_endpoint = _scaling_experiment_endpoint(reference)
+    candidate_endpoint = _scaling_experiment_endpoint(candidate)
+    artifacts_available = reference_trace isa AbstractDict &&
+        candidate_trace isa AbstractDict &&
+        reference_endpoint isa AbstractDict &&
+        candidate_endpoint isa AbstractDict
+    if !artifacts_available
+        return Dict{String,Any}(
+            "schema_version" => "scaling-solver-experiment-comparison-v1",
+            "available" => false,
+            "comparison_qualified" => false,
+            "intervention" => string(intervention),
+            "reason" =>
+                "both inputs must contain solver_trace_profile.iteration_trace and physical_endpoint",
+        )
+    end
+    reference_work = _scaling_experiment_work_summary(reference_trace)
+    candidate_work = _scaling_experiment_work_summary(candidate_trace)
+    reference_semantics = _scaling_experiment_metric_semantics(reference_trace)
+    candidate_semantics = _scaling_experiment_metric_semantics(candidate_trace)
+    semantics = _scaling_experiment_semantics_comparison(
+        reference_semantics, candidate_semantics,
+    )
+    covariance_passed = covariance_report isa AbstractDict ?
+        get(covariance_report, "equivalence_gate_passed", nothing) : nothing
+    geometry_qualified = geometry_report isa AbstractDict ? get(
+        geometry_report,
+        "semantic_interpretation_qualified",
+        get(geometry_report, "comparison_qualified", nothing),
+    ) : nothing
+    reference_endpoint_passed =
+        get(reference_endpoint, "acceptance_passed", nothing)
+    candidate_endpoint_passed =
+        get(candidate_endpoint, "acceptance_passed", nothing)
+    expected_intervention_class = intervention == :baseline_repeat ?
+        "identity" : string(intervention)
+    observed_intervention_class = intervention_report isa AbstractDict ?
+        get(intervention_report, "classification", nothing) : nothing
+    intervention_verified = intervention_report isa AbstractDict ?
+        get(intervention_report, "available", false) === true &&
+        observed_intervention_class == expected_intervention_class : nothing
+    endpoint_comparison = _scaling_experiment_family_endpoint_comparison(
+        reference_endpoint,
+        candidate_endpoint;
+        allow_numeric_comparison=covariance_passed === true,
+    )
+    comparison_qualified = covariance_passed === true &&
+        geometry_qualified === true &&
+        intervention_verified === true &&
+        reference_endpoint_passed === true &&
+        candidate_endpoint_passed === true &&
+        semantics["compatible"] === true &&
+        get(endpoint_comparison, "available", false) === true &&
+        get(endpoint_comparison, "family_sets_agree", false) === true
+    return Dict{String,Any}(
+        "schema_version" => "scaling-solver-experiment-comparison-v1",
+        "available" => true,
+        "comparison_qualified" => comparison_qualified,
+        "intervention" => string(intervention),
+        "intervention_verification" => Dict{String,Any}(
+            "expected_classification" => expected_intervention_class,
+            "observed_classification" => observed_intervention_class,
+            "verified" => intervention_verified,
+            "report" => intervention_report,
+        ),
+        "hypothesis" => String(hypothesis),
+        "metadata" => Dict{String,Any}(
+            string(key) => value for (key, value) in metadata
+        ),
+        "gates" => Dict{String,Any}(
+            "physical_covariance_passed" => covariance_passed,
+            "semantic_geometry_qualified" => geometry_qualified,
+            "intervention_verified" => intervention_verified,
+            "reference_physical_endpoint_passed" => reference_endpoint_passed,
+            "candidate_physical_endpoint_passed" => candidate_endpoint_passed,
+            "native_metric_semantics_compatible" => semantics["compatible"],
+            "endpoint_family_sets_agree" =>
+                get(endpoint_comparison, "family_sets_agree", nothing),
+        ),
+        "native_work" => Dict{String,Any}(
+            "reference" => reference_work,
+            "candidate" => candidate_work,
+            "comparisons" => _scaling_experiment_work_comparison(
+                reference_work, candidate_work,
+            ),
+            "metric_semantics" => semantics,
+        ),
+        "physical_endpoint_families" => endpoint_comparison,
+        "covariance_report" => covariance_report,
+        "geometry_report" => geometry_report,
+        "qualification" => Dict{String,Any}(
+            "claim" =>
+                "matched, score-free comparison of declared scaling interventions",
+            "intervention_is_inferred" => false,
+            "solver_native_and_physical_metrics_are_ratioed" => false,
+            "does_not_establish" => [
+                "global policy superiority",
+                "causality from a single matched solve pair",
+                "intervention purity beyond the caller declaration",
+                "equivalence when the covariance gate is absent or failed",
+            ],
+        ),
+    )
+end
+
+function _scaling_campaign_numeric_range(values)
+    numbers = Float64[
+        Float64(value) for value in values if
+        value isa Real && isfinite(Float64(value))
+    ]
+    isempty(numbers) && return Dict{String,Any}(
+        "available" => false,
+        "sample_count" => 0,
+    )
+    return Dict{String,Any}(
+        "available" => true,
+        "sample_count" => length(numbers),
+        "minimum" => minimum(numbers),
+        "maximum" => maximum(numbers),
+        "spread" => maximum(numbers) - minimum(numbers),
+        "mean" => sum(numbers) / length(numbers),
+    )
+end
+
+function _scaling_campaign_run_summary(records)
+    artifacts = [get(record, "artifact", Dict()) for record in records]
+    traces = [_scaling_experiment_trace(artifact) for artifact in artifacts]
+    endpoints = [_scaling_experiment_endpoint(artifact) for artifact in artifacts]
+    work = [
+        trace isa AbstractDict ? _scaling_experiment_work_summary(trace) :
+        Dict{String,Any}() for trace in traces
+    ]
+    terminations = Any[]
+    for artifact in artifacts
+        solver_profile = get(
+            get(artifact, "solver_trace_profile", Dict()),
+            "solver_profile",
+            Dict(),
+        )
+        postmortem = get(solver_profile, "postmortem", nothing)
+        push!(
+            terminations,
+            postmortem isa AbstractDict ?
+            get(postmortem, "termination", nothing) : nothing,
+        )
+    end
+    finite_terminations = filter(!isnothing, terminations)
+    endpoint_acceptance = [
+        endpoint isa AbstractDict ?
+        get(endpoint, "acceptance_passed", nothing) : nothing
+        for endpoint in endpoints
+    ]
+    common_start_covariance = [
+        get(record, "common_start_covariance_passed", nothing)
+        for record in records
+    ]
+    replicates = [get(record, "replicate", nothing) for record in records]
+    return Dict{String,Any}(
+        "run_count" => length(records),
+        "replicates" => replicates,
+        "replicate_ids_unique" => length(unique(replicates)) == length(replicates),
+        "artifact_available_count" => count(
+            artifact -> get(artifact, "available", false) === true, artifacts,
+        ),
+        "physical_endpoint_acceptance" => endpoint_acceptance,
+        "all_physical_endpoints_accepted" =>
+            !isempty(endpoint_acceptance) && all(==(true), endpoint_acceptance),
+        "common_start_covariance" => common_start_covariance,
+        "common_start_covariance_coverage_complete" =>
+            all(value -> value isa Bool, common_start_covariance),
+        "all_common_starts_covariant" =>
+            !isempty(common_start_covariance) &&
+            all(==(true), common_start_covariance),
+        "termination_values" => sort!(unique!(string.(finite_terminations))),
+        "termination_coverage_complete" =>
+            length(finite_terminations) == length(records),
+        "termination_stable" => length(finite_terminations) == length(records) &&
+            length(unique(string.(finite_terminations))) == 1,
+        "record_count_range" => _scaling_campaign_numeric_range([
+            get(item, "record_count", nothing) for item in work
+        ]),
+        "line_search_trial_sum_range" => _scaling_campaign_numeric_range([
+            get(item, "line_search_trial_sum", nothing) for item in work
+        ]),
+        "restoration_record_count_range" => _scaling_campaign_numeric_range([
+            get(item, "restoration_record_count", nothing) for item in work
+        ]),
+    )
+end
+
+function _scaling_campaign_comparison_summary(records)
+    comparisons = [get(record, "comparison", Dict()) for record in records]
+    qualified = [
+        get(comparison, "comparison_qualified", false) === true
+        for comparison in comparisons
+    ]
+    ratios = Dict{String,Any}()
+    for metric in (
+        "record_count", "line_search_trial_sum", "restoration_record_count",
+    )
+        ratios[metric] = _scaling_campaign_numeric_range([
+            get(
+                get(
+                    get(comparison, "native_work", Dict()),
+                    "comparisons",
+                    Dict(),
+                ),
+                metric,
+                Dict(),
+            )["candidate_to_reference_ratio"] for comparison in comparisons
+            if haskey(
+                get(
+                    get(
+                        get(comparison, "native_work", Dict()),
+                        "comparisons",
+                        Dict(),
+                    ),
+                    metric,
+                    Dict(),
+                ),
+                "candidate_to_reference_ratio",
+            )
+        ])
+    end
+    observed_classes = Any[
+        get(
+            get(comparison, "intervention_verification", Dict()),
+            "observed_classification",
+            nothing,
+        ) for comparison in comparisons
+    ]
+    geometry_ratio_ranges = Dict{String,Any}()
+    for metric in ("condition_proxy", "row_norm_spread", "column_norm_spread")
+        geometry_ratio_ranges[metric] = _scaling_campaign_numeric_range([
+            get(
+                get(
+                    get(comparison, "geometry_report", Dict()),
+                    "comparisons",
+                    Dict(),
+                ),
+                metric,
+                Dict(),
+            )["candidate_to_reference_ratio"] for comparison in comparisons
+            if haskey(
+                get(
+                    get(
+                        get(comparison, "geometry_report", Dict()),
+                        "comparisons",
+                        Dict(),
+                    ),
+                    metric,
+                    Dict(),
+                ),
+                "candidate_to_reference_ratio",
+            )
+        ])
+    end
+    endpoint_residual_covariance = [
+        get(
+            get(comparison, "covariance_report", Dict()),
+            "constraint_residual_covariance",
+            nothing,
+        ) for comparison in comparisons
+    ]
+    return Dict{String,Any}(
+        "comparison_count" => length(records),
+        "qualified_count" => count(identity, qualified),
+        "all_qualified" => !isempty(qualified) && all(identity, qualified),
+        "observed_intervention_classes" =>
+            sort!(unique!(string.(filter(!isnothing, observed_classes)))),
+        "native_work_ratio_ranges" => ratios,
+        "geometry_ratio_ranges" => geometry_ratio_ranges,
+        "endpoint_residual_difference_range" =>
+            _scaling_campaign_numeric_range([
+                get(record, "maximum_absolute_difference", nothing)
+                for record in endpoint_residual_covariance
+                if record isa AbstractDict
+            ]),
+        "exact_endpoint_residual_covariance_pass_count" => count(
+            record -> record isa AbstractDict &&
+                get(record, "passed", false) === true,
+            endpoint_residual_covariance,
+        ),
+        "endpoint_residual_covariance_is_qualification_gate" => false,
+    )
+end
+
+"""
+    scaling_solver_experiment_campaign_data(runs, comparisons; ...)
+
+Aggregate repeated matched scaling runs without ranking policies. Each run
+record must contain `policy`, `replicate`, `provenance_fingerprint`, and
+`artifact`, plus the explicit `common_start_covariance_passed` gate. Each
+comparison record must contain `candidate_policy` and
+`comparison`. Qualification requires repeated coverage, stable provenance,
+accepted physical endpoints, stable termination, and qualified matched
+comparisons for every policy.
+"""
+function scaling_solver_experiment_campaign_data(
+    runs::AbstractVector,
+    comparisons::AbstractVector;
+    reference_policy::AbstractString,
+    minimum_repeats::Integer=2,
+    metadata::AbstractDict=Dict{String,Any}(),
+)
+    minimum_repeats >= 2 || throw(ArgumentError(
+        "minimum_repeats must be at least two for a repeatability campaign",
+    ))
+    isempty(strip(reference_policy)) && throw(ArgumentError(
+        "reference_policy must not be empty",
+    ))
+    all(record -> record isa AbstractDict, runs) || throw(ArgumentError(
+        "runs must contain dictionary records",
+    ))
+    all(record -> record isa AbstractDict, comparisons) || throw(ArgumentError(
+        "comparisons must contain dictionary records",
+    ))
+    policy_records = Dict{String,Vector{Any}}()
+    for record in runs
+        policy = string(get(record, "policy", ""))
+        isempty(policy) && throw(ArgumentError(
+            "each run record must contain a nonempty policy",
+        ))
+        haskey(record, "artifact") || throw(ArgumentError(
+            "each run record must contain an artifact",
+        ))
+        push!(get!(policy_records, policy, Any[]), record)
+    end
+    haskey(policy_records, String(reference_policy)) || throw(ArgumentError(
+        "reference_policy $(repr(reference_policy)) has no run records",
+    ))
+    policy_summaries = Dict{String,Any}(
+        policy => _scaling_campaign_run_summary(records)
+        for (policy, records) in sort!(collect(policy_records); by=first)
+    )
+    fingerprints = [
+        get(record, "provenance_fingerprint", nothing) for record in runs
+    ]
+    fingerprint_coverage_complete = all(!isnothing, fingerprints)
+    provenance_stable = fingerprint_coverage_complete &&
+        length(unique(string.(fingerprints))) == 1
+    comparison_records = Dict{String,Vector{Any}}()
+    for record in comparisons
+        candidate_policy = string(get(record, "candidate_policy", ""))
+        isempty(candidate_policy) && throw(ArgumentError(
+            "each comparison record must contain a nonempty candidate_policy",
+        ))
+        haskey(record, "comparison") || throw(ArgumentError(
+            "each comparison record must contain a comparison",
+        ))
+        push!(get!(comparison_records, candidate_policy, Any[]), record)
+    end
+    comparison_summaries = Dict{String,Any}(
+        policy => _scaling_campaign_comparison_summary(records)
+        for (policy, records) in sort!(collect(comparison_records); by=first)
+    )
+    run_coverage_complete = all(
+        get(summary, "run_count", 0) >= minimum_repeats &&
+        get(summary, "replicate_ids_unique", false) === true
+        for summary in values(policy_summaries)
+    )
+    endpoints_accepted = all(
+        get(summary, "all_physical_endpoints_accepted", false) === true
+        for summary in values(policy_summaries)
+    )
+    common_starts_covariant = all(
+        get(summary, "all_common_starts_covariant", false) === true
+        for summary in values(policy_summaries)
+    )
+    terminations_stable = all(
+        get(summary, "termination_stable", false) === true
+        for summary in values(policy_summaries)
+    )
+    expected_comparison_policies = Set(keys(policy_records))
+    comparison_policy_coverage = Set(keys(comparison_records)) ==
+        expected_comparison_policies
+    comparison_coverage_complete = comparison_policy_coverage && all(
+        begin
+            required = policy == reference_policy ? minimum_repeats - 1 :
+                minimum_repeats
+            get(comparison_summaries[policy], "comparison_count", 0) >= required
+        end for policy in keys(policy_records)
+    )
+    all_comparisons_qualified = comparison_coverage_complete && all(
+        get(comparison_summaries[policy], "all_qualified", false) === true
+        for policy in keys(policy_records)
+    )
+    campaign_qualified = run_coverage_complete && provenance_stable &&
+        common_starts_covariant && endpoints_accepted && terminations_stable &&
+        all_comparisons_qualified
+    return Dict{String,Any}(
+        "schema_version" => "scaling-solver-experiment-campaign-v1",
+        "available" => !isempty(runs),
+        "campaign_qualified" => campaign_qualified,
+        "reference_policy" => String(reference_policy),
+        "minimum_repeats" => Int(minimum_repeats),
+        "policy_count" => length(policy_records),
+        "run_count" => length(runs),
+        "comparison_count" => length(comparisons),
+        "gates" => Dict{String,Any}(
+            "run_coverage_complete" => run_coverage_complete,
+            "provenance_fingerprint_coverage_complete" =>
+                fingerprint_coverage_complete,
+            "provenance_stable" => provenance_stable,
+            "all_common_starts_covariant" => common_starts_covariant,
+            "all_physical_endpoints_accepted" => endpoints_accepted,
+            "terminations_stable_within_policy" => terminations_stable,
+            "comparison_policy_coverage_complete" =>
+                comparison_policy_coverage,
+            "comparison_coverage_complete" => comparison_coverage_complete,
+            "all_comparisons_qualified" => all_comparisons_qualified,
+        ),
+        "provenance_fingerprints" =>
+            sort!(unique!(string.(filter(!isnothing, fingerprints)))),
+        "policies" => policy_summaries,
+        "comparisons" => comparison_summaries,
+        "run_records" => collect(runs),
+        "comparison_records" => collect(comparisons),
+        "metadata" => Dict{String,Any}(
+            string(key) => value for (key, value) in metadata
+        ),
+        "qualification" => Dict{String,Any}(
+            "claim" =>
+                "repeatability-qualified, score-free matched scaling campaign",
+            "does_not_establish" => [
+                "global policy superiority",
+                "performance portability to another solver or case family",
+                "causality without the retained intervention and covariance evidence",
+            ],
+        ),
+    )
+end
+
+function _scaling_stratified_policy_summary(campaigns, policy)
+    records = Any[
+        record for campaign in campaigns for record in
+        get(campaign, "run_records", Any[])
+        if string(get(record, "policy", "")) == policy
+    ]
+    summary = _scaling_campaign_run_summary(records)
+    summary["stratum_count"] = length(campaigns)
+    return summary
+end
+
+"""
+    scaling_solver_experiment_stratified_campaign_data(records; ...)
+
+Aggregate complete repeated scaling campaigns across physically distinct start
+strata. Each record must contain a unique `stratum` and a `campaign` produced by
+[`scaling_solver_experiment_campaign_data`](@ref). Qualification is deliberately
+strict: every stratum campaign must qualify independently, use the same policy
+set and reference policy, have stable environment provenance, and meet the
+declared repeat floor. Results remain available per stratum so initialization
+effects are not erased by pooling.
+"""
+function scaling_solver_experiment_stratified_campaign_data(
+    records::AbstractVector;
+    minimum_strata::Integer=2,
+    minimum_repeats::Integer=2,
+    metadata::AbstractDict=Dict{String,Any}(),
+)
+    minimum_strata >= 2 || throw(ArgumentError(
+        "minimum_strata must be at least two",
+    ))
+    minimum_repeats >= 2 || throw(ArgumentError(
+        "minimum_repeats must be at least two",
+    ))
+    all(record -> record isa AbstractDict, records) || throw(ArgumentError(
+        "records must contain dictionary records",
+    ))
+    strata = String[]
+    campaigns = Any[]
+    for record in records
+        stratum = string(get(record, "stratum", ""))
+        isempty(stratum) && throw(ArgumentError(
+            "each record must contain a nonempty stratum",
+        ))
+        campaign = get(record, "campaign", nothing)
+        campaign isa AbstractDict || throw(ArgumentError(
+            "each record must contain a campaign dictionary",
+        ))
+        push!(strata, stratum)
+        push!(campaigns, campaign)
+    end
+    unique_strata = length(unique(strata)) == length(strata)
+    stratum_coverage_complete = length(records) >= minimum_strata && unique_strata
+    campaigns_qualified = !isempty(campaigns) && all(
+        get(campaign, "campaign_qualified", false) === true
+        for campaign in campaigns
+    )
+    repeat_coverage_complete = !isempty(campaigns) && all(
+        get(campaign, "minimum_repeats", 0) >= minimum_repeats
+        for campaign in campaigns
+    )
+    reference_policies = string.([
+        get(campaign, "reference_policy", "") for campaign in campaigns
+    ])
+    reference_policy_consistent = !isempty(reference_policies) &&
+        all(!isempty, reference_policies) &&
+        length(unique(reference_policies)) == 1
+    policy_sets = [
+        Set(string.(keys(get(campaign, "policies", Dict()))))
+        for campaign in campaigns
+    ]
+    policy_coverage_consistent = !isempty(policy_sets) &&
+        !isempty(first(policy_sets)) && all(==(first(policy_sets)), policy_sets)
+    fingerprints = [
+        string(fingerprint) for campaign in campaigns for fingerprint in
+        get(campaign, "provenance_fingerprints", Any[])
+    ]
+    provenance_coverage_complete = length(fingerprints) >= length(campaigns) &&
+        all(campaign -> !isempty(
+            get(campaign, "provenance_fingerprints", Any[]),
+        ), campaigns)
+    provenance_stable = provenance_coverage_complete &&
+        length(unique(fingerprints)) == 1
+    policy_summaries = policy_coverage_consistent ? Dict{String,Any}(
+        policy => _scaling_stratified_policy_summary(campaigns, policy)
+        for policy in sort!(collect(first(policy_sets)))
+    ) : Dict{String,Any}()
+    qualified = stratum_coverage_complete && campaigns_qualified &&
+        repeat_coverage_complete && reference_policy_consistent &&
+        policy_coverage_consistent && provenance_stable
+    return Dict{String,Any}(
+        "schema_version" => "scaling-solver-experiment-stratified-campaign-v1",
+        "available" => !isempty(records),
+        "campaign_qualified" => qualified,
+        "minimum_strata" => Int(minimum_strata),
+        "minimum_repeats" => Int(minimum_repeats),
+        "stratum_count" => length(records),
+        "strata" => strata,
+        "reference_policy" => reference_policy_consistent ?
+            first(reference_policies) : nothing,
+        "gates" => Dict{String,Any}(
+            "stratum_coverage_complete" => stratum_coverage_complete,
+            "stratum_ids_unique" => unique_strata,
+            "all_stratum_campaigns_qualified" => campaigns_qualified,
+            "repeat_coverage_complete" => repeat_coverage_complete,
+            "reference_policy_consistent" => reference_policy_consistent,
+            "policy_coverage_consistent" => policy_coverage_consistent,
+            "provenance_fingerprint_coverage_complete" =>
+                provenance_coverage_complete,
+            "provenance_stable" => provenance_stable,
+        ),
+        "provenance_fingerprints" => sort!(unique(fingerprints)),
+        "policies" => policy_summaries,
+        "stratum_records" => collect(records),
+        "metadata" => Dict{String,Any}(
+            string(key) => value for (key, value) in metadata
+        ),
+        "qualification" => Dict{String,Any}(
+            "claim" =>
+                "repeatability-qualified matched scaling evidence across explicitly distinct physical-start strata",
+            "does_not_establish" => [
+                "global policy superiority",
+                "initialization-independent behavior outside the retained strata",
+                "performance portability to another solver or case family",
+            ],
+        ),
+    )
+end
+
+function _trace_geometry_selected_bindings(
+    trace::SolverIterationTrace;
+    phase::Union{Nothing,Symbol},
+    max_points::Union{Nothing,Integer},
+)
+    isnothing(phase) || phase in (:regular, :restoration, :robust) ||
+        throw(ArgumentError(
+            "phase must be nothing, :regular, :restoration, or :robust",
+        ))
+    if !isnothing(max_points)
+        max_points >= 1 || throw(ArgumentError(
+            "max_points must be positive when supplied",
+        ))
+    end
+    candidates = [
+        binding for binding in trace.bindings
+        if isnothing(phase) || binding.record.phase == phase
+    ]
+    if isnothing(max_points) || length(candidates) <= max_points
+        return candidates, length(candidates)
+    end
+    budget = Int(max_points)
+    priority = Int[1]
+    budget > 1 && push!(priority, length(candidates))
+    for index in 2:length(candidates)
+        if candidates[index].record.phase != candidates[index - 1].record.phase
+            push!(priority, index - 1, index)
+        end
+    end
+    regularized = filter(
+        index -> begin
+            value = candidates[index].record.regularization_size
+            value isa Real && isfinite(value) && value > 0
+        end,
+        eachindex(candidates),
+    )
+    sort!(regularized; by=index -> (
+        -Float64(candidates[index].record.regularization_size), index,
+    ))
+    append!(priority, regularized)
+    for field in (
+        :primal_infeasibility,
+        :dual_infeasibility,
+        :complementarity,
+        :step_norm,
+        :line_search_trials,
+    )
+        finite_indices = filter(
+            index -> begin
+                value = getfield(candidates[index].record, field)
+                value isa Real && isfinite(value)
+            end,
+            eachindex(candidates),
+        )
+        isempty(finite_indices) || push!(
+            priority,
+            finite_indices[argmax(Float64[
+                abs(getfield(candidates[index].record, field))
+                for index in finite_indices
+            ])],
+        )
+    end
+    uniform = round.(Int, range(
+        1, length(candidates); length=budget,
+    ))
+    selected_indices = Int[]
+    for index in Iterators.flatten((priority, uniform))
+        index in selected_indices && continue
+        push!(selected_indices, index)
+        length(selected_indices) == budget && break
+    end
+    sort!(selected_indices)
+    return candidates[selected_indices], length(candidates)
+end
+
+function _trace_geometry_numeric_summary(values)
+    finite = Float64[
+        Float64(value) for value in values if value isa Real && isfinite(value)
+    ]
+    positive = filter(>(0.0), finite)
+    return Dict{String,Any}(
+        "sample_count" => length(values),
+        "available_count" => length(finite),
+        "first" => isempty(finite) ? nothing : first(finite),
+        "last" => isempty(finite) ? nothing : last(finite),
+        "minimum" => isempty(finite) ? nothing : minimum(finite),
+        "maximum" => isempty(finite) ? nothing : maximum(finite),
+        "maximum_to_minimum_positive_ratio" => isempty(positive) ? nothing :
+            maximum(positive) / minimum(positive),
+    )
+end
+
+function _trace_geometry_family_trajectories(snapshots, axis, metrics)
+    families = sort!(unique!(String[
+        string(family) for snapshot in snapshots
+        if get(snapshot, "available", false) === true
+        for family in keys(get(get(snapshot, axis, Dict()), "families", Dict()))
+    ]))
+    return Dict{String,Any}(
+        family => Dict{String,Any}(
+            metric => _trace_geometry_numeric_summary([
+                get(
+                    get(
+                        get(get(snapshot, axis, Dict()), "families", Dict()),
+                        family,
+                        Dict(),
+                    ),
+                    metric,
+                    nothing,
+                ) for snapshot in snapshots
+            ]) for metric in metrics
+        ) for family in families
+    )
+end
+
+"""
+    iteration_trace_jacobian_family_geometry_data(model, trace; ...)
+
+Evaluate selected, explicitly captured solver iterates and retain local
+Jacobian row/column-family geometry beside the corresponding callback metrics.
+The trajectory is descriptive. It does not infer model coordinates for
+metric-only callbacks or claim that a family caused regularization or solver
+work.
+"""
+function iteration_trace_jacobian_family_geometry_data(
+    model::MOI.ModelLike,
+    trace::SolverIterationTrace;
+    row_labels,
+    column_labels,
+    phase::Union{Nothing,Symbol}=nothing,
+    max_points::Union{Nothing,Integer}=nothing,
+)
+    selected, candidate_count = _trace_geometry_selected_bindings(
+        trace; phase, max_points,
+    )
+    snapshots = Dict{String,Any}[]
+    for binding in selected
+        snapshot = Dict{String,Any}(
+            "iteration" => binding.record.iteration,
+            "segment" => binding.segment,
+            "phase" => string(binding.record.phase),
+            "point_label" => binding.point.label,
+            "point_fingerprint" => evaluation_point_fingerprint(binding.point),
+            "solver_metrics" => Dict{String,Any}(
+                "objective" => binding.record.objective,
+                "primal_infeasibility" => binding.record.primal_infeasibility,
+                "dual_infeasibility" => binding.record.dual_infeasibility,
+                "complementarity" => binding.record.complementarity,
+                "barrier_parameter" => binding.record.barrier_parameter,
+                "step_norm" => binding.record.step_norm,
+                "regularization_size" => binding.record.regularization_size,
+                "primal_step" => binding.record.primal_step,
+                "dual_step" => binding.record.dual_step,
+                "line_search_trials" => binding.record.line_search_trials,
+                "linear_telemetry" => copy(binding.record.linear_telemetry),
+            ),
+        )
+        try
+            evaluation = evaluate_numerical(model, binding.point)
+            rows = jacobian_row_family_scale_attribution(
+                evaluation, row_labels,
+            )
+            columns = jacobian_column_family_scale_attribution(
+                evaluation, column_labels,
+            )
+            snapshot["available"] = true
+            snapshot["rows"] = rows
+            snapshot["columns"] = columns
+            snapshot["derivative_rows_complete"] =
+                get(columns, "derivative_rows_complete", false)
+        catch error
+            snapshot["available"] = false
+            snapshot["reason"] = sprint(showerror, error)
+        end
+        push!(snapshots, snapshot)
+    end
+    available_count = count(
+        snapshot -> get(snapshot, "available", false) === true, snapshots,
+    )
+    row_metrics = (
+        "smallest_positive_row_norm",
+        "row_norm_median",
+        "largest_finite_row_norm",
+        "row_scale_ratio",
+    )
+    column_metrics = (
+        "smallest_positive_column_norm",
+        "column_norm_median",
+        "largest_finite_column_norm",
+        "column_scale_ratio",
+    )
+    return Dict{String,Any}(
+        "schema_version" => "iteration-trace-jacobian-family-geometry-v1",
+        "available" => available_count > 0,
+        "coverage_complete" => !isempty(selected) &&
+            available_count == length(selected),
+        "trace_record_count" => length(trace.records),
+        "trace_binding_count" => length(trace.bindings),
+        "candidate_binding_count" => candidate_count,
+        "selected_binding_count" => length(selected),
+        "available_snapshot_count" => available_count,
+        "phase_filter" => isnothing(phase) ? "all" : string(phase),
+        "max_points" => isnothing(max_points) ? nothing : Int(max_points),
+        "selected_iterations" => [
+            binding.record.iteration for binding in selected
+        ],
+        "snapshots" => snapshots,
+        "trajectories" => Dict{String,Any}(
+            "rows" => _trace_geometry_family_trajectories(
+                snapshots, "rows", row_metrics,
+            ),
+            "columns" => _trace_geometry_family_trajectories(
+                snapshots, "columns", column_metrics,
+            ),
+        ),
+        "qualification" => Dict{String,Any}(
+            "claim" =>
+                "local Jacobian family geometry along explicitly captured solver iterates",
+            "selection_policy" =>
+                "event-preserving bounded selection after optional phase filtering: endpoints, phase boundaries, largest positive regularization rows, solver-metric extrema, then uniform fill",
+            "does_not_establish" => [
+                "causality between family geometry and solver telemetry",
+                "KKT factorization conditioning",
+                "geometry at callback rows without captured model coordinates",
+            ],
+        ),
+    )
 end
 
 """Return renderer-neutral, serializable data for a repeated profile aggregate."""

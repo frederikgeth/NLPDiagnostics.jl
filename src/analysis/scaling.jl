@@ -354,6 +354,237 @@ function SemanticBlockScalingMap(map::DiagonalScalingMap{T}) where {T}
     )
 end
 
+function _semantic_model_positions_by_key(blocks, keys, kind)
+    positions = Dict{String,Int}()
+    for block in blocks
+        for (key, position) in zip(block.keys, block.positions)
+            haskey(positions, key) && throw(ArgumentError(
+                "$kind semantic key $(repr(key)) occurs in multiple blocks",
+            ))
+            positions[key] = position
+        end
+    end
+    return [positions[key] for key in keys]
+end
+
+function _coordinate_relation(
+    reference_keys,
+    reference_blocks,
+    reference_forward,
+    candidate_keys,
+    candidate_blocks,
+    candidate_inverse,
+    kind,
+)
+    physical_alignment = _scaling_alignment(
+        candidate_keys, reference_keys, "$kind physical coordinate",
+    )
+    reference_model_positions = _semantic_model_positions_by_key(
+        reference_blocks, reference_keys, "$kind reference model coordinate",
+    )
+    candidate_positions = _semantic_model_positions_by_key(
+        candidate_blocks, candidate_keys, "$kind candidate model coordinate",
+    )
+    candidate_position_by_key = Dict(
+        key => position for (key, position) in
+        zip(candidate_keys, candidate_positions)
+    )
+    candidate_model_positions = [
+        candidate_position_by_key[key] for key in reference_keys
+    ]
+    return candidate_inverse[candidate_model_positions, :] *
+        reference_forward[physical_alignment, reference_model_positions]
+end
+
+function _coordinate_relation_classification(
+    relation::AbstractMatrix;
+    tolerance::Real,
+)
+    dimension = size(relation, 1)
+    size(relation, 2) == dimension || return Dict{String,Any}(
+        "classification" => "general_linear",
+        "reason" => "coordinate relation is not square",
+    )
+    matrix = Matrix{Float64}(relation)
+    all(isfinite, matrix) || return Dict{String,Any}(
+        "classification" => "nonfinite",
+        "reason" => "coordinate relation contains non-finite entries",
+    )
+    scale = max(opnorm(matrix, Inf), 1.0)
+    diagonal = diag(matrix)
+    off_diagonal = matrix - Diagonal(diagonal)
+    maximum_off_diagonal = isempty(matrix) ? 0.0 :
+        maximum(abs, off_diagonal; init=0.0)
+    diagonal_relation = maximum_off_diagonal <= tolerance * scale
+    positive_diagonal = diagonal_relation && all(>(0.0), diagonal)
+    identity_error = isempty(matrix) ? 0.0 :
+        opnorm(matrix - Matrix{Float64}(I, dimension, dimension), Inf)
+    column_norms = [norm(view(matrix, :, column)) for column in 1:dimension]
+    nonsingular_columns = all(>(tolerance), column_norms)
+    normalized_gram_error = if nonsingular_columns
+        normalized = matrix ./ transpose(column_norms)
+        opnorm(
+            transpose(normalized) * normalized -
+            Matrix{Float64}(I, dimension, dimension),
+            Inf,
+        )
+    else
+        Inf
+    end
+    orthogonal_axis_mixing =
+        normalized_gram_error <= tolerance * max(dimension, 1)
+    unit_magnitudes = all(
+        magnitude -> isapprox(magnitude, 1.0; rtol=tolerance, atol=tolerance),
+        column_norms,
+    )
+    classification = if identity_error <= tolerance * max(dimension, 1)
+        "identity"
+    elseif positive_diagonal
+        "magnitude_only"
+    elseif orthogonal_axis_mixing && unit_magnitudes
+        "phase_like_orthogonal"
+    elseif orthogonal_axis_mixing
+        "magnitude_and_phase_like"
+    else
+        "general_linear"
+    end
+    return Dict{String,Any}(
+        "classification" => classification,
+        "dimension" => dimension,
+        "identity_error_infinity_norm" => identity_error,
+        "maximum_off_diagonal_magnitude" => maximum_off_diagonal,
+        "positive_diagonal" => positive_diagonal,
+        "column_magnitudes" => column_norms,
+        "normalized_gram_error_infinity_norm" => normalized_gram_error,
+        "orthogonal_axis_mixing" => orthogonal_axis_mixing,
+        "determinant_sign" => dimension == 0 ? 1.0 : sign(det(matrix)),
+    )
+end
+
+"""
+    scaling_intervention_classification(reference, candidate; ...)
+
+Classify the declared coordinate relation between two semantic scaling maps.
+The result distinguishes positive diagonal magnitude changes, norm-preserving
+axis mixing, their combination, and general linear changes. `phase_like` is a
+linear-algebra description: physical complex-phase meaning still requires a
+plugin declaration for the affected two-coordinate blocks.
+"""
+function scaling_intervention_classification(
+    reference::Union{DiagonalScalingMap,SemanticBlockScalingMap},
+    candidate::Union{DiagonalScalingMap,SemanticBlockScalingMap};
+    tolerance::Real=1.0e-10,
+    max_dense_entries::Integer=100_000,
+)
+    tolerance >= 0 || throw(ArgumentError("tolerance must be nonnegative"))
+    max_dense_entries >= 0 || throw(ArgumentError(
+        "max_dense_entries must be nonnegative",
+    ))
+    reference_map = reference isa DiagonalScalingMap ?
+        SemanticBlockScalingMap(reference) : reference
+    candidate_map = candidate isa DiagonalScalingMap ?
+        SemanticBlockScalingMap(candidate) : candidate
+    variable_dimension = length(reference_map.variable_keys)
+    constraint_dimension = length(reference_map.constraint_keys)
+    required_entries = variable_dimension^2 + constraint_dimension^2
+    if required_entries > max_dense_entries
+        return Dict{String,Any}(
+            "report_version" => "scaling-intervention-classification-v1",
+            "available" => false,
+            "classification" => "unavailable",
+            "reason" =>
+                "dense coordinate relations require $required_entries entries, above max_dense_entries=$max_dense_entries",
+            "required_dense_entries" => required_entries,
+        )
+    end
+    variable_relation = _coordinate_relation(
+        reference_map.variable_keys,
+        reference_map.variable_blocks,
+        reference_map.variable_model_to_physical,
+        candidate_map.variable_keys,
+        candidate_map.variable_blocks,
+        candidate_map.variable_physical_to_model,
+        "variable",
+    )
+    reference_constraint_blocks = [
+        block.linear for block in reference_map.constraint_blocks
+    ]
+    candidate_constraint_blocks = [
+        block.linear for block in candidate_map.constraint_blocks
+    ]
+    constraint_relation = _coordinate_relation(
+        reference_map.constraint_keys,
+        reference_constraint_blocks,
+        reference_map.constraint_model_to_physical,
+        candidate_map.constraint_keys,
+        candidate_constraint_blocks,
+        candidate_map.constraint_physical_to_model,
+        "constraint",
+    )
+    variables = _coordinate_relation_classification(
+        variable_relation; tolerance,
+    )
+    constraints = _coordinate_relation_classification(
+        constraint_relation; tolerance,
+    )
+    axis_classes = Set((
+        variables["classification"], constraints["classification"],
+    ))
+    objective_ratio = reference_map.objective_scale /
+        candidate_map.objective_scale
+    objective_changed = !isapprox(
+        objective_ratio, 1.0; rtol=tolerance, atol=tolerance,
+    )
+    general = any(
+        class -> class in ("general_linear", "nonfinite"), axis_classes,
+    )
+    phase_like = any(
+        class -> class in (
+            "phase_like_orthogonal", "magnitude_and_phase_like",
+        ),
+        axis_classes,
+    )
+    magnitude = objective_changed || any(
+        class -> class in (
+            "magnitude_only", "magnitude_and_phase_like",
+        ),
+        axis_classes,
+    )
+    classification = if general
+        "general_coordinate_change"
+    elseif phase_like && magnitude
+        "magnitude_and_phase"
+    elseif phase_like
+        "phase_only"
+    elseif magnitude
+        "magnitude_only"
+    else
+        "identity"
+    end
+    return Dict{String,Any}(
+        "report_version" => "scaling-intervention-classification-v1",
+        "available" => true,
+        "classification" => classification,
+        "reference_map" => reference_map.name,
+        "candidate_map" => candidate_map.name,
+        "variables" => variables,
+        "constraints" => constraints,
+        "objective_scale_ratio" => objective_ratio,
+        "objective_scale_changed" => objective_changed,
+        "required_dense_entries" => required_entries,
+        "qualification" => Dict{String,Any}(
+            "phase_like_is_physical_phase_claim" => false,
+            "model_axis_identity_assumption" =>
+                "within each declared semantic block, input axes inherit the block key order",
+            "does_not_establish" => [
+                "model covariance",
+                "physical meaning of orthogonal axis mixing",
+                "solver merit",
+            ],
+        ),
+    )
+end
+
 """
     ScalingPointTransport
 

@@ -1321,6 +1321,7 @@ function iteration_trace_data(trace::SolverIterationTrace)
         "regularization_size" => record.regularization_size,
         "dual_step" => record.dual_step,
         "line_search_trials" => record.line_search_trials,
+        "linear_telemetry" => copy(record.linear_telemetry),
         "metric_semantics" => Dict{String,Any}(
             "objective" => string(record.semantics.objective),
             "primal_infeasibility" => string(record.semantics.primal_infeasibility),
@@ -1364,7 +1365,7 @@ function iteration_trace_data(trace::SolverIterationTrace)
         ) for field in telemetry_fields
     )
     return Dict{String,Any}(
-        "schema_version" => "nlpdiagnostics-iteration-trace-v2",
+        "schema_version" => "nlpdiagnostics-iteration-trace-v3",
         "record_count" => length(trace.records),
         "segment_count" => length(trace.segments),
         "binding_count" => length(trace.bindings),
@@ -1372,6 +1373,159 @@ function iteration_trace_data(trace::SolverIterationTrace)
         "records" => record_data,
         "segments" => segment_data,
         "bindings" => binding_data,
+    )
+end
+
+const _LINEAR_TELEMETRY_CUMULATIVE_FIELDS = (
+    "linear_solver_time_seconds_cumulative",
+    "factorization_count_cumulative",
+    "backsolve_count_cumulative",
+    "objective_evaluation_count_cumulative",
+    "objective_gradient_evaluation_count_cumulative",
+    "constraint_evaluation_count_cumulative",
+    "jacobian_evaluation_count_cumulative",
+    "hessian_evaluation_count_cumulative",
+)
+
+const _LINEAR_TELEMETRY_CURRENT_FIELDS = (
+    "iterative_refinement_count_current",
+    "line_search_counter_at_callback",
+)
+
+function _telemetry_monotone_within_trace_segments(trace, field)
+    isempty(trace.records) && return nothing
+    monotone = true
+    previous = nothing
+    previous_iteration = nothing
+    observed = 0
+    for record in trace.records
+        value = get(record.linear_telemetry, field, nothing)
+        value isa Real && isfinite(value) || continue
+        if !isnothing(previous_iteration) && record.iteration < previous_iteration
+            previous = nothing
+        end
+        if !isnothing(previous)
+            monotone &= value >= previous
+        end
+        previous = value
+        previous_iteration = record.iteration
+        observed += 1
+    end
+    return observed <= 1 ? nothing : monotone
+end
+
+function _solver_linear_telemetry_field_data(trace, field; cumulative)
+    values = Any[
+        get(record.linear_telemetry, field, nothing) for record in trace.records
+    ]
+    numeric = Float64[
+        Float64(value) for value in values if value isa Real && isfinite(value)
+    ]
+    return Dict{String,Any}(
+        "coverage_count" => length(numeric),
+        "record_count" => length(trace.records),
+        "coverage_complete" => length(numeric) == length(trace.records) &&
+            !isempty(trace.records),
+        "cumulative" => cumulative,
+        "minimum" => isempty(numeric) ? nothing : minimum(numeric),
+        "maximum" => isempty(numeric) ? nothing : maximum(numeric),
+        "final" => isempty(numeric) ? nothing : last(numeric),
+        "monotone_within_segments" => cumulative ?
+            _telemetry_monotone_within_trace_segments(trace, field) : nothing,
+    )
+end
+
+"""
+    solver_linear_telemetry_data(trace)
+
+Summarize linear-system and derivative-evaluation counters explicitly retained
+by solver callbacks. Missing counters remain unavailable. Regularization is
+reported as an algorithmic proxy, not as a factorization count, inertia, fill,
+or stability measurement.
+"""
+function solver_linear_telemetry_data(trace::SolverIterationTrace)
+    fields = Dict{String,Any}()
+    for field in _LINEAR_TELEMETRY_CUMULATIVE_FIELDS
+        fields[field] = _solver_linear_telemetry_field_data(
+            trace, field; cumulative=true,
+        )
+    end
+    for field in _LINEAR_TELEMETRY_CURRENT_FIELDS
+        fields[field] = _solver_linear_telemetry_field_data(
+            trace, field; cumulative=false,
+        )
+    end
+    sources = sort!(unique!(String[
+        string(source) for record in trace.records for source in
+        (get(record.linear_telemetry, "source", nothing),)
+        if !isnothing(source)
+    ]))
+    api_stability = sort!(unique!(String[
+        string(value) for record in trace.records for value in
+        (get(record.linear_telemetry, "api_stability", nothing),)
+        if !isnothing(value)
+    ]))
+    factorization_count_available = get(
+        fields["factorization_count_cumulative"], "coverage_complete", false,
+    ) === true
+    backsolve_count_available = get(
+        fields["backsolve_count_cumulative"], "coverage_complete", false,
+    ) === true
+    linear_time_available = get(
+        fields["linear_solver_time_seconds_cumulative"],
+        "coverage_complete",
+        false,
+    ) === true
+    regularization_count = count(
+        record -> !isnothing(record.regularization_size), trace.records,
+    )
+    formats = sort!(unique!([string(record.format) for record in trace.records]))
+    ipopt_only = !isempty(formats) && all(==("ipopt_callback"), formats)
+    unavailable_reason = ipopt_only ?
+        "Ipopt.CallbackFunction exposes regularization and step metrics but not factorization counts, backsolves, inertia, fill, pivots, or linear-solver time" :
+        "the retained callback records do not expose the requested field"
+    return Dict{String,Any}(
+        "schema_version" => "solver-linear-telemetry-v1",
+        "available" => any(
+            get(field, "coverage_count", 0) > 0 for field in values(fields)
+        ),
+        "record_count" => length(trace.records),
+        "formats" => formats,
+        "sources" => sources,
+        "api_stability" => api_stability,
+        "temporal_alignment" => sort!(unique!(String[
+            string(value) for record in trace.records for value in
+            (get(record.linear_telemetry, "temporal_alignment", nothing),)
+            if !isnothing(value)
+        ])),
+        "fields" => fields,
+        "factorization_work_available" =>
+            factorization_count_available && backsolve_count_available,
+        "linear_solver_time_available" => linear_time_available,
+        "regularization_proxy" => Dict{String,Any}(
+            "coverage_count" => regularization_count,
+            "coverage_complete" => regularization_count == length(trace.records) &&
+                !isempty(trace.records),
+            "is_factorization_telemetry" => false,
+        ),
+        "factorization_numerics" => Dict{String,Any}(
+            "inertia_available" => false,
+            "pivot_statistics_available" => false,
+            "factor_nonzeros_available" => false,
+            "fill_ratio_available" => false,
+            "backward_error_available" => false,
+            "reason" => unavailable_reason,
+        ),
+        "qualification" => Dict{String,Any}(
+            "claim" =>
+                "callback-exposed cumulative work counters and regularization evidence",
+            "does_not_establish" => [
+                "per-factorization numerical stability",
+                "factorization fill or memory use",
+                "linear-system backward error",
+                "causality between Jacobian geometry and solver work",
+            ],
+        ),
     )
 end
 

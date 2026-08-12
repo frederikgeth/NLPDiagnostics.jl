@@ -2421,6 +2421,7 @@ struct SolverIterationRecord
     regularization_size::Union{Nothing,Float64}
     dual_step::Union{Nothing,Float64}
     line_search_trials::Union{Nothing,Int}
+    linear_telemetry::Dict{String,Any}
     semantics::SolverIterationMetricSemantics
     text::String
 end
@@ -2441,6 +2442,7 @@ function SolverIterationRecord(
     regularization_size::Union{Nothing,Real} = nothing,
     dual_step::Union{Nothing,Real} = nothing,
     line_search_trials::Union{Nothing,Integer} = nothing,
+    linear_telemetry::AbstractDict = Dict{String,Any}(),
     semantics::SolverIterationMetricSemantics = SolverIterationMetricSemantics(),
 )
     return SolverIterationRecord(
@@ -2458,6 +2460,7 @@ function SolverIterationRecord(
         isnothing(regularization_size) ? nothing : Float64(regularization_size),
         isnothing(dual_step) ? nothing : Float64(dual_step),
         isnothing(line_search_trials) ? nothing : Int(line_search_trials),
+        Dict{String,Any}(string(key) => value for (key, value) in linear_telemetry),
         semantics,
         String(text),
     )

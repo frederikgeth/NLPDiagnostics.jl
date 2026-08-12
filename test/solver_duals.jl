@@ -95,6 +95,224 @@
     @test !combined["evidence_relationship"][
         "numeric_residual_comparison_performed"
     ]
+    family_summary = Dict{String,Any}(
+        "state" => Dict{String,Any}(
+            "passed_count" => 1,
+            "failed_count" => 0,
+            "maxima" => Dict("residual" => 1.0e-9),
+        ),
+    )
+    attribution = Dict{String,Any}(
+        section => Dict{String,Any}("families" => deepcopy(family_summary))
+        for section in (
+            "primal_feasibility", "stationarity", "complementarity",
+        )
+    )
+    reference_artifact = deepcopy(combined)
+    candidate_artifact = deepcopy(combined)
+    reference_artifact["physical_endpoint"]["semantic_attribution"] =
+        deepcopy(attribution)
+    candidate_artifact["physical_endpoint"]["semantic_attribution"] =
+        deepcopy(attribution)
+    reference_artifact["solver_trace_profile"]["solver_profile"][
+        "postmortem"
+    ] = Dict("termination" => "optimal")
+    candidate_artifact["solver_trace_profile"]["solver_profile"][
+        "postmortem"
+    ] = Dict("termination" => "optimal")
+    matched = NLPDiagnostics.scaling_solver_experiment_comparison(
+        reference_artifact,
+        candidate_artifact;
+        intervention=:baseline_repeat,
+        intervention_report=NLPDiagnostics.scaling_intervention_classification(
+            scaling, scaling,
+        ),
+        covariance_report=Dict("equivalence_gate_passed" => true),
+        geometry_report=Dict("semantic_interpretation_qualified" => true),
+        hypothesis="a baseline repeat should retain the same evidence contract",
+    )
+    @test matched["available"]
+    @test matched["comparison_qualified"]
+    @test matched["gates"]["native_metric_semantics_compatible"]
+    @test matched["native_work"]["comparisons"]["record_count"][
+        "candidate_to_reference_ratio"
+    ] == 1.0
+    @test matched["physical_endpoint_families"][
+        "numeric_comparison_allowed"
+    ]
+    withheld = NLPDiagnostics.scaling_solver_experiment_comparison(
+        reference_artifact,
+        candidate_artifact;
+        intervention=:magnitude_only,
+        intervention_report=Dict(
+            "available" => true,
+            "classification" => "magnitude_only",
+        ),
+        covariance_report=Dict("equivalence_gate_passed" => false),
+        geometry_report=Dict("semantic_interpretation_qualified" => true),
+    )
+    @test !withheld["comparison_qualified"]
+    @test !withheld["physical_endpoint_families"][
+        "numeric_comparison_allowed"
+    ]
+    @test_throws ArgumentError NLPDiagnostics.scaling_solver_experiment_comparison(
+        reference_artifact, candidate_artifact; intervention=:mystery,
+    )
+    endpoint_contract = Dict{String,Any}(
+        "acceptance_passed" => true,
+        "primal_feasibility" => Dict(
+            "residuals" => Dict(
+                "g" => Dict("absolute_tolerance" => 1.0e-3),
+            ),
+        ),
+        "stationarity" => Dict(
+            "stationarity" => Dict(
+                "x" => Dict("absolute_tolerance" => 1.0e-4),
+            ),
+        ),
+        "complementarity" => Dict(
+            "sides" => Dict{String,Any}(),
+        ),
+    )
+    covariance_metrics = Dict{String,Any}(
+        metric => Dict("passed" => true) for metric in (
+            "physical_point",
+            "constraint_function_values",
+            "constraint_sets",
+            "physical_jacobian",
+        )
+    )
+    covariance_metrics["constraint_residuals"] = Dict(
+        "passed" => false,
+        "maximum_absolute_difference" => 5.0e-4,
+    )
+    endpoint_equivalence =
+        NLPDiagnostics.physical_endpoint_equivalence_report(
+            Dict("metrics" => covariance_metrics),
+            endpoint_contract,
+            deepcopy(endpoint_contract),
+        )
+    @test endpoint_equivalence["equivalence_gate_passed"]
+    @test !endpoint_equivalence["qualification"][
+        "constraint_residual_covariance_is_required"
+    ]
+    mismatched_contract = deepcopy(endpoint_contract)
+    mismatched_contract["stationarity"]["stationarity"]["x"][
+        "absolute_tolerance"
+    ] = 2.0e-4
+    rejected_endpoint_equivalence =
+        NLPDiagnostics.physical_endpoint_equivalence_report(
+            Dict("metrics" => covariance_metrics),
+            endpoint_contract,
+            mismatched_contract,
+        )
+    @test !rejected_endpoint_equivalence["equivalence_gate_passed"]
+    @test !rejected_endpoint_equivalence["tolerance_contracts_agree"]
+    magnitude_comparison =
+        NLPDiagnostics.scaling_solver_experiment_comparison(
+            reference_artifact,
+            candidate_artifact;
+            intervention=:magnitude_only,
+            intervention_report=Dict(
+                "available" => true,
+                "classification" => "magnitude_only",
+            ),
+            covariance_report=Dict("equivalence_gate_passed" => true),
+            geometry_report=Dict(
+                "semantic_interpretation_qualified" => true,
+            ),
+        )
+    campaign_runs = [
+        Dict(
+            "policy" => policy,
+            "replicate" => replicate,
+            "provenance_fingerprint" => "same-environment",
+            "common_start_covariance_passed" => true,
+            "artifact" => policy == "reference" ?
+                deepcopy(reference_artifact) : deepcopy(candidate_artifact),
+        ) for policy in ("reference", "candidate") for replicate in 1:2
+    ]
+    campaign_comparisons = [
+        Dict(
+            "candidate_policy" => "reference",
+            "reference_replicate" => 1,
+            "candidate_replicate" => 2,
+            "comparison" => deepcopy(matched),
+        ),
+        [
+            Dict(
+                "candidate_policy" => "candidate",
+                "reference_replicate" => replicate,
+                "candidate_replicate" => replicate,
+                "comparison" => deepcopy(magnitude_comparison),
+            ) for replicate in 1:2
+        ]...,
+    ]
+    campaign = NLPDiagnostics.scaling_solver_experiment_campaign_data(
+        campaign_runs,
+        campaign_comparisons;
+        reference_policy="reference",
+        minimum_repeats=2,
+    )
+    @test campaign["campaign_qualified"]
+    @test campaign["gates"]["provenance_stable"]
+    @test campaign["policies"]["candidate"]["termination_stable"]
+    @test campaign["comparisons"]["candidate"]["comparison_count"] == 2
+    broken_runs = deepcopy(campaign_runs)
+    broken_runs[end]["provenance_fingerprint"] = "different-environment"
+    broken_campaign = NLPDiagnostics.scaling_solver_experiment_campaign_data(
+        broken_runs,
+        campaign_comparisons;
+        reference_policy="reference",
+        minimum_repeats=2,
+    )
+    @test !broken_campaign["campaign_qualified"]
+    @test !broken_campaign["gates"]["provenance_stable"]
+    @test_throws ArgumentError NLPDiagnostics.scaling_solver_experiment_campaign_data(
+        campaign_runs,
+        campaign_comparisons;
+        reference_policy="reference",
+        minimum_repeats=1,
+    )
+    stratified = NLPDiagnostics.scaling_solver_experiment_stratified_campaign_data(
+        [
+            Dict("stratum" => "native", "campaign" => deepcopy(campaign)),
+            Dict("stratum" => "nearby-seed-11", "campaign" => deepcopy(campaign)),
+        ];
+        minimum_strata=2,
+        minimum_repeats=2,
+    )
+    @test stratified["campaign_qualified"]
+    @test stratified["gates"]["policy_coverage_consistent"]
+    @test stratified["policies"]["candidate"]["run_count"] == 4
+    @test stratified["policies"]["candidate"]["record_count_range"][
+        "sample_count"
+    ] == 4
+    @test stratified["policies"]["reference"]["record_count_range"]["minimum"] ==
+        campaign["policies"]["reference"]["record_count_range"]["minimum"]
+    duplicate_strata = NLPDiagnostics.scaling_solver_experiment_stratified_campaign_data(
+        [
+            Dict("stratum" => "native", "campaign" => deepcopy(campaign)),
+            Dict("stratum" => "native", "campaign" => deepcopy(campaign)),
+        ],
+    )
+    @test !duplicate_strata["campaign_qualified"]
+    @test !duplicate_strata["gates"]["stratum_ids_unique"]
+    changed_policy = deepcopy(campaign)
+    changed_policy["policies"]["extra"] =
+        deepcopy(changed_policy["policies"]["candidate"])
+    inconsistent = NLPDiagnostics.scaling_solver_experiment_stratified_campaign_data(
+        [
+            Dict("stratum" => "native", "campaign" => deepcopy(campaign)),
+            Dict("stratum" => "nearby", "campaign" => changed_policy),
+        ],
+    )
+    @test !inconsistent["campaign_qualified"]
+    @test !inconsistent["gates"]["policy_coverage_consistent"]
+    @test_throws ArgumentError NLPDiagnostics.scaling_solver_experiment_stratified_campaign_data(
+        [Dict("stratum" => "native", "campaign" => campaign)];
+        minimum_strata=1,
+    )
 end
 
 if Base.find_package("Ipopt") !== nothing

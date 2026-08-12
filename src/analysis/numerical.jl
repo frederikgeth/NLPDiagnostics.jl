@@ -208,6 +208,146 @@ function jacobian_row_family_scale_attribution(
     )
 end
 
+function _jacobian_column_family_labels(column_labels, column_count::Integer)
+    label_value(value) = begin
+        if value isa AbstractDict
+            raw = get(
+                value,
+                "variable_family",
+                get(
+                    value,
+                    :variable_family,
+                    get(value, "family_label", "unclassified_column"),
+                ),
+            )
+            return String(raw)
+        end
+        return string(value isa Symbol ? value : value)
+    end
+    labels = Vector{String}(undef, column_count)
+    if column_labels isa AbstractDict
+        for column in 1:column_count
+            value = get(
+                column_labels,
+                column,
+                get(column_labels, string(column), "unclassified_column"),
+            )
+            labels[column] = label_value(value)
+        end
+    else
+        length(column_labels) == column_count || throw(ArgumentError(
+            "column_labels must have one entry per evaluated Jacobian column",
+        ))
+        for column in 1:column_count
+            labels[column] = label_value(column_labels[column])
+        end
+    end
+    return labels
+end
+
+"""
+    jacobian_column_family_scale_attribution(evaluation, column_labels)
+
+Attribute solver-coordinate Jacobian column norms to declared variable
+families. This is the column analogue of
+`jacobian_row_family_scale_attribution`; duplicate sparse entries are summed,
+and unavailable derivative rows make the global column-norm coverage explicit.
+It describes local coordinate sensitivity and does not assign causality.
+"""
+function jacobian_column_family_scale_attribution(
+    evaluation::NumericalEvaluation{T}, column_labels,
+) where {T<:AbstractFloat}
+    column_count = length(evaluation.point.variables)
+    labels = _jacobian_column_family_labels(column_labels, column_count)
+    scale = jacobian_scale_summary(evaluation)
+    nonfinite = Set(scale.nonfinite_columns)
+    derivative_rows_complete = length(evaluation.jacobian_row_methods) ==
+        length(evaluation.constraint_sources) && all(
+            method -> !(method in _JACOBIAN_INCOMPLETE_METHODS),
+            evaluation.jacobian_row_methods,
+        )
+    combined = Dict{Tuple{Int,Int},T}()
+    for entry in evaluation.jacobian_entries
+        key = (entry.row, entry.column)
+        combined[key] = get(combined, key, zero(T)) + entry.value
+    end
+    column_entry_counts = zeros(Int, column_count)
+    for ((_, column), value) in combined
+        iszero(value) || (column_entry_counts[column] += 1)
+    end
+    global_min = scale.smallest_positive_column_norm
+    global_max = scale.largest_finite_column_norm
+    families = Dict{String,Any}()
+    for family in sort!(unique(labels))
+        columns = findall(==(family), labels)
+        positive = sort!(T[
+            scale.column_norms[column] for column in columns if
+            !(column in nonfinite) && isfinite(scale.column_norms[column]) &&
+            scale.column_norms[column] > zero(T)
+        ])
+        zero_columns = [column for column in columns if
+            !(column in nonfinite) && iszero(scale.column_norms[column])]
+        minimum_columns = isnothing(global_min) ? Int[] : [
+            column for column in columns if
+            scale.column_norms[column] == global_min
+        ]
+        maximum_columns = isnothing(global_max) ? Int[] : [
+            column for column in columns if
+            scale.column_norms[column] == global_max
+        ]
+        family_min = isempty(positive) ? nothing : first(positive)
+        family_max = isempty(positive) ? nothing : last(positive)
+        families[family] = Dict{String,Any}(
+            "column_count" => length(columns),
+            "finite_positive_column_count" => length(positive),
+            "zero_column_count" => length(zero_columns),
+            "nonfinite_column_count" => count(
+                column -> column in nonfinite, columns,
+            ),
+            "combined_nonzero_entry_count" =>
+                sum(column_entry_counts[columns]; init=0),
+            "smallest_positive_column_norm" => family_min,
+            "column_norm_q25" => _jacobian_scale_quantile(positive, 0.25),
+            "column_norm_median" => _jacobian_scale_quantile(positive, 0.5),
+            "column_norm_q75" => _jacobian_scale_quantile(positive, 0.75),
+            "largest_finite_column_norm" => family_max,
+            "column_scale_ratio" =>
+                isnothing(family_min) || isnothing(family_max) ? nothing :
+                family_max / family_min,
+            "owns_global_smallest_positive_column_norm" =>
+                !isempty(minimum_columns),
+            "owns_global_largest_finite_column_norm" =>
+                !isempty(maximum_columns),
+            "global_minimum_column_indices" => minimum_columns,
+            "global_maximum_column_indices" => maximum_columns,
+        )
+    end
+    return Dict{String,Any}(
+        "report_version" => "jacobian-column-family-scale-attribution-v1",
+        "point_label" => evaluation.point.label,
+        "column_count" => column_count,
+        "family_count" => length(families),
+        "norm" => string(scale.norm),
+        "derivative_rows_complete" => derivative_rows_complete,
+        "smallest_positive_column_norm" => global_min,
+        "largest_finite_column_norm" => global_max,
+        "column_scale_ratio" => scale.column_scale_ratio,
+        "global_minimum_families" => sort!([
+            family for (family, data) in families if get(
+                data, "owns_global_smallest_positive_column_norm", false,
+            ) === true
+        ]),
+        "global_maximum_families" => sort!([
+            family for (family, data) in families if get(
+                data, "owns_global_largest_finite_column_norm", false,
+            ) === true
+        ]),
+        "families" => families,
+        "interpretation" =>
+            "point-local variable-family derivative-scale attribution; not causal conditioning evidence",
+    )
+end
+
 function _jacobian_row_rescaled_evaluation(
     evaluation::NumericalEvaluation{T}, factors::AbstractVector{T},
 ) where {T<:AbstractFloat}
@@ -826,6 +966,129 @@ function _scaling_geometry_relation(candidate, reference;
     isapprox(candidate, reference; rtol=relative_tolerance, atol=0.0) &&
         return "approximately_equal"
     return candidate < reference ? "candidate_lower" : "candidate_higher"
+end
+
+function _jacobian_family_axis_comparison(
+    reference,
+    candidate,
+    metrics;
+    relative_tolerance::Real,
+)
+    reference_families = reference["families"]
+    candidate_families = candidate["families"]
+    reference_names = Set(keys(reference_families))
+    candidate_names = Set(keys(candidate_families))
+    names_agree = reference_names == candidate_names
+    comparisons = Dict{String,Any}()
+    for family in sort!(collect(intersect(reference_names, candidate_names)))
+        records = Dict{String,Any}()
+        for metric in metrics
+            reference_value = get(reference_families[family], metric, nothing)
+            candidate_value = get(candidate_families[family], metric, nothing)
+            records[metric] = Dict{String,Any}(
+                "reference" => reference_value,
+                "candidate" => candidate_value,
+                "candidate_to_reference_ratio" =>
+                    _scaling_geometry_ratio(candidate_value, reference_value),
+                "relation" => _scaling_geometry_relation(
+                    candidate_value, reference_value; relative_tolerance,
+                ),
+            )
+        end
+        comparisons[family] = records
+    end
+    return Dict{String,Any}(
+        "family_sets_agree" => names_agree,
+        "reference_only_families" =>
+            sort!(collect(setdiff(reference_names, candidate_names))),
+        "candidate_only_families" =>
+            sort!(collect(setdiff(candidate_names, reference_names))),
+        "families" => comparisons,
+    )
+end
+
+"""
+    jacobian_family_geometry_comparison(reference, candidate; ...)
+
+Compare row- and column-family Jacobian norm geometry for two explicitly
+labelled evaluations. This function does not establish that the two models or
+points are equivalent; callers must retain a separate covariance gate.
+"""
+function jacobian_family_geometry_comparison(
+    reference::NumericalEvaluation,
+    candidate::NumericalEvaluation;
+    reference_row_labels,
+    candidate_row_labels,
+    reference_column_labels,
+    candidate_column_labels,
+    relative_tolerance::Real = 1.0e-7,
+)
+    relative_tolerance >= 0 || throw(ArgumentError(
+        "relative_tolerance must be nonnegative",
+    ))
+    reference_rows = jacobian_row_family_scale_attribution(
+        reference, reference_row_labels,
+    )
+    candidate_rows = jacobian_row_family_scale_attribution(
+        candidate, candidate_row_labels,
+    )
+    reference_columns = jacobian_column_family_scale_attribution(
+        reference, reference_column_labels,
+    )
+    candidate_columns = jacobian_column_family_scale_attribution(
+        candidate, candidate_column_labels,
+    )
+    row_comparison = _jacobian_family_axis_comparison(
+        reference_rows,
+        candidate_rows,
+        (
+            "smallest_positive_row_norm",
+            "row_norm_median",
+            "largest_finite_row_norm",
+            "row_scale_ratio",
+        );
+        relative_tolerance,
+    )
+    column_comparison = _jacobian_family_axis_comparison(
+        reference_columns,
+        candidate_columns,
+        (
+            "smallest_positive_column_norm",
+            "column_norm_median",
+            "largest_finite_column_norm",
+            "column_scale_ratio",
+        );
+        relative_tolerance,
+    )
+    return Dict{String,Any}(
+        "report_version" => "jacobian-family-geometry-comparison-v1",
+        "available" => reference_columns["derivative_rows_complete"] &&
+            candidate_columns["derivative_rows_complete"],
+        "reference" => Dict(
+            "rows" => reference_rows,
+            "columns" => reference_columns,
+        ),
+        "candidate" => Dict(
+            "rows" => candidate_rows,
+            "columns" => candidate_columns,
+        ),
+        "comparisons" => Dict(
+            "rows" => row_comparison,
+            "columns" => column_comparison,
+        ),
+        "family_sets_agree" => row_comparison["family_sets_agree"] &&
+            column_comparison["family_sets_agree"],
+        "qualification" => Dict{String,Any}(
+            "claim" =>
+                "descriptive solver-coordinate Jacobian geometry by caller-declared families",
+            "requires_external_covariance_gate" => true,
+            "does_not_establish" => [
+                "model equivalence",
+                "causal conditioning mechanisms",
+                "solver performance",
+            ],
+        ),
+    )
 end
 
 function _solver_coordinate_jacobian_geometry(

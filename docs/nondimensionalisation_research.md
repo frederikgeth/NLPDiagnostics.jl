@@ -224,9 +224,12 @@ by comparing different physical starts or stopping tolerances.
 6. **Implemented for scalar-bound endpoints:** physical primal, stationarity,
    dual-feasibility, and complementarity acceptance are explicit and tied to a
    point-verified public MOI dual snapshot.
-7. Run magnitude-only fixed-policy experiments.
+7. **Implemented for two compact objective-bearing case classes:** run
+   magnitude-only fixed-policy experiments with repeated, physically matched
+   start strata.
 8. Run phase-only singular-invariance and block-coupling experiments.
-9. Run combined and matched solver experiments only after those gates pass.
+9. **Implemented for magnitude-only Ipopt experiments:** run combined and
+   matched solver experiments only after those gates pass.
 10. Treat QC/RQC/TRQC experiments as a separate approximation-strength study.
 
 ## Current publication boundary
@@ -321,3 +324,168 @@ the attributed BMOPF wrapper `bmopf_solver_trace_physical_endpoint_data`.
 BMOPF family maxima make it possible to ask which equation or variable family
 controls physical endpoint quality. They remain attribution, not causality:
 the experimental design must still vary one scaling intervention at a time.
+
+The next instrumentation gate is now implemented. The declared relation
+between two semantic maps is classified independently of solver behavior, and
+the matched-run artifact refuses qualification unless that observed algebraic
+class agrees with the experimental intervention. This makes magnitude-only and
+phase-only hypotheses falsifiable at the coordinate-map boundary before any
+iteration count is inspected.
+
+Family-resolved Jacobian geometry is retained on both axes. Consequently, a
+candidate policy can be evaluated as a mechanism chain rather than a scalar
+score:
+
+1. the coordinate intervention has the intended algebraic class;
+2. physical point, sets, residuals, and Jacobian pass covariance;
+3. named equation and variable families exhibit the predicted local geometry
+   change;
+4. solver-native work changes under compatible telemetry semantics; and
+5. both endpoints satisfy the same physical KKT contract.
+
+Publication claims should follow that chain. A lower iteration count without
+steps 1--3 and 5 is merely an observed solver run. A better local family norm
+without step 4 is a mechanistic hypothesis, not an algorithmic improvement.
+
+### First magnitude-only pilot
+
+The first repeated pilot now passes the complete chain on the small line/load
+truth fixture. Two fresh Ipopt runs were made for classic 1 MVA per-unit, SI,
+local 500 V / 200 kVA, and local 1500 V / 5 MVA coordinates. All runs used the
+same transported physical start, reached accepted physical KKT endpoints, and
+were repeatable at the captured-work level. Provenance mismatch and omitted
+intervention-evidence controls were both rejected.
+
+The local-base policies were close to classic geometry and required the same
+four callback records and three line-search trials. SI increased the local
+condition proxy by roughly 384 times, increased both norm spreads by 1000
+times, and reproducibly required one additional callback record and one
+additional line-search trial. This is consistent with the proposed mechanism,
+but the sample is deliberately too small for a solver-performance claim.
+
+The pilot also found an important endpoint-design correction. Exact covariance
+of residual vectors near zero rejected SI and the high-base policy because
+their dimensional residuals differed by about `1.74e-4`, even though both
+endpoints passed the same declared 1-unit physical feasibility contract and
+their points and Jacobians agreed. Endpoint equivalence now requires the same
+complete tolerance contract and accepted KKT endpoints while preserving the
+raw residual difference as non-gating evidence. Same-point covariance remains
+strict and unchanged.
+
+### Objective-bearing, start-stratified magnitude campaign
+
+The next campaign has now cleared the intended small-case evidence gate. It
+uses an unbalanced three-phase line/load problem with cheaper local wye
+generation and a two-voltage-level wye-delta transformer problem with cheaper
+local delta generation. Thus objective value and gradient covariance are
+exercised alongside the physical point, constraint functions, sets, Jacobian,
+and KKT endpoint contracts.
+
+For each case, four magnitude-only policies were run from three physical-start
+strata (the native completed start and deterministic bounded perturbations with
+seeds 11 and 29), with five fresh models per policy and stratum. BMOPFTools'
+semantic registry transported each anchor point to every coordinate system.
+All 120 solves terminated locally optimally; every common-start covariance,
+physical endpoint, intervention, semantic-geometry, and matched-comparison gate
+passed, and no run entered restoration.
+
+The retained callback-record ranges were:
+
+| Case | Classic 1 MVA | Local 0.65 V / 0.25 S | Local 1.5 V / 10 S | SI |
+| --- | ---: | ---: | ---: | ---: |
+| Three-phase line/load/generator | 12--13 | 11--12 | 13--14 | 18 |
+| Wye-delta transformer/load/generator | 17--18 | 15--16 | 18--25 | 19--21 |
+
+Here `V` and `S` denote factors relative to BMOPFTools' authoritative classic
+voltage bases and each case's declared reference apparent power, not physical
+units. The same ordering holds for line-search trials after subtracting one.
+These are descriptive observations on two truth fixtures, not a ranking.
+
+Three mechanism lessons are already credible enough to guide the next design:
+
+1. raw SI coordinates create extreme global Jacobian norm-spread and condition
+   proxies and consistently cost more work than classic per-unit on both cases;
+2. the smaller local voltage/power bases reduced Ipopt work even though some
+   global norm-spread or condition proxies became worse, so no single scalar
+   geometry statistic is an adequate scaling objective; and
+3. the aggressive high-power-base policy was strongly initialization-sensitive
+   on the transformer (18--25 records), showing why matched physical-start
+   strata are necessary before a policy is called robust.
+
+The first pilot also calibrated two distinct contracts. Exact same-start
+covariance remains at `1e-6` absolute and `1e-8` relative. Independently solved
+endpoints use an explicitly declared `0.1` physical absolute / `2e-5` relative
+neighborhood plus accepted KKT contracts; the maximum observed endpoint
+coordinate difference in the rejected tighter pilot was about `0.063` physical
+voltage units. Physical complementarity uses `1e-4`; the tighter `1e-5` screen
+rejected otherwise accepted endpoints only through active-generator products
+of roughly `3e-5`--`5e-5`. These sensitivity results are evidence for the
+chosen campaign contract, not a change to Ipopt's `1e-8` stopping tolerance.
+
+The experiment is reproducible through
+`benchmarks/bmopf_stratified_scaling_campaign.jl`; its default artifact is
+`work/bmopf-stratified-scaling-campaign.json`, with a compact inspectable
+companion at `work/bmopf-stratified-scaling-campaign-summary.json`.
+
+### Trace-resolved transformer pilot
+
+The next mechanism layer is now executable. A bounded rerun used the
+wye-delta transformer fixture, four policies, native and seed-11 physical
+starts, two fresh replicates, and eight event-preserving Jacobian snapshots per
+solve. All 16 runs had complete BMOPFTools registry coverage and qualified
+row/column-family trajectories. The callback ranges reproduced the larger
+campaign: 16 records for the lower-base policy, 17--18 for classic, 18--22 for
+the aggressive high-base policy, and 21 for SI.
+
+The family evidence explains why a single global condition proxy is
+insufficient. In SI coordinates, transformer current-coupling columns reached
+a within-family spread of about 6,351 and voltage-column median norms moved
+from 1 to about 19.6, while transformer apparent-power-circle row norms were
+around `1e-5`. The lower-base policy kept the inspected column-family spreads
+near 1--2.1 and required the least work. The aggressive high-base policy kept
+most current and voltage families near order one but grew transformer-coil
+power columns strongly: the selected reactive-power family spread reached
+about 17.6 and its endpoint median norm about 18.7.
+
+Initialization adds a distinct signal. At the perturbed start, classic had two
+positive regularization callback rows with a maximum of about 267, whereas the
+aggressive high-base policy had two with a maximum of about 26,667. The
+lower-base and SI runs had none. Thus regularization is neither interchangeable
+with the global Jacobian proxy nor sufficient to explain SI's extra work. This
+is association at captured iterates, not factorization causality: Ipopt does
+not expose factorization count, inertia, pivots, fill, or linear-solver time
+through its public callback.
+
+The pilot also changed the measurement protocol. Uniform trace subsampling
+could miss an early regularization event; bounded selection now preserves
+solver events and only uses uniform points for the remaining budget. The full
+pilot artifact is `work/bmopf-trace-geometry-pilot.json`; its compact companion
+retains trajectories and telemetry summaries but omits individual Jacobian
+snapshots.
+
+### First MadNLP portability pilot
+
+`benchmarks/bmopf_stratified_madnlp_campaign.jl` now runs the same
+objective-bearing matched-start design with MadNLP. A bounded transformer run
+used four policies, native and seed-11 strata, and two fresh replicates: all 16
+solves terminated locally optimally, passed common-start and endpoint gates,
+and were deterministic within each cell. Callback records were 16--17 for
+classic, 16--17 for the lower-base policy, 19--21 for the aggressive policy,
+and 20 for SI. This broadly reproduces the Ipopt ordering while showing that a
+one-iteration classic/lower-base distinction is not portable evidence.
+
+MadNLP adds a genuinely different evidence layer. Native-start first
+replicates ended with 16, 17, 19, and 20 cumulative factorizations for classic,
+lower-base, aggressive, and SI respectively. At the perturbed start, classic
+used 23 factorizations for 17 callback records and the aggressive policy used
+33 for 21; their maximum regularization sizes were about 267 and 71,111.
+Lower-base used 16 factorizations and SI 20 with no positive regularization.
+These counters show extra linear-system work that iteration counts conceal.
+Sub-millisecond linear-solver timings are retained but are too small and noisy
+for policy ranking in this fixture.
+
+This is a solver-portability pilot, not the full default matrix. The next trust
+step is the five-repeat, three-stratum, two-case MadNLP campaign. Trace-resolved
+Jacobian geometry remains unavailable because MadNLP's public callback does
+not expose primal iterate coordinates; the same-start geometry and physical
+endpoint contracts remain available independently.

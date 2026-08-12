@@ -51,6 +51,12 @@ end
     @test candidate_map["available"]
     @test isempty(reference_map["unsupported_variables"])
     @test isempty(reference_map["unsupported_constraint_rows"])
+    reference_columns = NLPDiagnostics.bmopf_variable_semantic_column_map(
+        reference_context, reference_evaluation,
+    )
+    @test length(reference_columns) ==
+          length(reference_evaluation.point.variables)
+    @test all(column["registered"] for column in values(reference_columns))
 
     reference_block_map = NLPDiagnostics.bmopf_semantic_block_scaling_map(
         reference_context, reference_evaluation)
@@ -68,6 +74,18 @@ end
         record["reference_physical_scale"] ≈ hypot(100000.0, 20000.0),
         reference_block_map["reference_scales"],
     )
+    intervention = NLPDiagnostics.bmopf_scaling_intervention_classification(
+        reference_context,
+        reference_evaluation,
+        candidate_context,
+        candidate_evaluation,
+    )
+    @test intervention["available"]
+    @test intervention["classification"] == "magnitude_only"
+    @test intervention["variables"]["classification"] in
+          ("identity", "magnitude_only")
+    @test intervention["constraints"]["classification"] in
+          ("identity", "magnitude_only")
 
     transported = NLPDiagnostics.bmopf_transport_scaling_point(
         reference_context,
@@ -151,6 +169,12 @@ end
     @test geometry["comparison_qualified"]
     @test geometry["reference_geometry"]["spectrum_available"]
     @test geometry["candidate_geometry"]["spectrum_available"]
+    @test geometry["semantic_interpretation_qualified"]
+    @test geometry["semantic_family_geometry"]["registry_coverage_complete"]
+    @test geometry["semantic_family_geometry"]["family_sets_agree"]
+    @test !isempty(geometry["semantic_family_geometry"]["comparisons"][
+        "columns"
+    ]["families"])
     @test geometry["comparisons"]["condition_proxy"]["relation"] in
         ("candidate_lower", "candidate_higher", "approximately_equal")
 
@@ -164,6 +188,10 @@ end
     @test block_geometry["comparison_qualified"]
     @test block_geometry["reference_geometry"]["spectrum_available"]
     @test block_geometry["candidate_geometry"]["spectrum_available"]
+    @test block_geometry["semantic_interpretation_qualified"]
+    @test block_geometry["semantic_family_geometry"][
+        "registry_coverage_complete"
+    ]
 
     # A physical coefficient change is not a scaling policy. The same semantic
     # alignment and complete scale coverage must not let it through the gate.
@@ -284,6 +312,59 @@ end
     @test trace_endpoint["solver_trace_profile"]["iteration_trace"][
         "record_count"
     ] == length(reference_run.trace.records)
+    trace_geometry =
+        NLPDiagnostics.bmopf_iteration_trace_jacobian_family_geometry_data(
+            reference_context,
+            reference_run.trace;
+            max_points=3,
+        )
+    @test trace_geometry["available"]
+    @test trace_geometry["coverage_complete"]
+    @test trace_geometry["interpretation_qualified"]
+    @test trace_geometry["registry_coverage"]["complete"]
+    @test trace_geometry["selected_binding_count"] <= 3
+    @test !isempty(trace_geometry["trajectories"]["rows"])
+    @test !isempty(trace_geometry["trajectories"]["columns"])
+    repeat_covariance = NLPDiagnostics.bmopf_block_scaling_covariance_report(
+        reference_context,
+        reference_evaluation,
+        reference_context,
+        reference_evaluation;
+        absolute_tolerance=1.0e-8,
+        relative_tolerance=1.0e-8,
+    )
+    repeat_geometry =
+        NLPDiagnostics.bmopf_block_scaling_coordinate_geometry_report(
+            reference_context,
+            reference_evaluation,
+            reference_context,
+            reference_evaluation;
+            absolute_tolerance=1.0e-8,
+            relative_tolerance=1.0e-8,
+        )
+    repeat_comparison =
+        NLPDiagnostics.bmopf_scaling_solver_experiment_comparison(
+            trace_endpoint,
+            trace_endpoint;
+            intervention=:baseline_repeat,
+            intervention_report=
+                NLPDiagnostics.scaling_intervention_classification(
+                    reference_map["map"], reference_map["map"],
+                ),
+            covariance_report=repeat_covariance,
+            geometry_report=repeat_geometry,
+            hypothesis="identical retained evidence should pass every gate",
+        )
+    @test repeat_comparison["available"]
+    @test repeat_comparison["comparison_qualified"]
+    @test repeat_comparison["reference_scaling_policy"] ==
+          trace_endpoint["bmopf_scaling_policy"]
+    @test repeat_comparison["native_work"]["comparisons"]["record_count"][
+        "candidate_to_reference_ratio"
+    ] == 1.0
+    @test repeat_comparison["physical_endpoint_families"][
+        "family_sets_agree"
+    ]
 
     policies = (
         BMOPFTools.SIUnitsScaling(),
@@ -344,6 +425,7 @@ end
                 relative_tolerance=1e-8,
             )
         @test geometry["comparison_qualified"]
+        @test geometry["semantic_interpretation_qualified"]
         target_feasibility =
             NLPDiagnostics.bmopf_physical_feasibility_report(
                 target_context,

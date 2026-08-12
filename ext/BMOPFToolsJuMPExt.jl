@@ -2328,6 +2328,37 @@ function _bmopf_constraint_semantic_row_map(context, evaluation)
     return rows
 end
 
+"""Return public BMOPFTools registry-family labels for solver-coordinate columns."""
+function _bmopf_variable_semantic_column_map(context, evaluation)
+    families_by_variable = Dict{MOI.VariableIndex,Vector{String}}()
+    for key in BMOPFTools.opf_object_keys(context; kind=:variable)
+        object = try
+            BMOPFTools.opf_object(context, key)
+        catch
+            nothing
+        end
+        object isa JuMP.VariableRef || continue
+        push!(
+            get!(families_by_variable, JuMP.index(object), String[]),
+            string(key.family),
+        )
+    end
+    columns = Dict{String,Any}()
+    for (position, variable) in enumerate(evaluation.point.variables)
+        families = sort!(unique!(copy(get(
+            families_by_variable, variable, ["unregistered_variable"],
+        ))))
+        registered = !("unregistered_variable" in families)
+        columns[string(position)] = Dict{String,Any}(
+            "variable_family" => _bmopf_semantic_family_label(families),
+            "variable_families" => families,
+            "variable_index" => variable.value,
+            "registered" => registered,
+        )
+    end
+    return columns
+end
+
 function _bmopf_constraint_result_keys(context)
     result = Dict{
         Tuple{Int,String,String,Union{Nothing,Int}},
@@ -2892,6 +2923,150 @@ function _bmopf_semantic_family_label(families)
     return "mixed[$(join(normalized, "+"))]"
 end
 
+function _bmopf_jacobian_family_geometry_attribution(
+    reference_context,
+    reference_evaluation,
+    candidate_context,
+    candidate_evaluation;
+    relative_tolerance::Real=1.0e-7,
+)
+    reference_rows = _bmopf_constraint_semantic_row_map(
+        reference_context, reference_evaluation,
+    )
+    candidate_rows = _bmopf_constraint_semantic_row_map(
+        candidate_context, candidate_evaluation,
+    )
+    reference_columns = _bmopf_variable_semantic_column_map(
+        reference_context, reference_evaluation,
+    )
+    candidate_columns = _bmopf_variable_semantic_column_map(
+        candidate_context, candidate_evaluation,
+    )
+    report = NLPDiagnostics.jacobian_family_geometry_comparison(
+        reference_evaluation,
+        candidate_evaluation;
+        reference_row_labels=reference_rows,
+        candidate_row_labels=candidate_rows,
+        reference_column_labels=reference_columns,
+        candidate_column_labels=candidate_columns,
+        relative_tolerance,
+    )
+    reference_rows_registered = count(
+        descriptor -> get(descriptor, "registered", false) === true,
+        values(reference_rows),
+    )
+    candidate_rows_registered = count(
+        descriptor -> get(descriptor, "registered", false) === true,
+        values(candidate_rows),
+    )
+    reference_columns_registered = count(
+        descriptor -> get(descriptor, "registered", false) === true,
+        values(reference_columns),
+    )
+    candidate_columns_registered = count(
+        descriptor -> get(descriptor, "registered", false) === true,
+        values(candidate_columns),
+    )
+    coverage = Dict{String,Any}(
+        "reference_registered_row_count" => reference_rows_registered,
+        "reference_row_count" => length(reference_rows),
+        "candidate_registered_row_count" => candidate_rows_registered,
+        "candidate_row_count" => length(candidate_rows),
+        "reference_registered_column_count" => reference_columns_registered,
+        "reference_column_count" => length(reference_columns),
+        "candidate_registered_column_count" => candidate_columns_registered,
+        "candidate_column_count" => length(candidate_columns),
+    )
+    coverage_complete =
+        reference_rows_registered == length(reference_rows) &&
+        candidate_rows_registered == length(candidate_rows) &&
+        reference_columns_registered == length(reference_columns) &&
+        candidate_columns_registered == length(candidate_columns)
+    coverage["complete"] = coverage_complete
+    report["report_version"] = "bmopf-jacobian-family-geometry-comparison-v1"
+    report["registry_coverage"] = coverage
+    report["registry_coverage_complete"] = coverage_complete
+    report["interpretation_qualified"] = report["available"] &&
+        report["family_sets_agree"] && coverage_complete
+    report["semantic_source"] = "BMOPFTools public OPF variable and constraint registries"
+    report["qualification"]["interpretation_gate"] =
+        "complete registry coverage and matching row/column family sets"
+    return report
+end
+
+function _bmopf_iteration_trace_jacobian_family_geometry_data(
+    context,
+    trace::NLPDiagnostics.SolverIterationTrace;
+    phase::Union{Nothing,Symbol}=nothing,
+    max_points::Union{Nothing,Integer}=nothing,
+)
+    candidates = [
+        binding for binding in trace.bindings
+        if isnothing(phase) || binding.record.phase == phase
+    ]
+    if isempty(candidates)
+        return Dict{String,Any}(
+            "schema_version" =>
+                "bmopf-iteration-trace-jacobian-family-geometry-v1",
+            "available" => false,
+            "coverage_complete" => false,
+            "trace_record_count" => length(trace.records),
+            "trace_binding_count" => length(trace.bindings),
+            "reason" =>
+                "no captured solver iterate supplies model coordinates after phase filtering",
+            "semantic_source" =>
+                "BMOPFTools public OPF variable and constraint registries",
+        )
+    end
+    owner = _bmopf_context_model(context)
+    backend = JuMP.backend(owner)
+    schema_evaluation = NLPDiagnostics.evaluate_numerical(
+        backend, first(candidates).point,
+    )
+    row_labels = _bmopf_constraint_semantic_row_map(
+        context, schema_evaluation,
+    )
+    column_labels = _bmopf_variable_semantic_column_map(
+        context, schema_evaluation,
+    )
+    report = NLPDiagnostics.iteration_trace_jacobian_family_geometry_data(
+        backend,
+        trace;
+        row_labels,
+        column_labels,
+        phase,
+        max_points,
+    )
+    registered_rows = count(
+        descriptor -> get(descriptor, "registered", false) === true,
+        values(row_labels),
+    )
+    registered_columns = count(
+        descriptor -> get(descriptor, "registered", false) === true,
+        values(column_labels),
+    )
+    registry_coverage_complete =
+        registered_rows == length(row_labels) &&
+        registered_columns == length(column_labels)
+    report["schema_version"] =
+        "bmopf-iteration-trace-jacobian-family-geometry-v1"
+    report["registry_coverage"] = Dict{String,Any}(
+        "registered_row_count" => registered_rows,
+        "row_count" => length(row_labels),
+        "registered_column_count" => registered_columns,
+        "column_count" => length(column_labels),
+        "complete" => registry_coverage_complete,
+    )
+    report["semantic_source"] =
+        "BMOPFTools public OPF variable and constraint registries"
+    report["interpretation_qualified"] =
+        get(report, "coverage_complete", false) === true &&
+        registry_coverage_complete
+    report["qualification"]["interpretation_gate"] =
+        "complete selected-snapshot evaluation and complete BMOPFTools registry coverage"
+    return report
+end
+
 function _bmopf_constraint_block_attribution(context, evaluation, map)
     row_semantics = _bmopf_constraint_semantic_row_map(context, evaluation)
     result = Dict{String,Dict{String,Any}}()
@@ -3288,6 +3463,27 @@ function _bmopf_solver_trace_physical_endpoint_data(
     return data
 end
 
+function _bmopf_scaling_solver_experiment_comparison(
+    reference::AbstractDict,
+    candidate::AbstractDict;
+    kwargs...,
+)
+    report = NLPDiagnostics.scaling_solver_experiment_comparison(
+        reference, candidate; kwargs...,
+    )
+    report["schema_version"] =
+        "bmopf-scaling-solver-experiment-comparison-v1"
+    report["reference_scaling_policy"] = get(
+        reference, "bmopf_scaling_policy", "unknown",
+    )
+    report["candidate_scaling_policy"] = get(
+        candidate, "bmopf_scaling_policy", "unknown",
+    )
+    report["semantic_source"] =
+        "BMOPFTools public OPF variable and constraint registries"
+    return report
+end
+
 function _bmopf_block_scaling_covariance_report(
     reference_context,
     reference_evaluation,
@@ -3323,6 +3519,51 @@ function _bmopf_block_scaling_covariance_report(
     return report
 end
 
+function _bmopf_scaling_intervention_classification(
+    reference_context,
+    reference_evaluation,
+    candidate_context,
+    candidate_evaluation;
+    kwargs...,
+)
+    reference_build = _bmopf_semantic_block_scaling_map(
+        reference_context, reference_evaluation,
+    )
+    candidate_build = _bmopf_semantic_block_scaling_map(
+        candidate_context, candidate_evaluation,
+    )
+    if !reference_build["available"] || !candidate_build["available"]
+        return Dict{String,Any}(
+            "report_version" =>
+                "bmopf-scaling-intervention-classification-v1",
+            "available" => false,
+            "classification" => "unavailable",
+            "reason" => "one or both BMOPF semantic block maps are unavailable",
+            "reference_map" => reference_build,
+            "candidate_map" => candidate_build,
+        )
+    end
+    report = NLPDiagnostics.scaling_intervention_classification(
+        reference_build["map"], candidate_build["map"]; kwargs...,
+    )
+    report["report_version"] =
+        "bmopf-scaling-intervention-classification-v1"
+    report["reference_scaling_policy"] =
+        _bmopf_scaling_policy_label(reference_context)
+    report["candidate_scaling_policy"] =
+        _bmopf_scaling_policy_label(candidate_context)
+    report["reference_map_coverage"] = Dict(
+        key => value for (key, value) in reference_build if key != "map"
+    )
+    report["candidate_map_coverage"] = Dict(
+        key => value for (key, value) in candidate_build if key != "map"
+    )
+    qualification = get!(report, "qualification", Dict{String,Any}())
+    qualification["bmopf_semantic_source"] =
+        "BMOPFTools public OpfSemanticBlock registry"
+    return report
+end
+
 function _bmopf_block_scaling_coordinate_geometry_report(
     reference_context,
     reference_evaluation,
@@ -3353,10 +3594,23 @@ function _bmopf_block_scaling_coordinate_geometry_report(
         key => value for (key, value) in reference_build if key != "map")
     report["candidate_map_coverage"] = Dict(
         key => value for (key, value) in candidate_build if key != "map")
+    semantic_family_geometry = _bmopf_jacobian_family_geometry_attribution(
+        reference_context,
+        reference_evaluation,
+        candidate_context,
+        candidate_evaluation;
+        relative_tolerance=get(kwargs, :relative_tolerance, 1.0e-7),
+    )
+    report["semantic_family_geometry"] = semantic_family_geometry
+    report["semantic_interpretation_qualified"] =
+        report["comparison_qualified"] &&
+        semantic_family_geometry["interpretation_qualified"]
     report["qualification"] = Dict{String,Any}(
         "claim" => "same-point local BMOPF solver-coordinate geometry in authoritative semantic blocks",
         "requires_solver_experiment_for_merit" => true,
         "requires_endpoint_kkt_gate" => true,
+        "semantic_interpretation_gate" =>
+            "reported separately from mathematical coordinate-geometry qualification",
     )
     return report
 end
@@ -3426,10 +3680,23 @@ function _bmopf_scaling_coordinate_geometry_report(
         key => value for (key, value) in reference_build if key != "map")
     report["candidate_map_coverage"] = Dict(
         key => value for (key, value) in candidate_build if key != "map")
+    semantic_family_geometry = _bmopf_jacobian_family_geometry_attribution(
+        reference_context,
+        reference_evaluation,
+        candidate_context,
+        candidate_evaluation;
+        relative_tolerance=get(kwargs, :relative_tolerance, 1.0e-7),
+    )
+    report["semantic_family_geometry"] = semantic_family_geometry
+    report["semantic_interpretation_qualified"] =
+        report["comparison_qualified"] &&
+        semantic_family_geometry["interpretation_qualified"]
     report["qualification"] = Dict{String,Any}(
         "claim" => "same-point local BMOPF solver-coordinate geometry comparison",
         "requires_solver_experiment_for_merit" => true,
         "requires_endpoint_kkt_gate" => true,
+        "semantic_interpretation_gate" =>
+            "reported separately from mathematical coordinate-geometry qualification",
     )
     return report
 end

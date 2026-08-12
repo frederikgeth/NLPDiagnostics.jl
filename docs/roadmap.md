@@ -3345,3 +3345,137 @@ Next priorities are:
    fixtures; and
 5. promote to the bounded multi-time 99-bus matrix only after repeatability
    and endpoint-coverage gates pass.
+
+## 2026-08-12 matched scaling-experiment checkpoint
+
+Variable-column attribution is now implemented alongside row-family
+attribution. BMOPFTools diagonal and semantic-block geometry reports use the
+public variable and constraint registries, report family-set agreement, and
+keep registry completeness separate from the mathematical geometry gate.
+
+`scaling_intervention_classification` now inspects the declared coordinate
+relation before solver results are compared. It distinguishes identity,
+positive diagonal magnitude changes, norm-preserving phase-like axis mixing,
+combined magnitude/phase-like changes, and general linear transforms under an
+explicit dense-work budget. Orthogonal axis mixing is not called an electrical
+phase rotation without plugin semantics. The classic-versus-custom line/load
+truth fixture is classified as magnitude-only.
+
+`scaling_solver_experiment_comparison` and its BMOPF wrapper now assemble the
+first score-free matched-run contract. Qualification requires:
+
+1. the observed coordinate class to match the declared intervention;
+2. physical covariance;
+3. semantically qualified row/column geometry;
+4. compatible native solver metric semantics;
+5. accepted physical KKT endpoints on both sides; and
+6. matching endpoint family sets.
+
+Native work, family-resolved physical endpoint evidence, covariance, and local
+geometry remain separate records. Physical family ratios are withheld when
+covariance fails, and native solver residuals are never ratioed with physical
+residuals.
+
+The next major items are now empirical and fixture-driven:
+
+1. run a small repeated magnitude-only Ipopt campaign (classic, SI, and two
+   local-base policies) with transported common starts and the complete matched
+   contract;
+2. implement or isolate a genuine phase-only two-coordinate rotation policy,
+   then test singular-spectrum invariance, block coupling, and solver work
+   separately from magnitude changes;
+3. add centre-tap, regulator, floating-neutral, and delta-winding truth
+   fixtures with active inequality controls;
+4. add coupled-cone dual transformations only for sets actually encountered;
+   and
+5. promote successful small protocols to repeated MadNLP runs and finally the
+   bounded multi-time 99-bus matrix.
+
+## 2026-08-12 first repeated magnitude-only campaign
+
+The dedicated `bmopf_magnitude_scaling_campaign.jl` runner and generic
+`scaling_solver_experiment_campaign_data` aggregate are implemented. The
+campaign requires two or more fresh models per policy, transported common
+physical starts, stable environment provenance, stable within-policy
+termination, accepted physical KKT endpoints, complete matched comparisons,
+and passing intervention/covariance/semantic gates. It reports ranges and does
+not rank policies.
+
+The first eight-solve truth-fixture campaign is fully qualified. Classic 1 MVA
+per-unit, local 500 V / 200 kVA, and local 1500 V / 5 MVA each used four Ipopt
+callback records and three line-search trials in both repeats. SI used five
+records and four trials in both repeats. None entered restoration. The local
+Jacobian condition proxies at the common start were approximately 5.11
+(classic), 5.34 (500 V / 200 kVA), 5.84 (1500 V / 5 MVA), and 1964 (SI); SI
+also increased row- and column-norm spreads by factors of 1000 relative to
+classic. All physical endpoint and registry-family gates passed.
+
+The pilot corrected an overstrict endpoint criterion. Same-point residual
+covariance remains required when validating coordinate transformations, but it
+is not a sound equivalence test for two independently solved near-zero
+residual vectors. `physical_endpoint_equivalence_report` now requires physical
+point/function/set/Jacobian covariance, objective covariance when applicable,
+identical complete physical tolerance contracts, and accepted KKT endpoints.
+The raw residual-vector difference remains visible but non-gating. This
+distinction is regression-tested.
+
+This result validates the experiment machinery, not a general scaling claim.
+The next major items are:
+
+1. promote the magnitude-only runner from the one-phase feasibility truth
+   fixture to objective-bearing three-phase line/load and transformer cases;
+2. add at least five repeats and randomized-but-physically-identical start
+   strata before comparing policy robustness;
+3. add factorization/linear-solver telemetry where Ipopt and MadNLP expose it;
+4. implement a genuine phase-only semantic rotation intervention and test it
+   independently; and
+5. only after those gates, run the bounded 30-bus and multi-time 99-bus policy
+   matrices.
+
+## 2026-08-12 objective-bearing stratified scaling checkpoint
+
+The first two empirical promotion items are complete. A new runner covers an
+unbalanced three-phase economic dispatch fixture and a two-voltage-level
+wye-delta transformer economic dispatch fixture. Four magnitude-only policies
+were each run on five fresh models from a native start and two deterministic
+bounded physical perturbations. The resulting 120-solve campaign qualified in
+full, with accepted physical endpoints, objective covariance, no restoration,
+and deterministic within-stratum work.
+
+The lower local-base policy reduced callback records relative to classic on
+both fixtures. SI required substantially more work and had extreme geometry
+proxies. The aggressive high-base policy was slower and much more
+start-sensitive on the transformer. These observations are sufficiently
+controlled to choose follow-up experiments, but two fixtures and one solver do
+not support a general performance claim.
+
+The first two revised items are now complete at their honest public-API
+boundary. Ipopt traces support event-preserving, registry-qualified Jacobian
+family trajectories and explicitly report factorization telemetry as
+unavailable. MadNLP traces retain cumulative linear-solver time,
+factorization/backsolve, derivative-evaluation, and iterative-refinement
+counters with callback timing semantics; they still cannot capture public
+primal iterates for trace geometry. A 16-solve transformer pilot validated the
+new path and showed that SI geometry, transformer-coil growth, and
+regularization are distinct signals rather than one scalar mechanism.
+
+The objective-bearing runner is now solver-parametric, and a first 16-solve
+MadNLP transformer portability pilot qualified across two starts and two fresh
+replicates. Its actual factorization/backsolve counters broadly preserve the
+Ipopt policy ordering and expose extra factorizations for the perturbed classic
+and aggressive-base runs. This clears the integration gate, but not the full
+repeatability gate: the default two-case, three-start, five-repeat MadNLP matrix
+has not yet been run.
+
+The revised next major items, in order, are:
+
+1. promote the qualified MadNLP pilot to the full two-case, three-start,
+   five-repeat protocol before attributing observations to formulation rather
+   than Ipopt;
+2. implement a genuine phase-only two-coordinate semantic rotation and test
+   singular-spectrum invariance separately from magnitude changes;
+3. add centre-tap, regulator, floating-neutral, and delta-circulation fixtures,
+   implementing coupled-cone dual transforms only when those cases exercise
+   them; and
+4. promote the surviving magnitude policies to the bounded 30-bus and
+   multi-time 99-bus matrix with dense analysis disabled.

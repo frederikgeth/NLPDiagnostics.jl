@@ -41,6 +41,15 @@ read-only snapshot through the public MOI model API and reports:
   policies, with distinct transported-point provenance;
 - serializable native solver-trace plus physical-endpoint artifacts that keep
   coordinate semantics separate instead of comparing unlike residuals;
+- score-free matched scaling-run comparisons gated by physical covariance,
+  endpoint KKT acceptance, native metric semantics, and semantic row/column
+  family coverage;
+- repeated scaling-campaign aggregation with common-start covariance,
+  provenance, termination, and negative-control gates, plus a dedicated small
+  BMOPF magnitude-only campaign runner;
+- explicit classification of identity, positive magnitude, phase-like
+  orthogonal, combined, and general linear coordinate interventions, while
+  reserving physical complex-phase claims for domain metadata;
 - per-residual physical feasibility, per-coordinate stationarity, and
   scalar-side complementarity contracts using point-verified public MOI
   solver duals, with coupled-cone dual transforms kept explicitly unavailable;
@@ -162,6 +171,17 @@ The evolving hypotheses, invariants, negative-result protocol, experiment
 ladder, and publication boundary for flexible nondimensionalisation and complex
 block scaling are maintained in
 [`docs/nondimensionalisation_research.md`](docs/nondimensionalisation_research.md).
+The executable objective-bearing scaling protocol is
+[`benchmarks/bmopf_stratified_scaling_campaign.jl`](benchmarks/bmopf_stratified_scaling_campaign.jl):
+it uses repeated fresh models and matched physical-start strata, and reports
+qualified evidence ranges without assigning a policy score.
+Captured Ipopt iterates can additionally be summarized as BMOPFTools
+registry-qualified Jacobian row/column-family trajectories; solver
+factorization telemetry remains explicitly solver-capability dependent.
+The companion
+[`benchmarks/bmopf_stratified_madnlp_campaign.jl`](benchmarks/bmopf_stratified_madnlp_campaign.jl)
+runs the same physical experiment contract with MadNLP and retains its public
+cumulative factorization and backsolve evidence.
 The package, solver-extension, domain-extension, and scientific-calibration
 test boundaries are documented in [`docs/testing.md`](docs/testing.md).
 Bounded empirical results and their trust limitations are recorded in

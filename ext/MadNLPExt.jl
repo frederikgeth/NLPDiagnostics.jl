@@ -119,6 +119,25 @@ function (callback::_MadNLPTraceCallback)(solver, mode::MadNLP.AbstractUserCallb
         barrier_parameter = Float64(MadNLP.get_mu(solver)),
         regularization_size = Float64(MadNLP.get_del_w(solver)),
         dual_step = Float64(MadNLP.get_alpha_z(solver)),
+        linear_telemetry = Dict{String,Any}(
+            "source" => "MadNLP.get_cnt callback counters",
+            "api_stability" => "package-qualified callback API",
+            "temporal_alignment" =>
+                "cumulative work completed before this callback observation; the line-search counter may describe the preceding step",
+            "linear_solver_time_seconds_cumulative" =>
+                Float64(counters.linear_solver_time),
+            "factorization_count_cumulative" =>
+                Int(counters.factorization_cnt),
+            "backsolve_count_cumulative" => Int(counters.backsolve_cnt),
+            "iterative_refinement_count_current" => Int(counters.ir),
+            "line_search_counter_at_callback" => Int(counters.l),
+            "objective_evaluation_count_cumulative" => Int(counters.obj_cnt),
+            "objective_gradient_evaluation_count_cumulative" =>
+                Int(counters.obj_grad_cnt),
+            "constraint_evaluation_count_cumulative" => Int(counters.con_cnt),
+            "jacobian_evaluation_count_cumulative" => Int(counters.con_jac_cnt),
+            "hessian_evaluation_count_cumulative" => Int(counters.lag_hess_cnt),
+        ),
         semantics = NLPDiagnostics.SolverIterationMetricSemantics(
             objective = NLPDiagnostics.OriginalModelCoordinates,
             primal_infeasibility = NLPDiagnostics.SolverDefinedCoordinates,

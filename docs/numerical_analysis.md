@@ -845,13 +845,29 @@ profiles the final public MOI result with that trace and returns a
 as separate evidence sections.
 
 Serialized iteration traces use schema
-`nlpdiagnostics-iteration-trace-v2`. Every row contains the optional telemetry
+`nlpdiagnostics-iteration-trace-v3`. Every row contains the optional telemetry
 columns plus typed `metric_semantics`; the top-level `telemetry_coverage`
 counts how many records actually supplied each column. Ipopt's objective is
 labelled in original model coordinates, while its callback infeasibility
 columns are labelled solver-scaled and its barrier quantity solver-defined.
 These labels describe provenance, not accuracy, and prevent a solver-scaled
 residual from being silently compared with a recomputed raw model residual.
+
+Version 3 adds a `linear_telemetry` dictionary to each record. The generic
+`solver_linear_telemetry_data` summary reports coverage and within-segment
+monotonicity for genuinely exposed counters. Ipopt's public callback does not
+expose factorization counts, backsolves, factorization time, inertia, pivots,
+fill, or backward error; these fields remain explicitly unavailable.
+Regularization size is retained as an algorithmic proxy and is never relabelled
+as factorization telemetry.
+
+`iteration_trace_jacobian_family_geometry_data` re-evaluates explicitly
+captured model coordinates at a bounded subset of callback rows and reports
+Jacobian row- and column-family trajectories beside the native solver metrics.
+Bounded selection preserves endpoints, phase transitions, the largest positive
+regularization events, and solver-metric extrema before uniformly filling the
+remaining budget. This is descriptive local geometry; it does not establish
+KKT factor conditioning or causality between a family and solver work.
 
 ### MadNLP extension
 
@@ -874,6 +890,14 @@ with `iteration_trace(capture)`.
 MadNLP callback residual, complementarity, barrier, and regularization columns
 are labelled solver-defined until the adapter can document a stronger public
 coordinate contract.
+MadNLP's package-qualified callback counters additionally expose cumulative
+linear-solver time, factorization and backsolve counts, derivative-evaluation
+counts, and the current iterative-refinement counter. Their trace records state
+that cumulative work is work completed before the callback observation. The
+line-search counter is kept under that callback-timing name rather than placed
+in the generic per-iteration `line_search_trials` field. MadNLP still does not
+expose factor inertia, pivot statistics, fill, or backward error through this
+callback contract.
 The one-call helper `madnlp_optimize_with_iteration_trace!(model)` performs the
 same attach, solve, and freeze sequence for a JuMP or MOI MadNLP model. It
 returns metric records only, preserving the callback API's explicit limitation
@@ -1744,6 +1768,51 @@ These endpoint contracts are independent of solver-native stopping metrics.
 Matched scaling experiments should preserve both the native trace and the
 physical endpoint reports rather than treating identical option strings as
 identical physical accuracy.
+
+`jacobian_column_family_scale_attribution` is the variable-coordinate analogue
+of row-family attribution. `jacobian_family_geometry_comparison` retains both
+axes and reports family-set agreement, robust norm summaries, and ownership of
+global scale extrema. These are local descriptive geometry records; a separate
+physical covariance report is still required before comparing policies.
+
+`scaling_intervention_classification` inspects the declared coordinate relation
+itself. Positive diagonal changes are `magnitude_only`; normalized orthogonal
+axis mixing is `phase_like_orthogonal`; combinations and general linear maps
+remain distinct. “Phase-like” is intentionally not a physical complex-phase
+claim. A domain plugin must establish the meaning of the paired coordinates.
+
+`scaling_solver_experiment_comparison` is the score-free paired-run contract.
+It requires an intervention-classification report, physical covariance,
+semantic geometry, two accepted physical KKT endpoints, compatible native
+metric semantics, and matching endpoint family sets before
+`comparison_qualified` can be true. Solver work and physical family residuals
+remain separate evidence layers; native scaled residuals are never ratioed
+against dimensional endpoint residuals.
+
+Endpoint comparisons use a different gate from exact same-point covariance.
+`physical_endpoint_equivalence_report` requires physical point, constraint
+function, set, Jacobian, and—when present—objective covariance; identical
+complete tolerance contracts; and accepted KKT endpoints on both sides. The
+raw near-zero residual-vector difference is retained but is not forced through
+an unrelated global absolute tolerance. This avoids treating two residuals
+that both pass the same dimensional contract as different solutions merely
+because their relative difference near zero is large.
+
+`scaling_solver_experiment_campaign_data` aggregates repeated paired runs. It
+requires at least two fresh runs per policy, unique replicate identifiers,
+common-start covariance, stable provenance, stable within-policy termination,
+accepted physical endpoints, complete comparison coverage, and qualified
+pairwise comparisons. It reports ranges rather than a winner or aggregate
+score.
+
+`scaling_solver_experiment_stratified_campaign_data` is the next aggregation
+level. Its input is a set of complete repeated campaigns, one for each named
+physical-start stratum. It requires unique stratum identifiers, the same policy
+set and reference policy, stable environment provenance, the declared repeat
+floor, and independent qualification of every stratum campaign. It summarizes
+the raw run records across strata while retaining every stratum separately.
+This prevents a pooled iteration range from concealing initialization
+sensitivity or an unqualified start.
 
 ## Sparse-QR rank resource budgets
 

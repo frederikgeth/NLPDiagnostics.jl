@@ -47,7 +47,7 @@ if Base.find_package("Ipopt") !== nothing
         @test all(binding.point.label isa String for binding in trace.bindings)
         trace_data = NLPDiagnostics.iteration_trace_data(trace)
         @test trace_data["record_count"] == length(trace.records)
-        @test trace_data["schema_version"] == "nlpdiagnostics-iteration-trace-v2"
+        @test trace_data["schema_version"] == "nlpdiagnostics-iteration-trace-v3"
         @test trace_data["telemetry_coverage"]["barrier_parameter"] == length(trace.records)
         @test trace_data["telemetry_coverage"]["step_norm"] == length(trace.records)
         @test trace_data["telemetry_coverage"]["regularization_size"] == length(trace.records)
@@ -94,6 +94,26 @@ if Base.find_package("Ipopt") !== nothing
         @test !endpoint_data["evidence_relationship"][
             "numeric_residual_comparison_performed"
         ]
+        linear_telemetry = NLPDiagnostics.solver_linear_telemetry_data(trace)
+        @test !linear_telemetry["available"]
+        @test !linear_telemetry["factorization_work_available"]
+        @test linear_telemetry["regularization_proxy"]["coverage_complete"]
+        @test !endpoint_data["linear_solver_telemetry"]["available"]
+        geometry = NLPDiagnostics.iteration_trace_jacobian_family_geometry_data(
+            JuMP.backend(model),
+            trace;
+            row_labels=fill(
+                "constraint", length(endpoint_evaluation.constraint_sources),
+            ),
+            column_labels=fill(
+                "variable", length(endpoint_evaluation.point.variables),
+            ),
+            max_points=3,
+        )
+        @test geometry["available"]
+        @test geometry["coverage_complete"]
+        @test geometry["selected_binding_count"] <= 3
+        @test haskey(geometry["trajectories"]["columns"], "variable")
     end
 end
 
@@ -115,6 +135,9 @@ if Base.find_package("MadNLP") !== nothing
         @test all(isnothing(binding.point) for binding in trace.bindings)
         @test all(!isnothing(record.barrier_parameter) for record in trace.records)
         @test all(!isnothing(record.regularization_size) for record in trace.records)
+        @test all(!isempty(record.linear_telemetry) for record in trace.records)
+        @test all(haskey(record.linear_telemetry,
+                         "factorization_count_cumulative") for record in trace.records)
         @test all(!isnothing(record.dual_step) for record in trace.records)
         @test all(record.semantics.objective == NLPDiagnostics.OriginalModelCoordinates
                   for record in trace.records)
@@ -122,6 +145,16 @@ if Base.find_package("MadNLP") !== nothing
         @test isapprox(last(trace.records).objective, JuMP.objective_value(model);
             rtol = 1.0e-8,
         )
+        linear_telemetry = NLPDiagnostics.solver_linear_telemetry_data(trace)
+        @test linear_telemetry["available"]
+        @test linear_telemetry["factorization_work_available"]
+        @test linear_telemetry["linear_solver_time_available"]
+        @test linear_telemetry["fields"][
+            "factorization_count_cumulative"
+        ]["coverage_complete"]
+        @test linear_telemetry["fields"][
+            "factorization_count_cumulative"
+        ]["monotone_within_segments"] !== false
         capability = NLPDiagnostics.madnlp_primal_capture_capability()
         @test capability.metadata[:primal_callback] == "unavailable"
         @test count(finding -> finding.code == :madnlp_primal_capture_unavailable,
@@ -1616,6 +1649,7 @@ end
         "bmopf_solver_trace.jl",
         "launch_bmopf_solver_trace.jl",
         "summarize_bmopf_solver_trace.jl",
+        "bmopf_magnitude_scaling_campaign.jl",
         "sweep_bmopf_solver_options.jl",
         "summarize_bmopf_solver_sweep.jl",
         "summarize_bmopf_endpoint_triangulation.jl",
@@ -1720,6 +1754,17 @@ end
     @test occursin("solver_trace_case_count", solver_trace_summary)
     @test occursin("profile_stage", solver_trace_summary)
     @test occursin("_solver_log_termination", solver_trace_summary)
+    magnitude_campaign = read(
+        joinpath(
+            benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",
+        ),
+        String,
+    )
+    @test occursin("bmopf-magnitude-scaling-campaign-v1", magnitude_campaign)
+    @test occursin("bmopf_transport_scaling_point", magnitude_campaign)
+    @test occursin("physical_endpoint_equivalence_report", magnitude_campaign)
+    @test occursin("scaling_solver_experiment_campaign_data", magnitude_campaign)
+    @test occursin("provenance_mismatch_rejected", magnitude_campaign)
     source_matrix_launcher = read(
         joinpath(benchmark_directory, "launch_bmopf_source_solver_matrix.jl"), String,
     )
@@ -7433,6 +7478,46 @@ end
         @test dependent_scales["largest_finite_row_norm"] == 2.0
         @test dependent_scales["row_scale_ratio"] == 2.0
         @test family_scales["families"]["zero"]["zero_row_count"] == 1
+        column_labels = Dict(
+            1 => Dict("variable_family" => "state"),
+            2 => Dict("variable_family" => "control"),
+        )
+        column_scales =
+            NLPDiagnostics.jacobian_column_family_scale_attribution(
+                family_evaluation, column_labels,
+            )
+        @test column_scales["report_version"] ==
+              "jacobian-column-family-scale-attribution-v1"
+        @test column_scales["column_count"] == 2
+        @test column_scales["family_count"] == 2
+        @test column_scales["derivative_rows_complete"]
+        @test column_scales["global_maximum_families"] == ["state"]
+        @test column_scales["global_minimum_families"] == ["control"]
+        @test column_scales["families"]["state"][
+            "combined_nonzero_entry_count"
+        ] == 2
+        family_geometry = NLPDiagnostics.jacobian_family_geometry_comparison(
+            family_evaluation,
+            family_evaluation;
+            reference_row_labels=Dict(
+                1 => "dependent", 2 => "dependent",
+                3 => "independent", 4 => "zero",
+            ),
+            candidate_row_labels=Dict(
+                1 => "dependent", 2 => "dependent",
+                3 => "independent", 4 => "zero",
+            ),
+            reference_column_labels=column_labels,
+            candidate_column_labels=column_labels,
+        )
+        @test family_geometry["available"]
+        @test family_geometry["family_sets_agree"]
+        @test family_geometry["comparisons"]["columns"]["families"][
+            "state"
+        ]["column_norm_median"]["relation"] == "approximately_equal"
+        @test_throws ArgumentError NLPDiagnostics.jacobian_column_family_scale_attribution(
+            family_evaluation, ["only one column"],
+        )
         scaling_experiment =
             NLPDiagnostics.jacobian_row_family_scaling_experiment(
                 family_evaluation,
@@ -13401,7 +13486,7 @@ end
         @test length(trace.segments) == 1
         @test length(trace.bindings) == 1
         trace_data = NLPDiagnostics.iteration_trace_data(trace)
-        @test trace_data["schema_version"] == "nlpdiagnostics-iteration-trace-v2"
+        @test trace_data["schema_version"] == "nlpdiagnostics-iteration-trace-v3"
         @test trace_data["record_count"] == 1
         @test trace_data["binding_count"] == 1
         @test trace_data["bindings"][1]["point_fingerprint"] ==
@@ -13409,6 +13494,45 @@ end
         @test trace_data["telemetry_coverage"]["barrier_parameter"] == 0
         @test trace_data["records"][1]["metric_semantics"]["objective"] ==
               "MetricCoordinatesUnknown"
+        event_capture = NLPDiagnostics.IterationTraceCapture()
+        for iteration in 0:5
+            event_record = NLPDiagnostics.SolverIterationRecord(
+                :synthetic_callback,
+                iteration + 1,
+                iteration,
+                :regular,
+                0.0,
+                6.0 - iteration,
+                Float64(iteration),
+                nothing,
+                nothing,
+                "synthetic event-preserving selection";
+                regularization_size=iteration == 2 ? 1.0e4 : 0.0,
+            )
+            NLPDiagnostics.capture_iteration!(
+                event_capture,
+                event_record;
+                point=combined_binding.point,
+            )
+        end
+        event_trace = NLPDiagnostics.iteration_trace(event_capture)
+        event_evaluation = NLPDiagnostics.evaluate_numerical(
+            combined_model, combined_binding.point,
+        )
+        event_geometry =
+            NLPDiagnostics.iteration_trace_jacobian_family_geometry_data(
+                combined_model,
+                event_trace;
+                row_labels=fill(
+                    "row", length(event_evaluation.constraint_sources),
+                ),
+                column_labels=fill(
+                    "column", length(event_evaluation.point.variables),
+                ),
+                max_points=3,
+            )
+        @test event_geometry["selected_binding_count"] == 3
+        @test 2 in event_geometry["selected_iterations"]
         trace_report = NLPDiagnostics.analyze_iteration_trace(
             combined_model, trace;
             check_degeneracy = false,
