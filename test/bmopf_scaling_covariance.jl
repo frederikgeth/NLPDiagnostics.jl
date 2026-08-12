@@ -43,6 +43,24 @@ end
     candidate_evaluation = _bmopf_covariance_evaluation(
         candidate_context, "custom-start")
 
+    initialization_covariance =
+        NLPDiagnostics.bmopf_initialization_scaling_covariance_report(
+            reference_context,
+            candidate_context;
+            absolute_tolerance=1e-9,
+            relative_tolerance=5e-9,
+        )
+    @test initialization_covariance["available"]
+    @test initialization_covariance["initialization_covariance_passed"]
+    @test initialization_covariance["equivalence_gate_passed"]
+    @test initialization_covariance["reference_voltage_pattern"][
+        "checked_invariants_passed"
+    ]
+    @test initialization_covariance["candidate_voltage_pattern"][
+        "checked_invariants_passed"
+    ]
+    @test !initialization_covariance["canonical_voltage_pattern_required"]
+
     reference_map = NLPDiagnostics.bmopf_diagonal_scaling_map(
         reference_context, reference_evaluation)
     candidate_map = NLPDiagnostics.bmopf_diagonal_scaling_map(

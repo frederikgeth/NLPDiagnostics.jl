@@ -1256,6 +1256,21 @@ snapshot evaluation and complete BMOPFTools row/column registry coverage.
 Because callback coordinates are required, this path is presently available
 for the Ipopt adapter and explicitly unavailable for metric-only MadNLP traces.
 
+`bmopf_voltage_initialization_invariants_data` inspects generated rectangular
+voltage starts in both model and physical coordinates. It checks zero explicit
+neutrals and, only on three-phase buses with an explicit reference, equal phase
+magnitudes and pairwise 120-degree separation. Delta and split-phase buses are
+not forced through that wye-pattern assumption. The report is pattern evidence,
+not an initial-feasibility claim.
+
+`bmopf_initialization_scaling_covariance_report` independently reads each
+policy's generated start and compares the complete physical point, functions,
+sets, residuals, and Jacobian through authoritative semantic maps. Campaigns
+can now require this gate separately from common-start transport. The two gates
+answer different questions: whether the engine's native initialization is
+coordinate-invariant, and whether an experimental stratum was transported
+identically.
+
 The first truth-labelled integration fixture compares classic 1 MVA per-unit
 coordinates with a custom 500 V / 200 kVA policy. All physical-coordinate,
 function, set, violation, and Jacobian checks pass. The custom coordinates

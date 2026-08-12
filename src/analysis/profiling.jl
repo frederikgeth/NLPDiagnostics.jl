@@ -687,6 +687,10 @@ function _scaling_campaign_run_summary(records)
         get(record, "common_start_covariance_passed", nothing)
         for record in records
     ]
+    native_initialization_covariance = [
+        get(record, "native_initialization_covariance_passed", nothing)
+        for record in records
+    ]
     replicates = [get(record, "replicate", nothing) for record in records]
     return Dict{String,Any}(
         "run_count" => length(records),
@@ -704,6 +708,13 @@ function _scaling_campaign_run_summary(records)
         "all_common_starts_covariant" =>
             !isempty(common_start_covariance) &&
             all(==(true), common_start_covariance),
+        "native_initialization_covariance" =>
+            native_initialization_covariance,
+        "native_initialization_covariance_coverage_complete" =>
+            all(value -> value isa Bool, native_initialization_covariance),
+        "all_native_initializations_covariant" =>
+            !isempty(native_initialization_covariance) &&
+            all(==(true), native_initialization_covariance),
         "termination_values" => sort!(unique!(string.(finite_terminations))),
         "termination_coverage_complete" =>
             length(finite_terminations) == length(records),
@@ -823,7 +834,9 @@ end
 
 Aggregate repeated matched scaling runs without ranking policies. Each run
 record must contain `policy`, `replicate`, `provenance_fingerprint`, and
-`artifact`, plus the explicit `common_start_covariance_passed` gate. Each
+`artifact`, plus the explicit `common_start_covariance_passed` gate. A caller
+may additionally require independently generated engine starts to pass
+`native_initialization_covariance_passed`. Each
 comparison record must contain `candidate_policy` and
 `comparison`. Qualification requires repeated coverage, stable provenance,
 accepted physical endpoints, stable termination, and qualified matched
@@ -834,6 +847,7 @@ function scaling_solver_experiment_campaign_data(
     comparisons::AbstractVector;
     reference_policy::AbstractString,
     minimum_repeats::Integer=2,
+    require_native_initialization_covariance::Bool=false,
     metadata::AbstractDict=Dict{String,Any}(),
 )
     minimum_repeats >= 2 || throw(ArgumentError(
@@ -900,6 +914,19 @@ function scaling_solver_experiment_campaign_data(
         get(summary, "all_common_starts_covariant", false) === true
         for summary in values(policy_summaries)
     )
+    native_initialization_coverage_complete = all(
+        get(
+            summary,
+            "native_initialization_covariance_coverage_complete",
+            false,
+        ) === true for summary in values(policy_summaries)
+    )
+    native_initializations_covariant =
+        !require_native_initialization_covariance || all(
+            get(
+                summary, "all_native_initializations_covariant", false,
+            ) === true for summary in values(policy_summaries)
+        )
     terminations_stable = all(
         get(summary, "termination_stable", false) === true
         for summary in values(policy_summaries)
@@ -919,8 +946,8 @@ function scaling_solver_experiment_campaign_data(
         for policy in keys(policy_records)
     )
     campaign_qualified = run_coverage_complete && provenance_stable &&
-        common_starts_covariant && endpoints_accepted && terminations_stable &&
-        all_comparisons_qualified
+        common_starts_covariant && native_initializations_covariant &&
+        endpoints_accepted && terminations_stable && all_comparisons_qualified
     return Dict{String,Any}(
         "schema_version" => "scaling-solver-experiment-campaign-v1",
         "available" => !isempty(runs),
@@ -936,6 +963,12 @@ function scaling_solver_experiment_campaign_data(
                 fingerprint_coverage_complete,
             "provenance_stable" => provenance_stable,
             "all_common_starts_covariant" => common_starts_covariant,
+            "native_initialization_covariance_required" =>
+                require_native_initialization_covariance,
+            "native_initialization_covariance_coverage_complete" =>
+                native_initialization_coverage_complete,
+            "all_native_initializations_covariant" =>
+                native_initializations_covariant,
             "all_physical_endpoints_accepted" => endpoints_accepted,
             "terminations_stable_within_policy" => terminations_stable,
             "comparison_policy_coverage_complete" =>

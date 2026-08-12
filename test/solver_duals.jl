@@ -255,6 +255,35 @@
         minimum_repeats=2,
     )
     @test campaign["campaign_qualified"]
+    native_start_runs = deepcopy(campaign_runs)
+    for record in native_start_runs
+        record["native_initialization_covariance_passed"] = true
+    end
+    native_start_campaign =
+        NLPDiagnostics.scaling_solver_experiment_campaign_data(
+            native_start_runs,
+            campaign_comparisons;
+            reference_policy="reference",
+            minimum_repeats=2,
+            require_native_initialization_covariance=true,
+        )
+    @test native_start_campaign["campaign_qualified"]
+    @test native_start_campaign["gates"][
+        "native_initialization_covariance_required"
+    ]
+    native_start_runs[end]["native_initialization_covariance_passed"] = false
+    rejected_native_start =
+        NLPDiagnostics.scaling_solver_experiment_campaign_data(
+            native_start_runs,
+            campaign_comparisons;
+            reference_policy="reference",
+            minimum_repeats=2,
+            require_native_initialization_covariance=true,
+        )
+    @test !rejected_native_start["campaign_qualified"]
+    @test !rejected_native_start["gates"][
+        "all_native_initializations_covariant"
+    ]
     @test campaign["gates"]["provenance_stable"]
     @test campaign["policies"]["candidate"]["termination_stable"]
     @test campaign["comparisons"]["candidate"]["comparison_count"] == 2

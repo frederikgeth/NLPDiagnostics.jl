@@ -278,6 +278,7 @@ function _campaign_for_stratum(
         comparisons;
         reference_policy,
         minimum_repeats=repeats,
+        require_native_initialization_covariance=true,
         metadata=Dict(
             "runner_version" => runner_version,
             "case" => case_name,

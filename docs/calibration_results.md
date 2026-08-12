@@ -692,7 +692,11 @@ certification, active-set locality for 288 inequalities, and
 Artifacts are under `/private/tmp/nlpdiag-bmopf-99bus-multitime-v2`; the
 consolidated gate record is `medium_profile_summary.json`.
 
-## 2026-08-12: objective-bearing BMOPF magnitude scaling
+## 2026-08-12: objective-bearing BMOPF magnitude scaling (pre-correction)
+
+This section records the original campaign for provenance. Its transformer
+native-start stratum predates the initialization-covariance correction below;
+use the corrected full cross-solver matrix for current quantitative results.
 
 The first start-stratified magnitude-only campaign completed 120 Ipopt solves:
 two compact objective-bearing case classes, four policies, three physical-start
@@ -771,3 +775,61 @@ performance conclusion on this small fixture.
 Artifacts are `work/bmopf-madnlp-portability-pilot.json` and its compact
 `-summary.json` companion. The bounded pilot is not a substitute for the
 default five-repeat, three-stratum, two-case protocol.
+
+## 2026-08-12: initialization scaling covariance
+
+The native-start audit found a cross-voltage-level bug in the BMOPFTools OPF
+warm start: the source voltage magnitude was used at every bus, so the SI
+wye-delta fixture placed its nominal 415 V side near 6.35 kV. The per-unit
+models concealed much of this because their transformed levels were near order
+one. BMOPFTools now uses level-aware nominal magnitudes plus its existing
+wye/delta phase propagation. Native SI, classic, and local-base starts agree in
+physical coordinates to roughly `3.4e-13` on both retained fixtures.
+
+With the correction, the bounded Ipopt transformer ranges improved to
+13--14/14--15/16--18/19--21 records for
+moderate/classic/aggressive/SI. MadNLP changed to
+13--14/13--15/15--18/19--22. The exact small-sample ranges should not be
+overinterpreted, but two conclusions survive: physical initialization is a
+material experimental control, and SI/aggressive policies remain worse after
+that control is repaired.
+
+The corrected pilot artifacts are
+`work/bmopf-invariant-start-ipopt-pilot.json` and
+`work/bmopf-invariant-start-madnlp-pilot.json`, each with a compact summary.
+
+## 2026-08-12: corrected full cross-solver scaling matrix
+
+The initialization-covariance fix has now been exercised on the full matched
+protocol for both Ipopt and MadNLP: two compact objective-bearing cases, four
+magnitude policies, one native and two deterministically perturbed physical
+start strata, and five fresh replicates per cell. All 240 solves terminated
+locally optimally. Every native-initialization covariance, transported-start
+covariance, physical endpoint, provenance, and comparison-coverage gate passed.
+
+Callback-record ranges were:
+
+| Solver / case | Classic | Moderate local | Aggressive local | SI |
+| --- | ---: | ---: | ---: | ---: |
+| Ipopt, unbalanced 3-phase | 12--13 | 11--12 | 13--14 | 18 |
+| Ipopt, wye-delta transformer | 14--15 | 13--14 | 16--26 | 19--21 |
+| MadNLP, unbalanced 3-phase | 12--13 | 11--12 | 13--14 | 17--18 |
+| MadNLP, wye-delta transformer | 13--15 | 13--14 | 15--26 | 19--22 |
+
+The MadNLP factorization ranges add evidence that callback counts alone hide
+important work. On the transformer they were 13--21 (classic), 13--14
+(moderate), 15--39 (aggressive), and 19--22 (SI). Backsolve ranges were
+14--15, exactly 14, 17--30, and 19--22 respectively. Sub-millisecond linear
+solver times are retained but remain too small for timing claims.
+
+These results support a bounded, cross-solver conclusion: the scaling signal
+survives physically invariant initialization, moderate local bases are the
+best candidate among the four tested policies, raw SI coordinates are
+consistently costly, and aggressive bases are not robust to start perturbation
+on transformer equations. They do not establish universal policy superiority
+or a causal mechanism inside either factorization.
+
+The corrected full artifacts are
+`work/bmopf-stratified-ipopt-invariant-start-scaling-campaign.json` and
+`work/bmopf-stratified-madnlp-scaling-campaign.json`, each with a compact
+`-summary.json` companion.

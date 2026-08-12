@@ -374,6 +374,10 @@ strict and unchanged.
 
 ### Objective-bearing, start-stratified magnitude campaign
 
+The original results in this subsection predate the native-initialization
+covariance correction. They remain useful as an audit trail, but the corrected
+full cross-solver results below supersede their transformer work ranges.
+
 The next campaign has now cleared the intended small-case evidence gate. It
 uses an unbalanced three-phase line/load problem with cheaper local wye
 generation and a two-voltage-level wye-delta transformer problem with cheaper
@@ -489,3 +493,68 @@ step is the five-repeat, three-stratum, two-case MadNLP campaign. Trace-resolved
 Jacobian geometry remains unavailable because MadNLP's public callback does
 not expose primal iterate coordinates; the same-start geometry and physical
 endpoint contracts remain available independently.
+
+### Initialization covariance correction
+
+The scaling study now treats initialization as part of the coordinate contract,
+not as an uncontrolled solver detail. The intended invariant is exactly the
+physical one: equal phase magnitudes and 120-degree separation on balanced
+three-phase wye buses, zero explicit neutral, and transformer/split-phase
+relationships owned by the component model. Only the rectangular model
+magnitude changes with the bus voltage base.
+
+An audit found that the standard BMOPFTools OPF start stage previously applied
+the source magnitude to every non-grounded bus. Single-voltage-level cases were
+unaffected, and per-unit transformer cases could conceal the error because
+their transformed voltage levels were order one, but the SI wye-delta fixture
+initialized the nominal 415 V side near 6.35 kV. BMOPFTools now uses its
+level-aware nominal-voltage propagation and existing wye/delta phase-shift
+override for the standard OPF path. Independent native starts across SI,
+classic, and both local-base policies now agree in physical coordinates within
+about `3.4e-13` on the retained transformer fixture.
+
+The campaign qualification contract now requires native-initialization
+covariance in addition to transported-common-start covariance. This prevents a
+scaling policy from receiving a physically different engine warm start and
+having the resulting solver-work change misattributed to numerical scaling.
+Canonical phase-pattern checks remain a separate optional gate because delta,
+split-phase, explicitly unbalanced, and source-declared angle patterns have
+different physical semantics.
+
+Rerunning the bounded transformer pilots with the corrected initialization
+reduced work for every policy while preserving the broad scaling result. Ipopt
+record ranges became 13--14 for moderate local bases, 14--15 for classic,
+16--18 for aggressive high bases, and 19--21 for SI. MadNLP ranges became
+13--14, 13--15, 15--18, and 19--22 respectively. Thus initialization was a
+material confounder, but it does not explain away the disadvantage of SI or
+aggressive scaling.
+
+### Full cross-solver result after initialization correction
+
+The complete matched matrices now contain 120 qualified solves per solver.
+Their agreement is stronger than the earlier pilots: both Ipopt and MadNLP
+place the moderate local policy at the lowest or tied-lowest callback work on
+both retained cases, SI well above classic, and the aggressive policy between
+classic and SI on the unbalanced line case but highly start-sensitive on the
+wye-delta transformer. The corrected transformer record ranges are 13--14,
+14--15, 16--26, and 19--21 for Ipopt and 13--14, 13--15, 15--26, and 19--22
+for MadNLP, ordered as moderate/classic/aggressive/SI.
+
+MadNLP's factorization counters sharpen the interpretation. The transformer
+aggressive policy needed as many as 39 factorizations and 30 backsolves for 26
+callback records, whereas the moderate policy stayed within 13--14
+factorizations and exactly 14 backsolves. SI required more iterations than the
+moderate policy but did not show the same excess-factorization pattern. Thus
+at least two mechanisms are present: persistently poor coordinate geometry in
+SI, and start-dependent linear-system interventions under aggressive scaling.
+
+This is the first result that can reasonably guide the next algorithm-design
+experiment, because mathematical problem, physical start, endpoint acceptance,
+solver environment, and replicate structure are controlled. The next
+intervention should be phase-only: apply orthogonal two-coordinate rotations to
+declared complex semantic blocks while holding every magnitude base fixed.
+Orthogonal rotations must preserve singular values in exact arithmetic, so
+they form a strong falsification/control experiment for any claimed benefit of
+complex scaling. Only after that control should magnitude-plus-phase policies
+be compared on centre-tap, regulator, floating-neutral, delta-circulation, and
+larger sparse feeder cases.

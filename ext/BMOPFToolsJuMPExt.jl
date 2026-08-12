@@ -1680,6 +1680,268 @@ function _bmopf_start_completion_point(
     )
 end
 
+function _bmopf_start_coordinate_value(
+    context,
+    point::NLPDiagnostics.EvaluationPoint,
+    positions::Dict{MOI.VariableIndex,Int},
+    bus::String,
+    terminal::String,
+    component::Symbol,
+)
+    object = BMOPFTools.opf_object(
+        context,
+        BMOPFTools.opf_bus_voltage_key(
+            bus, terminal; component,
+        ),
+    )
+    object isa JuMP.VariableRef || return nothing
+    position = get(positions, JuMP.index(object), nothing)
+    isnothing(position) && return nothing
+    return Float64(point.values[position])
+end
+
+function _bmopf_wrapped_angle_separation(left::Real, right::Real)
+    return abs(rem2pi(Float64(right) - Float64(left), RoundNearest))
+end
+
+"""Return explicit voltage-pattern evidence for BMOPFTools-generated starts."""
+function _bmopf_voltage_initialization_invariants_data(
+    context;
+    missing_value::Real=0.0,
+    magnitude_relative_tolerance::Real=1.0e-10,
+    angle_absolute_tolerance::Real=1.0e-5,
+    neutral_physical_tolerance::Real=1.0e-10,
+)
+    magnitude_relative_tolerance >= 0 || throw(ArgumentError(
+        "magnitude_relative_tolerance must be nonnegative",
+    ))
+    angle_absolute_tolerance >= 0 || throw(ArgumentError(
+        "angle_absolute_tolerance must be nonnegative",
+    ))
+    neutral_physical_tolerance >= 0 || throw(ArgumentError(
+        "neutral_physical_tolerance must be nonnegative",
+    ))
+    point = _bmopf_start_completion_point(
+        context;
+        missing_value,
+        label="bmopf-voltage-initialization-invariants",
+    )
+    positions = Dict(
+        variable => position for (position, variable) in
+        enumerate(point.variables)
+    )
+    buses = Dict{String,Any}[]
+    checked_bus_count = 0
+    balanced_bus_count = 0
+    checked_passed = true
+    for (bus, terminals) in _bmopf_bus_terminals(context)
+        semantics = _bmopf_voltage_terminal_semantics(
+            context, bus, terminals,
+        )
+        voltage_base = _bmopf_ac_voltage_scale(context, bus)
+        coordinates = Dict{String,Any}[]
+        phase_values = ComplexF64[]
+        neutral_values = ComplexF64[]
+        complete = true
+        for semantic in semantics
+            terminal = semantic.label
+            real_value = _bmopf_start_coordinate_value(
+                context, point, positions, bus, terminal, :real,
+            )
+            imag_value = _bmopf_start_coordinate_value(
+                context, point, positions, bus, terminal, :imag,
+            )
+            if isnothing(real_value) || isnothing(imag_value) ||
+                    isnothing(voltage_base)
+                complete = false
+                continue
+            end
+            model_value = complex(real_value, imag_value)
+            physical_value = Float64(voltage_base) * model_value
+            semantic.role == :phase && push!(phase_values, physical_value)
+            semantic.role in (:neutral, :ground_reference) &&
+                push!(neutral_values, physical_value)
+            push!(coordinates, Dict{String,Any}(
+                "terminal" => terminal,
+                "role" => string(semantic.role),
+                "model_real" => real_value,
+                "model_imag" => imag_value,
+                "model_magnitude" => abs(model_value),
+                "physical_real" => real(physical_value),
+                "physical_imag" => imag(physical_value),
+                "physical_magnitude" => abs(physical_value),
+                "angle_radians" => angle(model_value),
+            ))
+        end
+        neutral_checked = complete && !isempty(neutral_values)
+        neutral_zero_passed = neutral_checked ? all(
+            value -> abs(value) <= neutral_physical_tolerance,
+            neutral_values,
+        ) : nothing
+        balanced_checked = complete && length(phase_values) == 3 &&
+            !isempty(neutral_values)
+        equal_magnitude_passed = nothing
+        angle_separation_passed = nothing
+        magnitude_spread = nothing
+        maximum_angle_separation_error = nothing
+        if balanced_checked
+            magnitudes = abs.(phase_values)
+            magnitude_spread = maximum(magnitudes) - minimum(magnitudes)
+            scale = max(maximum(magnitudes), 1.0)
+            equal_magnitude_passed = magnitude_spread <=
+                magnitude_relative_tolerance * scale
+            separations = Float64[
+                _bmopf_wrapped_angle_separation(
+                    angle(phase_values[left]), angle(phase_values[right]),
+                ) for left in 1:2 for right in (left + 1):3
+            ]
+            maximum_angle_separation_error = maximum(
+                abs.(separations .- 2pi / 3),
+            )
+            angle_separation_passed = maximum_angle_separation_error <=
+                angle_absolute_tolerance
+            balanced_bus_count += 1
+        end
+        bus_checked = neutral_checked || balanced_checked
+        bus_passed = (!neutral_checked || neutral_zero_passed === true) &&
+            (!balanced_checked || (
+                equal_magnitude_passed === true &&
+                angle_separation_passed === true
+            ))
+        bus_checked && (checked_bus_count += 1)
+        bus_checked && (checked_passed &= bus_passed)
+        push!(buses, Dict{String,Any}(
+            "bus" => bus,
+            "voltage_base" => voltage_base,
+            "coordinate_complete" => complete,
+            "coordinates" => coordinates,
+            "neutral_zero_checked" => neutral_checked,
+            "neutral_zero_passed" => neutral_zero_passed,
+            "balanced_three_phase_checked" => balanced_checked,
+            "equal_phase_magnitude_passed" => equal_magnitude_passed,
+            "physical_phase_magnitude_spread" => magnitude_spread,
+            "phase_angle_separation_passed" => angle_separation_passed,
+            "maximum_phase_angle_separation_error_radians" =>
+                maximum_angle_separation_error,
+            "checked_invariants_passed" => bus_checked ? bus_passed : nothing,
+        ))
+    end
+    return Dict{String,Any}(
+        "schema_version" => "bmopf-voltage-initialization-invariants-v1",
+        "available" => !isempty(buses),
+        "checked_bus_count" => checked_bus_count,
+        "balanced_three_phase_bus_count" => balanced_bus_count,
+        "checked_invariants_passed" => checked_bus_count > 0 && checked_passed,
+        "point_fingerprint" =>
+            NLPDiagnostics.evaluation_point_fingerprint(point),
+        "point_provenance" => Dict{String,Any}(
+            "kind" => string(point.provenance.kind),
+            "source" => point.provenance.source,
+            "metadata" => copy(point.provenance.metadata),
+        ),
+        "buses" => buses,
+        "qualification" => Dict{String,Any}(
+            "claim" =>
+                "voltage-pattern evidence at the BMOPFTools-generated start in both model and physical coordinates",
+            "balanced_pattern_scope" =>
+                "buses with exactly three phase terminals and an explicit neutral or ground reference",
+            "does_not_establish" => [
+                "initial feasibility",
+                "solver convergence",
+                "a canonical 120-degree expectation for delta or split-phase buses",
+            ],
+        ),
+    )
+end
+
+"""Compare independently generated BMOPFTools starts across scaling policies."""
+function _bmopf_initialization_scaling_covariance_report(
+    reference_context,
+    candidate_context;
+    missing_value::Real=0.0,
+    semantic_blocks::Bool=true,
+    require_canonical_voltage_pattern::Bool=false,
+    covariance_kwargs...,
+)
+    reference_point = _bmopf_start_completion_point(
+        reference_context;
+        missing_value,
+        label="bmopf-reference-native-initialization",
+    )
+    candidate_point = _bmopf_start_completion_point(
+        candidate_context;
+        missing_value,
+        label="bmopf-candidate-native-initialization",
+    )
+    reference_model = JuMP.backend(_bmopf_context_model(reference_context))
+    candidate_model = JuMP.backend(_bmopf_context_model(candidate_context))
+    reference_evaluation = NLPDiagnostics.evaluate_numerical(
+        reference_model, reference_point,
+    )
+    candidate_evaluation = NLPDiagnostics.evaluate_numerical(
+        candidate_model, candidate_point,
+    )
+    covariance = semantic_blocks ?
+        _bmopf_block_scaling_covariance_report(
+            reference_context,
+            reference_evaluation,
+            candidate_context,
+            candidate_evaluation;
+            covariance_kwargs...,
+        ) :
+        _bmopf_scaling_covariance_report(
+            reference_context,
+            reference_evaluation,
+            candidate_context,
+            candidate_evaluation;
+            covariance_kwargs...,
+        )
+    reference_pattern = _bmopf_voltage_initialization_invariants_data(
+        reference_context; missing_value,
+    )
+    candidate_pattern = _bmopf_voltage_initialization_invariants_data(
+        candidate_context; missing_value,
+    )
+    covariance_passed = get(
+        covariance, "equivalence_gate_passed", false,
+    ) === true
+    pattern_passed = !require_canonical_voltage_pattern || (
+        get(reference_pattern, "checked_invariants_passed", false) === true &&
+        get(candidate_pattern, "checked_invariants_passed", false) === true &&
+        get(reference_pattern, "balanced_three_phase_bus_count", 0) > 0 &&
+        get(candidate_pattern, "balanced_three_phase_bus_count", 0) > 0
+    )
+    return Dict{String,Any}(
+        "schema_version" =>
+            "bmopf-initialization-scaling-covariance-v1",
+        "available" => get(covariance, "available", false) === true,
+        "initialization_covariance_passed" => covariance_passed,
+        "canonical_voltage_pattern_required" =>
+            require_canonical_voltage_pattern,
+        "canonical_voltage_pattern_passed" => pattern_passed,
+        "equivalence_gate_passed" => covariance_passed && pattern_passed,
+        "semantic_blocks" => semantic_blocks,
+        "reference_scaling_policy" =>
+            _bmopf_scaling_policy_label(reference_context),
+        "candidate_scaling_policy" =>
+            _bmopf_scaling_policy_label(candidate_context),
+        "reference_voltage_pattern" => reference_pattern,
+        "candidate_voltage_pattern" => candidate_pattern,
+        "covariance_report" => covariance,
+        "qualification" => Dict{String,Any}(
+            "claim" =>
+                "independently generated initialization covariance in authoritative physical BMOPFTools coordinates",
+            "missing_coordinate_policy" =>
+                "missing starts are completed with the explicitly declared missing_value before comparison",
+            "does_not_establish" => [
+                "initial feasibility",
+                "equal solver trajectories",
+                "initialization optimality",
+            ],
+        ),
+    )
+end
+
 """
     bmopf_result_voltage_point(context, result;
         result_units = :si, fallback_value = 0.0,

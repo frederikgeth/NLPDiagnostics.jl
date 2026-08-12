@@ -131,6 +131,17 @@ bmopf_set_start_values!(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPEx
 """Construct a non-mutating complete point from BMOPF starts plus an explicit fallback."""
 bmopf_start_completion_point(context; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to complete staged BMOPF start values")._bmopf_start_completion_point(context; kwargs...)
+"""Describe BMOPFTools voltage-start magnitudes, angles, and neutral values."""
+bmopf_voltage_initialization_invariants_data(context; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for BMOPF voltage-start invariants")._bmopf_voltage_initialization_invariants_data(
+            context; kwargs...)
+"""Compare independently generated BMOPFTools starts in physical coordinates."""
+bmopf_initialization_scaling_covariance_report(
+    reference_context, candidate_context; kwargs...,
+) = _bmopf_extension(:BMOPFToolsJuMPExt,
+    "BMOPFTools and JuMP support are required for BMOPF initialization covariance")._bmopf_initialization_scaling_covariance_report(
+        reference_context, candidate_context; kwargs...)
 """Map saved BMOPF result coordinates into a labeled partial evaluation point."""
 bmopf_result_voltage_point(context, result; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to map a BMOPF result point")._bmopf_result_voltage_point(context, result; kwargs...)

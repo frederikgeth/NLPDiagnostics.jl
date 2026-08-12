@@ -182,6 +182,9 @@ The companion
 [`benchmarks/bmopf_stratified_madnlp_campaign.jl`](benchmarks/bmopf_stratified_madnlp_campaign.jl)
 runs the same physical experiment contract with MadNLP and retains its public
 cumulative factorization and backsolve evidence.
+Scaling campaigns also require independently generated BMOPFTools warm starts
+to agree in physical coordinates; phase patterns and zero neutrals are checked
+separately from voltage-base-dependent model-coordinate magnitudes.
 The package, solver-extension, domain-extension, and scientific-calibration
 test boundaries are documented in [`docs/testing.md`](docs/testing.md).
 Bounded empirical results and their trust limitations are recorded in

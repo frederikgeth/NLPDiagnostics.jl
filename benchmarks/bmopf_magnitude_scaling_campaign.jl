@@ -172,6 +172,15 @@ function _run_policy(
     schema = _schema_evaluation(
         context, "$policy_name-replicate-$replicate-schema",
     )
+    native_initialization_covariance =
+        NLPDiagnostics.bmopf_initialization_scaling_covariance_report(
+            anchor_context,
+            context;
+            missing_value=0.0,
+            require_canonical_voltage_pattern=true,
+            absolute_tolerance=1.0e-6,
+            relative_tolerance=1.0e-8,
+        )
     transport = NLPDiagnostics.bmopf_transport_scaling_point(
         anchor_context,
         anchor_evaluation,
@@ -243,6 +252,13 @@ function _run_policy(
         "provenance_fingerprint" => environment_fingerprint,
         "common_start_covariance_passed" =>
             get(common_start_covariance, "equivalence_gate_passed", false),
+        "native_initialization_covariance_passed" => get(
+            native_initialization_covariance,
+            "equivalence_gate_passed",
+            false,
+        ),
+        "native_initialization_covariance_report" =>
+            native_initialization_covariance,
         "common_start_transport" => Dict{String,Any}(
             "maximum_roundtrip_error" => transport["maximum_roundtrip_error"],
             "point_fingerprint" => NLPDiagnostics.evaluation_point_fingerprint(

@@ -3459,23 +3459,37 @@ primal iterates for trace geometry. A 16-solve transformer pilot validated the
 new path and showed that SI geometry, transformer-coil growth, and
 regularization are distinct signals rather than one scalar mechanism.
 
-The objective-bearing runner is now solver-parametric, and a first 16-solve
-MadNLP transformer portability pilot qualified across two starts and two fresh
-replicates. Its actual factorization/backsolve counters broadly preserve the
-Ipopt policy ordering and expose extra factorizations for the perturbed classic
-and aggressive-base runs. This clears the integration gate, but not the full
-repeatability gate: the default two-case, three-start, five-repeat MadNLP matrix
-has not yet been run.
+The objective-bearing runner is now solver-parametric. The full corrected
+MadNLP matrix has completed: two cases, three physical-start strata, four
+policies, and five fresh replicates per cell (120 solves). Every native-start,
+transported-start, endpoint, provenance, and matched-comparison gate passed.
+The corresponding corrected Ipopt matrix also completed with the same design
+and gates. This clears both the solver-portability and repeatability gates on
+the retained compact fixtures.
+
+Initialization covariance is now an independent mandatory campaign gate. A
+cross-voltage-level audit found and corrected a BMOPFTools warm-start bug that
+gave SI transformer models a physically different initial voltage level.
+Generated starts now preserve physical magnitudes, phase relations, zero
+neutrals, and wye/delta shifts across voltage-base choices. Corrected Ipopt and
+MadNLP pilots still show moderate/classic policies ahead of SI/aggressive
+policies, so the scaling signal survives removal of this confounder.
+
+Across both solvers the moderate local-base policy required the least or tied
+for the least callback work, SI required substantially more, and the aggressive
+policy was strongly start-sensitive on the transformer. MadNLP adds a sharper
+linear-algebra signal: the aggressive transformer policy used 15--39
+factorizations for 15--26 callback records, while the moderate policy used
+13--14 factorizations for 13--14 records. This is repeated association, not a
+causal factorization-stability proof; pivot, inertia, fill, and backward-error
+telemetry remain unavailable.
 
 The revised next major items, in order, are:
 
-1. promote the qualified MadNLP pilot to the full two-case, three-start,
-   five-repeat protocol before attributing observations to formulation rather
-   than Ipopt;
-2. implement a genuine phase-only two-coordinate semantic rotation and test
+1. implement a genuine phase-only two-coordinate semantic rotation and test
    singular-spectrum invariance separately from magnitude changes;
-3. add centre-tap, regulator, floating-neutral, and delta-circulation fixtures,
+2. add centre-tap, regulator, floating-neutral, and delta-circulation fixtures,
    implementing coupled-cone dual transforms only when those cases exercise
    them; and
-4. promote the surviving magnitude policies to the bounded 30-bus and
+3. promote the surviving magnitude policies to the bounded 30-bus and
    multi-time 99-bus matrix with dense analysis disabled.
