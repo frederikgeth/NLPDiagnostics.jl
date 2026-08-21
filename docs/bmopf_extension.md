@@ -1390,6 +1390,14 @@ blocks. The adapter reports applied and skipped declarations, singleton
 coverage, and local reference-scale provenance. It never groups coordinates by
 JuMP names.
 
+The registry is lifecycle-aware. BMOPFTools registers native blocks lazily only
+after KCL finalisation, so a pre-KCL context is reported as unavailable rather
+than being mistaken for a model with no semantics. The adapter preserves the
+engine's `schema_capabilities` (including `lifecycle`,
+`semantic_blocks_available`, and `semantic_blocks_registered`) in the scaling
+map; downstream analyses should require the availability flag before making
+coverage claims.
+
 `bmopf_block_scaling_covariance_report` applies the common-physical-coordinate
 gate to the declared blocks, while
 `bmopf_block_scaling_coordinate_geometry_report` compares raw local geometry

@@ -3144,7 +3144,18 @@ function _bmopf_semantic_block_scaling_map(context, evaluation)
     end
 
     diagonal = diagonal_build["map"]
-    declared = _bmopf_diagnostic_schema(context).semantic_blocks
+    schema = _bmopf_diagnostic_schema(context)
+    capabilities = schema.capabilities
+    if get(capabilities, "semantic_blocks_available", true) !== true
+        return Dict{String,Any}(
+            "report_version" => "bmopf-semantic-block-scaling-map-v1",
+            "available" => false,
+            "reason" => "BMOPFTools semantic blocks are not complete before KCL finalisation",
+            "schema_capabilities" => copy(capabilities),
+            "diagonal_map" => diagonal_build,
+        )
+    end
+    declared = schema.semantic_blocks
     model_variables = evaluation.point.variables
     variable_positions = Dict(
         variable => position for (position, variable) in enumerate(model_variables)
@@ -3277,6 +3288,7 @@ function _bmopf_semantic_block_scaling_map(context, evaluation)
     return Dict{String,Any}(
         "report_version" => "bmopf-semantic-block-scaling-map-v1",
         "available" => true,
+        "schema_capabilities" => copy(capabilities),
         "policy" => _bmopf_scaling_policy_label(context),
         "map" => scaling_map,
         "declared_block_count" => length(declared),
