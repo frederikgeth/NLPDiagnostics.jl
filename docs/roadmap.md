@@ -3735,7 +3735,8 @@ AC-zone-2-high-only intervention helps at the native start and reverses
 direction after perturbation. This is not a universal base-selection rule.
 The next research sequence is:
 
-1. collect more perturbation directions and intermediate Ipopt trace points;
+1. use the two-direction LG Ipopt extension and its twelve-point traces to
+   localize the mechanism without promoting a causal claim;
 2. complete a phase-only orthogonal control on a small truth fixture;
 3. publish the same compact summary shape for each promoted calibration
    campaign; and
@@ -3743,6 +3744,8 @@ The next research sequence is:
    candidates.
 
 The held-out LG summary is tracked at `docs/calibration_summary.json`. The
+two-direction Ipopt extension is tracked at
+`docs/calibration_perturbation_summary.json`. The
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and

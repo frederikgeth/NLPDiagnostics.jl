@@ -943,3 +943,27 @@ temporary copy of the known benchmark environment and BMOPFTools
 `8f121216065bcd692f18444836c7c80149e5cf4a` (the current research checkout does
 not yet expose the `OpfScaling` API required by this runner); the dependency
 revision is recorded in the summary fingerprint.
+
+## 2026-08-22: second LG perturbation direction resolves Ipopt trajectory families
+
+The held-out LG protocol was repeated for a second deterministic perturbation
+seed (`17`) with Ipopt, two fresh repeats per policy, and twelve selected trace
+points. All endpoint, covariance, repeatability, provenance, sparse-work, and
+trace-attribution gates passed. Relative to the all-low anchor, the
+AC-zone-2-high-only policy changed from 29 to 46 callback records, 38 to 64
+line-search trials, and 0 to 18 positive-regularization records. The first
+perturbation direction (seed `11`) changed those quantities from 28 to 86,
+34 to 277, and 0 to 24 respectively. The native-start response remains the
+same 25-to-21 records and 27-to-22 line-search reduction.
+
+The second direction repeats the sign reversal without relying on the original
+seed. Its selected trajectories repeatedly identify DC branch power/current
+thermal and IBR power-circle rows, with `q_ibr`, `p_ibr`, `vi`, `idc_conv`,
+`u_ibr`, and `ci_fr` among the largest moving columns. This is qualified
+trace-family attribution, not a causal factorization claim; Ipopt does not
+expose factorization counts or pivot/fill telemetry. The extension is therefore
+still an Ipopt-only perturbation result; MadNLP remains qualified for seed 11.
+
+The compact two-direction record is tracked at
+`docs/calibration_perturbation_summary.json`. The next increment is the
+phase-only orthogonal control with magnitudes held fixed.

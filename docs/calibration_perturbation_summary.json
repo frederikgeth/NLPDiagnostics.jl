@@ -1,0 +1,46 @@
+{
+  "schema_version": "nlpdiagnostics-calibration-perturbation-summary-v1",
+  "source": {
+    "runner": "bmopf-acdc-feeder-policy-campaign-v1",
+    "case": "30bus_LG_t01_0800",
+    "julia_version": "1.12.6",
+    "bmopftools_revision": "8f121216065bcd692f18444836c7c80149e5cf4a",
+    "relative_perturbation": 0.001,
+    "repeats_per_policy": 2,
+    "seeds": [11, 17],
+    "dense_decompositions_enabled": false,
+    "trace_geometry_points": 12
+  },
+  "qualification": {
+    "seed_11": {"solvers": ["Ipopt", "MadNLP"], "campaign_qualified": true},
+    "seed_17": {"solvers": ["Ipopt"], "campaign_qualified": true},
+    "all_physical_endpoints_accepted": true,
+    "sparse_work_gate_passed": true,
+    "provenance_and_repeatability_gates_passed": true
+  },
+  "ipopt_policy_responses": {
+    "native": {
+      "factorial_all_low": {"records": 25.0, "line_search_trials": 27.0, "positive_regularization_records": 0.0},
+      "factorial_a2_high_only": {"records": 21.0, "line_search_trials": 22.0, "positive_regularization_records": 0.0}
+    },
+    "nearby_seed_11": {
+      "factorial_all_low": {"records": 28.0, "line_search_trials": 34.0, "positive_regularization_records": 0.0},
+      "factorial_a2_high_only": {"records": 86.0, "line_search_trials": 277.0, "positive_regularization_records": 24.0}
+    },
+    "nearby_seed_17": {
+      "factorial_all_low": {"records": 29.0, "line_search_trials": 38.0, "positive_regularization_records": 0.0},
+      "factorial_a2_high_only": {"records": 46.0, "line_search_trials": 64.0, "positive_regularization_records": 18.0}
+    }
+  },
+  "seed_17_trace_families": {
+    "row_families": ["dc_branch_power_thermal", "dc_branch_current_thermal", "ibr_power_circle", "ibr_p_volt_watt", "ibr_p_lower", "ibr_p_upper"],
+    "column_families": ["q_ibr", "p_ibr", "vi", "idc_conv", "u_ibr", "ci_fr"],
+    "selected_trace_iterations": [0, 4, 5, 6, 7, 8, 10, 12, 13, 16, 21, 45],
+    "positive_regularization_records_per_replicate": 18
+  },
+  "interpretation": {
+    "qualified_finding": "Across two independent perturbation directions, AC-zone-2-high-only remains favorable at the native start but increases Ipopt work after perturbation.",
+    "scope": "One 30-bus LG feeder, two perturbation directions, Ipopt trajectory evidence, two repeats, five policies.",
+    "not_established": ["universal base-selection superiority", "MadNLP behavior for seed 17", "99-bus behavior", "causal row-level mechanism"]
+  }
+}
