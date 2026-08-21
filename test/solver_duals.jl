@@ -1,3 +1,130 @@
+@testset "Explicit fixed-variable dual completion" begin
+    model = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
+    variable = MOI.add_variable(model)
+    fixed_constraint = MOI.add_constraint(
+        model, variable, MOI.EqualTo(1.0),
+    )
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    objective = MOI.ScalarAffineFunction(
+        [MOI.ScalarAffineTerm(2.0, variable)], 0.0,
+    )
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{typeof(objective)}(),
+        objective,
+    )
+    point = NLPDiagnostics.EvaluationPoint(
+        [variable],
+        [1.0];
+        label="synthetic-fixed-endpoint",
+        provenance=NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.SolverResultPoint;
+            source="fixed-dual completion oracle",
+            complete=true,
+        ),
+    )
+    evaluation = NLPDiagnostics.evaluate_numerical(model, point)
+    @test length(evaluation.constraint_sources) == 1
+    source = only(evaluation.constraint_sources)
+    side = NLPDiagnostics.SolverConstraintSideDual(
+        1, source, :equality, 0.0, 1.0, 1.0, 0.0,
+        :synthetic_inconsistent_public_dual,
+    )
+    public_snapshot = NLPDiagnostics.SolverDualSnapshot(
+        true, nothing, point, 1, "FEASIBLE_POINT", 1.0, [0.0], [side],
+        true, 0.0, String[],
+    )
+    completion = NLPDiagnostics.complete_fixed_variable_duals(
+        model, evaluation, public_snapshot,
+    )
+    @test completion.available
+    @test completion.fixed_rows == [1]
+    @test completion.fixed_columns == [1]
+    @test completion.original_multipliers == [0.0]
+    @test completion.completed_multipliers == [-2.0]
+    @test completion.maximum_correction == 2.0
+    @test completion.public_maximum_stationarity_residual == 2.0
+    @test completion.completed_maximum_stationarity_residual == 0.0
+    @test completion.free_coordinate_maximum_stationarity_residual == 0.0
+    @test public_snapshot.row_multipliers == [0.0]
+    @test completion.snapshot.row_multipliers == [-2.0]
+    @test only(completion.snapshot.sides).provenance ==
+        :fixed_equality_stationarity_completion
+    data = NLPDiagnostics.fixed_variable_dual_completion_data(completion)
+    @test data["available"]
+    @test data["qualification"]["original_public_snapshot_preserved"]
+
+    scaling = NLPDiagnostics.DiagonalScalingMap(
+        "fixed-dual-oracle";
+        variable_keys=["x"],
+        variable_scales=[1.0],
+        constraint_keys=["x-fixed"],
+        constraint_scales=[1.0],
+        constraint_bounds=[(1.0, 1.0)],
+    )
+    public_kkt = NLPDiagnostics.physical_kkt_acceptance_report(
+        evaluation,
+        scaling,
+        public_snapshot;
+        feasibility_default_absolute_tolerance=0.0,
+        stationarity_default_absolute_tolerance=0.0,
+        dual_default_absolute_tolerance=0.0,
+        complementarity_default_absolute_tolerance=0.0,
+    )
+    completed_kkt = NLPDiagnostics.physical_kkt_acceptance_report(
+        evaluation,
+        scaling,
+        completion.snapshot;
+        feasibility_default_absolute_tolerance=0.0,
+        stationarity_default_absolute_tolerance=0.0,
+        dual_default_absolute_tolerance=0.0,
+        complementarity_default_absolute_tolerance=0.0,
+    )
+    @test !public_kkt["acceptance_passed"]
+    @test completed_kkt["acceptance_passed"]
+
+    free_model = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
+    free_variable = MOI.add_variable(free_model)
+    free_point = NLPDiagnostics.EvaluationPoint(
+        [free_variable], [0.0]; label="no-fixed-equality",
+    )
+    free_evaluation = NLPDiagnostics.evaluate_numerical(free_model, free_point)
+    free_snapshot = NLPDiagnostics.SolverDualSnapshot(
+        true, nothing, free_point, 1, "FEASIBLE_POINT", 0.0,
+        Float64[], NLPDiagnostics.SolverConstraintSideDual{Float64}[],
+        true, 0.0, String[],
+    )
+    unavailable = NLPDiagnostics.complete_fixed_variable_duals(
+        free_model, free_evaluation, free_snapshot,
+    )
+    @test !unavailable.available
+    @test occursin("no scalar fixed-variable", unavailable.reason)
+
+    relabeled_point = NLPDiagnostics.EvaluationPoint(
+        [variable], [1.0]; label="different-label",
+    )
+    relabeled_snapshot = NLPDiagnostics.SolverDualSnapshot(
+        true, nothing, relabeled_point, 1, "FEASIBLE_POINT", 1.0,
+        [0.0], [side], true, 0.0, String[],
+    )
+    @test NLPDiagnostics.complete_fixed_variable_duals(
+        model, evaluation, relabeled_snapshot,
+    ).available
+    mismatched_point = NLPDiagnostics.EvaluationPoint(
+        [variable], [1.1]; label="different-coordinate",
+    )
+    mismatched_snapshot = NLPDiagnostics.SolverDualSnapshot(
+        true, nothing, mismatched_point, 1, "FEASIBLE_POINT", 1.0,
+        [0.0], [side], true, 0.0, String[],
+    )
+    mismatch = NLPDiagnostics.complete_fixed_variable_duals(
+        model, evaluation, mismatched_snapshot,
+    )
+    @test !mismatch.available
+    @test occursin("verification record", mismatch.reason)
+    @test MOI.is_valid(model, fixed_constraint)
+end
+
 @testset "Physical scalar-side complementarity contracts" begin
     variable = MOI.VariableIndex(1)
     point = NLPDiagnostics.EvaluationPoint(

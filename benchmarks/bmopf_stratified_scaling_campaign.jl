@@ -116,7 +116,7 @@ function _derived_policy_factories(
     optimizer=Ipopt.Optimizer,
 )
     probe = _build_context(
-        network, BMOPFTools.ClassicPerUnitScaling(1.0e6);
+        network, BMOPFTools.OpfScaling(:classic; power_base=1.0e6);
         add_objective=true,
         optimizer,
     )
@@ -127,21 +127,21 @@ function _derived_policy_factories(
     low_voltages = Dict(bus => 0.65value for (bus, value) in classic_voltages)
     high_voltages = Dict(bus => 1.5value for (bus, value) in classic_voltages)
     return [
-        ("classic_1mva", () -> BMOPFTools.ClassicPerUnitScaling(1.0e6)),
-        ("si_units", () -> BMOPFTools.SIUnitsScaling()),
+        ("classic_1mva", () -> BMOPFTools.OpfScaling(:classic; power_base=1.0e6)),
+        ("si_units", () -> BMOPFTools.OpfScaling(:si)),
         (
             "local_0p65v_0p25s",
-            () -> BMOPFTools.ConsistentPerUnitScaling(
+            () -> BMOPFTools.OpfScaling(
                 name=:local_0p65v_0p25s,
-                s_base=0.25s_reference,
+                power_base=0.25s_reference,
                 voltage_bases=copy(low_voltages),
             ),
         ),
         (
             "local_1p5v_10s",
-            () -> BMOPFTools.ConsistentPerUnitScaling(
+            () -> BMOPFTools.OpfScaling(
                 name=:local_1p5v_10s,
-                s_base=10.0s_reference,
+                power_base=10.0s_reference,
                 voltage_bases=copy(high_voltages),
             ),
         ),
@@ -208,6 +208,8 @@ function _campaign_for_stratum(
     trace_geometry,
     trace_geometry_max_points,
     runner_version,
+    max_dense_entries=100_000,
+    complete_fixed_variable_duals=false,
 )
     reference_policy = first(policies)[1]
     public_runs = Dict{String,Any}[]
@@ -231,6 +233,8 @@ function _campaign_for_stratum(
                 trace_geometry_max_points,
                 optimizer,
                 solver,
+                max_dense_entries,
+                complete_fixed_variable_duals,
             )
             public_record["case"] = case_name
             public_record["start_stratum"] = stratum_name
@@ -251,6 +255,7 @@ function _campaign_for_stratum(
             baseline_repeat=true,
             endpoint_absolute_tolerance,
             endpoint_relative_tolerance,
+            max_dense_entries,
         )
         comparison["case"] = case_name
         comparison["start_stratum"] = stratum_name
@@ -267,6 +272,7 @@ function _campaign_for_stratum(
                 private_runs[(policy_name, replicate)],
                 endpoint_absolute_tolerance=endpoint_absolute_tolerance,
                 endpoint_relative_tolerance=endpoint_relative_tolerance,
+                max_dense_entries,
             )
             comparison["case"] = case_name
             comparison["start_stratum"] = stratum_name

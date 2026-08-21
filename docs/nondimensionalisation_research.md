@@ -583,7 +583,8 @@ Yd/Dy current seeds are computed after the global voltage transport so a local
 post-pass cannot overwrite the compositional solution.
 
 The engine exposes equation counts and maximum normalized residuals by
-relation family through `opf_initialization_data`. NLPDiagnostics carries that
+relation family through `opf_diagnostic_schema(ctx).initialization`.
+NLPDiagnostics carries that
 evidence in its voltage-start report and can require it with
 `require_phasor_transport=true` in native-start covariance comparisons. A new
 SI-versus-classic chained Yd/Dy test passes the complete physical model,
@@ -631,14 +632,14 @@ from `model_experiment_ready`.
 
 On the chained Yd/Dy truth fixture, the proposed 10 MVA / 1 MVA / 100 kVA zone
 bases are algebraically admissible and require explicit current and power
-conversion at both transformer interfaces. The proposal is correctly marked
-not model-experiment-ready because BMOPFTools has not yet stamped those local
-base coefficients. This negative readiness result is a feature: it prevents
-solver-work claims before the coordinate transformation exists.
+conversion at both transformer interfaces. The proposal was initially marked
+not model-experiment-ready while the required connection coefficients were
+absent. That negative readiness result served its purpose: it prevented
+solver-work claims before the coordinate transformation existed.
 
-### First executable zone-local slice
+### Executable isolated-transformer slices
 
-`ZonePerUnitScaling` now executes the same idea across an isolated
+`OpfScaling(...; power_bases=...)` now executes the same idea across an isolated
 single-phase transformer. It stores `S_base(bus)`, derives local current and
 impedance bases, stamps the `S_from/S_to` factor into ampere-turn balance and
 the reciprocal factor into cross-side leakage referral, and applies local
@@ -653,7 +654,292 @@ covariance gate. During this test the adapter's remaining system-power-base
 assumption was exposed by a 0.975 relative derivative/set discrepancy and was
 replaced with bus/winding-local semantic scales.
 
-This is evidence of equivalence, not evidence of better conditioning. The
-connection-qualified boundary is intentionally narrow: cross-zone Yd/Dy,
-center-tap, n-winding, and AC/DC policies are rejected until their incidence
-and power-referral equations have corresponding covariance oracles.
+The second executable slice covers both Yd and Dy orientations. In normalized
+connection coordinates, delta terminal currents require
+`f_I=S_delta/S_wye`, while delta-arm leakage referred into the wye-current
+voltage-drop equation requires the reciprocal `f_Z=S_wye/S_delta`. Wye-coil
+nameplates and current initialization use `S_wye`. These are not optional
+equilibration heuristics: together they are the coordinate representation of
+the original power-conservative connection matrix.
+
+Separate Yd and Dy endpoint fixtures with a 40:1 zone-base change agree with SI
+on physical bus voltages, source power, and transformer real/reactive losses.
+The chained 10 MVA / 1 MVA / 100 kVA fixture additionally passes native-start
+physical point, constraint-function, residual-set, and physical-Jacobian
+covariance. This is evidence of equivalence, not evidence of better
+conditioning.
+
+The third executable slice covers center-tap transformers. This case provides
+an important distinction between physical reciprocity and coordinate symmetry.
+The fixed 5×5 primitive is reciprocal in dimensional voltage/current units, but
+after primary and secondary currents use different power bases its normalized
+matrix is generally nonsymmetric. BMOPFTools constructs an intermediate
+primary-power primitive, applies reciprocal impedance/admittance conversions,
+and row-transforms the secondary currents. The explicit T model instead exposes
+the same `S_primary/S_secondary` factor in ampere-turn balance.
+
+Two unequal-leg fixtures exercise the nonzero-arm primitive and zero-primary-arm
+T-model paths at a 40:1 power-base change. Both pass exact PF voltage, winding
+current, source-power and loss equivalence, physical OPF objective equivalence,
+and the complete native-start derivative/set covariance gate. The T-model gate
+also covers all 16 real/imaginary current-box rows, which BMOPFTools publishes
+under component constraint keys. Unregistered bounds remain a hard coverage
+failure. This is the first multi-port result in the study and is a useful
+template for n-winding matrix scaling.
+
+The fourth executable slice generalizes that idea to an arbitrary winding-list
+port model. With winding 1 as reference, physical ampere-turn balance becomes
+`sum_k N_k (S_k/S_1) I_k = 0` in model coordinates. The same factor multiplies
+each referred-current column of the full ZB leakage matrix, while ZB itself is
+divided once by the winding-1 impedance base. This preserves the original
+multi-port operator without inventing pairwise transformer copies or changing
+its physical rank.
+
+The executable oracle uses three independently based WYE ports, nonzero full
+ZB coupling, a winding-2 magnetising branch, current and apparent-power limits,
+and asymmetric phase loads across a 50:1 base range. SI and zone-local models
+agree on PF/OPF endpoints, winding currents, bus voltages, losses, objective,
+initialization, residual sets, and the physical Jacobian. Existing independent
+WYE/DELTA incidence and `delta_roll` tests cover the connection maps; a loaded
+floating-delta endpoint is intentionally not used as a numerical equality
+oracle because its common-mode gauge is non-unique.
+
+The sixth executable slice qualifies distinct AC and DC power coordinates for
+native lossless converters. Converter `c` at AC bus `b` is stamped as
+`U_dc,pu I_dc,pu = (S_ac(b)/S_dc) P_ac,pu`. Power-reference and droop-output
+coordinates remain local to the converter's AC bus, while setpoint, deadband,
+and droop voltage arguments use the DC voltage base. A two-converter fixture
+with independent AC factors 50 and 5 passes SI/local physical point,
+constraint-function, set, residual, and physical-Jacobian covariance for both
+P/V and droop/V control pairs. This establishes coordinate covariance, not
+better conditioning; lossy and custom converter builders remain unqualified.
+
+The fifth executable slice closes the regulator boundary without pretending
+that it is an isolating transformer boundary. A single-phase autotransformer
+shares a common bushing and an open-delta bank has a straight-through phase.
+Consequently both voltage and power bases must remain constant across the two
+bus records; the tap is dimensionless and changes a winding equation, not the
+coordinate system of the shared copper conductor. The public proposal audit
+now rejects a voltage-base jump even when `V_base*I_base=S_base` holds
+algebraically, because that identity alone does not preserve the bond-voltage
+row.
+
+Loaded fixed-tap single-phase and open-delta fixtures pass SI/normalized PF
+endpoint covariance, including all winding and bond currents. Fixed and free
+tap variants pass complete initialization, constraint-function, residual-set,
+and physical-Jacobian covariance in NLPDiagnostics. Negative controls reject
+both voltage-base and power-base jumps before construction. This is a useful
+negative design result: galvanic devices should be treated as interiors of a
+scaling zone, not as opportunities for more local bases.
+
+### Matched AC/DC pilot
+
+`benchmarks/bmopf_acdc_scaling_campaign.jl` turns the AC/DC covariance oracle
+into a repeat- and start-stratified Ipopt experiment. The retained policies are
+classic 1 MVA per unit, SI, a rating-aligned 10 kVA AC/DC allocation, and an
+asymmetric allocation whose converter coefficients are 50 and 5. Both P/V and
+droop/V controller cases are run from the native start and one 0.1% perturbed
+physical start, with two fresh replicates per cell. Qualification requires the
+AC/DC coefficient contract in addition to common-start transport, endpoint KKT
+acceptance, endpoint covariance, intervention purity, telemetry semantics, and
+repeatability.
+
+The first bounded pilot qualified all 32 solves. Callback-record ranges across
+both strata were 12--20 (classic), 10--24 (SI), 10--21 (rating-aligned), and
+12--19 (asymmetric) for P/V control; the droop/V ranges were 6--14, 6--20,
+6--19, and 6--18 respectively. Every endpoint was locally optimal and accepted
+under the same physical tolerance contract.
+
+The result rules out a simple initial-condition-number policy selector. At the
+native P/V start, SI and rating-aligned coordinates used 10 records rather than
+classic's 12 even though their dense local condition proxies were about
+`1.0e5` and `3.8e3` times the classic proxy. At the perturbed P/V start, SI
+instead needed 24 records versus classic's 20; the asymmetric policy needed 19.
+For perturbed droop/V, classic needed 14 records, versus 18--20 for the three
+alternatives. These are small-fixture observations, not a ranking. They make
+controller mode and start perturbation mandatory strata for the next base-grid
+and multi-case experiments.
+
+### AC/DC power-base factorial
+
+`benchmarks/bmopf_acdc_base_grid_campaign.jl` separates the two AC-zone power
+bases and the DC power base in a full two-level `2^3` design. The retained
+levels are 10 kVA / 1 MVA at AC zone 1, 10 kVA / 100 kVA at AC zone 2, and
+10 kW / 200 kW on the DC network. The eight cells span converter coefficients
+from 0.05 to 100 and are compared with classic 1 MVA coordinates. Factorial
+contrasts are computed independently inside each P/V or droop/V and native or
+0.1%-perturbed start stratum. Solver-count contrasts retain count units;
+geometry contrasts use `log10` candidate-to-classic ratios. No contrast is
+collapsed into a policy score.
+
+The first grid run qualified all 72 fresh solves and every one of the 32
+factorial cell/stratum combinations. Increasing the DC base reduced the initial
+condition proxy by 1.29--1.65 decades in all four controller/start strata.
+Increasing the AC-zone-2 base also reduced that proxy in all four strata, by
+0.078--0.320 decades. These are robust local-geometry directions on this
+fixture, not solver-performance conclusions.
+
+Solver work did not inherit those stable directions. The AC-zone-1 main effect
+on callback records ranged from +2 at the native P/V start to -1.75 at the
+perturbed droop/V start; it was zero in the other two strata. Native droop/V
+needed exactly six callback records and four line-search trials in every grid
+cell despite condition ratios spanning more than two decades. The grid thus
+provides direct evidence that coordinate geometry, controller equations, and
+the current basin jointly determine solver work. It motivates trajectory- and
+linear-algebra-level attribution rather than selecting bases from an initial
+dense condition proxy.
+
+### Three-zone multi-converter campaign
+
+`benchmarks/bmopf_acdc_multiconverter_campaign.jl` is the first step beyond
+the two-converter truth fixture. It couples three independently scaled AC
+islands at 230 V, 400 V, and 690 V through three converters and a three-node
+meshed resistive DC network. A full `2^4` design varies the three AC power bases
+and the DC power base. P/V dispatch and two-converter droop sharing are retained
+as separate controller cases; each is run from native and 0.1%-perturbed
+physical starts with two fresh replicates. The fixture has 62 variables and
+91--93 constraints. It remains an intermediate mechanism case, not a feeder-
+scale benchmark.
+
+All 136 fresh Ipopt solves qualified: physical endpoints, starts, AC/DC
+coefficients, repeatability, all 16 factorial cells, and semantic-family trace
+geometry passed. Native P/V used 9--10 callback records and native droop used
+six. Perturbed droop remained tightly grouped at 19--20 records and 20--22
+line-search trials. Perturbed P/V separated sharply: classic 1 MVA coordinates
+used 52 records and 166 trials, while all 16 grid cells used 21--24 records and
+20--27 trials.
+
+The regularization evidence is more specific than the work counts. Each
+classic perturbed-P/V replicate had 39 positive regularization records and a
+maximum regularization of `2.13e5`. Five grid policies used regularization;
+their maxima ranged from 1 to 711, while the other eleven used none. The most
+mobile row families were DC branch power/current thermal rows and IBR power
+circles; the most mobile column families were converter active/reactive power
+and DC branch currents. These are local attribution clues, not proof that any
+one family caused the regularization.
+
+Ipopt's public callback does not expose factorization counts, backsolves,
+inertia, fill, pivots, backward error, or linear-solver time. The artifact
+records that capability as unavailable for every run and does not make it a
+failed gate. Consequently this campaign qualifies trajectory geometry and
+regularization attribution, but not joint geometry/factorization attribution.
+A matched MadNLP companion can supply cumulative linear-algebra work counters,
+while lacking primal iterate coordinates; cross-solver triangulation must keep
+that evidence asymmetry explicit.
+
+### Matched MadNLP linear-work companion
+
+`benchmarks/bmopf_acdc_multiconverter_madnlp_campaign.jl` runs the identical
+fixture, `2^4` cells, controller strata, physical starts, and replicates with
+MadNLP. Its public callback contributes cumulative factorizations, backsolves,
+linear-solver time, Jacobian/Hessian evaluations, and iterative-refinement
+counts. It contributes no primal iterate coordinates. The artifact therefore
+contains an explicit solver-evidence matrix: Ipopt owns trajectory geometry and
+regularization; MadNLP owns cumulative linear work; neither run supplies their
+same-run causal linkage.
+
+The first 136-solve companion retained complete linear-work telemetry in every
+run, but exposed two separate endpoint questions. All 68 P/V solves were
+locally solved. Droop sharing produced 56 locally solved endpoints, six local
+infeasibility reports, and six iteration limits. Mean per-policy
+factorizations ranged from 9--76 for P/V and 7--201 for droop; mean per-policy
+backsolves reached 1,947 in the native droop stratum. These figures are
+numerical observations in one environment, not performance rankings.
+
+The P/V endpoint discrepancy has since been reduced to fixed-variable dual
+recovery. MadNLP's public multipliers pass primal feasibility and
+complementarity but leave a stationarity residual of about `1.5` on fixed
+source-voltage coordinates. Generic linear and nonlinear controls confirm that
+the public MOI path can return consistent multipliers, while the BMOPF
+decomposition shows that all free coordinates are already balanced.
+NLPDiagnostics now offers an explicit alternative representative that
+recomputes only scalar `VariableIndex`-in-`EqualTo` multipliers from
+stationarity. The original public snapshot is retained, no other multiplier is
+changed, and the operation makes no claim about multiplier uniqueness or
+solver-internal scaling. On the retained fixture, 13 fixed-equality
+multipliers are completed, reducing the maximum stationarity residual to about
+`5.6e-8` while the public report remains failed and inspectable.
+
+With this explicit representative, both native and perturbed P/V strata now
+qualify: 68/68 locally solved runs have complete linear-work telemetry,
+accepted completed-multiplier endpoints, complete `2^4` cells, and passing
+factorial geometry gates. Raising the AC-zone-2 base has the clearest repeated
+work direction. Its high level reduces mean factorization count by `2.25` at
+the native start and `1.625` at the perturbed start; it also reduces mean
+backsolves by `1.25` and `3.0`, and mean Jacobian/Hessian evaluations by `1.25`
+and `2.5`. The time differences have the same sign but are too small and
+environment-specific to carry the claim. This is qualified evidence for the
+compact P/V mechanism fixture, not a universal base-selection rule.
+
+Droop remains deliberately unqualified: the explicit completion can audit a
+locally solved endpoint, but cannot convert local infeasibility or an iteration
+limit into success. Effects pooled across droop cells with different
+termination classes remain descriptive only. The next experiments must
+therefore separate controller robustness from coordinate effects instead of
+using the P/V result to explain the droop failures.
+
+### Feeder-embedded mechanism campaign
+
+`benchmarks/bmopf_acdc_feeder_policy_campaign.jl` implements the next scale-up
+without misrepresenting the available data. The ENWL corpus cases are real
+unbalanced AC feeders, but each is one galvanic zone and contains no DC grid or
+isolating transformer. Applying the four-factor AC/DC policy directly to such a
+case would collapse the independent bases and destroy the experiment. Instead,
+the runner embeds an unmodified, namespaced ENWL feeder as AC zone 2 of the
+qualified three-converter P/V mechanism. The zone-2 converter is attached at
+the feeder source bus; the feeder's own voltage source, lines, loads, IBRs, and
+controller profiles remain present.
+
+Five policies preserve the needed controls: classic 1 MVA, the all-low
+factorial anchor, AC-zone-2-high only, all-high, and the AC1/AC2/DC interaction
+cell. The runner crosses native and deterministically perturbed physical starts,
+fresh replicates, and Ipopt/MadNLP. It admits a case only after explicit bounds
+on variables, rows, stored Jacobian entries, and the upper bound on
+trace-Jacobian entry evaluations pass. `max_dense_entries=0` is propagated
+through initialization covariance, common-start covariance, endpoint
+covariance, and geometry comparisons, so dense rank and singular spectra cannot
+be enabled accidentally.
+
+The first complete LN execution also exposed two instrumentation problems that
+would have obscured the experiment. Intervention verification attempted to
+materialize whole-model coordinate relations even though the declared maps are
+block sparse: the hypothetical dense relation required 1,427,161 entries,
+while the actual relation stores 1,681. Classification now operates on the
+sparse relation and uses the dense budget only for optional determinant-sign
+evidence. The same execution produced a 651 MB checkpoint because complete
+per-run evaluations were serialized after they had served the qualification
+gates. Feeder artifacts are now compact by construction, retain only evidence
+summaries and provenance, and checkpoint atomically after every stratum. The
+equivalent compact checkpoint is 279 KB.
+
+The construction smoke exposed a previously missing semantic contract before
+solving: registered `ibr_p_volt_watt` rows had no physical residual scale.
+Their equation is a power inequality on both sides, so the correct residual
+scale is the IBR bus power base, matching `ibr_q_volt_var`. That contract is now
+implemented and independently tested. On the first 30-bus LN construction, all
+756 variables and 925 rows map, including 28 Volt-Watt rows; the transported
+start has zero round-trip error.
+
+The corrected 30-bus LN campaign is now fully qualified for Ipopt and MadNLP,
+at both the native and seed-11 perturbed physical starts, with two fresh runs
+per policy. All physical endpoints, transformation comparisons, repeats,
+solver-specific attribution, and cross-solver start fingerprints pass. The
+result rejects a simple monotone reading of the compact-fixture AC-zone-2
+effect. Relative to the all-low anchor, AC-zone-2-high-only reduces Ipopt
+callback records by 5 and line-search trials by 6 at the native start. MadNLP
+also uses 4 fewer callback records, 7 fewer backsolves, and 4 fewer
+Jacobian/Hessian evaluations, with unchanged factorization count. At the
+perturbed start the direction reverses strongly: Ipopt uses 58 more records,
+243 more line-search trials, and 24 positive-regularization records; MadNLP uses
+64 more records, 108 more factorizations, 205 more backsolves, and 64 more
+Jacobian/Hessian evaluations. Every endpoint still passes.
+
+This is evidence of a scaling--initialization interaction, not evidence that
+the high or low base is universally better. The immediate scientific question
+is therefore how each policy transforms the perturbation relative to active
+controller, power-circle, and DC thermal geometry. The two-point Ipopt trace
+already localizes the largest changing row families to DC branch thermal and
+IBR power-circle constraints, with `q_ibr`, `p_ibr`, and DC branch-current
+columns prominent. More intermediate trace points and additional physical
+perturbation directions are needed before assigning causality. LG remains the
+next held-out topology/control case; 99-bus promotion remains premature.

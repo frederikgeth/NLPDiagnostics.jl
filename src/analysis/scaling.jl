@@ -399,35 +399,38 @@ end
 function _coordinate_relation_classification(
     relation::AbstractMatrix;
     tolerance::Real,
+    max_dense_entries::Integer,
 )
     dimension = size(relation, 1)
     size(relation, 2) == dimension || return Dict{String,Any}(
         "classification" => "general_linear",
         "reason" => "coordinate relation is not square",
     )
-    matrix = Matrix{Float64}(relation)
-    all(isfinite, matrix) || return Dict{String,Any}(
+    matrix = sparse(Float64.(relation))
+    all(isfinite, nonzeros(matrix)) || return Dict{String,Any}(
         "classification" => "nonfinite",
         "reason" => "coordinate relation contains non-finite entries",
     )
     scale = max(opnorm(matrix, Inf), 1.0)
     diagonal = diag(matrix)
-    off_diagonal = matrix - Diagonal(diagonal)
-    maximum_off_diagonal = isempty(matrix) ? 0.0 :
-        maximum(abs, off_diagonal; init=0.0)
+    rows, columns, values = findnz(matrix)
+    maximum_off_diagonal = maximum(
+        (abs(value) for (row, column, value) in
+         zip(rows, columns, values) if row != column);
+        init=0.0,
+    )
     diagonal_relation = maximum_off_diagonal <= tolerance * scale
     positive_diagonal = diagonal_relation && all(>(0.0), diagonal)
+    sparse_identity = spdiagm(0 => ones(Float64, dimension))
     identity_error = isempty(matrix) ? 0.0 :
-        opnorm(matrix - Matrix{Float64}(I, dimension, dimension), Inf)
-    column_norms = [norm(view(matrix, :, column)) for column in 1:dimension]
+        opnorm(matrix - sparse_identity, Inf)
+    column_norms = vec(sqrt.(sum(abs2, matrix; dims=1)))
     nonsingular_columns = all(>(tolerance), column_norms)
-    normalized_gram_error = if nonsingular_columns
-        normalized = matrix ./ transpose(column_norms)
-        opnorm(
-            transpose(normalized) * normalized -
-            Matrix{Float64}(I, dimension, dimension),
-            Inf,
-        )
+    normalized_gram_error = if diagonal_relation && nonsingular_columns
+        0.0
+    elseif nonsingular_columns
+        normalized = matrix * spdiagm(0 => inv.(column_norms))
+        opnorm(transpose(normalized) * normalized - sparse_identity, Inf)
     else
         Inf
     end
@@ -448,16 +451,30 @@ function _coordinate_relation_classification(
     else
         "general_linear"
     end
+    dense_materialization_performed = !diagonal_relation &&
+        dimension^2 <= max_dense_entries
+    determinant_sign = if diagonal_relation
+        isempty(diagonal) ? 1.0 : prod(sign, diagonal)
+    elseif dense_materialization_performed
+        sign(det(Matrix(matrix)))
+    else
+        nothing
+    end
     return Dict{String,Any}(
         "classification" => classification,
         "dimension" => dimension,
+        "storage" => "sparse",
+        "stored_entry_count" => nnz(matrix),
+        "dense_materialization_performed" =>
+            dense_materialization_performed,
         "identity_error_infinity_norm" => identity_error,
         "maximum_off_diagonal_magnitude" => maximum_off_diagonal,
         "positive_diagonal" => positive_diagonal,
         "column_magnitudes" => column_norms,
         "normalized_gram_error_infinity_norm" => normalized_gram_error,
         "orthogonal_axis_mixing" => orthogonal_axis_mixing,
-        "determinant_sign" => dimension == 0 ? 1.0 : sign(det(matrix)),
+        "determinant_sign" => determinant_sign,
+        "determinant_sign_available" => !isnothing(determinant_sign),
     )
 end
 
@@ -468,7 +485,10 @@ Classify the declared coordinate relation between two semantic scaling maps.
 The result distinguishes positive diagonal magnitude changes, norm-preserving
 axis mixing, their combination, and general linear changes. `phase_like` is a
 linear-algebra description: physical complex-phase meaning still requires a
-plugin declaration for the affected two-coordinate blocks.
+plugin declaration for the affected two-coordinate blocks. Whole-model
+relations remain sparse. `max_dense_entries` controls only optional
+determinant-sign evidence; exceeding it does not make sparse classification
+unavailable.
 """
 function scaling_intervention_classification(
     reference::Union{DiagonalScalingMap,SemanticBlockScalingMap},
@@ -487,16 +507,6 @@ function scaling_intervention_classification(
     variable_dimension = length(reference_map.variable_keys)
     constraint_dimension = length(reference_map.constraint_keys)
     required_entries = variable_dimension^2 + constraint_dimension^2
-    if required_entries > max_dense_entries
-        return Dict{String,Any}(
-            "report_version" => "scaling-intervention-classification-v1",
-            "available" => false,
-            "classification" => "unavailable",
-            "reason" =>
-                "dense coordinate relations require $required_entries entries, above max_dense_entries=$max_dense_entries",
-            "required_dense_entries" => required_entries,
-        )
-    end
     variable_relation = _coordinate_relation(
         reference_map.variable_keys,
         reference_map.variable_blocks,
@@ -522,10 +532,10 @@ function scaling_intervention_classification(
         "constraint",
     )
     variables = _coordinate_relation_classification(
-        variable_relation; tolerance,
+        variable_relation; tolerance, max_dense_entries,
     )
     constraints = _coordinate_relation_classification(
-        constraint_relation; tolerance,
+        constraint_relation; tolerance, max_dense_entries,
     )
     axis_classes = Set((
         variables["classification"], constraints["classification"],
@@ -572,10 +582,17 @@ function scaling_intervention_classification(
         "objective_scale_ratio" => objective_ratio,
         "objective_scale_changed" => objective_changed,
         "required_dense_entries" => required_entries,
+        "stored_relation_entry_count" =>
+            nnz(sparse(variable_relation)) + nnz(sparse(constraint_relation)),
+        "dense_materialization_performed" =>
+            variables["dense_materialization_performed"] ||
+            constraints["dense_materialization_performed"],
         "qualification" => Dict{String,Any}(
             "phase_like_is_physical_phase_claim" => false,
             "model_axis_identity_assumption" =>
                 "within each declared semantic block, input axes inherit the block key order",
+            "classification_storage" =>
+                "sparse whole-model coordinate relations; dense materialization is optional and used only for determinant-sign evidence",
             "does_not_establish" => [
                 "model covariance",
                 "physical meaning of orthogonal axis mixing",
@@ -1220,8 +1237,74 @@ function physical_stationarity_report(
         multipliers
     physical_jacobian = _semantic_physical_jacobian(evaluation, map)
     physical_objective_weight = Float64(objective_weight / map.objective_scale)
+    constraint_stationarity = transpose(physical_jacobian) * physical_multipliers
     stationarity = physical_objective_weight .* physical_gradient +
-        transpose(physical_jacobian) * physical_multipliers
+        constraint_stationarity
+    gradient_squared_norm = sum(abs2, physical_gradient)
+    objective_weight_fit_available = isfinite(gradient_squared_norm) &&
+        gradient_squared_norm > eps(Float64)
+    fitted_objective_weight = objective_weight_fit_available ?
+        -dot(physical_gradient, constraint_stationarity) /
+            gradient_squared_norm : nothing
+    fitted_stationarity = objective_weight_fit_available ?
+        fitted_objective_weight .* physical_gradient .+
+            constraint_stationarity : Float64[]
+    fitted_maximum_residual = objective_weight_fit_available &&
+        all(isfinite, fitted_stationarity) ?
+        maximum(abs, fitted_stationarity; init=0.0) : nothing
+    configured_maximum_residual = all(isfinite, stationarity) ?
+        maximum(abs, stationarity; init=0.0) : nothing
+    normalization_scale = max(
+        maximum(abs, constraint_stationarity; init=0.0),
+        abs(physical_objective_weight) *
+            maximum(abs, physical_gradient; init=0.0),
+        eps(Float64),
+    )
+    fitted_weight_differs = objective_weight_fit_available &&
+        isfinite(fitted_objective_weight) &&
+        !isapprox(
+            fitted_objective_weight,
+            physical_objective_weight;
+            atol=1.0e-8,
+            rtol=1.0e-6,
+        )
+    global_normalization_mismatch = fitted_weight_differs &&
+        fitted_maximum_residual isa Real &&
+        fitted_maximum_residual <= 1.0e-6 * normalization_scale
+    gradient_component_scale = maximum(abs, physical_gradient; init=0.0)
+    coordinate_fit_threshold = sqrt(eps(Float64)) *
+        max(gradient_component_scale, eps(Float64))
+    coordinate_weight_fits = Dict{String,Any}()
+    inconsistent_coordinate_count = 0
+    for (position, key) in pairs(map.variable_keys)
+        gradient_component = Float64(physical_gradient[position])
+        abs(gradient_component) > coordinate_fit_threshold || continue
+        constraint_component = Float64(constraint_stationarity[position])
+        fitted_weight = -constraint_component / gradient_component
+        configured_residual = Float64(stationarity[position])
+        component_scale = max(
+            abs(constraint_component),
+            abs(physical_objective_weight * gradient_component),
+            eps(Float64),
+        )
+        weight_differs = isfinite(fitted_weight) && !isapprox(
+            fitted_weight,
+            physical_objective_weight;
+            atol=1.0e-8,
+            rtol=1.0e-6,
+        )
+        materially_inconsistent = weight_differs &&
+            abs(configured_residual) > 1.0e-6 * component_scale
+        inconsistent_coordinate_count += materially_inconsistent
+        coordinate_weight_fits[key] = Dict{String,Any}(
+            "fitted_physical_weight" => fitted_weight,
+            "configured_stationarity_residual" => configured_residual,
+            "component_scale" => component_scale,
+            "materially_inconsistent" => materially_inconsistent,
+        )
+    end
+    potential_normalization_mismatch = global_normalization_mismatch ||
+        inconsistent_coordinate_count > 0
     records = Dict{String,Any}()
     configured_count = 0
     passed_count = 0
@@ -1264,6 +1347,27 @@ function physical_stationarity_report(
         "finite" => finite,
         "objective_weight_model" => Float64(objective_weight),
         "objective_weight_physical" => physical_objective_weight,
+        "objective_weight_consistency" => Dict{String,Any}(
+            "available" => objective_weight_fit_available,
+            "configured_physical_weight" => physical_objective_weight,
+            "least_squares_fitted_physical_weight" => fitted_objective_weight,
+            "configured_maximum_stationarity_residual" =>
+                configured_maximum_residual,
+            "fitted_maximum_stationarity_residual" =>
+                fitted_maximum_residual,
+            "normalization_scale" => normalization_scale,
+            "potential_multiplier_normalization_mismatch" =>
+                potential_normalization_mismatch,
+            "global_fit_indicates_mismatch" =>
+                global_normalization_mismatch,
+            "coordinate_fit_threshold" => coordinate_fit_threshold,
+            "coordinate_fit_count" => length(coordinate_weight_fits),
+            "materially_inconsistent_coordinate_count" =>
+                inconsistent_coordinate_count,
+            "coordinate_weight_fits" => coordinate_weight_fits,
+            "interpretation" =>
+                "global or coordinate-local fitted objective weights that materially differ from the configured weight are evidence of an inconsistent multiplier representative; this screen does not distinguish normalization from dual nonuniqueness or redundant fixed-coordinate equations and never applies an automatic correction",
+        ),
         "objective_gradient_required" => gradient_required,
         "objective_gradient_available" => gradient_available,
         "constraint_multiplier_semantics" =>

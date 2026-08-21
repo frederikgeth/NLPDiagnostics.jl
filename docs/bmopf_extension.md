@@ -1179,9 +1179,10 @@ context, while device-semantic and physical/operating-point losses block the
 
 ## Controlled nondimensionalisation experiments
 
-BMOPFTools now exposes typed `SIUnitsScaling`, `ClassicPerUnitScaling`, and
-`ConsistentPerUnitScaling` policies. The custom policy accepts an explicit
-power base and a complete compatible AC voltage-base map, while deriving
+BMOPFTools now exposes one stable `OpfScaling` factory and a versioned
+`OpfDiagnosticSchema`; the concrete engine policy types remain implementation
+details. The custom scaling form accepts an explicit power base and a complete
+compatible AC voltage-base map, while deriving
 current, impedance, and admittance bases from dimensional identities. It does
 not yet represent arbitrary independent voltage/current/power bases; those
 would require scale coefficients in the engine equations. The effective policy
@@ -1261,8 +1262,8 @@ voltage starts in both model and physical coordinates. It checks zero explicit
 neutrals and, only on three-phase buses with an explicit reference, equal phase
 magnitudes and pairwise 120-degree separation. Delta and split-phase buses are
 not forced through that wye-pattern assumption. The report is pattern evidence,
-not an initial-feasibility claim. When the engine exposes
-`opf_initialization_data`, the same artifact also carries the network-wide
+not an initial-feasibility claim. When the engine exposes the versioned
+`opf_diagnostic_schema`, the same artifact also carries the network-wide
 phasor-transport equation counts, per-family residuals, unsupported transformer
 subtypes, and a separately qualified transport gate. This is the appropriate
 evidence for multi-voltage transformer chains, single-phase laterals,
@@ -1299,15 +1300,63 @@ intervention while remaining ineligible for solver-performance comparison.
 This prevents a table of attractive bases from being mistaken for a changed,
 covariance-qualified NLP.
 
-BMOPFTools now provides a first qualified executable slice through
-`ZonePerUnitScaling`: power bases may differ across an isolated
-`single_phase` transformer and must remain constant inside each galvanic zone.
-For such a context, `applied_to_model` and `model_experiment_ready` are true.
-The adapter uses bus- and winding-local power bases for variables, residual
-sets, and Jacobian transformations; using the legacy system base here was a
-detected covariance failure, not a harmless reporting approximation. Yd/Dy,
-center-tap, n-winding, and AC/DC cross-zone changes remain rejected by the
-engine rather than being classified as ready.
+BMOPFTools now provides a qualified executable slice through
+`OpfScaling(...; power_bases=...)`: power bases may differ across isolated `single_phase`,
+`wye_delta`, and `delta_wye` transformers and must remain constant inside each
+galvanic zone. For such a context, `applied_to_model` and
+`model_experiment_ready` are true. The adapter uses bus- and winding-local power
+bases for variables, residual sets, and Jacobian transformations; using the
+legacy system base here was a detected covariance failure, not a harmless
+reporting approximation.
+
+The Yd/Dy extension is connection-aware rather than a scalar repetition of YY:
+the delta terminal-current incidence uses `S_delta/S_wye`, delta-arm leakage
+referral uses its reciprocal, and wye-coil ratings and starts use the wye-side
+base. A chained 10 MVA → 1 MVA → 100 kVA fixture passes physical point,
+constraint-function, residual-set, and physical-Jacobian covariance at the
+native transported initialization.
+
+The center-tap slice covers both engine formulations. For nonzero leakage star
+arms, BMOPFTools transforms the fixed 5×5 primitive between primary and
+secondary current coordinates; its normalized matrix is legitimately
+nonsymmetric while the dimensional primitive remains reciprocal. Zero-arm and
+free-tap cases use the explicit T model with `S_primary/S_secondary` in
+ampere-turn balance. Unequal-leg 40:1 fixtures pass exact PF and OPF endpoint
+equivalence plus physical point, function, residual-set, and Jacobian
+covariance. The explicit path's current-box limits are MOI variable bounds;
+BMOPFTools exposes them under public component constraint keys, so the physical
+map retains equation-level provenance. An unregistered bound still makes the
+map unavailable rather than being silently inferred.
+
+The n-winding slice uses winding 1 as the common referred-current coordinate.
+Each winding `k` enters ampere-turn balance and every ZB column through
+`N_k(S_k/S_1)I_k`; the ZB matrix remains scaled once by the winding-1 impedance
+base. Winding-local shunts, current limits, power limits, result recovery, and
+diagnostic scales remain attached to their owning winding. A loaded three-port
+fixture with nonzero full ZB coupling, magnetising shunt, asymmetric phases,
+and a 50:1 base spread passes exact PF/OPF endpoints and the complete
+initialization/function/set/physical-Jacobian covariance gate.
+
+`bmopf_acdc_scaling_contract_data` now qualifies native lossless AC/DC
+crossings independently of transformer crossings. It reports each converter's
+AC and DC voltage/current/power bases, the expected and stamped
+`S_ac/S_dc` coefficient, controller-mode coverage, and the symmetric range of
+coordinate conversion factors. The semantic adapter assigns converter balance
+rows to the DC power coordinate, droop rows to the owning AC-bus power
+coordinate, DC source-power variables to `S_dc`, and positive normalized DC
+thermal rows to a dimensionless residual. A two-converter/two-zone fixture
+passes the complete native-start covariance gate under both P/V and droop/V
+control. `comparison_ready` does not claim improved solver work and does not
+cover converter losses or custom formulation hooks.
+
+Galvanically continuous regulators are now qualified under a stricter
+invariant. `single_phase_autotransformer` and `open_delta_regulator` interfaces
+must retain one voltage base and one power base because a common bushing or
+straight-through phase is a literal shared conductor. The adapter exposes
+`galvanic_voltage_compatibility_passed`, the count of galvanic interfaces, and
+the count requiring an unsupported shared-conductor voltage conversion. Loaded
+fixed-tap endpoints and fixed/free-tap physical Jacobians covary between SI and
+normalized coordinates; a proposed voltage-base jump is not comparison-ready.
 
 The first truth-labelled integration fixture compares classic 1 MVA per-unit
 coordinates with a custom 500 V / 200 kVA policy. All physical-coordinate,
@@ -1399,11 +1448,11 @@ Their mapping status is `mapped_with_contract`, targets the preserved
 preserving the separate question of whether a selected operating point lies
 inside the source load-law domain.
 
-BMOPFTools exposes the same boundary through
-`powerio_source_behavior_contract(net)`. Its default policy is
-`observation_only`; `powerio_source_behavior_contract(net;
-plan_auxiliary_constraints=true)` returns non-mutating candidate terminal
-voltage-ratio constraints of the form
+NLPDiagnostics decodes this retained metadata at the plugin boundary; it does
+not require BMOPFTools to expose another public source-behavior API. When an
+older or experimental BMOPFTools checkout provides an equivalent helper, the
+adapter accepts that contract. Planning returns non-mutating candidate
+terminal-voltage-ratio constraints of the form
 `vminpu <= abs(V_terminal) / v_nom <= vmaxpu`. Candidates carry their bus,
 terminal map, nominal-voltage context, readiness status, and an explicit
 `active_in_original_model=false` marker. This is a diagnostic planning API,
@@ -2175,3 +2224,111 @@ The runner writes both the full evidence artifact and a `-summary.json`
 companion. The summary keeps case/stratum gates, policy ranges, and comparison
 summaries while omitting repeated matrices and endpoint details; scientific
 audits should retain the full artifact.
+
+The AC/DC successor is `benchmarks/bmopf_acdc_scaling_campaign.jl`. It adds a
+native converter-contract gate to the same matched-run machinery and treats P/V
+versus droop/V control as separate case strata. The first bounded run qualified
+32/32 solves across classic, SI, rating-aligned, and asymmetric AC/DC power
+bases, with native and 0.1% perturbed starts and two fresh repeats. Solver work
+changed direction with the start and controller mode: SI and the rating-aligned
+policy were cheaper at the native P/V start, while classic was cheaper for the
+perturbed droop case. Initial dense condition-proxy ordering did not predict
+those directions. The evidence therefore supports the campaign design and
+rejects proxy-only policy selection; it does not establish a best base
+allocation.
+
+The bounded successor is
+`benchmarks/bmopf_acdc_base_grid_campaign.jl`. It runs a qualified full `2^3`
+factorial over the two AC-zone power bases and the DC power base, preserving
+controller and physical-start strata. Its first 72-solve run qualified every
+cell. A higher DC base improved the initial condition proxy by 1.29--1.65
+decades in every stratum, but solver work had no corresponding stable main
+effect. In the native droop/V stratum all eight cells used six callback records
+and four line-search trials despite more than two decades of condition-ratio
+variation. This strengthens the negative result: model-coordinate geometry is
+relevant evidence, but not a standalone policy-selection rule.
+
+The next retained fixture is
+`benchmarks/bmopf_acdc_multiconverter_campaign.jl`: three AC voltage zones,
+three converters, and a meshed three-node DC network. Its complete `2^4`
+campaign qualified 136/136 solves. At the perturbed P/V start, classic
+coordinates required 52 callback records, 166 line-search trials, and 39
+positive regularization records per replicate, versus 21--24 records and
+20--27 trials across the factorial cells. Perturbed droop sharing instead
+remained at 19--20 records. The artifact retains the dominant moving row and
+column families and clearly marks Ipopt factorization telemetry as unavailable;
+regularization is a solver proxy, not a factorization count.
+
+Its matched linear-work companion is
+`benchmarks/bmopf_acdc_multiconverter_madnlp_campaign.jl`. It disables
+primal-point capture and trace-family geometry because MadNLP's public callback
+has no stable primal-vector accessor. It instead requires complete monotone
+cumulative factorization, backsolve, linear-solver-time,
+derivative-evaluation, and refinement telemetry for all 16 cells. Unsupported
+inertia, pivot, fill, and backward-error fields must remain explicitly
+unavailable. Linear-work attribution has its own qualification gate and does
+not override the shared endpoint contract.
+
+The runner also retains `objective_weight_consistency` from the physical
+stationarity report. This is a read-only representational check: it compares
+the configured MOI objective weight with global and coordinate-local weights
+fitted against the supplied public multiplier representative. A materially
+different fitted weight is reported as a potential normalization mismatch; the
+adapter never uses it to repair multipliers or to make KKT acceptance pass.
+The screen does not distinguish global solver normalization from a nonunique
+dual representative or redundant fixed-coordinate equations; that distinction
+requires a reduced model oracle.
+
+For solvers that eliminate fixed variables, the endpoint adapter optionally
+accepts `complete_fixed_variable_duals=true`. This constructs a second
+multiplier representative by enforcing stationarity only through scalar
+`VariableIndex`-in-`EqualTo` rows. The returned report retains
+`public_solver_multiplier_report`, records every changed row, column, original
+and completed multiplier, and labels the acceptance basis explicitly. It never
+changes the solver snapshot, free-coordinate stationarity, non-fixed
+multipliers, primal feasibility, or termination status. An unavailable or
+invalid completion falls back to the public report with a reason; it is not a
+silent acceptance mechanism.
+
+The rerun using this contract qualifies all 68 P/V cells. Public reports still
+fail at the fixed source-voltage coordinates, while all 68 explicit completed
+representatives pass the common endpoint gate. Droop remains unqualified due
+to two local-infeasibility and two iteration-limit results at the native start,
+and four of each at the perturbed start. Consequently only the P/V factorial
+effects are currently suitable for scaling claims.
+
+The feeder-scale successor is
+`benchmarks/bmopf_acdc_feeder_policy_campaign.jl`. It namespaces and embeds a
+selected ENWL LN or LG feeder as AC zone 2 of the retained P/V AC/DC mechanism,
+then runs classic, all-low, AC2-high-only, all-high, and an interaction control
+under matched starts with Ipopt and MadNLP. This embedding is explicit in the
+artifact because the corpus does not contain a native multi-zone AC/DC feeder;
+results must not be reported as though it did.
+
+The runner is sparse-only. Admission limits cover variable and constraint
+counts, stored Jacobian entries, and the maximum number of trace-Jacobian entry
+evaluations; every covariance and geometry call receives
+`max_dense_entries=0`. Ipopt retains selected semantic-family trajectories and
+regularization proxies. MadNLP retains cumulative factorization/backsolve and
+derivative work, plus separate public and completed multiplier reports. Case
+hashes, namespacing, feeder component counts, policy roles, starts, and the
+cross-solver start fingerprint gate are serialized.
+
+Whole-model intervention verification remains sparse even when its equivalent
+dense coordinate relation exceeds the configured dense-work budget. Raw
+Jacobians, iterate vectors, and endpoint payloads are used to derive the gates
+but are not retained in feeder campaign artifacts. Compact checkpoints are
+written atomically after each start stratum and solver, preventing a long
+feeder run from producing multi-gigabyte JSON or losing an entire solver block.
+
+On the qualified 30-bus LN run, all five policies reach accepted physical
+endpoints under both solvers and both starts. AC-zone-2-high-only improves
+native-start work relative to all-low, but the same intervention substantially
+increases Ipopt regularization/line-search work and MadNLP
+factorization/backsolve work from the perturbed start. Consumers should retain
+stratum-level contrasts; pooling these starts would erase the principal result.
+
+Volt-Watt controller constraints now have a physical residual-scale contract.
+`ibr_p_volt_watt` is a power inequality, so its row scale is the local IBR bus
+power base. Omitting it previously made complete physical transport correctly
+unavailable on ENWL cases with active PV profiles.

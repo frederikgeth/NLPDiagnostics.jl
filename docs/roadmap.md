@@ -1650,9 +1650,9 @@ records carry the explicit fixed-voltage-boundary contract. These observations
 make the next physical-readiness step measurable without silently changing the
 optimization model.
 
-The next boundary is now explicit in the API: `powerio_source_behavior_contract`
-returns an observation-only contract by default, while an opt-in planning mode
-returns non-mutating terminal-voltage-ratio candidates with topology and
+The next boundary is explicit in retained metadata rather than another
+BMOPFTools public function. NLPDiagnostics decodes an observation-only contract
+and an opt-in non-mutating terminal-voltage-ratio plan with topology and
 nominal-voltage context. No candidate is added to the original JuMP/BMOPF model;
 materialization remains a deliberate auxiliary-problem decision for a later
 plugin or benchmark stage.
@@ -3501,7 +3501,8 @@ network rather than a collection of local angle overrides. BMOPFTools solves a
 sparse, nominal-voltage-normalized ideal phasor transport system covering line
 and switch conductor maps, off-three-phase single-phase laterals, centre taps,
 Yd/Dy chains, regulators, and WYE/DELTA n-winding units. It publishes
-per-equation-family residual evidence through `opf_initialization_data`.
+per-equation-family residual evidence through the versioned
+`opf_diagnostic_schema(ctx).initialization` contract.
 NLPDiagnostics consumes this evidence and offers a mandatory phasor-transport
 gate alongside physical native-start covariance.
 
@@ -3535,33 +3536,173 @@ next major items are now:
 
 ### Local transformer-base contract implemented
 
-The first roadmap item now has a non-mutating public contract. BMOPFTools
+The local-base roadmap now has a non-mutating public contract. BMOPFTools
 partitions buses into galvanically continuous zones, validates that proposed
 power bases are constant inside each zone, and publishes the voltage/current/
 power conversion ratios required at each isolating transformer boundary.
 NLPDiagnostics reports symmetric conversion ranges and separate algebraic and
-model-application readiness gates. A 10 MVA → 1 MVA → 100 kVA chained Yd/Dy
-proposal passes its algebraic identities but is correctly withheld from solver
-experiments because local-base transformer stamping is not yet implemented.
+model-application readiness gates.
 
-The first executable slice of that sequence is complete. `ZonePerUnitScaling`
-retains `S_base(bus)` and derived `I/Z/Y` maps, applies a local base change
-across isolated single-phase transformers, and rejects unqualified cross-zone
-families. A 40:1 power-base fixture passes SI/local solved-state, loss,
-objective, initialization, constraint-set, residual, and physical-Jacobian
-covariance. NLPDiagnostics now consumes bus/winding-local power scales rather
-than the legacy scalar system base.
+The first four executable slices of that sequence are complete.
+The zone-local `OpfScaling(...; power_bases=...)` form retains `S_base(bus)`
+and derived `I/Z/Y` maps and applies
+local base changes across isolated single-phase, center-tap, Yd, Dy, and
+n-winding transformers. A
+40:1 single-phase fixture passes SI/local solved-state, loss, objective,
+initialization, constraint-set, residual, and physical-Jacobian covariance.
+Yd and Dy endpoint fixtures pass SI/local voltage, source-power, and loss
+equivalence; the chained 10 MVA → 1 MVA → 100 kVA fixture passes the complete
+native-start covariance gate. NLPDiagnostics consumes bus/winding-local power
+scales rather than the legacy scalar system base.
+
+Center-tap qualification now covers both the fixed coupled-coil primitive and
+the explicit T-model path. The 40:1 unequal-leg fixtures pass exact PF/OPF
+endpoints, winding-current and loss recovery, initialization transport, and
+complete physical-Jacobian covariance. The normalized primitive's expected
+nonsymmetry is documented as a mixed-coordinate effect rather than a physical
+nonreciprocity finding. The covariance adapter now resolves scalar MOI
+variable-bound rows only through public BMOPFTools constraint keys. The explicit
+T-model's 16 current-box rows exercise this registered path; anonymous bounds
+remain a hard covariance-coverage failure.
+
+N-winding qualification retains the full multi-port ZB representation. Each
+winding current is converted into winding-1 coordinates by
+`N_k(S_k/S_1)`, while ZB uses the winding-1 impedance base and shunts, limits,
+and results use their winding-local bases. The loaded 50:1 three-port fixture
+passes exact PF/OPF endpoints plus complete initialization, set, residual, and
+physical-Jacobian covariance. Independent WYE/DELTA and `delta_roll` tests
+continue to own connection-incidence correctness; floating-delta gauges are not
+misrepresented as unique endpoint coordinates.
+
+The Yd/Dy implementation records the key compositional rule explicitly:
+delta-terminal current incidence carries `S_delta/S_wye`, delta-arm leakage
+referral carries `S_wye/S_delta`, and winding ratings/starts use the side on
+which their variables are defined. This is now an executable research result,
+not only a proposed contract.
+
+The regulator step is complete: galvanically continuous regulators retain one
+voltage and power base; fixed/free-tap initialization, shared-conductor
+currents, endpoint recovery, sets, and physical-Jacobian covariance are tested,
+and coordinate jumps are rejected at the public proposal gate.
+
+The AC/DC boundary step is now complete for native lossless converters.
+BMOPFTools exposes stable AC/DC coordinate-base helpers and stamps
+`U_dc I_dc=(S_ac/S_dc)P_ac`; NLPDiagnostics exposes the coefficient contract
+and proves physical point/function/set/residual/Jacobian covariance on a
+two-converter fixture for P, V, and droop control. The test also found and fixed
+a diagnostics-only classification error for nonlinear normalized DC
+power-limit rows.
+
+The first matched AC/DC campaign is now implemented and has completed a bounded
+pilot. It requires the native converter coefficient contract in addition to
+the common-start, endpoint, covariance, intervention, trace, and repeatability
+gates. All 32 solves qualified across P/V and droop/V control, four coordinate
+policies, native and perturbed starts, and two fresh replicates. The initial
+dense condition proxy did not predict the observed solver-work ordering, and
+the ordering changed with controller mode and start perturbation. This is a
+useful negative result for proxy-only policy selection, not a policy ranking.
+
+The bounded `2^3` AC/DC base-allocation grid is also complete. All 72 solves
+qualified across eight factorial cells plus the matched classic reference,
+two controller cases, two physical starts, and two fresh replicates. Raising
+the DC power base improved the initial condition proxy by 1.29--1.65 decades
+in every stratum, but no solver-work effect had comparable directional
+stability. Native droop/V work was identical across all eight cells despite
+large geometry changes. This makes trajectory and linear-solver attribution,
+not a finer blind grid, the immediate research priority.
+
+The intermediate multi-converter step is now complete. A three-zone,
+three-converter, meshed-DC fixture qualified all 136 solves in a full `2^4`
+campaign. Perturbed P/V classic coordinates triggered 52 callback records, 166
+line-search trials, and 39 regularized records per replicate; factorial cells
+used 21--24 records and mostly no regularization. Perturbed droop sharing was
+far less coordinate-sensitive. Semantic trace attribution identifies DC
+thermal rows, converter power-circle rows, converter-power columns, and DC
+branch-current columns as the dominant movers. Ipopt factorization telemetry is
+truthfully unavailable, so this is not yet joint KKT-factorization attribution.
+
+The matched MadNLP companion is now implemented. It completes the same 136
+solves and retains cumulative factorization, backsolve, refinement,
+derivative-evaluation, and linear-solver-time telemetry in every cell. The
+linear-work attribution layer is qualified independently of endpoint
+acceptance. The latest rerun qualifies both P/V start strata: all 68 solves are
+locally solved, every factorial cell is complete, and every explicitly
+completed fixed-variable multiplier representative passes. Droop remains
+unqualified because 12 runs end at iteration limits or local infeasibility.
+
+The campaign also exposed a generic `EvaluationPoint` defect: exact point
+identity was non-reflexive when a coordinate was `NaN`, because vector equality
+inherits IEEE `NaN != NaN`. Equality now uses exact `isequal` semantics and has
+a regression oracle. A new non-corrective objective-weight consistency
+diagnostic identifies the separate MadNLP endpoint issue as a coordinate-local
+multiplier-representative inconsistency on fixed source-voltage coordinates
+even when primal feasibility and complementarity pass. An explicit
+fixed-variable dual completion now provides a second representative by changing
+only scalar fixed-equality multipliers. The public snapshot and its failed KKT
+report remain available. On the BMOPF fixture, completing 13 such multipliers
+reduces maximum stationarity residual from about `1.5` to `5.6e-8`; all free
+coordinates were already balanced. This closes the immediate representational
+gate without claiming multiplier uniqueness or solver-internal semantics.
+
+The qualified P/V factorial now supplies a first MadNLP work hypothesis:
+raising the AC-zone-2 base reduces mean factorization count at both physical
+starts (`-2.25` and `-1.625`) and has the same negative direction for
+backsolves and derivative evaluations. The result is deliberately scoped to
+the compact P/V fixture. It must survive mechanism-distinct cells and real
+feeders before it can guide an automatic base policy.
 
 The next sequence is:
 
-1. generalize side-base coefficients to Yd/Dy connection matrices, including
-   delta-arm impedance referral and winding-side power/rating auxiliaries;
-2. qualify center-tap anti-series legs and split-phase ratings, followed by
-   n-winding WYE/DELTA ampere-turn and leakage matrices;
-3. keep galvanically continuous regulators on one power base, but test their
-   voltage-base/tap initialization and shared-conductor covariance explicitly;
-4. add local-base-aware public hook helpers and AC/DC converter power-balance
-   coefficients before permitting different AC and DC power bases; and
-5. after each family clears equivalence, run matched solver campaigns comparing
-   KKT geometry, regularization, factorization work, endpoint quality, and
-   sensitivity to transported starts.
+1. select mechanism-distinct P/V policies from the qualified `2^4` artifact:
+   classic, the all-low factorial anchor, AC-zone-2-high only, all-high, and
+   one interaction control;
+2. run those policies on bounded real BMOPF feeders with dense decompositions
+   disabled, explicit sparse-work budgets, matched physical starts, and both
+   Ipopt trajectory and MadNLP cumulative-work evidence;
+3. isolate droop robustness in a controller-focused experiment that records
+   termination basins and endpoint provenance before computing any scaling
+   contrast;
+4. add a multiplier-representative audit for fixed equalities and redundant
+   active rows, keeping representative existence separate from LICQ and dual
+   uniqueness claims;
+5. qualify any remaining isolated transformer subtype only with its own
+   connection and result-recovery oracle;
+6. design an explicit converter-loss contract before extending covariance to
+   efficiencies or custom converter builders; and
+7. use controlled multi-point evidence—not raw Jacobian spread alone—to select
+   candidates for per-constraint scaling and algorithm-design experiments.
+
+The first item is now implemented as a bounded feeder-embedded runner. The
+available ENWL data are single-zone AC feeders, so the runner preserves the
+four-factor mechanism by embedding a namespaced feeder as AC zone 2 rather than
+collapsing the factors. It retains five controlled policies, two physical-start
+strata, fresh repeats, Ipopt trajectory evidence, MadNLP cumulative work, exact
+source hashes, and explicit sparse admission budgets. Dense decompositions are
+disabled throughout the entire covariance/geometry call chain.
+
+Construction found and closed a missing physical residual scale for
+`ibr_p_volt_watt`. The 30-bus LN embedded model now has complete scaling-map
+coverage over 756 variables and 925 rows, including 28 Volt-Watt constraints,
+and exact common-start round-trip transport. The next gate is the bounded
+cross-solver solver campaign itself. Only after LN and LG endpoint,
+repeatability, attribution, and cross-solver start gates pass should the
+AC-zone-2 effect be compared with the compact-fixture direction or promoted to
+99-bus snapshots.
+
+The first complete LN case identified and closed two scale-up defects before
+claim promotion: dense intervention classification despite sparse semantic
+maps, and serialization of full numerical evaluations into a 651 MB
+checkpoint. Intervention classification now uses 1,681 stored relation entries
+instead of a hypothetical 1,427,161-entry dense relation. Feeder campaigns now
+discard raw solve payloads after deriving gates and attribution, and write
+atomic compact checkpoints per start stratum; the salvaged equivalent is
+279 KB.
+
+The corrected LN rerun now qualifies both starts and both solvers. The
+AC-zone-2-high-only effect is favorable at the native start but strongly
+unfavorable at the perturbed start: for example MadNLP changes from 4 fewer
+iterations and 7 fewer backsolves to 64 more iterations, 108 more
+factorizations, and 205 more backsolves relative to all-low. The roadmap must
+therefore prioritize perturbation-direction and trajectory-mechanism analysis,
+then the held-out 30-bus LG case. It must not promote a universal AC-zone-2
+base rule or jump directly to 99-bus timing comparisons.

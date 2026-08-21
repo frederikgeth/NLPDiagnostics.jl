@@ -114,7 +114,7 @@ end
 
 function _bmopf_formulation_context_pair(network; voltage_factor=0.6, s_base=2.5e5)
     reference = BMOPFTools.build_opf_model(
-        deepcopy(network); scaling_policy=BMOPFTools.ClassicPerUnitScaling(1e6),
+        deepcopy(network); scaling_policy=BMOPFTools.OpfScaling(:classic; power_base=1e6),
         add_objective=false)
     bases = BMOPFTools.opf_bases(reference)
     custom_voltages = Dict(string(bus) => voltage_factor * Float64(value)
@@ -123,8 +123,8 @@ function _bmopf_formulation_context_pair(network; voltage_factor=0.6, s_base=2.5
         voltage_factor * first(values(bases.v_dc_base))
     candidate = BMOPFTools.build_opf_model(
         deepcopy(network);
-        scaling_policy=BMOPFTools.ConsistentPerUnitScaling(
-            name=:formulation_covariance, s_base=s_base,
+        scaling_policy=BMOPFTools.OpfScaling(
+            name=:formulation_covariance, power_base=s_base,
             voltage_bases=custom_voltages,
             dc_voltage_base=dc_voltage_base),
         add_objective=false)

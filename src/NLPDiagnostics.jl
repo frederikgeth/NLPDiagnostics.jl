@@ -348,8 +348,11 @@ export physical_complementarity_report
 export physical_kkt_acceptance_report
 export SolverConstraintSideDual
 export SolverDualSnapshot
+export FixedVariableDualCompletion
 export solver_dual_snapshot
 export solver_dual_snapshot_data
+export complete_fixed_variable_duals
+export fixed_variable_dual_completion_data
 export solver_complementarity_report
 export scaling_covariance_report
 export scaling_coordinate_geometry_report
@@ -435,6 +438,7 @@ export bmopf_start_completion_point
 export bmopf_voltage_initialization_invariants_data
 export bmopf_initialization_scaling_covariance_report
 export bmopf_transformer_scaling_contract_data
+export bmopf_acdc_scaling_contract_data
 export bmopf_result_voltage_point
 export bmopf_result_mapping_report
 export bmopf_result_field_catalog

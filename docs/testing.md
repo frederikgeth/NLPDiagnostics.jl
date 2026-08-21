@@ -62,3 +62,66 @@ qualification. Ipopt additionally supports captured-iterate family geometry;
 MadNLP instead retains its public cumulative factorization, backsolve,
 linear-solver-time, and derivative-evaluation counters. A one-stratum run is
 deliberately rejected by the stratified aggregator.
+
+`benchmarks/bmopf_acdc_scaling_campaign.jl` is the converter-specific matched
+runner. It crosses native lossless P/V and droop/V control cases, a native and
+deterministically perturbed physical start, repeated fresh solves, and four
+AC/DC power-coordinate policies. Every run must additionally pass
+`bmopf_acdc_scaling_contract_data`; a numerically successful solve cannot make
+the campaign qualified when its stamped `S_ac/S_dc` evidence is absent.
+
+`benchmarks/bmopf_acdc_base_grid_campaign.jl` adds a full two-level factorial
+over both AC-zone power bases and the DC power base. Qualification requires all
+eight cells, all matched-run and AC/DC contract gates, complete callback-work
+responses, and complete common-start geometry ratios in every controller/start
+stratum. It reports native-unit work contrasts and log10 geometry-ratio
+contrasts separately. Cross-stratum direction summaries are descriptive and
+are never a qualification gate or a policy score.
+
+`benchmarks/bmopf_acdc_multiconverter_campaign.jl` extends the same contract to
+a three-zone, three-converter, meshed DC fixture and a full `2^4` base grid.
+Every stratum additionally requires trace-geometry interpretation, complete
+regularization coverage, and at least one ranked semantic row and column
+trajectory per run. The Ipopt callback's missing factorization, inertia, fill,
+pivot, backward-error, and linear-solver-time telemetry is recorded as an
+explicit unavailable capability. It is not imputed from regularization and is
+not silently turned into a failed experiment.
+
+`benchmarks/bmopf_acdc_multiconverter_madnlp_campaign.jl` reuses the identical
+three-zone `2^4` design under MadNLP. Its source contract requires complete
+cumulative linear-work telemetry, truthful absence of unsupported
+factorization numerics, an explicit no-primal-iterate capability boundary, and
+a cross-solver evidence matrix. Public and explicitly completed fixed-variable
+multiplier reports are counted separately. P/V attribution qualifies only
+because every run is locally solved and the completed representative passes;
+the public representative remains failed evidence. Droop attribution remains
+unqualified when termination classes differ. Tests must never make completion
+availability a substitute for successful termination or primal feasibility.
+
+`EvaluationPoint` equality has a dedicated non-finite-coordinate regression.
+Exact diagnostic identity uses `isequal` for values, so a retained `NaN` point
+is reflexive while still remaining non-finite evidence for numerical analyses.
+The physical stationarity tests also exercise both a consistent objective
+weight and a deliberately scaled multiplier representative; the latter must
+be flagged as a potential normalization mismatch and must remain uncorrected.
+
+Fixed-variable dual completion has its own algebraic oracle. It starts from a
+deliberately inconsistent public multiplier on a scalar fixed equality,
+verifies that only that multiplier changes, proves the public KKT report still
+fails and the completed report passes, and checks unavailable paths for absent
+fixed equalities and mismatched endpoint coordinates. This is a representative
+construction test, not a solver-correctness or multiplier-uniqueness test.
+
+The feeder-embedded policy runner has a source-contract regression for the
+five selected policies, the all-low comparison anchor, unconditional dense-work
+disablement, sparse trace-work admission, cross-solver start identity, and
+separate MadNLP public-multiplier evidence. A dedicated Volt-Watt covariance
+oracle builds the same physical IBR controller under classic and zone-local
+power bases, requires complete row-map coverage, transports the start, and
+checks physical residual and Jacobian covariance. This prevents a controller
+family from being silently omitted merely to make a feeder campaign runnable.
+Generic block-scaling tests additionally force a 256-variable/256-row
+magnitude intervention through `max_dense_entries=0`; classification must stay
+available, store only the sparse diagonal relations, and report that no dense
+materialization occurred. Runner source contracts require atomic per-stratum
+checkpoints and compact stratified records.
