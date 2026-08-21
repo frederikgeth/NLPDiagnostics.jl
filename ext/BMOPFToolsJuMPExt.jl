@@ -1138,6 +1138,15 @@ function _bmopf_dc_current_scale(context, bus::String)
     return Float64(value)
 end
 
+function _bmopf_dc_power_scale(context)
+    bases = BMOPFTools.opf_bases(context)
+    isnothing(bases) && return 1.0
+    hasproperty(bases, :s_dc_base) || return nothing
+    value = getproperty(bases, :s_dc_base)
+    value isa Real && isfinite(value) && value > 0 || return nothing
+    return Float64(value)
+end
+
 _bmopf_index_id(index) = index isa Tuple && !isempty(index) ? string(first(index)) : string(index)
 _bmopf_index_bus(index) = index isa Tuple && !isempty(index) ? string(first(index)) : nothing
 
@@ -1288,7 +1297,7 @@ function _bmopf_variable_physical_scale(context, key)
         scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
     elseif family == :pdc_src
-        scale = _bmopf_power_base(context)
+        scale = _bmopf_dc_power_scale(context)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
     elseif family == :u_ibr
         bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
@@ -1386,9 +1395,18 @@ function _bmopf_constraint_physical_scale(context, key)
         bus = _bmopf_index_bus(index)
         scale = isnothing(bus) ? nothing : _bmopf_dc_current_scale(context, bus)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:dc_current)
-    elseif family in (:dc_converter_power_balance, :dc_converter_droop,
-                      :dc_load_power, :dc_source_power)
-        scale = _bmopf_power_base(context)
+    elseif family == :dc_converter_power_balance
+        # The native row is written in the DC-port power coordinate:
+        # Udc*Idc - (S_ac/S_dc)*Pac = 0.
+        scale = _bmopf_dc_power_scale(context)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family == :dc_converter_droop
+        bus = _bmopf_component_bus(
+            network, "ibr", _bmopf_index_id(index); field="bus")
+        scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
+        return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
+    elseif family in (:dc_load_power, :dc_source_power)
+        scale = _bmopf_dc_power_scale(context)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
     elseif family in (:dc_bus_voltage_ln_lower, :dc_bus_voltage_ln_upper,
                       :dc_bus_voltage_ll_lower, :dc_bus_voltage_ll_upper)
@@ -1401,7 +1419,7 @@ function _bmopf_constraint_physical_scale(context, key)
         scale = isnothing(bus) ? nothing : _bmopf_dc_current_scale(context, bus)
         return isnothing(scale) ? nothing : (scale=scale^2, quantity=:dc_current_squared)
     elseif family == :dc_branch_power_thermal
-        scale = _bmopf_power_base(context)
+        scale = _bmopf_dc_power_scale(context)
         return isnothing(scale) ? nothing : (scale=scale^2, quantity=:power_squared)
     elseif family in (:line_current_thermal, :switch_current_thermal)
         component_family = startswith(family_text, "line_") ? "line" : "switch"
@@ -1507,7 +1525,7 @@ function _bmopf_constraint_physical_scale(context, key)
         scale = isnothing(bus) ? nothing : _bmopf_power_base(context, bus)
         return isnothing(scale) ? nothing : (scale=scale, quantity=:power)
     elseif family in (:ibr_p_lower, :ibr_p_upper, :ibr_q_lower, :ibr_q_upper,
-                      :ibr_power_factor, :ibr_q_volt_var,
+                      :ibr_power_factor, :ibr_p_volt_watt, :ibr_q_volt_var,
                       :ibr_power_link_p, :ibr_power_link_q,
                       :ibr_dc_power_lower, :ibr_dc_power_upper)
         bus = _bmopf_component_bus(network, "ibr", _bmopf_index_id(index))
@@ -1553,6 +1571,16 @@ function _bmopf_is_normalized_norm_family(family::Symbol)
         family in (:bus_neutral_voltage_upper,
                    :bus_negative_sequence_voltage_upper,
                    :bus_zero_sequence_voltage_upper)
+end
+
+function _bmopf_has_positive_nonlinear_norm_limit(context, key)
+    key.family == :dc_branch_power_thermal || return false
+    branch = _bmopf_network_component(
+        BMOPFTools.opf_network(context), "dc_branch", _bmopf_index_id(key.index),
+    )
+    isnothing(branch) && return false
+    limit = get(branch, "p_max", nothing)
+    return limit isa Real && isfinite(limit) && limit > 0
 end
 
 function _bmopf_floating_neutral_components(context)
@@ -1829,9 +1857,22 @@ function _bmopf_transformer_scaling_contract_data(context; kwargs...)
         get(interface, "requires_explicit_power_conversion", false) === true,
         interfaces,
     )
+    result["galvanically_continuous_interface_count"] = count(interface ->
+        get(interface, "galvanically_continuous", false) === true,
+        interfaces,
+    )
+    result["interfaces_requiring_shared_conductor_voltage_conversion"] =
+        count(interface -> get(
+            interface,
+            "requires_shared_conductor_voltage_conversion",
+            false,
+        ) === true, interfaces)
+    result["galvanic_voltage_compatibility_passed"] = get(
+        engine, "galvanic_voltage_compatibility_passed", false,
+    ) === true
     result["qualification"] = Dict{String,Any}(
         "claim" =>
-            "audited algebraic conversion requirements for transformer-local coordinate bases",
+            "audited algebraic conversion requirements for isolated transformer and galvanically continuous regulator coordinate boundaries",
         "comparison_ready_means" =>
             "the proposal is complete, galvanically consistent, and satisfies V_base*I_base=S_base at every represented interface",
         "model_experiment_ready_means" =>
@@ -1841,6 +1882,47 @@ function _bmopf_transformer_scaling_contract_data(context; kwargs...)
             "reduced solver work",
             "physical endpoint acceptance",
             "support for an unrepresented transformer connection",
+        ],
+    )
+    return result
+end
+
+"""Return qualified AC/DC base-crossing evidence from the native engine."""
+function _bmopf_acdc_scaling_contract_data(context)
+    engine = BMOPFTools.opf_acdc_scaling_contract_data(context)
+    converters = get(engine, "converters", Dict{String,Any}[])
+    factors = Float64[
+        max(Float64(record["expected_ac_to_dc_power_factor"]),
+            inv(Float64(record["expected_ac_to_dc_power_factor"])))
+        for record in converters
+        if get(record, "expected_ac_to_dc_power_factor", nothing) isa Real &&
+           isfinite(record["expected_ac_to_dc_power_factor"]) &&
+           record["expected_ac_to_dc_power_factor"] > 0
+    ]
+    by_mode = Dict{String,Int}()
+    for record in converters
+        mode = String(get(record, "control_mode", "unknown"))
+        by_mode[mode] = get(by_mode, mode, 0) + 1
+    end
+    result = Dict{String,Any}(engine)
+    result["schema_version"] = "nlpdiagnostics-bmopf-acdc-scaling-contract-v1"
+    result["comparison_ready"] =
+        get(engine, "applied_to_model", false) === true &&
+        get(engine, "coefficient_contract_passed", false) === true &&
+        get(engine, "control_modes_qualified", false) === true
+    result["converter_count_by_control_mode"] = by_mode
+    result["power_coordinate_conversion_range"] = Dict{String,Any}(
+        "available" => !isempty(factors),
+        "minimum_symmetric_factor" => isempty(factors) ? nothing : minimum(factors),
+        "maximum_symmetric_factor" => isempty(factors) ? nothing : maximum(factors),
+    )
+    result["qualification"] = Dict{String,Any}(
+        "claim" =>
+            "native lossless AC/DC converter power-balance and controller covariance under distinct AC/DC bases",
+        "does_not_establish" => [
+            "that the coordinate choice improves solver behavior",
+            "lossy-converter covariance",
+            "custom converter-builder covariance",
         ],
     )
     return result
@@ -2903,7 +2985,9 @@ function _bmopf_diagonal_scaling_map(context, evaluation)
         # limit uses the unnormalised homogeneous form and retains the squared
         # quantity scale returned by the family contract above.
         if _bmopf_is_normalized_norm_family(key.family) &&
-           isnothing(lower) && upper isa Real && isapprox(upper, 1.0; atol=1e-12)
+           ((isnothing(lower) && upper isa Real &&
+             isapprox(upper, 1.0; atol=1e-12)) ||
+            _bmopf_has_positive_nonlinear_norm_limit(context, key))
             contract = (scale=1.0, quantity=:dimensionless_normalized_limit)
         end
         label = _bmopf_key_label(key)
@@ -3766,6 +3850,7 @@ function _bmopf_physical_solver_kkt_report(
     set_transform_tolerance::Real = sqrt(eps(Float64)),
     point_absolute_tolerance::Real = 10eps(Float64),
     point_relative_tolerance::Real = 10eps(Float64),
+    complete_fixed_variable_duals::Bool = false,
 )
     map_build = semantic_blocks ?
         _bmopf_semantic_block_scaling_map(context, evaluation) :
@@ -3813,7 +3898,7 @@ function _bmopf_physical_solver_kkt_report(
         point_absolute_tolerance,
         point_relative_tolerance,
     )
-    report = NLPDiagnostics.physical_kkt_acceptance_report(
+    public_report = NLPDiagnostics.physical_kkt_acceptance_report(
         evaluation,
         map,
         duals;
@@ -3827,6 +3912,43 @@ function _bmopf_physical_solver_kkt_report(
         complementarity_default_absolute_tolerance,
         set_transform_tolerance,
     )
+    completion = complete_fixed_variable_duals ?
+        NLPDiagnostics.complete_fixed_variable_duals(
+            model isa JuMP.Model ? JuMP.backend(model) : model,
+            evaluation,
+            duals,
+        ) : nothing
+    report = if !isnothing(completion) && completion.available
+        completed_report = NLPDiagnostics.physical_kkt_acceptance_report(
+            evaluation,
+            map,
+            completion.snapshot;
+            feasibility_absolute_tolerances=expanded_feasibility,
+            feasibility_default_absolute_tolerance,
+            stationarity_absolute_tolerances,
+            stationarity_default_absolute_tolerance,
+            dual_absolute_tolerances,
+            dual_default_absolute_tolerance,
+            complementarity_absolute_tolerances,
+            complementarity_default_absolute_tolerance,
+            set_transform_tolerance,
+        )
+        completed_report["public_solver_multiplier_report"] = public_report
+        completed_report["fixed_variable_dual_completion"] =
+            NLPDiagnostics.fixed_variable_dual_completion_data(completion)
+        completed_report["acceptance_basis"] =
+            "explicit fixed-variable equality stationarity completion"
+        completed_report
+    else
+        public_report["fixed_variable_dual_completion"] = isnothing(completion) ?
+            Dict{String,Any}(
+                "schema_version" => "fixed-variable-dual-completion-v1",
+                "available" => false,
+                "reason" => "fixed-variable dual completion was not requested",
+            ) : NLPDiagnostics.fixed_variable_dual_completion_data(completion)
+        public_report["acceptance_basis"] = "public solver multipliers"
+        public_report
+    end
     report["report_version"] = "bmopf-physical-solver-kkt-v1"
     report["available"] = get(report, "acceptance_passed", nothing) !== nothing
     report["semantic_blocks"] = semantic_blocks
@@ -3843,7 +3965,9 @@ function _bmopf_physical_solver_kkt_report(
     report["qualification"] = merge(
         get(report, "qualification", Dict{String,Any}()),
         Dict{String,Any}(
-            "claim" => "BMOPF physical endpoint first-order KKT residual acceptance using public solver duals",
+            "claim" => complete_fixed_variable_duals ?
+                "BMOPF physical endpoint first-order KKT residual acceptance retaining public and explicitly completed fixed-variable multiplier representatives" :
+                "BMOPF physical endpoint first-order KKT residual acceptance using public solver duals",
             "compound_tolerance_policy" =>
                 "stationarity, dual, and complementarity tolerances are explicit; residual quantity labels alone do not determine their units",
         ),

@@ -208,6 +208,8 @@ function _campaign_for_stratum(
     trace_geometry,
     trace_geometry_max_points,
     runner_version,
+    max_dense_entries=100_000,
+    complete_fixed_variable_duals=false,
 )
     reference_policy = first(policies)[1]
     public_runs = Dict{String,Any}[]
@@ -231,6 +233,8 @@ function _campaign_for_stratum(
                 trace_geometry_max_points,
                 optimizer,
                 solver,
+                max_dense_entries,
+                complete_fixed_variable_duals,
             )
             public_record["case"] = case_name
             public_record["start_stratum"] = stratum_name
@@ -251,6 +255,7 @@ function _campaign_for_stratum(
             baseline_repeat=true,
             endpoint_absolute_tolerance,
             endpoint_relative_tolerance,
+            max_dense_entries,
         )
         comparison["case"] = case_name
         comparison["start_stratum"] = stratum_name
@@ -267,6 +272,7 @@ function _campaign_for_stratum(
                 private_runs[(policy_name, replicate)],
                 endpoint_absolute_tolerance=endpoint_absolute_tolerance,
                 endpoint_relative_tolerance=endpoint_relative_tolerance,
+                max_dense_entries,
             )
             comparison["case"] = case_name
             comparison["start_stratum"] = stratum_name

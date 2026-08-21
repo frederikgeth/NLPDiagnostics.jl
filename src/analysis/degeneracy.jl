@@ -147,6 +147,11 @@ bmopf_transformer_scaling_contract_data(context; kwargs...) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP support are required for transformer scaling contracts")._bmopf_transformer_scaling_contract_data(
             context; kwargs...)
+"""Return qualified AC/DC converter coordinate-crossing evidence."""
+bmopf_acdc_scaling_contract_data(context) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP support are required for AC/DC scaling contracts")._bmopf_acdc_scaling_contract_data(
+            context)
 """Map saved BMOPF result coordinates into a labeled partial evaluation point."""
 bmopf_result_voltage_point(context, result; kwargs...) = _bmopf_extension(:BMOPFToolsJuMPExt,
     "BMOPFTools and JuMP support are required to map a BMOPF result point")._bmopf_result_voltage_point(context, result; kwargs...)

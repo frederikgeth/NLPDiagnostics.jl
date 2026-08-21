@@ -25,6 +25,18 @@ import NLPDiagnostics
     )
     @test synthetic.provenance == synthetic_provenance
     @test synthetic != default_point
+    nonfinite = NLPDiagnostics.evaluation_point(
+        model,
+        [NaN];
+        label = "non-finite diagnostic point",
+    )
+    @test nonfinite == nonfinite
+    @test isequal(nonfinite, nonfinite)
+    @test nonfinite == NLPDiagnostics.evaluation_point(
+        model,
+        [NaN];
+        label = "non-finite diagnostic point",
+    )
     @test hash(synthetic) == hash(NLPDiagnostics.evaluation_point(
         model,
         [0.0];

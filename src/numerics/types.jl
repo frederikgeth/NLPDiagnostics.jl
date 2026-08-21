@@ -155,10 +155,12 @@ end
 
 function Base.:(==)(left::EvaluationPoint, right::EvaluationPoint)
     return left.variables == right.variables &&
-           left.values == right.values &&
+           isequal(left.values, right.values) &&
            left.label == right.label &&
            left.provenance == right.provenance
 end
+
+Base.isequal(left::EvaluationPoint, right::EvaluationPoint) = left == right
 
 function Base.hash(point::EvaluationPoint, seed::UInt)
     return hash((point.variables, point.values, point.label, point.provenance), seed)

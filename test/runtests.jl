@@ -110,6 +110,21 @@ if Base.find_package("Ipopt") !== nothing
             ),
             max_points=3,
         )
+        single_geometry =
+            NLPDiagnostics.iteration_trace_jacobian_family_geometry_data(
+                JuMP.backend(model), run.trace;
+                row_labels=fill(
+                    "constraint",
+                    length(endpoint_evaluation.constraint_sources),
+                ),
+                column_labels=fill(
+                    "variable",
+                    length(endpoint_evaluation.point.variables),
+                ),
+                max_points=1,
+            )
+        @test single_geometry["available"]
+        @test single_geometry["selected_binding_count"] == 1
         @test geometry["available"]
         @test geometry["coverage_complete"]
         @test geometry["selected_binding_count"] <= 3
@@ -1650,6 +1665,10 @@ end
         "launch_bmopf_solver_trace.jl",
         "summarize_bmopf_solver_trace.jl",
         "bmopf_magnitude_scaling_campaign.jl",
+        "bmopf_acdc_scaling_campaign.jl",
+        "bmopf_acdc_base_grid_campaign.jl",
+        "bmopf_acdc_multiconverter_campaign.jl",
+        "bmopf_acdc_multiconverter_madnlp_campaign.jl",
         "sweep_bmopf_solver_options.jl",
         "summarize_bmopf_solver_sweep.jl",
         "summarize_bmopf_endpoint_triangulation.jl",
@@ -1765,6 +1784,110 @@ end
     @test occursin("physical_endpoint_equivalence_report", magnitude_campaign)
     @test occursin("scaling_solver_experiment_campaign_data", magnitude_campaign)
     @test occursin("provenance_mismatch_rejected", magnitude_campaign)
+    acdc_campaign = read(
+        joinpath(
+            benchmark_directory, "bmopf_acdc_scaling_campaign.jl",
+        ),
+        String,
+    )
+    @test occursin("bmopf-acdc-scaling-campaign-v1", acdc_campaign)
+    @test occursin("bmopf_acdc_scaling_contract_data", acdc_campaign)
+    @test occursin("acdc_scaling_contract_gate", acdc_campaign)
+    @test occursin("bmopf_stratified_scaling_campaign.jl", acdc_campaign)
+    @test occursin("scaling_solver_experiment_stratified_campaign_data",
+        acdc_campaign)
+    @test occursin("policy_ranking_performed", acdc_campaign)
+    @test occursin("require_canonical_voltage_pattern=false", acdc_campaign)
+    @test occursin("require_phasor_transport=true", acdc_campaign)
+    @test occursin("NLPDIAGNOSTICS_ACDC_PERTURBATION", acdc_campaign)
+    @test occursin("reactive_converter_power_fixed", acdc_campaign)
+    @test occursin("at least one perturbed-start seed", acdc_campaign)
+    acdc_grid_campaign = read(
+        joinpath(
+            benchmark_directory, "bmopf_acdc_base_grid_campaign.jl",
+        ),
+        String,
+    )
+    @test occursin("bmopf-acdc-base-grid-campaign-v1", acdc_grid_campaign)
+    @test occursin("full 2^3 two-level factorial", acdc_grid_campaign)
+    @test occursin("_ACDC_GRID_EFFECT_SPECS", acdc_grid_campaign)
+    @test occursin("factorial_analysis_gates_passed", acdc_grid_campaign)
+    @test occursin("effect_direction_summary", acdc_grid_campaign)
+    @test occursin("policy_ranking_performed", acdc_grid_campaign)
+    @test occursin("log10 candidate-to-classic ratios", acdc_grid_campaign)
+    @test occursin("native_acdc_contract_required", acdc_grid_campaign)
+    acdc_multi_campaign = read(
+        joinpath(
+            benchmark_directory, "bmopf_acdc_multiconverter_campaign.jl",
+        ),
+        String,
+    )
+    @test occursin("bmopf-acdc-multiconverter-campaign-v1",
+        acdc_multi_campaign)
+    @test occursin("full 2^4 two-level factorial", acdc_multi_campaign)
+    @test occursin("three-converter-droop-sharing", acdc_multi_campaign)
+    @test occursin("trajectory_attribution_gates_passed",
+        acdc_multi_campaign)
+    @test occursin("factorization_work_available_count", acdc_multi_campaign)
+    @test occursin("absence_is_not_a_qualification_failure",
+        acdc_multi_campaign)
+    @test occursin("joint_geometry_and_factorization_attribution_available",
+        acdc_multi_campaign)
+    acdc_multi_madnlp_campaign = read(
+        joinpath(
+            benchmark_directory,
+            "bmopf_acdc_multiconverter_madnlp_campaign.jl",
+        ),
+        String,
+    )
+    @test occursin("bmopf-acdc-multiconverter-madnlp-campaign-v1",
+        acdc_multi_madnlp_campaign)
+    @test occursin("factorization_count_cumulative",
+        acdc_multi_madnlp_campaign)
+    @test occursin("linear_solver_time_seconds_cumulative",
+        acdc_multi_madnlp_campaign)
+    @test occursin("linear_work_attribution_gates_passed",
+        acdc_multi_madnlp_campaign)
+    @test occursin("primal_iterate_geometry_available",
+        acdc_multi_madnlp_campaign)
+    @test occursin("unsupported_factorization_numerics_truthfully_unavailable",
+        acdc_multi_madnlp_campaign)
+    @test occursin("linear_work_effect_direction_summary",
+        acdc_multi_madnlp_campaign)
+    @test occursin("joint_same_run_geometry_and_factorization_work",
+        acdc_multi_madnlp_campaign)
+    @test occursin("potential_multiplier_normalization_mismatch",
+        acdc_multi_madnlp_campaign)
+    @test occursin("multiplier_normalization_is_not_a_linear_work_gate",
+        acdc_multi_madnlp_campaign)
+    @test occursin("fixed_variable_dual_completion_available_count",
+        acdc_multi_madnlp_campaign)
+    @test occursin("public_and_completed_representatives_retained",
+        acdc_multi_madnlp_campaign)
+    @test occursin("qualified_linear_work_effect_direction_summary",
+        acdc_multi_madnlp_campaign)
+    acdc_feeder_campaign = read(
+        joinpath(
+            benchmark_directory,
+            "bmopf_acdc_feeder_policy_campaign.jl",
+        ),
+        String,
+    )
+    @test occursin("bmopf-acdc-feeder-policy-campaign-v1",
+        acdc_feeder_campaign)
+    @test occursin("factorial_a2_high_only", acdc_feeder_campaign)
+    @test occursin("factorial_all_low", acdc_feeder_campaign)
+    @test occursin("max_dense_entries=0", acdc_feeder_campaign)
+    @test occursin("maximum_trace_jacobian_entry_evaluations",
+        acdc_feeder_campaign)
+    @test occursin("cross_solver_start_gate_passed",
+        acdc_feeder_campaign)
+    @test occursin("public_multiplier_endpoint_accepted",
+        acdc_feeder_campaign)
+    @test occursin("stratum_complete", acdc_feeder_campaign)
+    @test occursin("_acdc_feeder_compact_stratified_campaign",
+        acdc_feeder_campaign)
+    @test occursin("temporary_path", acdc_feeder_campaign)
     source_matrix_launcher = read(
         joinpath(benchmark_directory, "launch_bmopf_source_solver_matrix.jl"), String,
     )
