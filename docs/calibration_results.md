@@ -882,8 +882,64 @@ completion is available for the solved endpoints but does not alter
 termination. No factorial contrast spanning those mixed endpoint classes is a
 scaling claim.
 
-The immediate evidence-led next step is a bounded real-feeder matrix containing
-classic, the all-low factorial anchor, AC-zone-2-high only, all-high, and one
-interaction-control policy. It must retain matched physical starts, sparse-work
-budgets, Ipopt trajectory evidence, MadNLP cumulative work, and the separate
-public/completed multiplier reports.
+The bounded real-feeder matrix described here is now complete for the first
+30-bus LN case; the result and its remaining limits are recorded below.
+
+## 2026-08-22: qualified 30-bus LN feeder scaling interaction
+
+The feeder-embedded runner completed the first bounded 30-bus LN case with
+classic, all-low, AC-zone-2-high-only, all-high, and interaction-control
+policies. Both native and deterministically perturbed physical-start strata
+were run with fresh Ipopt and MadNLP replicates. Every endpoint, covariance,
+repeatability, sparse-work, provenance, and solver-attribution gate passed;
+dense decomposition remained disabled.
+
+Relative to the all-low anchor, AC-zone-2-high-only reduced Ipopt callback
+records and line-search trials at the native start, and reduced MadNLP callback
+records, backsolves, and derivative evaluations with unchanged factorization
+count. At the perturbed start the direction reversed: Ipopt required 58 more
+records, 243 more line-search trials, and 24 positive-regularization records;
+MadNLP required 64 more records, 108 more factorizations, 205 more backsolves,
+and 64 more Jacobian/Hessian evaluations. All endpoints still passed the
+physical acceptance contract.
+
+This is evidence of a scaling--initialization interaction, not evidence that a
+high or low AC-zone base is universally better. The changing families are
+currently localized to DC branch thermal and IBR power-circle rows, with
+`q_ibr`, `p_ibr`, and DC branch-current columns prominent. More intermediate
+trace points and perturbation directions are required before assigning
+causality. The held-out 30-bus LG follow-up is recorded below; 99-bus
+promotion remains premature.
+
+## 2026-08-22: held-out 30-bus LG feeder confirms start sensitivity
+
+The same bounded runner and five-policy contract completed the held-out
+`30bus_LG_t01_0800` feeder for Ipopt and MadNLP. Native and one deterministic
+nearby-start stratum each used two fresh repeats per policy. All 20 runs per
+solver passed endpoint acceptance, covariance, repeatability, provenance,
+sparse-work, and solver-attribution gates; the dense decomposition budget
+remained zero. The fixture has 756 variables, 925 constraints, 7,335 stored
+Jacobian entries, and an 880,200-entry trace-evaluation upper bound.
+
+Relative to the all-low anchor, AC-zone-2-high-only is favorable at the native
+start: Ipopt changes from 25 to 21 callback records and from 27 to 22
+line-search trials; MadNLP changes from 28 to 23 records, 31 to 25
+factorizations, 32 to 27 backsolves, and 28 to 23 Jacobian evaluations. At the
+nearby start the direction reverses: Ipopt changes from 28 to 86 records, 34
+to 277 line-search trials, and 0 to 24 positive-regularization records;
+MadNLP changes from 35 to 94 records, 35 to 137 factorizations, 42 to 161
+backsolves, and 35 to 94 Jacobian evaluations. Every endpoint remains
+physically accepted.
+
+This held-out topology therefore reproduces the qualified LN conclusion:
+the observed effect is a scaling--initialization interaction, not a universal
+base-selection rule. The result still has one perturbation direction and one
+30-bus topology; more directions, intermediate Ipopt trace points, and the
+phase-only orthogonal control are required before mechanism or 99-bus claims.
+The compact machine-readable extract is tracked at
+`docs/calibration_summary.json`; the full run and its summary remain in the
+local review artifact directory. This held-out run used Julia 1.12.6 with a
+temporary copy of the known benchmark environment and BMOPFTools
+`8f121216065bcd692f18444836c7c80149e5cf4a` (the current research checkout does
+not yet expose the `OpfScaling` API required by this runner); the dependency
+revision is recorded in the summary fingerprint.

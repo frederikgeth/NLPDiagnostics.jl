@@ -436,6 +436,11 @@ This track should run in parallel with the scientific calibration work.
   environments, formatting, documentation examples, and quality checks such as
   Aqua and targeted JET runs. The default test target currently does not cover
   the Ipopt or MadNLP extensions and must not be presented as doing so.
+- Until the first public release, treat the reproducible local full-extension
+  environment as the verification baseline. GitHub Actions configuration is a
+  release-preparation task, not a blocker for local research iteration; any
+  release candidate must still publish its exact dependency revisions and
+  rerun the extension lanes in a clean environment.
 - Resolve the project manifest after dependency/compatibility changes and keep
   reproducible benchmark environments separate from the minimal package test
   environment.
@@ -3683,11 +3688,9 @@ disabled throughout the entire covariance/geometry call chain.
 Construction found and closed a missing physical residual scale for
 `ibr_p_volt_watt`. The 30-bus LN embedded model now has complete scaling-map
 coverage over 756 variables and 925 rows, including 28 Volt-Watt constraints,
-and exact common-start round-trip transport. The next gate is the bounded
-cross-solver solver campaign itself. Only after LN and LG endpoint,
-repeatability, attribution, and cross-solver start gates pass should the
-AC-zone-2 effect be compared with the compact-fixture direction or promoted to
-99-bus snapshots.
+and exact common-start round-trip transport. The bounded cross-solver campaign
+gate now passes for both LN and the held-out LG feeder; the AC-zone-2 effect is
+still scoped to 30-bus evidence and is not promoted to 99-bus snapshots.
 
 The first complete LN case identified and closed two scale-up defects before
 claim promotion: dense intervention classification despite sparse semantic
@@ -3704,5 +3707,49 @@ unfavorable at the perturbed start: for example MadNLP changes from 4 fewer
 iterations and 7 fewer backsolves to 64 more iterations, 108 more
 factorizations, and 205 more backsolves relative to all-low. The roadmap must
 therefore prioritize perturbation-direction and trajectory-mechanism analysis,
-then the held-out 30-bus LG case. It must not promote a universal AC-zone-2
-base rule or jump directly to 99-bus timing comparisons.
+then phase-only orthogonal control. The held-out LG case confirms the same
+start-sensitive direction, but the roadmap must not promote a universal
+AC-zone-2 base rule or jump directly to 99-bus timing comparisons.
+
+## 2026-08-22 local review checkpoint
+
+The repository is in the consolidation-and-calibration phase, with the generic
+measurement layer and BMOPF research extension broad enough to exercise the
+original vision. The trusted local verification command is:
+
+```sh
+julia --startup-file=no --project=work/benchmark-environment test/runtests.jl
+```
+
+That environment passed 1,628 assertions on Julia 1.12.6 with JuMP, Ipopt,
+MadNLP, PowerModels, and the local BMOPFTools research checkout loaded. This
+is the current development gate; in restricted workspaces, use a writable
+temporary first depot path. GitHub Actions failures are intentionally deferred
+until public-release preparation. The local dependency revision and environment
+manifest remain part of the evidence whenever a calibration result is promoted.
+
+The embedded 30-bus LN campaign and the held-out 30-bus LG campaign are now
+complete and qualified at both native and perturbed physical starts for Ipopt
+and MadNLP. Both show the same scaling--initialization interaction: the
+AC-zone-2-high-only intervention helps at the native start and reverses
+direction after perturbation. This is not a universal base-selection rule.
+The next research sequence is:
+
+1. collect more perturbation directions and intermediate Ipopt trace points;
+2. complete a phase-only orthogonal control on a small truth fixture;
+3. publish the same compact summary shape for each promoted calibration
+   campaign; and
+4. only then evaluate a bounded 99-bus snapshot matrix or automatic-policy
+   candidates.
+
+The held-out LG summary is tracked at `docs/calibration_summary.json`. The
+full campaign JSON remains a local artifact because it contains solver traces
+and environment-specific payloads; the summary records the exact case,
+runner/environment fingerprint, sparse-work gate, dependency revision, and
+calibrated contrasts. The LG runner used a temporary copy of the known local
+environment with BMOPFTools `8f121216`; the current research checkout remains
+on its separate development revision until the API branch is merged.
+
+API modularization, typed unavailable schemas, and benchmark consolidation
+remain parallel engineering work. New finding families and automatic model
+reformulation remain outside the next increment.

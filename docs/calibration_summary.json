@@ -1,0 +1,54 @@
+{
+  "schema_version": "nlpdiagnostics-calibration-summary-v1",
+  "source": {
+    "runner": "bmopf-acdc-feeder-policy-campaign-v1",
+    "case": "30bus_LG_t01_0800",
+    "julia_version": "1.12.6",
+    "bmopftools_revision": "8f121216065bcd692f18444836c7c80149e5cf4a",
+    "environment_fingerprint": "a6b6ec2aac4a4d072bef670d9924b7caffca6df501dd4bda94fcfdadaa9b6cbb",
+    "relative_perturbation": 0.001,
+    "repeats_per_policy_per_stratum": 2,
+    "perturbed_start_seeds": [11],
+    "dense_decompositions_enabled": false
+  },
+  "gates": {
+    "campaign_qualified": true,
+    "cross_solver_start_gate_passed": true,
+    "all_physical_endpoints_accepted": true,
+    "sparse_budget_passed": true,
+    "sparse_budget_observed": {
+      "variables": 756,
+      "constraints": 925,
+      "stored_jacobian_entries": 7335,
+      "trace_jacobian_entry_evaluation_upper_bound": 880200,
+      "dense_matrix_entries_if_materialized": 699300
+    }
+  },
+  "results": {
+    "Ipopt": {
+      "native": {
+        "factorial_all_low": {"records": 25.0, "line_search_trials": 27.0, "positive_regularization_records": 0.0},
+        "factorial_a2_high_only": {"records": 21.0, "line_search_trials": 22.0, "positive_regularization_records": 0.0}
+      },
+      "nearby-seed-11": {
+        "factorial_all_low": {"records": 28.0, "line_search_trials": 34.0, "positive_regularization_records": 0.0},
+        "factorial_a2_high_only": {"records": 86.0, "line_search_trials": 277.0, "positive_regularization_records": 24.0}
+      }
+    },
+    "MadNLP": {
+      "native": {
+        "factorial_all_low": {"records": 28.0, "factorizations": 31.0, "backsolves": 32.0, "jacobian_evaluations": 28.0, "hessian_evaluations": 27.0},
+        "factorial_a2_high_only": {"records": 23.0, "factorizations": 25.0, "backsolves": 27.0, "jacobian_evaluations": 23.0, "hessian_evaluations": 22.0}
+      },
+      "nearby-seed-11": {
+        "factorial_all_low": {"records": 35.0, "factorizations": 35.0, "backsolves": 42.0, "jacobian_evaluations": 35.0, "hessian_evaluations": 34.0},
+        "factorial_a2_high_only": {"records": 94.0, "factorizations": 137.0, "backsolves": 161.0, "jacobian_evaluations": 94.0, "hessian_evaluations": 93.0}
+      }
+    }
+  },
+  "interpretation": {
+    "qualified_finding": "The AC-zone-2-high-only policy is favorable at the native start and reverses under the held-out perturbed start on both solvers.",
+    "scope": "One 30-bus LG feeder, one perturbation direction, five policies, two repeats, dense decompositions disabled.",
+    "not_established": ["universal base-selection superiority", "99-bus behavior", "wall-time portability", "causal row-level mechanism"]
+  }
+}
