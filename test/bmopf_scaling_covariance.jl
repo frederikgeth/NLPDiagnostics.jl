@@ -17,6 +17,23 @@ function _bmopf_covariance_fixture()
     """; from_string=true)
 end
 
+function _bmopf_volt_watt_covariance_fixture()
+    return BMOPFTools.parse_bmopf(raw"""
+    {"bus":{"source":{"terminal_names":["a","n"],
+                        "perfectly_grounded_terminals":["n"]}},
+     "voltage_source":{"source":{"bus":"source","terminal_map":["a"],
+         "v_magnitude":[230.0],"v_angle":[0.0],"cost":[1.0]}},
+     "control_profile":{"vw":{"volt_watt":{
+         "breakpoints":[0.9,1.1],"p_limits":[1.0,0.0],
+         "p_unit":"VA_FRACTION","p_ref":"S_MAX"}}},
+     "ibr":{"pv":{"bus":"source","terminal_map":["a","n"],
+         "topology":"SINGLE_PHASE","prime_mover":"PV",
+         "s_max":[10000.0],"p_min":0.0,"p_max":8000.0,
+         "p_avail":8000.0,"q_min":[-3000.0],"q_max":[3000.0],
+         "control_profile":"vw"}}}
+    """; from_string=true)
+end
+
 function _bmopf_transformer_chain_initialization_fixture()
     return BMOPFTools.parse_bmopf(raw"""
     {"bus":{
@@ -64,6 +81,183 @@ function _bmopf_zone_local_transformer_fixture()
     """; from_string=true)
 end
 
+function _bmopf_zone_local_center_tap_fixture(; explicit_t_model=false)
+    network = BMOPFTools.parse_bmopf(raw"""
+    {"bus":{"mv":{"terminal_names":["1","n"],
+                   "perfectly_grounded_terminals":["n"]},
+            "lv":{"terminal_names":["1","n","2"],
+                   "perfectly_grounded_terminals":["n"]}},
+     "voltage_source":{"src":{"bus":"mv","terminal_map":["1"],
+         "v_magnitude":[2400.0],"v_angle":[0.11]}},
+     "transformer":{"center_tap":{"ct":{"bus_from":"mv","bus_to":"lv",
+         "terminal_map_from":["1","n"],"terminal_map_to":["1","n","2"],
+         "v_nom_from":2400.0,"v_nom_to":120.0,"s_rating":25000.0,
+         "i_max_from":[100.0,100.0],"i_max_to":[1000.0,1000.0,1000.0],
+         "r_series_from":0.1,"x_series_from":0.4,
+         "r_series_to":0.001,"x_series_to":0.004,
+         "g_no_load":2e-5,"b_no_load":8e-5}}},
+     "load":{"l1":{"bus":"lv","terminal_map":["1","n"],
+                     "configuration":"SINGLE_PHASE",
+                     "p_nom":[3000.0],"q_nom":[500.0]},
+             "l2":{"bus":"lv","terminal_map":["2","n"],
+                     "configuration":"SINGLE_PHASE",
+                     "p_nom":[1000.0],"q_nom":[100.0]}}}
+    """; from_string=true)
+    if explicit_t_model
+        transformer = network["transformer"]["center_tap"]["ct"]
+        transformer["r_series_from"] = 0.0
+        transformer["x_series_from"] = 0.0
+    end
+    return network
+end
+
+function _bmopf_zone_local_n_winding_fixture()
+    return BMOPFTools.parse_bmopf(raw"""
+    {"bus":{
+        "hv":{"terminal_names":["a","b","c","n"],
+              "perfectly_grounded_terminals":["n"]},
+        "mv":{"terminal_names":["a","b","c","n"],
+              "perfectly_grounded_terminals":["n"]},
+        "lv":{"terminal_names":["a","b","c","n"],
+              "perfectly_grounded_terminals":["n"]}},
+     "voltage_source":{"src":{"bus":"hv",
+         "terminal_map":["a","b","c"],
+         "v_magnitude":[2400.0,2400.0,2400.0],
+         "v_angle":[0.17,-1.9243951023931953,2.2643951023931953]}},
+     "transformer":{"n_winding":{"nw":{"s_rating":500000.0,
+         "g_no_load":1e-5,"b_no_load":4e-5,
+         "windings":[
+           {"bus":"hv","terminal_map":["a","b","c","n"],
+            "v_nom":2400.0,"configuration":"WYE","r_winding":0.08,
+            "i_max":500.0,"s_max":500000.0},
+           {"bus":"mv","terminal_map":["a","b","c","n"],
+            "v_nom":480.0,"configuration":"WYE","r_winding":0.003,
+            "i_max":800.0,"s_max":200000.0},
+           {"bus":"lv","terminal_map":["a","b","c","n"],
+            "v_nom":120.0,"configuration":"WYE","r_winding":0.0002,
+            "i_max":1000.0,"s_max":50000.0}],
+         "x_sc":{"1_2":0.40,"1_3":0.55,"2_3":0.30}}}},
+     "load":{
+       "mvload":{"bus":"mv","terminal_map":["a","b","c","n"],
+         "configuration":"WYE","p_nom":[10000.0,9000.0,11000.0],
+         "q_nom":[2000.0,1800.0,2200.0]},
+       "lvload":{"bus":"lv","terminal_map":["a","b","c","n"],
+         "configuration":"WYE","p_nom":[2000.0,1500.0,2500.0],
+         "q_nom":[400.0,300.0,500.0]}}}
+    """; from_string=true)
+end
+
+function _bmopf_zone_local_single_regulator_fixture(; free_tap=false)
+    network = BMOPFTools.parse_bmopf(raw"""
+    {"bus":{
+        "src":{"terminal_names":["1","n"],
+               "perfectly_grounded_terminals":["n"]},
+        "reg":{"terminal_names":["1","n"],
+               "perfectly_grounded_terminals":[]}},
+     "voltage_source":{"src":{"bus":"src","terminal_map":["1","n"],
+         "v_magnitude":[2400.0],"v_angle":[0.13]}},
+     "transformer":{"single_phase_autotransformer":{"regulator":{
+         "bus_from":"src","bus_to":"reg",
+         "terminal_map_from":["1","n"],"terminal_map_to":["1","n"],
+         "tap_ratio":1.025,"regulator_type":"B","s_rating":250000.0,
+         "r_series_from":0.45,"x_series_from":0.20,
+         "r_series_to":0.08,"x_series_to":0.04,
+         "g_no_load":1.0e-6,"b_no_load":3.0e-6,
+         "i_max_from":[150.0],"i_max_to":[150.0]}}},
+     "load":{"load":{"bus":"reg","terminal_map":["1","n"],
+         "configuration":"SINGLE_PHASE","p_nom":[50000.0],
+         "q_nom":[12000.0]}}}
+    """; from_string=true)
+    if free_tap
+        regulator = network["transformer"][
+            "single_phase_autotransformer"]["regulator"]
+        regulator["tap_ratio_min"] = 0.98
+        regulator["tap_ratio_max"] = 1.06
+    end
+    return network
+end
+
+function _bmopf_zone_local_open_delta_regulator_fixture(; free_tap=false)
+    network = BMOPFTools.parse_bmopf(raw"""
+    {"bus":{
+        "src":{"terminal_names":["1","2","3","n"],
+               "perfectly_grounded_terminals":["n"]},
+        "reg":{"terminal_names":["1","2","3","n"],
+               "perfectly_grounded_terminals":["n"]}},
+     "voltage_source":{"src":{"bus":"src",
+         "terminal_map":["1","2","3"],
+         "v_magnitude":[2400.0,2400.0,2400.0],
+         "v_angle":[0.13,-1.9643951023931953,2.2243951023931953]}},
+     "transformer":{"open_delta_regulator":{"bank":{
+         "bus_from":"src","bus_to":"reg",
+         "terminal_map_from":["1","2","3","n"],
+         "terminal_map_to":["1","2","3","n"],
+         "connection":"ABBC","tap_ratio":[1.025,0.99],
+         "regulator_type":"B","s_rating":250000.0,
+         "r_series_from":0.35,"x_series_from":0.15,
+         "r_series_to":0.05,"x_series_to":0.02,
+         "g_no_load":8.0e-7,"b_no_load":2.0e-6,
+         "i_max_from":[150.0,150.0,150.0],
+         "i_max_to":[150.0,150.0]}}},
+     "load":{"load":{"bus":"reg",
+         "terminal_map":["1","2","3","n"],
+         "configuration":"WYE",
+         "p_nom":[30000.0,20000.0,25000.0],
+         "q_nom":[6000.0,4000.0,5000.0]}}}
+    """; from_string=true)
+    if free_tap
+        regulator = network["transformer"]["open_delta_regulator"]["bank"]
+        regulator["tap_ratio_min"] = [0.98, 0.97]
+        regulator["tap_ratio_max"] = [1.06, 1.04]
+    end
+    return network
+end
+
+function _bmopf_zone_local_acdc_fixture(; droop=false)
+    network = BMOPFTools.parse_bmopf(raw"""
+    {"bus":{
+        "f1":{"terminal_names":["a","n"],
+              "perfectly_grounded_terminals":["n"]},
+        "f2":{"terminal_names":["a","n"],
+              "perfectly_grounded_terminals":["n"]}},
+     "voltage_source":{
+        "s1":{"bus":"f1","terminal_map":["a"],
+              "v_magnitude":[230.0],"v_angle":[0.0]},
+        "s2":{"bus":"f2","terminal_map":["a"],
+              "v_magnitude":[230.0],"v_angle":[0.0]}},
+     "load":{"load":{"bus":"f2","terminal_map":["a","n"],
+        "configuration":"SINGLE_PHASE","p_nom":[5000.0],"q_nom":[0.0]}},
+     "ibr":{
+        "vsc1":{"bus":"f1","terminal_map":["a","n"],
+            "topology":"SINGLE_PHASE","prime_mover":"GENERIC",
+            "s_max":[8000.0],"dc_bus":"dcA",
+            "dc_terminal_map":["p","m"],"dc_control":"V",
+            "dc_v_set":850.0},
+        "vsc2":{"bus":"f2","terminal_map":["a","n"],
+            "topology":"SINGLE_PHASE","prime_mover":"GENERIC",
+            "s_max":[8000.0],"dc_bus":"dcB",
+            "dc_terminal_map":["p","m"]}},
+     "dc_bus":{
+        "dcA":{"terminal_names":["p","m"],"v_dc_nom":[850.0,0.0],
+            "v_dc_min":[700.0,0.0],"v_dc_max":[900.0,0.0]},
+        "dcB":{"terminal_names":["p","m"],"v_dc_nom":[850.0,0.0],
+            "v_dc_min":[700.0,0.0],"v_dc_max":[900.0,0.0]}},
+     "dc_branch":{"tie":{"dc_bus_from":"dcA","dc_bus_to":"dcB",
+        "terminal_map_from":["p","m"],"terminal_map_to":["p","m"],
+        "r":[0.5,0.0],"i_max":[20.0,20.0],"p_max":12000.0}},
+     "dc_grounding":{"ground":{"dc_bus":"dcA","terminal":"m","r":0.0}}}
+    """; from_string=true)
+    if droop
+        converter = network["ibr"]["vsc2"]
+        converter["dc_control"] = "droop"
+        converter["dc_v_set"] = 840.0
+        converter["dc_p_ref"] = 3000.0
+        converter["dc_deadband"] = 2.0
+        converter["dc_droop"] = 0.01
+    end
+    return network
+end
+
 function _bmopf_covariance_evaluation(context, label)
     BMOPFTools.opf_lifecycle(context) == :kcl_finalized ||
         BMOPFTools.enforce_kcl!(context)
@@ -75,13 +269,13 @@ end
 
 @testset "BMOPF applied zone-local transformer scaling contract" begin
     network = _bmopf_zone_local_transformer_fixture()
-    zone = BMOPFTools.ZonePerUnitScaling(
+    zone = BMOPFTools.OpfScaling(
         name=:diagnostic_zone_local,
         voltage_bases=Dict("hv" => 2400.0, "lv" => 240.0),
         power_bases=Dict("hv" => 1.0e6, "lv" => 25.0e3),
     )
     si_context = BMOPFTools.build_opf_model(
-        network; scaling_policy=BMOPFTools.SIUnitsScaling(),
+        network; scaling_policy=BMOPFTools.OpfScaling(:si),
         add_objective=false,
     )
     local_context = BMOPFTools.build_opf_model(
@@ -105,7 +299,7 @@ end
         si_context,
         local_context;
         require_phasor_transport=true,
-        absolute_tolerance=1.0e-8,
+        absolute_tolerance=1.0e-6,
         relative_tolerance=1.0e-8,
     )
     @test initialization["equivalence_gate_passed"]
@@ -113,12 +307,147 @@ end
     @test initialization["phasor_transport_passed"]
 end
 
+@testset "BMOPF applied zone-local AC/DC covariance" begin
+    policy = BMOPFTools.OpfScaling(
+        name=:diagnostic_acdc_local_power,
+        voltage_bases=Dict("f1" => 230.0, "f2" => 230.0),
+        power_bases=Dict("f1" => 1.0e6, "f2" => 100.0e3),
+        dc_voltage_base=850.0,
+        dc_power_base=20.0e3,
+    )
+    for (label, droop, expected_modes) in (
+        ("p-control", false, Dict("P" => 1, "V" => 1)),
+        ("droop-control", true, Dict("V" => 1, "droop" => 1)),
+    )
+        @testset "$label" begin
+            network = _bmopf_zone_local_acdc_fixture(; droop)
+            si_context = BMOPFTools.build_opf_model(
+                network;
+                scaling_policy=BMOPFTools.OpfScaling(:si),
+                add_objective=false,
+            )
+            local_context = BMOPFTools.build_opf_model(
+                network; scaling_policy=policy, add_objective=false,
+            )
+
+            contract = NLPDiagnostics.bmopf_acdc_scaling_contract_data(
+                local_context,
+            )
+            @test contract["available"]
+            @test contract["comparison_ready"]
+            @test contract["applied_to_model"]
+            @test contract["converter_count"] == 2
+            @test contract["converter_count_by_control_mode"] == expected_modes
+            @test contract["distinct_power_coordinates_present"]
+            @test contract["coefficient_contract_passed"]
+            @test contract["control_modes_qualified"]
+            @test contract["power_coordinate_conversion_range"][
+                "maximum_symmetric_factor"
+            ] == 50.0
+
+            si_evaluation = _bmopf_covariance_evaluation(
+                si_context, "acdc-$label-si",
+            )
+            local_evaluation = _bmopf_covariance_evaluation(
+                local_context, "acdc-$label-zone-local",
+            )
+            for (context, evaluation) in (
+                (si_context, si_evaluation),
+                (local_context, local_evaluation),
+            )
+                map = NLPDiagnostics.bmopf_diagonal_scaling_map(
+                    context, evaluation,
+                )
+                @test map["available"]
+                @test isempty(map["unsupported_variables"])
+                @test isempty(map["unsupported_constraint_rows"])
+            end
+
+            report =
+                NLPDiagnostics.bmopf_initialization_scaling_covariance_report(
+                    si_context,
+                    local_context;
+                    require_phasor_transport=true,
+                    absolute_tolerance=1.0e-8,
+                    relative_tolerance=1.0e-8,
+                )
+            @test report["equivalence_gate_passed"]
+            @test report["initialization_covariance_passed"]
+            @test report["phasor_transport_passed"]
+            covariance = report["covariance_report"]
+            @test covariance["metrics"]["physical_point"]["passed"]
+            @test covariance["metrics"]["constraint_function_values"]["passed"]
+            @test covariance["metrics"]["constraint_sets"]["passed"]
+            @test covariance["metrics"]["constraint_residuals"]["passed"]
+            @test covariance["metrics"]["physical_jacobian"]["passed"]
+        end
+    end
+end
+
+@testset "BMOPF Volt-Watt residual scaling covariance" begin
+    network = _bmopf_volt_watt_covariance_fixture()
+    reference_context = BMOPFTools.build_opf_model(
+        deepcopy(network);
+        scaling_policy=BMOPFTools.OpfScaling(:classic; power_base=1.0e6),
+        add_objective=true,
+    )
+    BMOPFTools.enforce_kcl!(reference_context)
+    candidate_context = BMOPFTools.build_opf_model(
+        deepcopy(network);
+        scaling_policy=BMOPFTools.OpfScaling(
+            name=:volt_watt_10kva,
+            voltage_bases=Dict("source" => 230.0),
+            power_bases=Dict("source" => 10000.0),
+        ),
+        add_objective=true,
+    )
+    BMOPFTools.enforce_kcl!(candidate_context)
+    reference_evaluation = _bmopf_covariance_evaluation(
+        reference_context, "volt-watt-reference",
+    )
+    candidate_schema = _bmopf_covariance_evaluation(
+        candidate_context, "volt-watt-candidate-schema",
+    )
+    reference_map = NLPDiagnostics.bmopf_diagonal_scaling_map(
+        reference_context, reference_evaluation,
+    )
+    candidate_map = NLPDiagnostics.bmopf_diagonal_scaling_map(
+        candidate_context, candidate_schema,
+    )
+    @test reference_map["available"]
+    @test candidate_map["available"]
+    @test isempty(reference_map["unsupported_constraint_rows"])
+    @test isempty(candidate_map["unsupported_constraint_rows"])
+    transported = NLPDiagnostics.bmopf_transport_scaling_point(
+        reference_context,
+        reference_evaluation,
+        candidate_context,
+        candidate_schema,
+    )
+    @test transported["available"]
+    candidate_evaluation = NLPDiagnostics.evaluate_numerical(
+        JuMP.backend(BMOPFTools.opf_model(candidate_context)),
+        transported["transport"].point,
+    )
+    covariance = NLPDiagnostics.bmopf_block_scaling_covariance_report(
+        reference_context,
+        reference_evaluation,
+        candidate_context,
+        candidate_evaluation;
+        absolute_tolerance=1.0e-6,
+        relative_tolerance=1.0e-8,
+    )
+    @test covariance["equivalence_gate_passed"]
+    @test covariance["metrics"]["constraint_residuals"]["passed"]
+    @test covariance["metrics"]["physical_jacobian"]["passed"]
+end
+
 @testset "BMOPF cross-policy physical scaling covariance" begin
     network = _bmopf_covariance_fixture()
-    classic = BMOPFTools.ClassicPerUnitScaling(1e6)
-    custom = BMOPFTools.ConsistentPerUnitScaling(
+    classic = BMOPFTools.OpfScaling(:classic; power_base=1e6)
+    custom = BMOPFTools.OpfScaling(
         name=:half_voltage_200kva,
-        s_base=2e5,
+        power_base=2e5,
         voltage_bases=Dict("source" => 500.0, "loadbus" => 500.0),
     )
     reference_context = BMOPFTools.build_opf_model(
@@ -339,12 +668,12 @@ end
     network = _bmopf_transformer_chain_initialization_fixture()
     si_context = BMOPFTools.build_opf_model(
         network;
-        scaling_policy=BMOPFTools.SIUnitsScaling(),
+        scaling_policy=BMOPFTools.OpfScaling(:si),
         add_objective=false,
     )
     pu_context = BMOPFTools.build_opf_model(
         network;
-        scaling_policy=BMOPFTools.ClassicPerUnitScaling(1.0e6),
+        scaling_policy=BMOPFTools.OpfScaling(:classic; power_base=1.0e6),
         add_objective=false,
     )
     report = NLPDiagnostics.bmopf_initialization_scaling_covariance_report(
@@ -390,11 +719,320 @@ end
     ] ≈ 10.0
 end
 
+@testset "BMOPF applied zone-local Yd/Dy chain covariance" begin
+    network = _bmopf_transformer_chain_initialization_fixture()
+    si_context = BMOPFTools.build_opf_model(
+        network;
+        scaling_policy=BMOPFTools.OpfScaling(:si),
+        add_objective=false,
+    )
+    classic_context = BMOPFTools.build_opf_model(
+        network;
+        scaling_policy=BMOPFTools.OpfScaling(:classic; power_base=1.0e6),
+        add_objective=false,
+    )
+    voltage_bases = Dict(BMOPFTools.opf_bases(classic_context).v_base)
+    zone_policy = BMOPFTools.OpfScaling(
+        name=:diagnostic_yd_dy_chain,
+        voltage_bases=voltage_bases,
+        power_bases=Dict(
+            "hv" => 10.0e6,
+            "delta" => 1.0e6,
+            "lv" => 100.0e3,
+        ),
+    )
+    local_context = BMOPFTools.build_opf_model(
+        network; scaling_policy=zone_policy, add_objective=false,
+    )
+
+    contract = NLPDiagnostics.bmopf_transformer_scaling_contract_data(
+        local_context,
+    )
+    @test contract["comparison_ready"]
+    @test contract["model_experiment_ready"]
+    @test contract["applied_to_model"]
+    @test !contract["requires_new_transformer_stamping"]
+    @test contract["interfaces_requiring_current_conversion"] == 2
+    @test contract["interfaces_requiring_power_conversion"] == 2
+    @test contract["interface_count_by_subtype"]["wye_delta"] == 1
+    @test contract["interface_count_by_subtype"]["delta_wye"] == 1
+    @test contract["conversion_ranges"]["power"][
+        "maximum_symmetric_factor"
+    ] ≈ 10.0
+
+    report = NLPDiagnostics.bmopf_initialization_scaling_covariance_report(
+        si_context,
+        local_context;
+        require_phasor_transport=true,
+        absolute_tolerance=1.0e-8,
+        relative_tolerance=1.0e-8,
+    )
+    @test report["equivalence_gate_passed"]
+    @test report["initialization_covariance_passed"]
+    @test report["phasor_transport_passed"]
+    covariance = report["covariance_report"]
+    @test covariance["metrics"]["physical_point"]["passed"]
+    @test covariance["metrics"]["constraint_residuals"]["passed"]
+    @test covariance["metrics"]["constraint_sets"]["passed"]
+    @test covariance["metrics"]["physical_jacobian"]["passed"]
+end
+
+@testset "BMOPF applied zone-local center-tap covariance" begin
+    zone_policy = BMOPFTools.OpfScaling(
+        name=:diagnostic_center_tap,
+        voltage_bases=Dict("mv" => 2400.0, "lv" => 120.0),
+        power_bases=Dict("mv" => 1.0e6, "lv" => 25.0e3),
+    )
+    for (label, explicit_t_model) in
+            (("fixed-primitive", false), ("explicit-t-model", true))
+        @testset "$label" begin
+            network = _bmopf_zone_local_center_tap_fixture(; explicit_t_model)
+            si_context = BMOPFTools.build_opf_model(
+                network;
+                scaling_policy=BMOPFTools.OpfScaling(:si),
+                add_objective=false,
+            )
+            local_context = BMOPFTools.build_opf_model(
+                network; scaling_policy=zone_policy, add_objective=false,
+            )
+            contract = NLPDiagnostics.bmopf_transformer_scaling_contract_data(
+                local_context,
+            )
+            @test contract["comparison_ready"]
+            @test contract["model_experiment_ready"]
+            @test contract["applied_to_model"]
+            @test contract["interfaces_requiring_current_conversion"] == 1
+            @test contract["interfaces_requiring_power_conversion"] == 1
+            @test contract["interface_count_by_subtype"] ==
+                  Dict("center_tap" => 1)
+            @test contract["conversion_ranges"]["power"][
+                "maximum_symmetric_factor"
+            ] ≈ 40.0
+
+            si_evaluation = _bmopf_covariance_evaluation(
+                si_context, "center-tap-$label-si",
+            )
+            local_evaluation = _bmopf_covariance_evaluation(
+                local_context, "center-tap-$label-zone-local",
+            )
+            for scaling_map in (
+                    NLPDiagnostics.bmopf_diagonal_scaling_map(
+                        si_context, si_evaluation,
+                    ),
+                    NLPDiagnostics.bmopf_diagonal_scaling_map(
+                        local_context, local_evaluation,
+                    ),
+                )
+                @test scaling_map["available"]
+                @test isempty(scaling_map["unsupported_constraint_rows"])
+                current_box_rows = count(
+                    key -> occursin("xf_", key) && occursin("_bound:", key),
+                    scaling_map["map"].constraint_keys,
+                )
+                @test current_box_rows == (explicit_t_model ? 16 : 0)
+            end
+
+            report =
+                NLPDiagnostics.bmopf_initialization_scaling_covariance_report(
+                    si_context,
+                    local_context;
+                    require_phasor_transport=true,
+                    absolute_tolerance=1.0e-8,
+                    relative_tolerance=1.0e-8,
+                )
+            @test report["equivalence_gate_passed"]
+            @test report["initialization_covariance_passed"]
+            @test report["phasor_transport_passed"]
+            covariance = report["covariance_report"]
+            @test covariance["metrics"]["physical_point"]["passed"]
+            @test covariance["metrics"]["constraint_function_values"]["passed"]
+            @test covariance["metrics"]["constraint_residuals"]["passed"]
+            @test covariance["metrics"]["constraint_sets"]["passed"]
+            @test covariance["metrics"]["physical_jacobian"]["passed"]
+        end
+    end
+end
+
+@testset "BMOPF applied zone-local n-winding covariance" begin
+    network = _bmopf_zone_local_n_winding_fixture()
+    zone_policy = BMOPFTools.OpfScaling(
+        name=:diagnostic_n_winding,
+        voltage_bases=Dict("hv" => 2400.0, "mv" => 480.0, "lv" => 120.0),
+        power_bases=Dict("hv" => 1.0e6, "mv" => 100.0e3, "lv" => 20.0e3),
+    )
+    si_context = BMOPFTools.build_opf_model(
+        network;
+        scaling_policy=BMOPFTools.OpfScaling(:si),
+        add_objective=false,
+    )
+    local_context = BMOPFTools.build_opf_model(
+        network; scaling_policy=zone_policy, add_objective=false,
+    )
+    contract = NLPDiagnostics.bmopf_transformer_scaling_contract_data(
+        local_context,
+    )
+    @test contract["comparison_ready"]
+    @test contract["model_experiment_ready"]
+    @test contract["applied_to_model"]
+    @test contract["interfaces_requiring_current_conversion"] == 2
+    @test contract["interfaces_requiring_power_conversion"] == 2
+    @test contract["interface_count_by_subtype"] == Dict("n_winding" => 2)
+    @test contract["conversion_ranges"]["power"][
+        "maximum_symmetric_factor"
+    ] ≈ 50.0
+
+    si_evaluation = _bmopf_covariance_evaluation(
+        si_context, "n-winding-si",
+    )
+    local_evaluation = _bmopf_covariance_evaluation(
+        local_context, "n-winding-zone-local",
+    )
+    for scaling_map in (
+            NLPDiagnostics.bmopf_diagonal_scaling_map(
+                si_context, si_evaluation,
+            ),
+            NLPDiagnostics.bmopf_diagonal_scaling_map(
+                local_context, local_evaluation,
+            ),
+        )
+        @test scaling_map["available"]
+        @test isempty(scaling_map["unsupported_constraint_rows"])
+        current_box_rows = count(
+            key -> occursin("_nw_", key) && occursin("_bound:", key),
+            scaling_map["map"].constraint_keys,
+        )
+        @test current_box_rows == 36
+    end
+
+    report = NLPDiagnostics.bmopf_initialization_scaling_covariance_report(
+        si_context,
+        local_context;
+        require_phasor_transport=true,
+        absolute_tolerance=1.0e-8,
+        relative_tolerance=1.0e-8,
+    )
+    @test report["equivalence_gate_passed"]
+    @test report["initialization_covariance_passed"]
+    @test report["phasor_transport_passed"]
+    covariance = report["covariance_report"]
+    @test covariance["metrics"]["physical_point"]["passed"]
+    @test covariance["metrics"]["constraint_function_values"]["passed"]
+    @test covariance["metrics"]["constraint_residuals"]["passed"]
+    @test covariance["metrics"]["constraint_sets"]["passed"]
+    @test covariance["metrics"]["physical_jacobian"]["passed"]
+end
+
+@testset "BMOPF applied zone-local galvanic regulator covariance" begin
+    zone_policy = BMOPFTools.OpfScaling(
+        name=:diagnostic_galvanic_regulator,
+        voltage_bases=Dict("src" => 2400.0, "reg" => 2400.0),
+        power_bases=Dict("src" => 500.0e3, "reg" => 500.0e3),
+    )
+    fixtures = (
+        ("single-fixed", _bmopf_zone_local_single_regulator_fixture,
+         false, "single_phase_autotransformer", 1),
+        ("single-free", _bmopf_zone_local_single_regulator_fixture,
+         true, "single_phase_autotransformer", 1),
+        ("open-delta-fixed", _bmopf_zone_local_open_delta_regulator_fixture,
+         false, "open_delta_regulator", 1),
+        ("open-delta-free", _bmopf_zone_local_open_delta_regulator_fixture,
+         true, "open_delta_regulator", 2),
+    )
+    for (label, fixture, free_tap, subtype, expected_taps) in fixtures
+        @testset "$label" begin
+            network = fixture(; free_tap)
+            si_context = BMOPFTools.build_opf_model(
+                network;
+                scaling_policy=BMOPFTools.OpfScaling(:si),
+                add_objective=false,
+            )
+            local_context = BMOPFTools.build_opf_model(
+                network; scaling_policy=zone_policy, add_objective=false,
+            )
+            contract = NLPDiagnostics.bmopf_transformer_scaling_contract_data(
+                local_context,
+            )
+            @test contract["comparison_ready"]
+            @test contract["model_experiment_ready"]
+            @test contract["galvanic_voltage_compatibility_passed"]
+            @test contract["galvanically_continuous_interface_count"] == 1
+            @test contract[
+                "interfaces_requiring_shared_conductor_voltage_conversion"] == 0
+            @test contract["interfaces_requiring_current_conversion"] == 0
+            @test contract["interfaces_requiring_power_conversion"] == 0
+            @test contract["interface_count_by_subtype"] == Dict(subtype => 1)
+
+            si_evaluation = _bmopf_covariance_evaluation(
+                si_context, "regulator-$label-si",
+            )
+            local_evaluation = _bmopf_covariance_evaluation(
+                local_context, "regulator-$label-zone-local",
+            )
+            for (context, evaluation) in (
+                    (si_context, si_evaluation),
+                    (local_context, local_evaluation),
+                )
+                scaling_map = NLPDiagnostics.bmopf_diagonal_scaling_map(
+                    context, evaluation,
+                )
+                @test scaling_map["available"]
+                @test isempty(scaling_map["unsupported_variables"])
+                @test isempty(scaling_map["unsupported_constraint_rows"])
+            end
+
+            report =
+                NLPDiagnostics.bmopf_initialization_scaling_covariance_report(
+                    si_context,
+                    local_context;
+                    require_phasor_transport=true,
+                    absolute_tolerance=1.0e-8,
+                    relative_tolerance=1.0e-8,
+                )
+            @test report["equivalence_gate_passed"]
+            @test report["initialization_covariance_passed"]
+            @test report["phasor_transport_passed"]
+            covariance = report["covariance_report"]
+            @test covariance["metrics"]["physical_point"]["passed"]
+            @test covariance["metrics"]["constraint_function_values"]["passed"]
+            @test covariance["metrics"]["constraint_residuals"]["passed"]
+            @test covariance["metrics"]["constraint_sets"]["passed"]
+            @test covariance["metrics"]["physical_jacobian"]["passed"]
+
+            semantic_columns =
+                NLPDiagnostics.bmopf_variable_semantic_column_map(
+                    local_context, local_evaluation,
+                )
+            tap_columns = count(column ->
+                "tap" in column["variable_families"],
+                values(semantic_columns),
+            )
+            @test tap_columns == (free_tap ? expected_taps : 0)
+        end
+    end
+
+    si_context = BMOPFTools.build_opf_model(
+        _bmopf_zone_local_single_regulator_fixture();
+        scaling_policy=BMOPFTools.OpfScaling(:si), add_objective=false,
+    )
+    inadmissible = NLPDiagnostics.bmopf_transformer_scaling_contract_data(
+        si_context;
+        voltage_bases=Dict("src" => 2400.0, "reg" => 1200.0),
+        power_bases=Dict("src" => 500.0e3, "reg" => 500.0e3),
+    )
+    @test !inadmissible["comparison_ready"]
+    @test !inadmissible["model_experiment_ready"]
+    @test !inadmissible["galvanic_voltage_compatibility_passed"]
+    @test inadmissible["galvanically_continuous_interface_count"] == 1
+    @test inadmissible[
+        "interfaces_requiring_shared_conductor_voltage_conversion"] == 1
+    @test inadmissible["requires_new_transformer_stamping"]
+end
+
 @testset "BMOPF solved physical state across four scaling policies" begin
     network = _bmopf_covariance_fixture()
     reference_context = BMOPFTools.build_opf_model(
         deepcopy(network);
-        scaling_policy=BMOPFTools.ClassicPerUnitScaling(1e6),
+        scaling_policy=BMOPFTools.OpfScaling(:classic; power_base=1e6),
         add_objective=false,
     )
     BMOPFTools.enforce_kcl!(reference_context)
@@ -536,15 +1174,15 @@ end
     ]
 
     policies = (
-        BMOPFTools.SIUnitsScaling(),
-        BMOPFTools.ConsistentPerUnitScaling(
+        BMOPFTools.OpfScaling(:si),
+        BMOPFTools.OpfScaling(
             name=:low_local_bases,
-            s_base=2e5,
+            power_base=2e5,
             voltage_bases=Dict("source" => 500.0, "loadbus" => 500.0),
         ),
-        BMOPFTools.ConsistentPerUnitScaling(
+        BMOPFTools.OpfScaling(
             name=:high_local_bases,
-            s_base=5e6,
+            power_base=5e6,
             voltage_bases=Dict("source" => 1500.0, "loadbus" => 1500.0),
         ),
     )

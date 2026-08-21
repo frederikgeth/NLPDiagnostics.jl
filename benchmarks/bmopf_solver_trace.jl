@@ -816,6 +816,10 @@ function _source_behavior_auxiliary_data(auxiliary)
 end
 
 function _source_behavior_contract_data(network)
+    isdefined(BMOPFTools, :powerio_source_behavior_contract) || return Dict{String,Any}(
+        "status" => "deferred_to_staged_context",
+        "reason" => "source behavior is decoded from retained metadata by NLPDiagnostics",
+    )
     try
         return Dict{String,Any}(
             "status" => "available",

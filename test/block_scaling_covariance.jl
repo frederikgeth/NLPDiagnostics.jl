@@ -116,9 +116,58 @@ end
     @test NLPDiagnostics.scaling_intervention_classification(
         reference_map, phase_map,
     )["classification"] == "phase_only"
-    @test !NLPDiagnostics.scaling_intervention_classification(
-        reference_map, phase_map; max_dense_entries=1,
-    )["available"]
+    sparse_intervention =
+        NLPDiagnostics.scaling_intervention_classification(
+            reference_map, phase_map; max_dense_entries=1,
+        )
+    @test sparse_intervention["available"]
+    @test sparse_intervention["classification"] == "phase_only"
+    @test !sparse_intervention["dense_materialization_performed"]
+    @test sparse_intervention["stored_relation_entry_count"] == 8
+    @test !sparse_intervention["variables"][
+        "determinant_sign_available"
+    ]
+    large_dimension = 256
+    large_reference = NLPDiagnostics.SemanticBlockScalingMap(
+        "large-reference";
+        variable_blocks=[
+            NLPDiagnostics.SemanticLinearBlock(
+                ["x:$index"], [index], reshape([1.0], 1, 1),
+            ) for index in 1:large_dimension
+        ],
+        constraint_blocks=[
+            NLPDiagnostics.SemanticConstraintBlock(
+                ["c:$index"], [index], reshape([1.0], 1, 1);
+                set=NLPDiagnostics.ZeroEqualitySetContract(),
+            ) for index in 1:large_dimension
+        ],
+    )
+    large_candidate = NLPDiagnostics.SemanticBlockScalingMap(
+        "large-candidate";
+        variable_blocks=[
+            NLPDiagnostics.SemanticLinearBlock(
+                ["x:$index"], [index],
+                reshape([isodd(index) ? 2.0 : 0.5], 1, 1),
+            ) for index in 1:large_dimension
+        ],
+        constraint_blocks=[
+            NLPDiagnostics.SemanticConstraintBlock(
+                ["c:$index"], [index], reshape([3.0], 1, 1);
+                set=NLPDiagnostics.ZeroEqualitySetContract(),
+            ) for index in 1:large_dimension
+        ],
+    )
+    large_sparse_intervention =
+        NLPDiagnostics.scaling_intervention_classification(
+            large_reference, large_candidate; max_dense_entries=0,
+        )
+    @test large_sparse_intervention["available"]
+    @test large_sparse_intervention["classification"] == "magnitude_only"
+    @test large_sparse_intervention["required_dense_entries"] ==
+        2 * large_dimension^2
+    @test large_sparse_intervention["stored_relation_entry_count"] ==
+        2 * large_dimension
+    @test !large_sparse_intervention["dense_materialization_performed"]
 
     report = NLPDiagnostics.scaling_covariance_report(
         reference, reference_map, candidate, candidate_map,
@@ -208,6 +257,13 @@ end
     @test stationarity["available"]
     @test stationarity["tolerance_coverage_complete"]
     @test stationarity["acceptance_passed"]
+    @test stationarity["objective_weight_consistency"]["available"]
+    @test stationarity["objective_weight_consistency"][
+        "least_squares_fitted_physical_weight"
+    ] ≈ stationarity["objective_weight_physical"]
+    @test !stationarity["objective_weight_consistency"][
+        "potential_multiplier_normalization_mismatch"
+    ]
     @test all(
         record["absolute_residual"] <= 1e-12 for
         record in values(stationarity["stationarity"])
@@ -219,6 +275,21 @@ end
         default_absolute_tolerance=1e-12,
     )
     @test !failed_stationarity["acceptance_passed"]
+    normalized_like_mismatch = NLPDiagnostics.physical_stationarity_report(
+        stationary_reference,
+        reference_map,
+        2 .* physical_multipliers;
+        default_absolute_tolerance=1e-12,
+    )
+    @test normalized_like_mismatch["objective_weight_consistency"][
+        "least_squares_fitted_physical_weight"
+    ] ≈ 2.0
+    @test normalized_like_mismatch["objective_weight_consistency"][
+        "potential_multiplier_normalization_mismatch"
+    ]
+    @test normalized_like_mismatch["objective_weight_consistency"][
+        "materially_inconsistent_coordinate_count"
+    ] == 2
     physical_kkt_acceptance =
         NLPDiagnostics.physical_kkt_acceptance_report(
             stationary_reference,

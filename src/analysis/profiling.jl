@@ -1188,7 +1188,7 @@ function _trace_geometry_selected_bindings(
             ])],
         )
     end
-    uniform = round.(Int, range(
+    uniform = budget == 1 ? Int[1] : round.(Int, range(
         1, length(candidates); length=budget,
     ))
     selected_indices = Int[]

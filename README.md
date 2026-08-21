@@ -182,9 +182,21 @@ The companion
 [`benchmarks/bmopf_stratified_madnlp_campaign.jl`](benchmarks/bmopf_stratified_madnlp_campaign.jl)
 runs the same physical experiment contract with MadNLP and retains its public
 cumulative factorization and backsolve evidence.
+When a solver eliminates fixed variables, physical endpoint reports can also
+retain an explicitly completed fixed-equality multiplier representative beside
+the untouched public solver multipliers; the two acceptance results are never
+silently merged.
 Scaling campaigns also require independently generated BMOPFTools warm starts
 to agree in physical coordinates; phase patterns and zero neutrals are checked
 separately from voltage-base-dependent model-coordinate magnitudes.
+The feeder-scale AC/DC runner embeds namespaced ENWL feeder equations in the
+qualified multi-zone mechanism, enforces zero dense-analysis budget, and
+retains complementary Ipopt trajectory and MadNLP cumulative-work evidence.
+Its qualified 30-bus LN experiment shows why starts remain separate evidence:
+raising only the feeder-zone power base reduces work at the native start but
+substantially increases Ipopt regularization/line-search work and MadNLP
+factorization/backsolve work after the matched perturbation. This is a measured
+scaling--initialization interaction, not a universal base recommendation.
 The package, solver-extension, domain-extension, and scientific-calibration
 test boundaries are documented in [`docs/testing.md`](docs/testing.md).
 Bounded empirical results and their trust limitations are recorded in

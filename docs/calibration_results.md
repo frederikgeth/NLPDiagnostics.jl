@@ -854,3 +854,36 @@ BMOPFTools' focused transformer-start suite now exercises actual-parent-phase
 single-phase laterals, centre-tap polarity, chained Yd/Dy phase shifts,
 n-winding `delta_roll`, and SI/per-unit physical covariance. Zigzag is recorded
 as unsupported because no schema-level connection matrix yet exists.
+
+## 2026-08-12: qualified MadNLP P/V base-allocation mechanism
+
+The three-zone, three-converter `2^4` MadNLP campaign has been rerun with an
+explicit fixed-variable multiplier representative. The public solver
+multipliers remain retained and fail stationarity on fixed source-voltage
+coordinates. Completing only 13 scalar fixed-equality multipliers reduces the
+maximum residual from about `1.5` to `5.6e-8`; the free-coordinate residual was
+already at that scale. This is evidence about a valid alternative KKT
+representative, not about multiplier uniqueness or MadNLP's internal
+elimination semantics.
+
+Both P/V start strata now qualify. All 68 fresh solves terminate locally
+optimally, all public/completed multiplier pairs are retained, all completed
+representatives pass the physical endpoint gate, and all linear-work and
+factorial geometry responses are complete. Raising only the AC-zone-2 base has
+the clearest cross-start direction: mean factorization effects are `-2.25` and
+`-1.625`, backsolve effects are `-1.25` and `-3.0`, and Jacobian/Hessian
+evaluation effects are `-1.25` and `-2.5`. The sub-millisecond time effects
+share the sign but are not used as performance evidence.
+
+Droop sharing remains unqualified. The native stratum has 30 accepted endpoints
+plus two local-infeasibility and two iteration-limit results; the perturbed
+stratum has 26 accepted endpoints plus four of each failure class. Multiplier
+completion is available for the solved endpoints but does not alter
+termination. No factorial contrast spanning those mixed endpoint classes is a
+scaling claim.
+
+The immediate evidence-led next step is a bounded real-feeder matrix containing
+classic, the all-low factorial anchor, AC-zone-2-high only, all-high, and one
+interaction-control policy. It must retain matched physical starts, sparse-work
+budgets, Ipopt trajectory evidence, MadNLP cumulative work, and the separate
+public/completed multiplier reports.

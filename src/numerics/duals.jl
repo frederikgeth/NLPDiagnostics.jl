@@ -32,6 +32,29 @@ struct SolverDualSnapshot{T<:AbstractFloat}
     failures::Vector{String}
 end
 
+"""
+An explicit alternative multiplier representative obtained by completing only
+scalar `VariableIndex`-in-`EqualTo` rows from stationarity.
+
+The completion never changes non-fixed constraint multipliers. It exists for
+solvers that eliminate fixed variables and return an unavailable, stale, or
+otherwise inconsistent multiplier for the eliminated equality. Both the public
+and completed representatives remain available to callers.
+"""
+struct FixedVariableDualCompletion{T<:AbstractFloat}
+    available::Bool
+    reason::Union{Nothing,String}
+    snapshot::Union{Nothing,SolverDualSnapshot{T}}
+    fixed_rows::Vector{Int}
+    fixed_columns::Vector{Int}
+    original_multipliers::Vector{T}
+    completed_multipliers::Vector{T}
+    maximum_correction::Union{Nothing,T}
+    public_maximum_stationarity_residual::Union{Nothing,T}
+    completed_maximum_stationarity_residual::Union{Nothing,T}
+    free_coordinate_maximum_stationarity_residual::Union{Nothing,T}
+end
+
 function _solver_dual_unavailable(
     evaluation::NumericalEvaluation{T},
     result_index::Int,
@@ -347,6 +370,250 @@ function solver_dual_snapshot_data(snapshot::SolverDualSnapshot)
                 "constraint qualification",
                 "solver-internal scaling semantics",
                 "optimality",
+            ],
+        ),
+    )
+end
+
+function _fixed_variable_equality_rows(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation,
+)
+    variable_positions = Dict(
+        variable => position
+        for (position, variable) in pairs(evaluation.point.variables)
+    )
+    fixed = Tuple{Int,Int}[]
+    row = 1
+    for constraint in snapshot(model).constraints
+        constraint.set_value isa MOI.VectorNonlinearOracle && continue
+        functions = try
+            _scalar_rows(constraint.function_value)
+        catch
+            Any[]
+        end
+        row_count = length(functions)
+        for (local_row, function_value) in pairs(functions)
+            global_row = row + local_row - 1
+            global_row <= length(evaluation.constraint_sources) || return nothing
+            expected = _constraint_ref(
+                constraint; row=row_count == 1 ? nothing : local_row,
+            )
+            evaluation.constraint_sources[global_row] == expected || return nothing
+            if function_value isa MOI.VariableIndex &&
+               constraint.set_value isa MOI.EqualTo
+                column = get(variable_positions, function_value, nothing)
+                isnothing(column) || push!(fixed, (global_row, column))
+            end
+        end
+        row += row_count
+    end
+    return fixed
+end
+
+function _dual_stationarity_vector(
+    evaluation::NumericalEvaluation{T},
+    objective_weight::T,
+    multipliers::AbstractVector{T},
+) where {T<:AbstractFloat}
+    length(multipliers) == length(evaluation.constraint_sources) || return nothing
+    gradient = evaluation.objective_gradient
+    if iszero(objective_weight)
+        stationarity = zeros(T, length(evaluation.point.variables))
+    else
+        length(gradient) == length(evaluation.point.variables) || return nothing
+        all(value -> !ismissing(value) && isfinite(value), gradient) || return nothing
+        stationarity = objective_weight .* T.(gradient)
+    end
+    all(method -> !(method in _JACOBIAN_INCOMPLETE_METHODS),
+        evaluation.jacobian_row_methods) || return nothing
+    for entry in evaluation.jacobian_entries
+        isfinite(entry.value) || return nothing
+        stationarity[entry.column] += multipliers[entry.row] * entry.value
+    end
+    return stationarity
+end
+
+function _fixed_dual_completion_unavailable(
+    ::Type{T}, reason::AbstractString,
+) where {T<:AbstractFloat}
+    return FixedVariableDualCompletion{T}(
+        false, String(reason), nothing, Int[], Int[], T[], T[], nothing,
+        nothing, nothing, nothing,
+    )
+end
+
+"""
+    complete_fixed_variable_duals(model, evaluation, snapshot)
+
+Construct an explicit alternative multiplier representative by changing only
+scalar fixed-variable equality multipliers so that their stationarity
+coordinates close. This is algebraically legitimate because equality
+multipliers are sign-free, but it is not evidence that the solver-reported
+representative was correct or unique. The original `snapshot` is never mutated.
+"""
+function complete_fixed_variable_duals(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T},
+    snapshot_value::SolverDualSnapshot{T},
+) where {T<:AbstractFloat}
+    snapshot_value.available || return _fixed_dual_completion_unavailable(
+        T, "the public solver-dual snapshot is unavailable",
+    )
+    snapshot_point = snapshot_value.point
+    isnothing(snapshot_point) &&
+        return _fixed_dual_completion_unavailable(
+            T, "the public solver-dual snapshot has no verified point",
+        )
+    snapshot_point.variables == evaluation.point.variables ||
+        return _fixed_dual_completion_unavailable(
+            T, "the public solver-dual snapshot and evaluation variable orders differ",
+        )
+    differences = abs.(snapshot_point.values .- evaluation.point.values)
+    maximum_difference = maximum(differences; init=zero(T))
+    recorded_difference = snapshot_value.maximum_point_difference
+    recorded_difference isa Real && isfinite(recorded_difference) &&
+        isapprox(
+            maximum_difference,
+            recorded_difference;
+            atol=10eps(T),
+            rtol=10eps(T),
+        ) || return _fixed_dual_completion_unavailable(
+            T,
+            "the public solver-dual snapshot coordinate difference does not match its verification record",
+        )
+    fixed = _fixed_variable_equality_rows(model, evaluation)
+    isnothing(fixed) && return _fixed_dual_completion_unavailable(
+        T, "fixed-variable equality rows could not be aligned",
+    )
+    isempty(fixed) && return _fixed_dual_completion_unavailable(
+        T, "the evaluated model has no scalar fixed-variable equalities",
+    )
+    columns = last.(fixed)
+    length(unique(columns)) == length(columns) ||
+        return _fixed_dual_completion_unavailable(
+            T, "more than one fixed-variable equality acts on one coordinate",
+        )
+    public_stationarity = _dual_stationarity_vector(
+        evaluation,
+        snapshot_value.objective_weight,
+        snapshot_value.row_multipliers,
+    )
+    isnothing(public_stationarity) &&
+        return _fixed_dual_completion_unavailable(
+            T, "stationarity cannot be evaluated from the retained derivatives",
+        )
+    multipliers = copy(snapshot_value.row_multipliers)
+    original = T[]
+    completed = T[]
+    for (row, column) in fixed
+        coefficients = T[
+            entry.value for entry in evaluation.jacobian_entries
+            if entry.row == row && entry.column == column
+        ]
+        coefficient = sum(coefficients; init=zero(T))
+        isfinite(coefficient) && !iszero(coefficient) ||
+            return _fixed_dual_completion_unavailable(
+                T, "a fixed-variable equality has no finite nonzero derivative",
+            )
+        any(
+            entry -> entry.row == row && entry.column != column &&
+                !iszero(entry.value),
+            evaluation.jacobian_entries,
+        ) && return _fixed_dual_completion_unavailable(
+            T, "a fixed-variable equality unexpectedly couples coordinates",
+        )
+        push!(original, multipliers[row])
+        multipliers[row] -= public_stationarity[column] / coefficient
+        push!(completed, multipliers[row])
+    end
+    completed_stationarity = _dual_stationarity_vector(
+        evaluation, snapshot_value.objective_weight, multipliers,
+    )
+    isnothing(completed_stationarity) &&
+        return _fixed_dual_completion_unavailable(
+            T, "completed stationarity could not be evaluated",
+        )
+    replacement = Dict(row => multipliers[row] for (row, _) in fixed)
+    sides = SolverConstraintSideDual{T}[
+        if side.side == :equality && haskey(replacement, side.row)
+            SolverConstraintSideDual{T}(
+                side.row,
+                side.source,
+                side.side,
+                replacement[side.row],
+                side.value,
+                side.bound,
+                side.slack,
+                :fixed_equality_stationarity_completion,
+            )
+        else
+            side
+        end for side in snapshot_value.sides
+    ]
+    completed_snapshot = SolverDualSnapshot{T}(
+        true,
+        nothing,
+        snapshot_value.point,
+        snapshot_value.result_index,
+        snapshot_value.dual_status,
+        snapshot_value.objective_weight,
+        multipliers,
+        sides,
+        snapshot_value.side_decomposition_complete,
+        snapshot_value.maximum_point_difference,
+        copy(snapshot_value.failures),
+    )
+    fixed_columns = Set(columns)
+    free_residual = maximum(
+        (abs(completed_stationarity[column])
+         for column in eachindex(completed_stationarity)
+         if !(column in fixed_columns));
+        init=zero(T),
+    )
+    return FixedVariableDualCompletion{T}(
+        true,
+        nothing,
+        completed_snapshot,
+        first.(fixed),
+        columns,
+        original,
+        completed,
+        maximum(abs.(completed .- original); init=zero(T)),
+        maximum(abs, public_stationarity; init=zero(T)),
+        maximum(abs, completed_stationarity; init=zero(T)),
+        free_residual,
+    )
+end
+
+function fixed_variable_dual_completion_data(
+    completion::FixedVariableDualCompletion,
+)
+    return Dict{String,Any}(
+        "schema_version" => "fixed-variable-dual-completion-v1",
+        "available" => completion.available,
+        "reason" => completion.reason,
+        "fixed_rows" => copy(completion.fixed_rows),
+        "fixed_columns" => copy(completion.fixed_columns),
+        "original_multipliers" => copy(completion.original_multipliers),
+        "completed_multipliers" => copy(completion.completed_multipliers),
+        "maximum_correction" => completion.maximum_correction,
+        "public_maximum_stationarity_residual" =>
+            completion.public_maximum_stationarity_residual,
+        "completed_maximum_stationarity_residual" =>
+            completion.completed_maximum_stationarity_residual,
+        "free_coordinate_maximum_stationarity_residual" =>
+            completion.free_coordinate_maximum_stationarity_residual,
+        "qualification" => Dict{String,Any}(
+            "intervention" =>
+                "only scalar VariableIndex-in-EqualTo multipliers are changed",
+            "original_public_snapshot_preserved" => true,
+            "completed_snapshot_available" => completion.available,
+            "does_not_establish" => [
+                "correctness of the public fixed-variable multiplier",
+                "multiplier uniqueness or constraint qualification",
+                "solver-internal scaling semantics",
+                "KKT acceptance before the completed representative is checked",
             ],
         ),
     )

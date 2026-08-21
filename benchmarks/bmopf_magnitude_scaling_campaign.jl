@@ -78,21 +78,21 @@ function _policy_factories()
     voltage_bases = Dict("source" => 500.0, "loadbus" => 500.0)
     high_voltage_bases = Dict("source" => 1500.0, "loadbus" => 1500.0)
     return [
-        ("classic_1mva", () -> BMOPFTools.ClassicPerUnitScaling(1.0e6)),
-        ("si_units", () -> BMOPFTools.SIUnitsScaling()),
+        ("classic_1mva", () -> BMOPFTools.OpfScaling(:classic; power_base=1.0e6)),
+        ("si_units", () -> BMOPFTools.OpfScaling(:si)),
         (
             "local_500v_200kva",
-            () -> BMOPFTools.ConsistentPerUnitScaling(
+            () -> BMOPFTools.OpfScaling(
                 name=:local_500v_200kva,
-                s_base=2.0e5,
+                power_base=2.0e5,
                 voltage_bases=copy(voltage_bases),
             ),
         ),
         (
             "local_1500v_5mva",
-            () -> BMOPFTools.ConsistentPerUnitScaling(
+            () -> BMOPFTools.OpfScaling(
                 name=:local_1500v_5mva,
-                s_base=5.0e6,
+                power_base=5.0e6,
                 voltage_bases=copy(high_voltage_bases),
             ),
         ),
@@ -158,6 +158,10 @@ function _run_policy(
     trace_geometry_max_points=8,
     optimizer=Ipopt.Optimizer,
     solver=:ipopt,
+    require_canonical_voltage_pattern=true,
+    require_phasor_transport=false,
+    complete_fixed_variable_duals=false,
+    max_dense_entries=100_000,
 )
     trace_geometry && !capture_points && throw(ArgumentError(
         "trace_geometry=true requires capture_points=true",
@@ -177,9 +181,11 @@ function _run_policy(
             anchor_context,
             context;
             missing_value=0.0,
-            require_canonical_voltage_pattern=true,
+            require_canonical_voltage_pattern,
+            require_phasor_transport,
             absolute_tolerance=1.0e-6,
             relative_tolerance=1.0e-8,
+            max_dense_entries,
         )
     transport = NLPDiagnostics.bmopf_transport_scaling_point(
         anchor_context,
@@ -203,6 +209,7 @@ function _run_policy(
             initial_evaluation;
             absolute_tolerance=1.0e-6,
             relative_tolerance=1.0e-8,
+            max_dense_entries,
         )
     model = BMOPFTools.opf_model(context)
     _apply_start!(model, transport["transport"].point)
@@ -237,6 +244,7 @@ function _run_policy(
         dual_default_absolute_tolerance=1.0e-5,
         complementarity_default_absolute_tolerance=
             physical_complementarity_tolerance,
+        complete_fixed_variable_duals,
     )
     if trace_geometry
         artifact["trace_family_geometry"] =
@@ -291,6 +299,7 @@ function _matched_comparison(
     baseline_repeat=false,
     endpoint_absolute_tolerance=1.0e-5,
     endpoint_relative_tolerance=1.0e-7,
+    max_dense_entries=100_000,
 )
     raw_endpoint_covariance =
         NLPDiagnostics.bmopf_block_scaling_covariance_report(
@@ -300,6 +309,7 @@ function _matched_comparison(
             candidate.endpoint_evaluation;
             absolute_tolerance=endpoint_absolute_tolerance,
             relative_tolerance=endpoint_relative_tolerance,
+            max_dense_entries,
         )
     endpoint_covariance = NLPDiagnostics.physical_endpoint_equivalence_report(
         raw_endpoint_covariance,
@@ -313,6 +323,7 @@ function _matched_comparison(
         candidate.initial_evaluation;
         absolute_tolerance=1.0e-6,
         relative_tolerance=1.0e-8,
+        max_dense_entries,
     )
     intervention = NLPDiagnostics.bmopf_scaling_intervention_classification(
         reference.context,
