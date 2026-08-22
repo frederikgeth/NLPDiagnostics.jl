@@ -706,6 +706,18 @@ end
     @test rebuilt["source_variable_count"] ==
           rebuilt["target_variable_count"]
     @test !rebuilt["solver_campaign_ready"]
+    optimizer_model = JuMP.Model(Ipopt.Optimizer)
+    attached = NLPDiagnostics.bmopf_phase_only_solve_model(
+        context,
+        evaluation;
+        plan,
+        optimizer_model,
+        optimize=false,
+    )
+    @test attached["available"]
+    @test attached["model_attached"]
+    @test !attached["solver_run_completed"]
+    @test !attached["solver_campaign_ready"]
 
     scheduled = NLPDiagnostics.bmopf_phase_only_transform_plan(
         context,

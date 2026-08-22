@@ -3748,20 +3748,25 @@ reusable `bmopf_phase_only_transform_plan` now records the candidate map and
 936 rotated variable blocks per snapshot, but does not mutate or solve a model.
 The companion `bmopf_phase_only_model_rebuild_report` inventories 96 nonlinear,
 432 quadratic, and 1,576 affine constraints, 104 variable-domain constraints,
-and a quadratic objective per snapshot. The remaining gap is a
-transformed-coordinate solver runner for BMOPFTools contexts that attaches and
-validates the rebuilt model. The non-mutating MOI model copy now succeeds for
-all six snapshots; optimizer attachment, start transport, and endpoint gates
-remain (start transport itself now passes on the real matrix). The next
-research sequence is:
+and a quadratic objective per snapshot. The transformed-coordinate attachment
+boundary is now implemented. The non-mutating MOI model copy succeeds for all
+six snapshots, preserves the two registered BMOPFTools user-defined
+functions, and transports completed starts to the rebuilt variables. A
+caller-owned Ipopt model can be attached and run through
+`bmopf_phase_only_solve_model`; the bounded six-snapshot local campaign
+completed both reference and phase-only runs with `LOCALLY_SOLVED` status and
+objective agreement to solver tolerances. This is solver evidence only: the
+campaign is not physically qualified because inverse endpoint recovery, KKT
+acceptance, and covariance checks are still absent. The next research
+sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
-2. implement the transformed-coordinate BMOPFTools runner, then replace or
-   augment the surrogate with the real 99-bus snapshot matrix using the same
-   fixed-magnitude intervention, covariance, geometry, and local-solve gates;
-   and
-3. consider automatic-policy candidates only after the real snapshot matrix
+2. add inverse-transported endpoint extraction, KKT acceptance, and physical
+   covariance gates to the real 99-bus runner, retaining solver-only results
+   as a separate evidence class; and
+3. consider automatic-policy candidates only after the endpoint-qualified
+   real snapshot matrix
    has been reviewed for fixture-specific reversals.
 
 The held-out LG summary is tracked at `docs/calibration_summary.json`. The
@@ -3789,6 +3794,12 @@ is tracked at `docs/phase_only_99bus_snapshot_campaign_summary.json`, with
 executable protocol `benchmarks/phase_only_99bus_snapshot_campaign.jl`. Real
 99-bus data readiness is tracked at `docs/real_99bus_readiness_summary.json`,
 with executable probe `benchmarks/real_99bus_readiness.jl`.
+The first real transformed-coordinate solver campaign is tracked locally by
+`benchmarks/real_99bus_phase_only_campaign.jl`; it runs six matched LN/LG
+snapshots with a bounded Ipopt budget and records solver-only evidence. Its
+compact status is intentionally not promoted to a physical campaign summary
+until endpoint and covariance gates are implemented; the solver-only ledger is
+`docs/real_99bus_phase_only_campaign_summary.json`.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and

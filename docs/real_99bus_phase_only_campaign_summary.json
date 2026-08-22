@@ -1,0 +1,68 @@
+{
+  "schema_version": "nlpdiagnostics-real-99bus-phase-only-campaign-summary-v1",
+  "source": {
+    "selected_snapshot_count": 6,
+    "phase_angle": 0.01,
+    "max_iter": 40,
+    "local_environment": "work/benchmark-environment"
+  },
+  "summary": {
+    "reference_locally_solved_count": 6,
+    "phase_only_locally_solved_count": 6,
+    "objective_agreement_gate": "passed to solver tolerances",
+    "model_rebuild_and_start_gate": "passed for all six snapshots",
+    "solver_campaign_ready": false,
+    "physical_endpoint_validation": false,
+    "blocking_reason": "inverse endpoint recovery, KKT acceptance, and physical covariance validation are not yet implemented"
+  },
+  "runs": [
+    {
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json",
+      "sha256": "afee62f8ecb6e9f6ea63697ecd0bcecb282b414a6d420f7a52222275e11f905f",
+      "reference_objective": 31.375727701022278,
+      "phase_only_objective": 31.375727700989657,
+      "termination_status": "LOCALLY_SOLVED",
+      "rotated_variable_block_count": 936
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json",
+      "sha256": "df96fa2b872a12dbd443647e9aa973ff7b4fbb779b8b3e86f5dd0fadf46ff806",
+      "reference_objective": -193.39108627723542,
+      "phase_only_objective": -193.39108627729559,
+      "termination_status": "LOCALLY_SOLVED",
+      "rotated_variable_block_count": 936
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json",
+      "sha256": "14beea112fa9618adaee3063c9e61847c90437fa961409b5bd888c0c27e63502",
+      "reference_objective": 46.54853841686956,
+      "phase_only_objective": 46.54853841279353,
+      "termination_status": "LOCALLY_SOLVED",
+      "rotated_variable_block_count": 936
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json",
+      "sha256": "3004f67b1eb6efe61829e732d730a12ed1818ae136ef8eae79cb1d404809bc15",
+      "reference_objective": 31.3895644678326,
+      "phase_only_objective": 31.38956446793756,
+      "termination_status": "LOCALLY_SOLVED",
+      "rotated_variable_block_count": 936
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json",
+      "sha256": "97afea75ed96536894ff378b195fcf4868f27e466af477827ad9aa6976a758a6",
+      "reference_objective": -200.34868322435463,
+      "phase_only_objective": -200.3486832244148,
+      "termination_status": "LOCALLY_SOLVED",
+      "rotated_variable_block_count": 936
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json",
+      "sha256": "d5c4689bd4413a6ed33cb061d5e0b3920b339b49160cdffd613b45cd7a79b139",
+      "reference_objective": 46.72598809088177,
+      "phase_only_objective": 46.725988090648606,
+      "termination_status": "LOCALLY_SOLVED",
+      "rotated_variable_block_count": 936
+    }
+  ]
+}

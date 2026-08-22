@@ -453,6 +453,7 @@ export bmopf_semantic_block_scaling_map
 export bmopf_phase_only_transform_plan
 export bmopf_phase_only_model_rebuild_report
 export bmopf_phase_only_rebuild_model
+export bmopf_phase_only_solve_model
 export bmopf_transport_scaling_point
 export bmopf_physical_feasibility_report
 export bmopf_physical_solver_kkt_report

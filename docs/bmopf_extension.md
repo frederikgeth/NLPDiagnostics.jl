@@ -1438,6 +1438,15 @@ returned target now receives the inverse-rotation start values from the
 completed evaluation point. It is solver-free by design; optimizer attachment
 and endpoint validation remain separate gates.
 
+`bmopf_phase_only_solve_model` is the guarded attachment boundary. It accepts a
+caller-owned JuMP or MOI optimizer model, copies the rebuilt target into that
+model, preserves registered `MOI.UserDefinedFunction` attributes, and can run
+the optimizer when `optimize=true`. The API reports attachment, termination,
+primal status, objective value, copied starts, and rebuild provenance. It does
+not claim a physical endpoint: transformed-coordinate primal values still
+need inverse transport, residual/KKT acceptance, and covariance checks before
+the campaign can be promoted.
+
 Residual-set semantics are deliberately exact. KCL and other equations whose
 actual JuMP sets are equality to zero use `ZeroEqualitySetContract`. Source
 voltage and load power equations with nonzero equality values use

@@ -3553,6 +3553,14 @@ function _bmopf_phase_only_rebuild_model(
             "error" => sprint(showerror, error),
         )
     end
+    user_defined_functions = MOI.UserDefinedFunction[]
+    for attribute in MOI.get(source, MOI.ListOfModelAttributesSet())
+        attribute isa MOI.UserDefinedFunction || continue
+        value = MOI.get(source, attribute)
+        isnothing(value) && continue
+        MOI.set(target, attribute, value)
+        push!(user_defined_functions, attribute)
+    end
     source_slot = Dict(variable => position for
         (position, variable) in enumerate(source_variables))
     target_for_position = position -> target_variables[
@@ -3657,6 +3665,11 @@ function _bmopf_phase_only_rebuild_model(
         "solver_transform_applied" => false,
         "source_variable_count" => length(source_variables),
         "target_variable_count" => length(target_variables),
+        "user_defined_function_count" => length(user_defined_functions),
+        "user_defined_functions" => [
+            Dict("name" => string(attribute.name), "arity" => attribute.arity)
+            for attribute in user_defined_functions
+        ],
         "source_constraint_count" => get(
             _bmopf_phase_only_model_rebuild_report(context; plan=phase_plan),
             "constraint_count", nothing,
@@ -3669,6 +3682,104 @@ function _bmopf_phase_only_rebuild_model(
             "claim" => "non-mutating MOI transformed-coordinate model copy",
             "requires_optimizer_attachment" => true,
             "solver_evidence_present" => false,
+        ),
+    )
+end
+
+function _bmopf_phase_only_solve_model(
+    context,
+    evaluation;
+    plan=nothing,
+    optimizer_model=nothing,
+    optimize::Bool=true,
+)
+    isnothing(optimizer_model) && return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-solve-model-v1",
+        "available" => false,
+        "solver_run_completed" => false,
+        "solver_campaign_ready" => false,
+        "reason" => "a caller-supplied JuMP or MOI optimizer model is required",
+    )
+    rebuilt = _bmopf_phase_only_rebuild_model(
+        context,
+        evaluation;
+        plan,
+    )
+    rebuilt["available"] || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-solve-model-v1",
+        "available" => false,
+        "solver_run_completed" => false,
+        "solver_campaign_ready" => false,
+        "reason" => "the transformed model copy is unavailable",
+        "rebuild" => rebuilt,
+    )
+    optimizer_backend = optimizer_model isa JuMP.Model ?
+        JuMP.backend(optimizer_model) : optimizer_model
+    try
+        MOI.copy_to(optimizer_backend, rebuilt["target_model"])
+    catch error
+        return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-solve-model-v1",
+            "available" => false,
+            "solver_run_completed" => false,
+            "solver_campaign_ready" => false,
+            "reason" => "optimizer model rejected the transformed MOI copy",
+            "error" => sprint(showerror, error),
+            "rebuild" => rebuilt,
+        )
+    end
+    termination = nothing
+    primal = nothing
+    objective = nothing
+    if optimize
+        try
+            if optimizer_model isa JuMP.Model
+                JuMP.optimize!(optimizer_model)
+                termination = string(JuMP.termination_status(optimizer_model))
+                primal = string(JuMP.primal_status(optimizer_model))
+                objective = try
+                    Float64(JuMP.objective_value(optimizer_model))
+                catch
+                    nothing
+                end
+            else
+                MOI.optimize!(optimizer_backend)
+                termination = string(MOI.get(optimizer_backend, MOI.TerminationStatus()))
+                primal = string(MOI.get(optimizer_backend, MOI.PrimalStatus()))
+                objective = try
+                    Float64(MOI.get(optimizer_backend, MOI.ObjectiveValue()))
+                catch
+                    nothing
+                end
+            end
+        catch error
+            return Dict{String,Any}(
+                "report_version" => "bmopf-phase-only-solve-model-v1",
+                "available" => false,
+                "solver_run_completed" => false,
+                "solver_campaign_ready" => false,
+                "reason" => "optimizer failed while solving the transformed model",
+                "error" => sprint(showerror, error),
+                "rebuild" => rebuilt,
+            )
+        end
+    end
+    return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-solve-model-v1",
+        "available" => true,
+        "model_attached" => true,
+        "solver_run_completed" => optimize,
+        "solver_campaign_ready" => false,
+        "solver_transform_applied" => optimize,
+        "termination_status" => termination,
+        "primal_status" => primal,
+        "objective_value" => objective,
+        "rebuild" => rebuilt,
+        "optimizer_model" => optimizer_model,
+        "qualification" => Dict{String,Any}(
+            "claim" => "local solver run on a transformed MOI model copy",
+            "physical_endpoint_validation" => false,
+            "solver_evidence_present" => optimize,
         ),
     )
 end
