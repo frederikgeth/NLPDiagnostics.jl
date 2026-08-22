@@ -3875,6 +3875,17 @@ At `1e-4`, both deterministic seeds leave four of six snapshots at
 This establishes tested initialization sensitivity for solver completion, not
 causality or global robustness of the physical endpoint.
 
+The structured perturbation matrix is tracked at
+`docs/real_99bus_phase_only_structured_perturbation_matrix_summary.json`, with
+executable protocol `benchmarks/real_99bus_phase_only_structured_perturbation_matrix.jl`.
+At relative size `1e-4`, perturbing only voltage variables and only current
+variables preserves 6/6 local solves, 6/6 solver-floor calibration, 2/6 strict
+KKT acceptance, and 6/6 complementarity-scaling audits. The same result holds
+for the tested voltage-only `1e-5` control. Compared with the all-variable
+`1e-4` controls, which left four snapshots at `ITERATION_LIMIT`, this narrows
+the observed sensitivity to the tested perturbation protocol; it does not
+identify a causal block or establish global robustness.
+
 A phase-only covariance report now compares source and transformed endpoint
 point, objective, residual, derivative, sparse-Jacobian geometry, and scalar
 variable-domain sets through the declared semantic block maps. All six reports

@@ -36,11 +36,20 @@ function apply_ipopt_options!(model; max_iter, ipopt_options=Dict{String,Any}())
     return model
 end
 
-function campaign_perturbed_point(context, point; seed, relative_size)
+function campaign_perturbed_point(context, point; seed, relative_size, family="all")
+    family in ("all", "voltage", "current") || error(
+        "start perturbation family must be all, voltage, or current",
+    )
     model = BMOPFTools.opf_model(context)
+    backend = JuMP.backend(model)
     rng = MersenneTwister(seed)
     values = copy(Float64.(point.values))
     for (index, variable) in enumerate(point.variables)
+        variable_name = MOI.get(backend, MOI.VariableName(), variable)
+        selected = family == "all" ||
+            (family == "voltage" && (startswith(variable_name, "vr_") || startswith(variable_name, "vi_"))) ||
+            (family == "current" && (startswith(variable_name, "cr_") || startswith(variable_name, "ci_")))
+        selected || continue
         reference = JuMP.VariableRef(model, variable)
         JuMP.is_fixed(reference) && continue
         scale = max(abs(values[index]), 1.0)
@@ -68,6 +77,7 @@ function campaign_perturbed_point(context, point; seed, relative_size)
             metadata=Dict(
                 "seed" => seed,
                 "relative_size" => relative_size,
+                "family" => family,
                 "base_fingerprint" => NLPDiagnostics.evaluation_point_fingerprint(point),
             ),
         ),
@@ -94,11 +104,15 @@ function campaign_initialization_point(context, policy)
         relative_size = parse(Float64, get(
             ENV, "NLPDIAGNOSTICS_REAL_99BUS_START_PERTURBATION_RELATIVE_SIZE", "1.0e-3",
         ))
+        family = lowercase(strip(get(
+            ENV, "NLPDIAGNOSTICS_REAL_99BUS_START_PERTURBATION_FAMILY", "all",
+        )))
         return campaign_perturbed_point(
             context,
             completed;
             seed,
             relative_size,
+            family,
         )
     end
     native = NLPDiagnostics.bmopf_initialization_point(context)
@@ -810,6 +824,9 @@ function run_campaign()
     start_perturbation_relative_size = parse(Float64, get(
         ENV, "NLPDIAGNOSTICS_REAL_99BUS_START_PERTURBATION_RELATIVE_SIZE", "1.0e-3",
     ))
+    start_perturbation_family = lowercase(strip(get(
+        ENV, "NLPDIAGNOSTICS_REAL_99BUS_START_PERTURBATION_FAMILY", "all",
+    )))
     runs = [run_snapshot(
         root,
         relative;
@@ -963,6 +980,7 @@ function run_campaign()
             "initialization_policy" => initialization_policy,
             "start_perturbation_seed" => start_perturbation_seed,
             "start_perturbation_relative_size" => start_perturbation_relative_size,
+            "start_perturbation_family" => start_perturbation_family,
         ),
         "runs" => runs,
         "summary" => Dict(

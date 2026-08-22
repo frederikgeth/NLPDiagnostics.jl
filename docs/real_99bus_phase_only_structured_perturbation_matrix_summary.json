@@ -1,0 +1,71 @@
+{
+  "schema_version": "nlpdiagnostics-real-99bus-phase-only-structured-perturbation-matrix-summary-v1",
+  "source": {
+    "campaign": "benchmarks/real_99bus_phase_only_campaign.jl",
+    "runner": "benchmarks/real_99bus_phase_only_structured_perturbation_matrix.jl",
+    "selected_snapshot_count": 6,
+    "local_environment": "work/benchmark-environment",
+    "absolute_physical_claim": false
+  },
+  "cases": [
+    {
+      "label": "completed_baseline_max40",
+      "initialization_policy": "completed",
+      "family": "all",
+      "seed": 11,
+      "relative_size": 0.0,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_maximum_complementarity_residual": 1.141720164003029e-05,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    },
+    {
+      "label": "voltage_seed11_1e5_max60",
+      "initialization_policy": "perturbed",
+      "family": "voltage",
+      "seed": 11,
+      "relative_size": 1e-05,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_maximum_complementarity_residual": 1.1417201640073703e-05,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    },
+    {
+      "label": "voltage_seed11_1e4_max60",
+      "initialization_policy": "perturbed",
+      "family": "voltage",
+      "seed": 11,
+      "relative_size": 1e-04,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_maximum_complementarity_residual": 1.1417201638409302e-05,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    },
+    {
+      "label": "current_seed11_1e4_max60",
+      "initialization_policy": "perturbed",
+      "family": "current",
+      "seed": 11,
+      "relative_size": 1e-04,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_maximum_complementarity_residual": 1.1417201640035297e-05,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    }
+  ],
+  "interpretation": {
+    "structured_stability": "Voltage-only and current-only bounded perturbations at 1e-4 preserve all six local solves, 6/6 solver-floor calibration, 2/6 strict KKT acceptance, and six-case complementarity scaling audits.",
+    "near_start": "Voltage-only perturbation at 1e-5 leaves the same endpoint floor to displayed precision.",
+    "contrast": "The tested 1e-4 block perturbations are materially less disruptive than the all-variable 1e-4 controls, which left four of six snapshots at ITERATION_LIMIT.",
+    "conclusion": "The result narrows the initialization-sensitivity observation to the tested all-variable perturbation protocol; it does not identify a causal variable block or establish global robustness.",
+    "next_investigation": "Capture a native BMOPFTools start or add per-snapshot convergence traces before making trajectory or policy claims."
+  }
+}
