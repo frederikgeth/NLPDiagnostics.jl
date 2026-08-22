@@ -1081,3 +1081,19 @@ withholds solver work by design. This contrast is evidence for bounded
 fixture-specific behavior, not a policy recommendation. The executable
 comparison is `benchmarks/phase_only_campaign_comparison.jl` and the compact
 report is tracked at `docs/phase_only_campaign_comparison_summary.json`.
+
+## 2026-08-22: bounded 99-bus snapshot promotion
+
+The fixed-magnitude protocol now has a bounded 99-bus feeder surrogate
+campaign with light, nominal, and heavy load-scale snapshots. All six local
+Ipopt solves terminate `LOCALLY_SOLVED`; every snapshot passes the
+intervention, endpoint-covariance, and geometry gates. Reference and phase-only
+policies each use four callback records and three line-search trials per
+snapshot, with no work difference.
+
+This is a 99-bus surrogate with declared radial branch-drop projections, not a
+claim about a full production feeder model. Full network semantics, wall-time
+portability, and automatic-policy safety remain outside the fixture. The
+executable protocol is `benchmarks/phase_only_99bus_snapshot_campaign.jl` and
+the compact result is tracked at
+`docs/phase_only_99bus_snapshot_campaign_summary.json`.

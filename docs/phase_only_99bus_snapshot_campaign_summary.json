@@ -1,0 +1,33 @@
+{
+  "schema_version": "nlpdiagnostics-phase-only-99bus-snapshot-campaign-v1",
+  "runner": "benchmarks/phase_only_99bus_snapshot_campaign.jl",
+  "design": {
+    "bus_count": 99,
+    "snapshot_count": 3,
+    "policies_per_snapshot": 2,
+    "magnitude_bases_held_fixed": true,
+    "dense_decompositions_enabled": false,
+    "fixture": "99-bus radial feeder surrogate with nonlinear voltage magnitudes and branch-drop projections",
+    "snapshots": [
+      {"id": "light", "scale": 0.97, "phase_bias_radians": -0.008},
+      {"id": "nominal", "scale": 1.0, "phase_bias_radians": 0.0},
+      {"id": "heavy", "scale": 1.03, "phase_bias_radians": 0.008}
+    ]
+  },
+  "gates": {
+    "intervention_classification": "phase_only",
+    "all_snapshot_covariance_gates_passed": true,
+    "all_snapshot_geometry_gates_passed": true,
+    "all_endpoints_locally_solved": true
+  },
+  "snapshot_work": [
+    {"id": "light", "reference": {"record_count": 4, "line_search_trial_sum": 3}, "phase_only": {"record_count": 4, "line_search_trial_sum": 3}, "matched_work_difference": {"record_count": 0, "line_search_trial_sum": 0}},
+    {"id": "nominal", "reference": {"record_count": 4, "line_search_trial_sum": 3}, "phase_only": {"record_count": 4, "line_search_trial_sum": 3}, "matched_work_difference": {"record_count": 0, "line_search_trial_sum": 0}},
+    {"id": "heavy", "reference": {"record_count": 4, "line_search_trial_sum": 3}, "phase_only": {"record_count": 4, "line_search_trial_sum": 3}, "matched_work_difference": {"record_count": 0, "line_search_trial_sum": 0}}
+  ],
+  "qualification": {
+    "claim": "Across three bounded snapshots of the 99-bus feeder surrogate, the phase-only formulation preserves the declared physical endpoint gates and matches reference Ipopt callback work.",
+    "scope": "Six local Ipopt solves over light, nominal, and heavy load-scale snapshots with fixed magnitude bases.",
+    "does_not_establish": ["global phase-policy superiority", "wall-time portability", "causal mechanism", "full 99-bus network semantics", "automatic policy safety"]
+  }
+}

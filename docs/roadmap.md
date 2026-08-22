@@ -3736,14 +3736,18 @@ direction after perturbation. This is not a universal base-selection rule.
 The transformer and feeder truth-fixture promotions are now complete, with
 compact summaries and executable protocols. The six-fixture comparison is
 also complete; its feeder work increase remains a negative control rather than
-a policy recommendation. The next research sequence is:
+a policy recommendation. The bounded 99-bus surrogate matrix is now complete
+with matched work across light, nominal, and heavy snapshots; it does not
+replace a full network model. The next research sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
-2. evaluate a bounded 99-bus snapshot matrix using the same fixed-magnitude
-   intervention, covariance, geometry, and local-solve gates; and
-3. consider automatic-policy candidates only after the bounded snapshot
-   matrix has been reviewed for fixture-specific reversals.
+2. replace or augment the surrogate with a real 99-bus snapshot matrix when
+   public feeder data and the pinned local environment are available, using
+   the same fixed-magnitude intervention, covariance, geometry, and local-solve
+   gates; and
+3. consider automatic-policy candidates only after the real snapshot matrix
+   has been reviewed for fixture-specific reversals.
 
 The held-out LG summary is tracked at `docs/calibration_summary.json`. The
 two-direction Ipopt extension is tracked at
@@ -3765,7 +3769,9 @@ is tracked at `docs/phase_only_feeder_ipopt_campaign_summary.json`, with
 executable protocol `benchmarks/phase_only_feeder_ipopt_campaign.jl`. The
 cross-fixture comparison is tracked at
 `docs/phase_only_campaign_comparison_summary.json`, with executable protocol
-`benchmarks/phase_only_campaign_comparison.jl`.
+`benchmarks/phase_only_campaign_comparison.jl`. The bounded 99-bus surrogate
+is tracked at `docs/phase_only_99bus_snapshot_campaign_summary.json`, with
+executable protocol `benchmarks/phase_only_99bus_snapshot_campaign.jl`.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and
