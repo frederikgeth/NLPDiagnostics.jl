@@ -1413,6 +1413,14 @@ claiming the newer schema metadata. Real-network campaigns should still record
 the BMOPFTools revision and distinguish semantic-map readiness from a solver
 run in transformed coordinates.
 
+`bmopf_phase_only_transform_plan` is the reusable preflight boundary for that
+next step. It creates a non-mutating candidate map, applies a deterministic
+two-coordinate rotation schedule, classifies the intervention, and reports
+rotated-block coverage. It intentionally returns
+`solver_transform_applied=false` and `solver_campaign_ready=false`: the current
+BMOPFTools/JuMP surface has no model-rebuild hook for eliminating the original
+coordinates and restamping nonlinear expressions in the rotated basis.
+
 Residual-set semantics are deliberately exact. KCL and other equations whose
 actual JuMP sets are equality to zero use `ZeroEqualitySetContract`. Source
 voltage and load power equations with nonzero equality values use

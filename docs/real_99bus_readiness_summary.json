@@ -34,6 +34,9 @@
     "rotated_variable_block_count": 936,
     "intervention_classification": "phase_only",
     "skipped_declaration_count": 0,
+    "solver_transform_applied": false,
+    "solver_campaign_ready": false,
+    "plan_runner": "NLPDiagnostics.bmopf_phase_only_transform_plan",
     "snapshot_contract": "all six selected LN/LG snapshots expose the same complete semantic-map shape and phase-only classification"
   },
   "qualification": {

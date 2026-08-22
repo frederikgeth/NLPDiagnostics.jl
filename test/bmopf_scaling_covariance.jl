@@ -664,6 +664,40 @@ end
     @test !block_rejected["equivalence_gate_passed"]
 end
 
+@testset "BMOPF phase-only intervention plan" begin
+    network = _bmopf_covariance_fixture()
+    context = BMOPFTools.build_opf_model(
+        deepcopy(network);
+        scaling_policy=BMOPFTools.OpfScaling(:si),
+        add_objective=true,
+    )
+    evaluation = _bmopf_covariance_evaluation(context, "phase-only-plan")
+    plan = NLPDiagnostics.bmopf_phase_only_transform_plan(
+        context,
+        evaluation;
+        angle=0.02,
+        max_dense_entries=0,
+    )
+    @test plan["available"]
+    @test plan["intervention"]["classification"] == "phase_only"
+    @test plan["rotated_variable_block_count"] > 0
+    @test length(plan["angles"]) ==
+          length(plan["candidate_map"].variable_blocks)
+    @test !plan["solver_campaign_ready"]
+    @test !plan["solver_transform_applied"]
+    @test plan["qualification"]["solver_evidence_present"] == false
+    @test occursin("model-rebuild hook", plan["blocking_reason"])
+
+    scheduled = NLPDiagnostics.bmopf_phase_only_transform_plan(
+        context,
+        evaluation;
+        angle_schedule=(index, block) -> iseven(index) ? 0.01 : 0.0,
+    )
+    @test scheduled["available"]
+    @test scheduled["angle_schedule_applied"]
+    @test scheduled["intervention"]["classification"] == "phase_only"
+end
+
 @testset "BMOPF transformer-chain initialization covariance" begin
     network = _bmopf_transformer_chain_initialization_fixture()
     si_context = BMOPFTools.build_opf_model(

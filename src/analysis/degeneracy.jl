@@ -193,6 +193,16 @@ bmopf_diagonal_scaling_map(context, evaluation) =
 bmopf_semantic_block_scaling_map(context, evaluation) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP support are required for BMOPF semantic block scaling maps")._bmopf_semantic_block_scaling_map(context, evaluation)
+"""Construct a non-mutating phase-only semantic intervention plan for a BMOPF evaluation.
+
+The plan builds and classifies a candidate semantic map but deliberately does
+not mutate or solve the JuMP model. A solver campaign is only ready when a
+domain extension supplies a model-rebuild hook for the non-diagonal block
+transformation.
+"""
+bmopf_phase_only_transform_plan(context, evaluation; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP are required for BMOPF phase-only intervention plans")._bmopf_phase_only_transform_plan(context, evaluation; kwargs...)
 """Transport one BMOPF point between scaling policies through declared physical coordinates."""
 bmopf_transport_scaling_point(
     source_context, source_evaluation,

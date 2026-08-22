@@ -19,8 +19,6 @@ const SELECTED_SNAPSHOTS = [
     "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json",
 ]
 
-rotation(theta) = [cos(theta) -sin(theta); sin(theta) cos(theta)]
-
 function integrity_preflight(network)
     findings = BMOPFTools.Finding[]
     result = BMOPFTools.integrity_check(network, findings)
@@ -76,48 +74,24 @@ function semantic_map_probe_snapshot(root, relative)
         BMOPFTools.enforce_kcl!(context)
         point = NLPDiagnostics.bmopf_start_completion_point(context; missing_value=0.0, label="real-99bus-readiness-probe")
         evaluation = NLPDiagnostics.evaluate_numerical(JuMP.backend(BMOPFTools.opf_model(context)), point)
-        build = NLPDiagnostics.bmopf_semantic_block_scaling_map(context, evaluation)
-        reference_map = build["map"]
-        variable_blocks = NLPDiagnostics.SemanticLinearBlock[]
-        rotated_variable_block_count = 0
-        for (index, block) in enumerate(reference_map.variable_blocks)
-            transform = block.model_to_physical
-            if length(block.positions) == 2
-                transform = transform * rotation(0.015 * sin(index))
-                rotated_variable_block_count += 1
-            end
-            push!(variable_blocks, NLPDiagnostics.SemanticLinearBlock(
-                block.keys, block.positions, transform,
-            ))
-        end
-        constraint_blocks = NLPDiagnostics.SemanticConstraintBlock[]
-        for block in reference_map.constraint_blocks
-            push!(constraint_blocks, NLPDiagnostics.SemanticConstraintBlock(
-                block.linear.keys,
-                block.linear.positions,
-                block.linear.model_to_physical;
-                set=block.set_contract,
-            ))
-        end
-        candidate_map = NLPDiagnostics.SemanticBlockScalingMap(
-            "real-99bus-phase-only-probe";
-            variable_blocks,
-            constraint_blocks,
-            objective_scale=reference_map.objective_scale,
-        )
-        intervention = NLPDiagnostics.scaling_intervention_classification(
-            reference_map, candidate_map; max_dense_entries=0,
+        plan = NLPDiagnostics.bmopf_phase_only_transform_plan(
+            context,
+            evaluation;
+            angle_schedule=(index, block) -> 0.015 * sin(index),
+            max_dense_entries=0,
         )
         return Dict(
-            "available" => build["available"],
+            "available" => plan["available"],
             "snapshot" => relative,
             "variable_count" => length(evaluation.point.variables),
             "constraint_count" => length(evaluation.constraint_sources),
-            "applied_variable_block_count" => get(build, "applied_variable_block_count", nothing),
-            "applied_constraint_block_count" => get(build, "applied_constraint_block_count", nothing),
-            "skipped_declaration_count" => length(get(build, "skipped_declarations", Any[])),
-            "rotated_variable_block_count" => rotated_variable_block_count,
-            "intervention_classification" => intervention["classification"],
+            "applied_variable_block_count" => get(plan["reference_map_coverage"], "applied_variable_block_count", nothing),
+            "applied_constraint_block_count" => get(plan["reference_map_coverage"], "applied_constraint_block_count", nothing),
+            "skipped_declaration_count" => length(get(plan["reference_map_coverage"], "skipped_declarations", Any[])),
+            "rotated_variable_block_count" => plan["rotated_variable_block_count"],
+            "intervention_classification" => plan["intervention"]["classification"],
+            "solver_campaign_ready" => plan["solver_campaign_ready"],
+            "solver_transform_applied" => plan["solver_transform_applied"],
         )
     catch error
         return Dict(

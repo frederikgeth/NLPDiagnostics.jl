@@ -1109,7 +1109,9 @@ the semantic-map probe passes on all six selected LN/LG snapshots, each with
 declarations, and a `phase_only` intervention classification. This is a
 matrix-wide map contract, not a solver result. The phase-only solver campaign
 is still not run on this real network because a transformed-coordinate
-BMOPFTools runner has not yet been implemented. The readiness runner records
-file hashes, provenance, and this explicit scope at
+BMOPFTools runner has not yet been implemented. The readiness runner now uses
+the reusable `bmopf_phase_only_transform_plan` preflight, which records 936
+rotated variable blocks per snapshot while explicitly reporting that no solver
+transformation was applied. It records file hashes, provenance, and this scope at
 `docs/real_99bus_readiness_summary.json`; it does not
 substitute surrogate results for the real-network solver claim.

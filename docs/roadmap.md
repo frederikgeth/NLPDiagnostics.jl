@@ -3744,7 +3744,9 @@ pinned BMOPFTools environment uses the pre-wrapper public semantic-block API.
 The compatibility path now opens the phase-only semantic-map gate across all
 six selected real LN/LG snapshots (1,968 variables, 2,208 constraints, 936
 paired variable blocks, and zero skipped declarations per snapshot). The
-remaining gap is a transformed-coordinate solver runner for BMOPFTools
+reusable `bmopf_phase_only_transform_plan` now records the candidate map and
+936 rotated variable blocks per snapshot, but does not mutate or solve a model.
+The remaining gap is a transformed-coordinate solver runner for BMOPFTools
 contexts. The next research sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to

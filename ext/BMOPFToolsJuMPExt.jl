@@ -3325,6 +3325,101 @@ function _bmopf_semantic_block_scaling_map(context, evaluation)
     )
 end
 
+function _bmopf_phase_only_transform_plan(
+    context,
+    evaluation;
+    angle::Real = 0.015,
+    angle_schedule = nothing,
+    max_dense_entries::Integer = 0,
+)
+    isfinite(angle) || throw(ArgumentError("phase-only angle must be finite"))
+    max_dense_entries >= 0 || throw(ArgumentError(
+        "max_dense_entries must be nonnegative",
+    ))
+    reference_build = _bmopf_semantic_block_scaling_map(context, evaluation)
+    if !reference_build["available"]
+        return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-transform-plan-v1",
+            "available" => false,
+            "solver_campaign_ready" => false,
+            "solver_transform_applied" => false,
+            "reason" => "the BMOPF semantic block map is unavailable",
+            "reference_map" => reference_build,
+        )
+    end
+    reference_map = reference_build["map"]
+    variable_blocks = NLPDiagnostics.SemanticLinearBlock[]
+    rotated_variable_blocks = 0
+    angles = Float64[]
+    for (index, block) in enumerate(reference_map.variable_blocks)
+        block_angle = if isnothing(angle_schedule)
+            Float64(angle)
+        elseif angle_schedule isa Function
+            Float64(angle_schedule(index, block))
+        else
+            throw(ArgumentError("angle_schedule must be nothing or a callable"))
+        end
+        isfinite(block_angle) || throw(ArgumentError(
+            "phase-only angle schedule returned a non-finite value for block $index",
+        ))
+        transform = block.model_to_physical
+        if length(block.positions) == 2 && !iszero(block_angle)
+            transform = transform * [
+                cos(block_angle) -sin(block_angle)
+                sin(block_angle) cos(block_angle)
+            ]
+            rotated_variable_blocks += 1
+        end
+        push!(angles, block_angle)
+        push!(variable_blocks, NLPDiagnostics.SemanticLinearBlock(
+            block.keys, block.positions, transform,
+        ))
+    end
+    constraint_blocks = NLPDiagnostics.SemanticConstraintBlock[]
+    for block in reference_map.constraint_blocks
+        push!(constraint_blocks, NLPDiagnostics.SemanticConstraintBlock(
+            block.linear.keys,
+            block.linear.positions,
+            block.linear.model_to_physical;
+            set=block.set_contract,
+        ))
+    end
+    candidate_map = NLPDiagnostics.SemanticBlockScalingMap(
+        "bmopf-phase-only-candidate";
+        variable_blocks,
+        constraint_blocks,
+        objective_scale=reference_map.objective_scale,
+    )
+    intervention = NLPDiagnostics.scaling_intervention_classification(
+        reference_map,
+        candidate_map;
+        max_dense_entries,
+    )
+    return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-transform-plan-v1",
+        "available" => true,
+        "solver_campaign_ready" => false,
+        "solver_transform_applied" => false,
+        "blocking_reason" =>
+            "BMOPFTools does not yet expose a model-rebuild hook for non-diagonal semantic block transformations",
+        "angle" => Float64(angle),
+        "angle_schedule_applied" => !isnothing(angle_schedule),
+        "angles" => angles,
+        "rotated_variable_block_count" => rotated_variable_blocks,
+        "reference_map" => reference_map,
+        "reference_map_coverage" => Dict(
+            key => value for (key, value) in reference_build if key != "map",
+        ),
+        "candidate_map" => candidate_map,
+        "intervention" => intervention,
+        "qualification" => Dict{String,Any}(
+            "claim" => "non-mutating phase-only semantic coordinate intervention plan",
+            "requires_model_rebuild_for_solver" => true,
+            "solver_evidence_present" => false,
+        ),
+    )
+end
+
 """
     bmopf_transport_scaling_point(source_context, source_evaluation,
                                   target_context, target_evaluation; kwargs...)
