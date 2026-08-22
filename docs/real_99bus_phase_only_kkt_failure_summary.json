@@ -1,0 +1,76 @@
+{
+  "schema_version": "nlpdiagnostics-real-99bus-phase-only-kkt-failure-summary-v1",
+  "source": {
+    "runner": "benchmarks/summarize_real_99bus_phase_only_kkt_failures.jl",
+    "campaign_artifact": "work/real-99bus-phase-only-campaign.json",
+    "complementarity_tolerance": 1e-5,
+    "snapshots": 6
+  },
+  "summary": {
+    "reference_kkt_accepted_count": 2,
+    "phase_only_kkt_accepted_count": 2,
+    "failed_run_count": 4,
+    "failed_constraint_families": ["ibr_p_upper"],
+    "all_failed_sides_are_ibr_p_upper": true,
+    "failed_side_key_sets_equal_count": 6,
+    "failed_side_count_equal_count": 6,
+    "failed_family_sets_equal_count": 6
+  },
+  "runs": [
+    {
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json",
+      "reference_failed_side_count": 36,
+      "phase_only_failed_side_count": 36,
+      "failed_residual_range_reference": [0.000010149727373002135, 0.000010751474094648055],
+      "failed_residual_range_phase_only": [0.00001014972677973521, 0.000010751474716458325],
+      "failed_physical_slack_range_reference": [-0.009976747815789654, -0.009975888377655152],
+      "failed_physical_slack_range_phase_only": [-0.009976748975109672, -0.00997588888697152]
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json",
+      "reference_failed_side_count": 0,
+      "phase_only_failed_side_count": 0,
+      "failed_residual_range_reference": null,
+      "failed_residual_range_phase_only": null,
+      "failed_physical_slack_range_reference": null,
+      "failed_physical_slack_range_phase_only": null
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json",
+      "reference_failed_side_count": 48,
+      "phase_only_failed_side_count": 48,
+      "failed_residual_range_reference": [0.00001000489309394402, 0.000011360107992994],
+      "failed_residual_range_phase_only": [0.000010011172771507587, 0.000011360108615700496],
+      "failed_physical_slack_range_reference": [-0.00997799056263772, -0.009971763796719529],
+      "failed_physical_slack_range_phase_only": [-0.009977991660555897, -0.009975906168932404]
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json",
+      "reference_failed_side_count": 36,
+      "phase_only_failed_side_count": 36,
+      "failed_residual_range_reference": [0.000010151261846979478, 0.000010895071596523652],
+      "failed_residual_range_phase_only": [0.000010151253801270432, 0.000010895070315699911],
+      "failed_physical_slack_range_reference": [-0.009977053655322638, -0.009976177736148777],
+      "failed_physical_slack_range_phase_only": [-0.009977053635450107, -0.009976173425818595]
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json",
+      "reference_failed_side_count": 0,
+      "phase_only_failed_side_count": 0,
+      "failed_residual_range_reference": null,
+      "failed_residual_range_phase_only": null,
+      "failed_physical_slack_range_reference": null,
+      "failed_physical_slack_range_phase_only": null
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json",
+      "reference_failed_side_count": 36,
+      "phase_only_failed_side_count": 36,
+      "failed_residual_range_reference": [0.000010231690511979422, 0.000011417201010282022],
+      "failed_residual_range_phase_only": [0.000010231682931916102, 0.00001141720164003029],
+      "failed_physical_slack_range_reference": [-0.009978100660647402, -0.009976727164487555],
+      "failed_physical_slack_range_phase_only": [-0.009978101757164374, -0.009976721475037725]
+    }
+  ],
+  "finding": "Reference and phase-only endpoints have identical failed-side key sets, counts, and constraint-family attribution on all six snapshots. Four snapshots fail only on ibr_p_upper sides; both t13 snapshots pass. This localizes the 99-bus KKT readiness gap while leaving absolute physical acceptance and covariance interpretation open."
+}

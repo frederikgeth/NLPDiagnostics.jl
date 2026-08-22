@@ -4173,6 +4173,14 @@ readiness evidence. Its compact status remains a readiness ledger rather than
 a physical campaign qualification because absolute physical acceptance and
 full compound KKT acceptance remain open; the ledger is
 `docs/real_99bus_phase_only_campaign_summary.json`.
+The saved-campaign KKT failure localization is tracked at
+`docs/real_99bus_phase_only_kkt_failure_summary.json`, with executable
+summarizer `benchmarks/summarize_real_99bus_phase_only_kkt_failures.jl`. Across
+all six matched reference and phase-only endpoints, failed-side key sets,
+counts, and family attribution agree exactly; four snapshots fail only on
+`ibr_p_upper` sides and both t13 snapshots pass. This closes a localization gap
+for the readiness ledger, but does not close absolute physical acceptance or
+covariance interpretation.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and
