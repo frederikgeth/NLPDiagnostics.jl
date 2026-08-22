@@ -383,6 +383,108 @@ function attach_physical_kkt_tolerance_sensitivity!(kkt)
     return kkt
 end
 
+function complementarity_scaling_audit(kkt)
+    records = get(
+        get(get(kkt, "semantic_attribution", Dict()), "complementarity", Dict()),
+        "records", Dict(),
+    )
+    isempty(records) && return Dict{String,Any}(
+        "available" => false,
+        "scaling_relation_passed" => nothing,
+        "reason" => "semantic complementarity records are unavailable",
+    )
+    by_family = Dict{String,Dict{String,Any}}()
+    maximum_relative_product_error = 0.0
+    maximum_relative_slack_error = 0.0
+    maximum_relative_multiplier_error = 0.0
+    finite = true
+    for (key, raw_record) in records
+        record = raw_record isa AbstractDict ? raw_record : Dict{String,Any}()
+        family = string(get(record, "constraint_family", "unknown"))
+        summary = get!(by_family, family) do
+            Dict{String,Any}(
+                "side_count" => 0,
+                "maximum_relative_product_error" => 0.0,
+                "maximum_relative_slack_error" => 0.0,
+                "maximum_relative_multiplier_error" => 0.0,
+                "failed_strict_side_count" => 0,
+                "failed_strict_sides" => String[],
+            )
+        end
+        summary["side_count"] += 1
+        model_multiplier = Float64(get(record, "model_multiplier", NaN))
+        model_slack = Float64(get(record, "model_slack", NaN))
+        physical_multiplier = Float64(get(record, "physical_multiplier", NaN))
+        physical_slack = Float64(get(record, "physical_slack", NaN))
+        residual_scale = Float64(get(record, "residual_scale", NaN))
+        values_are_finite = all(isfinite, (
+            model_multiplier, model_slack, physical_multiplier,
+            physical_slack, residual_scale,
+        )) && residual_scale > 0
+        finite &= values_are_finite
+        if values_are_finite
+            model_product = abs(model_multiplier * model_slack)
+            physical_product = abs(physical_multiplier * physical_slack)
+            relative_product_error = abs(physical_product - model_product) /
+                max(1.0, model_product, physical_product)
+            relative_slack_error = abs(physical_slack - model_slack * residual_scale) /
+                max(1.0, abs(physical_slack))
+            relative_multiplier_error = abs(physical_multiplier - model_multiplier / residual_scale) /
+                max(1.0, abs(physical_multiplier))
+            summary["maximum_relative_product_error"] = max(
+                summary["maximum_relative_product_error"], relative_product_error,
+            )
+            summary["maximum_relative_slack_error"] = max(
+                summary["maximum_relative_slack_error"], relative_slack_error,
+            )
+            summary["maximum_relative_multiplier_error"] = max(
+                summary["maximum_relative_multiplier_error"], relative_multiplier_error,
+            )
+            maximum_relative_product_error = max(
+                maximum_relative_product_error, relative_product_error,
+            )
+            maximum_relative_slack_error = max(
+                maximum_relative_slack_error, relative_slack_error,
+            )
+            maximum_relative_multiplier_error = max(
+                maximum_relative_multiplier_error, relative_multiplier_error,
+            )
+        end
+        if get(record, "passed", false) !== true
+            summary["failed_strict_side_count"] += 1
+            push!(summary["failed_strict_sides"], string(key))
+        end
+    end
+    relation_tolerance = 1.0e-12
+    return Dict{String,Any}(
+        "available" => true,
+        "finite" => finite,
+        "record_count" => length(records),
+        "maximum_relative_product_error" => maximum_relative_product_error,
+        "maximum_relative_slack_error" => maximum_relative_slack_error,
+        "maximum_relative_multiplier_error" => maximum_relative_multiplier_error,
+        "relation_tolerance" => relation_tolerance,
+        "scaling_relation_passed" => finite &&
+            maximum_relative_product_error <= relation_tolerance &&
+            maximum_relative_slack_error <= relation_tolerance &&
+            maximum_relative_multiplier_error <= relation_tolerance,
+        "families" => by_family,
+        "qualification" => Dict{String,Any}(
+            "claim" => "physical/model complementarity products and scalar-side scaling relations agree",
+            "does_not_establish" => [
+                "absolute physical feasibility",
+                "solver optimality",
+                "correctness of the underlying physical residual model",
+            ],
+        ),
+    )
+end
+
+function attach_complementarity_scaling_audit!(kkt)
+    kkt["complementarity_scaling_audit"] = complementarity_scaling_audit(kkt)
+    return kkt
+end
+
 function run_snapshot(
     root,
     relative;
@@ -463,6 +565,7 @@ function run_snapshot(
             reference_kkt; model_tolerance=model_feasibility_tolerance,
         )
         attach_physical_kkt_tolerance_sensitivity!(reference_kkt)
+        attach_complementarity_scaling_audit!(reference_kkt)
         candidate_model = JuMP.Model(Ipopt.Optimizer)
         JuMP.set_optimizer_attribute(candidate_model, "max_iter", max_iter)
         phase_only = NLPDiagnostics.bmopf_phase_only_solve_model(
@@ -523,6 +626,7 @@ function run_snapshot(
             phase_only_kkt; model_tolerance=model_feasibility_tolerance,
         )
         attach_physical_kkt_tolerance_sensitivity!(phase_only_kkt)
+        attach_complementarity_scaling_audit!(phase_only_kkt)
         phase_only_covariance = get(endpoint, "available", false) === true ?
             NLPDiagnostics.bmopf_phase_only_covariance_report(
                 context,
@@ -693,6 +797,30 @@ function run_campaign()
                 (get(policy, "compound_acceptance_passed", false) === true ? 1 : 0)
         end
     end
+    reference_complementarity_scaling_audit_passed = count(
+        run -> get(get(run, "reference_physical_solver_kkt", Dict()),
+            "complementarity_scaling_audit", Dict())["scaling_relation_passed"] === true,
+        reference_kkt_available,
+    )
+    phase_only_complementarity_scaling_audit_passed = count(
+        run -> get(get(get(run, "phase_only", Dict()), "physical_solver_kkt", Dict()),
+            "complementarity_scaling_audit", Dict())["scaling_relation_passed"] === true,
+        phase_only_kkt_available,
+    )
+    reference_maximum_complementarity_scaling_product_relative_error = isempty(reference_kkt_available) ?
+        nothing : maximum(
+            get(get(get(run, "reference_physical_solver_kkt", Dict()),
+                "complementarity_scaling_audit", Dict()),
+                "maximum_relative_product_error", 0.0)
+            for run in reference_kkt_available
+        )
+    phase_only_maximum_complementarity_scaling_product_relative_error = isempty(phase_only_kkt_available) ?
+        nothing : maximum(
+            get(get(get(get(run, "phase_only", Dict()), "physical_solver_kkt", Dict()),
+                "complementarity_scaling_audit", Dict()),
+                "maximum_relative_product_error", 0.0)
+            for run in phase_only_kkt_available
+        )
     phase_only_covariance_available = [
         run for run in runs
         if get(get(get(run, "phase_only", Dict()), "covariance", Dict()), "available", false) === true
@@ -729,6 +857,10 @@ function run_campaign()
             "phase_only_solver_floor_compound_kkt_acceptance_count" => length(phase_only_solver_floor_kkt_accepted),
             "reference_physical_solver_kkt_acceptance_by_complementarity_tolerance" => reference_kkt_tolerance_sensitivity,
             "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance" => phase_only_kkt_tolerance_sensitivity,
+            "reference_complementarity_scaling_audit_pass_count" => reference_complementarity_scaling_audit_passed,
+            "phase_only_complementarity_scaling_audit_pass_count" => phase_only_complementarity_scaling_audit_passed,
+            "reference_maximum_complementarity_scaling_product_relative_error" => reference_maximum_complementarity_scaling_product_relative_error,
+            "phase_only_maximum_complementarity_scaling_product_relative_error" => phase_only_maximum_complementarity_scaling_product_relative_error,
             "phase_only_covariance_available_count" => length(phase_only_covariance_available),
             "phase_only_covariance_acceptance_count" => length(phase_only_covariance_accepted),
             "phase_only_physical_endpoint_acceptance_count" => length(phase_only_physical),

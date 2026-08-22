@@ -3835,6 +3835,16 @@ coordinate paths. The `1e-5` policy remains the declared strict gate. The
 semantics/scaling or convergence investigation, not permission to relax the
 physical policy automatically.
 
+A complementarity scaling audit now checks every semantic side in both
+coordinate paths. It verifies physical slack equals model slack times the
+declared residual scale, physical multipliers equal model multipliers divided
+by that scale, and the complementarity product is invariant. The audit passes
+all six native and all six transported reports; the maximum relative product
+error is below `3.4e-21`, with zero slack or multiplier scaling error. This
+rules out a residual unit-conversion mismatch as the explanation for the
+`ibr_p_upper` failures and leaves solver convergence or the underlying residual
+semantics as the next investigation, without making a causal claim.
+
 A phase-only covariance report now compares source and transformed endpoint
 point, objective, residual, derivative, sparse-Jacobian geometry, and scalar
 variable-domain sets through the declared semantic block maps. All six reports

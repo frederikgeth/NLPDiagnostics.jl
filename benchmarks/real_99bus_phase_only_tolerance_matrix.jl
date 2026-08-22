@@ -73,6 +73,10 @@ function run_case(label, max_iter, model_tolerance)
                 summary["phase_only_solver_floor_compound_kkt_acceptance_count"],
             "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance" =>
                 summary["phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance"],
+            "reference_complementarity_scaling_audit_pass_count" =>
+                summary["reference_complementarity_scaling_audit_pass_count"],
+            "phase_only_complementarity_scaling_audit_pass_count" =>
+                summary["phase_only_complementarity_scaling_audit_pass_count"],
             "phase_only_covariance_available_count" =>
                 summary["phase_only_covariance_available_count"],
             "phase_only_covariance_acceptance_count" =>

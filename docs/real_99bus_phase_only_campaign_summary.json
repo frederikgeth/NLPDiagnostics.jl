@@ -26,6 +26,10 @@
     "phase_only_physical_solver_kkt_available_count": 6,
     "phase_only_physical_solver_kkt_acceptance_count": 2,
     "phase_only_solver_floor_compound_kkt_acceptance_count": 6,
+    "reference_complementarity_scaling_audit_pass_count": 6,
+    "phase_only_complementarity_scaling_audit_pass_count": 6,
+    "reference_maximum_complementarity_scaling_product_relative_error": 1.6940658945086007e-21,
+    "phase_only_maximum_complementarity_scaling_product_relative_error": 3.3881317890172014e-21,
     "reference_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
       "1.0e-5": 2,
       "1.1e-5": 4,
@@ -49,6 +53,7 @@
       "dual_default_absolute_tolerance": 1e-05,
       "complementarity_default_absolute_tolerance": 1e-05
     },
+    "complementarity_scaling_audit": "all six native and all six phase-only reports pass physical/model slack-multiplier scaling and product invariance",
     "solver_floor_tolerance_policy": {
       "model_feasibility_tolerance": 1e-08,
       "physical_tolerance_formula": "model_feasibility_tolerance * declared physical scale",
