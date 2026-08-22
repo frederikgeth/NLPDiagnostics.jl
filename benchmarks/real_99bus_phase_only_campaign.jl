@@ -368,11 +368,21 @@ function run_snapshot(
                     "quantity_absolute_tolerances" => calibrated_tolerances,
                     "absolute_physical_claim" => false,
                 ),
-                "physical_solver_kkt" => Dict{String,Any}(
-                    "available" => false,
-                    "acceptance_passed" => nothing,
-                    "reason" => "transformed optimizer duals are not yet transported into source-coordinate KKT evidence",
-                ),
+                "physical_solver_kkt" => get(endpoint, "available", false) === true ?
+                    NLPDiagnostics.bmopf_phase_only_physical_solver_kkt_report(
+                        context,
+                        endpoint["endpoint_evaluation"],
+                        phase_only,
+                        endpoint;
+                        quantity_feasibility_absolute_tolerances=calibrated_tolerances,
+                        stationarity_default_absolute_tolerance=1.0e-5,
+                        dual_default_absolute_tolerance=1.0e-5,
+                        complementarity_default_absolute_tolerance=1.0e-5,
+                    ) : Dict{String,Any}(
+                        "available" => false,
+                        "acceptance_passed" => nothing,
+                        "reason" => "the source-coordinate phase-only endpoint was unavailable",
+                    ),
                 "native_baseline_comparison" => baseline_comparison,
             ),
             "qualification" => Dict(
@@ -490,7 +500,7 @@ function run_campaign()
             "all_phase_only_physical_endpoints_accepted" => length(phase_only_physical) == length(SELECTED_SNAPSHOTS),
             "solver_campaign_ready" => false,
             "physical_endpoint_validation" => false,
-            "blocking_reason" => "solver-floor calibrated feasibility is qualified as relative solver-scale evidence, but absolute physical acceptance, transformed-endpoint KKT transport, and physical covariance validation are not yet qualified",
+            "blocking_reason" => "solver-floor calibrated feasibility is qualified as relative solver-scale evidence, but absolute physical acceptance, full compound KKT acceptance, and physical covariance validation are not yet qualified",
         ),
     )
 end

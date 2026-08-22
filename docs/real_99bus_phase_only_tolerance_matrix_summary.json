@@ -1,5 +1,5 @@
 {
-  "schema_version": "nlpdiagnostics-real-99bus-phase-only-tolerance-matrix-summary-v1",
+  "schema_version": "nlpdiagnostics-real-99bus-phase-only-tolerance-matrix-summary-v2",
   "source": {
     "campaign": "benchmarks/real_99bus_phase_only_campaign.jl",
     "runner": "benchmarks/real_99bus_phase_only_tolerance_matrix.jl",
@@ -13,6 +13,8 @@
       "model_feasibility_tolerance": 1e-08,
       "phase_only_locally_solved_count": 6,
       "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_available_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
       "all_phase_only_runs_locally_solved": true,
       "all_phase_only_solver_floor_calibrated_accepted": true,
       "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
@@ -23,6 +25,8 @@
       "model_feasibility_tolerance": 1e-09,
       "phase_only_locally_solved_count": 6,
       "phase_only_solver_floor_calibrated_acceptance_count": 0,
+      "phase_only_physical_solver_kkt_available_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 0,
       "all_phase_only_runs_locally_solved": true,
       "all_phase_only_solver_floor_calibrated_accepted": false,
       "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
@@ -33,6 +37,8 @@
       "model_feasibility_tolerance": 1e-08,
       "phase_only_locally_solved_count": 5,
       "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_available_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
       "all_phase_only_runs_locally_solved": false,
       "all_phase_only_solver_floor_calibrated_accepted": true,
       "phase_only_termination_statuses": ["LOCALLY_SOLVED", "ITERATION_LIMIT", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
@@ -43,6 +49,8 @@
       "model_feasibility_tolerance": 1e-08,
       "phase_only_locally_solved_count": 6,
       "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_available_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
       "all_phase_only_runs_locally_solved": true,
       "all_phase_only_solver_floor_calibrated_accepted": true,
       "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
@@ -53,7 +61,8 @@
     "floor_control": "The 1e-9 policy rejects all six endpoints because the observed residual floor is approximately 1e-8 in model coordinates.",
     "budget_control": "max_iter 20 leaves one phase-only run at ITERATION_LIMIT; calibrated feasibility alone is not a solver-completion gate.",
     "absolute_physical_claim": false,
-    "kkt_acceptance": false,
+    "kkt_transport": "available for all six snapshots with source/target constraint-value alignment below 7e-16",
+    "kkt_acceptance": "compound KKT acceptance passes 2/6 at the 1e-8 policy; the remaining cases are complementarity-limited",
     "covariance_validation": false
   }
 }

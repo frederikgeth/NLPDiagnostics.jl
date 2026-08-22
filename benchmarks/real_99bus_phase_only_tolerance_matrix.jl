@@ -63,6 +63,8 @@ function run_case(label, max_iter, model_tolerance)
                 summary["reference_physical_solver_kkt_acceptance_count"],
             "phase_only_physical_solver_kkt_available_count" =>
                 summary["phase_only_physical_solver_kkt_available_count"],
+            "phase_only_physical_solver_kkt_acceptance_count" =>
+                summary["phase_only_physical_solver_kkt_acceptance_count"],
             "phase_only_termination_statuses" => [
                 get(get(run, "phase_only", Dict()), "termination_status", nothing)
                 for run in report["runs"]

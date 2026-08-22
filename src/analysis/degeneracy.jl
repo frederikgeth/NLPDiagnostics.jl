@@ -219,6 +219,11 @@ bmopf_phase_only_solve_model(context, evaluation; kwargs...) =
 bmopf_phase_only_endpoint(context, evaluation; kwargs...) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP are required for BMOPF phase-only endpoint recovery")._bmopf_phase_only_endpoint(context, evaluation; kwargs...)
+"""Evaluate a transformed BMOPF endpoint through a transported source-coordinate KKT contract."""
+bmopf_phase_only_physical_solver_kkt_report(context, evaluation, solved, endpoint; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP are required for BMOPF phase-only KKT transport reports")._bmopf_phase_only_physical_solver_kkt_report(
+            context, evaluation, solved, endpoint; kwargs...)
 """Transport one BMOPF point between scaling policies through declared physical coordinates."""
 bmopf_transport_scaling_point(
     source_context, source_evaluation,

@@ -3782,8 +3782,8 @@ research sequence is:
    than generic endpoint transport. The raw native `ibr_p_upper` floor is
    about `1e-8` in model coordinates with a `1e6` physical power scale, which
    explains the apparent `1e-2` physical residual. Absolute physical
-acceptance remains unqualified; add transformed-domain-set handling before
-applying KKT and covariance gates; and
+acceptance remains unqualified; retain the transformed-domain-set handling as
+an explicit KKT/covariance prerequisite; and
 3. consider automatic-policy candidates only after the endpoint-qualified
    real snapshot matrix
    has been reviewed for fixture-specific reversals.
@@ -3798,17 +3798,20 @@ The `max_iter=20` budget leaves the LN t13 phase-only run at
 `ITERATION_LIMIT`; its calibrated feasibility pass is retained as endpoint
 evidence but does not count as solver completion. This separates endpoint
 residual calibration from termination qualification and keeps the KKT gate
-closed for transformed endpoints until dual transport and compound-unit
-tolerances are explicit.
+explicit through compound-unit tolerances.
 
 The native KKT readiness probe is now also recorded in the campaign. Public
 solver duals align for all six native endpoints and stationarity passes all
 six under explicit `1e-5` compound tolerances, but full KKT acceptance passes
 only 2/6 (the two t13 snapshots); complementarity blocks the remaining four.
-The transformed phase-only endpoints remain explicitly unavailable for KKT
-acceptance because their optimizer duals have not yet been transported through
-the retained MOI copy map and inverse phase rotation. This is readiness and
-failure-localization evidence, not an optimality claim.
+The transformed phase-only path now transports optimizer duals through the
+retained MOI constraint index map into source-coordinate rows. The transport
+alignment is below `7e-16` on all six snapshots, source-coordinate stationarity
+passes all six, and full compound KKT acceptance also passes 2/6. This closes
+the representation/transport blocker while preserving the distinction between
+solver-scale KKT evidence and absolute physical acceptance. Physical covariance
+validation and the remaining complementarity failures are still open; this is
+readiness and failure-localization evidence, not an optimality claim.
 
 The held-out LG summary is tracked at `docs/calibration_summary.json`. The
 two-direction Ipopt extension is tracked at

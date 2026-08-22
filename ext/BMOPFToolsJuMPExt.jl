@@ -3601,6 +3601,7 @@ function _bmopf_phase_only_rebuild_model(
     substitution = variable -> variable_map[variable]
     start_values_copied = true
     start_values_reason = nothing
+    constraint_index_map = Dict{Tuple{String,String,Int},Tuple{String,String,Int}}()
     for (position, variable) in enumerate(point_variables)
         target_variable = target_for_position(position)
         try
@@ -3623,6 +3624,7 @@ function _bmopf_phase_only_rebuild_model(
             for index in MOI.get(source, MOI.ListOfConstraintIndices{function_type,set_type}())
                 function_value = MOI.get(source, MOI.ConstraintFunction(), index)
                 set_value = MOI.get(source, MOI.ConstraintSet(), index)
+                source_function_type = string(typeof(function_value))
                 function_value isa MOI.VariableIndex && (function_value =
                     MOI.ScalarAffineFunction([
                         MOI.ScalarAffineTerm(1.0, function_value),
@@ -3630,7 +3632,12 @@ function _bmopf_phase_only_rebuild_model(
                 transformed = MOI.Utilities.substitute_variables(
                     substitution, function_value,
                 )
-                MOI.add_constraint(target, transformed, set_value)
+                target_index = MOI.add_constraint(target, transformed, set_value)
+                constraint_index_map[(
+                    string(typeof(transformed)), string(typeof(set_value)), target_index.value,
+                )] = (
+                    source_function_type, string(typeof(set_value)), index.value,
+                )
             end
         end
         MOI.set(target, MOI.ObjectiveSense(), MOI.get(source, MOI.ObjectiveSense()))
@@ -3676,6 +3683,7 @@ function _bmopf_phase_only_rebuild_model(
         ),
         "target_model" => target,
         "variable_map" => variable_map,
+        "constraint_index_map" => constraint_index_map,
         "start_values_copied" => start_values_copied,
         "start_values_reason" => start_values_reason,
         "qualification" => Dict{String,Any}(
@@ -3902,6 +3910,264 @@ function _bmopf_phase_only_endpoint(
             "kkt_acceptance_evaluated" => false,
         ),
     )
+end
+
+function _bmopf_phase_only_physical_solver_kkt_report(
+    context,
+    source_evaluation,
+    solved,
+    endpoint;
+    quantity_feasibility_absolute_tolerances::AbstractDict = Dict{String,Float64}(),
+    feasibility_default_absolute_tolerance::Union{Nothing,Real} = nothing,
+    stationarity_absolute_tolerances::AbstractDict = Dict{String,Float64}(),
+    stationarity_default_absolute_tolerance::Union{Nothing,Real} = nothing,
+    dual_absolute_tolerances::AbstractDict = Dict{String,Float64}(),
+    dual_default_absolute_tolerance::Union{Nothing,Real} = nothing,
+    complementarity_absolute_tolerances::AbstractDict = Dict{String,Float64}(),
+    complementarity_default_absolute_tolerance::Union{Nothing,Real} = nothing,
+    set_transform_tolerance::Real = sqrt(eps(Float64)),
+)
+    available = get(endpoint, "available", false) === true &&
+        get(solved, "available", false) === true &&
+        get(solved, "solver_run_completed", false) === true
+    available || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-physical-solver-kkt-v1",
+        "available" => false,
+        "acceptance_passed" => nothing,
+        "reason" => "the transformed phase-only endpoint is unavailable or incomplete",
+    )
+    optimizer = get(solved, "optimizer_model", nothing)
+    rebuild = get(solved, "rebuild", Dict{String,Any}())
+    target = get(rebuild, "target_model", nothing)
+    copy_map = get(solved, "copy_map", nothing)
+    transformed_values = get(endpoint, "transformed_coordinate_values", nothing)
+    (!isnothing(optimizer) && !isnothing(target) && !isnothing(copy_map) &&
+        transformed_values isa AbstractVector) || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-physical-solver-kkt-v1",
+        "available" => false,
+        "acceptance_passed" => nothing,
+        "reason" => "the transformed model copy map or optimizer coordinates are unavailable",
+    )
+    optimizer_backend = optimizer isa JuMP.Model ? JuMP.backend(optimizer) : optimizer
+    target_variables = MOI.get(target, MOI.ListOfVariableIndices())
+    optimizer_variables = MOI.get(optimizer_backend, MOI.ListOfVariableIndices())
+    length(target_variables) == length(transformed_values) || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-physical-solver-kkt-v1",
+        "available" => false,
+        "acceptance_passed" => nothing,
+        "reason" => "transformed coordinate values do not match the target model variables",
+    )
+    target_positions = Dict(variable => position for
+        (position, variable) in enumerate(target_variables))
+    optimizer_positions = Dict(variable => position for
+        (position, variable) in enumerate(optimizer_variables))
+    optimizer_values = zeros(Float64, length(optimizer_variables))
+    try
+        for target_variable in target_variables
+            optimizer_variable = copy_map[target_variable]
+            optimizer_values[optimizer_positions[optimizer_variable]] =
+                Float64(transformed_values[target_positions[target_variable]])
+        end
+    catch error
+        return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-physical-solver-kkt-v1",
+            "available" => false,
+            "acceptance_passed" => nothing,
+            "reason" => "transformed optimizer coordinates could not be reconstructed",
+            "error" => sprint(showerror, error),
+        )
+    end
+    transformed_point = NLPDiagnostics.EvaluationPoint(
+        optimizer_variables,
+        optimizer_values;
+        label="bmopf-phase-only-transformed-solver-endpoint",
+        provenance=NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.SolverResultPoint;
+            source="BMOPFTools phase-only transformed-coordinate optimizer",
+            complete=true,
+            metadata=Dict("coordinate_basis" => "transformed phase-only model coordinates"),
+        ),
+    )
+    transformed_evaluation = try
+        NLPDiagnostics.evaluate_numerical(optimizer_backend, transformed_point)
+    catch error
+        return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-physical-solver-kkt-v1",
+            "available" => false,
+            "acceptance_passed" => nothing,
+            "reason" => "the transformed optimizer endpoint could not be reevaluated",
+            "error" => sprint(showerror, error),
+        )
+    end
+    transformed_snapshot = NLPDiagnostics.solver_dual_snapshot(
+        optimizer_backend,
+        transformed_evaluation,
+    )
+    transformed_snapshot.available || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-physical-solver-kkt-v1",
+        "available" => false,
+        "acceptance_passed" => nothing,
+        "reason" => "transformed solver duals are unavailable",
+        "transformed_solver_duals" => NLPDiagnostics.solver_dual_snapshot_data(transformed_snapshot),
+    )
+    source_row_lookup = Dict{Tuple{String,String,Int,Union{Nothing,Int}},Int}()
+    for (row, source) in enumerate(source_evaluation.constraint_sources)
+        source_row_lookup[(
+            string(source.function_type),
+            string(source.set_type),
+            source.index,
+            source.subindex,
+        )] = row
+    end
+    constraint_index_map = get(rebuild, "constraint_index_map", nothing)
+    constraint_index_map isa AbstractDict || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-physical-solver-kkt-v1",
+        "available" => false,
+        "acceptance_passed" => nothing,
+        "reason" => "the transformed rebuild did not retain a source constraint index map",
+    )
+    target_row_to_source_row = zeros(Int, length(transformed_evaluation.constraint_sources))
+    for (target_row, target_source) in enumerate(transformed_evaluation.constraint_sources)
+        target_key = (
+            string(target_source.function_type),
+            string(target_source.set_type),
+            target_source.index,
+        )
+        source_descriptor = get(constraint_index_map, target_key, nothing)
+        source_descriptor isa Tuple && length(source_descriptor) == 3 || return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-physical-solver-kkt-v1",
+            "available" => false,
+            "acceptance_passed" => nothing,
+            "reason" => "a transformed constraint row could not be mapped to its source constraint",
+            "target_row" => target_row,
+            "target_constraint" => string(target_source),
+        )
+        source_key = (
+            string(source_descriptor[1]),
+            string(source_descriptor[2]),
+            Int(source_descriptor[3]),
+            target_source.subindex,
+        )
+        source_row = get(source_row_lookup, source_key, 0)
+        iszero(source_row) && return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-physical-solver-kkt-v1",
+            "available" => false,
+            "acceptance_passed" => nothing,
+            "reason" => "a transformed constraint row mapped to a missing source constraint row",
+            "target_row" => target_row,
+            "source_key" => string(source_key),
+        )
+        target_row_to_source_row[target_row] = source_row
+    end
+    sort(target_row_to_source_row) == collect(1:length(source_evaluation.constraint_sources)) || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-physical-solver-kkt-v1",
+        "available" => false,
+        "acceptance_passed" => nothing,
+        "reason" => "the transformed-to-source constraint row map is not bijective",
+    )
+    length(transformed_snapshot.row_multipliers) == length(target_row_to_source_row) || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-physical-solver-kkt-v1",
+        "available" => false,
+        "acceptance_passed" => nothing,
+        "reason" => "transformed solver dual rows do not match the transformed evaluation",
+    )
+    source_row_multipliers = zeros(Float64, length(source_evaluation.constraint_sources))
+    transformed_values_by_source_row = similar(source_row_multipliers)
+    for target_row in eachindex(target_row_to_source_row)
+        source_row = target_row_to_source_row[target_row]
+        source_row_multipliers[source_row] = transformed_snapshot.row_multipliers[target_row]
+        transformed_values_by_source_row[source_row] =
+            Float64(transformed_evaluation.constraint_values[target_row])
+    end
+    source_sides = NLPDiagnostics.SolverConstraintSideDual{Float64}[]
+    for side in transformed_snapshot.sides
+        transformed_row = side.row
+        row = target_row_to_source_row[transformed_row]
+        value = source_evaluation.constraint_values[row]
+        converted_value = ismissing(value) ? missing : Float64(value)
+        slack = if ismissing(converted_value) || isnothing(side.bound)
+            nothing
+        elseif side.side == :lower
+            converted_value - side.bound
+        elseif side.side == :upper
+            side.bound - converted_value
+        else
+            converted_value - side.bound
+        end
+        push!(source_sides, NLPDiagnostics.SolverConstraintSideDual{Float64}(
+            row,
+            source_evaluation.constraint_sources[row],
+            side.side,
+            side.multiplier,
+            converted_value,
+            side.bound,
+            slack,
+            :phase_only_dual_transport,
+        ))
+    end
+    source_point = get(endpoint, "endpoint_point", source_evaluation.point)
+    source_snapshot = NLPDiagnostics.SolverDualSnapshot{Float64}(
+        true,
+        nothing,
+        source_point,
+        transformed_snapshot.result_index,
+        transformed_snapshot.dual_status,
+        transformed_snapshot.objective_weight,
+        source_row_multipliers,
+        source_sides,
+        transformed_snapshot.side_decomposition_complete,
+        0.0,
+        copy(transformed_snapshot.failures),
+    )
+    source_model = _bmopf_context_model(context)
+    report = _bmopf_physical_solver_kkt_report(
+        context,
+        source_model,
+        source_evaluation;
+        dual_snapshot_override=source_snapshot,
+        quantity_feasibility_absolute_tolerances,
+        feasibility_default_absolute_tolerance,
+        stationarity_absolute_tolerances,
+        stationarity_default_absolute_tolerance,
+        dual_absolute_tolerances,
+        dual_default_absolute_tolerance,
+        complementarity_absolute_tolerances,
+        complementarity_default_absolute_tolerance,
+        set_transform_tolerance,
+    )
+    report["report_version"] = "bmopf-phase-only-physical-solver-kkt-v1"
+    report["phase_only_dual_transport"] = Dict{String,Any}(
+        "available" => true,
+        "source_coordinate_basis" => "source BMOPF model coordinates",
+        "transformed_coordinate_basis" => "transformed phase-only model coordinates",
+        "constraint_row_count" => length(source_evaluation.constraint_sources),
+        "row_multiplier_transport" => "constraint row multipliers are retained while primal stationarity is evaluated in source coordinates",
+        "side_provenance" => "phase_only_dual_transport",
+        "constraint_row_map_is_bijective" => true,
+        "source_target_constraint_value_alignment" => Dict{String,Any}(
+            "available" => true,
+            "maximum_absolute_difference" => maximum(abs.(
+                Float64.(source_evaluation.constraint_values) .-
+                transformed_values_by_source_row,
+            )),
+        ),
+    )
+    report["transformed_solver_duals"] =
+        NLPDiagnostics.solver_dual_snapshot_data(transformed_snapshot)
+    report["qualification"] = merge(
+        get(report, "qualification", Dict{String,Any}()),
+        Dict{String,Any}(
+            "claim" => "source-coordinate physical KKT evidence using duals transported from a phase-only optimizer",
+            "absolute_physical_acceptance" => false,
+            "does_not_establish" => [
+                "multiplier uniqueness",
+                "constraint qualification",
+                "second-order sufficiency",
+                "global optimality",
+            ],
+        ),
+    )
+    return report
 end
 
 """
@@ -4466,6 +4732,7 @@ function _bmopf_physical_solver_kkt_report(
     complementarity_absolute_tolerances::AbstractDict =
         Dict{String,Float64}(),
     complementarity_default_absolute_tolerance::Union{Nothing,Real} = nothing,
+    dual_snapshot_override::Union{Nothing,NLPDiagnostics.SolverDualSnapshot} = nothing,
     set_transform_tolerance::Real = sqrt(eps(Float64)),
     point_absolute_tolerance::Real = 10eps(Float64),
     point_relative_tolerance::Real = 10eps(Float64),
@@ -4511,12 +4778,13 @@ function _bmopf_physical_solver_kkt_report(
             expanded_feasibility[block_id] = normalized_quantities[quantity]
         end
     end
-    duals = NLPDiagnostics.solver_dual_snapshot(
-        model, evaluation;
-        result_index,
-        point_absolute_tolerance,
-        point_relative_tolerance,
-    )
+    duals = isnothing(dual_snapshot_override) ?
+        NLPDiagnostics.solver_dual_snapshot(
+            model, evaluation;
+            result_index,
+            point_absolute_tolerance,
+            point_relative_tolerance,
+        ) : dual_snapshot_override
     public_report = NLPDiagnostics.physical_kkt_acceptance_report(
         evaluation,
         map,
