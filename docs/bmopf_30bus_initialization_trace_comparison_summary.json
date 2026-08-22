@@ -1,8 +1,11 @@
 {
-  "schema_version": "nlpdiagnostics-bmopf-30bus-initialization-trace-comparison-v1",
+  "schema_version": "nlpdiagnostics-bmopf-30bus-initialization-trace-comparison-v2",
   "source": {
     "runner": "benchmarks/bmopf_solver_trace.jl",
-    "selected_snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+    "selected_snapshots": [
+      "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json"
+    ],
     "local_environment": "work/benchmark-environment",
     "solver": "ipopt",
     "profile_stage": "trace",
@@ -11,43 +14,73 @@
     "trace_probe_max_points": 8,
     "max_solver_variables": 2000
   },
-  "cases": [
+  "matched_pairs": [
     {
-      "label": "native_engine_starts",
-      "initialization_policy": "none",
-      "finite_start_count": 350,
-      "missing_start_count": 354,
-      "iteration_count": 19,
-      "binding_count": 19,
-      "trace_fingerprint": "6386584c9109fba36c68646036582a4fdb87dec94f97395a933327a76d7efd30",
-      "row_residual_trace_fingerprint": "5e5df1686dbab2ab2a0a85549b67d9e2ddc1f9da89bfc495a0a6561059d26a89",
-      "last_primal_infeasibility": 8.549230396574335e-16,
-      "last_dual_infeasibility": 2.842170943040401e-14,
-      "row_residual_status": "available",
-      "row_residual_point_count": 8,
-      "maximum_family_feasibility_violation": 0.0018864019795659065
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "native_engine_starts": {
+        "initialization_policy": "none",
+        "finite_start_count": 350,
+        "missing_start_count": 354,
+        "iteration_count": 19,
+        "binding_count": 19,
+        "trace_fingerprint": "6386584c9109fba36c68646036582a4fdb87dec94f97395a933327a76d7efd30",
+        "row_residual_trace_fingerprint": "5e5df1686dbab2ab2a0a85549b67d9e2ddc1f9da89bfc495a0a6561059d26a89",
+        "last_primal_infeasibility": 8.549230396574335e-16,
+        "last_dual_infeasibility": 2.842170943040401e-14,
+        "row_residual_point_count": 8,
+        "maximum_family_feasibility_violation": 0.0018864019795659065
+      },
+      "completed_engine_starts": {
+        "initialization_policy": "bmopf_zero_completion",
+        "finite_start_count": 704,
+        "missing_start_count": 0,
+        "completion_provenance": "CompletedInitializationPoint",
+        "iteration_count": 19,
+        "binding_count": 19,
+        "trace_fingerprint": "6386584c9109fba36c68646036582a4fdb87dec94f97395a933327a76d7efd30",
+        "row_residual_trace_fingerprint": "5e5df1686dbab2ab2a0a85549b67d9e2ddc1f9da89bfc495a0a6561059d26a89",
+        "last_primal_infeasibility": 8.549230396574335e-16,
+        "last_dual_infeasibility": 2.842170943040401e-14,
+        "row_residual_point_count": 8,
+        "maximum_family_feasibility_violation": 0.0018864019795659065
+      }
     },
     {
-      "label": "completed_engine_starts",
-      "initialization_policy": "bmopf_zero_completion",
-      "finite_start_count": 704,
-      "missing_start_count": 0,
-      "completion_provenance": "CompletedInitializationPoint",
-      "iteration_count": 19,
-      "binding_count": 19,
-      "trace_fingerprint": "6386584c9109fba36c68646036582a4fdb87dec94f97395a933327a76d7efd30",
-      "row_residual_trace_fingerprint": "5e5df1686dbab2ab2a0a85549b67d9e2ddc1f9da89bfc495a0a6561059d26a89",
-      "last_primal_infeasibility": 8.549230396574335e-16,
-      "last_dual_infeasibility": 2.842170943040401e-14,
-      "row_residual_status": "available",
-      "row_residual_point_count": 8,
-      "maximum_family_feasibility_violation": 0.0018864019795659065
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "native_engine_starts": {
+        "initialization_policy": "none",
+        "finite_start_count": 350,
+        "missing_start_count": 354,
+        "iteration_count": 18,
+        "binding_count": 18,
+        "trace_fingerprint": "a9d08d3747e121f31f7a31e5b33ea115483262172c4d73c022e79618bf9e4896",
+        "row_residual_trace_fingerprint": "cfb7b446b0fbc2d4c54db942305c8e5fe373defd616b6b9fcf610d6a2bece316",
+        "last_primal_infeasibility": 1.4432899320127035e-15,
+        "last_dual_infeasibility": 8.286349384434288e-11,
+        "row_residual_point_count": 8,
+        "maximum_family_feasibility_violation": 0.0018864019795659065
+      },
+      "completed_engine_starts": {
+        "initialization_policy": "bmopf_zero_completion",
+        "finite_start_count": 704,
+        "missing_start_count": 0,
+        "completion_provenance": "CompletedInitializationPoint",
+        "iteration_count": 18,
+        "binding_count": 18,
+        "trace_fingerprint": "a9d08d3747e121f31f7a31e5b33ea115483262172c4d73c022e79618bf9e4896",
+        "row_residual_trace_fingerprint": "cfb7b446b0fbc2d4c54db942305c8e5fe373defd616b6b9fcf610d6a2bece316",
+        "last_primal_infeasibility": 1.4432899320127035e-15,
+        "last_dual_infeasibility": 8.286349384434288e-11,
+        "row_residual_point_count": 8,
+        "maximum_family_feasibility_violation": 0.0018864019795659065
+      }
     }
   ],
   "comparison": {
-    "trace_records_identical": true,
-    "row_residual_snapshots_identical": true,
-    "interpretation": "On this deterministic 30-bus fixture and bounded Ipopt budget, explicit zero completion did not change the captured trace or row-family residual snapshots despite filling all missing starts.",
+    "matched_snapshot_count": 2,
+    "trace_records_identical_for_each_snapshot": true,
+    "row_residual_snapshots_identical_for_each_snapshot": true,
+    "interpretation": "Across the two selected 30-bus LN snapshots and bounded Ipopt budget, explicit zero completion did not change the captured traces or row-family residual snapshots despite filling all missing starts.",
     "does_not_establish": [
       "initialization irrelevance on other fixtures",
       "99-bus trace scalability",
