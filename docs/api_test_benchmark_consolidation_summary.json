@@ -620,7 +620,7 @@
   "module_boundaries": {
     "benchmark_script_count": 107,
     "shared_benchmark_helper": "benchmarks/common.jl",
-    "shared_benchmark_helper_user_count": 10,
+    "shared_benchmark_helper_user_count": 11,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
       "benchmarks/audit_api_tiers.jl",
@@ -631,6 +631,7 @@
       "benchmarks/calibrate_randomized_rank_oracles.jl",
       "benchmarks/profile_sparse_runtime_memory_scaling.jl",
       "benchmarks/validate_bmopf_campaign.jl",
+      "benchmarks/validate_bmopf_checkout.jl",
       "benchmarks/validate_bmopf_residual_trends.jl"
     ],
     "source_file_count": 30,

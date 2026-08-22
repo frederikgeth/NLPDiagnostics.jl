@@ -2,7 +2,8 @@
 
 """Validate a BMOPFTools checkout in an isolated local Julia environment."""
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 const ROOT = normpath(joinpath(@__DIR__, ".."))
 const JULIA = Base.julia_cmd()
@@ -94,7 +95,7 @@ suite_exit = open(LOG, "w") do io
     end
 end
 
-contract = isfile(contract_output) ? JSON.parsefile(contract_output) : Dict{String,Any}(
+contract = isfile(contract_output) ? read_summary(contract_output; root = "/") : Dict{String,Any}(
     "status" => "missing",
 )
 dependency = get(contract, "dependency", Dict{String,Any}())
@@ -133,10 +134,6 @@ summary = Dict{String,Any}(
         ],
     ),
 )
-mkpath(dirname(OUTPUT))
-open(OUTPUT, "w") do io
-    JSON.print(io, summary, 2)
-    write(io, '\n')
-end
+write_json(OUTPUT, summary)
 println("wrote BMOPFTools checkout validation to $OUTPUT")
 passed || exit(1)
