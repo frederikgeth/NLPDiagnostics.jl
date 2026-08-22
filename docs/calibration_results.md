@@ -1123,3 +1123,25 @@ The non-mutating MOI rebuild copy now succeeds for all six snapshots with
 1,968 target variables and 2,208 target constraints; it is not yet attached
 to an optimizer. Inverse-rotation starts are copied successfully, but the
 artifact carries no solver evidence.
+
+## 2026-08-22: real 99-bus transformed-coordinate solver campaign
+
+This section supersedes the readiness-only solver statement above. The bounded
+campaign now runs matched reference and phase-only Ipopt solves on all six
+selected real ENWL 99-bus snapshots. All twelve solves terminate
+`LOCALLY_SOLVED`, with six source endpoints recovered and six phase-only
+endpoints rebuilt from complete starts.
+
+The strict physical KKT gate is available on every run but passes only 2/6
+reference and 2/6 phase-only endpoints at complementarity tolerance `1e-5`.
+The saved failure-localization report shows identical failed-side keys, counts,
+and family attribution between reference and phase-only runs: four snapshots
+fail only on `ibr_p_upper`, while both t13 snapshots pass. This is localization
+evidence, not a formulation or solver-causality diagnosis.
+
+The phase-only covariance gate passes all seven available checks on all six
+snapshots, including scalar-set transport, point/objective/residual agreement,
+and semantic Jacobian comparison. Physical rank remains unavailable because
+dense rank is disabled, and inequality-multiplier covariance remains outside
+the covariance report. The machine-readable release-gate ledger is
+`docs/calibration_release_gate_summary.json`.
