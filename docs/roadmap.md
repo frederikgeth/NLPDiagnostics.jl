@@ -3919,6 +3919,15 @@ t13 snapshots. `ibr_p_upper` appears early at t01 and only at the last captured
 point at t13. This narrows the bounded trace observation without turning
 point-local feasibility residuals into an endpoint KKT or causal claim.
 
+An unlimited trace pass on the same four 30-bus snapshots now reaches the last
+captured callback. Its endpoint row-family summary is tracked at
+`docs/bmopf_30bus_trace_endpoint_row_family_summary.json`: `ibr_p_upper` is the
+largest registry-labeled residual on all four endpoints at approximately
+`9.97e-9`, while the next family is only `3.3e-16` to `6.7e-16`. This is the
+first bounded endpoint-level localization of the observed row residual, but it
+remains model-coordinate feasibility evidence rather than physical
+complementarity, solver optimality, or causal proof.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative

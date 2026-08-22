@@ -1,0 +1,53 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-trace-endpoint-row-family-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_solver_trace.jl",
+    "trace_comparison": "docs/bmopf_30bus_initialization_trace_comparison_summary.json",
+    "trace_probe_max_points": 0,
+    "captured_row_snapshot_count": "all solver callbacks",
+    "row_label_source": "BMOPFTools public constraint registry"
+  },
+  "snapshots": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "last_iteration": 18,
+      "last_primal_infeasibility": 8.549230396574335e-16,
+      "last_dual_infeasibility": 2.842170943040401e-14,
+      "endpoint_top_family": ["ibr_p_upper", 9.976176744766563e-9],
+      "endpoint_next_family": ["ibr_voltage_magnitude_definition", 3.3306690738754696e-16],
+      "endpoint_top_to_next_ratio": 29952470.5802086
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "last_iteration": 17,
+      "last_primal_infeasibility": 1.4432899320127035e-15,
+      "last_dual_infeasibility": 8.286349384434288e-11,
+      "endpoint_top_family": ["ibr_p_upper", 9.971078154986934e-9],
+      "endpoint_next_family": ["ibr_voltage_magnitude_definition", 6.661338147750939e-16],
+      "endpoint_top_to_next_ratio": 14968581.287760416
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "last_iteration": 18,
+      "last_primal_infeasibility": 1.1768073202765699e-15,
+      "last_dual_infeasibility": 2.842170943040401e-14,
+      "endpoint_top_family": ["ibr_p_upper", 9.976176652784826e-9],
+      "endpoint_next_family": ["ibr_voltage_magnitude_definition", 3.3306690738754696e-16],
+      "endpoint_top_to_next_ratio": 29952470.304042656
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "last_iteration": 18,
+      "last_primal_infeasibility": 3.6637359812630166e-15,
+      "last_dual_infeasibility": 2.395523779341602e-10,
+      "endpoint_top_family": ["ibr_p_upper", 9.970907361052384e-9],
+      "endpoint_next_family": ["ibr_voltage_magnitude_definition", 4.440892098500626e-16],
+      "endpoint_top_to_next_ratio": 22452487.337890625
+    }
+  ],
+  "interpretation": {
+    "observation": "At the last captured callback on all four 30-bus snapshots, ibr_p_upper is the largest registry-labeled row-family feasibility residual, approximately 1.5e7 to 3.0e7 times the next family.",
+    "qualification": "This is endpoint row feasibility evidence in model coordinates; it is not a physical complementarity residual, solver optimality certificate, or causal explanation of the 99-bus floor.",
+    "next": "Compare this endpoint row-family result with the calibrated physical KKT report on the same snapshots before considering a larger trace campaign."
+  }
+}
