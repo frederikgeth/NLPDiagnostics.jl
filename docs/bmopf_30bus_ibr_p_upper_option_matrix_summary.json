@@ -1,0 +1,64 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-ibr-p-upper-option-matrix-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_30bus_ibr_p_upper_option_matrix.jl",
+    "local_environment": "work/benchmark-environment",
+    "solver": "Ipopt",
+    "max_iter": 80,
+    "policies": ["baseline", "tight_tolerance", "monotone_barrier", "scaling_none"],
+    "quantity_tolerance": 1.0,
+    "stationarity_tolerance": 1e-5,
+    "dual_tolerance": 1e-5,
+    "complementarity_tolerance": 1e-5
+  },
+  "policy_results": [
+    {
+      "policy": "baseline",
+      "options": {},
+      "locally_solved_count": 4,
+      "strict_kkt_acceptance_count": 2,
+      "t01_max_complementarity": [1.049343932476267e-5, 1.0493452407338264e-5],
+      "t13_max_complementarity": [8.588485697044737e-6, 8.639323370055962e-6],
+      "t01_ibr_p_upper_physical_violation": [0.00997524670603539, 0.009976176772531127],
+      "t13_ibr_p_upper_physical_violation": [0.009970907362003345, 0.009971078155103896]
+    },
+    {
+      "policy": "tight_tolerance",
+      "options": {"tol": 1e-10, "acceptable_tol": 1e-10},
+      "locally_solved_count": 4,
+      "strict_kkt_acceptance_count": 2,
+      "t01_max_complementarity": [1.0505863147786905e-5, 1.0505876230871533e-5],
+      "t13_max_complementarity": [8.613454721942797e-6, 8.66429279275042e-6],
+      "t01_ibr_p_upper_physical_violation": [0.0099998784115468, 0.009999885229197892],
+      "t13_ibr_p_upper_physical_violation": [0.009999894460634096, 0.009999895080909482]
+    },
+    {
+      "policy": "monotone_barrier",
+      "options": {"mu_strategy": "monotone"},
+      "locally_solved_count": 4,
+      "strict_kkt_acceptance_count": 2,
+      "t01_max_complementarity": [1.049343932476267e-5, 1.0493452407338264e-5],
+      "t13_max_complementarity": [8.588485697044737e-6, 8.639323370055962e-6],
+      "t01_ibr_p_upper_physical_violation": [0.00997524670603539, 0.009976176772531127],
+      "t13_ibr_p_upper_physical_violation": [0.009970907362003345, 0.009971078155103896]
+    },
+    {
+      "policy": "scaling_none",
+      "options": {"nlp_scaling_method": "none"},
+      "locally_solved_count": 4,
+      "strict_kkt_acceptance_count": 2,
+      "t01_max_complementarity": [1.0504621238421748e-5, 1.0504639131581995e-5],
+      "t13_max_complementarity": [8.611039642017787e-6, 8.66187766553655e-6],
+      "t01_ibr_p_upper_physical_violation": [0.00999745919557028, 0.009997567948335959],
+      "t13_ibr_p_upper_physical_violation": [0.009970907362003345, 0.00999710781070462]
+    }
+  ],
+  "comparison": {
+    "locally_solved_count": 16,
+    "stationarity_passed_count": 16,
+    "strict_kkt_acceptance_count": 8,
+    "strict_kkt_pattern": "all four t13 cases pass under each policy; all four t01 cases fail under each policy",
+    "interpretation": "Monotone barrier reproduces baseline endpoints. Tight tolerance and no-NLP-scaling shift the ibr_p_upper and complementarity floors slightly upward but do not change the t01/t13 strict-KKT pattern.",
+    "qualification": "This is local Ipopt option sensitivity on four 30-bus snapshots. It does not select an automatic policy, prove solver causality, or establish a global formulation diagnosis."
+  }
+}
