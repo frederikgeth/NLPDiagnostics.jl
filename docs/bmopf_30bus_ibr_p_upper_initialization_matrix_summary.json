@@ -1,0 +1,64 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-ibr-p-upper-initialization-matrix-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_30bus_ibr_p_upper_initialization_matrix.jl",
+    "local_environment": "work/benchmark-environment",
+    "solver": "Ipopt",
+    "max_iter": 80,
+    "policies": ["none", "bmopf", "bmopf_zero_completion", "zero"],
+    "quantity_tolerance": 1.0,
+    "stationarity_tolerance": 1e-5,
+    "dual_tolerance": 1e-5,
+    "complementarity_tolerance": 1e-5
+  },
+  "policy_results": [
+    {
+      "policy": "none",
+      "initialization_status": "not_requested",
+      "finite_start_count": 350,
+      "missing_start_count": 354,
+      "locally_solved_count": 4,
+      "strict_kkt_acceptance_count": 2,
+      "maximum_complementarity_residual_range": [8.588485697044737e-6, 1.0493452407338264e-5],
+      "ibr_p_upper_physical_violation_range": [0.009970907362003345, 0.009976176772531127]
+    },
+    {
+      "policy": "bmopf",
+      "initialization_status": "unavailable",
+      "finite_start_count": 350,
+      "missing_start_count": 354,
+      "locally_solved_count": 4,
+      "strict_kkt_acceptance_count": 2,
+      "maximum_complementarity_residual_range": [8.588485697044737e-6, 1.0493452407338264e-5],
+      "ibr_p_upper_physical_violation_range": [0.009970907362003345, 0.009976176772531127]
+    },
+    {
+      "policy": "bmopf_zero_completion",
+      "initialization_status": "applied",
+      "finite_start_count": 704,
+      "missing_start_count": 0,
+      "locally_solved_count": 4,
+      "strict_kkt_acceptance_count": 2,
+      "maximum_complementarity_residual_range": [8.588485697044737e-6, 1.0493452407338264e-5],
+      "ibr_p_upper_physical_violation_range": [0.009970907362003345, 0.009976176772531127]
+    },
+    {
+      "policy": "zero",
+      "initialization_status": "applied",
+      "finite_start_count": 704,
+      "missing_start_count": 0,
+      "locally_solved_count": 0,
+      "strict_kkt_acceptance_count": 0,
+      "termination_status": "ITERATION_LIMIT",
+      "maximum_complementarity_residual_range": [0.9789052486408286, 2175502990150.2148],
+      "ibr_p_upper_physical_violation_range": [2312.455924205181, 11417.034101998828]
+    }
+  ],
+  "comparison": {
+    "qualified_policies_preserve_endpoint_pattern": true,
+    "qualified_policy_strict_kkt_count": 2,
+    "zero_policy_locally_solved_count": 0,
+    "interpretation": "Native engine starts, unavailable BMOPFTools native-start retrieval, and zero-completed BMOPFTools starts all preserve the same 4/4 local solves, 2/4 strict KKT acceptance, and ibr_p_upper endpoint range. Deliberate all-zero starts fail to complete within 80 iterations and produce orders-of-magnitude larger residuals.",
+    "qualification": "This is bounded initialization sensitivity on four 30-bus snapshots. The bmopf policy is explicitly unavailable rather than treated as a solver failure; the result does not establish initialization causality beyond the tested controls."
+  }
+}

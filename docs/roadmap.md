@@ -3998,6 +3998,17 @@ pattern (t13 accepted, t01 rejected). Tight tolerance and no-NLP-scaling move
 the `ibr_p_upper` floor slightly upward rather than removing the t01 failure,
 so no automatic option policy is selected from this local matrix.
 
+The initialization matrix is tracked at
+`docs/bmopf_30bus_ibr_p_upper_initialization_matrix_summary.json`, with
+executable runner `benchmarks/bmopf_30bus_ibr_p_upper_initialization_matrix.jl`.
+Native engine starts, the explicitly unavailable BMOPFTools native-start
+policy, and zero-completed BMOPFTools starts all preserve 4/4 local solves,
+2/4 strict KKT acceptance, and the same `ibr_p_upper` endpoint range. The
+deliberate all-zero control reaches `ITERATION_LIMIT` on all four snapshots and
+produces orders-of-magnitude larger residuals. This confirms initialization is
+material for completion, while leaving the qualified endpoint floor unchanged
+under the tested complete-start controls.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
