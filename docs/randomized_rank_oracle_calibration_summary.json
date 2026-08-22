@@ -1,0 +1,31 @@
+{
+  "schema_version": "nlpdiagnostics-seeded-randomized-rank-oracle-calibration-summary-v1",
+  "source": {
+    "runner": "benchmarks/calibrate_randomized_rank_oracles.jl",
+    "artifact": "work/randomized-rank-oracle-calibration.json",
+    "seeds": [11, 29, 47],
+    "record_count": 27
+  },
+  "hard_controls": {
+    "record_count": 18,
+    "all_expectations_matched": true,
+    "false_positive_count": 0,
+    "false_negative_count": 0,
+    "dense_unavailable_count": 0,
+    "sparse_unavailable_count": 0,
+    "backend_disagreement_count": 0
+  },
+  "threshold_controls": {
+    "record_count": 9,
+    "backend_agreement_count": 5,
+    "backend_disagreement_count": 4,
+    "disagreements": [
+      "seed_11_threshold_cluster_1.0e-8",
+      "seed_11_threshold_cluster_2.0e-8",
+      "seed_29_threshold_cluster_5.0e-9",
+      "seed_29_threshold_cluster_2.0e-8"
+    ],
+    "interpretation": "Tolerance-dependent numerical policy sensitivity, not a mathematical-rank failure."
+  },
+  "finding": "The seeded 27-record corpus has zero hard-control false positives, false negatives, or unavailable backend results. Four of nine deliberately threshold-clustered controls disagree across dense and sparse backends, preserving the expected tolerance-sensitivity signal. Broader adversarial and large-model resource statistics remain open."
+}

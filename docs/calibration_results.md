@@ -1145,3 +1145,37 @@ and semantic Jacobian comparison. Physical rank remains unavailable because
 dense rank is disabled, and inequality-multiplier covariance remains outside
 the covariance report. The machine-readable release-gate ledger is
 `docs/calibration_release_gate_summary.json`.
+
+## 2026-08-22: seeded rank-oracle false-positive/false-negative calibration
+
+The deterministic three-seed rank-oracle corpus contains 27 records: 18 hard
+controls and nine deliberately threshold-clustered controls. All hard controls
+match their planted expectations with zero false positives, false negatives,
+backend unavailability, or dense/sparse disagreements. Four of the nine
+threshold-cluster controls disagree across backends; these are retained as
+expected tolerance-sensitive numerical evidence rather than failures. The
+compact result is tracked at
+`docs/randomized_rank_oracle_calibration_summary.json`; broader adversarial and
+large-model statistics remain open.
+
+## 2026-08-22: real 99-bus transformed-coordinate solver campaign
+
+This section supersedes the readiness-only solver statement above. The bounded
+campaign now runs matched reference and phase-only Ipopt solves on all six
+selected real ENWL 99-bus snapshots. All twelve solves terminate
+`LOCALLY_SOLVED`, with six source endpoints recovered and six phase-only
+endpoints rebuilt from complete starts.
+
+The strict physical KKT gate is available on every run but passes only 2/6
+reference and 2/6 phase-only endpoints at complementarity tolerance `1e-5`.
+The saved failure-localization report shows identical failed-side keys, counts,
+and family attribution between reference and phase-only runs: four snapshots
+fail only on `ibr_p_upper`, while both t13 snapshots pass. This is localization
+evidence, not a formulation or solver-causality diagnosis.
+
+The phase-only covariance gate passes all seven available checks on all six
+snapshots, including scalar-set transport, point/objective/residual agreement,
+and semantic Jacobian comparison. Physical rank remains unavailable because
+dense rank is disabled, and inequality-multiplier covariance remains outside
+the covariance report. The machine-readable release-gate ledger is
+`docs/calibration_release_gate_summary.json`.

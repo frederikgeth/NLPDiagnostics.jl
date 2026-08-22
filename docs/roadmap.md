@@ -4196,6 +4196,14 @@ The calibration release-gate ledger is tracked at
 keeping strict physical KKT, numerical false-positive/false-negative
 statistics, runtime/memory scaling, and API/benchmark consolidation as explicit
 blockers. The project is not release-ready under the current mission gate.
+The seeded rank-oracle calibration is tracked at
+`docs/randomized_rank_oracle_calibration_summary.json`, with executable runner
+`benchmarks/calibrate_randomized_rank_oracles.jl`. Across 27 records and three
+seeds, all 18 hard controls match their planted expectations with zero false
+positives, false negatives, or unavailable backend results. Four of nine
+deliberate threshold-cluster controls disagree across backends, as expected
+tolerance-sensitive evidence. Broader adversarial and large-model statistics
+remain open.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and
