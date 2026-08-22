@@ -1004,3 +1004,19 @@ equivalent. It is not evidence of global phase-policy superiority or nonlinear
 feeder behavior. The compact result is tracked at
 `docs/phase_only_ipopt_campaign_summary.json`; the next phase-only step is a
 nonlinear truth fixture with the same fixed-magnitude contract.
+
+## 2026-08-22: nonlinear phase-only Ipopt promotion
+
+The fixed-magnitude phase-only protocol now runs on a nonlinear four-equation
+truth fixture containing squared magnitudes, a sine term, and bilinear
+coupling. Two fresh reference and two fresh phase-only Ipopt solves all
+terminate `LOCALLY_SOLVED`; intervention, endpoint-covariance, and geometry
+gates pass.
+
+Both policies use nine callback records, twelve total line-search trials, and
+no positive regularization records per repeat. The matched work difference is
+zero on this nonlinear fixture as well. This extends the algebraic negative
+control without turning it into a universal performance claim. Feeder,
+transformer, and controller-rich nonlinear cases remain future work. The
+compact result is tracked at
+`docs/phase_only_nonlinear_ipopt_campaign_summary.json`.

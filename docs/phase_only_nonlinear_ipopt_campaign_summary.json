@@ -1,0 +1,44 @@
+{
+  "schema_version": "nlpdiagnostics-phase-only-nonlinear-ipopt-campaign-summary-v1",
+  "runner": "benchmarks/phase_only_nonlinear_ipopt_campaign.jl",
+  "design": {
+    "repeats_per_policy": 2,
+    "magnitude_bases_held_fixed": true,
+    "dense_decompositions_enabled": false,
+    "nonlinear_constraints": 4,
+    "physical_start": [0.2, 0.1, 0.2, 0.2]
+  },
+  "gates": {
+    "intervention_classification": "phase_only",
+    "endpoint_covariance_passed": true,
+    "geometry_gate_passed": true,
+    "all_endpoints_locally_solved": true
+  },
+  "solver_work": {
+    "reference": {
+      "record_count": [9, 9],
+      "line_search_trial_sum": [12, 12],
+      "positive_regularization_record_count": [0, 0]
+    },
+    "phase_only": {
+      "record_count": [9, 9],
+      "line_search_trial_sum": [12, 12],
+      "positive_regularization_record_count": [0, 0]
+    },
+    "matched_work_difference": {
+      "record_count": 0,
+      "line_search_trial_sum": 0,
+      "positive_regularization_record_count": 0
+    }
+  },
+  "qualification": {
+    "claim": "On the nonlinear two-block truth fixture, the phase-only formulation preserves the physical endpoint and has identical bounded Ipopt callback work to the reference.",
+    "scope": "Two fresh reference and two fresh phase-only nonlinear Ipopt solves in the known local environment.",
+    "does_not_establish": [
+      "global phase-policy superiority",
+      "wall-time portability",
+      "electrical phase semantics beyond the declared blocks",
+      "behavior on feeder, transformer, or controller-rich models"
+    ]
+  }
+}
