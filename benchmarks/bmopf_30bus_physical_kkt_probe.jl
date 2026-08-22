@@ -79,6 +79,21 @@ function complementarity_tolerance_record(report, tolerance)
         string(get(get(attribution, key, Dict()), "constraint_family", "unknown"))
         for key in failed_sides
     ]))
+    failed_side_metrics = Dict{String,Any}()
+    for key in failed_sides
+        side = get(sides, key, Dict())
+        failed_side_metrics[key] = Dict{String,Any}(
+            field => get(side, field, nothing)
+            for field in (
+                "physical_slack",
+                "model_slack",
+                "physical_multiplier",
+                "model_multiplier",
+                "complementarity_residual",
+                "residual_scale",
+            )
+        )
+    end
     return Dict{String,Any}(
         "physical_kkt_acceptance_passed" => get(
             report, "acceptance_passed", nothing,
@@ -92,6 +107,7 @@ function complementarity_tolerance_record(report, tolerance)
         "failed_side_count" => length(failed_sides),
         "failed_sides" => failed_sides,
         "failed_constraint_families" => failed_constraint_families,
+        "failed_side_metrics" => failed_side_metrics,
     )
 end
 
@@ -184,7 +200,7 @@ output = abspath(get(
 ))
 mkpath(dirname(output))
 write(output, JSON.json(Dict(
-    "schema_version" => "nlpdiagnostics-bmopf-30bus-physical-kkt-probe-v2",
+    "schema_version" => "nlpdiagnostics-bmopf-30bus-physical-kkt-probe-v3",
     "source" => Dict(
         "runner" => basename(@__FILE__),
         "local_environment" => abspath(joinpath(@__DIR__, "..", "work", "benchmark-environment")),

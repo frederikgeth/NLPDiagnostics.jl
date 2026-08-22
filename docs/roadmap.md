@@ -3951,6 +3951,15 @@ family failing; t13 has zero failed sides at `1e-5`. This identifies the
 bounded failure surface without claiming that the row family is the causal
 source of the residual floor or that the physical tolerance should be relaxed.
 
+The retained failed-side metrics also preserve the scaling identity. Across the
+56 failed t01 sides, model slack is approximately `-9.976e-9` to `-9.975e-9`
+and maps to physical slack `-9.976e-3` to `-9.975e-3` at residual scale
+`1e6`; model multipliers `1004` to `1052` map to physical multipliers about
+`1.004e-3` to `1.052e-3`. Their complementarity products span approximately
+`1.002e-5` to `1.049e-5`, so this local evidence is consistent with a tolerance
+crossing under the declared scaling map rather than a separate unit-conversion
+mismatch. Residual sign semantics and solver causality remain open.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative

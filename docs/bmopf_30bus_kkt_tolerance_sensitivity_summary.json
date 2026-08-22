@@ -1,5 +1,5 @@
 {
-  "schema_version": "nlpdiagnostics-bmopf-30bus-kkt-tolerance-sensitivity-v2",
+  "schema_version": "nlpdiagnostics-bmopf-30bus-kkt-tolerance-sensitivity-v3",
   "source": {
     "runner": "benchmarks/bmopf_30bus_physical_kkt_probe.jl",
     "comparison_summary": "docs/bmopf_30bus_endpoint_kkt_comparison_summary.json",
@@ -19,6 +19,14 @@
         "failed_side_count": 28,
         "failed_constraint_families": ["ibr_p_upper"],
         "failed_side_pattern": "constraint:ibr_p_upper:(pv_1 through pv_28, 1)/upper"
+      },
+      "strict_failure_metric_ranges": {
+        "model_slack": [-9.976176743116997e-9, -9.97524670603539e-9],
+        "physical_slack": [-0.009976176743116998, -0.00997524670603539],
+        "model_multiplier": [1004.457794820813, 1051.8497812303249],
+        "physical_multiplier": [0.001004457794820813, 0.0010518497812303249],
+        "complementarity_residual": [1.0019714309137886e-5, 1.049343932476267e-5],
+        "residual_scales": [1e6]
       },
       "acceptance_by_tolerance": {
         "1.0e-5": {"physical_kkt_acceptance_passed": false, "complementarity_acceptance_passed": false, "passed_side_count": 140},
@@ -52,6 +60,14 @@
         "failed_constraint_families": ["ibr_p_upper"],
         "failed_side_pattern": "constraint:ibr_p_upper:(pv_1 through pv_28, 1)/upper"
       },
+      "strict_failure_metric_ranges": {
+        "model_slack": [-9.976176772531128e-9, -9.97524672351823e-9],
+        "physical_slack": [-0.009976176772531127, -0.00997524672351823],
+        "model_multiplier": [1004.4575375293779, 1051.8510895107058],
+        "physical_multiplier": [0.0010044575375293778, 0.0010518510895107058],
+        "complementarity_residual": [1.0019711760153115e-5, 1.0493452407338264e-5],
+        "residual_scales": [1e6]
+      },
       "acceptance_by_tolerance": {
         "1.0e-5": {"physical_kkt_acceptance_passed": false, "complementarity_acceptance_passed": false, "passed_side_count": 140},
         "1.05e-5": {"physical_kkt_acceptance_passed": true, "complementarity_acceptance_passed": true, "passed_side_count": 168},
@@ -81,7 +97,8 @@
     "t13_passes_at_strict_tolerance": true,
     "t01_failed_side_count": 28,
     "t01_failed_side_families": ["ibr_p_upper"],
+    "scaling_identity_observation": "For the 56 failed t01 sides, physical slack equals model slack times 1e6 and physical multiplier equals model multiplier divided by 1e6; the resulting complementarity products are approximately 1.002e-5 to 1.049e-5.",
     "interpretation": "Both t01 snapshots cross from 140/168 to 168/168 passing sides between complementarity tolerances 1e-5 and 1.05e-5; both t13 snapshots already pass at 1e-5.",
-    "qualification": "This is local tolerance-sensitivity evidence for four 30-bus snapshots. It does not recommend changing the default tolerance, establish a global policy, or replace physical KKT acceptance under a declared contract."
+    "qualification": "This is local tolerance-sensitivity and side-metric evidence for four 30-bus snapshots. It does not recommend changing the default tolerance, resolve residual sign semantics, establish a global policy, or replace physical KKT acceptance under a declared contract."
   }
 }
