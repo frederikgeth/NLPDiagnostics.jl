@@ -335,6 +335,20 @@ function run_snapshot(
             phase_only_feasibility;
             margin=baseline_margin,
         )
+        phase_only_covariance = get(endpoint, "available", false) === true ?
+            NLPDiagnostics.bmopf_phase_only_covariance_report(
+                context,
+                endpoint["endpoint_evaluation"],
+                phase_only,
+                endpoint;
+                absolute_tolerance=1.0e-8,
+                relative_tolerance=1.0e-7,
+                max_dense_entries=0,
+            ) : Dict{String,Any}(
+                "available" => false,
+                "equivalence_gate_passed" => nothing,
+                "reason" => "the source-coordinate phase-only endpoint was unavailable",
+            )
         return Dict{String,Any}(
             "available" => true,
             "snapshot" => relative,
@@ -383,6 +397,7 @@ function run_snapshot(
                         "acceptance_passed" => nothing,
                         "reason" => "the source-coordinate phase-only endpoint was unavailable",
                     ),
+                "covariance" => phase_only_covariance,
                 "native_baseline_comparison" => baseline_comparison,
             ),
             "qualification" => Dict(
@@ -466,6 +481,14 @@ function run_campaign()
         run for run in phase_only_kkt_available
         if get(get(get(run, "phase_only", Dict()), "physical_solver_kkt", Dict()), "acceptance_passed", false) === true
     ]
+    phase_only_covariance_available = [
+        run for run in runs
+        if get(get(get(run, "phase_only", Dict()), "covariance", Dict()), "available", false) === true
+    ]
+    phase_only_covariance_accepted = [
+        run for run in phase_only_covariance_available
+        if get(get(get(run, "phase_only", Dict()), "covariance", Dict()), "equivalence_gate_passed", false) === true
+    ]
     return Dict(
         "schema_version" => "nlpdiagnostics-real-99bus-phase-only-campaign-v3",
         "source" => Dict(
@@ -490,6 +513,8 @@ function run_campaign()
             "all_reference_physical_solver_kkt_accepted" => length(reference_kkt_accepted) == length(SELECTED_SNAPSHOTS),
             "phase_only_physical_solver_kkt_available_count" => length(phase_only_kkt_available),
             "phase_only_physical_solver_kkt_acceptance_count" => length(phase_only_kkt_accepted),
+            "phase_only_covariance_available_count" => length(phase_only_covariance_available),
+            "phase_only_covariance_acceptance_count" => length(phase_only_covariance_accepted),
             "phase_only_physical_endpoint_acceptance_count" => length(phase_only_physical),
             "phase_only_solver_floor_calibrated_acceptance_count" => length(phase_only_solver_floor_calibrated),
             "all_phase_only_solver_floor_calibrated_accepted" => length(phase_only_solver_floor_calibrated) == length(SELECTED_SNAPSHOTS),
@@ -500,7 +525,7 @@ function run_campaign()
             "all_phase_only_physical_endpoints_accepted" => length(phase_only_physical) == length(SELECTED_SNAPSHOTS),
             "solver_campaign_ready" => false,
             "physical_endpoint_validation" => false,
-            "blocking_reason" => "solver-floor calibrated feasibility is qualified as relative solver-scale evidence, but absolute physical acceptance, full compound KKT acceptance, and physical covariance validation are not yet qualified",
+            "blocking_reason" => "solver-floor calibrated feasibility is qualified as relative solver-scale evidence, but absolute physical acceptance, full compound KKT acceptance, transformed-domain-set covariance, and physical covariance validation are not yet qualified",
         ),
     )
 end

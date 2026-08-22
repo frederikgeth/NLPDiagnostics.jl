@@ -3767,8 +3767,9 @@ tolerance by physical quantity and scale, with complete semantic-block
 coverage. Both the native reference and transformed endpoints pass this
 relative solver-scale screen for all six snapshots. This is explicitly not an
 absolute physical claim: the roughly `1e-2` power residual remains visible in
-physical units. KKT acceptance and covariance checks remain absent. The next
-research sequence is:
+physical units. Native and transported source-coordinate KKT evidence is now
+available; the remaining covariance gate is explicitly separated from KKT and
+is blocked by transformed variable-domain sets. The next research sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
@@ -3813,6 +3814,14 @@ solver-scale KKT evidence and absolute physical acceptance. Physical covariance
 validation and the remaining complementarity failures are still open; this is
 readiness and failure-localization evidence, not an optimality claim.
 
+A phase-only covariance report now compares source and transformed endpoint
+point, objective, residual, derivative, and sparse-Jacobian geometry through
+the declared semantic block maps. It is available on all six snapshots, but
+the equivalence gate remains closed because the rebuilt model still copies 104
+variable-domain constraints without rotating them into coupled sets. This is
+the correct failure mode: residual/Jacobian covariance is evidence of the
+coordinate plumbing, not proof of transformed feasible-set equivalence.
+
 The held-out LG summary is tracked at `docs/calibration_summary.json`. The
 two-direction Ipopt extension is tracked at
 `docs/calibration_perturbation_summary.json`. The
@@ -3840,9 +3849,10 @@ executable protocol `benchmarks/phase_only_99bus_snapshot_campaign.jl`. Real
 with executable probe `benchmarks/real_99bus_readiness.jl`.
 The first real transformed-coordinate solver campaign is tracked locally by
 `benchmarks/real_99bus_phase_only_campaign.jl`; it runs six matched LN/LG
-snapshots with a bounded Ipopt budget and records solver-only evidence. Its
-compact status is intentionally not promoted to a physical campaign summary
-until endpoint and covariance gates are implemented; the solver-only ledger is
+snapshots with a bounded Ipopt budget and records solver, KKT, and covariance
+readiness evidence. Its compact status remains a readiness ledger rather than
+a physical campaign qualification because the covariance set gate is blocked;
+the ledger is
 `docs/real_99bus_phase_only_campaign_summary.json`.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,

@@ -3903,6 +3903,7 @@ function _bmopf_phase_only_endpoint(
         "transformed_coordinate_values" => transformed_values,
         "endpoint_point" => endpoint_point,
         "endpoint_evaluation" => endpoint_evaluation,
+        "phase_plan" => phase_plan,
         "solver_result" => solved,
         "qualification" => Dict{String,Any}(
             "claim" => "inverse-transported phase-only optimizer endpoint in source BMOPF coordinates",
@@ -3910,6 +3911,209 @@ function _bmopf_phase_only_endpoint(
             "kkt_acceptance_evaluated" => false,
         ),
     )
+end
+
+function _bmopf_phase_only_covariance_report(
+    context,
+    source_evaluation,
+    solved,
+    endpoint;
+    absolute_tolerance::Real = 1.0e-8,
+    relative_tolerance::Real = 1.0e-7,
+    max_dense_entries::Integer = 0,
+)
+    available = get(endpoint, "available", false) === true &&
+        get(solved, "available", false) === true &&
+        get(solved, "solver_run_completed", false) === true
+    available || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-covariance-v1",
+        "available" => false,
+        "equivalence_gate_passed" => nothing,
+        "reason" => "the transformed phase-only endpoint is unavailable or incomplete",
+    )
+    phase_plan = get(endpoint, "phase_plan", nothing)
+    reference_map = phase_plan isa AbstractDict ? get(phase_plan, "reference_map", nothing) : nothing
+    candidate_map = phase_plan isa AbstractDict ? get(phase_plan, "candidate_map", nothing) : nothing
+    optimizer = get(solved, "optimizer_model", nothing)
+    rebuild = get(solved, "rebuild", Dict{String,Any}())
+    target = get(rebuild, "target_model", nothing)
+    copy_map = get(solved, "copy_map", nothing)
+    transformed_values = get(endpoint, "transformed_coordinate_values", nothing)
+    (reference_map isa NLPDiagnostics.SemanticBlockScalingMap &&
+        candidate_map isa NLPDiagnostics.SemanticBlockScalingMap &&
+        !isnothing(optimizer) && !isnothing(target) && !isnothing(copy_map) &&
+        transformed_values isa AbstractVector) || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-covariance-v1",
+        "available" => false,
+        "equivalence_gate_passed" => nothing,
+        "reason" => "phase-only semantic maps or transformed optimizer coordinates are unavailable",
+    )
+    optimizer_backend = optimizer isa JuMP.Model ? JuMP.backend(optimizer) : optimizer
+    target_variables = MOI.get(target, MOI.ListOfVariableIndices())
+    optimizer_variables = MOI.get(optimizer_backend, MOI.ListOfVariableIndices())
+    length(target_variables) == length(transformed_values) || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-covariance-v1",
+        "available" => false,
+        "equivalence_gate_passed" => nothing,
+        "reason" => "transformed coordinate values do not match the target model variables",
+    )
+    target_positions = Dict(variable => position for
+        (position, variable) in enumerate(target_variables))
+    optimizer_positions = Dict(variable => position for
+        (position, variable) in enumerate(optimizer_variables))
+    optimizer_values = zeros(Float64, length(optimizer_variables))
+    try
+        for target_variable in target_variables
+            optimizer_variable = copy_map[target_variable]
+            optimizer_values[optimizer_positions[optimizer_variable]] =
+                Float64(transformed_values[target_positions[target_variable]])
+        end
+    catch error
+        return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-covariance-v1",
+            "available" => false,
+            "equivalence_gate_passed" => nothing,
+            "reason" => "transformed optimizer coordinates could not be reconstructed",
+            "error" => sprint(showerror, error),
+        )
+    end
+    transformed_point = NLPDiagnostics.EvaluationPoint(
+        optimizer_variables,
+        optimizer_values;
+        label="bmopf-phase-only-transformed-covariance-endpoint",
+        provenance=NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.SolverResultPoint;
+            source="BMOPFTools phase-only transformed-coordinate optimizer",
+            complete=true,
+            metadata=Dict("coordinate_basis" => "transformed phase-only model coordinates"),
+        ),
+    )
+    transformed_evaluation = try
+        NLPDiagnostics.evaluate_numerical(optimizer_backend, transformed_point)
+    catch error
+        return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-covariance-v1",
+            "available" => false,
+            "equivalence_gate_passed" => nothing,
+            "reason" => "the transformed optimizer endpoint could not be reevaluated",
+            "error" => sprint(showerror, error),
+        )
+    end
+    source_row_lookup = Dict{Tuple{String,String,Int,Union{Nothing,Int}},Int}()
+    for (row, source) in enumerate(source_evaluation.constraint_sources)
+        source_row_lookup[(
+            string(source.function_type), string(source.set_type),
+            source.index, source.subindex,
+        )] = row
+    end
+    constraint_index_map = get(rebuild, "constraint_index_map", nothing)
+    constraint_index_map isa AbstractDict || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-covariance-v1",
+        "available" => false,
+        "equivalence_gate_passed" => nothing,
+        "reason" => "the transformed rebuild did not retain a source constraint index map",
+    )
+    target_row_to_source_row = zeros(Int, length(transformed_evaluation.constraint_sources))
+    for (target_row, target_source) in enumerate(transformed_evaluation.constraint_sources)
+        target_key = (
+            string(target_source.function_type),
+            string(target_source.set_type),
+            target_source.index,
+        )
+        source_descriptor = get(constraint_index_map, target_key, nothing)
+        source_descriptor isa Tuple && length(source_descriptor) == 3 || return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-covariance-v1",
+            "available" => false,
+            "equivalence_gate_passed" => nothing,
+            "reason" => "a transformed constraint row could not be mapped to its source constraint",
+            "target_row" => target_row,
+        )
+        source_key = (
+            string(source_descriptor[1]), string(source_descriptor[2]),
+            Int(source_descriptor[3]), target_source.subindex,
+        )
+        source_row = get(source_row_lookup, source_key, 0)
+        iszero(source_row) && return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-covariance-v1",
+            "available" => false,
+            "equivalence_gate_passed" => nothing,
+            "reason" => "a transformed constraint row mapped to a missing source constraint row",
+            "target_row" => target_row,
+        )
+        target_row_to_source_row[target_row] = source_row
+    end
+    sort(target_row_to_source_row) == collect(1:length(source_evaluation.constraint_sources)) || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-covariance-v1",
+        "available" => false,
+        "equivalence_gate_passed" => nothing,
+        "reason" => "the transformed-to-source constraint row map is not bijective",
+    )
+    reordered_values = transformed_evaluation.constraint_values[invperm(target_row_to_source_row)]
+    reordered_sources = source_evaluation.constraint_sources
+    reordered_methods = transformed_evaluation.jacobian_row_methods[invperm(target_row_to_source_row)]
+    reordered_entries = NLPDiagnostics.JacobianEntry{Float64}[
+        NLPDiagnostics.JacobianEntry{Float64}(
+            target_row_to_source_row[entry.row], entry.column, Float64(entry.value),
+        ) for entry in transformed_evaluation.jacobian_entries
+    ]
+    candidate_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+        transformed_evaluation.point,
+        transformed_evaluation.objective_value,
+        transformed_evaluation.objective_source,
+        [ismissing(value) ? missing : Float64(value)
+            for value in transformed_evaluation.objective_gradient],
+        reordered_values,
+        reordered_sources,
+        reordered_entries,
+        reordered_methods,
+        transformed_evaluation.capabilities,
+        transformed_evaluation.failures,
+        transformed_evaluation.call_statistics,
+        transformed_evaluation.objective_gradient_method,
+    )
+    report = NLPDiagnostics.scaling_covariance_report(
+        source_evaluation,
+        reference_map,
+        candidate_evaluation,
+        candidate_map;
+        absolute_tolerance,
+        relative_tolerance,
+        max_dense_entries,
+    )
+    source_backend = JuMP.backend(_bmopf_context_model(context))
+    source_variable_domain_count = 0
+    for (function_type, set_type) in MOI.get(
+        source_backend, MOI.ListOfConstraintTypesPresent(),
+    )
+        function_type === MOI.VariableIndex && (source_variable_domain_count +=
+            MOI.get(source_backend, MOI.NumberOfConstraints{function_type,set_type}()))
+    end
+    set_transform_gate = source_variable_domain_count == 0
+    report["report_version"] = "bmopf-phase-only-covariance-v1"
+    report["available"] = true
+    report["phase_only_set_transform"] = Dict{String,Any}(
+        "available" => set_transform_gate,
+        "acceptance_passed" => set_transform_gate,
+        "source_variable_domain_constraint_count" => source_variable_domain_count,
+        "reason" => set_transform_gate ?
+            "no variable-domain constraints require rotation" :
+            "rotated variable-domain sets were copied without a coupled-set transform",
+    )
+    report["equivalence_gate_passed"] =
+        report["equivalence_gate_passed"] === true && set_transform_gate
+    report["qualification"] = merge(
+        get(report, "qualification", Dict{String,Any}()),
+        Dict{String,Any}(
+            "claim" => "same-point source/transformed phase-only endpoint covariance under semantic blocks",
+            "set_transform_gate_passed" => set_transform_gate,
+            "does_not_establish" => [
+                "rotated variable-domain set equivalence when the set gate is blocked",
+                "solver merit or global optimality",
+                "KKT acceptance or covariance of inequality multipliers",
+            ],
+        ),
+    )
+    return report
 end
 
 function _bmopf_phase_only_physical_solver_kkt_report(

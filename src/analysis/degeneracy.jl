@@ -224,6 +224,11 @@ bmopf_phase_only_physical_solver_kkt_report(context, evaluation, solved, endpoin
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP are required for BMOPF phase-only KKT transport reports")._bmopf_phase_only_physical_solver_kkt_report(
             context, evaluation, solved, endpoint; kwargs...)
+"""Compare source and transformed phase-only endpoint geometry under semantic blocks."""
+bmopf_phase_only_covariance_report(context, evaluation, solved, endpoint; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP are required for BMOPF phase-only covariance reports")._bmopf_phase_only_covariance_report(
+            context, evaluation, solved, endpoint; kwargs...)
 """Transport one BMOPF point between scaling policies through declared physical coordinates."""
 bmopf_transport_scaling_point(
     source_context, source_evaluation,
