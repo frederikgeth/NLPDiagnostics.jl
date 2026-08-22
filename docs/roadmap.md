@@ -10,6 +10,25 @@ living scientific ledger for flexible physical bases, residual-block scaling,
 and complex transformations. It retains hypotheses, invariants, rejected ideas,
 experiment protocols, and the current publication boundary as results evolve.
 
+### Current status snapshot (2026-08-22)
+
+The latest bounded 30-bus IBR calibration sequence is complete through
+row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
+campaign now includes solver-budget, option, initialization, trajectory,
+cross-fixture, endpoint-geometry, directional finite-difference, analytic
+Jacobian, sparse-entry, scaling-semantic, bound-regime, and tolerance-margin
+evidence. These artifacts support the project goals as measurements and
+controlled comparisons: they preserve point provenance, declared scales and
+tolerances, unavailable paths, and explicit non-causal qualifications.
+
+The project is still in the consolidate-and-calibrate phase. No stable physical
+classifier, automatic reformulation, or causal solver/formulation claim has
+been promoted. The main open gates remain truth-labelled positive and negative
+calibration cases, complete physical KKT/covariance coverage on the real
+99-bus campaign, numerical-kernel false-positive/false-negative statistics,
+API/test consolidation, and the calibration release report. The next work
+should extend those gates rather than add another uncalibrated finding family.
+
 ## 2026 architecture review: consolidate and calibrate
 
 The project remains correctly motivated and its main architectural decisions
