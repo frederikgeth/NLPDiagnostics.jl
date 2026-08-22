@@ -1,0 +1,51 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-trace-probe-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_solver_trace.jl",
+    "selected_snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+    "local_environment": "work/benchmark-environment",
+    "solver": "ipopt",
+    "profile_stage": "trace",
+    "capture_points": true,
+    "capture_row_residuals": true,
+    "trace_probe_max_points": 8,
+    "max_solver_variables": 2000,
+    "raw_artifact_policy": "retain the point-rich JSON as a local artifact; commit this compact summary"
+  },
+  "result": {
+    "status": "ok_solver_trace_profile_skipped",
+    "model_variable_count": 704,
+    "initialization": {
+      "policy": "none",
+      "coordinate_count": 704,
+      "finite_start_count": 350,
+      "missing_start_count": 354
+    },
+    "iteration_trace": {
+      "record_count": 19,
+      "binding_count": 19,
+      "segment_count": 1,
+      "first_iteration": 0,
+      "last_iteration": 18,
+      "first_primal_infeasibility": 0.00999999,
+      "last_primal_infeasibility": 8.549230396574335e-16,
+      "last_dual_infeasibility": 2.842170943040401e-14
+    },
+    "row_family_residual_trace": {
+      "status": "available",
+      "record_count": 19,
+      "captured_row_count": 8,
+      "max_family_feasibility_violation": 0.0018864019795659065,
+      "label_source": "BMOPFTools public constraint registry"
+    }
+  },
+  "interpretation": {
+    "claim": "The bounded trace route captures public Ipopt iterate points and registry-labeled row-family residuals on the 30-bus fixture.",
+    "does_not_establish": [
+      "99-bus trace scalability",
+      "causal conditioning of the ibr_p_upper floor",
+      "complete native initialization"
+    ],
+    "next": "Use this bounded trace protocol for a deliberately selected small comparison before attempting any larger 99-bus trace budget."
+  }
+}

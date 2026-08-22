@@ -3890,6 +3890,18 @@ transformer subtype. This validates the generated phasor recipe itself; it is
 still not a complete native model point because 986 of 1,968 JuMP coordinates
 require the explicit completion fallback.
 
+The complete-native-point question is now separated from trace feasibility:
+BMOPFTools exposes no second public stage that fills the remaining current and
+auxiliary starts, so the 99-bus native-complete comparison remains explicitly
+unavailable. A bounded trace probe is recorded at
+`docs/bmopf_30bus_trace_probe_summary.json`, using
+`benchmarks/bmopf_solver_trace.jl` on the 30-bus LN t01 fixture. With an
+explicit eight-point budget it captured 19 Ipopt iterate records, 19 public
+primal bindings, and eight registry-labeled row-residual snapshots; the final
+captured primal and dual infeasibilities were `8.55e-16` and `2.84e-14`.
+The raw point-rich trace remains a local artifact, and this probe establishes
+trace mechanics on the small fixture rather than 99-bus causal evidence.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
