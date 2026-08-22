@@ -4038,6 +4038,16 @@ floating-point roundoff. This confirms local primal row sensitivity along the
 dominant coordinate families, while remaining explicitly non-causal and not a
 KKT or conditioning certificate.
 
+The directional delta matrix is tracked at
+`docs/bmopf_30bus_ibr_p_upper_directional_delta_matrix_summary.json`, with
+executable runner `benchmarks/bmopf_30bus_ibr_p_upper_directional_delta_matrix.jl`.
+Using `1e-5`, `1e-6`, and `1e-7` symmetric steps at each fixed endpoint keeps
+the central-slope ranges stable to displayed precision while scaling response
+magnitudes with the step. All four snapshots remain locally solved and all 28
+rows respond in both `cri` and `cii`. This strengthens the local finite-
+difference observation without upgrading it to a KKT, conditioning, or causal
+claim.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative

@@ -1,0 +1,65 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-ibr-p-upper-directional-delta-matrix-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_30bus_ibr_p_upper_directional_delta_matrix.jl",
+    "raw_probe": "/private/tmp/bmopf-30bus-ibr-directional-delta.json",
+    "solver": "Ipopt",
+    "max_iter": 80,
+    "deltas": [1e-5, 1e-6, 1e-7],
+    "target_row_family": "ibr_p_upper"
+  },
+  "protocol": {
+    "snapshots": 4,
+    "target_rows_per_snapshot": 28,
+    "families": ["cri", "cii"],
+    "operation": "At one fixed locally solved endpoint per snapshot, perturb every variable in one semantic family by plus/minus each delta and evaluate the target rows.",
+    "measures": [
+      "central finite-difference slope range",
+      "maximum absolute response",
+      "maximum plus/minus symmetry error"
+    ]
+  },
+  "cases": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_count": 28,
+      "family_slope_abs_ranges_across_deltas": {
+        "cri": [0.48981588824959627, 0.9910182542879458],
+        "cii": [0.0018488109639404936, 0.8642743071981478]
+      },
+      "maximum_symmetry_error": 4.42045319348338e-21
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_count": 28,
+      "family_slope_abs_ranges_across_deltas": {
+        "cri": [0.4907282211117497, 1.0812782464232964],
+        "cii": [0.07459385035438887, 0.9450480237347542]
+      },
+      "maximum_symmetry_error": 1.734723475976807e-18
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_count": 28,
+      "family_slope_abs_ranges_across_deltas": {
+        "cri": [0.4898159794003628, 0.9910182404996744],
+        "cii": [0.0018488204769123464, 0.8642743283714067]
+      },
+      "maximum_symmetry_error": 3.814956985094564e-21
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_count": 28,
+      "family_slope_abs_ranges_across_deltas": {
+        "cri": [0.48871640681855466, 1.0949930386115054],
+        "cii": [0.0605985618277842, 0.945175702626519]
+      },
+      "maximum_symmetry_error": 3.469446951953614e-18
+    }
+  ],
+  "finding": "Across 1e-5, 1e-6, and 1e-7 deltas, central-slope ranges are stable to displayed precision while response magnitudes scale with delta. All four snapshots remain locally solved and all 28 target rows respond in both families. This is finite-difference step-size evidence only; it is not a KKT, conditioning, or causal certificate."
+}
