@@ -3,17 +3,22 @@
   "source": {
     "selected_snapshot_count": 6,
     "phase_angle": 0.01,
+    "endpoint_tolerance": 1e-06,
     "max_iter": 40,
     "local_environment": "work/benchmark-environment"
   },
   "summary": {
     "reference_locally_solved_count": 6,
     "phase_only_locally_solved_count": 6,
+    "phase_only_source_endpoint_recovered_count": 6,
+    "reference_physical_endpoint_acceptance_count": 0,
+    "phase_only_physical_endpoint_acceptance_count": 0,
+    "strict_physical_endpoint_max_violation_range": [0.009971342873541289, 0.009978101757164374],
     "objective_agreement_gate": "passed to solver tolerances",
     "model_rebuild_and_start_gate": "passed for all six snapshots",
     "solver_campaign_ready": false,
     "physical_endpoint_validation": false,
-    "blocking_reason": "inverse endpoint recovery, KKT acceptance, and physical covariance validation are not yet implemented"
+    "blocking_reason": "source-coordinate endpoint recovery is implemented, but strict physical tolerance calibration, transformed variable-domain sets, KKT acceptance, and covariance validation remain open"
   },
   "runs": [
     {

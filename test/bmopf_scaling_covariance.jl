@@ -718,6 +718,14 @@ end
     @test attached["model_attached"]
     @test !attached["solver_run_completed"]
     @test !attached["solver_campaign_ready"]
+    endpoint = NLPDiagnostics.bmopf_phase_only_endpoint(
+        context,
+        evaluation;
+        solved=attached,
+        plan,
+    )
+    @test !endpoint["available"]
+    @test occursin("did not complete", endpoint["reason"])
 
     scheduled = NLPDiagnostics.bmopf_phase_only_transform_plan(
         context,

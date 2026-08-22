@@ -3756,15 +3756,20 @@ caller-owned Ipopt model can be attached and run through
 `bmopf_phase_only_solve_model`; the bounded six-snapshot local campaign
 completed both reference and phase-only runs with `LOCALLY_SOLVED` status and
 objective agreement to solver tolerances. This is solver evidence only: the
-campaign is not physically qualified because inverse endpoint recovery, KKT
-acceptance, and covariance checks are still absent. The next research
+`bmopf_phase_only_endpoint` now recovers the transformed optimizer primals
+through the retained MOI index map and reevaluates them in source coordinates.
+The six-case rerun recovers all six endpoints. A strict `1e-6` physical
+feasibility screen currently rejects both native and transformed endpoints at
+the same roughly `1e-2` maximum residual scale, so the result is evidence that
+the endpoint plumbing is aligned—not yet a calibrated physical acceptance
+gate. KKT acceptance and covariance checks remain absent. The next research
 sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
-2. add inverse-transported endpoint extraction, KKT acceptance, and physical
-   covariance gates to the real 99-bus runner, retaining solver-only results
-   as a separate evidence class; and
+2. calibrate quantity/set-specific physical tolerances against accepted native
+   endpoints, then add transformed-domain-set handling before applying KKT and
+   covariance gates to the real 99-bus runner; and
 3. consider automatic-policy candidates only after the endpoint-qualified
    real snapshot matrix
    has been reviewed for fixture-specific reversals.

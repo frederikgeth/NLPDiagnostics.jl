@@ -3715,8 +3715,9 @@ function _bmopf_phase_only_solve_model(
     )
     optimizer_backend = optimizer_model isa JuMP.Model ?
         JuMP.backend(optimizer_model) : optimizer_model
+    copy_map = nothing
     try
-        MOI.copy_to(optimizer_backend, rebuilt["target_model"])
+        copy_map = MOI.copy_to(optimizer_backend, rebuilt["target_model"])
     catch error
         return Dict{String,Any}(
             "report_version" => "bmopf-phase-only-solve-model-v1",
@@ -3775,11 +3776,130 @@ function _bmopf_phase_only_solve_model(
         "primal_status" => primal,
         "objective_value" => objective,
         "rebuild" => rebuilt,
+        "copy_map" => copy_map,
         "optimizer_model" => optimizer_model,
         "qualification" => Dict{String,Any}(
             "claim" => "local solver run on a transformed MOI model copy",
             "physical_endpoint_validation" => false,
             "solver_evidence_present" => optimize,
+        ),
+    )
+end
+
+"""Recover a solved phase-only endpoint in the source BMOPF coordinates."""
+function _bmopf_phase_only_endpoint(
+    context,
+    evaluation;
+    solved=nothing,
+    plan=nothing,
+    optimizer_model=nothing,
+    label::AbstractString="bmopf-phase-only-solver-endpoint",
+)
+    isnothing(solved) && return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-endpoint-v1",
+        "available" => false,
+        "reason" => "a completed phase-only solver result is required",
+    )
+    get(solved, "available", false) === true &&
+        get(solved, "solver_run_completed", false) === true ||
+        return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-endpoint-v1",
+            "available" => false,
+            "reason" => "the phase-only solver result did not complete",
+            "solver_result" => solved,
+        )
+    rebuild = get(solved, "rebuild", Dict{String,Any}())
+    target = get(rebuild, "target_model", nothing)
+    copy_map = get(solved, "copy_map", nothing)
+    (!isnothing(target) && !isnothing(copy_map)) || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-endpoint-v1",
+        "available" => false,
+        "reason" => "the solver result does not retain the transformed model copy map",
+    )
+    optimizer = isnothing(optimizer_model) ?
+        get(solved, "optimizer_model", nothing) : optimizer_model
+    isnothing(optimizer) && return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-endpoint-v1",
+        "available" => false,
+        "reason" => "the optimizer model is unavailable for endpoint recovery",
+    )
+    optimizer_backend = optimizer isa JuMP.Model ? JuMP.backend(optimizer) : optimizer
+    target_variables = MOI.get(target, MOI.ListOfVariableIndices())
+    source_model = _bmopf_context_model(context)
+    source_backend = JuMP.backend(source_model)
+    source_variables = MOI.get(source_backend, MOI.ListOfVariableIndices())
+    point_variables = evaluation.point.variables
+    source_position = Dict(variable => position for
+        (position, variable) in enumerate(point_variables))
+    length(source_variables) == length(target_variables) || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-endpoint-v1",
+        "available" => false,
+        "reason" => "source and transformed model variable counts differ",
+    )
+    transformed_values = zeros(Float64, length(point_variables))
+    try
+        for (source_variable, target_variable) in zip(source_variables, target_variables)
+            position = source_position[source_variable]
+            optimizer_variable = copy_map[target_variable]
+            transformed_values[position] = Float64(MOI.get(
+                optimizer_backend, MOI.VariablePrimal(), optimizer_variable,
+            ))
+        end
+    catch error
+        return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-endpoint-v1",
+            "available" => false,
+            "reason" => "optimizer primal values could not be recovered through the model copy map",
+            "error" => sprint(showerror, error),
+        )
+    end
+    phase_plan = isnothing(plan) ?
+        _bmopf_phase_only_transform_plan(context, evaluation) : plan
+    get(phase_plan, "available", false) || return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-endpoint-v1",
+        "available" => false,
+        "reason" => "the phase-only semantic intervention plan is unavailable",
+        "plan" => phase_plan,
+    )
+    source_values = copy(transformed_values)
+    for (reference_block, candidate_block) in zip(
+        phase_plan["reference_map"].variable_blocks,
+        phase_plan["candidate_map"].variable_blocks,
+    )
+        rotation = reference_block.model_to_physical \
+            candidate_block.model_to_physical
+        source_values[reference_block.positions] =
+            rotation * transformed_values[reference_block.positions]
+    end
+    endpoint_point = NLPDiagnostics.EvaluationPoint(
+        point_variables,
+        source_values;
+        label,
+        provenance=NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.SolverResultPoint;
+            source="BMOPFTools phase-only transformed-coordinate optimizer",
+            complete=true,
+            metadata=Dict(
+                "coordinate_basis" => "source BMOPF model coordinates",
+                "transport" => "inverse phase-only semantic rotation",
+            ),
+        ),
+    )
+    endpoint_evaluation = NLPDiagnostics.evaluate_numerical(
+        source_backend, endpoint_point,
+    )
+    return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-endpoint-v1",
+        "available" => true,
+        "source_coordinate_endpoint_recovered" => true,
+        "transformed_coordinate_values" => transformed_values,
+        "endpoint_point" => endpoint_point,
+        "endpoint_evaluation" => endpoint_evaluation,
+        "solver_result" => solved,
+        "qualification" => Dict{String,Any}(
+            "claim" => "inverse-transported phase-only optimizer endpoint in source BMOPF coordinates",
+            "physical_feasibility_evaluated" => false,
+            "kkt_acceptance_evaluated" => false,
         ),
     )
 end

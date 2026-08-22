@@ -215,6 +215,10 @@ bmopf_phase_only_rebuild_model(context, evaluation; kwargs...) =
 bmopf_phase_only_solve_model(context, evaluation; kwargs...) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP are required for BMOPF phase-only solver attachment")._bmopf_phase_only_solve_model(context, evaluation; kwargs...)
+"""Recover a solved phase-only endpoint in the source BMOPF coordinates."""
+bmopf_phase_only_endpoint(context, evaluation; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP are required for BMOPF phase-only endpoint recovery")._bmopf_phase_only_endpoint(context, evaluation; kwargs...)
 """Transport one BMOPF point between scaling policies through declared physical coordinates."""
 bmopf_transport_scaling_point(
     source_context, source_evaluation,

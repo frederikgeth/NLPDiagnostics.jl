@@ -1447,6 +1447,13 @@ not claim a physical endpoint: transformed-coordinate primal values still
 need inverse transport, residual/KKT acceptance, and covariance checks before
 the campaign can be promoted.
 
+`bmopf_phase_only_endpoint` now performs that inverse transport for a completed
+attachment. It uses the retained MOI index map to recover transformed primals,
+maps them back through the declared two-coordinate rotations, and reevaluates
+the source BMOPF model with `SolverResultPoint` provenance. The endpoint object
+is intentionally separate from feasibility and KKT reports, so a recovered
+point does not silently become a physically accepted endpoint.
+
 Residual-set semantics are deliberately exact. KCL and other equations whose
 actual JuMP sets are equality to zero use `ZeroEqualitySetContract`. Source
 voltage and load power equations with nonzero equality values use
