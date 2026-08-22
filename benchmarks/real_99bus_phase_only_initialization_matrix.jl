@@ -9,8 +9,15 @@ const PROJECT = abspath(joinpath(@__DIR__, "..", "work", "benchmark-environment"
 const CASES = [
     ("completed_start_max40", 40, "completed"),
     ("bmopf_native_start_max40", 40, "bmopf"),
+    ("bmopf_generated_start_max40", 40, "bmopf_generated"),
     ("zero_start_max40", 40, "zero"),
 ]
+const ACTIVE_CASES = let
+    selected = filter(!isempty, strip.(split(
+        get(ENV, "NLPDIAGNOSTICS_REAL_99BUS_INITIALIZATION_MATRIX_CASES", ""), ',';
+    )))
+    isempty(selected) ? CASES : [case for case in CASES if case[1] in selected]
+end
 
 include(CAMPAIGN)
 
@@ -77,7 +84,7 @@ end
 
 results = [
     run_case(label, max_iter, initialization_policy)
-    for (label, max_iter, initialization_policy) in CASES
+    for (label, max_iter, initialization_policy) in ACTIVE_CASES
 ]
 output = abspath(get(
     ENV,
@@ -90,7 +97,7 @@ write(output, JSON.json(Dict(
     "source" => Dict(
         "campaign" => basename(CAMPAIGN),
         "project" => PROJECT,
-        "case_count" => length(CASES),
+        "case_count" => length(ACTIVE_CASES),
         "qualification" => "local initialization sensitivity; no automatic start-policy selection",
     ),
     "cases" => results,

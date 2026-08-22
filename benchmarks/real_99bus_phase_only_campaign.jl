@@ -85,8 +85,8 @@ function campaign_perturbed_point(context, point; seed, relative_size, family="a
 end
 
 function campaign_initialization_point(context, policy)
-    policy in ("completed", "bmopf", "zero", "perturbed") || error(
-        "NLPDIAGNOSTICS_REAL_99BUS_INITIALIZATION_POLICY must be completed, bmopf, zero, or perturbed",
+    policy in ("completed", "bmopf", "bmopf_generated", "zero", "perturbed") || error(
+        "NLPDIAGNOSTICS_REAL_99BUS_INITIALIZATION_POLICY must be completed, bmopf, bmopf_generated, zero, or perturbed",
     )
     completed = NLPDiagnostics.bmopf_start_completion_point(
         context;
@@ -113,6 +113,15 @@ function campaign_initialization_point(context, policy)
             seed,
             relative_size,
             family,
+        )
+    end
+    if policy == "bmopf_generated"
+        # build_opf_model has already run BMOPFTools' start-value stage;
+        # make its partial point explicit by completing missing coordinates.
+        return NLPDiagnostics.bmopf_start_completion_point(
+            context;
+            missing_value=0.0,
+            label="real-99bus-phase-only-campaign-bmopf-generated-start",
         )
     end
     native = NLPDiagnostics.bmopf_initialization_point(context)

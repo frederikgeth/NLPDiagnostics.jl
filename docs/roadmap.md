@@ -3865,6 +3865,14 @@ complementarity residual near `2.46e11`. This confirms initialization is a
 material solver-completion variable, but it does not establish causality for
 the qualified `ibr_p_upper` floor.
 
+The initialization runner now also records an explicit `bmopf_generated`
+policy. It consumes the standard BMOPFTools partial generated starts and
+completes missing coordinates with zero. That mixed-start control reproduces
+6/6 local solves, 2/6 strict KKT acceptance, and the same `~1.14172e-5`
+complementarity floor as the completed-start policy. It is reproducible
+initialization evidence, not an independently complete native start; a
+captured complete native point remains open.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
