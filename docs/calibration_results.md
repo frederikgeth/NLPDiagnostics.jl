@@ -1035,3 +1035,19 @@ valid negative control in the presence of controller-like nonlinear coupling,
 not evidence about full BMOPF droop semantics or global policy superiority.
 The compact result is tracked at
 `docs/phase_only_controller_ipopt_campaign_summary.json`.
+
+## 2026-08-22: transformer phase-only Ipopt promotion
+
+The fixed-magnitude protocol now covers a two-winding transformer truth
+fixture with nonlinear primary/secondary magnitude equations, a 0.1 turns
+ratio, and a 0.18-radian winding phase shift. Two fresh reference and two
+fresh phase-only Ipopt solves all terminate `LOCALLY_SOLVED`; intervention,
+endpoint-covariance, and geometry gates pass.
+
+The reference uses ten callback records and eleven line-search trials per
+repeat. The phase-only policy uses nine records and ten line-search trials,
+with no positive regularization in either policy. This is a bounded
+transformer association, not a universal recommendation: full connection
+matrices, winding-local bases, and wall-time portability remain outside this
+fixture. The compact result is tracked at
+`docs/phase_only_transformer_ipopt_campaign_summary.json`.

@@ -1,0 +1,30 @@
+{
+  "schema_version": "nlpdiagnostics-phase-only-transformer-ipopt-campaign-summary-v1",
+  "runner": "benchmarks/phase_only_transformer_ipopt_campaign.jl",
+  "design": {
+    "repeats_per_policy": 2,
+    "magnitude_bases_held_fixed": true,
+    "dense_decompositions_enabled": false,
+    "primary_voltage": 230.0,
+    "secondary_voltage": 23.0,
+    "turns_ratio": 0.1,
+    "phase_shift_radians": 0.18,
+    "physical_start": [200.0, 10.0, 18.0, 4.0]
+  },
+  "gates": {
+    "intervention_classification": "phase_only",
+    "endpoint_covariance_passed": true,
+    "geometry_gate_passed": true,
+    "all_endpoints_locally_solved": true
+  },
+  "solver_work": {
+    "reference": {"record_count": [10, 10], "line_search_trial_sum": [11, 11], "positive_regularization_record_count": [0, 0]},
+    "phase_only": {"record_count": [9, 9], "line_search_trial_sum": [10, 10], "positive_regularization_record_count": [0, 0]},
+    "matched_work_difference": {"record_count": -1, "line_search_trial_sum": -1, "positive_regularization_record_count": 0}
+  },
+  "qualification": {
+    "claim": "On the nonlinear two-winding transformer truth fixture, the phase-only formulation preserves the physical endpoint and remains locally solved with bounded Ipopt work.",
+    "scope": "Two fresh reference and two fresh phase-only Ipopt solves with fixed 230:23 V winding ratio and 0.18 rad phase shift.",
+    "does_not_establish": ["global phase-policy superiority", "wall-time portability", "full transformer connection-matrix semantics"]
+  }
+}
