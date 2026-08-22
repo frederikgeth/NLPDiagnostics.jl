@@ -53,6 +53,9 @@ bmopf_clean_main_path = joinpath(
 )
 bmopf_clean_main = isfile(bmopf_clean_main_path) ?
     JSON.parsefile(bmopf_clean_main_path) : Dict{String,Any}("status" => "missing")
+bmopf_handoff_path = joinpath(REPO_ROOT, "docs", "bmopf_pr_handoff_summary.json")
+bmopf_handoff = isfile(bmopf_handoff_path) ?
+    JSON.parsefile(bmopf_handoff_path) : Dict{String,Any}("status" => "missing")
 
 source_includes = String[]
 for line in root_lines
@@ -181,6 +184,9 @@ summary = Dict{String,Any}(
             "git_revision",
             nothing,
         ),
+        "handoff_artifact" => "docs/bmopf_pr_handoff_summary.json",
+        "handoff_status" => get(bmopf_handoff, "status", "missing"),
+        "handoff_reason" => get(bmopf_handoff, "reason", nothing),
     ),
     "interpretation" => Dict(
         "status" => "partial",
@@ -194,12 +200,14 @@ summary = Dict{String,Any}(
             "core release, rank, and runtime runners using benchmarks/common.jl",
             "BMOPFTools public API contract audit artifact",
             "clean-main BMOPFTools API contract and full local suite evidence",
+            "BMOPFTools PR handoff gate",
         ],
         "remaining_work" => [
             "define and document stable versus advanced/experimental API tiers",
             "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
             "migrate the remaining runners to benchmarks/common.jl",
             "keep the tracked BMOPFTools contract artifact synchronized with the active dependency checkout",
+            "resolve the active BMOPFTools revision against the validated clean-main handoff gate",
             "add reviewed formatting, documentation-example, Aqua, and targeted JET policies",
         ],
         "does_not_establish" => [

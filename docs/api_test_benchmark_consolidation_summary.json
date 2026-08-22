@@ -526,9 +526,9 @@
     ]
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 42,
-    "json_file_count": 45,
-    "json_schema_file_count": 45,
+    "benchmark_scripts_with_schema_version_count": 43,
+    "json_file_count": 46,
+    "json_schema_file_count": 46,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -538,6 +538,9 @@
     "clean_main_dependency_revision": "8f121216065bcd692f18444836c7c80149e5cf4a",
     "clean_main_status": "pass",
     "dependency_revision": "5c4f1e7713b0a8021a30b97ec9e54afa6d4281f7",
+    "handoff_artifact": "docs/bmopf_pr_handoff_summary.json",
+    "handoff_reason": "the active BMOPFTools checkout does not satisfy the consumed API contract",
+    "handoff_status": "blocked",
     "missing_symbols": [
       "OpfDiagnosticSchema",
       "opf_diagnostic_schema"
@@ -552,7 +555,8 @@
       "source catch-boundary inventory",
       "core release, rank, and runtime runners using benchmarks/common.jl",
       "BMOPFTools public API contract audit artifact",
-      "clean-main BMOPFTools API contract and full local suite evidence"
+      "clean-main BMOPFTools API contract and full local suite evidence",
+      "BMOPFTools PR handoff gate"
     ],
     "does_not_establish": [
       "API compatibility across a future namespace refactor",
@@ -565,17 +569,19 @@
       "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
       "migrate the remaining runners to benchmarks/common.jl",
       "keep the tracked BMOPFTools contract artifact synchronized with the active dependency checkout",
+      "resolve the active BMOPFTools revision against the validated clean-main handoff gate",
       "add reviewed formatting, documentation-example, Aqua, and targeted JET policies"
     ],
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 104,
+    "benchmark_script_count": 105,
     "shared_benchmark_helper": "benchmarks/common.jl",
-    "shared_benchmark_helper_user_count": 6,
+    "shared_benchmark_helper_user_count": 7,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
       "benchmarks/audit_bmopf_api_contract.jl",
+      "benchmarks/audit_bmopf_pr_handoff.jl",
       "benchmarks/build_calibration_release_gate_summary.jl",
       "benchmarks/calibrate_large_sparse_rank_oracles.jl",
       "benchmarks/calibrate_randomized_rank_oracles.jl",

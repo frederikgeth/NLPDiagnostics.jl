@@ -4224,8 +4224,8 @@ remain open.
 The API/test/benchmark consolidation audit is tracked at
 `docs/api_test_benchmark_consolidation_summary.json`, with executable runner
 `benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 510 root
-exports, 111 root testsets across nine included test modules, 104 benchmark
-scripts, and schema versions on all 44 JSON artifacts. A typed
+exports, 111 root testsets across nine included test modules, 105 benchmark
+scripts, and schema versions on all 46 JSON artifacts. A typed
 `UnavailableReason` report-boundary schema is now present, while explicit
 advanced namespaces now have a non-breaking `NLPDiagnostics.Advanced` facade;
 broad tier migration and adapter adoption remain the next engineering work
@@ -4235,7 +4235,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-six core release, rank, runtime, and audit runners; migration of remaining
+seven core release, rank, runtime, and audit runners; migration of remaining
 scripts remains open. The executable
 `benchmarks/audit_bmopf_api_contract.jl` audit now extracts the exact
 BMOPFTools surface consumed by the JuMP extension and records dependency
@@ -4245,7 +4245,9 @@ revision, branch, and dirty state. It currently fails on the active
 at BMOPFTools `8f121216065bcd692f18444836c7c80149e5cf4a`, and the full local
 suite passes 1634/1634 against that worktree. The dependency handoff remains
 the next PR gate: resolve the active checkout onto the clean-main API (or
-merge the schema branch), then rerun the contract audit and suite.
+merge the schema branch), then rerun `benchmarks/audit_bmopf_pr_handoff.jl`
+and the suite. The handoff audit is intentionally blocked while the active
+checkout remains on the older source-schema-fidelity revision.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and
