@@ -7,7 +7,8 @@
     "native_baseline_margin": 1e-08,
     "model_feasibility_tolerance": 1e-08,
     "max_iter": 40,
-    "local_environment": "work/benchmark-environment"
+    "local_environment": "work/benchmark-environment",
+    "tolerance_matrix_summary": "docs/real_99bus_phase_only_tolerance_matrix_summary.json"
   },
   "summary": {
     "reference_locally_solved_count": 6,

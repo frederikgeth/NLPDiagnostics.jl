@@ -1,0 +1,59 @@
+{
+  "schema_version": "nlpdiagnostics-real-99bus-phase-only-tolerance-matrix-summary-v1",
+  "source": {
+    "campaign": "benchmarks/real_99bus_phase_only_campaign.jl",
+    "runner": "benchmarks/real_99bus_phase_only_tolerance_matrix.jl",
+    "selected_snapshot_count": 6,
+    "local_environment": "work/benchmark-environment"
+  },
+  "cases": [
+    {
+      "label": "baseline_1e8_max40",
+      "max_iter": 40,
+      "model_feasibility_tolerance": 1e-08,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "all_phase_only_runs_locally_solved": true,
+      "all_phase_only_solver_floor_calibrated_accepted": true,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    },
+    {
+      "label": "tight_1e9_max40",
+      "max_iter": 40,
+      "model_feasibility_tolerance": 1e-09,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 0,
+      "all_phase_only_runs_locally_solved": true,
+      "all_phase_only_solver_floor_calibrated_accepted": false,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    },
+    {
+      "label": "budget_1e8_max20",
+      "max_iter": 20,
+      "model_feasibility_tolerance": 1e-08,
+      "phase_only_locally_solved_count": 5,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "all_phase_only_runs_locally_solved": false,
+      "all_phase_only_solver_floor_calibrated_accepted": true,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "ITERATION_LIMIT", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    },
+    {
+      "label": "budget_1e8_max60",
+      "max_iter": 60,
+      "model_feasibility_tolerance": 1e-08,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "all_phase_only_runs_locally_solved": true,
+      "all_phase_only_solver_floor_calibrated_accepted": true,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    }
+  ],
+  "interpretation": {
+    "stable_policy": "The 1e-8 model tolerance passes the calibrated screen at max_iter 40 and 60.",
+    "floor_control": "The 1e-9 policy rejects all six endpoints because the observed residual floor is approximately 1e-8 in model coordinates.",
+    "budget_control": "max_iter 20 leaves one phase-only run at ITERATION_LIMIT; calibrated feasibility alone is not a solver-completion gate.",
+    "absolute_physical_claim": false,
+    "kkt_acceptance": false,
+    "covariance_validation": false
+  }
+}

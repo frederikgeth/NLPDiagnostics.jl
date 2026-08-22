@@ -3782,11 +3782,23 @@ research sequence is:
    than generic endpoint transport. The raw native `ibr_p_upper` floor is
    about `1e-8` in model coordinates with a `1e6` physical power scale, which
    explains the apparent `1e-2` physical residual. Absolute physical
-   acceptance remains unqualified; add transformed-domain-set handling before
-   applying KKT and covariance gates; and
+acceptance remains unqualified; add transformed-domain-set handling before
+applying KKT and covariance gates; and
 3. consider automatic-policy candidates only after the endpoint-qualified
    real snapshot matrix
    has been reviewed for fixture-specific reversals.
+
+The tolerance/budget matrix is now reproducible through
+`benchmarks/real_99bus_phase_only_tolerance_matrix.jl` and summarized in
+`docs/real_99bus_phase_only_tolerance_matrix_summary.json`. The `1e-8`
+quantity-aware solver-floor policy passes all six snapshots at `max_iter=40`
+and `max_iter=60`. A `1e-9` policy fails all six despite `LOCALLY_SOLVED`
+termination, confirming that it is below the observed model-coordinate floor.
+The `max_iter=20` budget leaves the LN t13 phase-only run at
+`ITERATION_LIMIT`; its calibrated feasibility pass is retained as endpoint
+evidence but does not count as solver completion. This separates endpoint
+residual calibration from termination qualification and keeps the KKT gate
+closed until dual transport and compound-unit tolerances are explicit.
 
 The held-out LG summary is tracked at `docs/calibration_summary.json`. The
 two-direction Ipopt extension is tracked at
