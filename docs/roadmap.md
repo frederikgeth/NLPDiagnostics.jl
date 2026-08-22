@@ -4028,6 +4028,16 @@ endpoint ranges for `ibr_p_upper`. This supports a repeatable scale-level
 observation across model sizes, while preserving separate KKT contracts and
 avoiding a claim that the same mechanism or solver cause is present.
 
+The directional response probe is tracked at
+`docs/bmopf_30bus_ibr_p_upper_directional_summary.json`, with executable
+runner `benchmarks/bmopf_30bus_ibr_p_upper_directional_probe.jl`. Symmetric
+`1e-6` perturbations of the complete `cri` and `cii` variable families produce
+finite, order-one central responses in all 28 `ibr_p_upper` rows on each of the
+four locally solved 30-bus snapshots; plus/minus symmetry errors remain at
+floating-point roundoff. This confirms local primal row sensitivity along the
+dominant coordinate families, while remaining explicitly non-causal and not a
+KKT or conditioning certificate.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative

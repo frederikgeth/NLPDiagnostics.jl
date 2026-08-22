@@ -1,0 +1,109 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-ibr-p-upper-directional-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_30bus_ibr_p_upper_directional_probe.jl",
+    "raw_probe": "/private/tmp/bmopf-30bus-ibr-directional.json",
+    "solver": "Ipopt",
+    "max_iter": 80,
+    "delta": 1e-6,
+    "target_row_family": "ibr_p_upper"
+  },
+  "protocol": {
+    "snapshots": 4,
+    "target_rows_per_snapshot": 28,
+    "families": ["cri", "cii"],
+    "operation": "Perturb every variable in one semantic family by plus/minus delta and evaluate the target rows at the fixed endpoint point.",
+    "measures": [
+      "central finite-difference slope range",
+      "maximum absolute response",
+      "maximum plus/minus symmetry error"
+    ]
+  },
+  "cases": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_value_range": [9.97524670603539e-9, 9.976176743116997e-9],
+      "directions": {
+        "cri": {
+          "perturbed_column_count": 28,
+          "central_slope_range": [-0.4973661583772295, 0.9910182542879458],
+          "central_slope_abs_range": [0.48981588824959627, 0.9910182542879458],
+          "maximum_absolute_response": 9.910182542879457e-7,
+          "maximum_absolute_symmetry_error": 4.400600858782107e-22
+        },
+        "cii": {
+          "perturbed_column_count": 28,
+          "central_slope_range": [-0.8642743071981476, 0.8564108167370644],
+          "central_slope_abs_range": [0.0018488109639404938, 0.8642743071981476],
+          "maximum_absolute_response": 8.642743071981478e-7,
+          "maximum_absolute_symmetry_error": 3.9042924912502906e-22
+        }
+      }
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_value_range": [0.004780864141168498, 0.005197198088161236],
+      "directions": {
+        "cri": {
+          "perturbed_column_count": 28,
+          "central_slope_range": [-0.5649229701315193, 1.0812782464219954],
+          "central_slope_abs_range": [0.49072822111201, 1.0812782464219954],
+          "maximum_absolute_response": 1.081278246422429e-6,
+          "maximum_absolute_symmetry_error": 1.734723475976807e-18
+        },
+        "cii": {
+          "perturbed_column_count": 28,
+          "central_slope_range": [-0.9450480237312847, 0.9049518265116276],
+          "central_slope_abs_range": [0.07459385035482255, 0.9450480237312847],
+          "maximum_absolute_response": 9.450480237321521e-7,
+          "maximum_absolute_symmetry_error": 1.734723475976807e-18
+        }
+      }
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_value_range": [9.97524672351823e-9, 9.976176772531128e-9],
+      "directions": {
+        "cri": {
+          "perturbed_column_count": 28,
+          "central_slope_range": [-0.49736616777765785, 0.9910182404996744],
+          "central_slope_abs_range": [0.48981597940036287, 0.9910182404996744],
+          "maximum_absolute_response": 9.910182404996745e-7,
+          "maximum_absolute_symmetry_error": 4.367513634279986e-22
+        },
+        "cii": {
+          "perturbed_column_count": 28,
+          "central_slope_range": [-0.8642743283714067, 0.8564107802364773],
+          "central_slope_abs_range": [0.0018488204769123466, 0.8642743283714067],
+          "maximum_absolute_response": 8.642743283714068e-7,
+          "maximum_absolute_symmetry_error": 3.110199103199384e-22
+        }
+      }
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_value_range": [0.0047808641405732, 0.005246999723995885],
+      "directions": {
+        "cri": {
+          "perturbed_column_count": 28,
+          "central_slope_range": [-0.5536660456040114, 1.0949930386058675],
+          "central_slope_abs_range": [0.48871640681916184, 1.0949930386058675],
+          "maximum_absolute_response": 1.0949930386063012e-6,
+          "maximum_absolute_symmetry_error": 1.734723475976807e-18
+        },
+        "cii": {
+          "perturbed_column_count": 28,
+          "central_slope_range": [-0.945175702626519, 0.9134377224428829],
+          "central_slope_abs_range": [0.0605985618277842, 0.945175702626519],
+          "maximum_absolute_response": 9.451757026273863e-7,
+          "maximum_absolute_symmetry_error": 3.469446951953614e-18
+        }
+      }
+    }
+  ],
+  "finding": "Both cri and cii perturbations produce finite, order-one central row responses on all four locally solved snapshots; maximum symmetry error is at floating-point roundoff scale. This is local primal finite-difference evidence only, not a KKT, conditioning, or causal certificate."
+}
