@@ -3762,12 +3762,19 @@ The six-case rerun recovers all six endpoints. A strict `1e-6` physical
 feasibility screen currently rejects both native and transformed endpoints at
 the same roughly `1e-2` maximum residual scale, so the result is evidence that
 the endpoint plumbing is aligned—not yet a calibrated physical acceptance
-gate. KKT acceptance and covariance checks remain absent. The next research
-sequence is:
+gate. A solver-floor calibration now expands a declared `1e-8` model-coordinate
+tolerance by physical quantity and scale, with complete semantic-block
+coverage. Both the native reference and transformed endpoints pass this
+relative solver-scale screen for all six snapshots. This is explicitly not an
+absolute physical claim: the roughly `1e-2` power residual remains visible in
+physical units. KKT acceptance and covariance checks remain absent. The next
+research sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
-2. use the new matched native-baseline screen as an interim relative gate. The
+2. retain the solver-floor screen as an interim, quantity-aware relative gate
+   and validate its `1e-8` model tolerance across solver options and tighter
+   local budgets. Use the matched native-baseline screen alongside it. The
    block-level screen passes four of six snapshots at `1e-8`; the two t25
    outliers are localized to `ibr_p_upper`, with the largest delta
    `4.18e-6` at `pv_22` in LN t25. This points the next investigation at
@@ -3775,9 +3782,8 @@ sequence is:
    than generic endpoint transport. The raw native `ibr_p_upper` floor is
    about `1e-8` in model coordinates with a `1e6` physical power scale, which
    explains the apparent `1e-2` physical residual. Absolute physical
-   acceptance remains unqualified; next calibrate quantity/set-specific
-   tolerances against that solver floor and add transformed-domain-set
-   handling before applying KKT and covariance gates; and
+   acceptance remains unqualified; add transformed-domain-set handling before
+   applying KKT and covariance gates; and
 3. consider automatic-policy candidates only after the endpoint-qualified
    real snapshot matrix
    has been reviewed for fixture-specific reversals.

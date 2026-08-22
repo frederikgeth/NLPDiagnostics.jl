@@ -91,7 +91,22 @@ function native_baseline_comparison(reference, candidate; margin)
     )
 end
 
-function physical_feasibility(context, evaluation; tolerance)
+function solver_floor_tolerances(reference_feasibility; model_tolerance)
+    scales = get(reference_feasibility, "physical_scale_by_quantity", Dict())
+    return Dict(
+        string(quantity) => model_tolerance * Float64(scale)
+        for (quantity, scale) in scales
+        if scale isa Real && isfinite(scale) && scale > 0
+    )
+end
+
+function physical_feasibility(
+    context,
+    evaluation;
+    tolerance,
+    absolute_tolerances=nothing,
+    quantity_tolerances=nothing,
+)
     map = NLPDiagnostics.bmopf_diagonal_scaling_map(context, evaluation)
     map["available"] || return Dict{String,Any}(
         "available" => false,
@@ -99,11 +114,22 @@ function physical_feasibility(context, evaluation; tolerance)
         "reason" => "the physical scaling map is unavailable",
     )
     quantities = unique(string.(map["constraint_quantities"]))
-    report = NLPDiagnostics.bmopf_physical_feasibility_report(
-        context,
-        evaluation;
-        quantity_absolute_tolerances=Dict(quantity => tolerance for quantity in quantities),
-    )
+    report = !isnothing(absolute_tolerances) ?
+        NLPDiagnostics.bmopf_physical_feasibility_report(
+            context,
+            evaluation;
+            absolute_tolerances,
+        ) : !isnothing(quantity_tolerances) ?
+        NLPDiagnostics.bmopf_physical_feasibility_report(
+            context,
+            evaluation;
+            quantity_absolute_tolerances=quantity_tolerances,
+        ) :
+        NLPDiagnostics.bmopf_physical_feasibility_report(
+            context,
+            evaluation;
+            quantity_absolute_tolerances=Dict(quantity => tolerance for quantity in quantities),
+        )
     residual_pairs = collect(pairs(get(report, "residuals", Dict())))
     residuals = [pair.second for pair in residual_pairs]
     worst = sort(residual_pairs; by=pair -> get(pair.second, "violation", 0.0), rev=true)
@@ -112,6 +138,14 @@ function physical_feasibility(context, evaluation; tolerance)
             Float64(map["map"].constraint_scales[index])
         for index in eachindex(map["map"].constraint_keys)
     )
+    scale_by_quantity = Dict{String,Float64}()
+    for (quantity, scale) in zip(map["constraint_quantities"], map["map"].constraint_scales)
+        quantity_key = string(quantity)
+        scale_value = Float64(scale)
+        scale_by_quantity[quantity_key] = max(
+            get(scale_by_quantity, quantity_key, 0.0), scale_value,
+        )
+    end
     by_block = Dict{String,Float64}()
     model_by_block = Dict{String,Float64}()
     for record in residuals
@@ -156,11 +190,21 @@ function physical_feasibility(context, evaluation; tolerance)
             get(record, "violation", 0.0) for record in residuals),
         "maximum_violation_by_block" => by_block,
         "maximum_model_violation_by_block" => model_by_block,
+        "physical_scale_by_block" => scale_by_block,
+        "physical_scale_by_quantity" => scale_by_quantity,
         "worst_residuals" => worst_records,
     )
 end
 
-function run_snapshot(root, relative; angle, max_iter, endpoint_tolerance, baseline_margin)
+function run_snapshot(
+    root,
+    relative;
+    angle,
+    max_iter,
+    endpoint_tolerance,
+    baseline_margin,
+    model_feasibility_tolerance,
+)
     path = joinpath(root, relative)
     try
         network = BMOPFTools.parse_bmopf(path)
@@ -212,6 +256,16 @@ function run_snapshot(root, relative; angle, max_iter, endpoint_tolerance, basel
             reference_evaluation;
             tolerance=endpoint_tolerance,
         )
+        calibrated_tolerances = solver_floor_tolerances(
+            reference_feasibility;
+            model_tolerance=model_feasibility_tolerance,
+        )
+        reference_calibrated_feasibility = physical_feasibility(
+            context,
+            reference_evaluation;
+            tolerance=endpoint_tolerance,
+            quantity_tolerances=calibrated_tolerances,
+        )
         candidate_model = JuMP.Model(Ipopt.Optimizer)
         JuMP.set_optimizer_attribute(candidate_model, "max_iter", max_iter)
         phase_only = NLPDiagnostics.bmopf_phase_only_solve_model(
@@ -237,6 +291,17 @@ function run_snapshot(root, relative; angle, max_iter, endpoint_tolerance, basel
                 "acceptance_passed" => nothing,
                 "reason" => "the source-coordinate phase-only endpoint was unavailable",
             )
+        phase_only_calibrated_feasibility = get(endpoint, "available", false) === true ?
+            physical_feasibility(
+                context,
+                endpoint["endpoint_evaluation"];
+                tolerance=endpoint_tolerance,
+                quantity_tolerances=calibrated_tolerances,
+            ) : Dict{String,Any}(
+                "available" => false,
+                "acceptance_passed" => nothing,
+                "reason" => "the source-coordinate phase-only endpoint was unavailable",
+            )
         baseline_comparison = native_baseline_comparison(
             reference_feasibility,
             phase_only_feasibility;
@@ -253,6 +318,7 @@ function run_snapshot(root, relative; angle, max_iter, endpoint_tolerance, basel
             "intervention_classification" => plan["intervention"]["classification"],
             "reference" => reference_summary,
             "reference_physical_feasibility" => reference_feasibility,
+            "reference_solver_floor_calibrated_feasibility" => reference_calibrated_feasibility,
             "phase_only" => Dict(
                 "available" => get(phase_only, "available", false),
                 "model_attached" => get(phase_only, "model_attached", false),
@@ -266,6 +332,13 @@ function run_snapshot(root, relative; angle, max_iter, endpoint_tolerance, basel
                 "error" => get(phase_only, "error", nothing),
                 "endpoint_recovered" => get(endpoint, "available", false),
                 "physical_feasibility" => phase_only_feasibility,
+                "solver_floor_calibrated_feasibility" => phase_only_calibrated_feasibility,
+                "solver_floor_tolerance_policy" => Dict(
+                    "model_feasibility_tolerance" => model_feasibility_tolerance,
+                    "physical_tolerance_formula" => "model_feasibility_tolerance * declared physical scale",
+                    "quantity_absolute_tolerances" => calibrated_tolerances,
+                    "absolute_physical_claim" => false,
+                ),
                 "native_baseline_comparison" => baseline_comparison,
             ),
             "qualification" => Dict(
@@ -293,6 +366,9 @@ function run_campaign()
     baseline_margin = parse(Float64, get(
         ENV, "NLPDIAGNOSTICS_REAL_99BUS_BASELINE_MARGIN", "1.0e-8",
     ))
+    model_feasibility_tolerance = parse(Float64, get(
+        ENV, "NLPDIAGNOSTICS_REAL_99BUS_MODEL_FEASIBILITY_TOLERANCE", "1.0e-8",
+    ))
     runs = [run_snapshot(
         root,
         relative;
@@ -300,6 +376,7 @@ function run_campaign()
         max_iter,
         endpoint_tolerance,
         baseline_margin,
+        model_feasibility_tolerance,
     ) for relative in SELECTED_SNAPSHOTS]
     solved = [
         run for run in runs
@@ -316,6 +393,10 @@ function run_campaign()
     phase_only_physical = [
         run for run in runs
         if get(get(get(run, "phase_only", Dict()), "physical_feasibility", Dict()), "acceptance_passed", false) === true
+    ]
+    phase_only_solver_floor_calibrated = [
+        run for run in runs
+        if get(get(get(run, "phase_only", Dict()), "solver_floor_calibrated_feasibility", Dict()), "acceptance_passed", false) === true
     ]
     baseline_comparable = [
         run for run in runs
@@ -334,6 +415,7 @@ function run_campaign()
             "phase_angle" => angle,
             "endpoint_tolerance" => endpoint_tolerance,
             "baseline_margin" => baseline_margin,
+            "model_feasibility_tolerance" => model_feasibility_tolerance,
         ),
         "runs" => runs,
         "summary" => Dict(
@@ -344,6 +426,8 @@ function run_campaign()
             "all_phase_only_runs_locally_solved" => length(locally_solved) == length(SELECTED_SNAPSHOTS),
             "reference_physical_endpoint_acceptance_count" => length(reference_physical),
             "phase_only_physical_endpoint_acceptance_count" => length(phase_only_physical),
+            "phase_only_solver_floor_calibrated_acceptance_count" => length(phase_only_solver_floor_calibrated),
+            "all_phase_only_solver_floor_calibrated_accepted" => length(phase_only_solver_floor_calibrated) == length(SELECTED_SNAPSHOTS),
             "native_baseline_comparison_count" => length(baseline_comparable),
             "native_baseline_comparison_pass_count" => length(baseline_passed),
             "all_phase_only_endpoints_within_native_margin" => length(baseline_passed) == length(SELECTED_SNAPSHOTS),

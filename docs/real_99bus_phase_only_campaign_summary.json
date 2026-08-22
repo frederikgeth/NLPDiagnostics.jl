@@ -5,6 +5,7 @@
     "phase_angle": 0.01,
     "endpoint_tolerance": 1e-06,
     "native_baseline_margin": 1e-08,
+    "model_feasibility_tolerance": 1e-08,
     "max_iter": 40,
     "local_environment": "work/benchmark-environment"
   },
@@ -14,6 +15,15 @@
     "phase_only_source_endpoint_recovered_count": 6,
     "reference_physical_endpoint_acceptance_count": 0,
     "phase_only_physical_endpoint_acceptance_count": 0,
+    "reference_solver_floor_calibrated_acceptance_count": 6,
+    "phase_only_solver_floor_calibrated_acceptance_count": 6,
+    "all_phase_only_solver_floor_calibrated_accepted": true,
+    "solver_floor_tolerance_policy": {
+      "model_feasibility_tolerance": 1e-08,
+      "physical_tolerance_formula": "model_feasibility_tolerance * declared physical scale",
+      "quantity_tolerance_expansion": true,
+      "absolute_physical_claim": false
+    },
     "native_baseline_comparison_count": 6,
     "native_baseline_comparison_pass_count": 4,
     "all_phase_only_endpoints_within_native_margin": false,
@@ -26,7 +36,7 @@
     "model_rebuild_and_start_gate": "passed for all six snapshots",
     "solver_campaign_ready": false,
     "physical_endpoint_validation": false,
-    "blocking_reason": "source-coordinate endpoint recovery is implemented, but solver-aware physical tolerance calibration, KKT acceptance, and covariance validation remain open"
+    "blocking_reason": "solver-floor calibrated feasibility is qualified as relative solver-scale evidence, but absolute physical acceptance, KKT acceptance, and covariance validation remain open"
   },
   "runs": [
     {
