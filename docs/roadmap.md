@@ -3904,13 +3904,12 @@ trace mechanics on the small fixture rather than 99-bus causal evidence.
 
 The matched initialization trace comparison is now tracked at
 `docs/bmopf_30bus_initialization_trace_comparison_summary.json`. Across the
-30-bus LN t01 and t13 snapshots, native engine starts supplied 350/704 finite
-starts, while explicit `bmopf_zero_completion` supplied 704/704. Each matched
-pair captured identical traces and eight row-residual snapshots (19 iterations
-at t01 and 18 at t13); the t01 final primal/dual infeasibilities were
-`8.55e-16`/`2.84e-14`, and t13 were `1.44e-15`/`8.29e-11`. This remains a
-bounded fixture result: it does not show initialization irrelevance outside
-these cases or establish a 99-bus causal explanation.
+30-bus LN and LG t01/t13 snapshots, native engine starts supplied 350/704
+finite starts, while explicit `bmopf_zero_completion` supplied 704/704. Every
+matched pair captured identical traces and eight row-residual snapshots: LN
+t01/t13 required 19/18 iterations, while LG t01/t13 required 19/19. This
+remains a bounded fixture result: it does not show initialization irrelevance
+outside these cases or establish a 99-bus causal explanation.
 
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable

@@ -1,10 +1,12 @@
 {
-  "schema_version": "nlpdiagnostics-bmopf-30bus-initialization-trace-comparison-v2",
+  "schema_version": "nlpdiagnostics-bmopf-30bus-initialization-trace-comparison-v3",
   "source": {
     "runner": "benchmarks/bmopf_solver_trace.jl",
     "selected_snapshots": [
       "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
-      "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json"
+      "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json"
     ],
     "local_environment": "work/benchmark-environment",
     "solver": "ipopt",
@@ -74,13 +76,74 @@
         "row_residual_point_count": 8,
         "maximum_family_feasibility_violation": 0.0018864019795659065
       }
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "native_engine_starts": {
+        "initialization_policy": "none",
+        "finite_start_count": 350,
+        "missing_start_count": 354,
+        "iteration_count": 19,
+        "binding_count": 19,
+        "trace_fingerprint": "9db47e5ac27e245e41090d5a6ed934cef6a471f95e2581e4c54941550ccb1972",
+        "row_residual_trace_fingerprint": "f7402fa634f1b51a237bd210d0cd6f77c4d42d63060e15c9bd997d369615839b",
+        "last_primal_infeasibility": 1.1768073202765699e-15,
+        "last_dual_infeasibility": 2.842170943040401e-14,
+        "row_residual_point_count": 8,
+        "maximum_family_feasibility_violation": 0.0018864019795659065
+      },
+      "completed_engine_starts": {
+        "initialization_policy": "bmopf_zero_completion",
+        "finite_start_count": 704,
+        "missing_start_count": 0,
+        "completion_provenance": "CompletedInitializationPoint",
+        "iteration_count": 19,
+        "binding_count": 19,
+        "trace_fingerprint": "9db47e5ac27e245e41090d5a6ed934cef6a471f95e2581e4c54941550ccb1972",
+        "row_residual_trace_fingerprint": "f7402fa634f1b51a237bd210d0cd6f77c4d42d63060e15c9bd997d369615839b",
+        "last_primal_infeasibility": 1.1768073202765699e-15,
+        "last_dual_infeasibility": 2.842170943040401e-14,
+        "row_residual_point_count": 8,
+        "maximum_family_feasibility_violation": 0.0018864019795659065
+      }
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "native_engine_starts": {
+        "initialization_policy": "none",
+        "finite_start_count": 350,
+        "missing_start_count": 354,
+        "iteration_count": 19,
+        "binding_count": 19,
+        "trace_fingerprint": "175608d00110b92bd5ab628a3e0f7934235eea2b625381a501585661840e681a",
+        "row_residual_trace_fingerprint": "f6c4c927a939600029b13534f8596373a139312702fa897baed967df25127aba",
+        "last_primal_infeasibility": 3.6637359812630166e-15,
+        "last_dual_infeasibility": 2.395523779341602e-10,
+        "row_residual_point_count": 8,
+        "maximum_family_feasibility_violation": 0.0026250000000000006
+      },
+      "completed_engine_starts": {
+        "initialization_policy": "bmopf_zero_completion",
+        "finite_start_count": 704,
+        "missing_start_count": 0,
+        "completion_provenance": "CompletedInitializationPoint",
+        "iteration_count": 19,
+        "binding_count": 19,
+        "trace_fingerprint": "175608d00110b92bd5ab628a3e0f7934235eea2b625381a501585661840e681a",
+        "row_residual_trace_fingerprint": "f6c4c927a939600029b13534f8596373a139312702fa897baed967df25127aba",
+        "last_primal_infeasibility": 3.6637359812630166e-15,
+        "last_dual_infeasibility": 2.395523779341602e-10,
+        "row_residual_point_count": 8,
+        "maximum_family_feasibility_violation": 0.0026250000000000006
+      }
     }
   ],
   "comparison": {
-    "matched_snapshot_count": 2,
+    "matched_snapshot_count": 4,
+    "matched_family_count": 2,
     "trace_records_identical_for_each_snapshot": true,
     "row_residual_snapshots_identical_for_each_snapshot": true,
-    "interpretation": "Across the two selected 30-bus LN snapshots and bounded Ipopt budget, explicit zero completion did not change the captured traces or row-family residual snapshots despite filling all missing starts.",
+    "interpretation": "Across the selected 30-bus LN and LG snapshots and bounded Ipopt budget, explicit zero completion did not change the captured traces or row-family residual snapshots despite filling all missing starts.",
     "does_not_establish": [
       "initialization irrelevance on other fixtures",
       "99-bus trace scalability",
