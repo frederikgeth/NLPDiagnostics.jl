@@ -4221,6 +4221,14 @@ dimensions 16, 32, 64, and 128, including per-stage wall time and allocated
 bytes. Process `Sys.maxrss` high-water marks are retained as descriptive
 observations only; OPF-solver scaling and isolated peak-memory measurements
 remain open.
+The API/test/benchmark consolidation audit is tracked at
+`docs/api_test_benchmark_consolidation_summary.json`, with executable runner
+`benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 506 root
+exports, 110 root testsets across nine included test modules, 103 benchmark
+scripts, and schema versions on all 42 JSON artifacts. The audit confirms that
+explicit advanced namespaces and typed unavailable-reason records are not yet
+present; those remain the next engineering work rather than being inferred
+from export counts.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and

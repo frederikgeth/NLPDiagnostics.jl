@@ -20,6 +20,7 @@ ibr_sparse = read_summary("docs/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit_su
 rank_oracles = read_summary("docs/randomized_rank_oracle_calibration_summary.json")
 runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
 large_sparse_rank = read_summary("docs/large_sparse_rank_oracle_summary.json")
+api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 
 function gate(id, status, rationale, evidence; blocking=false)
     Dict{String,Any}(
@@ -73,9 +74,9 @@ gates = Dict{String,Any}[
     ),
     gate(
         "api_test_benchmark_consolidation",
-        "open",
-        "API modularization, typed unavailable schemas, and benchmark consolidation remain explicitly parallel work.",
-        ["docs/roadmap.md"],
+        "partial",
+        "The consolidation audit now inventories 506 root exports, 110 root testsets across nine included test modules, 103 benchmark scripts, and complete schema coverage for 42 JSON artifacts; explicit advanced API namespaces and typed unavailable-reason records remain open.",
+        ["docs/api_test_benchmark_consolidation_summary.json"],
         blocking=true,
     ),
 ]
