@@ -3737,7 +3737,9 @@ The next research sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
-2. complete a phase-only orthogonal control on a small truth fixture;
+2. use the completed phase-only orthogonal algebraic control as the invariant
+   baseline, then run a matched Ipopt phase-only campaign with magnitude bases
+   held fixed;
 3. publish the same compact summary shape for each promoted calibration
    campaign; and
 4. only then evaluate a bounded 99-bus snapshot matrix or automatic-policy
@@ -3746,6 +3748,9 @@ The next research sequence is:
 The held-out LG summary is tracked at `docs/calibration_summary.json`. The
 two-direction Ipopt extension is tracked at
 `docs/calibration_perturbation_summary.json`. The
+phase-only algebraic control and its withheld solver-work contract are tracked
+at `docs/phase_only_control_summary.json`; its executable protocol is
+`benchmarks/phase_only_orthogonal_control.jl`.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and

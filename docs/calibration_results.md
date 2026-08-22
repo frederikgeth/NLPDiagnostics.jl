@@ -967,3 +967,21 @@ still an Ipopt-only perturbation result; MadNLP remains qualified for seed 11.
 The compact two-direction record is tracked at
 `docs/calibration_perturbation_summary.json`. The next increment is the
 phase-only orthogonal control with magnitudes held fixed.
+
+## 2026-08-22: phase-only orthogonal algebraic control
+
+The new `benchmarks/phase_only_orthogonal_control.jl` runner isolates the
+phase-like intervention on a four-coordinate, two-block truth fixture. The
+declared relation is classified as `phase_only`; covariance and semantic
+geometry gates pass with dense decomposition disabled. The reference and
+candidate Jacobians retain identical singular values to a maximum absolute
+difference of `1.33e-15`, while a nonzero cross-block coupling norm of
+`0.883176` remains present after rotation.
+
+This is the required algebraic control: complete orthogonal blocks preserve
+the spectrum without erasing coupling. No solver is run by design, and the
+result records solver work as unavailable. It therefore establishes neither
+electrical phase semantics for arbitrary plugin blocks nor any solver-work or
+wall-time effect. A matched Ipopt phase-only campaign with magnitude bases
+held fixed is the next empirical step. The compact result is tracked at
+`docs/phase_only_control_summary.json`.

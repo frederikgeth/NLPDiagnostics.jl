@@ -1,0 +1,36 @@
+{
+  "schema_version": "nlpdiagnostics-phase-only-control-summary-v1",
+  "runner": "benchmarks/phase_only_orthogonal_control.jl",
+  "control": {
+    "dimension": 4,
+    "two_coordinate_blocks": 2,
+    "stored_relation_entries": 16,
+    "dense_decompositions_enabled": false
+  },
+  "gates": {
+    "intervention_classification": "phase_only",
+    "covariance_gate_passed": true,
+    "geometry_gate_passed": true,
+    "singular_value_invariance_passed": true,
+    "maximum_singular_value_difference": 1.3322676295501878e-15,
+    "cross_block_coupling_preserved": true,
+    "cross_block_coupling_frobenius_norm": 0.8831760866327847
+  },
+  "singular_values": {
+    "reference": [3.5359217742404403, 2.38829291015463, 2.3152618066203137, 1.2421259793445731],
+    "candidate": [3.535921774240439, 2.3882929101546306, 2.3152618066203123, 1.2421259793445734]
+  },
+  "solver_work": {
+    "available": false,
+    "status": "withheld_by_design",
+    "next_protocol": "matched Ipopt phase-only campaign with magnitude bases held fixed"
+  },
+  "qualification": {
+    "claim": "complete orthogonal two-coordinate blocks preserve the algebraic Jacobian spectrum while retaining cross-block coupling",
+    "does_not_establish": [
+      "electrical phase semantics for arbitrary plugin blocks",
+      "solver-work or wall-time effects",
+      "global scaling-policy superiority"
+    ]
+  }
+}
