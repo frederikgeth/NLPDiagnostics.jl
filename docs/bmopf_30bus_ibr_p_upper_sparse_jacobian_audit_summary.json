@@ -1,0 +1,52 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-ibr-p-upper-sparse-jacobian-audit-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit.jl",
+    "raw_probe": "/private/tmp/bmopf-30bus-ibr-sparse-jacobian.json",
+    "solver": "Ipopt",
+    "max_iter": 80,
+    "delta": 1e-6,
+    "target_row_family": "ibr_p_upper"
+  },
+  "protocol": {
+    "snapshots": 4,
+    "target_rows_per_snapshot": 28,
+    "single_column_audit": "For every nonzero analytic Jacobian entry, perturb only that column by plus/minus delta and compare the target-row central difference with the entry value.",
+    "expected_nonzero_entries_per_row": 6
+  },
+  "cases": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_count": 28,
+      "nonzero_entry_count": 168,
+      "nonzero_entry_count_per_row": [6, 6],
+      "family_maximum_absolute_difference": {"cri": 1.1102230246251565e-16, "cii": 2.220446049250313e-16, "vr": 8.778570056004764e-19, "vi": 1.0244301014224227e-18}
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_count": 28,
+      "nonzero_entry_count": 168,
+      "nonzero_entry_count_per_row": [6, 6],
+      "family_maximum_absolute_difference": {"cri": 8.955058916626513e-13, "cii": 7.189804307472514e-13, "vr": 7.775689814248921e-13, "vi": 6.242233292763633e-13}
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_count": 28,
+      "nonzero_entry_count": 168,
+      "nonzero_entry_count_per_row": [6, 6],
+      "family_maximum_absolute_difference": {"cri": 1.1102230246251565e-16, "cii": 2.220446049250313e-16, "vr": 9.265233497594212e-19, "vi": 8.077600661315077e-19}
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_count": 28,
+      "nonzero_entry_count": 168,
+      "nonzero_entry_count_per_row": [6, 6],
+      "family_maximum_absolute_difference": {"cri": 5.627165400312606e-13, "cii": 4.942435349875041e-13, "vr": 6.320664477921234e-13, "vi": 6.691288148563679e-13}
+    }
+  ],
+  "finding": "Every fixture has exactly six nonzero analytic entries in each of 28 target rows, and every audited entry agrees with a single-column central difference. The worst absolute discrepancy is below 9e-13. This validates the sparse evaluator Jacobian pattern locally; it is not a KKT, conditioning, or causal certificate."
+}

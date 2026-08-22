@@ -4058,6 +4058,15 @@ validates the local derivative direction used by the preceding probes, while
 remaining derivative evidence rather than a KKT, conditioning, or causal
 certificate.
 
+The sparse entry audit is tracked at
+`docs/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit_summary.json`, with
+executable runner `benchmarks/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit.jl`.
+Every 30-bus fixture has exactly six nonzero analytic entries in each of the 28
+`ibr_p_upper` rows, and each of the 168 entries per fixture matches a
+single-column central difference at `1e-6`; the worst absolute discrepancy is
+below `9e-13`. This validates the local sparse evaluator Jacobian pattern,
+without upgrading it to a KKT, conditioning, or causal claim.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
