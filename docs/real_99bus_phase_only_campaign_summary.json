@@ -4,6 +4,7 @@
     "selected_snapshot_count": 6,
     "phase_angle": 0.01,
     "endpoint_tolerance": 1e-06,
+    "native_baseline_margin": 1e-08,
     "max_iter": 40,
     "local_environment": "work/benchmark-environment"
   },
@@ -13,6 +14,10 @@
     "phase_only_source_endpoint_recovered_count": 6,
     "reference_physical_endpoint_acceptance_count": 0,
     "phase_only_physical_endpoint_acceptance_count": 0,
+    "native_baseline_comparison_count": 6,
+    "native_baseline_comparison_pass_count": 6,
+    "all_phase_only_endpoints_within_native_margin": true,
+    "maximum_absolute_native_baseline_violation_delta": 1.4342731446959078e-09,
     "strict_physical_endpoint_max_violation_range": [0.009971342873541289, 0.009978101757164374],
     "objective_agreement_gate": "passed to solver tolerances",
     "model_rebuild_and_start_gate": "passed for all six snapshots",

@@ -3767,9 +3767,12 @@ sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
-2. calibrate quantity/set-specific physical tolerances against accepted native
-   endpoints, then add transformed-domain-set handling before applying KKT and
-   covariance gates to the real 99-bus runner; and
+2. use the new matched native-baseline screen as an interim relative gate: all
+   six transformed endpoints remain within `1e-8` of their native residual
+   maxima (worst absolute delta about `1.43e-9`), while absolute physical
+   acceptance remains unqualified; then calibrate quantity/set-specific
+   tolerances and add transformed-domain-set handling before applying KKT and
+   covariance gates; and
 3. consider automatic-policy candidates only after the endpoint-qualified
    real snapshot matrix
    has been reviewed for fixture-specific reversals.

@@ -29,7 +29,7 @@ end
 
 function solve_reference(context, point; max_iter)
     model = BMOPFTools.opf_model(context)
-        set_start_values!(model, point.variables, point.values)
+    set_start_values!(model, point.variables, point.values)
     JuMP.set_optimizer_attribute(model, "max_iter", max_iter)
     try
         JuMP.optimize!(model)
@@ -49,6 +49,26 @@ function solve_reference(context, point; max_iter)
             "error" => sprint(showerror, error),
         )
     end
+end
+
+function native_baseline_comparison(reference, candidate; margin)
+    reference_max = get(reference, "maximum_violation", nothing)
+    candidate_max = get(candidate, "maximum_violation", nothing)
+    comparable = reference_max isa Real && candidate_max isa Real &&
+        isfinite(reference_max) && isfinite(candidate_max)
+    threshold = comparable ? Float64(reference_max) + margin : nothing
+    return Dict{String,Any}(
+        "available" => comparable,
+        "reference_maximum_violation" => comparable ? Float64(reference_max) : nothing,
+        "candidate_maximum_violation" => comparable ? Float64(candidate_max) : nothing,
+        "absolute_margin" => margin,
+        "candidate_within_native_margin" => comparable &&
+            Float64(candidate_max) <= threshold,
+        "qualification" => Dict{String,Any}(
+            "claim" => "candidate endpoint residual scale is no worse than the matched native endpoint by the declared margin",
+            "absolute_physical_acceptance" => false,
+        ),
+    )
 end
 
 function physical_feasibility(context, evaluation; tolerance)
@@ -76,7 +96,7 @@ function physical_feasibility(context, evaluation; tolerance)
     )
 end
 
-function run_snapshot(root, relative; angle, max_iter, endpoint_tolerance)
+function run_snapshot(root, relative; angle, max_iter, endpoint_tolerance, baseline_margin)
     path = joinpath(root, relative)
     try
         network = BMOPFTools.parse_bmopf(path)
@@ -153,6 +173,11 @@ function run_snapshot(root, relative; angle, max_iter, endpoint_tolerance)
                 "acceptance_passed" => nothing,
                 "reason" => "the source-coordinate phase-only endpoint was unavailable",
             )
+        baseline_comparison = native_baseline_comparison(
+            reference_feasibility,
+            phase_only_feasibility;
+            margin=baseline_margin,
+        )
         return Dict{String,Any}(
             "available" => true,
             "snapshot" => relative,
@@ -177,6 +202,7 @@ function run_snapshot(root, relative; angle, max_iter, endpoint_tolerance)
                 "error" => get(phase_only, "error", nothing),
                 "endpoint_recovered" => get(endpoint, "available", false),
                 "physical_feasibility" => phase_only_feasibility,
+                "native_baseline_comparison" => baseline_comparison,
             ),
             "qualification" => Dict(
                 "physical_endpoint_validation" => false,
@@ -200,12 +226,16 @@ function run_campaign()
     endpoint_tolerance = parse(Float64, get(
         ENV, "NLPDIAGNOSTICS_REAL_99BUS_ENDPOINT_TOLERANCE", "1.0e-6",
     ))
+    baseline_margin = parse(Float64, get(
+        ENV, "NLPDIAGNOSTICS_REAL_99BUS_BASELINE_MARGIN", "1.0e-8",
+    ))
     runs = [run_snapshot(
         root,
         relative;
         angle,
         max_iter,
         endpoint_tolerance,
+        baseline_margin,
     ) for relative in SELECTED_SNAPSHOTS]
     solved = [
         run for run in runs
@@ -223,6 +253,14 @@ function run_campaign()
         run for run in runs
         if get(get(get(run, "phase_only", Dict()), "physical_feasibility", Dict()), "acceptance_passed", false) === true
     ]
+    baseline_comparable = [
+        run for run in runs
+        if get(get(get(run, "phase_only", Dict()), "native_baseline_comparison", Dict()), "available", false) === true
+    ]
+    baseline_passed = [
+        run for run in baseline_comparable
+        if get(get(get(run, "phase_only", Dict()), "native_baseline_comparison", Dict()), "candidate_within_native_margin", false) === true
+    ]
     return Dict(
         "schema_version" => "nlpdiagnostics-real-99bus-phase-only-campaign-v1",
         "source" => Dict(
@@ -231,6 +269,7 @@ function run_campaign()
             "max_iter" => max_iter,
             "phase_angle" => angle,
             "endpoint_tolerance" => endpoint_tolerance,
+            "baseline_margin" => baseline_margin,
         ),
         "runs" => runs,
         "summary" => Dict(
@@ -241,6 +280,9 @@ function run_campaign()
             "all_phase_only_runs_locally_solved" => length(locally_solved) == length(SELECTED_SNAPSHOTS),
             "reference_physical_endpoint_acceptance_count" => length(reference_physical),
             "phase_only_physical_endpoint_acceptance_count" => length(phase_only_physical),
+            "native_baseline_comparison_count" => length(baseline_comparable),
+            "native_baseline_comparison_pass_count" => length(baseline_passed),
+            "all_phase_only_endpoints_within_native_margin" => length(baseline_passed) == length(SELECTED_SNAPSHOTS),
             "all_reference_physical_endpoints_accepted" => length(reference_physical) == length(SELECTED_SNAPSHOTS),
             "all_phase_only_physical_endpoints_accepted" => length(phase_only_physical) == length(SELECTED_SNAPSHOTS),
             "solver_campaign_ready" => false,
