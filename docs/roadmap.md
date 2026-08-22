@@ -3902,6 +3902,16 @@ captured primal and dual infeasibilities were `8.55e-16` and `2.84e-14`.
 The raw point-rich trace remains a local artifact, and this probe establishes
 trace mechanics on the small fixture rather than 99-bus causal evidence.
 
+The matched initialization trace comparison is now tracked at
+`docs/bmopf_30bus_initialization_trace_comparison_summary.json`. On the same
+30-bus LN t01 snapshot, native engine starts supplied 350/704 finite starts,
+while explicit `bmopf_zero_completion` supplied 704/704. Both runs captured
+19 iterations and eight row-residual snapshots with identical trace and
+row-residual fingerprints, including final primal/dual infeasibilities of
+`8.55e-16`/`2.84e-14`. This is a bounded fixture result: it does not show
+initialization irrelevance outside this case or establish a 99-bus causal
+explanation.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative

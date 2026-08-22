@@ -1,0 +1,57 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-initialization-trace-comparison-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_solver_trace.jl",
+    "selected_snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+    "local_environment": "work/benchmark-environment",
+    "solver": "ipopt",
+    "profile_stage": "trace",
+    "capture_points": true,
+    "capture_row_residuals": true,
+    "trace_probe_max_points": 8,
+    "max_solver_variables": 2000
+  },
+  "cases": [
+    {
+      "label": "native_engine_starts",
+      "initialization_policy": "none",
+      "finite_start_count": 350,
+      "missing_start_count": 354,
+      "iteration_count": 19,
+      "binding_count": 19,
+      "trace_fingerprint": "6386584c9109fba36c68646036582a4fdb87dec94f97395a933327a76d7efd30",
+      "row_residual_trace_fingerprint": "5e5df1686dbab2ab2a0a85549b67d9e2ddc1f9da89bfc495a0a6561059d26a89",
+      "last_primal_infeasibility": 8.549230396574335e-16,
+      "last_dual_infeasibility": 2.842170943040401e-14,
+      "row_residual_status": "available",
+      "row_residual_point_count": 8,
+      "maximum_family_feasibility_violation": 0.0018864019795659065
+    },
+    {
+      "label": "completed_engine_starts",
+      "initialization_policy": "bmopf_zero_completion",
+      "finite_start_count": 704,
+      "missing_start_count": 0,
+      "completion_provenance": "CompletedInitializationPoint",
+      "iteration_count": 19,
+      "binding_count": 19,
+      "trace_fingerprint": "6386584c9109fba36c68646036582a4fdb87dec94f97395a933327a76d7efd30",
+      "row_residual_trace_fingerprint": "5e5df1686dbab2ab2a0a85549b67d9e2ddc1f9da89bfc495a0a6561059d26a89",
+      "last_primal_infeasibility": 8.549230396574335e-16,
+      "last_dual_infeasibility": 2.842170943040401e-14,
+      "row_residual_status": "available",
+      "row_residual_point_count": 8,
+      "maximum_family_feasibility_violation": 0.0018864019795659065
+    }
+  ],
+  "comparison": {
+    "trace_records_identical": true,
+    "row_residual_snapshots_identical": true,
+    "interpretation": "On this deterministic 30-bus fixture and bounded Ipopt budget, explicit zero completion did not change the captured trace or row-family residual snapshots despite filling all missing starts.",
+    "does_not_establish": [
+      "initialization irrelevance on other fixtures",
+      "99-bus trace scalability",
+      "causal conditioning of the ibr_p_upper floor"
+    ]
+  }
+}
