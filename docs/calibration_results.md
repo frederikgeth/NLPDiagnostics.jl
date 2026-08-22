@@ -1165,7 +1165,7 @@ release work.
 ## 2026-08-22: API/test/benchmark consolidation audit
 
 The consolidation audit records the current engineering boundary without
-changing existing result layouts: 538 unique root exports, 111 root testsets
+changing existing result layouts: 538 unique root exports, 112 root testsets
 across nine included test modules, 107 benchmark scripts, and schema versions
 on all 48 JSON artifacts. It also counts 28 bare source `catch` boundaries.
 The new

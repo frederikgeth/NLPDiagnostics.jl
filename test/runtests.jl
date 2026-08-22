@@ -79,6 +79,16 @@ include("solver_duals.jl")
     )
 end
 
+@testset "Advanced facade export tier contract" begin
+    advanced_exports = filter(
+        name -> name != :Advanced,
+        names(NLPDiagnostics.Advanced; all=false, imported=false),
+    )
+    @test length(advanced_exports) == 14
+    @test all(isdefined(NLPDiagnostics, name) for name in advanced_exports)
+    @test all(isdefined(NLPDiagnostics.Advanced, name) for name in advanced_exports)
+end
+
 if Base.find_package("Ipopt") !== nothing
     import Ipopt
 

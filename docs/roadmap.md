@@ -4224,7 +4224,7 @@ remain open.
 The API/test/benchmark consolidation audit is tracked at
 `docs/api_test_benchmark_consolidation_summary.json`, with executable runner
 `benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 538
-unique root exports, 111 root testsets across nine included test modules, 107
+unique root exports, 112 root testsets across nine included test modules, 107
 benchmark scripts, and schema versions on all 48 JSON artifacts. A typed
 `UnavailableReason` report-boundary schema is now present, while explicit
 advanced namespaces now have a non-breaking `NLPDiagnostics.Advanced` facade;

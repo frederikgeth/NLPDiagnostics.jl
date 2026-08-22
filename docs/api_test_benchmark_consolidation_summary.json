@@ -677,7 +677,7 @@
       "bmopf_scaling_covariance.jl",
       "bmopf_scaling_formulations.jl"
     ],
-    "testset_count_in_root": 111
+    "testset_count_in_root": 112
   },
   "schema_version": "nlpdiagnostics-api-test-benchmark-consolidation-v1",
   "source": {
