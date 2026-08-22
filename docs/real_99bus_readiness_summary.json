@@ -37,6 +37,16 @@
     "solver_transform_applied": false,
     "solver_campaign_ready": false,
     "plan_runner": "NLPDiagnostics.bmopf_phase_only_transform_plan",
+    "model_rebuild_hook_available": false,
+    "model_rebuild_inventory": {
+      "variable_count": 1968,
+      "constraint_count": 2208,
+      "nonlinear_constraint_count": 96,
+      "quadratic_constraint_count": 432,
+      "affine_constraint_count": 1576,
+      "variable_domain_constraint_count": 104,
+      "objective_function_type": "MathOptInterface.ScalarQuadraticFunction{Float64}"
+    },
     "snapshot_contract": "all six selected LN/LG snapshots expose the same complete semantic-map shape and phase-only classification"
   },
   "qualification": {

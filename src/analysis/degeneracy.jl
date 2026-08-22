@@ -203,6 +203,10 @@ transformation.
 bmopf_phase_only_transform_plan(context, evaluation; kwargs...) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP are required for BMOPF phase-only intervention plans")._bmopf_phase_only_transform_plan(context, evaluation; kwargs...)
+"""Inventory public MOI model pieces required by a transformed-coordinate BMOPF runner."""
+bmopf_phase_only_model_rebuild_report(context; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP are required for BMOPF model-rebuild capability reports")._bmopf_phase_only_model_rebuild_report(context; kwargs...)
 """Transport one BMOPF point between scaling policies through declared physical coordinates."""
 bmopf_transport_scaling_point(
     source_context, source_evaluation,

@@ -1421,6 +1421,13 @@ rotated-block coverage. It intentionally returns
 BMOPFTools/JuMP surface has no model-rebuild hook for eliminating the original
 coordinates and restamping nonlinear expressions in the rotated basis.
 
+`bmopf_phase_only_model_rebuild_report` inventories the public MOI pieces that
+must be covered before that hook can be implemented. On the selected real
+99-bus models it records 96 nonlinear, 432 quadratic, and 1,576 affine
+constraints, 104 variable-domain constraints, and a quadratic objective. These
+are capability requirements, not solver evidence; the report remains blocked
+until expression substitution and rotated-domain-set handling are provided.
+
 Residual-set semantics are deliberately exact. KCL and other equations whose
 actual JuMP sets are equality to zero use `ZeroEqualitySetContract`. Source
 voltage and load power equations with nonzero equality values use

@@ -687,6 +687,15 @@ end
     @test !plan["solver_transform_applied"]
     @test plan["qualification"]["solver_evidence_present"] == false
     @test occursin("model-rebuild hook", plan["blocking_reason"])
+    rebuild = NLPDiagnostics.bmopf_phase_only_model_rebuild_report(
+        context; plan,
+    )
+    @test rebuild["available"]
+    @test !rebuild["model_rebuild_hook_available"]
+    @test !rebuild["solver_campaign_ready"]
+    @test rebuild["constraint_count"] > 0
+    @test rebuild["plan_available"]
+    @test !isempty(rebuild["required_capabilities"])
 
     scheduled = NLPDiagnostics.bmopf_phase_only_transform_plan(
         context,

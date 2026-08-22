@@ -3420,6 +3420,89 @@ function _bmopf_phase_only_transform_plan(
     )
 end
 
+function _bmopf_phase_only_model_rebuild_report(context; plan=nothing)
+    model = _bmopf_context_model(context)
+    backend = JuMP.backend(model)
+    type_records = Dict{String,Any}[]
+    nonlinear_count = 0
+    quadratic_count = 0
+    affine_count = 0
+    variable_domain_count = 0
+    total_constraints = 0
+    for (function_type, set_type) in MOI.get(
+        backend, MOI.ListOfConstraintTypesPresent(),
+    )
+        count = MOI.get(
+            backend,
+            MOI.NumberOfConstraints{function_type,set_type}(),
+        )
+        total_constraints += count
+        function_name = string(function_type)
+        set_name = string(set_type)
+        function_type <: MOI.ScalarNonlinearFunction && (nonlinear_count += count)
+        function_type <: MOI.ScalarQuadraticFunction && (quadratic_count += count)
+        function_type <: MOI.ScalarAffineFunction && (affine_count += count)
+        function_type === MOI.VariableIndex && (variable_domain_count += count)
+        push!(type_records, Dict{String,Any}(
+            "function_type" => function_name,
+            "set_type" => set_name,
+            "count" => count,
+        ))
+    end
+    objective_function_type = try
+        MOI.get(backend, MOI.ObjectiveFunctionType())
+    catch
+        nothing
+    end
+    objective_type = isnothing(objective_function_type) ? nothing :
+        string(objective_function_type)
+    objective_is_nonlinear = !isnothing(objective_function_type) &&
+        objective_function_type <: MOI.ScalarNonlinearFunction
+    objective_is_quadratic = !isnothing(objective_function_type) &&
+        objective_function_type <: MOI.ScalarQuadraticFunction
+    blockers = String[]
+    nonlinear_count > 0 && push!(blockers,
+        "nonlinear constraint expression substitution is required")
+    quadratic_count > 0 && push!(blockers,
+        "quadratic constraint substitution is required")
+    affine_count > 0 && push!(blockers,
+        "affine constraint substitution is required")
+    variable_domain_count > 0 && push!(blockers,
+        "variable-domain sets must be transformed into coupled rotated sets")
+    objective_is_nonlinear && push!(blockers,
+        "nonlinear objective substitution is required")
+    objective_is_quadratic && push!(blockers,
+        "quadratic objective substitution is required")
+    push!(blockers,
+        "BMOPFTools does not expose a model-rebuild hook for the transformed coordinate basis")
+    return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-model-rebuild-report-v1",
+        "available" => true,
+        "model_rebuild_hook_available" => false,
+        "solver_campaign_ready" => false,
+        "solver_transform_applied" => false,
+        "variable_count" => length(MOI.get(backend, MOI.ListOfVariableIndices())),
+        "constraint_count" => total_constraints,
+        "constraint_types" => type_records,
+        "nonlinear_constraint_count" => nonlinear_count,
+        "quadratic_constraint_count" => quadratic_count,
+        "affine_constraint_count" => affine_count,
+        "variable_domain_constraint_count" => variable_domain_count,
+        "objective_function_type" => objective_type,
+        "objective_is_nonlinear" => objective_is_nonlinear,
+        "objective_is_quadratic" => objective_is_quadratic,
+        "blockers" => blockers,
+        "plan_available" => plan isa AbstractDict ? get(plan, "available", false) : nothing,
+        "required_capabilities" => [
+            "substitute MOI variable leaves with affine combinations",
+            "preserve affine and quadratic function semantics",
+            "rewrite ScalarNonlinearFunction expression trees",
+            "transform variable-domain and residual sets",
+            "rebuild the objective and retain start-value provenance",
+        ],
+    )
+end
+
 """
     bmopf_transport_scaling_point(source_context, source_evaluation,
                                   target_context, target_evaluation; kwargs...)

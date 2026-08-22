@@ -1115,3 +1115,7 @@ rotated variable blocks per snapshot while explicitly reporting that no solver
 transformation was applied. It records file hashes, provenance, and this scope at
 `docs/real_99bus_readiness_summary.json`; it does not
 substitute surrogate results for the real-network solver claim.
+The accompanying rebuild-capability report inventories 96 nonlinear, 432
+quadratic, and 1,576 affine constraints, 104 variable-domain constraints, and
+a quadratic objective per snapshot; these are the remaining implementation
+requirements for a genuine transformed-coordinate solve.

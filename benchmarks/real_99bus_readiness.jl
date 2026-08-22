@@ -80,6 +80,9 @@ function semantic_map_probe_snapshot(root, relative)
             angle_schedule=(index, block) -> 0.015 * sin(index),
             max_dense_entries=0,
         )
+        rebuild = NLPDiagnostics.bmopf_phase_only_model_rebuild_report(
+            context; plan,
+        )
         return Dict(
             "available" => plan["available"],
             "snapshot" => relative,
@@ -92,6 +95,7 @@ function semantic_map_probe_snapshot(root, relative)
             "intervention_classification" => plan["intervention"]["classification"],
             "solver_campaign_ready" => plan["solver_campaign_ready"],
             "solver_transform_applied" => plan["solver_transform_applied"],
+            "model_rebuild" => rebuild,
         )
     catch error
         return Dict(
@@ -127,6 +131,11 @@ function run_inventory()
     probe = semantic_map_probe(root)
     all_integrity_clean = all(!snapshot["integrity"]["blocking"] for snapshot in snapshots)
     saved_solutions = count(snapshot -> get(snapshot["saved_result_si"], "termination_status", nothing) == "LOCALLY_SOLVED", snapshots)
+    rebuild_reports = [get(snapshot, "model_rebuild", Dict{String,Any}()) for snapshot in get(probe, "snapshots", Any[])]
+    rebuild_hook_available = !isempty(rebuild_reports) && all(
+        get(report, "model_rebuild_hook_available", false) === true
+        for report in rebuild_reports
+    )
     return Dict(
         "schema_version" => "nlpdiagnostics-real-99bus-readiness-v1",
         "source" => Dict(
@@ -142,7 +151,8 @@ function run_inventory()
             "saved_locally_solved_result_count" => saved_solutions,
             "phase_only_semantic_gate_ready" => all_integrity_clean && probe["available"] === true && get(probe, "all_snapshots_phase_only", false) === true,
             "phase_only_solver_campaign_ready" => false,
-            "blocking_reason" => "a transformed-coordinate solver runner for BMOPFTools contexts is still required; the semantic-map schema compatibility gate is now open",
+            "model_rebuild_hook_available" => rebuild_hook_available,
+            "blocking_reason" => "a transformed-coordinate solver runner still requires nonlinear, quadratic, affine, objective, and rotated-domain-set rebuild support; the current BMOPFTools model-rebuild hook is unavailable",
         ),
         "qualification" => Dict(
             "claim" => "The selected real ENWL 99-bus snapshots are available, parseable, integrity-clean, and accompanied by saved SI results; the current BMOPFTools public semantic-block registry is sufficient for a phase-only map gate.",

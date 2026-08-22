@@ -3746,8 +3746,11 @@ six selected real LN/LG snapshots (1,968 variables, 2,208 constraints, 936
 paired variable blocks, and zero skipped declarations per snapshot). The
 reusable `bmopf_phase_only_transform_plan` now records the candidate map and
 936 rotated variable blocks per snapshot, but does not mutate or solve a model.
-The remaining gap is a transformed-coordinate solver runner for BMOPFTools
-contexts. The next research sequence is:
+The companion `bmopf_phase_only_model_rebuild_report` inventories 96 nonlinear,
+432 quadratic, and 1,576 affine constraints, 104 variable-domain constraints,
+and a quadratic objective per snapshot. The remaining gap is a
+transformed-coordinate solver runner for BMOPFTools contexts that covers these
+pieces. The next research sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
