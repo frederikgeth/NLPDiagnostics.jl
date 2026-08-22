@@ -1,0 +1,34 @@
+{
+  "schema_version": "nlpdiagnostics-phase-only-campaign-comparison-v1",
+  "sources": [
+    "docs/phase_only_control_summary.json",
+    "docs/phase_only_ipopt_campaign_summary.json",
+    "docs/phase_only_nonlinear_ipopt_campaign_summary.json",
+    "docs/phase_only_controller_ipopt_campaign_summary.json",
+    "docs/phase_only_transformer_ipopt_campaign_summary.json",
+    "docs/phase_only_feeder_ipopt_campaign_summary.json"
+  ],
+  "campaigns": [
+    {"id": "algebraic", "intervention_classification": "phase_only", "endpoint_covariance_passed": true, "geometry_gate_passed": true, "all_endpoints_locally_solved": null, "solver_work_available": false, "work_delta": {"available": false, "classification": "unavailable"}},
+    {"id": "quadratic", "intervention_classification": "phase_only", "endpoint_covariance_passed": true, "geometry_gate_passed": true, "all_endpoints_locally_solved": true, "solver_work_available": true, "work_delta": {"available": true, "classification": "matched", "mean_delta": {"record_count": 0.0, "line_search_trial_sum": 0.0, "positive_regularization_record_count": 0.0}}},
+    {"id": "nonlinear", "intervention_classification": "phase_only", "endpoint_covariance_passed": true, "geometry_gate_passed": true, "all_endpoints_locally_solved": true, "solver_work_available": true, "work_delta": {"available": true, "classification": "matched", "mean_delta": {"record_count": 0.0, "line_search_trial_sum": 0.0, "positive_regularization_record_count": 0.0}}},
+    {"id": "controller_rich", "intervention_classification": "phase_only", "endpoint_covariance_passed": true, "geometry_gate_passed": true, "all_endpoints_locally_solved": true, "solver_work_available": true, "work_delta": {"available": true, "classification": "matched", "mean_delta": {"record_count": 0.0, "line_search_trial_sum": 0.0, "positive_regularization_record_count": 0.0}}},
+    {"id": "transformer", "intervention_classification": "phase_only", "endpoint_covariance_passed": true, "geometry_gate_passed": true, "all_endpoints_locally_solved": true, "solver_work_available": true, "work_delta": {"available": true, "classification": "candidate_less_work", "mean_delta": {"record_count": -1.0, "line_search_trial_sum": -1.0, "positive_regularization_record_count": 0.0}}},
+    {"id": "feeder", "intervention_classification": "phase_only", "endpoint_covariance_passed": true, "geometry_gate_passed": true, "all_endpoints_locally_solved": true, "solver_work_available": true, "work_delta": {"available": true, "classification": "candidate_more_work", "mean_delta": {"record_count": 2.0, "line_search_trial_sum": 6.0, "positive_regularization_record_count": 0.0}}}
+  ],
+  "findings": {
+    "campaign_count": 6,
+    "gate_qualified_count": 6,
+    "locally_solved_count": 5,
+    "solver_work_comparison_count": 5,
+    "matched_work_campaigns": ["quadratic", "nonlinear", "controller_rich"],
+    "candidate_less_work_campaigns": ["transformer"],
+    "candidate_more_work_campaigns": ["feeder"],
+    "work_withheld_campaigns": ["algebraic"]
+  },
+  "qualification": {
+    "claim": "Across the tracked fixtures, phase-only interventions pass the declared covariance and geometry gates; available Ipopt work is matched on the quadratic, nonlinear, and controller-rich fixtures, lower on the transformer fixture, and higher on the feeder fixture.",
+    "scope": "Six tracked summaries produced by bounded local calibration campaigns; solver work is compared only where both reference and phase-only records were reported.",
+    "does_not_establish": ["global phase-policy superiority", "wall-time portability", "causal mechanism", "full feeder or transformer network semantics", "automatic policy safety"]
+  }
+}

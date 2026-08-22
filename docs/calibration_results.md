@@ -1067,3 +1067,17 @@ as a negative control rather than a recommendation: this bounded feeder
 fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
+
+## 2026-08-22: phase-only campaign comparison
+
+The six tracked phase-only summaries now have a reproducible comparison
+report. All six pass their declared intervention, endpoint-covariance, and
+geometry gates; five solver campaigns also report locally solved endpoints.
+Among the campaigns with matched work records, quadratic, nonlinear, and
+controller-rich fixtures are unchanged, the transformer fixture is lower by
+one callback record and one line-search trial, and the feeder fixture is higher
+by two callback records and six line-search trials. The algebraic control
+withholds solver work by design. This contrast is evidence for bounded
+fixture-specific behavior, not a policy recommendation. The executable
+comparison is `benchmarks/phase_only_campaign_comparison.jl` and the compact
+report is tracked at `docs/phase_only_campaign_comparison_summary.json`.
