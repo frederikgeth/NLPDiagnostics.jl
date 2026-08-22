@@ -153,7 +153,7 @@ summary = Dict{String,Any}(
     "interpretation" => Dict(
         "status" => "partial",
         "finding" =>
-            "The repository has broad root exports and split implementation files, while explicit advanced namespaces and a typed unavailable-reason schema are not yet present.",
+            "The repository has broad root exports and split implementation files. A typed unavailable-reason schema now exists at the report boundary, while explicit advanced namespaces and broad adapter adoption are not yet complete.",
         "completed_evidence" => [
             "root export inventory",
             "source and test include boundaries",
@@ -162,7 +162,7 @@ summary = Dict{String,Any}(
         ],
         "remaining_work" => [
             "define and document stable versus advanced/experimental API tiers",
-            "introduce typed unavailable reasons without changing report-boundary schemas accidentally",
+            "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
             "centralize repeated benchmark parsing and summary helpers",
             "add reviewed formatting, documentation-example, Aqua, and targeted JET policies",
         ],

@@ -38,6 +38,55 @@ numerical, physical, or representational.
     RepresentationalIssue = 3
 end
 
+"""
+Typed explanation for an unavailable capability or bounded computation.
+
+This record is the stable internal schema for future unavailable-result
+adapters. Existing numerical result structs retain their historical string
+`reason` fields for compatibility; adapters can progressively attach this
+typed record at report boundaries without changing those positional layouts.
+"""
+struct UnavailableReason
+    code::Symbol
+    category::Symbol
+    message::String
+    stage::Union{Nothing,Symbol}
+    exception_type::Union{Nothing,String}
+end
+
+function UnavailableReason(
+    message::AbstractString;
+    code::Symbol = :unavailable,
+    category::Symbol = :capability,
+    stage::Union{Nothing,Symbol} = nothing,
+    exception_type::Union{Nothing,AbstractString} = nothing,
+)
+    isempty(message) && throw(ArgumentError("unavailable message must not be empty"))
+    category in (:capability, :work_guard, :dependency, :domain, :numerical, :input) ||
+        throw(ArgumentError("unsupported unavailable category: $category"))
+    return UnavailableReason(
+        code,
+        category,
+        String(message),
+        stage,
+        isnothing(exception_type) ? nothing : String(exception_type),
+    )
+end
+
+Base.string(reason::UnavailableReason) = reason.message
+
+"""Return the renderer-neutral schema for one typed unavailable reason."""
+function unavailable_reason_data(reason::UnavailableReason)
+    return Dict{String,Any}(
+        "schema_version" => "nlpdiagnostics-unavailable-reason-v1",
+        "code" => string(reason.code),
+        "category" => string(reason.category),
+        "message" => reason.message,
+        "stage" => isnothing(reason.stage) ? nothing : string(reason.stage),
+        "exception_type" => reason.exception_type,
+    )
+end
+
 struct EntityRef
     kind::Symbol
     index::Int

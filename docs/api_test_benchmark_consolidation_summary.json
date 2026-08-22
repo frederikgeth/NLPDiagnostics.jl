@@ -3,14 +3,14 @@
     "advanced_or_experimental_namespace_count": 0,
     "advanced_or_experimental_namespace_tokens": [],
     "export_buckets": {
-      "core_or_unclassified": 369,
+      "core_or_unclassified": 371,
       "domain_extension": 96,
       "profiling": 15,
       "scaling": 3,
       "solver_extension": 14,
       "structural": 9
     },
-    "root_export_count": 506,
+    "root_export_count": 508,
     "root_export_names": [
       "AbstractSemanticConstraintSetContract",
       "ActiveSetStructuralDecomposition",
@@ -170,6 +170,7 @@
       "StructuralVariableNode",
       "TransportedPoint",
       "TrustedPointSelection",
+      "UnavailableReason",
       "UnsupportedSetContract",
       "UserPoint",
       "VariableDomain",
@@ -513,6 +514,7 @@
       "synthetic_stability_profile_corpus",
       "transport_scaling_point",
       "trusted_point_selection_data",
+      "unavailable_reason_data",
       "variable_domains",
       "variable_roles",
       "variable_support",
@@ -521,8 +523,8 @@
   },
   "benchmark_schema_inventory": {
     "benchmark_scripts_with_schema_version_count": 41,
-    "json_file_count": 42,
-    "json_schema_file_count": 42,
+    "json_file_count": 43,
+    "json_schema_file_count": 43,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -538,10 +540,10 @@
       "quality or correctness from export counts alone",
       "CI readiness or GitHub Actions execution"
     ],
-    "finding": "The repository has broad root exports and split implementation files, while explicit advanced namespaces and a typed unavailable-reason schema are not yet present.",
+    "finding": "The repository has broad root exports and split implementation files. A typed unavailable-reason schema now exists at the report boundary, while explicit advanced namespaces and broad adapter adoption are not yet complete.",
     "remaining_work": [
       "define and document stable versus advanced/experimental API tiers",
-      "introduce typed unavailable reasons without changing report-boundary schemas accidentally",
+      "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
       "centralize repeated benchmark parsing and summary helpers",
       "add reviewed formatting, documentation-example, Aqua, and targeted JET policies"
     ],
@@ -594,7 +596,7 @@
       "bmopf_scaling_covariance.jl",
       "bmopf_scaling_formulations.jl"
     ],
-    "testset_count_in_root": 110
+    "testset_count_in_root": 111
   },
   "schema_version": "nlpdiagnostics-api-test-benchmark-consolidation-v1",
   "source": {
@@ -605,7 +607,9 @@
   "typed_unavailable_audit": {
     "bare_catch_count_in_source": 28,
     "bound_catch_count_in_source": 49,
-    "explicit_typed_unavailable_token_count": 0,
-    "explicit_typed_unavailable_tokens": []
+    "explicit_typed_unavailable_token_count": 1,
+    "explicit_typed_unavailable_tokens": [
+      "UnavailableReason"
+    ]
   }
 }

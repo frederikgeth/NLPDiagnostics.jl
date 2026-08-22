@@ -26,6 +26,40 @@ include("scaling_covariance.jl")
 include("block_scaling_covariance.jl")
 include("solver_duals.jl")
 
+@testset "typed unavailable reason schema" begin
+    reason = NLPDiagnostics.UnavailableReason(
+        "dense Jacobian exceeds the configured work guard";
+        code = :dense_work_guard,
+        category = :work_guard,
+        stage = :numerical,
+    )
+    @test reason.code == :dense_work_guard
+    @test reason.category == :work_guard
+    @test reason.stage == :numerical
+    @test reason.exception_type === nothing
+    @test string(reason) == reason.message
+    data = NLPDiagnostics.unavailable_reason_data(reason)
+    @test data["schema_version"] == "nlpdiagnostics-unavailable-reason-v1"
+    @test data["code"] == "dense_work_guard"
+    @test data["category"] == "work_guard"
+    @test data["stage"] == "numerical"
+    @test data["exception_type"] === nothing
+
+    dependency = NLPDiagnostics.UnavailableReason(
+        "optional solver extension is not loaded";
+        code = :missing_dependency,
+        category = :dependency,
+        exception_type = "LoadError",
+    )
+    @test NLPDiagnostics.unavailable_reason_data(dependency)["exception_type"] ==
+          "LoadError"
+    @test_throws ArgumentError NLPDiagnostics.UnavailableReason("")
+    @test_throws ArgumentError NLPDiagnostics.UnavailableReason(
+        "bad category";
+        category = :unknown,
+    )
+end
+
 if Base.find_package("Ipopt") !== nothing
     import Ipopt
 
