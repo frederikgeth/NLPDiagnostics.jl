@@ -10,26 +10,13 @@ changes are made.
 
 using JSON
 
-const REPO_ROOT = normpath(joinpath(@__DIR__, ".."))
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
+
+const REPO_ROOT = repo_root()
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(REPO_ROOT, "docs", "api_test_benchmark_consolidation_summary.json") :
     ARGS[1])
-
-function text(path::AbstractString)
-    isfile(path) ? read(path, String) : ""
-end
-
-function recursive_files(directory::AbstractString, suffix::AbstractString)
-    files = String[]
-    isdir(directory) || return files
-    for (root, _, names) in walkdir(directory)
-        for name in names
-            endswith(name, suffix) && push!(files, joinpath(root, name))
-        end
-    end
-    sort!(files)
-    return files
-end
 
 function matching_lines(path::AbstractString, pattern::Regex)
     [line for line in eachline(path) if occursin(pattern, line)]
@@ -49,7 +36,10 @@ end
 
 source_files = recursive_files(joinpath(REPO_ROOT, "src"), ".jl")
 test_files = recursive_files(joinpath(REPO_ROOT, "test"), ".jl")
-benchmark_files = recursive_files(joinpath(REPO_ROOT, "benchmarks"), ".jl")
+benchmark_files = filter(
+    path -> basename(path) != "common.jl",
+    recursive_files(joinpath(REPO_ROOT, "benchmarks"), ".jl"),
+)
 json_files = recursive_files(joinpath(REPO_ROOT, "docs"), ".json")
 
 source_includes = String[]
@@ -81,10 +71,10 @@ for path in json_files
 end
 
 benchmark_schema_files = [
-    path for path in benchmark_files if occursin("schema_version", text(path))
+    path for path in benchmark_files if occursin("schema_version", read_text(path))
 ]
-source_text = join(text.(source_files), "\n")
-benchmark_text = join(text.(benchmark_files), "\n")
+source_text = join(read_text.(source_files), "\n")
+benchmark_text = join(read_text.(benchmark_files), "\n")
 bare_catch_count = count(line -> occursin(r"^\s*catch\s*$", line),
     split(source_text, '\n'))
 bound_catch_count = count(line -> occursin(r"^\s*catch\s+\w+", line),
@@ -141,6 +131,7 @@ summary = Dict{String,Any}(
         "test_includes" => test_includes,
         "testset_count_in_root" => testset_count,
         "benchmark_script_count" => length(benchmark_files),
+        "shared_benchmark_helper" => "benchmarks/common.jl",
     ),
     "benchmark_schema_inventory" => Dict(
         "json_file_count" => length(json_files),
@@ -169,7 +160,7 @@ summary = Dict{String,Any}(
         "remaining_work" => [
             "define and document stable versus advanced/experimental API tiers",
             "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
-            "centralize repeated benchmark parsing and summary helpers",
+            "migrate the remaining runners to benchmarks/common.jl",
             "add reviewed formatting, documentation-example, Aqua, and targeted JET policies",
         ],
         "does_not_establish" => [

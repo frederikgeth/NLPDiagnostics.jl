@@ -24,7 +24,10 @@ Environment overrides:
 using JSON
 using NLPDiagnostics
 
-const REPO_ROOT = normpath(joinpath(@__DIR__, ".."))
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
+
+const REPO_ROOT = repo_root()
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(REPO_ROOT, "docs", "sparse_runtime_memory_scaling_summary.json") :
     ARGS[1])
@@ -50,26 +53,6 @@ all(dimension -> dimension >= 2, dimensions) ||
     error("NLPDIAGNOSTICS_PROFILE_DIMENSIONS must be at least 2")
 repetitions = parse(Int, get(ENV, "NLPDIAGNOSTICS_PROFILE_REPETITIONS", "3"))
 repetitions > 0 || error("NLPDIAGNOSTICS_PROFILE_REPETITIONS must be positive")
-
-function git_revision()
-    try
-        return strip(read(`git -C $REPO_ROOT rev-parse HEAD`, String))
-    catch
-        return nothing
-    end
-end
-
-function git_status_entries()
-    try
-        output = strip(read(
-            `git -C $REPO_ROOT status --porcelain --untracked-files=all`,
-            String,
-        ))
-        isempty(output) ? String[] : split(output, '\n')
-    catch
-        String[]
-    end
-end
 
 function stage_data(aggregate::NLPDiagnostics.ProfileAggregate)
     timing = Dict(

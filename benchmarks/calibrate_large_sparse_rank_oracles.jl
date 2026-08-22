@@ -15,7 +15,10 @@ using SparseArrays
 import MathOptInterface as MOI
 import NLPDiagnostics
 
-const REPO_ROOT = normpath(joinpath(@__DIR__, ".."))
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
+
+const REPO_ROOT = repo_root()
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(REPO_ROOT, "docs", "large_sparse_rank_oracle_summary.json") :
     ARGS[1])
@@ -74,14 +77,6 @@ function sparse_case(kind::String, dimension::Int)
             "alternating twenty-order diagonal under explicit row-column scaling"
     end
     error("unknown sparse rank case: $kind")
-end
-
-function git_revision()
-    try
-        return strip(read(`git -C $REPO_ROOT rev-parse HEAD`, String))
-    catch
-        return nothing
-    end
 end
 
 dimensions = [128, 256, 512, 1024]

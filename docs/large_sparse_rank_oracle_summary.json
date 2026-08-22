@@ -36,7 +36,7 @@
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
     "architecture": "aarch64",
-    "git_revision": "a4f45655b27a97565773da15e98f24d2cc9f49ba",
+    "git_revision": "06ba931b58bfe646e15e796f768fcf76487c541f",
     "julia_version": "1.12.6",
     "os": "Darwin"
   },

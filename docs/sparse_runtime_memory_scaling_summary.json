@@ -2,8 +2,8 @@
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
     "architecture": "aarch64",
-    "git_revision": "dba7ca84b366835d4c872086ad8cb573b0b825c3",
-    "git_status_entry_count": 5,
+    "git_revision": "06ba931b58bfe646e15e796f768fcf76487c541f",
+    "git_status_entry_count": 8,
     "git_worktree_dirty": true,
     "julia_version": "1.12.6",
     "os": "Darwin"
@@ -24,9 +24,9 @@
       "dimension": 16,
       "expected_evidence": {},
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1783054336,
-      "process_maxrss_before_bytes": 403652608,
-      "process_maxrss_increment_bytes": 1379401728,
+      "process_maxrss_after_bytes": 1771372544,
+      "process_maxrss_before_bytes": 403390464,
+      "process_maxrss_increment_bytes": 1367982080,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -109,85 +109,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.002430125,
-          "mean_seconds": 0.0022674580000000004,
-          "minimum_seconds": 0.002172708,
+          "maximum_seconds": 0.002290125,
+          "mean_seconds": 0.0022130553333333334,
+          "minimum_seconds": 0.002171791,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00011554340350131048
+          "standard_deviation_seconds": 5.454203461755183e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.000349917,
-          "mean_seconds": 0.00032437533333333333,
-          "minimum_seconds": 0.000309584,
+          "maximum_seconds": 0.000325458,
+          "mean_seconds": 0.0003170416666666667,
+          "minimum_seconds": 0.000310375,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.8135875538709328e-5
+          "standard_deviation_seconds": 6.280669939496011e-6
         },
         "evaluation": {
-          "maximum_seconds": 0.000779292,
-          "mean_seconds": 0.000728514,
-          "minimum_seconds": 0.000689,
+          "maximum_seconds": 0.000756042,
+          "mean_seconds": 0.0007231666666666667,
+          "minimum_seconds": 0.000669708,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.77122401703567e-5
+          "standard_deviation_seconds": 3.813262030801917e-5
         },
         "expressions": {
-          "maximum_seconds": 0.0032745,
-          "mean_seconds": 0.0032225139999999997,
-          "minimum_seconds": 0.003138917,
+          "maximum_seconds": 0.003407708,
+          "mean_seconds": 0.003327235666666667,
+          "minimum_seconds": 0.003255833,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.969438255536831e-5
+          "standard_deviation_seconds": 6.233350113881162e-5
         },
         "numerical": {
-          "maximum_seconds": 0.002384458,
-          "mean_seconds": 0.002367319,
-          "minimum_seconds": 0.002340541,
+          "maximum_seconds": 0.002478666,
+          "mean_seconds": 0.0023802776666666664,
+          "minimum_seconds": 0.002329125,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.9180866560194914e-5
+          "standard_deviation_seconds": 6.958943322245284e-5
         },
         "reformulation": {
-          "maximum_seconds": 0.003506833,
-          "mean_seconds": 0.003320166333333334,
-          "minimum_seconds": 0.003176208,
+          "maximum_seconds": 0.003524042,
+          "mean_seconds": 0.0032796663333333332,
+          "minimum_seconds": 0.003107541,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00013831419295293684
+          "standard_deviation_seconds": 0.00017754502480654173
         },
         "snapshot": {
-          "maximum_seconds": 0.000190166,
-          "mean_seconds": 0.000129208,
-          "minimum_seconds": 9.7958e-5,
+          "maximum_seconds": 0.000218833,
+          "mean_seconds": 0.00013945866666666666,
+          "minimum_seconds": 9.8459e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.3108411893736005e-5
+          "standard_deviation_seconds": 5.613635928304895e-5
         },
         "static": {
-          "maximum_seconds": 0.008075833,
-          "mean_seconds": 0.007835166666666666,
-          "minimum_seconds": 0.007606208,
+          "maximum_seconds": 0.00830125,
+          "mean_seconds": 0.008015236333333333,
+          "minimum_seconds": 0.00771175,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0001919022533311047
+          "standard_deviation_seconds": 0.0002409792979494757
         },
         "structural_dm": {
           "maximum_seconds": 3.959e-6,
-          "mean_seconds": 1.9863333333333333e-6,
-          "minimum_seconds": 9.58e-7,
+          "mean_seconds": 1.8613333333333335e-6,
+          "minimum_seconds": 7.5e-7,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.395307453176141e-6
+          "standard_deviation_seconds": 1.484151908966494e-6
         },
         "structural_graph": {
-          "maximum_seconds": 4.7792e-5,
-          "mean_seconds": 2.7833666666666667e-5,
-          "minimum_seconds": 1.7292e-5,
+          "maximum_seconds": 4.2334e-5,
+          "mean_seconds": 2.6139333333333332e-5,
+          "minimum_seconds": 1.7959e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.4120144199767302e-5
+          "standard_deviation_seconds": 1.14515591466354e-5
         },
         "structural_matching": {
-          "maximum_seconds": 5.625e-6,
-          "mean_seconds": 3.416666666666667e-6,
-          "minimum_seconds": 2.25e-6,
+          "maximum_seconds": 4.875e-6,
+          "mean_seconds": 3.1106666666666667e-6,
+          "minimum_seconds": 2.041e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.5623611049377229e-6
+          "standard_deviation_seconds": 1.256930211091911e-6
         }
       },
       "total_stage_mean_allocated_bytes": 8.781888e6,
-      "total_stage_mean_seconds": 0.020227957999999997,
+      "total_stage_mean_seconds": 0.020426249666666667,
       "variable_count": 16,
       "warmup_performed": true
     },
@@ -203,9 +203,9 @@
         }
       },
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1783054336,
-      "process_maxrss_before_bytes": 403652608,
-      "process_maxrss_increment_bytes": 1379401728,
+      "process_maxrss_after_bytes": 1771372544,
+      "process_maxrss_before_bytes": 403390464,
+      "process_maxrss_increment_bytes": 1367982080,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -288,85 +288,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.002538458,
-          "mean_seconds": 0.0024984996666666667,
-          "minimum_seconds": 0.002445541,
+          "maximum_seconds": 0.002628708,
+          "mean_seconds": 0.0025515280000000004,
+          "minimum_seconds": 0.002438584,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.903117320239757e-5
+          "standard_deviation_seconds": 8.163365978973783e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.000309375,
-          "mean_seconds": 0.000306347,
-          "minimum_seconds": 0.000303416,
+          "maximum_seconds": 0.000340084,
+          "mean_seconds": 0.00032594466666666664,
+          "minimum_seconds": 0.00031575,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.4337182800535383e-6
+          "standard_deviation_seconds": 1.0318468404866203e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.000719375,
-          "mean_seconds": 0.000674861,
-          "minimum_seconds": 0.000640833,
+          "maximum_seconds": 0.000868084,
+          "mean_seconds": 0.0007478336666666667,
+          "minimum_seconds": 0.000665167,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.291077420339218e-5
+          "standard_deviation_seconds": 8.6998951037099e-5
         },
         "expressions": {
-          "maximum_seconds": 0.00348725,
-          "mean_seconds": 0.003370139,
-          "minimum_seconds": 0.003251125,
+          "maximum_seconds": 0.003545541,
+          "mean_seconds": 0.003414124666666667,
+          "minimum_seconds": 0.003335542,
           "sample_count": 3,
-          "standard_deviation_seconds": 9.640701898029338e-5
+          "standard_deviation_seconds": 9.351806331874553e-5
         },
         "numerical": {
-          "maximum_seconds": 0.002513416,
-          "mean_seconds": 0.0024352913333333336,
-          "minimum_seconds": 0.002382625,
+          "maximum_seconds": 0.002542541,
+          "mean_seconds": 0.002459638666666667,
+          "minimum_seconds": 0.0023285,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.6348123141374915e-5
+          "standard_deviation_seconds": 9.380279068461795e-5
         },
         "reformulation": {
-          "maximum_seconds": 0.00337875,
-          "mean_seconds": 0.003282889,
-          "minimum_seconds": 0.003166917,
+          "maximum_seconds": 0.003393375,
+          "mean_seconds": 0.003303639,
+          "minimum_seconds": 0.003253125,
           "sample_count": 3,
-          "standard_deviation_seconds": 8.76418629537277e-5
+          "standard_deviation_seconds": 6.362017283849527e-5
         },
         "snapshot": {
-          "maximum_seconds": 9.925e-5,
-          "mean_seconds": 9.8472e-5,
-          "minimum_seconds": 9.8083e-5,
+          "maximum_seconds": 0.000105708,
+          "mean_seconds": 0.00010356900000000001,
+          "minimum_seconds": 0.000100666,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.501290757631328e-7
+          "standard_deviation_seconds": 2.1280997783625333e-6
         },
         "static": {
-          "maximum_seconds": 0.008280166,
-          "mean_seconds": 0.008229944000000001,
-          "minimum_seconds": 0.008147833,
+          "maximum_seconds": 0.008261333,
+          "mean_seconds": 0.008172971999999999,
+          "minimum_seconds": 0.008117083,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.8541648781017375e-5
+          "standard_deviation_seconds": 6.320779863803668e-5
         },
         "structural_dm": {
-          "maximum_seconds": 4.542e-6,
-          "mean_seconds": 2.3473333333333334e-6,
-          "minimum_seconds": 1.208e-6,
+          "maximum_seconds": 4.625e-6,
+          "mean_seconds": 2.486e-6,
+          "minimum_seconds": 1.125e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.5522425354592267e-6
+          "standard_deviation_seconds": 1.5311135381370862e-6
         },
         "structural_graph": {
-          "maximum_seconds": 1.8916e-5,
-          "mean_seconds": 1.849966666666667e-5,
-          "minimum_seconds": 1.8166e-5,
+          "maximum_seconds": 2.175e-5,
+          "mean_seconds": 1.9472000000000003e-5,
+          "minimum_seconds": 1.7333e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.1171603887013764e-7
+          "standard_deviation_seconds": 1.8059093738797263e-6
         },
         "structural_matching": {
-          "maximum_seconds": 2.458e-6,
-          "mean_seconds": 2.1386666666666665e-6,
-          "minimum_seconds": 1.875e-6,
+          "maximum_seconds": 2.375e-6,
+          "mean_seconds": 2.222333333333333e-6,
+          "minimum_seconds": 2.0e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.4124169530898996e-7
+          "standard_deviation_seconds": 1.6082357483348714e-7
         }
       },
       "total_stage_mean_allocated_bytes": 9.087296e6,
-      "total_stage_mean_seconds": 0.020919428666666667,
+      "total_stage_mean_seconds": 0.021103430000000003,
       "variable_count": 16,
       "warmup_performed": true
     },
@@ -376,9 +376,9 @@
       "dimension": 16,
       "expected_evidence": {},
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1783054336,
-      "process_maxrss_before_bytes": 403652608,
-      "process_maxrss_increment_bytes": 1379401728,
+      "process_maxrss_after_bytes": 1771372544,
+      "process_maxrss_before_bytes": 403390464,
+      "process_maxrss_increment_bytes": 1367982080,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -431,11 +431,11 @@
           "standard_deviation_bytes": 0.0
         },
         "static": {
-          "maximum_bytes": 4142608,
-          "mean_bytes": 4.1417546666666665e6,
+          "maximum_bytes": 4141328,
+          "mean_bytes": 4.141328e6,
           "minimum_bytes": 4141328,
           "sample_count": 3,
-          "standard_deviation_bytes": 603.3977866125206
+          "standard_deviation_bytes": 0.0
         },
         "structural_dm": {
           "maximum_bytes": 3520,
@@ -461,85 +461,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.002310625,
-          "mean_seconds": 0.0022100973333333334,
-          "minimum_seconds": 0.002074708,
+          "maximum_seconds": 0.002268958,
+          "mean_seconds": 0.002156916666666667,
+          "minimum_seconds": 0.002063584,
           "sample_count": 3,
-          "standard_deviation_seconds": 9.941733441854533e-5
+          "standard_deviation_seconds": 8.48808208620902e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.000362625,
-          "mean_seconds": 0.0003413333333333333,
-          "minimum_seconds": 0.000312792,
+          "maximum_seconds": 0.000379417,
+          "mean_seconds": 0.000342403,
+          "minimum_seconds": 0.000305625,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.0980152880493718e-5
+          "standard_deviation_seconds": 3.0125920046807973e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.000665083,
-          "mean_seconds": 0.000656972,
-          "minimum_seconds": 0.000644042,
+          "maximum_seconds": 0.000705375,
+          "mean_seconds": 0.0006995693333333333,
+          "minimum_seconds": 0.00069125,
           "sample_count": 3,
-          "standard_deviation_seconds": 9.241139576192231e-6
+          "standard_deviation_seconds": 6.034224409335632e-6
         },
         "expressions": {
-          "maximum_seconds": 0.003398583,
-          "mean_seconds": 0.0032680276666666665,
-          "minimum_seconds": 0.003162459,
+          "maximum_seconds": 0.0033455,
+          "mean_seconds": 0.00326575,
+          "minimum_seconds": 0.00317825,
           "sample_count": 3,
-          "standard_deviation_seconds": 9.80030134820128e-5
+          "standard_deviation_seconds": 6.849908758516417e-5
         },
         "numerical": {
-          "maximum_seconds": 0.002559458,
-          "mean_seconds": 0.0024955556666666667,
-          "minimum_seconds": 0.002450667,
+          "maximum_seconds": 0.002533875,
+          "mean_seconds": 0.0024040136666666667,
+          "minimum_seconds": 0.002326708,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.6404095080307564e-5
+          "standard_deviation_seconds": 9.238006655959703e-5
         },
         "reformulation": {
-          "maximum_seconds": 0.003132167,
-          "mean_seconds": 0.003125625333333333,
-          "minimum_seconds": 0.003114625,
+          "maximum_seconds": 0.003373042,
+          "mean_seconds": 0.003298847666666667,
+          "minimum_seconds": 0.003223834,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.824756538633458e-6
+          "standard_deviation_seconds": 6.091666600820796e-5
         },
         "snapshot": {
-          "maximum_seconds": 0.000103375,
-          "mean_seconds": 0.00010040266666666666,
-          "minimum_seconds": 9.8833e-5,
+          "maximum_seconds": 0.00010475,
+          "mean_seconds": 0.00010069399999999998,
+          "minimum_seconds": 9.7916e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.1028625463612482e-6
+          "standard_deviation_seconds": 2.932672501320254e-6
         },
         "static": {
-          "maximum_seconds": 0.030328,
-          "mean_seconds": 0.015348722,
-          "minimum_seconds": 0.007793666,
+          "maximum_seconds": 0.007966625,
+          "mean_seconds": 0.007777444333333332,
+          "minimum_seconds": 0.007603833,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.010592083724330858
+          "standard_deviation_seconds": 0.00014851781469200545
         },
         "structural_dm": {
-          "maximum_seconds": 1.709e-6,
-          "mean_seconds": 1.153e-6,
-          "minimum_seconds": 7.91e-7,
+          "maximum_seconds": 2.125e-6,
+          "mean_seconds": 1.2503333333333333e-6,
+          "minimum_seconds": 7.09e-7,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.9908896251337243e-7
+          "standard_deviation_seconds": 6.242848352759784e-7
         },
         "structural_graph": {
-          "maximum_seconds": 1.9333e-5,
-          "mean_seconds": 1.8888666666666668e-5,
-          "minimum_seconds": 1.8583e-5,
+          "maximum_seconds": 2.0709e-5,
+          "mean_seconds": 1.9333333333333333e-5,
+          "minimum_seconds": 1.8458e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.2150306720499867e-7
+          "standard_deviation_seconds": 9.847166541137052e-7
         },
         "structural_matching": {
-          "maximum_seconds": 2.584e-6,
-          "mean_seconds": 2.402666666666667e-6,
-          "minimum_seconds": 2.291e-6,
+          "maximum_seconds": 2.208e-6,
+          "mean_seconds": 2.1386666666666665e-6,
+          "minimum_seconds": 2.0e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.293633985673262e-7
+          "standard_deviation_seconds": 9.805214032453457e-8
         }
       },
-      "total_stage_mean_allocated_bytes": 8.838826666666666e6,
-      "total_stage_mean_seconds": 0.027569180333333332,
+      "total_stage_mean_allocated_bytes": 8.8384e6,
+      "total_stage_mean_seconds": 0.020068361,
       "variable_count": 16,
       "warmup_performed": true
     },
@@ -549,9 +549,9 @@
       "dimension": 32,
       "expected_evidence": {},
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1796063232,
-      "process_maxrss_before_bytes": 1785053184,
-      "process_maxrss_increment_bytes": 11010048,
+      "process_maxrss_after_bytes": 1782317056,
+      "process_maxrss_before_bytes": 1773633536,
+      "process_maxrss_increment_bytes": 8683520,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -634,85 +634,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.003165917,
-          "mean_seconds": 0.0031218333333333337,
-          "minimum_seconds": 0.003087625,
+          "maximum_seconds": 0.003201875,
+          "mean_seconds": 0.0031736526666666666,
+          "minimum_seconds": 0.003127416,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.271646855772917e-5
+          "standard_deviation_seconds": 3.2958790676978506e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.000579208,
-          "mean_seconds": 0.0005138886666666667,
-          "minimum_seconds": 0.000478291,
+          "maximum_seconds": 0.000488208,
+          "mean_seconds": 0.00048447199999999995,
+          "minimum_seconds": 0.000478375,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.624999693213204e-5
+          "standard_deviation_seconds": 4.347621035309612e-6
         },
         "evaluation": {
-          "maximum_seconds": 0.000911417,
-          "mean_seconds": 0.0008988749999999999,
-          "minimum_seconds": 0.00088175,
+          "maximum_seconds": 0.000909833,
+          "mean_seconds": 0.0008973610000000001,
+          "minimum_seconds": 0.000889458,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.2537560608028951e-5
+          "standard_deviation_seconds": 8.92345138758914e-6
         },
         "expressions": {
-          "maximum_seconds": 0.011709333,
-          "mean_seconds": 0.011472152333333333,
-          "minimum_seconds": 0.011296166,
+          "maximum_seconds": 0.01185675,
+          "mean_seconds": 0.011653875,
+          "minimum_seconds": 0.0115075,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00017413654086440996
+          "standard_deviation_seconds": 0.00014807223040349775
         },
         "numerical": {
-          "maximum_seconds": 0.003914292,
-          "mean_seconds": 0.003858,
-          "minimum_seconds": 0.003808041,
+          "maximum_seconds": 0.003828625,
+          "mean_seconds": 0.003786167,
+          "minimum_seconds": 0.003714959,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.3607330553474564e-5
+          "standard_deviation_seconds": 5.066169995831836e-5
         },
         "reformulation": {
-          "maximum_seconds": 0.011592416,
-          "mean_seconds": 0.011503944,
-          "minimum_seconds": 0.011338666,
+          "maximum_seconds": 0.012116208,
+          "mean_seconds": 0.011929277666666667,
+          "minimum_seconds": 0.011692875,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00011696619697445325
+          "standard_deviation_seconds": 0.0001763298822214266
         },
         "snapshot": {
-          "maximum_seconds": 0.000119584,
-          "mean_seconds": 0.00010769433333333334,
-          "minimum_seconds": 9.8916e-5,
+          "maximum_seconds": 0.000105542,
+          "mean_seconds": 0.00010443066666666667,
+          "minimum_seconds": 0.000102875,
           "sample_count": 3,
-          "standard_deviation_seconds": 8.71978028520342e-6
+          "standard_deviation_seconds": 1.133224406530129e-6
         },
         "static": {
-          "maximum_seconds": 0.020738334,
-          "mean_seconds": 0.020575444666666668,
-          "minimum_seconds": 0.020448542,
+          "maximum_seconds": 0.020978875,
+          "mean_seconds": 0.020706208333333333,
+          "minimum_seconds": 0.020541833,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00012101275676372147
+          "standard_deviation_seconds": 0.000194159190867243
         },
         "structural_dm": {
-          "maximum_seconds": 1.375e-6,
-          "mean_seconds": 1.1803333333333331e-6,
-          "minimum_seconds": 1.041e-6,
+          "maximum_seconds": 1.125e-6,
+          "mean_seconds": 1.0276666666666667e-6,
+          "minimum_seconds": 9.58e-7,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.418575185020362e-7
+          "standard_deviation_seconds": 7.092875925101815e-8
         },
         "structural_graph": {
-          "maximum_seconds": 3.4084e-5,
-          "mean_seconds": 3.334733333333333e-5,
-          "minimum_seconds": 3.2833e-5,
+          "maximum_seconds": 3.3458e-5,
+          "mean_seconds": 3.3375000000000005e-5,
+          "minimum_seconds": 3.3333e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.343683706541354e-7
+          "standard_deviation_seconds": 5.869128271444065e-8
         },
         "structural_matching": {
-          "maximum_seconds": 6.291e-6,
-          "mean_seconds": 6.180333333333333e-6,
-          "minimum_seconds": 6.083e-6,
+          "maximum_seconds": 6.042e-6,
+          "mean_seconds": 5.8613333333333335e-6,
+          "minimum_seconds": 5.667e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 8.543743649920438e-8
+          "standard_deviation_seconds": 1.533978125296735e-7
         }
       },
       "total_stage_mean_allocated_bytes": 2.3164448e7,
-      "total_stage_mean_seconds": 0.05209254033333334,
+      "total_stage_mean_seconds": 0.05277570833333334,
       "variable_count": 32,
       "warmup_performed": true
     },
@@ -728,9 +728,9 @@
         }
       },
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1796063232,
-      "process_maxrss_before_bytes": 1785053184,
-      "process_maxrss_increment_bytes": 11010048,
+      "process_maxrss_after_bytes": 1782317056,
+      "process_maxrss_before_bytes": 1773633536,
+      "process_maxrss_increment_bytes": 8683520,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -813,85 +813,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.00377725,
-          "mean_seconds": 0.0035942500000000002,
-          "minimum_seconds": 0.003432208,
+          "maximum_seconds": 0.003912875,
+          "mean_seconds": 0.003715458333333333,
+          "minimum_seconds": 0.003506292,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00014164021030766644
+          "standard_deviation_seconds": 0.00016619461477904613
         },
         "degeneracy": {
-          "maximum_seconds": 0.000520125,
-          "mean_seconds": 0.000487986,
-          "minimum_seconds": 0.000463875,
+          "maximum_seconds": 0.000519208,
+          "mean_seconds": 0.0004903473333333334,
+          "minimum_seconds": 0.000467584,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.3655192706887838e-5
+          "standard_deviation_seconds": 2.151189514870524e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.000922625,
-          "mean_seconds": 0.000875625,
-          "minimum_seconds": 0.000839375,
+          "maximum_seconds": 0.000959333,
+          "mean_seconds": 0.000904486,
+          "minimum_seconds": 0.000858625,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.482635496287263e-5
+          "standard_deviation_seconds": 4.160197481690824e-5
         },
         "expressions": {
-          "maximum_seconds": 0.011679416,
-          "mean_seconds": 0.011621041333333332,
-          "minimum_seconds": 0.011511125,
+          "maximum_seconds": 0.011822833,
+          "mean_seconds": 0.011747,
+          "minimum_seconds": 0.011600917,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.777262895703636e-5
+          "standard_deviation_seconds": 0.00010332142288025224
         },
         "numerical": {
-          "maximum_seconds": 0.003908834,
-          "mean_seconds": 0.0038013056666666664,
-          "minimum_seconds": 0.003674833,
+          "maximum_seconds": 0.003819375,
+          "mean_seconds": 0.003791472,
+          "minimum_seconds": 0.003770833,
           "sample_count": 3,
-          "standard_deviation_seconds": 9.646513299057265e-5
+          "standard_deviation_seconds": 2.0472025026036527e-5
         },
         "reformulation": {
-          "maximum_seconds": 0.0118865,
-          "mean_seconds": 0.011708958666666667,
-          "minimum_seconds": 0.011587459,
+          "maximum_seconds": 0.0121245,
+          "mean_seconds": 0.011818819333333333,
+          "minimum_seconds": 0.011580667,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00012835336957616464
+          "standard_deviation_seconds": 0.00022709563304818434
         },
         "snapshot": {
-          "maximum_seconds": 0.000136209,
-          "mean_seconds": 0.000123625,
-          "minimum_seconds": 0.000103791,
+          "maximum_seconds": 0.000116083,
+          "mean_seconds": 0.00011166666666666667,
+          "minimum_seconds": 0.000102875,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.4192804655881096e-5
+          "standard_deviation_seconds": 6.216669651473819e-6
         },
         "static": {
-          "maximum_seconds": 0.022274459,
-          "mean_seconds": 0.021563653000000002,
-          "minimum_seconds": 0.020942208,
+          "maximum_seconds": 0.021605875,
+          "mean_seconds": 0.021199375000000003,
+          "minimum_seconds": 0.020857833,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0005475473939858234
+          "standard_deviation_seconds": 0.0003088218092082664
         },
         "structural_dm": {
-          "maximum_seconds": 3.709e-6,
-          "mean_seconds": 2.375e-6,
-          "minimum_seconds": 1.541e-6,
+          "maximum_seconds": 2.834e-6,
+          "mean_seconds": 1.778e-6,
+          "minimum_seconds": 1.209e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 9.530848160928106e-7
+          "standard_deviation_seconds": 7.474547923899255e-7
         },
         "structural_graph": {
-          "maximum_seconds": 4.6958e-5,
-          "mean_seconds": 4.1972000000000004e-5,
-          "minimum_seconds": 3.6375e-5,
+          "maximum_seconds": 3.7083e-5,
+          "mean_seconds": 3.5555333333333335e-5,
+          "minimum_seconds": 3.4583e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.342039689669666e-6
+          "standard_deviation_seconds": 1.093555770055749e-6
         },
         "structural_matching": {
-          "maximum_seconds": 6.75e-6,
-          "mean_seconds": 6.360666666666666e-6,
-          "minimum_seconds": 5.666e-6,
+          "maximum_seconds": 5.916e-6,
+          "mean_seconds": 5.805333333333333e-6,
+          "minimum_seconds": 5.667e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.923991154428377e-7
+          "standard_deviation_seconds": 1.0351918770074556e-7
         }
       },
       "total_stage_mean_allocated_bytes": 2.3624912e7,
-      "total_stage_mean_seconds": 0.053827152333333336,
+      "total_stage_mean_seconds": 0.053821763333333335,
       "variable_count": 32,
       "warmup_performed": true
     },
@@ -901,9 +901,9 @@
       "dimension": 32,
       "expected_evidence": {},
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1796063232,
-      "process_maxrss_before_bytes": 1785053184,
-      "process_maxrss_increment_bytes": 11010048,
+      "process_maxrss_after_bytes": 1782317056,
+      "process_maxrss_before_bytes": 1773633536,
+      "process_maxrss_increment_bytes": 8683520,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -914,11 +914,11 @@
           "standard_deviation_bytes": 0.0
         },
         "degeneracy": {
-          "maximum_bytes": 233616,
-          "mean_bytes": 233616.0,
+          "maximum_bytes": 235152,
+          "mean_bytes": 234128.0,
           "minimum_bytes": 233616,
           "sample_count": 3,
-          "standard_deviation_bytes": 0.0
+          "standard_deviation_bytes": 724.0773439350247
         },
         "evaluation": {
           "maximum_bytes": 204608,
@@ -986,85 +986,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.003113917,
-          "mean_seconds": 0.003014333333333333,
-          "minimum_seconds": 0.002927,
+          "maximum_seconds": 0.00317375,
+          "mean_seconds": 0.003120514,
+          "minimum_seconds": 0.003063875,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.679862942498099e-5
+          "standard_deviation_seconds": 4.492077628447654e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.00047775,
-          "mean_seconds": 0.0004745276666666667,
-          "minimum_seconds": 0.000470792,
+          "maximum_seconds": 0.011147625,
+          "mean_seconds": 0.004032722,
+          "minimum_seconds": 0.000471583,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.8636892677492467e-6
+          "standard_deviation_seconds": 0.005030997059709801
         },
         "evaluation": {
-          "maximum_seconds": 0.000949459,
-          "mean_seconds": 0.0009037916666666668,
-          "minimum_seconds": 0.000868166,
+          "maximum_seconds": 0.000981792,
+          "mean_seconds": 0.0009094583333333333,
+          "minimum_seconds": 0.000865042,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.393881027509496e-5
+          "standard_deviation_seconds": 5.158923499034356e-5
         },
         "expressions": {
-          "maximum_seconds": 0.01188425,
-          "mean_seconds": 0.011640486,
-          "minimum_seconds": 0.011364291,
+          "maximum_seconds": 0.012021042,
+          "mean_seconds": 0.011788986000000001,
+          "minimum_seconds": 0.0115585,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00021350748268074052
+          "standard_deviation_seconds": 0.00018883524409036212
         },
         "numerical": {
-          "maximum_seconds": 0.00386225,
-          "mean_seconds": 0.003842514,
-          "minimum_seconds": 0.003806875,
+          "maximum_seconds": 0.003942833,
+          "mean_seconds": 0.0038459719999999996,
+          "minimum_seconds": 0.00376225,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.5249115007593115e-5
+          "standard_deviation_seconds": 7.430580938706376e-5
         },
         "reformulation": {
-          "maximum_seconds": 0.011713292,
-          "mean_seconds": 0.01158925,
-          "minimum_seconds": 0.011526166,
+          "maximum_seconds": 0.011771917,
+          "mean_seconds": 0.011677541999999999,
+          "minimum_seconds": 0.011554292,
           "sample_count": 3,
-          "standard_deviation_seconds": 8.77152335382326e-5
+          "standard_deviation_seconds": 9.116097255221994e-5
         },
         "snapshot": {
-          "maximum_seconds": 0.000105125,
-          "mean_seconds": 0.00010473599999999998,
-          "minimum_seconds": 0.000104375,
+          "maximum_seconds": 0.0001125,
+          "mean_seconds": 0.00010995833333333333,
+          "minimum_seconds": 0.000107542,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.0682568340997423e-7
+          "standard_deviation_seconds": 2.0260342763361365e-6
         },
         "static": {
-          "maximum_seconds": 0.020910333,
-          "mean_seconds": 0.020836347,
-          "minimum_seconds": 0.0207805,
+          "maximum_seconds": 0.021413209,
+          "mean_seconds": 0.02097218066666667,
+          "minimum_seconds": 0.020330583,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.4533900545134524e-5
+          "standard_deviation_seconds": 0.0004641772700699116
         },
         "structural_dm": {
-          "maximum_seconds": 1.083e-6,
-          "mean_seconds": 1.0136666666666667e-6,
-          "minimum_seconds": 9.58e-7,
+          "maximum_seconds": 2.458e-6,
+          "mean_seconds": 1.458e-6,
+          "minimum_seconds": 9.16e-7,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.193799722318487e-8
+          "standard_deviation_seconds": 7.079378503795373e-7
         },
         "structural_graph": {
-          "maximum_seconds": 4.2666e-5,
-          "mean_seconds": 3.616666666666667e-5,
-          "minimum_seconds": 3.2584e-5,
+          "maximum_seconds": 3.5125e-5,
+          "mean_seconds": 3.401366666666667e-5,
+          "minimum_seconds": 3.3416e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.603758561098626e-6
+          "standard_deviation_seconds": 7.865792324291867e-7
         },
         "structural_matching": {
-          "maximum_seconds": 5.959e-6,
-          "mean_seconds": 5.833666666666667e-6,
-          "minimum_seconds": 5.709e-6,
+          "maximum_seconds": 5.958e-6,
+          "mean_seconds": 5.930333333333333e-6,
+          "minimum_seconds": 5.916e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.0206316127226759e-7
+          "standard_deviation_seconds": 1.956754682858574e-8
         }
       },
-      "total_stage_mean_allocated_bytes": 2.3243776e7,
-      "total_stage_mean_seconds": 0.05244899966666667,
+      "total_stage_mean_allocated_bytes": 2.3244288e7,
+      "total_stage_mean_seconds": 0.056498735333333334,
       "variable_count": 32,
       "warmup_performed": true
     },
@@ -1074,15 +1074,15 @@
       "dimension": 64,
       "expected_evidence": {},
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1811120128,
-      "process_maxrss_before_bytes": 1796128768,
-      "process_maxrss_increment_bytes": 14991360,
+      "process_maxrss_after_bytes": 1793867776,
+      "process_maxrss_before_bytes": 1782317056,
+      "process_maxrss_increment_bytes": 11550720,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
-          "maximum_bytes": 4416080,
-          "mean_bytes": 4.41608e6,
-          "minimum_bytes": 4416080,
+          "maximum_bytes": 4482768,
+          "mean_bytes": 4.482768e6,
+          "minimum_bytes": 4482768,
           "sample_count": 3,
           "standard_deviation_bytes": 0.0
         },
@@ -1159,85 +1159,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.005214541,
-          "mean_seconds": 0.005093194333333333,
-          "minimum_seconds": 0.005006125,
+          "maximum_seconds": 0.005313917,
+          "mean_seconds": 0.005253541666666667,
+          "minimum_seconds": 0.005146125,
           "sample_count": 3,
-          "standard_deviation_seconds": 8.847036772966524e-5
+          "standard_deviation_seconds": 7.614987020051689e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.000938417,
-          "mean_seconds": 0.0008662363333333334,
-          "minimum_seconds": 0.000820959,
+          "maximum_seconds": 0.000883292,
+          "mean_seconds": 0.000860389,
+          "minimum_seconds": 0.000823375,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.158770815697172e-5
+          "standard_deviation_seconds": 2.641782180019138e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.001430083,
-          "mean_seconds": 0.0013207219999999999,
-          "minimum_seconds": 0.001228083,
+          "maximum_seconds": 0.001478959,
+          "mean_seconds": 0.0013656809999999999,
+          "minimum_seconds": 0.001275042,
           "sample_count": 3,
-          "standard_deviation_seconds": 8.330953912167959e-5
+          "standard_deviation_seconds": 8.477393059583032e-5
         },
         "expressions": {
-          "maximum_seconds": 0.044994708,
-          "mean_seconds": 0.044609458,
-          "minimum_seconds": 0.044100958,
+          "maximum_seconds": 0.04536525,
+          "mean_seconds": 0.04529202766666667,
+          "minimum_seconds": 0.045168583,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0003751356976704115
+          "standard_deviation_seconds": 8.779213820661385e-5
         },
         "numerical": {
-          "maximum_seconds": 0.007014542,
-          "mean_seconds": 0.006900930666666667,
-          "minimum_seconds": 0.006821625,
+          "maximum_seconds": 0.007132917,
+          "mean_seconds": 0.007078389,
+          "minimum_seconds": 0.006980334,
           "sample_count": 3,
-          "standard_deviation_seconds": 8.24091471311825e-5
+          "standard_deviation_seconds": 6.948065807114932e-5
         },
         "reformulation": {
-          "maximum_seconds": 0.045211084,
-          "mean_seconds": 0.04465591666666666,
-          "minimum_seconds": 0.044156958,
+          "maximum_seconds": 0.04571725,
+          "mean_seconds": 0.04512595833333333,
+          "minimum_seconds": 0.044709167,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00043217663566750956
+          "standard_deviation_seconds": 0.0004296476141152061
         },
         "snapshot": {
-          "maximum_seconds": 0.000146708,
-          "mean_seconds": 0.000133722,
-          "minimum_seconds": 0.000117833,
+          "maximum_seconds": 0.000121959,
+          "mean_seconds": 0.00011916666666666666,
+          "minimum_seconds": 0.000116083,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.1965560663838537e-5
+          "standard_deviation_seconds": 2.4076960402472344e-6
         },
         "static": {
-          "maximum_seconds": 0.062443084,
-          "mean_seconds": 0.062239542333333335,
-          "minimum_seconds": 0.062114459,
+          "maximum_seconds": 0.062851709,
+          "mean_seconds": 0.06272798633333333,
+          "minimum_seconds": 0.0626095,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00014517892456858062
+          "standard_deviation_seconds": 9.895070931305222e-5
         },
         "structural_dm": {
-          "maximum_seconds": 5.084e-6,
-          "mean_seconds": 3.083666666666667e-6,
-          "minimum_seconds": 1.875e-6,
+          "maximum_seconds": 2.542e-6,
+          "mean_seconds": 1.8196666666666665e-6,
+          "minimum_seconds": 1.458e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.4246572297300927e-6
+          "standard_deviation_seconds": 5.107669614304442e-7
         },
         "structural_graph": {
-          "maximum_seconds": 6.9375e-5,
-          "mean_seconds": 6.783333333333333e-5,
-          "minimum_seconds": 6.6e-5,
+          "maximum_seconds": 6.6541e-5,
+          "mean_seconds": 6.545833333333333e-5,
+          "minimum_seconds": 6.375e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.3931877914417075e-6
+          "standard_deviation_seconds": 1.222296836106332e-6
         },
         "structural_matching": {
-          "maximum_seconds": 2.3458e-5,
-          "mean_seconds": 2.2930333333333333e-5,
-          "minimum_seconds": 2.2208e-5,
+          "maximum_seconds": 2.2583e-5,
+          "mean_seconds": 2.2319333333333335e-5,
+          "minimum_seconds": 2.1833e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.285491672703893e-7
+          "standard_deviation_seconds": 3.442967066676972e-7
         }
       },
-      "total_stage_mean_allocated_bytes": 7.0209216e7,
-      "total_stage_mean_seconds": 0.16591356966666668,
+      "total_stage_mean_allocated_bytes": 7.0275904e7,
+      "total_stage_mean_seconds": 0.16791273699999998,
       "variable_count": 64,
       "warmup_performed": true
     },
@@ -1253,15 +1253,15 @@
         }
       },
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1811120128,
-      "process_maxrss_before_bytes": 1796128768,
-      "process_maxrss_increment_bytes": 14991360,
+      "process_maxrss_after_bytes": 1793867776,
+      "process_maxrss_before_bytes": 1782317056,
+      "process_maxrss_increment_bytes": 11550720,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
-          "maximum_bytes": 4740768,
-          "mean_bytes": 4.740768e6,
-          "minimum_bytes": 4740768,
+          "maximum_bytes": 4807456,
+          "mean_bytes": 4.807456e6,
+          "minimum_bytes": 4807456,
           "sample_count": 3,
           "standard_deviation_bytes": 0.0
         },
@@ -1280,11 +1280,11 @@
           "standard_deviation_bytes": 0.0
         },
         "expressions": {
-          "maximum_bytes": 16445584,
-          "mean_bytes": 1.6445584e7,
+          "maximum_bytes": 16446224,
+          "mean_bytes": 1.6445797333333334e7,
           "minimum_bytes": 16445584,
           "sample_count": 3,
-          "standard_deviation_bytes": 0.0
+          "standard_deviation_bytes": 301.6988933062603
         },
         "numerical": {
           "maximum_bytes": 3638640,
@@ -1308,11 +1308,11 @@
           "standard_deviation_bytes": 0.0
         },
         "static": {
-          "maximum_bytes": 28570592,
-          "mean_bytes": 2.857008e7,
+          "maximum_bytes": 28569824,
+          "mean_bytes": 2.8569824e7,
           "minimum_bytes": 28569824,
           "sample_count": 3,
-          "standard_deviation_bytes": 362.03867196751236
+          "standard_deviation_bytes": 0.0
         },
         "structural_dm": {
           "maximum_bytes": 6224,
@@ -1338,85 +1338,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.006218333,
-          "mean_seconds": 0.006003347333333333,
-          "minimum_seconds": 0.005848834,
+          "maximum_seconds": 0.006244666,
+          "mean_seconds": 0.006160555333333334,
+          "minimum_seconds": 0.006071125,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0001567908481052246
+          "standard_deviation_seconds": 7.094760418944554e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.000858042,
-          "mean_seconds": 0.000832167,
-          "minimum_seconds": 0.000818667,
+          "maximum_seconds": 0.00084875,
+          "mean_seconds": 0.0008317916666666668,
+          "minimum_seconds": 0.000822958,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.830215151286867e-5
+          "standard_deviation_seconds": 1.1994845346601532e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.001344083,
-          "mean_seconds": 0.0012839863333333334,
-          "minimum_seconds": 0.001242417,
+          "maximum_seconds": 0.001289417,
+          "mean_seconds": 0.0012795139999999998,
+          "minimum_seconds": 0.001268958,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.352348369431025e-5
+          "standard_deviation_seconds": 8.36510517965356e-6
         },
         "expressions": {
-          "maximum_seconds": 0.045838958,
-          "mean_seconds": 0.045495791333333334,
-          "minimum_seconds": 0.044948708,
+          "maximum_seconds": 0.060964625,
+          "mean_seconds": 0.050508014,
+          "minimum_seconds": 0.045279667,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00039100108340287616
+          "standard_deviation_seconds": 0.007393940546407488
         },
         "numerical": {
-          "maximum_seconds": 0.00708375,
-          "mean_seconds": 0.006925485999999999,
-          "minimum_seconds": 0.00671925,
+          "maximum_seconds": 0.00709075,
+          "mean_seconds": 0.006927111,
+          "minimum_seconds": 0.00663725,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0001526238231469777
+          "standard_deviation_seconds": 0.00020553111275100586
         },
         "reformulation": {
-          "maximum_seconds": 0.045336416,
-          "mean_seconds": 0.044953193999999995,
-          "minimum_seconds": 0.044605375,
+          "maximum_seconds": 0.045466583,
+          "mean_seconds": 0.04533568066666666,
+          "minimum_seconds": 0.045224084,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0002994943129421082
+          "standard_deviation_seconds": 9.993655595537711e-5
         },
         "snapshot": {
-          "maximum_seconds": 0.000131333,
-          "mean_seconds": 0.00012348600000000002,
-          "minimum_seconds": 0.000118708,
+          "maximum_seconds": 0.000138541,
+          "mean_seconds": 0.00012602733333333334,
+          "minimum_seconds": 0.000119041,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.592359490113869e-6
+          "standard_deviation_seconds": 8.868523377027817e-6
         },
         "static": {
-          "maximum_seconds": 0.081212292,
-          "mean_seconds": 0.06940398633333333,
-          "minimum_seconds": 0.063120292,
+          "maximum_seconds": 0.064740541,
+          "mean_seconds": 0.063926694,
+          "minimum_seconds": 0.063013333,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.008355481784963946
+          "standard_deviation_seconds": 0.0007086320841184066
         },
         "structural_dm": {
-          "maximum_seconds": 2.125e-6,
-          "mean_seconds": 1.972e-6,
-          "minimum_seconds": 1.875e-6,
+          "maximum_seconds": 3.75e-6,
+          "mean_seconds": 2.4446666666666667e-6,
+          "minimum_seconds": 1.792e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.094745023586162e-7
+          "standard_deviation_seconds": 9.230100517088401e-7
         },
         "structural_graph": {
-          "maximum_seconds": 7.3583e-5,
-          "mean_seconds": 6.884733333333333e-5,
-          "minimum_seconds": 6.425e-5,
+          "maximum_seconds": 8.3208e-5,
+          "mean_seconds": 7.155566666666666e-5,
+          "minimum_seconds": 6.5e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.8114366786758454e-6
+          "standard_deviation_seconds": 8.260945237817657e-6
         },
         "structural_matching": {
-          "maximum_seconds": 2.6792e-5,
-          "mean_seconds": 2.3694666666666665e-5,
-          "minimum_seconds": 2.1958e-5,
+          "maximum_seconds": 2.275e-5,
+          "mean_seconds": 2.2000000000000003e-5,
+          "minimum_seconds": 2.1583e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.195518060858429e-6
+          "standard_deviation_seconds": 5.314376727331251e-7
         }
       },
-      "total_stage_mean_allocated_bytes": 7.0999264e7,
-      "total_stage_mean_seconds": 0.17511595833333335,
+      "total_stage_mean_allocated_bytes": 7.106590933333334e7,
+      "total_stage_mean_seconds": 0.1751913883333333,
       "variable_count": 64,
       "warmup_performed": true
     },
@@ -1426,15 +1426,15 @@
       "dimension": 64,
       "expected_evidence": {},
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1811120128,
-      "process_maxrss_before_bytes": 1796128768,
-      "process_maxrss_increment_bytes": 14991360,
+      "process_maxrss_after_bytes": 1793867776,
+      "process_maxrss_before_bytes": 1782317056,
+      "process_maxrss_increment_bytes": 11550720,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
-          "maximum_bytes": 4416080,
-          "mean_bytes": 4.41608e6,
-          "minimum_bytes": 4416080,
+          "maximum_bytes": 4482768,
+          "mean_bytes": 4.482768e6,
+          "minimum_bytes": 4482768,
           "sample_count": 3,
           "standard_deviation_bytes": 0.0
         },
@@ -1467,11 +1467,11 @@
           "standard_deviation_bytes": 0.0
         },
         "reformulation": {
-          "maximum_bytes": 16363040,
-          "mean_bytes": 1.6362784e7,
+          "maximum_bytes": 16362656,
+          "mean_bytes": 1.6362656e7,
           "minimum_bytes": 16362656,
           "sample_count": 3,
-          "standard_deviation_bytes": 181.01933598375618
+          "standard_deviation_bytes": 0.0
         },
         "snapshot": {
           "maximum_bytes": 64288,
@@ -1481,11 +1481,11 @@
           "standard_deviation_bytes": 0.0
         },
         "static": {
-          "maximum_bytes": 28329328,
-          "mean_bytes": 2.8329328e7,
+          "maximum_bytes": 28329840,
+          "mean_bytes": 2.8329498666666668e7,
           "minimum_bytes": 28329328,
           "sample_count": 3,
-          "standard_deviation_bytes": 0.0
+          "standard_deviation_bytes": 241.35911464500822
         },
         "structural_dm": {
           "maximum_bytes": 5856,
@@ -1511,85 +1511,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.005171125,
-          "mean_seconds": 0.0049483470000000005,
-          "minimum_seconds": 0.004828375,
+          "maximum_seconds": 0.005201417,
+          "mean_seconds": 0.005011583666666666,
+          "minimum_seconds": 0.004796834,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00015768364077481224
+          "standard_deviation_seconds": 0.00016610733221290652
         },
         "degeneracy": {
-          "maximum_seconds": 0.000953458,
-          "mean_seconds": 0.0008710556666666667,
-          "minimum_seconds": 0.000826167,
+          "maximum_seconds": 0.000919042,
+          "mean_seconds": 0.0008648610000000001,
+          "minimum_seconds": 0.000826833,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.834498584759065e-5
+          "standard_deviation_seconds": 3.9338822868340465e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.001281667,
-          "mean_seconds": 0.0012703473333333334,
-          "minimum_seconds": 0.001259625,
+          "maximum_seconds": 0.001330375,
+          "mean_seconds": 0.0013084583333333333,
+          "minimum_seconds": 0.0012895,
           "sample_count": 3,
-          "standard_deviation_seconds": 9.008516205359403e-6
+          "standard_deviation_seconds": 1.6817752690402903e-5
         },
         "expressions": {
-          "maximum_seconds": 0.0447675,
-          "mean_seconds": 0.044324485999999996,
-          "minimum_seconds": 0.044064541,
+          "maximum_seconds": 0.045376916,
+          "mean_seconds": 0.04532206933333333,
+          "minimum_seconds": 0.045285667,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0003148264421243348
+          "standard_deviation_seconds": 3.946931360211751e-5
         },
         "numerical": {
-          "maximum_seconds": 0.00715025,
-          "mean_seconds": 0.0069848056666666665,
-          "minimum_seconds": 0.006748625,
+          "maximum_seconds": 0.007333375,
+          "mean_seconds": 0.007203222,
+          "minimum_seconds": 0.007063625,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00017142225020172323
+          "standard_deviation_seconds": 0.00011032726310693415
         },
         "reformulation": {
-          "maximum_seconds": 0.055850417,
-          "mean_seconds": 0.04830419466666667,
-          "minimum_seconds": 0.04447825,
+          "maximum_seconds": 0.045221958,
+          "mean_seconds": 0.044984736,
+          "minimum_seconds": 0.044813292,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.005336159355866123
+          "standard_deviation_seconds": 0.00017319937230833178
         },
         "snapshot": {
-          "maximum_seconds": 0.000124875,
-          "mean_seconds": 0.00012256933333333335,
-          "minimum_seconds": 0.00012,
+          "maximum_seconds": 0.0001295,
+          "mean_seconds": 0.00012338866666666666,
+          "minimum_seconds": 0.00011925,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.9989240994984208e-6
+          "standard_deviation_seconds": 4.410909606368688e-6
         },
         "static": {
-          "maximum_seconds": 0.0626505,
-          "mean_seconds": 0.062238805333333334,
-          "minimum_seconds": 0.061891125,
+          "maximum_seconds": 0.073948583,
+          "mean_seconds": 0.06671525,
+          "minimum_seconds": 0.062356875,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0003133006796570275
+          "standard_deviation_seconds": 0.005150466724200114
         },
         "structural_dm": {
-          "maximum_seconds": 3.041e-6,
-          "mean_seconds": 2.25e-6,
-          "minimum_seconds": 1.792e-6,
+          "maximum_seconds": 2.084e-6,
+          "mean_seconds": 1.806e-6,
+          "minimum_seconds": 1.542e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.616446088645975e-7
+          "standard_deviation_seconds": 2.214919110637376e-7
         },
         "structural_graph": {
-          "maximum_seconds": 6.7333e-5,
-          "mean_seconds": 6.566666666666667e-5,
-          "minimum_seconds": 6.4792e-5,
+          "maximum_seconds": 6.8959e-5,
+          "mean_seconds": 6.7806e-5,
+          "minimum_seconds": 6.5917e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.178762722330306e-6
+          "standard_deviation_seconds": 1.346529613487947e-6
         },
         "structural_matching": {
-          "maximum_seconds": 7.5042e-5,
-          "mean_seconds": 4.020833333333333e-5,
-          "minimum_seconds": 2.2583e-5,
+          "maximum_seconds": 2.3167e-5,
+          "mean_seconds": 2.2917e-5,
+          "minimum_seconds": 2.25e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.4631710217161586e-5
+          "standard_deviation_seconds": 2.968040880221606e-7
         }
       },
-      "total_stage_mean_allocated_bytes": 7.0313168e7,
-      "total_stage_mean_seconds": 0.169172736,
+      "total_stage_mean_allocated_bytes": 7.037989866666667e7,
+      "total_stage_mean_seconds": 0.171626098,
       "variable_count": 64,
       "warmup_performed": true
     },
@@ -1599,9 +1599,9 @@
       "dimension": 128,
       "expected_evidence": {},
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1815019520,
-      "process_maxrss_before_bytes": 1811120128,
-      "process_maxrss_increment_bytes": 3899392,
+      "process_maxrss_after_bytes": 1796685824,
+      "process_maxrss_before_bytes": 1793867776,
+      "process_maxrss_increment_bytes": 2818048,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -1684,85 +1684,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.009769042,
-          "mean_seconds": 0.009175444666666666,
-          "minimum_seconds": 0.008857667,
+          "maximum_seconds": 0.008953375,
+          "mean_seconds": 0.008830944333333333,
+          "minimum_seconds": 0.008766666,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00042008607375658446
+          "standard_deviation_seconds": 8.660767123195394e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.001639583,
-          "mean_seconds": 0.0016089303333333335,
-          "minimum_seconds": 0.001553958,
+          "maximum_seconds": 0.001627375,
+          "mean_seconds": 0.001603333,
+          "minimum_seconds": 0.001557583,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.8957196993053204e-5
+          "standard_deviation_seconds": 3.2364164997725495e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.002116834,
-          "mean_seconds": 0.002068694666666667,
-          "minimum_seconds": 0.001992459,
+          "maximum_seconds": 0.002204125,
+          "mean_seconds": 0.0021701529999999998,
+          "minimum_seconds": 0.002111,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.4524233855741373e-5
+          "standard_deviation_seconds": 4.1981174169699764e-5
         },
         "expressions": {
-          "maximum_seconds": 0.174847167,
-          "mean_seconds": 0.17376515300000003,
-          "minimum_seconds": 0.173027667,
+          "maximum_seconds": 0.177816875,
+          "mean_seconds": 0.17628129133333334,
+          "minimum_seconds": 0.174645083,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0007817372617395192
+          "standard_deviation_seconds": 0.001296832067121605
         },
         "numerical": {
-          "maximum_seconds": 0.014160458,
-          "mean_seconds": 0.014003652666666666,
-          "minimum_seconds": 0.013779583,
+          "maximum_seconds": 0.013927208,
+          "mean_seconds": 0.013796110666666667,
+          "minimum_seconds": 0.013639041,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0001626034220843943
+          "standard_deviation_seconds": 0.00011906854201490683
         },
         "reformulation": {
-          "maximum_seconds": 0.190119334,
-          "mean_seconds": 0.18455786166666666,
-          "minimum_seconds": 0.178874709,
+          "maximum_seconds": 0.190379417,
+          "mean_seconds": 0.18520647233333332,
+          "minimum_seconds": 0.181851292,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.004591405189793671
+          "standard_deviation_seconds": 0.003711282741637119
         },
         "snapshot": {
-          "maximum_seconds": 0.000180125,
-          "mean_seconds": 0.00016091666666666666,
-          "minimum_seconds": 0.000149458,
+          "maximum_seconds": 0.000303666,
+          "mean_seconds": 0.0002032496666666667,
+          "minimum_seconds": 0.00015075,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.366648509635484e-5
+          "standard_deviation_seconds": 7.102971665593368e-5
         },
         "static": {
-          "maximum_seconds": 0.211890292,
-          "mean_seconds": 0.21130516700000002,
-          "minimum_seconds": 0.210891,
+          "maximum_seconds": 0.21253575,
+          "mean_seconds": 0.211579097,
+          "minimum_seconds": 0.210775708,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0004254927368271664
+          "standard_deviation_seconds": 0.0007266610171246699
         },
         "structural_dm": {
-          "maximum_seconds": 4.625e-6,
-          "mean_seconds": 4.236333333333333e-6,
-          "minimum_seconds": 4.042e-6,
+          "maximum_seconds": 5.375e-6,
+          "mean_seconds": 4.1946666666666664e-6,
+          "minimum_seconds": 2.917e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.7482883562117155e-7
+          "standard_deviation_seconds": 1.0058317729896763e-6
         },
         "structural_graph": {
-          "maximum_seconds": 0.000141959,
-          "mean_seconds": 0.000135889,
-          "minimum_seconds": 0.000131833,
+          "maximum_seconds": 0.000162792,
+          "mean_seconds": 0.00014988899999999997,
+          "minimum_seconds": 0.000132125,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.372346128415111e-6
+          "standard_deviation_seconds": 1.2983020013335369e-5
         },
         "structural_matching": {
-          "maximum_seconds": 0.000115041,
-          "mean_seconds": 0.000105083,
-          "minimum_seconds": 0.000100083,
+          "maximum_seconds": 0.000101458,
+          "mean_seconds": 0.00010065266666666667,
+          "minimum_seconds": 0.000100208,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.041390203645869e-6
+          "standard_deviation_seconds": 5.704882898788476e-7
         }
       },
       "total_stage_mean_allocated_bytes": 2.34610432e8,
-      "total_stage_mean_seconds": 0.596891029,
+      "total_stage_mean_seconds": 0.5999253876666667,
       "variable_count": 128,
       "warmup_performed": true
     },
@@ -1778,9 +1778,9 @@
         }
       },
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1815019520,
-      "process_maxrss_before_bytes": 1811120128,
-      "process_maxrss_increment_bytes": 3899392,
+      "process_maxrss_after_bytes": 1796685824,
+      "process_maxrss_before_bytes": 1793867776,
+      "process_maxrss_increment_bytes": 2818048,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -1863,85 +1863,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.011005875,
-          "mean_seconds": 0.010869583333333334,
-          "minimum_seconds": 0.010725583,
+          "maximum_seconds": 0.011042417,
+          "mean_seconds": 0.011009472333333334,
+          "minimum_seconds": 0.010961375,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0001145584828005134
+          "standard_deviation_seconds": 3.477694563292677e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.001560958,
-          "mean_seconds": 0.0015516803333333335,
-          "minimum_seconds": 0.001543333,
+          "maximum_seconds": 0.001721833,
+          "mean_seconds": 0.0016538333333333333,
+          "minimum_seconds": 0.001583417,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.225385633691528e-6
+          "standard_deviation_seconds": 5.65339277032435e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.002102083,
-          "mean_seconds": 0.0020717500000000002,
-          "minimum_seconds": 0.002025459,
+          "maximum_seconds": 0.002120084,
+          "mean_seconds": 0.002098361333333333,
+          "minimum_seconds": 0.002082166,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.325460035343485e-5
+          "standard_deviation_seconds": 1.596573917974223e-5
         },
         "expressions": {
-          "maximum_seconds": 0.179534916,
-          "mean_seconds": 0.17542826366666664,
-          "minimum_seconds": 0.1729345,
+          "maximum_seconds": 0.182799584,
+          "mean_seconds": 0.18111252833333333,
+          "minimum_seconds": 0.178337292,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0029260246332479065
+          "standard_deviation_seconds": 0.001977560002595164
         },
         "numerical": {
-          "maximum_seconds": 0.013936083,
-          "mean_seconds": 0.013814569,
-          "minimum_seconds": 0.013656041,
+          "maximum_seconds": 0.014607792,
+          "mean_seconds": 0.014230125333333335,
+          "minimum_seconds": 0.013992459,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00011728429161088291
+          "standard_deviation_seconds": 0.0002700107963549273
         },
         "reformulation": {
-          "maximum_seconds": 0.179349917,
-          "mean_seconds": 0.17701386099999997,
-          "minimum_seconds": 0.174395833,
+          "maximum_seconds": 0.181522375,
+          "mean_seconds": 0.17704172233333335,
+          "minimum_seconds": 0.174455375,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0020323005398401746
+          "standard_deviation_seconds": 0.0031808716595635024
         },
         "snapshot": {
-          "maximum_seconds": 0.000146875,
-          "mean_seconds": 0.00014619433333333334,
-          "minimum_seconds": 0.00014575,
+          "maximum_seconds": 0.00021075,
+          "mean_seconds": 0.0001733473333333333,
+          "minimum_seconds": 0.000147625,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.887373755118686e-7
+          "standard_deviation_seconds": 2.706183100892391e-5
         },
         "static": {
-          "maximum_seconds": 0.215420792,
-          "mean_seconds": 0.21419934733333335,
-          "minimum_seconds": 0.212213584,
+          "maximum_seconds": 0.220910583,
+          "mean_seconds": 0.217620347,
+          "minimum_seconds": 0.214638875,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0014164940421047337
+          "standard_deviation_seconds": 0.0025697057827811023
         },
         "structural_dm": {
-          "maximum_seconds": 4.083e-6,
-          "mean_seconds": 3.819333333333333e-6,
-          "minimum_seconds": 3.667e-6,
+          "maximum_seconds": 5.625e-6,
+          "mean_seconds": 4.958333333333333e-6,
+          "minimum_seconds": 4.0e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.8719033688260245e-7
+          "standard_deviation_seconds": 6.94722166688878e-7
         },
         "structural_graph": {
-          "maximum_seconds": 0.000130875,
-          "mean_seconds": 0.00012881933333333334,
-          "minimum_seconds": 0.000126708,
+          "maximum_seconds": 0.000144333,
+          "mean_seconds": 0.00014004133333333333,
+          "minimum_seconds": 0.000131875,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.7016259544591089e-6
+          "standard_deviation_seconds": 5.776978583615797e-6
         },
         "structural_matching": {
-          "maximum_seconds": 9.8375e-5,
-          "mean_seconds": 9.833333333333334e-5,
-          "minimum_seconds": 9.8292e-5,
+          "maximum_seconds": 0.000102,
+          "mean_seconds": 9.969433333333333e-5,
+          "minimum_seconds": 9.8042e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.3885427874270446e-8
+          "standard_deviation_seconds": 1.6805900418867455e-6
         }
       },
       "total_stage_mean_allocated_bytes": 2.35994e8,
-      "total_stage_mean_seconds": 0.5953262209999999,
+      "total_stage_mean_seconds": 0.6051844313333333,
       "variable_count": 128,
       "warmup_performed": true
     },
@@ -1951,17 +1951,17 @@
       "dimension": 128,
       "expected_evidence": {},
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1815019520,
-      "process_maxrss_before_bytes": 1811120128,
-      "process_maxrss_increment_bytes": 3899392,
+      "process_maxrss_after_bytes": 1796685824,
+      "process_maxrss_before_bytes": 1793867776,
+      "process_maxrss_increment_bytes": 2818048,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
-          "maximum_bytes": 8425360,
-          "mean_bytes": 8.425274666666666e6,
+          "maximum_bytes": 8425232,
+          "mean_bytes": 8.425232e6,
           "minimum_bytes": 8425232,
           "sample_count": 3,
-          "standard_deviation_bytes": 60.339778661252055
+          "standard_deviation_bytes": 0.0
         },
         "degeneracy": {
           "maximum_bytes": 856496,
@@ -1985,11 +1985,11 @@
           "standard_deviation_bytes": 0.0
         },
         "numerical": {
-          "maximum_bytes": 7848304,
-          "mean_bytes": 7.848304e6,
+          "maximum_bytes": 7848432,
+          "mean_bytes": 7.848346666666667e6,
           "minimum_bytes": 7848304,
           "sample_count": 3,
-          "standard_deviation_bytes": 0.0
+          "standard_deviation_bytes": 60.339778661252055
         },
         "reformulation": {
           "maximum_bytes": 64103296,
@@ -2036,85 +2036,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.014297792,
-          "mean_seconds": 0.010483347333333332,
-          "minimum_seconds": 0.008482584,
+          "maximum_seconds": 0.0089985,
+          "mean_seconds": 0.008936360999999999,
+          "minimum_seconds": 0.008845458,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.002698300823972664
+          "standard_deviation_seconds": 6.57063630252043e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.001750416,
-          "mean_seconds": 0.0016411663333333333,
-          "minimum_seconds": 0.001556541,
+          "maximum_seconds": 0.001781375,
+          "mean_seconds": 0.0017028333333333333,
+          "minimum_seconds": 0.001627917,
           "sample_count": 3,
-          "standard_deviation_seconds": 8.10417474734816e-5
+          "standard_deviation_seconds": 6.270139138452635e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.002191333,
-          "mean_seconds": 0.0020741386666666664,
-          "minimum_seconds": 0.002012833,
+          "maximum_seconds": 0.002208958,
+          "mean_seconds": 0.002105402666666667,
+          "minimum_seconds": 0.00204975,
           "sample_count": 3,
-          "standard_deviation_seconds": 8.289841090689799e-5
+          "standard_deviation_seconds": 7.329300067233954e-5
         },
         "expressions": {
-          "maximum_seconds": 0.178553209,
-          "mean_seconds": 0.174695264,
-          "minimum_seconds": 0.172622041,
+          "maximum_seconds": 0.181370042,
+          "mean_seconds": 0.17775495833333332,
+          "minimum_seconds": 0.175310458,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.002730520453932907
+          "standard_deviation_seconds": 0.00260861886426162
         },
         "numerical": {
-          "maximum_seconds": 0.0144475,
-          "mean_seconds": 0.014149597333333333,
-          "minimum_seconds": 0.013918667,
+          "maximum_seconds": 0.019747417,
+          "mean_seconds": 0.015984542,
+          "minimum_seconds": 0.014069834,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00022102798547745582
+          "standard_deviation_seconds": 0.002660893098865993
         },
         "reformulation": {
-          "maximum_seconds": 0.176788542,
-          "mean_seconds": 0.173768806,
-          "minimum_seconds": 0.171680709,
+          "maximum_seconds": 0.18234475,
+          "mean_seconds": 0.17813711133333335,
+          "minimum_seconds": 0.173914167,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0021868474887705353
+          "standard_deviation_seconds": 0.003441788113519512
         },
         "snapshot": {
-          "maximum_seconds": 0.000201958,
-          "mean_seconds": 0.00016363866666666666,
-          "minimum_seconds": 0.000144458,
+          "maximum_seconds": 0.000175292,
+          "mean_seconds": 0.00016541666666666666,
+          "minimum_seconds": 0.00014875,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.709586587573011e-5
+          "standard_deviation_seconds": 1.1852175534005928e-5
         },
         "static": {
-          "maximum_seconds": 0.21542475,
-          "mean_seconds": 0.21365040266666666,
-          "minimum_seconds": 0.21025125,
+          "maximum_seconds": 0.220967,
+          "mean_seconds": 0.21785643066666668,
+          "minimum_seconds": 0.214660167,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0024043391109854315
+          "standard_deviation_seconds": 0.0025754667229515612
         },
         "structural_dm": {
-          "maximum_seconds": 5.083e-6,
-          "mean_seconds": 3.416666666666667e-6,
-          "minimum_seconds": 2.542e-6,
+          "maximum_seconds": 4.541e-6,
+          "mean_seconds": 3.5833333333333335e-6,
+          "minimum_seconds": 2.25e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.1787627223303068e-6
+          "standard_deviation_seconds": 9.722874517800222e-7
         },
         "structural_graph": {
-          "maximum_seconds": 0.000147458,
-          "mean_seconds": 0.000134236,
-          "minimum_seconds": 0.000126416,
+          "maximum_seconds": 0.000144291,
+          "mean_seconds": 0.00013812466666666666,
+          "minimum_seconds": 0.000128333,
           "sample_count": 3,
-          "standard_deviation_seconds": 9.401334798846385e-6
+          "standard_deviation_seconds": 7.001034320409774e-6
         },
         "structural_matching": {
-          "maximum_seconds": 0.000108584,
-          "mean_seconds": 0.00010300033333333333,
-          "minimum_seconds": 0.000100167,
+          "maximum_seconds": 0.000102875,
+          "mean_seconds": 0.00010090266666666667,
+          "minimum_seconds": 9.9542e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.948393963232253e-6
+          "standard_deviation_seconds": 1.4277778383052251e-6
         }
       },
       "total_stage_mean_allocated_bytes": 2.34774816e8,
-      "total_stage_mean_seconds": 0.590867014,
+      "total_stage_mean_seconds": 0.6028856666666667,
       "variable_count": 128,
       "warmup_performed": true
     }

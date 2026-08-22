@@ -4228,8 +4228,12 @@ exports, 111 root testsets across nine included test modules, 103 benchmark
 scripts, and schema versions on all 43 JSON artifacts. A typed
 `UnavailableReason` report-boundary schema is now present, while explicit
 advanced namespaces now have a non-breaking `NLPDiagnostics.Advanced` facade;
-broad tier migration, adapter adoption, and helper centralization remain the
-next engineering work rather than being inferred from export counts.
+broad tier migration and adapter adoption remain the next engineering work
+rather than being inferred from export counts. The
+shared `benchmarks/common.jl` helper now centralizes repository discovery,
+summary loading, JSON writing, Git provenance, and recursive file inventory for
+the release ledger and core calibration/audit runners; migration of remaining
+scripts remains open.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and
@@ -4237,6 +4241,9 @@ calibrated contrasts. The LG runner used a temporary copy of the known local
 environment with BMOPFTools `8f121216`; the current research checkout remains
 on its separate development revision until the API branch is merged.
 
-API modularization, typed unavailable schemas, and benchmark consolidation
-remain parallel engineering work. New finding families and automatic model
-reformulation remain outside the next increment.
+API modularization, typed unavailable schemas, and benchmark consolidation are
+now partially instrumented through the `NLPDiagnostics.Advanced` facade and
+typed report-boundary adapters. Broad root-export tier migration, helper
+centralization, and complete unavailable-reason adoption remain parallel
+engineering work. New finding families and automatic model reformulation
+remain outside the next increment.

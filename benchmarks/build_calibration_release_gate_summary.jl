@@ -4,13 +4,10 @@
 
 using JSON
 
-const ROOT = normpath(joinpath(@__DIR__, ".."))
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
-function read_summary(relative)
-    path = joinpath(ROOT, relative)
-    isfile(path) || error("required summary is missing: $relative")
-    return JSON.parsefile(path)
-end
+const ROOT = repo_root()
 
 real_campaign = read_summary("docs/real_99bus_phase_only_campaign_summary.json")
 real_kkt = read_summary("docs/real_99bus_phase_only_kkt_failure_summary.json")
@@ -75,7 +72,7 @@ gates = Dict{String,Any}[
     gate(
         "api_test_benchmark_consolidation",
         "partial",
-        "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, 103 benchmark scripts, and complete schema coverage for 43 JSON artifacts. A typed unavailable-reason schema and non-breaking Advanced facade are now available, while broad adapter adoption, root-export tiering, and helper centralization remain open.",
+        "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, 103 benchmark scripts, and complete schema coverage for 43 JSON artifacts. A typed unavailable-reason schema, non-breaking Advanced facade, and shared benchmark helper are now available; remaining work is broad adapter adoption, root-export tiering, and migration of the remaining runners.",
         ["docs/api_test_benchmark_consolidation_summary.json"],
         blocking=true,
     ),

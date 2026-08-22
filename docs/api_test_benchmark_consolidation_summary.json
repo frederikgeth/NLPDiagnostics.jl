@@ -548,13 +548,14 @@
     "remaining_work": [
       "define and document stable versus advanced/experimental API tiers",
       "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
-      "centralize repeated benchmark parsing and summary helpers",
+      "migrate the remaining runners to benchmarks/common.jl",
       "add reviewed formatting, documentation-example, Aqua, and targeted JET policies"
     ],
     "status": "partial"
   },
   "module_boundaries": {
     "benchmark_script_count": 103,
+    "shared_benchmark_helper": "benchmarks/common.jl",
     "source_file_count": 30,
     "source_include_count": 29,
     "source_includes": [
