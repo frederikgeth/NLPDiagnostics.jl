@@ -35,6 +35,28 @@ function apply_ipopt_options!(model; max_iter, ipopt_options=Dict{String,Any}())
     return model
 end
 
+function campaign_initialization_point(context, policy)
+    policy in ("completed", "bmopf", "zero") || error(
+        "NLPDIAGNOSTICS_REAL_99BUS_INITIALIZATION_POLICY must be completed, bmopf, or zero",
+    )
+    completed = NLPDiagnostics.bmopf_start_completion_point(
+        context;
+        missing_value=0.0,
+        label="real-99bus-phase-only-campaign-completed-start",
+    )
+    policy == "completed" && return completed
+    policy == "zero" && return NLPDiagnostics.EvaluationPoint(
+        completed.variables,
+        zeros(length(completed.values));
+        label="real-99bus-phase-only-campaign-zero-start",
+    )
+    native = NLPDiagnostics.bmopf_initialization_point(context)
+    native isa NLPDiagnostics.EvaluationPoint || error(
+        "BMOPFTools native initialization point is unavailable",
+    )
+    return native
+end
+
 function solve_reference(context, point; max_iter, ipopt_options=Dict{String,Any}())
     model = BMOPFTools.opf_model(context)
     set_start_values!(model, point.variables, point.values)
@@ -502,6 +524,7 @@ function run_snapshot(
     baseline_margin,
     model_feasibility_tolerance,
     ipopt_options=Dict{String,Any}(),
+    initialization_policy="completed",
 )
     path = joinpath(root, relative)
     try
@@ -512,11 +535,7 @@ function run_snapshot(
             add_objective=true,
         )
         BMOPFTools.enforce_kcl!(context)
-        point = NLPDiagnostics.bmopf_start_completion_point(
-            context;
-            missing_value=0.0,
-            label="real-99bus-phase-only-campaign",
-        )
+        point = campaign_initialization_point(context, initialization_policy)
         evaluation = NLPDiagnostics.evaluate_numerical(
             JuMP.backend(BMOPFTools.opf_model(context)),
             point,
@@ -731,6 +750,9 @@ function run_campaign()
         raw = get(ENV, environment_name, "")
         isempty(raw) || (ipopt_options[option_name] = raw)
     end
+    initialization_policy = lowercase(strip(get(
+        ENV, "NLPDIAGNOSTICS_REAL_99BUS_INITIALIZATION_POLICY", "completed",
+    )))
     runs = [run_snapshot(
         root,
         relative;
@@ -740,6 +762,7 @@ function run_campaign()
         baseline_margin,
         model_feasibility_tolerance,
         ipopt_options,
+        initialization_policy,
     ) for relative in SELECTED_SNAPSHOTS]
     solved = [
         run for run in runs
@@ -880,6 +903,7 @@ function run_campaign()
             "baseline_margin" => baseline_margin,
             "model_feasibility_tolerance" => model_feasibility_tolerance,
             "ipopt_options" => ipopt_options,
+            "initialization_policy" => initialization_policy,
         ),
         "runs" => runs,
         "summary" => Dict(

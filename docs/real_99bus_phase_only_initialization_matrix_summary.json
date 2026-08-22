@@ -1,0 +1,52 @@
+{
+  "schema_version": "nlpdiagnostics-real-99bus-phase-only-initialization-matrix-summary-v1",
+  "source": {
+    "campaign": "benchmarks/real_99bus_phase_only_campaign.jl",
+    "runner": "benchmarks/real_99bus_phase_only_initialization_matrix.jl",
+    "selected_snapshot_count": 6,
+    "local_environment": "work/benchmark-environment",
+    "model_feasibility_tolerance": 1e-8,
+    "absolute_physical_claim": false
+  },
+  "cases": [
+    {
+      "label": "completed_start_max40",
+      "initialization_policy": "completed",
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_maximum_complementarity_residual": 1.141720164003029e-05,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    },
+    {
+      "label": "bmopf_native_start_max40",
+      "initialization_policy": "bmopf",
+      "phase_only_locally_solved_count": 0,
+      "phase_only_solver_floor_calibrated_acceptance_count": 0,
+      "phase_only_physical_solver_kkt_acceptance_count": 0,
+      "phase_only_maximum_complementarity_residual": null,
+      "phase_only_complementarity_scaling_audit_pass_count": 0,
+      "phase_only_termination_statuses": [null, null, null, null, null, null],
+      "qualification": "BMOPFTools native initialization point was unavailable for these staged contexts; this is an unavailable-start result, not a solver failure."
+    },
+    {
+      "label": "zero_start_max40",
+      "initialization_policy": "zero",
+      "phase_only_locally_solved_count": 0,
+      "phase_only_solver_floor_calibrated_acceptance_count": 0,
+      "phase_only_physical_solver_kkt_acceptance_count": 0,
+      "phase_only_maximum_complementarity_residual": 246483411102.4331,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["ITERATION_LIMIT", "ITERATION_LIMIT", "ITERATION_LIMIT", "ITERATION_LIMIT", "ITERATION_LIMIT", "ITERATION_LIMIT"],
+      "qualification": "Zero starts are a deliberately adversarial initialization control; the resulting KKT records are diagnostic and not endpoint evidence."
+    }
+  ],
+  "interpretation": {
+    "completed_start": "The completed start retains the baseline 6/6 local solves and 2/6 strict KKT result.",
+    "native_start": "The native BMOPFTools point is unavailable in this staged lifecycle, so it cannot serve as an independent comparison without a separate start-capture path.",
+    "zero_start": "All six zero-start runs hit ITERATION_LIMIT and the maximum complementarity residual becomes approximately 2.46e11.",
+    "conclusion": "Initialization materially controls solver completion, but this matrix does not establish that initialization causes the ibr_p_upper floor at a qualified endpoint.",
+    "next_investigation": "Add a captured native-start path or bounded physically meaningful perturbations around the completed point before making a causal convergence claim."
+  }
+}

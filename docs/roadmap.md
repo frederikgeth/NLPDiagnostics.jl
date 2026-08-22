@@ -3854,6 +3854,17 @@ pass the six-case scaling audit. The maximum phase-only complementarity floor
 spans only `1.24e-8` across these policies, so no automatic option policy is
 selected; this is local sensitivity evidence, not a causal convergence claim.
 
+The initialization matrix is tracked at
+`docs/real_99bus_phase_only_initialization_matrix_summary.json`, with
+executable protocol `benchmarks/real_99bus_phase_only_initialization_matrix.jl`.
+The completed start retains 6/6 local solves and 2/6 strict KKT acceptance.
+The staged BMOPFTools native-start point is unavailable, so that case is
+explicitly classified as an unavailable-start result. The deliberate all-zero
+control reaches `ITERATION_LIMIT` on all six snapshots and has a maximum
+complementarity residual near `2.46e11`. This confirms initialization is a
+material solver-completion variable, but it does not establish causality for
+the qualified `ibr_p_upper` floor.
+
 A phase-only covariance report now compares source and transformed endpoint
 point, objective, residual, derivative, sparse-Jacobian geometry, and scalar
 variable-domain sets through the declared semantic block maps. All six reports
