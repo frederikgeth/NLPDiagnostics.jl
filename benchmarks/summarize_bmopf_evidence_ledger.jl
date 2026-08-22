@@ -10,9 +10,11 @@ It never turns recurrence into a model-quality score.
 using JSON
 using SHA
 
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
+
 function _load(path)
-    isfile(path) || error("missing evidence report: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(path; root = "/")
     value isa AbstractDict || error("evidence report is not a JSON object: $path")
     value
 end
@@ -742,7 +744,7 @@ function main()
         aggregate["recurs_across_sources"] = aggregate["source_count"] >= 2
     end
     campaign_provenance = _campaign_provenance(source_types)
-    write(output_path, JSON.json(Dict(
+    write_json(output_path, Dict(
         "runner_version" => "bmopf-evidence-ledger-v2",
         "source_reports" => source_types,
         "campaign_provenance" => campaign_provenance,
@@ -753,7 +755,7 @@ function main()
         "by_identity" => by_identity,
         "records" => records,
         "interpretation" => "Source-aware finding ledger. Recurrence is descriptive evidence and is not a model-quality score or causal proof.",
-    )))
+    ))
     println("wrote BMOPF evidence ledger to $output_path")
 end
 

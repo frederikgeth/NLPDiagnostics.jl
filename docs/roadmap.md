@@ -29,15 +29,16 @@ calibration cases, complete physical KKT/covariance coverage on the real
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
-The latest consolidation increment migrated `benchmarks/summarize_bmopf_campaign.jl`
-to `benchmarks/common.jl`, bringing the shared helper to twelve core runners
-while preserving the summarizer's CLI and report schema. Its local smoke run
-completed successfully against the tracked real-99bus campaign summary. The
-residual-trend and checkout validators remain covered; the checkout validator's
-contract stage passes, while its child-suite rerun is environment-blocked by
-the local Julia precompile cache. The dependency handoff remains blocked until
-the active BMOPFTools checkout matches the validated clean-main API. The
-handoff audit has local blocked and pass-path smoke coverage.
+The latest consolidation increment migrated
+`benchmarks/summarize_bmopf_evidence_ledger.jl` to `benchmarks/common.jl`,
+bringing the shared helper to thirteen core runners while preserving the
+ledger's CLI and report schema. Its local smoke run completed successfully
+against the tracked 30-bus report. The campaign summarizer, residual-trend,
+and checkout validators remain covered; the checkout validator's contract stage
+passes, while its child-suite rerun is environment-blocked by the local Julia
+precompile cache. The dependency handoff remains blocked until the active
+BMOPFTools checkout matches the validated clean-main API. The handoff audit has
+local blocked and pass-path smoke coverage.
 
 ## 2026 architecture review: consolidate and calibrate
 
@@ -4245,9 +4246,9 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-twelve core release, rank, runtime, and audit runners; the BMOPF campaign
-summarizer, residual-trend, checkout, and PR-handoff gates now use the same
-JSON/repository helper.
+thirteen core release, rank, runtime, and audit runners; the BMOPF campaign
+and evidence-ledger summarizers, residual-trend, checkout, and PR-handoff gates
+now use the same JSON/repository helper.
 The remaining benchmark scripts are not yet required by the current release
 gate. The executable
 `benchmarks/audit_bmopf_api_contract.jl` audit now extracts the exact
