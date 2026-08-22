@@ -1,0 +1,33 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-ibr-p-upper-cross-fixture-summary-v1",
+  "source": {
+    "runner": "benchmarks/compare_bmopf_ibr_p_upper_floors.jl",
+    "thirty_bus_summary": "docs/bmopf_30bus_endpoint_kkt_comparison_summary.json",
+    "thirty_bus_geometry": "docs/bmopf_30bus_ibr_p_upper_geometry_summary.json",
+    "ninety_nine_bus_summary": "docs/real_99bus_phase_only_campaign_summary.json",
+    "common_row_family": "ibr_p_upper",
+    "common_declared_physical_scale": 1e6
+  },
+  "fixtures": {
+    "30bus": {
+      "snapshot_count": 4,
+      "model_coordinate_residual_range": [9.970907361052384e-9, 9.976176744766563e-9],
+      "physical_violation_range": [0.009970907362003345, 0.009976176772531127],
+      "strict_kkt_acceptance_count": 2,
+      "variable_count": 704
+    },
+    "99bus": {
+      "snapshot_count": 6,
+      "model_coordinate_residual_range": [0.0, 9.978100660647401e-9],
+      "physical_violation_range": [0.009971342873541289, 0.009978101757164374],
+      "strict_kkt_acceptance_count": 2,
+      "variable_count": 1968
+    }
+  },
+  "comparison": {
+    "model_floor_ranges_overlap": true,
+    "physical_violation_ranges_overlap": true,
+    "interpretation": "The 30-bus and real-99-bus summaries report the same 1e6 declared physical scale and overlapping approximately 1e-8 model-coordinate and 1e-2 physical endpoint ranges for ibr_p_upper. This is cross-fixture scale evidence, not proof that the same mechanism or solver cause is present.",
+    "qualification": "The fixtures have different model sizes, endpoint contracts, and campaign histories. The comparison does not combine KKT acceptance counts into a common qualification or establish global convergence behavior."
+  }
+}

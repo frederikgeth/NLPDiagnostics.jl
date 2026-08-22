@@ -4019,6 +4019,15 @@ smaller in the recorded sum. The t01 failures therefore are not accompanied by
 a zero or weak endpoint row in this bounded geometry report; this remains local
 derivative evidence rather than a conditioning or causality proof.
 
+The cross-fixture floor comparison is tracked at
+`docs/bmopf_ibr_p_upper_cross_fixture_summary.json`, with executable
+comparator `benchmarks/compare_bmopf_ibr_p_upper_floors.jl`. The four 30-bus
+and six real 99-bus summaries use the same declared `1e6` physical scale and
+show overlapping approximately `1e-8` model-coordinate and `1e-2` physical
+endpoint ranges for `ibr_p_upper`. This supports a repeatable scale-level
+observation across model sizes, while preserving separate KKT contracts and
+avoiding a claim that the same mechanism or solver cause is present.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
