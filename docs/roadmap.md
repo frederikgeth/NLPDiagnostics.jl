@@ -4223,9 +4223,9 @@ observations only; OPF-solver scaling and isolated peak-memory measurements
 remain open.
 The API/test/benchmark consolidation audit is tracked at
 `docs/api_test_benchmark_consolidation_summary.json`, with executable runner
-`benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 510 root
-exports, 111 root testsets across nine included test modules, 106 benchmark
-scripts, and schema versions on all 47 JSON artifacts. A typed
+`benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 538
+unique root exports, 111 root testsets across nine included test modules, 107
+benchmark scripts, and schema versions on all 48 JSON artifacts. A typed
 `UnavailableReason` report-boundary schema is now present, while explicit
 advanced namespaces now have a non-breaking `NLPDiagnostics.Advanced` facade;
 broad tier migration and adapter adoption remain the next engineering work
@@ -4261,7 +4261,9 @@ calibrated contrasts. The LG runner used a temporary copy of the known local
 environment with BMOPFTools `8f121216`; the current research checkout remains
 on its separate development revision until the API branch is merged.
 
-API modularization, typed unavailable schemas, and benchmark consolidation are
+The companion `benchmarks/audit_api_tiers.jl` inventory records 14 explicit
+Advanced/root overlaps and 102 domain-extension root exports without changing
+the backward-compatible root surface. API modularization, typed unavailable schemas, and benchmark consolidation are
 now partially instrumented through the `NLPDiagnostics.Advanced` facade, typed
 report-boundary adapters, profile serialization, centralized core benchmark
 helpers, and a clean-main BMOPFTools compatibility gate. Broad root-export tier

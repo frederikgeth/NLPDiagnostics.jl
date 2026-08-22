@@ -30,9 +30,14 @@ root_module = joinpath(REPO_ROOT, "src", "NLPDiagnostics.jl")
 root_lines = readlines(root_module)
 export_names = String[]
 for line in root_lines
-    match_result = match(r"^\s*export\s+([A-Za-z_][A-Za-z0-9_!]*)", line)
-    isnothing(match_result) || push!(export_names, match_result.captures[1])
+    match_result = match(r"^\s*export\s+(.+)$", line)
+    isnothing(match_result) && continue
+    for name in split(match_result.captures[1], ',')
+        normalized = strip(name)
+        isempty(normalized) || push!(export_names, normalized)
+    end
 end
+sort!(unique!(export_names))
 
 source_files = recursive_files(joinpath(REPO_ROOT, "src"), ".jl")
 test_files = recursive_files(joinpath(REPO_ROOT, "test"), ".jl")
@@ -61,6 +66,9 @@ bmopf_validation_path = joinpath(
 )
 bmopf_validation = isfile(bmopf_validation_path) ?
     JSON.parsefile(bmopf_validation_path) : Dict{String,Any}("status" => "missing")
+api_tier_path = joinpath(REPO_ROOT, "docs", "api_tier_inventory_summary.json")
+api_tiers = isfile(api_tier_path) ?
+    JSON.parsefile(api_tier_path) : Dict{String,Any}("status" => "missing")
 
 source_includes = String[]
 for line in root_lines
@@ -206,6 +214,25 @@ summary = Dict{String,Any}(
         "checkout_validation_suite_total" =>
             get(bmopf_validation, "suite_total", nothing),
     ),
+    "api_tier_inventory" => Dict{String,Any}(
+        "artifact" => "docs/api_tier_inventory_summary.json",
+        "status" => get(api_tiers, "status", "missing"),
+        "root_export_count" => get(
+            get(api_tiers, "counts", Dict{String,Any}()),
+            "root_export_count",
+            nothing,
+        ),
+        "advanced_root_overlap_count" => get(
+            get(api_tiers, "counts", Dict{String,Any}()),
+            "advanced_root_overlap_count",
+            nothing,
+        ),
+        "domain_extension_root_count" => get(
+            get(api_tiers, "counts", Dict{String,Any}()),
+            "domain_extension_root_count",
+            nothing,
+        ),
+    ),
     "interpretation" => Dict(
         "status" => "partial",
         "finding" =>
@@ -220,6 +247,7 @@ summary = Dict{String,Any}(
             "clean-main BMOPFTools API contract and full local suite evidence",
             "BMOPFTools PR handoff gate",
             "isolated BMOPFTools checkout validation",
+            "explicit Advanced facade and root-export tier inventory",
         ],
         "remaining_work" => [
             "define and document stable versus advanced/experimental API tiers",

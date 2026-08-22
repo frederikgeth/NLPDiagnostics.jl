@@ -16,6 +16,7 @@ rank_oracles = read_summary("docs/randomized_rank_oracle_calibration_summary.jso
 runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
 large_sparse_rank = read_summary("docs/large_sparse_rank_oracle_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
+api_inventory = api_consolidation["api_inventory"]
 api_modules = api_consolidation["module_boundaries"]
 api_schemas = api_consolidation["benchmark_schema_inventory"]
 api_contract = get(api_consolidation, "bmopf_api_contract", Dict{String,Any}())
@@ -28,13 +29,15 @@ api_contract_handoff_reason = get(api_contract, "handoff_reason", "handoff artif
 api_checkout_validation_status = get(api_contract, "checkout_validation_status", "missing")
 api_checkout_validation_revision = get(api_contract, "checkout_validation_revision", "unknown")
 api_checkout_validation_suite = "$(get(api_contract, "checkout_validation_suite_passed", "?"))/$(get(api_contract, "checkout_validation_suite_total", "?"))"
+api_root_export_count = api_inventory["root_export_count"]
+api_testset_count = api_modules["testset_count_in_root"]
 api_script_count = api_modules["benchmark_script_count"]
 api_schema_count = api_schemas["json_schema_file_count"]
 api_helper_user_count = api_modules["shared_benchmark_helper_user_count"]
 api_contract_missing_clause = isempty(api_contract_missing) ?
     "" : " (missing: $api_contract_missing)"
 api_contract_rationale =
-    "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, $api_script_count benchmark scripts, and complete schema coverage for $api_schema_count JSON artifacts. A typed unavailable-reason schema, profile-result serialization, non-breaking Advanced facade, and shared benchmark helper are now available; $api_helper_user_count core runners use the helper. The active BMOPFTools API contract audit is $api_contract_status$api_contract_missing_clause, while the clean-main contract audit is $api_contract_clean_main_status at revision $api_contract_clean_main_revision and the full local suite passes 1634/1634 there. The PR handoff gate is $api_contract_handoff_status ($api_contract_handoff_reason). The isolated checkout validator is $api_checkout_validation_status at revision $api_checkout_validation_revision with suite coverage $api_checkout_validation_suite. Remaining work is broad adapter adoption, root-export tiering, migration of the remaining runners, keeping dependency evidence synchronized, and reviewed quality-tool policies."
+    "The consolidation audit now inventories $api_root_export_count root exports, $api_testset_count root testsets across nine included test modules, $api_script_count benchmark scripts, and complete schema coverage for $api_schema_count JSON artifacts. A typed unavailable-reason schema, profile-result serialization, non-breaking Advanced facade, and shared benchmark helper are now available; $api_helper_user_count core runners use the helper. The active BMOPFTools API contract audit is $api_contract_status$api_contract_missing_clause, while the clean-main contract audit is $api_contract_clean_main_status at revision $api_contract_clean_main_revision and the full local suite passes 1634/1634 there. The PR handoff gate is $api_contract_handoff_status ($api_contract_handoff_reason). The isolated checkout validator is $api_checkout_validation_status at revision $api_checkout_validation_revision with suite coverage $api_checkout_validation_suite. Remaining work is broad adapter adoption, root-export tiering, migration of the remaining runners, keeping dependency evidence synchronized, and reviewed quality-tool policies."
 
 function gate(id, status, rationale, evidence; blocking=false)
     Dict{String,Any}(
