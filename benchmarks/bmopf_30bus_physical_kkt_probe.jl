@@ -61,7 +61,7 @@ function kkt_report(context, model, evaluation, quantity_tolerances, complementa
     )
 end
 
-function complementarity_tolerance_record(report, tolerance)
+function complementarity_tolerance_record(report, tolerance, side_metadata)
     complementarity = get(report, "complementarity", Dict())
     sides = get(complementarity, "sides", Dict())
     attribution = get(
@@ -82,7 +82,12 @@ function complementarity_tolerance_record(report, tolerance)
     failed_side_metrics = Dict{String,Any}()
     for key in failed_sides
         side = get(sides, key, Dict())
-        failed_side_metrics[key] = Dict{String,Any}(
+        row = get(side, "row", nothing)
+        side_name = string(get(side, "side", ""))
+        metadata = row isa Integer ?
+            get(side_metadata, (Int(row), side_name), Dict{String,Any}()) :
+            Dict{String,Any}()
+        failed_side_metrics[key] = merge(Dict{String,Any}(
             field => get(side, field, nothing)
             for field in (
                 "physical_slack",
@@ -92,7 +97,12 @@ function complementarity_tolerance_record(report, tolerance)
                 "complementarity_residual",
                 "residual_scale",
             )
-        )
+        ), Dict{String,Any}(
+            "row" => row,
+            "side" => side_name,
+            "value" => get(metadata, "value", nothing),
+            "bound" => get(metadata, "bound", nothing),
+        ))
     end
     return Dict{String,Any}(
         "physical_kkt_acceptance_passed" => get(
@@ -127,6 +137,14 @@ function run_case(root, relative, tolerances)
     point = NLPDiagnostics.solver_result_point(model; label="30bus-kkt-solver-result")
     point isa NLPDiagnostics.EvaluationPoint || error("solver result point unavailable")
     evaluation = NLPDiagnostics.evaluate_numerical(JuMP.backend(model), point)
+    dual_snapshot = NLPDiagnostics.solver_dual_snapshot(model, evaluation)
+    side_metadata = Dict{Tuple{Int,String},Dict{String,Any}}()
+    for side in dual_snapshot.sides
+        side_metadata[(side.row, string(side.side))] = Dict{String,Any}(
+            "value" => side.value,
+            "bound" => side.bound,
+        )
+    end
     map = NLPDiagnostics.bmopf_diagonal_scaling_map(context, evaluation)
     quantity_tolerances = Dict(
         quantity => 1.0 for quantity in unique(map["constraint_quantities"])
@@ -140,7 +158,7 @@ function run_case(root, relative, tolerances)
             context, model, evaluation, quantity_tolerances, tolerance,
         )
         tolerance_curve[string(tolerance)] = complementarity_tolerance_record(
-            curve_report, tolerance,
+            curve_report, tolerance, side_metadata,
         )
     end
     complementarity = get(kkt, "complementarity", Dict())
@@ -200,7 +218,7 @@ output = abspath(get(
 ))
 mkpath(dirname(output))
 write(output, JSON.json(Dict(
-    "schema_version" => "nlpdiagnostics-bmopf-30bus-physical-kkt-probe-v3",
+    "schema_version" => "nlpdiagnostics-bmopf-30bus-physical-kkt-probe-v4",
     "source" => Dict(
         "runner" => basename(@__FILE__),
         "local_environment" => abspath(joinpath(@__DIR__, "..", "work", "benchmark-environment")),

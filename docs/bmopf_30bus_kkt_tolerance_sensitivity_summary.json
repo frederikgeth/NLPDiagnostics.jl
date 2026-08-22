@@ -1,5 +1,5 @@
 {
-  "schema_version": "nlpdiagnostics-bmopf-30bus-kkt-tolerance-sensitivity-v3",
+  "schema_version": "nlpdiagnostics-bmopf-30bus-kkt-tolerance-sensitivity-v4",
   "source": {
     "runner": "benchmarks/bmopf_30bus_physical_kkt_probe.jl",
     "comparison_summary": "docs/bmopf_30bus_endpoint_kkt_comparison_summary.json",
@@ -8,7 +8,8 @@
     "stationarity_tolerance": 1e-5,
     "dual_tolerance": 1e-5,
     "complementarity_tolerances_evaluated": [1e-5, 1.05e-5, 1.1e-5, 1.2e-5],
-    "side_failure_attribution": "semantic_attribution.complementarity.records"
+    "side_failure_attribution": "semantic_attribution.complementarity.records",
+    "side_bound_metadata": "solver_dual_snapshot.sides"
   },
   "cases": [
     {
@@ -27,6 +28,14 @@
         "physical_multiplier": [0.001004457794820813, 0.0010518497812303249],
         "complementarity_residual": [1.0019714309137886e-5, 1.049343932476267e-5],
         "residual_scales": [1e6]
+      },
+      "strict_failure_semantics": {
+        "side": "upper",
+        "upper_bound": 0.0,
+        "row_index_range": [725, 779],
+        "evaluated_value_range": [9.97524670603539e-9, 9.976176743116997e-9],
+        "signed_model_slack_range": [-9.976176743116997e-9, -9.97524670603539e-9],
+        "observation": "Every failed upper side evaluates slightly above its declared zero upper bound."
       },
       "acceptance_by_tolerance": {
         "1.0e-5": {"physical_kkt_acceptance_passed": false, "complementarity_acceptance_passed": false, "passed_side_count": 140},
@@ -67,6 +76,14 @@
         "physical_multiplier": [0.0010044575375293778, 0.0010518510895107058],
         "complementarity_residual": [1.0019711760153115e-5, 1.0493452407338264e-5],
         "residual_scales": [1e6]
+      },
+      "strict_failure_semantics": {
+        "side": "upper",
+        "upper_bound": 0.0,
+        "row_index_range": [725, 779],
+        "evaluated_value_range": [9.97524672351823e-9, 9.976176772531128e-9],
+        "signed_model_slack_range": [-9.976176772531128e-9, -9.97524672351823e-9],
+        "observation": "Every failed upper side evaluates slightly above its declared zero upper bound."
       },
       "acceptance_by_tolerance": {
         "1.0e-5": {"physical_kkt_acceptance_passed": false, "complementarity_acceptance_passed": false, "passed_side_count": 140},

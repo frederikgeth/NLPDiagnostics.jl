@@ -3960,6 +3960,14 @@ and maps to physical slack `-9.976e-3` to `-9.975e-3` at residual scale
 crossing under the declared scaling map rather than a separate unit-conversion
 mismatch. Residual sign semantics and solver causality remain open.
 
+The probe now also retains the evaluated row value and declared bound for each
+failed side. On both t01 snapshots, every failed side has upper bound `0` and
+evaluated value approximately `9.975e-9` to `9.976e-9`, yielding the matching
+negative signed upper slack. This confirms that the strict failure is an
+explicit small upper-bound residual at the public endpoint; it does not by
+itself identify whether the residual is caused by convergence, formulation
+semantics, or solver tolerances.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
