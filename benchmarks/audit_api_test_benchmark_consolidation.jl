@@ -45,6 +45,9 @@ shared_helper_users = [
     if occursin("using .NLPDiagnosticsBenchmarkCommon", read_text(path))
 ]
 json_files = recursive_files(joinpath(REPO_ROOT, "docs"), ".json")
+bmopf_contract_path = joinpath(REPO_ROOT, "docs", "bmopf_api_contract_summary.json")
+bmopf_contract = isfile(bmopf_contract_path) ? JSON.parsefile(bmopf_contract_path) :
+    Dict{String,Any}("status" => "missing")
 
 source_includes = String[]
 for line in root_lines
@@ -153,6 +156,20 @@ summary = Dict{String,Any}(
         "bare_catch_count_in_source" => bare_catch_count,
         "bound_catch_count_in_source" => bound_catch_count,
     ),
+    "bmopf_api_contract" => Dict{String,Any}(
+        "artifact" => "docs/bmopf_api_contract_summary.json",
+        "status" => get(bmopf_contract, "status", "missing"),
+        "missing_symbols" => get(
+            get(bmopf_contract, "contract", Dict{String,Any}()),
+            "missing_symbols",
+            String[],
+        ),
+        "dependency_revision" => get(
+            get(bmopf_contract, "dependency", Dict{String,Any}()),
+            "git_revision",
+            nothing,
+        ),
+    ),
     "interpretation" => Dict(
         "status" => "partial",
         "finding" =>
@@ -163,11 +180,13 @@ summary = Dict{String,Any}(
             "benchmark JSON schema coverage",
             "source catch-boundary inventory",
             "core release, rank, and runtime runners using benchmarks/common.jl",
+            "BMOPFTools public API contract audit artifact",
         ],
         "remaining_work" => [
             "define and document stable versus advanced/experimental API tiers",
             "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
             "migrate the remaining runners to benchmarks/common.jl",
+            "run the BMOPFTools API contract audit against a clean main worktree",
             "add reviewed formatting, documentation-example, Aqua, and targeted JET policies",
         ],
         "does_not_establish" => [

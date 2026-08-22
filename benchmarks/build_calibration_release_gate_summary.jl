@@ -16,6 +16,18 @@ rank_oracles = read_summary("docs/randomized_rank_oracle_calibration_summary.jso
 runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
 large_sparse_rank = read_summary("docs/large_sparse_rank_oracle_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
+api_modules = api_consolidation["module_boundaries"]
+api_schemas = api_consolidation["benchmark_schema_inventory"]
+api_contract = get(api_consolidation, "bmopf_api_contract", Dict{String,Any}())
+api_contract_status = get(api_contract, "status", "missing")
+api_contract_missing = join(get(api_contract, "missing_symbols", String[]), ", ")
+api_script_count = api_modules["benchmark_script_count"]
+api_schema_count = api_schemas["json_schema_file_count"]
+api_helper_user_count = api_modules["shared_benchmark_helper_user_count"]
+api_contract_missing_clause = isempty(api_contract_missing) ?
+    "" : " (missing: $api_contract_missing)"
+api_contract_rationale =
+    "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, $api_script_count benchmark scripts, and complete schema coverage for $api_schema_count JSON artifacts. A typed unavailable-reason schema, profile-result serialization, non-breaking Advanced facade, and shared benchmark helper are now available; $api_helper_user_count core runners use the helper. The BMOPFTools API contract audit is $api_contract_status$api_contract_missing_clause. Remaining work is broad adapter adoption, root-export tiering, migration of the remaining runners, clean-main contract validation, and reviewed quality-tool policies."
 
 function gate(id, status, rationale, evidence; blocking=false)
     Dict{String,Any}(
@@ -70,7 +82,7 @@ gates = Dict{String,Any}[
     gate(
         "api_test_benchmark_consolidation",
         "partial",
-        "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, 103 benchmark scripts, and complete schema coverage for 43 JSON artifacts. A typed unavailable-reason schema, profile-result serialization, non-breaking Advanced facade, and shared benchmark helper are now available; five core release, rank, runtime, and audit runners use the helper. Remaining work is broad adapter adoption, root-export tiering, migration of the remaining runners, and reviewed quality-tool policies.",
+        api_contract_rationale,
         ["docs/api_test_benchmark_consolidation_summary.json"],
         blocking=true,
     ),

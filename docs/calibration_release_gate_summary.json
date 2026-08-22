@@ -64,7 +64,7 @@
         "docs/api_test_benchmark_consolidation_summary.json"
       ],
       "id": "api_test_benchmark_consolidation",
-      "rationale": "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, 103 benchmark scripts, and complete schema coverage for 43 JSON artifacts. A typed unavailable-reason schema, profile-result serialization, non-breaking Advanced facade, and shared benchmark helper are now available; five core release, rank, runtime, and audit runners use the helper. Remaining work is broad adapter adoption, root-export tiering, migration of the remaining runners, and reviewed quality-tool policies.",
+      "rationale": "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, 104 benchmark scripts, and complete schema coverage for 44 JSON artifacts. A typed unavailable-reason schema, profile-result serialization, non-breaking Advanced facade, and shared benchmark helper are now available; 6 core runners use the helper. The BMOPFTools API contract audit is fail (missing: OpfDiagnosticSchema, opf_diagnostic_schema). Remaining work is broad adapter adoption, root-export tiering, migration of the remaining runners, clean-main contract validation, and reviewed quality-tool policies.",
       "status": "partial"
     }
   ],

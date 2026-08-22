@@ -7,6 +7,7 @@ export read_text
 export read_summary
 export write_json
 export git_revision
+export git_branch
 export git_status_entries
 export recursive_files
 
@@ -36,6 +37,15 @@ function git_revision(root::AbstractString = REPO_ROOT)
         return strip(read(`git -C $root rev-parse HEAD`, String))
     catch
         return nothing
+    end
+end
+
+function git_branch(root::AbstractString = REPO_ROOT)
+    try
+        branch = strip(read(`git -C $root branch --show-current`, String))
+        isempty(branch) ? nothing : branch
+    catch
+        nothing
     end
 end
 

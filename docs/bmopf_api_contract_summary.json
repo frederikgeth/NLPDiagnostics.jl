@@ -1,0 +1,113 @@
+{
+  "contract": {
+    "compatibility_fallbacks": [
+      "opf_semantic_blocks"
+    ],
+    "extension_source": "ext/BMOPFToolsJuMPExt.jl",
+    "missing_symbols": [
+      "OpfDiagnosticSchema",
+      "opf_diagnostic_schema"
+    ],
+    "required_symbol_count": 32,
+    "required_symbols": [
+      "OpfDiagnosticSchema",
+      "OpfModelKey",
+      "analyze",
+      "build_opf_model",
+      "enforce_kcl!",
+      "opf_bases",
+      "opf_bus_voltage_key",
+      "opf_diagnostic_schema",
+      "opf_differentiability_report",
+      "opf_generator_current_key",
+      "opf_ground_current_key",
+      "opf_ibr_current_key",
+      "opf_ibr_power_key",
+      "opf_lifecycle",
+      "opf_line_current_key",
+      "opf_load_current_key",
+      "opf_model",
+      "opf_network",
+      "opf_neutral_labels",
+      "opf_nwinding_current_key",
+      "opf_object",
+      "opf_object_keys",
+      "opf_research_provenance",
+      "opf_scaling_policy",
+      "opf_semantic_blocks",
+      "opf_switch_current_key",
+      "opf_transformer_current_key",
+      "opf_voltage_source_current_key",
+      "powerio_source_behavior_contract",
+      "register_opf_constraint!",
+      "set_opf_start_values!",
+      "ybus_passive"
+    ],
+    "required_type_status": {
+      "OpfDiagnosticSchema": false,
+      "OpfModelKey": true,
+      "OpfScaling": false
+    },
+    "required_types": [
+      "OpfDiagnosticSchema",
+      "OpfModelKey",
+      "OpfScaling"
+    ],
+    "schema_major_required": 1,
+    "schema_version_checked_at_runtime": false,
+    "symbol_status": {
+      "OpfDiagnosticSchema": false,
+      "OpfModelKey": true,
+      "analyze": true,
+      "build_opf_model": true,
+      "enforce_kcl!": true,
+      "opf_bases": true,
+      "opf_bus_voltage_key": true,
+      "opf_diagnostic_schema": false,
+      "opf_differentiability_report": true,
+      "opf_generator_current_key": true,
+      "opf_ground_current_key": true,
+      "opf_ibr_current_key": true,
+      "opf_ibr_power_key": true,
+      "opf_lifecycle": true,
+      "opf_line_current_key": true,
+      "opf_load_current_key": true,
+      "opf_model": true,
+      "opf_network": true,
+      "opf_neutral_labels": true,
+      "opf_nwinding_current_key": true,
+      "opf_object": true,
+      "opf_object_keys": true,
+      "opf_research_provenance": true,
+      "opf_scaling_policy": true,
+      "opf_semantic_blocks": true,
+      "opf_switch_current_key": true,
+      "opf_transformer_current_key": true,
+      "opf_voltage_source_current_key": true,
+      "powerio_source_behavior_contract": true,
+      "register_opf_constraint!": true,
+      "set_opf_start_values!": true,
+      "ybus_passive": true
+    }
+  },
+  "dependency": {
+    "git_branch": "codex/source-schema-fidelity",
+    "git_dirty": false,
+    "git_revision": "5c4f1e7713b0a8021a30b97ec9e54afa6d4281f7",
+    "git_root": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl",
+    "name": "BMOPFTools",
+    "source_path": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/src/BMOPFTools.jl",
+    "uuid": "5f9a3b62-8f63-4a39-b67b-af9b51e6a7c3",
+    "version": "0.1.0"
+  },
+  "interpretation": {
+    "claim": "The resolved BMOPFTools package exposes every public symbol referenced by the NLPDiagnostics JuMP extension.",
+    "does_not_establish": [
+      "semantic correctness of each API result",
+      "solver convergence or physical KKT acceptance",
+      "compatibility with untested BMOPFTools revisions"
+    ]
+  },
+  "schema_version": "nlpdiagnostics-bmopf-api-contract-v1",
+  "status": "fail"
+}

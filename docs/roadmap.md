@@ -4224,8 +4224,8 @@ remain open.
 The API/test/benchmark consolidation audit is tracked at
 `docs/api_test_benchmark_consolidation_summary.json`, with executable runner
 `benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 510 root
-exports, 111 root testsets across nine included test modules, 103 benchmark
-scripts, and schema versions on all 43 JSON artifacts. A typed
+exports, 111 root testsets across nine included test modules, 104 benchmark
+scripts, and schema versions on all 44 JSON artifacts. A typed
 `UnavailableReason` report-boundary schema is now present, while explicit
 advanced namespaces now have a non-breaking `NLPDiagnostics.Advanced` facade;
 broad tier migration and adapter adoption remain the next engineering work
@@ -4235,8 +4235,14 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-five core release, rank, runtime, and audit runners; migration of remaining
-scripts remains open.
+six core release, rank, runtime, and audit runners; migration of remaining
+scripts remains open. The executable
+`benchmarks/audit_bmopf_api_contract.jl` audit now extracts the exact
+BMOPFTools surface consumed by the JuMP extension and records dependency
+revision, branch, and dirty state. It currently fails on the active
+`codex/source-schema-fidelity` checkout because `OpfDiagnosticSchema` and
+`opf_diagnostic_schema` are absent; a clean-main pass is required before a
+merge-ready BMOPFTools PR.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and
@@ -4248,6 +4254,6 @@ API modularization, typed unavailable schemas, and benchmark consolidation are
 now partially instrumented through the `NLPDiagnostics.Advanced` facade, typed
 report-boundary adapters, profile serialization, and centralized core benchmark
 helpers. Broad root-export tier migration, complete unavailable-reason adoption,
-remaining runner migration, and reviewed quality-tool policies remain parallel
-engineering work. New finding families and automatic model reformulation remain
-outside the next increment.
+remaining runner migration, clean-main BMOPFTools contract validation, and
+reviewed quality-tool policies remain parallel engineering work. New finding
+families and automatic model reformulation remain outside the next increment.
