@@ -3911,6 +3911,14 @@ t01/t13 required 19/18 iterations, while LG t01/t13 required 19/19. This
 remains a bounded fixture result: it does not show initialization irrelevance
 outside these cases or establish a 99-bus causal explanation.
 
+The first row-family trace ranking is recorded at
+`docs/bmopf_30bus_trace_row_family_summary.json`. In the eight captured early
+callbacks, `ibr_p_upper` is never the largest feasibility violation: load
+power dominates both t01 snapshots, while `ibr_power_link_p`/KCL dominate both
+t13 snapshots. `ibr_p_upper` appears early at t01 and only at the last captured
+point at t13. This narrows the bounded trace observation without turning
+point-local feasibility residuals into an endpoint KKT or causal claim.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative

@@ -1,0 +1,73 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-trace-row-family-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_solver_trace.jl",
+    "trace_comparison": "docs/bmopf_30bus_initialization_trace_comparison_summary.json",
+    "captured_iteration_window": [0, 7],
+    "captured_row_snapshot_count": 8,
+    "row_label_source": "BMOPFTools public constraint registry"
+  },
+  "snapshots": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "ibr_p_upper": {
+        "first_nonzero_iteration": 1,
+        "nonzero_snapshot_count": 4,
+        "maximum_feasibility_violation": 0.0011232497165828551
+      },
+      "top_captured_families": [
+        ["load_power_real", 0.0018864019795659065],
+        ["ibr_p_upper", 0.0011232497165828551],
+        ["load_power_imag", 0.0006200303466612561],
+        ["ibr_p_lower", 0.00020467709668421034]
+      ]
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "ibr_p_upper": {
+        "first_nonzero_iteration": 7,
+        "nonzero_snapshot_count": 1,
+        "maximum_feasibility_violation": 0.000002914600933053013
+      },
+      "top_captured_families": [
+        ["ibr_power_link_p", 0.0026250000000000006],
+        ["kcl_r", 0.0026249999999999954],
+        ["kcl_i", 0.002273316684934147],
+        ["load_power_real", 0.0007967482938389877]
+      ]
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "ibr_p_upper": {
+        "first_nonzero_iteration": 1,
+        "nonzero_snapshot_count": 4,
+        "maximum_feasibility_violation": 0.0011232497199109655
+      },
+      "top_captured_families": [
+        ["load_power_real", 0.0018864019795659065],
+        ["ibr_p_upper", 0.0011232497199109655],
+        ["load_power_imag", 0.0006200303466612561],
+        ["ibr_p_lower", 0.00020467704890754775]
+      ]
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "ibr_p_upper": {
+        "first_nonzero_iteration": 7,
+        "nonzero_snapshot_count": 1,
+        "maximum_feasibility_violation": 0.0000023173373321309226
+      },
+      "top_captured_families": [
+        ["ibr_power_link_p", 0.0026250000000000006],
+        ["kcl_r", 0.0026249999999999954],
+        ["kcl_i", 0.002273316684934147],
+        ["load_power_real", 0.0007967482938389877]
+      ]
+    }
+  ],
+  "interpretation": {
+    "observation": "Within the captured early-iteration window, ibr_p_upper is not the largest row-family feasibility violation on any of the four snapshots: load_power_real leads at t01, while ibr_power_link_p and KCL lead at t13.",
+    "qualification": "These are point-local feasibility residuals from the first eight captured callbacks, not endpoint complementarity or a causal diagnosis.",
+    "next": "If a larger trace budget is justified, retain the same registry-based family ranking through the endpoint and compare it with calibrated KKT residuals."
+  }
+}
