@@ -3873,6 +3873,15 @@ complementarity floor as the completed-start policy. It is reproducible
 initialization evidence, not an independently complete native start; a
 captured complete native point remains open.
 
+The executable matrix now persists per-snapshot initialization provenance,
+coordinate/value counts, and missing-coordinate counts. Completed and generated
+starts report `CompletedInitializationPoint` with 986 coordinates filled from
+the explicit zero fallback; the all-zero control reports an explicit
+`InitializationPoint` with zero missing coordinates; and unavailable native
+starts remain null/unavailable rather than being conflated with solver failure.
+This makes the initialization comparison machine-auditable without changing
+the qualification of the underlying convergence evidence.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative

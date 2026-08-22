@@ -69,6 +69,17 @@ function run_case(label, max_iter, initialization_policy)
                 get(get(run, "phase_only", Dict()), "termination_status", nothing)
                 for run in report["runs"]
             ],
+            "initialization_provenance_kinds" => [
+                get(get(run, "initialization", Dict()), "provenance_kind", nothing)
+                for run in report["runs"]
+            ],
+            "initialization_missing_coordinate_counts" => [
+                get(get(run, "initialization", Dict()), "missing_coordinate_count", nothing)
+                for run in report["runs"]
+            ],
+            "initialization_summaries" => [
+                get(run, "initialization", Dict()) for run in report["runs"]
+            ],
         )
     catch error
         return Dict{String,Any}(

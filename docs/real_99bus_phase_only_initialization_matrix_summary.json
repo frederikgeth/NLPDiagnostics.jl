@@ -17,7 +17,9 @@
       "phase_only_physical_solver_kkt_acceptance_count": 2,
       "phase_only_maximum_complementarity_residual": 1.141720164003029e-05,
       "phase_only_complementarity_scaling_audit_pass_count": 6,
-      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"],
+      "initialization_provenance_kinds": ["CompletedInitializationPoint", "CompletedInitializationPoint", "CompletedInitializationPoint", "CompletedInitializationPoint", "CompletedInitializationPoint", "CompletedInitializationPoint"],
+      "initialization_missing_coordinate_counts": [986, 986, 986, 986, 986, 986]
     },
     {
       "label": "bmopf_native_start_max40",
@@ -28,6 +30,8 @@
       "phase_only_maximum_complementarity_residual": null,
       "phase_only_complementarity_scaling_audit_pass_count": 0,
       "phase_only_termination_statuses": [null, null, null, null, null, null],
+      "initialization_provenance_kinds": [null, null, null, null, null, null],
+      "initialization_missing_coordinate_counts": [null, null, null, null, null, null],
       "qualification": "BMOPFTools native initialization point was unavailable for these staged contexts; this is an unavailable-start result, not a solver failure."
     },
     {
@@ -39,6 +43,8 @@
       "phase_only_maximum_complementarity_residual": 1.141720164003029e-05,
       "phase_only_complementarity_scaling_audit_pass_count": 6,
       "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"],
+      "initialization_provenance_kinds": ["CompletedInitializationPoint", "CompletedInitializationPoint", "CompletedInitializationPoint", "CompletedInitializationPoint", "CompletedInitializationPoint", "CompletedInitializationPoint"],
+      "initialization_missing_coordinate_counts": [986, 986, 986, 986, 986, 986],
       "qualification": "The standard BMOPFTools build has partial generated starts; this policy explicitly completes those starts with zero for missing coordinates. It is a reproducible mixed-start control, not an independently complete native point."
     },
     {
@@ -50,6 +56,8 @@
       "phase_only_maximum_complementarity_residual": 246483411102.4331,
       "phase_only_complementarity_scaling_audit_pass_count": 6,
       "phase_only_termination_statuses": ["ITERATION_LIMIT", "ITERATION_LIMIT", "ITERATION_LIMIT", "ITERATION_LIMIT", "ITERATION_LIMIT", "ITERATION_LIMIT"],
+      "initialization_provenance_kinds": ["InitializationPoint", "InitializationPoint", "InitializationPoint", "InitializationPoint", "InitializationPoint", "InitializationPoint"],
+      "initialization_missing_coordinate_counts": [0, 0, 0, 0, 0, 0],
       "qualification": "Zero starts are a deliberately adversarial initialization control; the resulting KKT records are diagnostic and not endpoint evidence."
     }
   ],

@@ -98,6 +98,15 @@ function campaign_initialization_point(context, policy)
         completed.variables,
         zeros(length(completed.values));
         label="real-99bus-phase-only-campaign-zero-start",
+        provenance=NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.InitializationPoint;
+            source="explicit all-zero initialization control",
+            complete=true,
+            metadata=Dict(
+                "initialization_policy" => "zero",
+                "missing_coordinate_count" => 0,
+            ),
+        ),
     )
     if policy == "perturbed"
         seed = parse(Int, get(ENV, "NLPDIAGNOSTICS_REAL_99BUS_START_PERTURBATION_SEED", "11"))
@@ -129,6 +138,40 @@ function campaign_initialization_point(context, policy)
         "BMOPFTools native initialization point is unavailable",
     )
     return native
+end
+
+function campaign_initialization_summary(point; policy=nothing)
+    metadata = Dict{String,String}(
+        string(key) => string(value) for (key, value) in point.provenance.metadata
+    )
+    filled_count = get(metadata, "filled_coordinate_count", nothing)
+    missing_count = get(metadata, "missing_coordinate_count", filled_count)
+    parse_count(raw) = raw === nothing ? nothing : try
+        parse(Int, raw)
+    catch
+        nothing
+    end
+    return Dict{String,Any}(
+        "available" => true,
+        "policy" => policy,
+        "label" => point.label,
+        "variable_count" => length(point.variables),
+        "value_count" => length(point.values),
+        "complete" => point.provenance.complete,
+        "provenance_kind" => string(point.provenance.kind),
+        "provenance_source" => point.provenance.source,
+        "missing_coordinate_count" => parse_count(missing_count),
+        "metadata" => metadata,
+    )
+end
+
+function campaign_initialization_failure_summary(policy, error)
+    return Dict{String,Any}(
+        "available" => false,
+        "policy" => policy,
+        "missing_coordinate_count" => nothing,
+        "error" => sprint(showerror, error),
+    )
 end
 
 function solve_reference(context, point; max_iter, ipopt_options=Dict{String,Any}())
@@ -600,6 +643,7 @@ function run_snapshot(
     ipopt_options=Dict{String,Any}(),
     initialization_policy="completed",
 )
+    initialization = nothing
     path = joinpath(root, relative)
     try
         network = BMOPFTools.parse_bmopf(path)
@@ -609,7 +653,22 @@ function run_snapshot(
             add_objective=true,
         )
         BMOPFTools.enforce_kcl!(context)
-        point = campaign_initialization_point(context, initialization_policy)
+        point = try
+            campaign_initialization_point(context, initialization_policy)
+        catch error
+            return Dict{String,Any}(
+                "snapshot" => relative,
+                "available" => false,
+                "initialization" => campaign_initialization_failure_summary(
+                    initialization_policy, error,
+                ),
+                "error" => sprint(showerror, error),
+            )
+        end
+        initialization = campaign_initialization_summary(
+            point;
+            policy=initialization_policy,
+        )
         evaluation = NLPDiagnostics.evaluate_numerical(
             JuMP.backend(BMOPFTools.opf_model(context)),
             point,
@@ -632,6 +691,7 @@ function run_snapshot(
         get(reference, "available", false) === true || return Dict{String,Any}(
             "snapshot" => relative,
             "available" => false,
+            "initialization" => initialization,
             "reference" => reference_summary,
             "error" => "reference endpoint is unavailable",
         )
@@ -748,6 +808,7 @@ function run_snapshot(
             "snapshot" => relative,
             "sha256" => bytes2hex(SHA.sha256(read(path))),
             "angle" => angle,
+            "initialization" => initialization,
             "variable_count" => length(evaluation.point.variables),
             "constraint_count" => length(evaluation.constraint_sources),
             "rotated_variable_block_count" => plan["rotated_variable_block_count"],
@@ -786,11 +847,13 @@ function run_snapshot(
             ),
         )
     catch error
-        return Dict{String,Any}(
+        result = Dict{String,Any}(
             "snapshot" => relative,
             "available" => false,
             "error" => sprint(showerror, error),
         )
+        initialization === nothing || (result["initialization"] = initialization)
+        return result
     end
 end
 
