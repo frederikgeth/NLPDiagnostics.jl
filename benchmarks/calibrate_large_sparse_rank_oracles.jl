@@ -119,6 +119,18 @@ for dimension in dimensions, kind in kinds
     dense = NLPDiagnostics.jacobian_rank_estimate(point_evaluation, dense_policy)
     sparse = NLPDiagnostics.sparse_qr_rank_estimate(point_evaluation, sparse_policy)
     sparse_match = sparse.available && sparse.rank == expected_rank
+    dense_unavailable_reason = NLPDiagnostics.unavailable_reason(
+        dense;
+        code = :dense_rank_work_guard,
+        category = :work_guard,
+        stage = :numerical,
+    )
+    sparse_unavailable_reason = NLPDiagnostics.unavailable_reason(
+        sparse;
+        code = :sparse_rank_unavailable,
+        category = :capability,
+        stage = :numerical,
+    )
     push!(records, Dict{String,Any}(
         "name" => label,
         "case" => kind,
@@ -131,10 +143,14 @@ for dimension in dimensions, kind in kinds
         "dense_available" => dense.available,
         "dense_rank" => dense.rank,
         "dense_unavailable_reason" => dense.reason,
+        "dense_unavailable_reason_typed" => isnothing(dense_unavailable_reason) ?
+            nothing : NLPDiagnostics.unavailable_reason_data(dense_unavailable_reason),
         "sparse_available" => sparse.available,
         "sparse_rank" => sparse.rank,
         "sparse_match" => sparse_match,
         "sparse_unavailable_reason" => sparse.reason,
+        "sparse_unavailable_reason_typed" => isnothing(sparse_unavailable_reason) ?
+            nothing : NLPDiagnostics.unavailable_reason_data(sparse_unavailable_reason),
         "sparse_factorization_relative_residual" =>
             sparse.factorization_relative_residual,
         "sparse_factor_nonzeros" => sparse.factor_nonzeros,

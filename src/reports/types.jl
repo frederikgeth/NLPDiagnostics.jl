@@ -87,6 +87,36 @@ function unavailable_reason_data(reason::UnavailableReason)
     )
 end
 
+"""
+    unavailable_reason(result; code = :unavailable, category = :capability,
+                       stage = nothing)
+
+Adapt an availability-bearing result with `available` and `reason` fields to
+the typed schema. Available results return `nothing`; unavailable results
+retain their original reason text while gaining stable classification fields.
+This adapter deliberately avoids changing the positional layout of legacy
+numerical result structs.
+"""
+function unavailable_reason(
+    result;
+    code::Symbol = :unavailable,
+    category::Symbol = :capability,
+    stage::Union{Nothing,Symbol} = nothing,
+)
+    hasproperty(result, :available) && hasproperty(result, :reason) ||
+        throw(ArgumentError("result must expose available and reason fields"))
+    getproperty(result, :available) && return nothing
+    raw_reason = getproperty(result, :reason)
+    message = isnothing(raw_reason) ?
+        "result is unavailable without a reason" : string(raw_reason)
+    return UnavailableReason(
+        message;
+        code,
+        category,
+        stage,
+    )
+end
+
 struct EntityRef
     kind::Symbol
     index::Int

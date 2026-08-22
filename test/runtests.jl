@@ -45,6 +45,20 @@ include("solver_duals.jl")
     @test data["stage"] == "numerical"
     @test data["exception_type"] === nothing
 
+    unavailable_result = (available = false, reason = "dense work guard")
+    adapted = NLPDiagnostics.unavailable_reason(
+        unavailable_result;
+        code = :dense_work_guard,
+        category = :work_guard,
+        stage = :numerical,
+    )
+    @test adapted isa NLPDiagnostics.UnavailableReason
+    @test NLPDiagnostics.unavailable_reason_data(adapted)["message"] ==
+          "dense work guard"
+    @test NLPDiagnostics.unavailable_reason((available = true, reason = nothing)) ===
+          nothing
+    @test_throws ArgumentError NLPDiagnostics.unavailable_reason((available = false,))
+
     dependency = NLPDiagnostics.UnavailableReason(
         "optional solver extension is not loaded";
         code = :missing_dependency,

@@ -84,6 +84,7 @@ benchmark_schema_files = [
     path for path in benchmark_files if occursin("schema_version", text(path))
 ]
 source_text = join(text.(source_files), "\n")
+benchmark_text = join(text.(benchmark_files), "\n")
 bare_catch_count = count(line -> occursin(r"^\s*catch\s*$", line),
     split(source_text, '\n'))
 bound_catch_count = count(line -> occursin(r"^\s*catch\s+\w+", line),
@@ -92,6 +93,10 @@ typed_unavailable_tokens = [
     token for token in ("UnavailableReason", "CapabilityUnavailable", "TypedUnavailable")
     if occursin(token, source_text)
 ]
+typed_adapter_call_count = count(
+    line -> occursin(r"unavailable_reason\(", line),
+    split(source_text * "\n" * benchmark_text, '\n'),
+)
 namespace_tokens = [
     token for token in ("module Advanced", "module Experimental", "module Research")
     if occursin(token, source_text)
@@ -147,6 +152,7 @@ summary = Dict{String,Any}(
     "typed_unavailable_audit" => Dict(
         "explicit_typed_unavailable_token_count" => length(typed_unavailable_tokens),
         "explicit_typed_unavailable_tokens" => typed_unavailable_tokens,
+        "typed_adapter_call_count" => typed_adapter_call_count,
         "bare_catch_count_in_source" => bare_catch_count,
         "bound_catch_count_in_source" => bound_catch_count,
     ),

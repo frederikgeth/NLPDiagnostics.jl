@@ -3,14 +3,14 @@
     "advanced_or_experimental_namespace_count": 0,
     "advanced_or_experimental_namespace_tokens": [],
     "export_buckets": {
-      "core_or_unclassified": 371,
+      "core_or_unclassified": 372,
       "domain_extension": 96,
       "profiling": 15,
       "scaling": 3,
       "solver_extension": 14,
       "structural": 9
     },
-    "root_export_count": 508,
+    "root_export_count": 509,
     "root_export_names": [
       "AbstractSemanticConstraintSetContract",
       "ActiveSetStructuralDecomposition",
@@ -514,6 +514,7 @@
       "synthetic_stability_profile_corpus",
       "transport_scaling_point",
       "trusted_point_selection_data",
+      "unavailable_reason",
       "unavailable_reason_data",
       "variable_domains",
       "variable_roles",
@@ -610,6 +611,7 @@
     "explicit_typed_unavailable_token_count": 1,
     "explicit_typed_unavailable_tokens": [
       "UnavailableReason"
-    ]
+    ],
+    "typed_adapter_call_count": 4
   }
 }

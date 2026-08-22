@@ -207,6 +207,7 @@ export MathematicalIssue, NumericalIssue, PhysicalIssue, RepresentationalIssue
 export MathematicalProof, NumericalObservation, PhysicalExpectation
 export UnavailableReason
 export unavailable_reason_data
+export unavailable_reason
 export markdown_report
 export LocalInference, HeuristicInterpretation, StructuralProof
 export Severity
