@@ -3741,7 +3741,9 @@ with matched work across light, nominal, and heavy snapshots; it does not
 replace a full network model. A readiness gate now confirms six real ENWL
 99-bus LN/LG snapshots with clean integrity and saved local solutions, but the
 pinned BMOPFTools environment uses the pre-wrapper public semantic-block API.
-The compatibility path now opens the phase-only semantic-map gate; the
+The compatibility path now opens the phase-only semantic-map gate across all
+six selected real LN/LG snapshots (1,968 variables, 2,208 constraints, 936
+paired variable blocks, and zero skipped declarations per snapshot). The
 remaining gap is a transformed-coordinate solver runner for BMOPFTools
 contexts. The next research sequence is:
 

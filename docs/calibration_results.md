@@ -1104,10 +1104,12 @@ The local BMOPF corpus contains six selected ENWL 99-bus snapshots spanning
 three LN and three LG times. All six parse with zero blocking integrity
 findings and have saved SI results marked `LOCALLY_SOLVED`. The compatibility
 path now consumes the current public `BMOPFTools.opf_semantic_blocks` registry:
-the semantic-map gate reports 1,968 variables, 2,208 constraints, 936 paired
-variable blocks, zero skipped declarations, and a `phase_only` intervention
-classification. The phase-only solver campaign is still not run on this real
-network because a transformed-coordinate BMOPFTools runner has not yet been
-implemented. The readiness runner records file hashes, provenance, and this
-explicit scope at `docs/real_99bus_readiness_summary.json`; it does not
+the semantic-map probe passes on all six selected LN/LG snapshots, each with
+1,968 variables, 2,208 constraints, 936 paired variable blocks, zero skipped
+declarations, and a `phase_only` intervention classification. This is a
+matrix-wide map contract, not a solver result. The phase-only solver campaign
+is still not run on this real network because a transformed-coordinate
+BMOPFTools runner has not yet been implemented. The readiness runner records
+file hashes, provenance, and this explicit scope at
+`docs/real_99bus_readiness_summary.json`; it does not
 substitute surrogate results for the real-network solver claim.

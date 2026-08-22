@@ -68,8 +68,7 @@ function inventory_snapshot(root, relative)
     )
 end
 
-function semantic_map_probe(root)
-    relative = SELECTED_SNAPSHOTS[1]
+function semantic_map_probe_snapshot(root, relative)
     path = joinpath(root, relative)
     try
         network = BMOPFTools.parse_bmopf(path)
@@ -111,6 +110,7 @@ function semantic_map_probe(root)
         )
         return Dict(
             "available" => build["available"],
+            "snapshot" => relative,
             "variable_count" => length(evaluation.point.variables),
             "constraint_count" => length(evaluation.constraint_sources),
             "applied_variable_block_count" => get(build, "applied_variable_block_count", nothing),
@@ -126,6 +126,24 @@ function semantic_map_probe(root)
             "reason" => sprint(showerror, error),
         )
     end
+end
+
+function semantic_map_probe(root)
+    probes = [semantic_map_probe_snapshot(root, relative) for relative in SELECTED_SNAPSHOTS]
+    available = [probe for probe in probes if get(probe, "available", false) === true]
+    phase_only = [probe for probe in available if get(probe, "intervention_classification", nothing) == "phase_only"]
+    representative = isempty(probes) ? Dict{String,Any}() : first(probes)
+    return merge(
+        Dict(
+            "available" => length(available) == length(probes),
+            "snapshot_count" => length(probes),
+            "available_snapshot_count" => length(available),
+            "phase_only_snapshot_count" => length(phase_only),
+            "all_snapshots_phase_only" => length(phase_only) == length(probes),
+            "snapshots" => probes,
+        ),
+        representative,
+    )
 end
 
 function run_inventory()
@@ -148,7 +166,7 @@ function run_inventory()
         "readiness" => Dict(
             "snapshots_parse_and_integrity_gate_passed" => all_integrity_clean,
             "saved_locally_solved_result_count" => saved_solutions,
-            "phase_only_semantic_gate_ready" => all_integrity_clean && probe["available"] === true && get(probe, "intervention_classification", nothing) == "phase_only",
+            "phase_only_semantic_gate_ready" => all_integrity_clean && probe["available"] === true && get(probe, "all_snapshots_phase_only", false) === true,
             "phase_only_solver_campaign_ready" => false,
             "blocking_reason" => "a transformed-coordinate solver runner for BMOPFTools contexts is still required; the semantic-map schema compatibility gate is now open",
         ),

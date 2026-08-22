@@ -23,13 +23,18 @@
   },
   "semantic_map_probe": {
     "available": true,
+    "snapshot_count": 6,
+    "available_snapshot_count": 6,
+    "phase_only_snapshot_count": 6,
+    "all_snapshots_phase_only": true,
     "variable_count": 1968,
     "constraint_count": 2208,
     "applied_variable_block_count": 936,
     "applied_constraint_block_count": 887,
     "rotated_variable_block_count": 936,
     "intervention_classification": "phase_only",
-    "skipped_declaration_count": 0
+    "skipped_declaration_count": 0,
+    "snapshot_contract": "all six selected LN/LG snapshots expose the same complete semantic-map shape and phase-only classification"
   },
   "qualification": {
     "claim": "The selected real ENWL 99-bus snapshots are available, parseable, integrity-clean, and accompanied by saved SI results; the current BMOPFTools public semantic-block registry is sufficient for a phase-only map gate.",
