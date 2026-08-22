@@ -1,0 +1,28 @@
+{
+  "bootstrap_exit_code": null,
+  "checkout": "/private/tmp/bmopf-opf-scaling-diagnostic-schema",
+  "contract_artifact": "/private/tmp/bmopf_checkout_contract.json",
+  "contract_exit_code": 0,
+  "contract_status": "pass",
+  "dependency": {
+    "branch": "main",
+    "revision": "8f121216065bcd692f18444836c7c80149e5cf4a",
+    "dirty": false
+  },
+  "qualification": {
+    "claim": "local BMOPFTools checkout compatibility and regression-suite readiness",
+    "does_not_establish": [
+      "remote branch publication or pull-request review",
+      "CI or GitHub Actions execution",
+      "scientific validity beyond the declared regression suite"
+    ]
+  },
+  "schema_version": "nlpdiagnostics-bmopf-checkout-validation-v1",
+  "status": "pass",
+  "suite_exit_code": 0,
+  "suite_log": "/private/tmp/bmopf-checkout-validation-main.log",
+  "suite_passed": 1634,
+  "suite_total": 1634,
+  "validation_passed": true,
+  "validation_project": "/private/tmp/nlpdiag-bmopf-main-contract.wq1BOE"
+}

@@ -56,6 +56,11 @@ bmopf_clean_main = isfile(bmopf_clean_main_path) ?
 bmopf_handoff_path = joinpath(REPO_ROOT, "docs", "bmopf_pr_handoff_summary.json")
 bmopf_handoff = isfile(bmopf_handoff_path) ?
     JSON.parsefile(bmopf_handoff_path) : Dict{String,Any}("status" => "missing")
+bmopf_validation_path = joinpath(
+    REPO_ROOT, "docs", "bmopf_checkout_validation_summary.json",
+)
+bmopf_validation = isfile(bmopf_validation_path) ?
+    JSON.parsefile(bmopf_validation_path) : Dict{String,Any}("status" => "missing")
 
 source_includes = String[]
 for line in root_lines
@@ -187,6 +192,19 @@ summary = Dict{String,Any}(
         "handoff_artifact" => "docs/bmopf_pr_handoff_summary.json",
         "handoff_status" => get(bmopf_handoff, "status", "missing"),
         "handoff_reason" => get(bmopf_handoff, "reason", nothing),
+        "checkout_validation_artifact" =>
+            "docs/bmopf_checkout_validation_summary.json",
+        "checkout_validation_status" =>
+            get(bmopf_validation, "status", "missing"),
+        "checkout_validation_revision" => get(
+            get(bmopf_validation, "dependency", Dict{String,Any}()),
+            "revision",
+            nothing,
+        ),
+        "checkout_validation_suite_passed" =>
+            get(bmopf_validation, "suite_passed", nothing),
+        "checkout_validation_suite_total" =>
+            get(bmopf_validation, "suite_total", nothing),
     ),
     "interpretation" => Dict(
         "status" => "partial",
@@ -201,6 +219,7 @@ summary = Dict{String,Any}(
             "BMOPFTools public API contract audit artifact",
             "clean-main BMOPFTools API contract and full local suite evidence",
             "BMOPFTools PR handoff gate",
+            "isolated BMOPFTools checkout validation",
         ],
         "remaining_work" => [
             "define and document stable versus advanced/experimental API tiers",
