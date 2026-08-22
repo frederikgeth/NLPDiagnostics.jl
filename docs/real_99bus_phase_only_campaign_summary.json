@@ -1,5 +1,5 @@
 {
-  "schema_version": "nlpdiagnostics-real-99bus-phase-only-campaign-summary-v1",
+  "schema_version": "nlpdiagnostics-real-99bus-phase-only-campaign-summary-v2",
   "source": {
     "selected_snapshot_count": 6,
     "phase_angle": 0.01,
@@ -19,12 +19,14 @@
     "all_phase_only_endpoints_within_native_margin": false,
     "maximum_absolute_native_baseline_violation_delta": 4.178198544696823e-06,
     "largest_native_baseline_outlier": "constraint:ibr_p_upper:(\"pv_22\", 1) in 99bus_LN_t25_2000",
+    "ibr_p_upper_native_model_residual_floor": [0.0, 9.978100660647401e-09],
+    "ibr_p_upper_physical_scale": 1e6,
     "strict_physical_endpoint_max_violation_range": [0.009971342873541289, 0.009978101757164374],
     "objective_agreement_gate": "passed to solver tolerances",
     "model_rebuild_and_start_gate": "passed for all six snapshots",
     "solver_campaign_ready": false,
     "physical_endpoint_validation": false,
-    "blocking_reason": "source-coordinate endpoint recovery is implemented, but strict physical tolerance calibration, transformed variable-domain sets, KKT acceptance, and covariance validation remain open"
+    "blocking_reason": "source-coordinate endpoint recovery is implemented, but solver-aware physical tolerance calibration, KKT acceptance, and covariance validation remain open"
   },
   "runs": [
     {

@@ -107,11 +107,23 @@ function physical_feasibility(context, evaluation; tolerance)
     residual_pairs = collect(pairs(get(report, "residuals", Dict())))
     residuals = [pair.second for pair in residual_pairs]
     worst = sort(residual_pairs; by=pair -> get(pair.second, "violation", 0.0), rev=true)
+    scale_by_block = Dict(
+        string(map["map"].constraint_keys[index]) =>
+            Float64(map["map"].constraint_scales[index])
+        for index in eachindex(map["map"].constraint_keys)
+    )
     by_block = Dict{String,Float64}()
+    model_by_block = Dict{String,Float64}()
     for record in residuals
         block_id = string(get(record, "block_id", ""))
         violation = Float64(get(record, "violation", 0.0))
         by_block[block_id] = max(get(by_block, block_id, 0.0), violation)
+        scale = get(scale_by_block, block_id, nothing)
+        if scale isa Real && scale > 0
+            model_by_block[block_id] = max(
+                get(model_by_block, block_id, 0.0), violation / scale,
+            )
+        end
     end
     worst_records = [
         Dict(
@@ -119,7 +131,18 @@ function physical_feasibility(context, evaluation; tolerance)
             "id" => get(pair.second, "id", nothing),
             "block_id" => get(pair.second, "block_id", nothing),
             "physical_quantity" => get(pair.second, "physical_quantity", nothing),
+            "physical_scale" => get(
+                scale_by_block,
+                string(get(pair.second, "block_id", "")),
+                nothing,
+            ),
             "violation" => get(pair.second, "violation", nothing),
+            "model_violation" => begin
+                block_id = string(get(pair.second, "block_id", ""))
+                scale = get(scale_by_block, block_id, nothing)
+                scale isa Real && scale > 0 ?
+                    get(pair.second, "violation", 0.0) / scale : nothing
+            end,
             "passed" => get(pair.second, "passed", nothing),
         ) for pair in Iterators.take(worst, 5)
     ]
@@ -132,6 +155,7 @@ function physical_feasibility(context, evaluation; tolerance)
         "maximum_violation" => isempty(residuals) ? nothing : maximum(
             get(record, "violation", 0.0) for record in residuals),
         "maximum_violation_by_block" => by_block,
+        "maximum_model_violation_by_block" => model_by_block,
         "worst_residuals" => worst_records,
     )
 end
@@ -302,7 +326,7 @@ function run_campaign()
         if get(get(get(run, "phase_only", Dict()), "native_baseline_comparison", Dict()), "candidate_within_native_margin", false) === true
     ]
     return Dict(
-        "schema_version" => "nlpdiagnostics-real-99bus-phase-only-campaign-v1",
+        "schema_version" => "nlpdiagnostics-real-99bus-phase-only-campaign-v2",
         "source" => Dict(
             "root_basename" => basename(root),
             "selected_snapshot_count" => length(SELECTED_SNAPSHOTS),
@@ -327,7 +351,7 @@ function run_campaign()
             "all_phase_only_physical_endpoints_accepted" => length(phase_only_physical) == length(SELECTED_SNAPSHOTS),
             "solver_campaign_ready" => false,
             "physical_endpoint_validation" => false,
-            "blocking_reason" => "source-coordinate endpoint recovery is implemented, but transformed variable-domain sets, KKT acceptance, and physical covariance validation are not yet qualified",
+            "blocking_reason" => "source-coordinate endpoint recovery is implemented, but solver-aware physical tolerance calibration, KKT acceptance, and physical covariance validation are not yet qualified",
         ),
     )
 end

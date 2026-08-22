@@ -3772,10 +3772,12 @@ sequence is:
    outliers are localized to `ibr_p_upper`, with the largest delta
    `4.18e-6` at `pv_22` in LN t25. This points the next investigation at
    IBR upper-power residual semantics/scaling or solver convergence rather
-   than generic endpoint transport. Absolute physical acceptance remains
-   unqualified; then calibrate quantity/set-specific tolerances and add
-   transformed-domain-set handling before applying KKT and covariance gates;
-   and
+   than generic endpoint transport. The raw native `ibr_p_upper` floor is
+   about `1e-8` in model coordinates with a `1e6` physical power scale, which
+   explains the apparent `1e-2` physical residual. Absolute physical
+   acceptance remains unqualified; next calibrate quantity/set-specific
+   tolerances against that solver floor and add transformed-domain-set
+   handling before applying KKT and covariance gates; and
 3. consider automatic-policy candidates only after the endpoint-qualified
    real snapshot matrix
    has been reviewed for fixture-specific reversals.
