@@ -1,0 +1,65 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-endpoint-kkt-comparison-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_30bus_physical_kkt_probe.jl",
+    "trace_summary": "docs/bmopf_30bus_trace_endpoint_row_family_summary.json",
+    "local_environment": "work/benchmark-environment",
+    "quantity_tolerance": 1.0,
+    "stationarity_tolerance": 1e-5,
+    "dual_tolerance": 1e-5,
+    "complementarity_tolerance": 1e-5
+  },
+  "cases": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "stationarity_acceptance_passed": true,
+      "physical_kkt_acceptance_passed": false,
+      "complementarity_acceptance_passed": false,
+      "complementarity_side_count": 168,
+      "complementarity_passed_side_count": 140,
+      "maximum_complementarity_residual": 0.00001049343932476267,
+      "endpoint_ibr_p_upper_row_residual": 9.976176744766563e-9
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "stationarity_acceptance_passed": true,
+      "physical_kkt_acceptance_passed": true,
+      "complementarity_acceptance_passed": true,
+      "complementarity_side_count": 168,
+      "complementarity_passed_side_count": 168,
+      "maximum_complementarity_residual": 0.000008639323370055962,
+      "endpoint_ibr_p_upper_row_residual": 9.971078154986934e-9
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "stationarity_acceptance_passed": true,
+      "physical_kkt_acceptance_passed": false,
+      "complementarity_acceptance_passed": false,
+      "complementarity_side_count": 168,
+      "complementarity_passed_side_count": 140,
+      "maximum_complementarity_residual": 0.000010493452407338264,
+      "endpoint_ibr_p_upper_row_residual": 9.976176652784826e-9
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "stationarity_acceptance_passed": true,
+      "physical_kkt_acceptance_passed": true,
+      "complementarity_acceptance_passed": true,
+      "complementarity_side_count": 168,
+      "complementarity_passed_side_count": 168,
+      "maximum_complementarity_residual": 0.000008588485697044737,
+      "endpoint_ibr_p_upper_row_residual": 9.970907361052384e-9
+    }
+  ],
+  "comparison": {
+    "stationarity_passed_count": 4,
+    "physical_kkt_passed_count": 2,
+    "endpoint_ibr_p_upper_row_residual_range": [9.970907361052384e-9, 9.976176744766563e-9],
+    "interpretation": "The endpoint ibr_p_upper row residual is nearly constant across these four snapshots, while physical KKT acceptance changes with complementarity at t01 versus t13. The row residual and physical KKT gate therefore measure different evidence layers.",
+    "qualification": "This is a bounded 30-bus comparison under explicit tolerances; it does not identify the source of the 99-bus floor or establish global optimality."
+  }
+}

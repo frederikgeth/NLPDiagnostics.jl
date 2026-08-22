@@ -3928,6 +3928,15 @@ first bounded endpoint-level localization of the observed row residual, but it
 remains model-coordinate feasibility evidence rather than physical
 complementarity, solver optimality, or causal proof.
 
+The corresponding physical comparison is tracked at
+`docs/bmopf_30bus_endpoint_kkt_comparison_summary.json`, with reproducible
+probe `benchmarks/bmopf_30bus_physical_kkt_probe.jl`. Stationarity passed on
+all four endpoints; full physical KKT passed on both t13 snapshots, while t01
+failed narrowly at maximum complementarity `1.0493e-5` with 140/168 sides
+passing. The `ibr_p_upper` row residual stayed near `9.97e-9` in all four
+cases, so this bounded comparison separates model-row residual localization
+from the physical complementarity gate.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
