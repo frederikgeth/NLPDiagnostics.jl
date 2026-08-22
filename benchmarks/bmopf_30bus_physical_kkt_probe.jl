@@ -35,7 +35,33 @@ function safe_value(callback)
     end
 end
 
-function run_case(root, relative)
+function complementarity_tolerances()
+    raw = get(
+        ENV,
+        "NLPDIAGNOSTICS_BMOPF_30BUS_KKT_COMPLEMENTARITY_TOLERANCES",
+        "1.0e-5,1.05e-5,1.1e-5,1.2e-5",
+    )
+    values = sort!(unique(parse.(Float64, filter(!isempty, strip.(split(raw, ','))))))
+    isempty(values) && error("complementarity tolerance list must not be empty")
+    all(value -> isfinite(value) && value >= 0, values) ||
+        error("complementarity tolerances must be finite and nonnegative")
+    return values
+end
+
+function kkt_report(context, model, evaluation, quantity_tolerances, complementarity_tolerance)
+    return NLPDiagnostics.bmopf_physical_solver_kkt_report(
+        context,
+        model,
+        evaluation;
+        semantic_blocks=false,
+        quantity_feasibility_absolute_tolerances=quantity_tolerances,
+        stationarity_default_absolute_tolerance=1.0e-5,
+        dual_default_absolute_tolerance=1.0e-5,
+        complementarity_default_absolute_tolerance=complementarity_tolerance,
+    )
+end
+
+function run_case(root, relative, tolerances)
     network = BMOPFTools.parse_bmopf(joinpath(root, relative))
     context = BMOPFTools.build_opf_model(
         deepcopy(network);
@@ -55,16 +81,28 @@ function run_case(root, relative)
     quantity_tolerances = Dict(
         quantity => 1.0 for quantity in unique(map["constraint_quantities"])
     )
-    kkt = NLPDiagnostics.bmopf_physical_solver_kkt_report(
-        context,
-        model,
-        evaluation;
-        semantic_blocks=false,
-        quantity_feasibility_absolute_tolerances=quantity_tolerances,
-        stationarity_default_absolute_tolerance=1.0e-5,
-        dual_default_absolute_tolerance=1.0e-5,
-        complementarity_default_absolute_tolerance=1.0e-5,
+    kkt = kkt_report(
+        context, model, evaluation, quantity_tolerances, first(tolerances),
     )
+    tolerance_curve = Dict{String,Any}()
+    for tolerance in tolerances
+        curve_report = kkt_report(
+            context, model, evaluation, quantity_tolerances, tolerance,
+        )
+        tolerance_curve[string(tolerance)] = Dict{String,Any}(
+            "physical_kkt_acceptance_passed" => get(
+                curve_report, "acceptance_passed", nothing,
+            ),
+            "complementarity_acceptance_passed" => get(
+                get(curve_report, "complementarity", Dict()),
+                "acceptance_passed", nothing,
+            ),
+            "passed_side_count" => get(
+                get(curve_report, "complementarity", Dict()),
+                "passed_side_count", nothing,
+            ),
+        )
+    end
     complementarity = get(kkt, "complementarity", Dict())
     complementarity_sides = values(get(complementarity, "sides", Dict()))
     maximum_complementarity_residual = safe_value(() -> maximum(
@@ -95,16 +133,18 @@ function run_case(root, relative)
         "quantity_tolerance" => 1.0,
         "stationarity_tolerance" => 1.0e-5,
         "dual_tolerance" => 1.0e-5,
-        "complementarity_tolerance" => 1.0e-5,
+        "complementarity_tolerance" => first(tolerances),
+        "complementarity_acceptance_by_tolerance" => tolerance_curve,
     )
 end
 
 root = abspath(get(ENV, "NLPDIAGNOSTICS_BMOPF_BENCHMARK_ROOT", DEFAULT_ROOT))
 isdir(root) || error("benchmark root does not exist: $root")
+complementarity_tolerance_values = complementarity_tolerances()
 results = Dict{String,Any}[]
 for relative in selected_cases(root)
     try
-        push!(results, run_case(root, relative))
+        push!(results, run_case(root, relative, complementarity_tolerance_values))
     catch error
         push!(results, Dict{String,Any}(
             "snapshot" => relative,
@@ -127,7 +167,8 @@ write(output, JSON.json(Dict(
         "quantity_tolerance" => 1.0,
         "stationarity_tolerance" => 1.0e-5,
         "dual_tolerance" => 1.0e-5,
-        "complementarity_tolerance" => 1.0e-5,
+        "complementarity_tolerance" => first(complementarity_tolerance_values),
+        "complementarity_tolerances_evaluated" => complementarity_tolerance_values,
     ),
     "cases" => results,
 )))

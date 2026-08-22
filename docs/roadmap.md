@@ -3937,6 +3937,13 @@ passing. The `ibr_p_upper` row residual stayed near `9.97e-9` in all four
 cases, so this bounded comparison separates model-row residual localization
 from the physical complementarity gate.
 
+A local complementarity-tolerance curve is now tracked at
+`docs/bmopf_30bus_kkt_tolerance_sensitivity_summary.json`, using the same
+probe and endpoint snapshots. Both t01 cases cross from 140/168 to 168/168
+passing sides between `1e-5` and `1.05e-5`; both t13 cases already pass at the
+strict `1e-5` tolerance. This is calibration evidence for the bounded fixture,
+not an automatic tolerance recommendation or a global KKT policy.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
