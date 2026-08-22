@@ -3944,6 +3944,13 @@ passing sides between `1e-5` and `1.05e-5`; both t13 cases already pass at the
 strict `1e-5` tolerance. This is calibration evidence for the bounded fixture,
 not an automatic tolerance recommendation or a global KKT policy.
 
+The same probe now retains side-level attribution. In both t01 cases, all 28
+strictly failing sides match
+`constraint:ibr_p_upper:("pv_<1..28>", 1)/upper`, with no other semantic
+family failing; t13 has zero failed sides at `1e-5`. This identifies the
+bounded failure surface without claiming that the row family is the causal
+source of the residual floor or that the physical tolerance should be relaxed.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative

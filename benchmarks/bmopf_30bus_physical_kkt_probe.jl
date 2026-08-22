@@ -61,6 +61,40 @@ function kkt_report(context, model, evaluation, quantity_tolerances, complementa
     )
 end
 
+function complementarity_tolerance_record(report, tolerance)
+    complementarity = get(report, "complementarity", Dict())
+    sides = get(complementarity, "sides", Dict())
+    attribution = get(
+        get(get(report, "semantic_attribution", Dict()), "complementarity", Dict()),
+        "records",
+        Dict(),
+    )
+    failed_sides = sort!(String[
+        string(key) for (key, side) in pairs(sides)
+        if !(get(side, "complementarity_residual", nothing) isa Real) ||
+            !isfinite(Float64(get(side, "complementarity_residual", NaN))) ||
+            Float64(get(side, "complementarity_residual", NaN)) > tolerance
+    ])
+    failed_constraint_families = sort!(unique(String[
+        string(get(get(attribution, key, Dict()), "constraint_family", "unknown"))
+        for key in failed_sides
+    ]))
+    return Dict{String,Any}(
+        "physical_kkt_acceptance_passed" => get(
+            report, "acceptance_passed", nothing,
+        ),
+        "complementarity_acceptance_passed" => get(
+            complementarity, "acceptance_passed", nothing,
+        ),
+        "passed_side_count" => get(
+            complementarity, "passed_side_count", nothing,
+        ),
+        "failed_side_count" => length(failed_sides),
+        "failed_sides" => failed_sides,
+        "failed_constraint_families" => failed_constraint_families,
+    )
+end
+
 function run_case(root, relative, tolerances)
     network = BMOPFTools.parse_bmopf(joinpath(root, relative))
     context = BMOPFTools.build_opf_model(
@@ -89,18 +123,8 @@ function run_case(root, relative, tolerances)
         curve_report = kkt_report(
             context, model, evaluation, quantity_tolerances, tolerance,
         )
-        tolerance_curve[string(tolerance)] = Dict{String,Any}(
-            "physical_kkt_acceptance_passed" => get(
-                curve_report, "acceptance_passed", nothing,
-            ),
-            "complementarity_acceptance_passed" => get(
-                get(curve_report, "complementarity", Dict()),
-                "acceptance_passed", nothing,
-            ),
-            "passed_side_count" => get(
-                get(curve_report, "complementarity", Dict()),
-                "passed_side_count", nothing,
-            ),
+        tolerance_curve[string(tolerance)] = complementarity_tolerance_record(
+            curve_report, tolerance,
         )
     end
     complementarity = get(kkt, "complementarity", Dict())
@@ -160,7 +184,7 @@ output = abspath(get(
 ))
 mkpath(dirname(output))
 write(output, JSON.json(Dict(
-    "schema_version" => "nlpdiagnostics-bmopf-30bus-physical-kkt-probe-v1",
+    "schema_version" => "nlpdiagnostics-bmopf-30bus-physical-kkt-probe-v2",
     "source" => Dict(
         "runner" => basename(@__FILE__),
         "local_environment" => abspath(joinpath(@__DIR__, "..", "work", "benchmark-environment")),

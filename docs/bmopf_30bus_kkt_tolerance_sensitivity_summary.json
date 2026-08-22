@@ -1,5 +1,5 @@
 {
-  "schema_version": "nlpdiagnostics-bmopf-30bus-kkt-tolerance-sensitivity-v1",
+  "schema_version": "nlpdiagnostics-bmopf-30bus-kkt-tolerance-sensitivity-v2",
   "source": {
     "runner": "benchmarks/bmopf_30bus_physical_kkt_probe.jl",
     "comparison_summary": "docs/bmopf_30bus_endpoint_kkt_comparison_summary.json",
@@ -7,12 +7,19 @@
     "quantity_tolerance": 1.0,
     "stationarity_tolerance": 1e-5,
     "dual_tolerance": 1e-5,
-    "complementarity_tolerances_evaluated": [1e-5, 1.05e-5, 1.1e-5, 1.2e-5]
+    "complementarity_tolerances_evaluated": [1e-5, 1.05e-5, 1.1e-5, 1.2e-5],
+    "side_failure_attribution": "semantic_attribution.complementarity.records"
   },
   "cases": [
     {
       "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
       "maximum_complementarity_residual": 1.049343932476267e-5,
+      "strict_tolerance_failure": {
+        "tolerance": 1e-5,
+        "failed_side_count": 28,
+        "failed_constraint_families": ["ibr_p_upper"],
+        "failed_side_pattern": "constraint:ibr_p_upper:(pv_1 through pv_28, 1)/upper"
+      },
       "acceptance_by_tolerance": {
         "1.0e-5": {"physical_kkt_acceptance_passed": false, "complementarity_acceptance_passed": false, "passed_side_count": 140},
         "1.05e-5": {"physical_kkt_acceptance_passed": true, "complementarity_acceptance_passed": true, "passed_side_count": 168},
@@ -23,6 +30,12 @@
     {
       "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
       "maximum_complementarity_residual": 8.639323370055962e-6,
+      "strict_tolerance_failure": {
+        "tolerance": 1e-5,
+        "failed_side_count": 0,
+        "failed_constraint_families": [],
+        "failed_side_pattern": null
+      },
       "acceptance_by_tolerance": {
         "1.0e-5": {"physical_kkt_acceptance_passed": true, "complementarity_acceptance_passed": true, "passed_side_count": 168},
         "1.05e-5": {"physical_kkt_acceptance_passed": true, "complementarity_acceptance_passed": true, "passed_side_count": 168},
@@ -33,6 +46,12 @@
     {
       "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
       "maximum_complementarity_residual": 1.0493452407338264e-5,
+      "strict_tolerance_failure": {
+        "tolerance": 1e-5,
+        "failed_side_count": 28,
+        "failed_constraint_families": ["ibr_p_upper"],
+        "failed_side_pattern": "constraint:ibr_p_upper:(pv_1 through pv_28, 1)/upper"
+      },
       "acceptance_by_tolerance": {
         "1.0e-5": {"physical_kkt_acceptance_passed": false, "complementarity_acceptance_passed": false, "passed_side_count": 140},
         "1.05e-5": {"physical_kkt_acceptance_passed": true, "complementarity_acceptance_passed": true, "passed_side_count": 168},
@@ -43,6 +62,12 @@
     {
       "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
       "maximum_complementarity_residual": 8.588485697044737e-6,
+      "strict_tolerance_failure": {
+        "tolerance": 1e-5,
+        "failed_side_count": 0,
+        "failed_constraint_families": [],
+        "failed_side_pattern": null
+      },
       "acceptance_by_tolerance": {
         "1.0e-5": {"physical_kkt_acceptance_passed": true, "complementarity_acceptance_passed": true, "passed_side_count": 168},
         "1.05e-5": {"physical_kkt_acceptance_passed": true, "complementarity_acceptance_passed": true, "passed_side_count": 168},
@@ -54,6 +79,8 @@
   "comparison": {
     "t01_crosses_between": [1e-5, 1.05e-5],
     "t13_passes_at_strict_tolerance": true,
+    "t01_failed_side_count": 28,
+    "t01_failed_side_families": ["ibr_p_upper"],
     "interpretation": "Both t01 snapshots cross from 140/168 to 168/168 passing sides between complementarity tolerances 1e-5 and 1.05e-5; both t13 snapshots already pass at 1e-5.",
     "qualification": "This is local tolerance-sensitivity evidence for four 30-bus snapshots. It does not recommend changing the default tolerance, establish a global policy, or replace physical KKT acceptance under a declared contract."
   }
