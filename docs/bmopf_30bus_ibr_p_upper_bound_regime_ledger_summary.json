@@ -1,0 +1,63 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-ibr-p-upper-bound-regime-ledger-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_30bus_ibr_p_upper_bound_regime_ledger.jl",
+    "raw_probe": "/private/tmp/bmopf-30bus-ibr-bound-regime.json",
+    "solver": "Ipopt",
+    "max_iter": 80,
+    "zero_bound_tolerance": 1e-12,
+    "complementarity_tolerance": 1e-5,
+    "target_row_family": "ibr_p_upper"
+  },
+  "cases": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "physical_kkt_acceptance_passed": false,
+      "regime": "zero_bound",
+      "row_count": 28,
+      "bound_range": [0.0, 0.0],
+      "model_gap_range": [-9.976176743116997e-9, -9.97524670603539e-9],
+      "physical_gap_range": [-0.009976176743116998, -0.00997524670603539],
+      "complementarity_residual_range": [0.000010019714309137886, 0.00001049343932476267],
+      "strict_complementarity_passed_count": 0
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "physical_kkt_acceptance_passed": true,
+      "regime": "positive_bound",
+      "row_count": 28,
+      "bound_range": [0.004780854170090343, 0.00525],
+      "model_gap_range": [-9.971078154986934e-9, 0.00025847693292000047],
+      "physical_gap_range": [-0.009971078154986934, 258.4769329200005],
+      "complementarity_residual_range": [2.4965908708048102e-8, 0.000008639323370055962],
+      "strict_complementarity_passed_count": 28
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "physical_kkt_acceptance_passed": false,
+      "regime": "zero_bound",
+      "row_count": 28,
+      "bound_range": [0.0, 0.0],
+      "model_gap_range": [-9.976176772531128e-9, -9.97524672351823e-9],
+      "physical_gap_range": [-0.009976176772531127, -0.00997524672351823],
+      "complementarity_residual_range": [0.000010019711760153115, 0.000010493452407338264],
+      "strict_complementarity_passed_count": 0
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "physical_kkt_acceptance_passed": true,
+      "regime": "positive_bound",
+      "row_count": 28,
+      "bound_range": [0.004780854170090343, 0.00525],
+      "model_gap_range": [-9.970907361919745e-9, 0.00008047041400193345],
+      "physical_gap_range": [-0.009970907361919745, 80.47041400193345],
+      "complementarity_residual_range": [2.496858720274932e-8, 0.000008588485697044737],
+      "strict_complementarity_passed_count": 28
+    }
+  ],
+  "finding": "The zero-bound regime coincides with 28/28 strict complementarity failures on both t01 fixtures. The positive-bound regime on both t13 fixtures passes all 28 rows at 1e-5, although one tiny negative model gap remains within the accepted residual tolerance. This aligns the observed split with declared bounds and tolerance semantics, not with a causal solver explanation."
+}

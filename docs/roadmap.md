@@ -4076,6 +4076,15 @@ rows use zero upper bounds and retain the approximately `0.00998` physical
 floor; t13 rows use row-specific positive bounds and remain KKT-accepted. This
 clarifies scaling semantics without assigning a solver or formulation cause.
 
+The bound-regime ledger is tracked at
+`docs/bmopf_30bus_ibr_p_upper_bound_regime_ledger_summary.json`, with executable
+runner `benchmarks/bmopf_30bus_ibr_p_upper_bound_regime_ledger.jl`. At the
+declared `1e-5` complementarity tolerance, both zero-bound t01 regimes fail all
+28 target sides, while both positive-bound t13 regimes pass all 28; one t13 row
+retains a tiny negative model gap but remains inside the accepted tolerance.
+This aligns the split with bound and tolerance semantics, without claiming a
+solver or formulation cause.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
