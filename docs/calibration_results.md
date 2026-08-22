@@ -985,3 +985,22 @@ electrical phase semantics for arbitrary plugin blocks nor any solver-work or
 wall-time effect. A matched Ipopt phase-only campaign with magnitude bases
 held fixed is the next empirical step. The compact result is tracked at
 `docs/phase_only_control_summary.json`.
+
+## 2026-08-22: matched phase-only Ipopt truth-fixture campaign
+
+The matched `benchmarks/phase_only_ipopt_campaign.jl` protocol now runs two
+fresh reference solves and two fresh phase-only solves on the same two-block
+quadratic truth fixture. Magnitude bases and objective scale are held fixed;
+the candidate rotates only the declared variable and equality blocks. All four
+runs terminate `LOCALLY_SOLVED`, and the intervention, endpoint-covariance,
+and geometry gates pass.
+
+The reference and phase-only policies each use two callback records, one total
+line-search trial, and no positive regularization records per repeat. The
+matched work difference is therefore zero for every retained metric on this
+fixture. This is a useful negative control: the orthogonal intervention does
+not manufacture a solver-work difference when the problem is algebraically
+equivalent. It is not evidence of global phase-policy superiority or nonlinear
+feeder behavior. The compact result is tracked at
+`docs/phase_only_ipopt_campaign_summary.json`; the next phase-only step is a
+nonlinear truth fixture with the same fixed-magnitude contract.
