@@ -4204,6 +4204,15 @@ positives, false negatives, or unavailable backend results. Four of nine
 deliberate threshold-cluster controls disagree across backends, as expected
 tolerance-sensitive evidence. Broader adversarial and large-model statistics
 remain open.
+The large-model rank increment is tracked at
+`docs/large_sparse_rank_oracle_summary.json`, with executable runner
+`benchmarks/calibrate_large_sparse_rank_oracles.jl`. Twenty guarded sparse
+records across dimensions 128, 256, 512, and 1024 cover full-rank,
+rank-deficient, rectangular, and explicitly scaled constructions. Sparse QR
+matched every planted construction rank with zero unavailable or mismatched
+records; dense SVD was intentionally disabled by the work guard. This extends
+large-model evidence but does not close broader adversarial or cross-backend
+statistics.
 The runtime/memory calibration increment is tracked at
 `docs/sparse_runtime_memory_scaling_summary.json`, with executable runner
 `benchmarks/profile_sparse_runtime_memory_scaling.jl`. It records 12

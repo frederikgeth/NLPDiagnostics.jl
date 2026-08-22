@@ -19,6 +19,7 @@ ibr_tolerance = read_summary("docs/bmopf_30bus_ibr_p_upper_tolerance_margin_summ
 ibr_sparse = read_summary("docs/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit_summary.json")
 rank_oracles = read_summary("docs/randomized_rank_oracle_calibration_summary.json")
 runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
+large_sparse_rank = read_summary("docs/large_sparse_rank_oracle_summary.json")
 
 function gate(id, status, rationale, evidence; blocking=false)
     Dict{String,Any}(
@@ -59,8 +60,8 @@ gates = Dict{String,Any}[
     gate(
         "numerical_rank_false_positive_negative_statistics",
         "partial",
-        "The seeded 27-record rank corpus has zero hard-control false positives, false negatives, or unavailable backend results, with four expected threshold-cluster disagreements; broader adversarial and large-model statistics remain open.",
-        ["docs/randomized_rank_oracle_calibration_summary.json"],
+        "The seeded 27-record corpus has zero hard-control false positives, false negatives, or unavailable backend results, with four expected threshold-cluster disagreements. A guarded 20-record sparse corpus at dimensions 128--1024 adds zero sparse mismatches or unavailable results while intentionally disabling dense SVD; broader adversarial and cross-backend statistics remain open.",
+        ["docs/randomized_rank_oracle_calibration_summary.json", "docs/large_sparse_rank_oracle_summary.json"],
         blocking=true,
     ),
     gate(
