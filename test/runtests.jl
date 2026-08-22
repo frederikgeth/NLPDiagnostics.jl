@@ -8146,6 +8146,26 @@ end
         @test length(
             findings(result.degeneracy_report, :structural_numerical_rank_agreement),
         ) == 1
+        result_data = NLPDiagnostics.profile_result_data(result)
+        @test haskey(result_data, "unavailable_reasons")
+        @test isempty(result_data["unavailable_reasons"])
+        guarded_profile = NLPDiagnostics.profile_case(
+            model,
+            case;
+            rank_max_dense_entries = 0,
+            sparse_qr_rank_max_input_nonzeros = 0,
+            sparse_qr_rank_max_factor_nonzeros = 0,
+        )
+        guarded_data = NLPDiagnostics.profile_result_data(guarded_profile)
+        typed_unavailable = guarded_data["unavailable_reasons"]
+        @test !isempty(typed_unavailable)
+        @test all(
+            entry -> entry["schema_version"] ==
+                "nlpdiagnostics-unavailable-reason-v1",
+            typed_unavailable,
+        )
+        @test any(entry -> entry["capability"] == "jacobian_rank", typed_unavailable)
+        @test any(entry -> entry["capability"] == "sparse_qr_rank", typed_unavailable)
         sparse_probe_result = NLPDiagnostics.profile_case(
             model,
             case;

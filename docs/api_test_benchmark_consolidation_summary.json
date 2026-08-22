@@ -617,6 +617,6 @@
     "explicit_typed_unavailable_tokens": [
       "UnavailableReason"
     ],
-    "typed_adapter_call_count": 4
+    "typed_adapter_call_count": 5
   }
 }

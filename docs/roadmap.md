@@ -4230,6 +4230,9 @@ scripts, and schema versions on all 43 JSON artifacts. A typed
 advanced namespaces now have a non-breaking `NLPDiagnostics.Advanced` facade;
 broad tier migration and adapter adoption remain the next engineering work
 rather than being inferred from export counts. The
+profile-result serialization now emits typed records for guarded dense,
+sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
+The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
 the release ledger and core calibration/audit runners; migration of remaining
@@ -4242,8 +4245,9 @@ environment with BMOPFTools `8f121216`; the current research checkout remains
 on its separate development revision until the API branch is merged.
 
 API modularization, typed unavailable schemas, and benchmark consolidation are
-now partially instrumented through the `NLPDiagnostics.Advanced` facade and
-typed report-boundary adapters. Broad root-export tier migration, helper
-centralization, and complete unavailable-reason adoption remain parallel
-engineering work. New finding families and automatic model reformulation
-remain outside the next increment.
+now partially instrumented through the `NLPDiagnostics.Advanced` facade, typed
+report-boundary adapters, profile serialization, and centralized core benchmark
+helpers. Broad root-export tier migration, complete unavailable-reason adoption,
+remaining runner migration, and reviewed quality-tool policies remain parallel
+engineering work. New finding families and automatic model reformulation remain
+outside the next increment.

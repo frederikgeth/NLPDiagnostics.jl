@@ -72,7 +72,7 @@ gates = Dict{String,Any}[
     gate(
         "api_test_benchmark_consolidation",
         "partial",
-        "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, 103 benchmark scripts, and complete schema coverage for 43 JSON artifacts. A typed unavailable-reason schema, non-breaking Advanced facade, and shared benchmark helper are now available; remaining work is broad adapter adoption, root-export tiering, and migration of the remaining runners.",
+        "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, 103 benchmark scripts, and complete schema coverage for 43 JSON artifacts. A typed unavailable-reason schema, profile-result serialization, non-breaking Advanced facade, and shared benchmark helper are now available; remaining work is broad adapter adoption, root-export tiering, migration of the remaining runners, and reviewed quality-tool policies.",
         ["docs/api_test_benchmark_consolidation_summary.json"],
         blocking=true,
     ),

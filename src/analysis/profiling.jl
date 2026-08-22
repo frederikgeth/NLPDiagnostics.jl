@@ -28,6 +28,35 @@ function _profile_case_data(case::ProfileCase)
     )
 end
 
+function _profile_unavailable_reason_data(report::DiagnosticReport)
+    # Numerical reports historically expose availability and reason as
+    # independent string metadata fields. Preserve those fields while also
+    # emitting one stable typed record per unavailable rank capability.
+    specifications = (
+        (:jacobian_rank, :jacobian_rank_available, :jacobian_rank_reason),
+        (:sparse_qr_rank, :sparse_qr_rank_available, :sparse_qr_rank_reason),
+        (:scaled_sparse_qr_rank, :scaled_sparse_qr_rank_available,
+            :scaled_sparse_qr_rank_reason),
+    )
+    reasons = Dict{String,Any}[]
+    for (capability, available_key, reason_key) in specifications
+        get(report.metadata, available_key, nothing) == "false" || continue
+        raw_reason = get(report.metadata, reason_key, nothing)
+        reason = unavailable_reason(
+            (available = false, reason = raw_reason);
+            code = Symbol("$(capability)_unavailable"),
+            category = :numerical,
+            stage = :numerical,
+        )
+        data = unavailable_reason_data(reason)
+        data["capability"] = string(capability)
+        data["availability_key"] = string(available_key)
+        data["reason_key"] = string(reason_key)
+        push!(reasons, data)
+    end
+    return reasons
+end
+
 """Return renderer-neutral, serializable data for one retained profile run."""
 function profile_result_data(result::ProfileResult)
     return Dict{String,Any}(
@@ -39,6 +68,9 @@ function profile_result_data(result::ProfileResult)
             "numerical" => report_data(result.numerical_report),
             "active_set" => report_data(result.active_set_report),
             "degeneracy" => report_data(result.degeneracy_report),
+        ),
+        "unavailable_reasons" => _profile_unavailable_reason_data(
+            result.numerical_report,
         ),
         "stage_seconds" => _profile_sorted_data(result.stage_seconds),
         "stage_allocations" => _profile_sorted_data(result.stage_allocations),
