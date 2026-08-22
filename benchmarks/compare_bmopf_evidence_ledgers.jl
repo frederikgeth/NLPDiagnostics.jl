@@ -6,11 +6,11 @@ The comparison reports finding identities that are new, resolved, persistent,
 or changed in severity/confidence. It intentionally does not rank campaigns.
 """
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 function _load(path)
-    isfile(path) || error("missing evidence ledger: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(path; root = "/")
     value isa AbstractDict || error("ledger is not a JSON object: $path")
     value
 end
@@ -207,7 +207,7 @@ function main()
     end
     output_path = length(ARGS) == 3 ? abspath(ARGS[3]) :
         joinpath(dirname(current_path), "evidence_ledger_comparison.json")
-    write(output_path, JSON.json(Dict(
+    write_json(output_path, Dict(
         "runner_version" => "bmopf-evidence-ledger-comparison-v2",
         "baseline_ledger" => baseline_path, "current_ledger" => current_path,
         "baseline_source_count" => get(baseline, "source_count", 0),
@@ -218,7 +218,7 @@ function main()
         "distribution_changed_count" => changed_count,
         "changes" => changes, "findings" => findings,
         "interpretation" => "Ledger comparison is source- and campaign-dependent evidence, not a model-quality score or causal test.",
-    )))
+    ))
     println("wrote BMOPF evidence-ledger comparison to $output_path")
 end
 
