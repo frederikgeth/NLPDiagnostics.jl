@@ -3882,6 +3882,14 @@ starts remain null/unavailable rather than being conflated with solver failure.
 This makes the initialization comparison machine-auditable without changing
 the qualification of the underlying convergence evidence.
 
+The same per-snapshot records now retain BMOPFTools' generated-start transport
+diagnostic. On all six snapshots the network-wide ideal phasor transport was
+applied over 396 normalized voltage coordinates and 397 physics equations,
+with maximum normalized physics residual `8.95e-16` and no unsupported
+transformer subtype. This validates the generated phasor recipe itself; it is
+still not a complete native model point because 986 of 1,968 JuMP coordinates
+require the explicit completion fallback.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative

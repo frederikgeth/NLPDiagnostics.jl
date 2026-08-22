@@ -77,6 +77,20 @@ function run_case(label, max_iter, initialization_policy)
                 get(get(run, "initialization", Dict()), "missing_coordinate_count", nothing)
                 for run in report["runs"]
             ],
+            "bmopf_generated_initialization_applied" => [
+                get(
+                    get(get(run, "initialization", Dict()),
+                        "bmopf_generated_initialization", Dict()),
+                    "applied", nothing,
+                ) for run in report["runs"]
+            ],
+            "bmopf_generated_initialization_maximum_normalized_physics_residual" => [
+                get(
+                    get(get(run, "initialization", Dict()),
+                        "bmopf_generated_initialization", Dict()),
+                    "maximum_normalized_physics_residual", nothing,
+                ) for run in report["runs"]
+            ],
             "initialization_summaries" => [
                 get(run, "initialization", Dict()) for run in report["runs"]
             ],

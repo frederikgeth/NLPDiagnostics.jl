@@ -140,7 +140,39 @@ function campaign_initialization_point(context, policy)
     return native
 end
 
-function campaign_initialization_summary(point; policy=nothing)
+function campaign_bmopf_initialization_data(context)
+    raw = try
+        BMOPFTools.opf_initialization_data(context)
+    catch error
+        return Dict{String,Any}(
+            "available" => false,
+            "error" => sprint(showerror, error),
+        )
+    end
+    return Dict{String,Any}(
+        "available" => get(raw, "available", false),
+        "method" => get(raw, "method", nothing),
+        "coordinate_system" => get(raw, "coordinate_system", nothing),
+        "applied" => get(raw, "applied", nothing),
+        "coordinate_count" => get(raw, "coordinate_count", nothing),
+        "physics_equation_count" => get(raw, "physics_equation_count", nothing),
+        "maximum_normalized_physics_residual" => get(
+            raw, "maximum_normalized_physics_residual", nothing,
+        ),
+        "maximum_normalized_residual_by_kind" => get(
+            raw, "maximum_normalized_residual_by_kind", Dict{String,Any}(),
+        ),
+        "unsupported_transformer_subtypes" => get(
+            raw, "unsupported_transformer_subtypes", String[],
+        ),
+    )
+end
+
+function campaign_initialization_summary(
+    point;
+    policy=nothing,
+    bmopf_generated_initialization=nothing,
+)
     metadata = Dict{String,String}(
         string(key) => string(value) for (key, value) in point.provenance.metadata
     )
@@ -162,15 +194,21 @@ function campaign_initialization_summary(point; policy=nothing)
         "provenance_source" => point.provenance.source,
         "missing_coordinate_count" => parse_count(missing_count),
         "metadata" => metadata,
+        "bmopf_generated_initialization" => bmopf_generated_initialization,
     )
 end
 
-function campaign_initialization_failure_summary(policy, error)
+function campaign_initialization_failure_summary(
+    policy,
+    error;
+    bmopf_generated_initialization=nothing,
+)
     return Dict{String,Any}(
         "available" => false,
         "policy" => policy,
         "missing_coordinate_count" => nothing,
         "error" => sprint(showerror, error),
+        "bmopf_generated_initialization" => bmopf_generated_initialization,
     )
 end
 
@@ -653,6 +691,7 @@ function run_snapshot(
             add_objective=true,
         )
         BMOPFTools.enforce_kcl!(context)
+        bmopf_generated_initialization = campaign_bmopf_initialization_data(context)
         point = try
             campaign_initialization_point(context, initialization_policy)
         catch error
@@ -660,7 +699,9 @@ function run_snapshot(
                 "snapshot" => relative,
                 "available" => false,
                 "initialization" => campaign_initialization_failure_summary(
-                    initialization_policy, error,
+                    initialization_policy,
+                    error;
+                    bmopf_generated_initialization,
                 ),
                 "error" => sprint(showerror, error),
             )
@@ -668,6 +709,7 @@ function run_snapshot(
         initialization = campaign_initialization_summary(
             point;
             policy=initialization_policy,
+            bmopf_generated_initialization,
         )
         evaluation = NLPDiagnostics.evaluate_numerical(
             JuMP.backend(BMOPFTools.opf_model(context)),
