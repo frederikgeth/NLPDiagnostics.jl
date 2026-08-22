@@ -35,7 +35,9 @@ include("analysis/degeneracy.jl")
 include("analysis/profiling.jl")
 include("analysis/postmortem.jl")
 include("analysis/initialization.jl")
+include("api/advanced.jl")
 
+export Advanced
 export Confidence
 export ConfidenceCertain, ConfidenceHigh, ConfidenceLow, ConfidenceMedium
 export ConstraintRole

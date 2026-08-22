@@ -27,6 +27,11 @@ include("block_scaling_covariance.jl")
 include("solver_duals.jl")
 
 @testset "typed unavailable reason schema" begin
+    @test NLPDiagnostics.Advanced.UnavailableReason ===
+          NLPDiagnostics.UnavailableReason
+    @test NLPDiagnostics.Advanced.RankPolicy === NLPDiagnostics.RankPolicy
+    @test NLPDiagnostics.Advanced.unavailable_reason_data ===
+          NLPDiagnostics.unavailable_reason_data
     reason = NLPDiagnostics.UnavailableReason(
         "dense Jacobian exceeds the configured work guard";
         code = :dense_work_guard,

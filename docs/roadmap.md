@@ -4223,12 +4223,13 @@ observations only; OPF-solver scaling and isolated peak-memory measurements
 remain open.
 The API/test/benchmark consolidation audit is tracked at
 `docs/api_test_benchmark_consolidation_summary.json`, with executable runner
-`benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 508 root
+`benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 510 root
 exports, 111 root testsets across nine included test modules, 103 benchmark
 scripts, and schema versions on all 43 JSON artifacts. A typed
 `UnavailableReason` report-boundary schema is now present, while explicit
-advanced namespaces, broad adapter adoption, and helper centralization remain
-the next engineering work rather than being inferred from export counts.
+advanced namespaces now have a non-breaking `NLPDiagnostics.Advanced` facade;
+broad tier migration, adapter adoption, and helper centralization remain the
+next engineering work rather than being inferred from export counts.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and
