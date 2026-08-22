@@ -502,6 +502,14 @@ end
             "candidate_unavailable_reasons"
         ]),
     )
+    box_reason_records = box_report["metrics"]["constraint_sets"][
+        "candidate_unavailable_reason_records"
+    ]
+    @test length(box_reason_records) == 1
+    @test box_reason_records[1]["schema_version"] ==
+          "nlpdiagnostics-unavailable-reason-v1"
+    @test box_reason_records[1]["capability"] == "constraint_set_transform"
+    @test box_reason_records[1]["side"] == "candidate"
 
     magnitude_map = NLPDiagnostics.SemanticBlockScalingMap(
         "magnitude";

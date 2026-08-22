@@ -1178,6 +1178,9 @@ root-export tiering remain open. The non-breaking
 rank-policy, and typed-capability APIs; broad root-export tier migration is
 still open. The audit records five typed adapter call sites, including the
 guarded large sparse rank campaign and profiling serialization.
+Scaling-covariance unavailable metrics now also preserve their legacy reason
+arrays while emitting typed capability records with stable side and stage
+fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for

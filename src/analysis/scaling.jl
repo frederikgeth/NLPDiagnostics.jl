@@ -870,6 +870,27 @@ function _semantic_set_descriptors(map::SemanticBlockScalingMap;
     return descriptors, reasons
 end
 
+function _scaling_unavailable_reason_records(
+    reasons;
+    capability::Symbol,
+    side::Symbol,
+)
+    return [
+        begin
+            reason = UnavailableReason(
+                string(raw_reason);
+                code = Symbol("$(capability)_unavailable"),
+                category = :capability,
+                stage = :scaling,
+            )
+            data = unavailable_reason_data(reason)
+            data["capability"] = string(capability)
+            data["side"] = string(side)
+            data
+        end for raw_reason in reasons
+    ]
+end
+
 function _descriptor_numeric_values(descriptor)
     values = Dict{String,Float64}()
     kind = descriptor["kind"]
@@ -909,6 +930,18 @@ function _semantic_set_covariance_metric(
         )
         metric["reference_unavailable_reasons"] = reference_reasons
         metric["candidate_unavailable_reasons"] = candidate_reasons
+        metric["reference_unavailable_reason_records"] =
+            _scaling_unavailable_reason_records(
+                reference_reasons;
+                capability = :constraint_set_transform,
+                side = :reference,
+            )
+        metric["candidate_unavailable_reason_records"] =
+            _scaling_unavailable_reason_records(
+                candidate_reasons;
+                capability = :constraint_set_transform,
+                side = :candidate,
+            )
         return metric
     end
     block_ids_agree = Set(keys(reference)) == Set(keys(candidate))
@@ -1845,6 +1878,18 @@ function _semantic_residual_covariance_metric(
         )
         metric["reference_unavailable_reasons"] = reference_reasons
         metric["candidate_unavailable_reasons"] = candidate_reasons
+        metric["reference_unavailable_reason_records"] =
+            _scaling_unavailable_reason_records(
+                reference_reasons;
+                capability = :constraint_residual_semantics,
+                side = :reference,
+            )
+        metric["candidate_unavailable_reason_records"] =
+            _scaling_unavailable_reason_records(
+                candidate_reasons;
+                capability = :constraint_residual_semantics,
+                side = :candidate,
+            )
         return metric
     end
     keys_agree = Set(keys(reference_values)) == Set(keys(candidate_values))

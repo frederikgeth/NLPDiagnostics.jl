@@ -4265,7 +4265,7 @@ The companion `benchmarks/audit_api_tiers.jl` inventory records 14 explicit
 Advanced/root overlaps and 102 domain-extension root exports without changing
 the backward-compatible root surface. API modularization, typed unavailable schemas, and benchmark consolidation are
 now partially instrumented through the `NLPDiagnostics.Advanced` facade, typed
-report-boundary adapters, profile serialization, centralized core benchmark
+report-boundary adapters, typed scaling-covariance unavailable records, profile serialization, centralized core benchmark
 helpers, and a clean-main BMOPFTools compatibility gate. Broad root-export tier
 migration, complete unavailable-reason adoption, remaining runner migration,
 dependency handoff, and reviewed quality-tool policies remain parallel
