@@ -10,7 +10,7 @@ living scientific ledger for flexible physical bases, residual-block scaling,
 and complex transformations. It retains hypotheses, invariants, rejected ideas,
 experiment protocols, and the current publication boundary as results evolve.
 
-### Current status snapshot (2026-08-22)
+### Current status snapshot (2026-08-23)
 
 The latest bounded 30-bus IBR calibration sequence is complete through
 row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
@@ -28,6 +28,14 @@ calibration cases, complete physical KKT/covariance coverage on the real
 99-bus campaign, numerical-kernel false-positive/false-negative statistics,
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
+
+The latest consolidation increment migrated `benchmarks/validate_bmopf_residual_trends.jl`
+to `benchmarks/common.jl`, bringing the shared helper to ten core runners while
+preserving the validator's JSON schema and CLI. Its local smoke run completed
+successfully against the tracked 30-bus comparison summary. This closes the
+remaining BMOPF validator migration item for the current release gate; the
+dependency handoff remains blocked until the active BMOPFTools checkout matches
+the validated clean-main API.
 
 ## 2026 architecture review: consolidate and calibrate
 
@@ -4235,9 +4243,10 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-nine core release, rank, runtime, and audit runners; the BMOPF campaign
-validator now uses the same JSON/repository helper, while migration of
-remaining scripts remains open. The executable
+ten core release, rank, runtime, and audit runners; both BMOPF campaign and
+residual-trend validators now use the same JSON/repository helper. The
+remaining benchmark scripts are not yet required by the current release gate.
+The executable
 `benchmarks/audit_bmopf_api_contract.jl` audit now extracts the exact
 BMOPFTools surface consumed by the JuMP extension and records dependency
 revision, branch, dirty state, and runtime `OpfDiagnosticSchema` major version.

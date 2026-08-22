@@ -2,7 +2,8 @@
 
 """Validate sparse row-family residual trends against solver phases."""
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 _dict(value) = value isa AbstractDict ? Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()
 
@@ -61,7 +62,8 @@ function main()
     comparison_path = abspath(ARGS[1])
     output_path = length(ARGS) == 2 ? abspath(ARGS[2]) :
         joinpath(dirname(comparison_path), "residual_trend_validation.json")
-    comparison = JSON.parsefile(comparison_path)
+    comparison = read_summary(comparison_path; root = "/")
+    comparison isa AbstractDict || error("comparison summary is not a JSON object: $comparison_path")
     rows = [_row_view(_dict(raw)) for raw in get(comparison, "rows", Any[])]
     policy_views = [view for row in rows for view in values(_dict(row["policies"]))]
     output = Dict{String,Any}(
@@ -82,7 +84,7 @@ function main()
         "interpretation" =>
             "Restoration alignment is a consistency check between captured solver phases and family residual trends; it is not a convergence certificate or a causal diagnosis.",
     )
-    write(output_path, JSON.json(output))
+    write_json(output_path, output)
     println("wrote residual trend validation to $output_path")
 end
 
