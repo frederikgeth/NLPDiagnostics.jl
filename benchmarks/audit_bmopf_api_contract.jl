@@ -24,6 +24,7 @@ const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "bmopf_api_contract_summary.json") : ARGS[1])
 const EXTENSION_SOURCE = joinpath(ROOT, "ext", "BMOPFToolsJuMPExt.jl")
 const REQUIRED_TYPES = ["OpfDiagnosticSchema", "OpfModelKey", "OpfScaling"]
+const OPTIONAL_SYMBOLS = ["powerio_source_behavior_contract"]
 
 function extension_symbols()
     text = read_text(EXTENSION_SOURCE)
@@ -40,7 +41,8 @@ end
 function package_git_root(source_path::AbstractString)
     current = abspath(dirname(source_path))
     while true
-        isdir(joinpath(current, ".git")) && return current
+        (isdir(joinpath(current, ".git")) || isfile(joinpath(current, ".git"))) &&
+            return current
         parent = dirname(current)
         parent == current && return nothing
         current = parent
@@ -53,13 +55,17 @@ function audit_contract()
         "schema_version" => "nlpdiagnostics-bmopf-api-contract-v1",
         "status" => "unavailable",
         "reason" => "BMOPFTools is not discoverable in the active environment",
-        "required_symbols" => extension_symbols(),
+        "required_symbols" => sort!(setdiff(extension_symbols(), OPTIONAL_SYMBOLS)),
     )
 
     BMOPF = Base.require(Main, :BMOPFTools)
-    required_symbols = extension_symbols()
+    extension_api_symbols = extension_symbols()
+    required_symbols = sort!(setdiff(extension_api_symbols, OPTIONAL_SYMBOLS))
     symbol_status = Dict(
         symbol => isdefined(BMOPF, Symbol(symbol)) for symbol in required_symbols
+    )
+    optional_status = Dict(
+        symbol => isdefined(BMOPF, Symbol(symbol)) for symbol in OPTIONAL_SYMBOLS
     )
     missing_symbols = sort!([symbol for (symbol, available) in symbol_status if !available])
     source_path = try
@@ -92,6 +98,8 @@ function audit_contract()
             "required_symbols" => required_symbols,
             "symbol_status" => symbol_status,
             "missing_symbols" => missing_symbols,
+            "optional_symbols" => OPTIONAL_SYMBOLS,
+            "optional_symbol_status" => optional_status,
             "required_types" => REQUIRED_TYPES,
             "required_type_status" => type_status,
             "schema_major_required" => 1,

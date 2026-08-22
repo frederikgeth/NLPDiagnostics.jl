@@ -21,13 +21,15 @@ api_schemas = api_consolidation["benchmark_schema_inventory"]
 api_contract = get(api_consolidation, "bmopf_api_contract", Dict{String,Any}())
 api_contract_status = get(api_contract, "status", "missing")
 api_contract_missing = join(get(api_contract, "missing_symbols", String[]), ", ")
+api_contract_clean_main_status = get(api_contract, "clean_main_status", "missing")
+api_contract_clean_main_revision = get(api_contract, "clean_main_dependency_revision", "unknown")
 api_script_count = api_modules["benchmark_script_count"]
 api_schema_count = api_schemas["json_schema_file_count"]
 api_helper_user_count = api_modules["shared_benchmark_helper_user_count"]
 api_contract_missing_clause = isempty(api_contract_missing) ?
     "" : " (missing: $api_contract_missing)"
 api_contract_rationale =
-    "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, $api_script_count benchmark scripts, and complete schema coverage for $api_schema_count JSON artifacts. A typed unavailable-reason schema, profile-result serialization, non-breaking Advanced facade, and shared benchmark helper are now available; $api_helper_user_count core runners use the helper. The BMOPFTools API contract audit is $api_contract_status$api_contract_missing_clause. Remaining work is broad adapter adoption, root-export tiering, migration of the remaining runners, clean-main contract validation, and reviewed quality-tool policies."
+    "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, $api_script_count benchmark scripts, and complete schema coverage for $api_schema_count JSON artifacts. A typed unavailable-reason schema, profile-result serialization, non-breaking Advanced facade, and shared benchmark helper are now available; $api_helper_user_count core runners use the helper. The active BMOPFTools API contract audit is $api_contract_status$api_contract_missing_clause, while the clean-main contract audit is $api_contract_clean_main_status at revision $api_contract_clean_main_revision and the full local suite passes 1634/1634 there. Remaining work is broad adapter adoption, root-export tiering, migration of the remaining runners, keeping dependency evidence synchronized, and reviewed quality-tool policies."
 
 function gate(id, status, rationale, evidence; blocking=false)
     Dict{String,Any}(
@@ -83,7 +85,11 @@ gates = Dict{String,Any}[
         "api_test_benchmark_consolidation",
         "partial",
         api_contract_rationale,
-        ["docs/api_test_benchmark_consolidation_summary.json"],
+        [
+            "docs/api_test_benchmark_consolidation_summary.json",
+            "docs/bmopf_api_contract_summary.json",
+            "docs/bmopf_api_contract_clean_main_summary.json",
+        ],
         blocking=true,
     ),
 ]

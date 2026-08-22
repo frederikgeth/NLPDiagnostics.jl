@@ -48,6 +48,11 @@ json_files = recursive_files(joinpath(REPO_ROOT, "docs"), ".json")
 bmopf_contract_path = joinpath(REPO_ROOT, "docs", "bmopf_api_contract_summary.json")
 bmopf_contract = isfile(bmopf_contract_path) ? JSON.parsefile(bmopf_contract_path) :
     Dict{String,Any}("status" => "missing")
+bmopf_clean_main_path = joinpath(
+    REPO_ROOT, "docs", "bmopf_api_contract_clean_main_summary.json",
+)
+bmopf_clean_main = isfile(bmopf_clean_main_path) ?
+    JSON.parsefile(bmopf_clean_main_path) : Dict{String,Any}("status" => "missing")
 
 source_includes = String[]
 for line in root_lines
@@ -169,6 +174,13 @@ summary = Dict{String,Any}(
             "git_revision",
             nothing,
         ),
+        "clean_main_artifact" => "docs/bmopf_api_contract_clean_main_summary.json",
+        "clean_main_status" => get(bmopf_clean_main, "status", "missing"),
+        "clean_main_dependency_revision" => get(
+            get(bmopf_clean_main, "dependency", Dict{String,Any}()),
+            "git_revision",
+            nothing,
+        ),
     ),
     "interpretation" => Dict(
         "status" => "partial",
@@ -181,12 +193,13 @@ summary = Dict{String,Any}(
             "source catch-boundary inventory",
             "core release, rank, and runtime runners using benchmarks/common.jl",
             "BMOPFTools public API contract audit artifact",
+            "clean-main BMOPFTools API contract and full local suite evidence",
         ],
         "remaining_work" => [
             "define and document stable versus advanced/experimental API tiers",
             "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
             "migrate the remaining runners to benchmarks/common.jl",
-            "run the BMOPFTools API contract audit against a clean main worktree",
+            "keep the tracked BMOPFTools contract artifact synchronized with the active dependency checkout",
             "add reviewed formatting, documentation-example, Aqua, and targeted JET policies",
         ],
         "does_not_establish" => [

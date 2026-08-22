@@ -4,12 +4,9 @@
       "opf_semantic_blocks"
     ],
     "extension_source": "ext/BMOPFToolsJuMPExt.jl",
-    "missing_symbols": [
-      "OpfDiagnosticSchema",
-      "opf_diagnostic_schema"
-    ],
+    "missing_symbols": [],
     "optional_symbol_status": {
-      "powerio_source_behavior_contract": true
+      "powerio_source_behavior_contract": false
     },
     "optional_symbols": [
       "powerio_source_behavior_contract"
@@ -49,9 +46,9 @@
       "ybus_passive"
     ],
     "required_type_status": {
-      "OpfDiagnosticSchema": false,
+      "OpfDiagnosticSchema": true,
       "OpfModelKey": true,
-      "OpfScaling": false
+      "OpfScaling": true
     },
     "required_types": [
       "OpfDiagnosticSchema",
@@ -61,14 +58,14 @@
     "schema_major_required": 1,
     "schema_version_checked_at_runtime": false,
     "symbol_status": {
-      "OpfDiagnosticSchema": false,
+      "OpfDiagnosticSchema": true,
       "OpfModelKey": true,
       "analyze": true,
       "build_opf_model": true,
       "enforce_kcl!": true,
       "opf_bases": true,
       "opf_bus_voltage_key": true,
-      "opf_diagnostic_schema": false,
+      "opf_diagnostic_schema": true,
       "opf_differentiability_report": true,
       "opf_generator_current_key": true,
       "opf_ground_current_key": true,
@@ -95,12 +92,12 @@
     }
   },
   "dependency": {
-    "git_branch": "codex/source-schema-fidelity",
+    "git_branch": "main",
     "git_dirty": false,
-    "git_revision": "5c4f1e7713b0a8021a30b97ec9e54afa6d4281f7",
-    "git_root": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl",
+    "git_revision": "8f121216065bcd692f18444836c7c80149e5cf4a",
+    "git_root": "/private/tmp/bmopf-opf-scaling-diagnostic-schema",
     "name": "BMOPFTools",
-    "source_path": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/src/BMOPFTools.jl",
+    "source_path": "/private/tmp/bmopf-opf-scaling-diagnostic-schema/src/BMOPFTools.jl",
     "uuid": "5f9a3b62-8f63-4a39-b67b-af9b51e6a7c3",
     "version": "0.1.0"
   },
@@ -113,5 +110,5 @@
     ]
   },
   "schema_version": "nlpdiagnostics-bmopf-api-contract-v1",
-  "status": "fail"
+  "status": "pass"
 }

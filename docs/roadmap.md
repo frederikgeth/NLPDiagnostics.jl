@@ -4241,8 +4241,11 @@ scripts remains open. The executable
 BMOPFTools surface consumed by the JuMP extension and records dependency
 revision, branch, and dirty state. It currently fails on the active
 `codex/source-schema-fidelity` checkout because `OpfDiagnosticSchema` and
-`opf_diagnostic_schema` are absent; a clean-main pass is required before a
-merge-ready BMOPFTools PR.
+`opf_diagnostic_schema` are absent. The tracked clean-main artifact now passes
+at BMOPFTools `8f121216065bcd692f18444836c7c80149e5cf4a`, and the full local
+suite passes 1634/1634 against that worktree. The dependency handoff remains
+the next PR gate: resolve the active checkout onto the clean-main API (or
+merge the schema branch), then rerun the contract audit and suite.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and
@@ -4252,8 +4255,9 @@ on its separate development revision until the API branch is merged.
 
 API modularization, typed unavailable schemas, and benchmark consolidation are
 now partially instrumented through the `NLPDiagnostics.Advanced` facade, typed
-report-boundary adapters, profile serialization, and centralized core benchmark
-helpers. Broad root-export tier migration, complete unavailable-reason adoption,
-remaining runner migration, clean-main BMOPFTools contract validation, and
-reviewed quality-tool policies remain parallel engineering work. New finding
-families and automatic model reformulation remain outside the next increment.
+report-boundary adapters, profile serialization, centralized core benchmark
+helpers, and a clean-main BMOPFTools compatibility gate. Broad root-export tier
+migration, complete unavailable-reason adoption, remaining runner migration,
+dependency handoff, and reviewed quality-tool policies remain parallel
+engineering work. New finding families and automatic model reformulation remain
+outside the next increment.

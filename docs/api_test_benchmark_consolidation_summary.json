@@ -527,13 +527,16 @@
   },
   "benchmark_schema_inventory": {
     "benchmark_scripts_with_schema_version_count": 42,
-    "json_file_count": 44,
-    "json_schema_file_count": 44,
+    "json_file_count": 45,
+    "json_schema_file_count": 45,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
   "bmopf_api_contract": {
     "artifact": "docs/bmopf_api_contract_summary.json",
+    "clean_main_artifact": "docs/bmopf_api_contract_clean_main_summary.json",
+    "clean_main_dependency_revision": "8f121216065bcd692f18444836c7c80149e5cf4a",
+    "clean_main_status": "pass",
     "dependency_revision": "5c4f1e7713b0a8021a30b97ec9e54afa6d4281f7",
     "missing_symbols": [
       "OpfDiagnosticSchema",
@@ -548,7 +551,8 @@
       "benchmark JSON schema coverage",
       "source catch-boundary inventory",
       "core release, rank, and runtime runners using benchmarks/common.jl",
-      "BMOPFTools public API contract audit artifact"
+      "BMOPFTools public API contract audit artifact",
+      "clean-main BMOPFTools API contract and full local suite evidence"
     ],
     "does_not_establish": [
       "API compatibility across a future namespace refactor",
@@ -560,7 +564,7 @@
       "define and document stable versus advanced/experimental API tiers",
       "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
       "migrate the remaining runners to benchmarks/common.jl",
-      "run the BMOPFTools API contract audit against a clean main worktree",
+      "keep the tracked BMOPFTools contract artifact synchronized with the active dependency checkout",
       "add reviewed formatting, documentation-example, Aqua, and targeted JET policies"
     ],
     "status": "partial"

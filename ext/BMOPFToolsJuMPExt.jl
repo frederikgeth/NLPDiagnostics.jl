@@ -2098,7 +2098,14 @@ function _bmopf_voltage_initialization_invariants_data(
     )
 end
 
-"""Compare independently generated BMOPFTools starts across scaling policies."""
+"""Compare independently generated BMOPFTools starts across scaling policies.
+
+The public BMOPFTools diagnostic schema only exposes semantic blocks after the
+staged context reaches ``:kcl_finalized``.  Finalize each input lazily here so
+callers can pass freshly-built contexts (the same lifecycle accepted by the
+benchmark builders) without silently falling back to an unavailable scalar
+comparison.
+"""
 function _bmopf_initialization_scaling_covariance_report(
     reference_context,
     candidate_context;
@@ -2109,6 +2116,17 @@ function _bmopf_initialization_scaling_covariance_report(
     transport_residual_tolerance::Real=1.0e-10,
     covariance_kwargs...,
 )
+    for context in (reference_context, candidate_context)
+        BMOPFTools.opf_lifecycle(context) == :kcl_finalized && continue
+        try
+            BMOPFTools.enforce_kcl!(context)
+        catch error
+            error isa MethodError && error.f === BMOPFTools.enforce_kcl! || rethrow()
+            throw(ArgumentError(
+                "BMOPFTools.enforce_kcl! is unavailable; load BMOPFTools' JuMP/IPOPT OPF extension before requesting initialization covariance",
+            ))
+        end
+    end
     reference_point = _bmopf_start_completion_point(
         reference_context;
         missing_value,
