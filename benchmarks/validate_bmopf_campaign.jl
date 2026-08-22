@@ -14,11 +14,11 @@ Usage:
     julia benchmarks/validate_bmopf_campaign.jl output.json summary1.json ...
 """
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 function _load(path)
-    isfile(path) || error("benchmark summary is missing: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(path; root = "/")
     value isa AbstractDict || error("benchmark summary is not a JSON object: $path")
     return value
 end
@@ -2987,7 +2987,7 @@ function main()
         "findings" => all_findings,
         "interpretation" => "Trust-gate validation only; warnings identify unavailable or conditional evidence and are not model-quality scores.",
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote BMOPF campaign validation report to $output_path")
 end
 

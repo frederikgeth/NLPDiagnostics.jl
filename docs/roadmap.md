@@ -4235,8 +4235,9 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-seven core release, rank, runtime, and audit runners; migration of remaining
-scripts remains open. The executable
+nine core release, rank, runtime, and audit runners; the BMOPF campaign
+validator now uses the same JSON/repository helper, while migration of
+remaining scripts remains open. The executable
 `benchmarks/audit_bmopf_api_contract.jl` audit now extracts the exact
 BMOPFTools surface consumed by the JuMP extension and records dependency
 revision, branch, dirty state, and runtime `OpfDiagnosticSchema` major version.
