@@ -1,0 +1,58 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-ibr-p-upper-budget-matrix-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_30bus_ibr_p_upper_budget_matrix.jl",
+    "local_environment": "work/benchmark-environment",
+    "solver": "Ipopt",
+    "budgets": [10, 20, 40, 80],
+    "quantity_tolerance": 1.0,
+    "stationarity_tolerance": 1e-5,
+    "dual_tolerance": 1e-5,
+    "complementarity_tolerance": 1e-5
+  },
+  "cases": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "budgets": [
+        {"max_iter": 10, "termination_status": "ITERATION_LIMIT", "ibr_p_upper_physical_violation_max": 0.5356873447825617, "maximum_complementarity_residual": 1.0005795762444432, "physical_kkt_acceptance_passed": false},
+        {"max_iter": 20, "termination_status": "LOCALLY_SOLVED", "ibr_p_upper_physical_violation_max": 0.009976176743116998, "maximum_complementarity_residual": 1.049343932476267e-5, "physical_kkt_acceptance_passed": false},
+        {"max_iter": 40, "termination_status": "LOCALLY_SOLVED", "ibr_p_upper_physical_violation_max": 0.009976176743116998, "maximum_complementarity_residual": 1.049343932476267e-5, "physical_kkt_acceptance_passed": false},
+        {"max_iter": 80, "termination_status": "LOCALLY_SOLVED", "ibr_p_upper_physical_violation_max": 0.009976176743116998, "maximum_complementarity_residual": 1.049343932476267e-5, "physical_kkt_acceptance_passed": false}
+      ]
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "budgets": [
+        {"max_iter": 10, "termination_status": "ITERATION_LIMIT", "ibr_p_upper_physical_violation_max": 0.0, "maximum_complementarity_residual": 0.0023427574967735355, "physical_kkt_acceptance_passed": false},
+        {"max_iter": 20, "termination_status": "LOCALLY_SOLVED", "ibr_p_upper_physical_violation_max": 0.009971078155103896, "maximum_complementarity_residual": 8.639323370055962e-6, "physical_kkt_acceptance_passed": true},
+        {"max_iter": 40, "termination_status": "LOCALLY_SOLVED", "ibr_p_upper_physical_violation_max": 0.009971078155103896, "maximum_complementarity_residual": 8.639323370055962e-6, "physical_kkt_acceptance_passed": true},
+        {"max_iter": 80, "termination_status": "LOCALLY_SOLVED", "ibr_p_upper_physical_violation_max": 0.009971078155103896, "maximum_complementarity_residual": 8.639323370055962e-6, "physical_kkt_acceptance_passed": true}
+      ]
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "budgets": [
+        {"max_iter": 10, "termination_status": "ITERATION_LIMIT", "ibr_p_upper_physical_violation_max": 0.5356867538561494, "maximum_complementarity_residual": 1.000579576493293, "physical_kkt_acceptance_passed": false},
+        {"max_iter": 20, "termination_status": "LOCALLY_SOLVED", "ibr_p_upper_physical_violation_max": 0.009976176772531127, "maximum_complementarity_residual": 1.0493452407338264e-5, "physical_kkt_acceptance_passed": false},
+        {"max_iter": 40, "termination_status": "LOCALLY_SOLVED", "ibr_p_upper_physical_violation_max": 0.009976176772531127, "maximum_complementarity_residual": 1.0493452407338264e-5, "physical_kkt_acceptance_passed": false},
+        {"max_iter": 80, "termination_status": "LOCALLY_SOLVED", "ibr_p_upper_physical_violation_max": 0.009976176772531127, "maximum_complementarity_residual": 1.0493452407338264e-5, "physical_kkt_acceptance_passed": false}
+      ]
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "budgets": [
+        {"max_iter": 10, "termination_status": "ITERATION_LIMIT", "ibr_p_upper_physical_violation_max": 0.0, "maximum_complementarity_residual": 0.00347573658637148, "physical_kkt_acceptance_passed": false},
+        {"max_iter": 20, "termination_status": "LOCALLY_SOLVED", "ibr_p_upper_physical_violation_max": 0.009970907362003345, "maximum_complementarity_residual": 8.588485697044737e-6, "physical_kkt_acceptance_passed": true},
+        {"max_iter": 40, "termination_status": "LOCALLY_SOLVED", "ibr_p_upper_physical_violation_max": 0.009970907362003345, "maximum_complementarity_residual": 8.588485697044737e-6, "physical_kkt_acceptance_passed": true},
+        {"max_iter": 80, "termination_status": "LOCALLY_SOLVED", "ibr_p_upper_physical_violation_max": 0.009970907362003345, "maximum_complementarity_residual": 8.588485697044737e-6, "physical_kkt_acceptance_passed": true}
+      ]
+    }
+  ],
+  "comparison": {
+    "locally_solved_at_budgets_20_40_80": true,
+    "endpoint_metrics_identical_across_budgets_20_40_80": true,
+    "strict_kkt_passed_count_at_budgets_20_40_80": 2,
+    "interpretation": "Once the four snapshots reach LOCALLY_SOLVED at max_iter=20, increasing the budget to 40 or 80 leaves the IBR upper physical violation and maximum complementarity unchanged. The t01 strict KKT failures therefore do not move with this additional budget, while t13 remains accepted.",
+    "qualification": "This is a bounded Ipopt max-iteration sensitivity result on four 30-bus snapshots. The max_iter=10 rows are incomplete solves and are not endpoint comparisons; unchanged endpoints do not prove a global convergence or formulation cause."
+  }
+}

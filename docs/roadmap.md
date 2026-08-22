@@ -3979,6 +3979,16 @@ that the floor is a trajectory endpoint observation rather than an endpoint-
 only artifact, while remaining primal trace evidence without callback duals or
 causal solver attribution.
 
+The bounded max-iteration matrix is tracked at
+`docs/bmopf_30bus_ibr_p_upper_budget_matrix_summary.json`, with executable
+runner `benchmarks/bmopf_30bus_ibr_p_upper_budget_matrix.jl`. All four cases
+reach `LOCALLY_SOLVED` at `max_iter=20`; increasing the budget to 40 or 80
+leaves the `ibr_p_upper` physical violation and maximum complementarity exactly
+unchanged. The two t01 cases therefore remain strict-KKT failures despite extra
+budget, while both t13 cases remain accepted. The `max_iter=10` rows are
+iteration-limited and are retained only as incomplete-solve controls; this
+narrows the convergence hypothesis without proving a formulation cause.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
