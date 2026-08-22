@@ -4048,6 +4048,16 @@ rows respond in both `cri` and `cii`. This strengthens the local finite-
 difference observation without upgrading it to a KKT, conditioning, or causal
 claim.
 
+The analytic directional cross-check is tracked at
+`docs/bmopf_30bus_ibr_p_upper_directional_jacobian_check_summary.json`, with
+executable runner `benchmarks/bmopf_30bus_ibr_p_upper_directional_jacobian_check.jl`.
+For each target row, the sum of evaluator Jacobian entries over `cri` or `cii`
+agrees with the corresponding central finite difference at `1e-6`; the worst
+absolute discrepancy is below `9e-13`, with t01 cases at roundoff. This
+validates the local derivative direction used by the preceding probes, while
+remaining derivative evidence rather than a KKT, conditioning, or causal
+certificate.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative

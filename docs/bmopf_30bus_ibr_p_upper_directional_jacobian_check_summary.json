@@ -1,0 +1,89 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-ibr-p-upper-directional-jacobian-check-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_30bus_ibr_p_upper_directional_jacobian_check.jl",
+    "raw_probe": "/private/tmp/bmopf-30bus-ibr-directional-jacobian.json",
+    "solver": "Ipopt",
+    "max_iter": 80,
+    "delta": 1e-6,
+    "target_row_family": "ibr_p_upper"
+  },
+  "protocol": {
+    "snapshots": 4,
+    "target_rows_per_snapshot": 28,
+    "families": ["cri", "cii"],
+    "analytic_direction": "sum of evaluator Jacobian entries in each target row over one semantic variable family",
+    "finite_difference_direction": "central plus/minus evaluation after perturbing every variable in that family by delta"
+  },
+  "cases": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_count": 28,
+      "reports": {
+        "cri": {
+          "analytic_slope_range": [-0.4973661583772294, 0.9910182542879458],
+          "finite_difference_slope_range": [-0.4973661583772295, 0.9910182542879458],
+          "maximum_absolute_difference": 1.1102230246251565e-16
+        },
+        "cii": {
+          "analytic_slope_range": [-0.8642743071981477, 0.8564108167370644],
+          "finite_difference_slope_range": [-0.8642743071981476, 0.8564108167370644],
+          "maximum_absolute_difference": 2.220446049250313e-16
+        }
+      }
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_count": 28,
+      "reports": {
+        "cri": {
+          "analytic_slope_range": [-0.5649229701311231, 1.0812782464219077],
+          "finite_difference_slope_range": [-0.5649229701315193, 1.0812782464219954],
+          "maximum_absolute_difference": 8.955058916626513e-13
+        },
+        "cii": {
+          "analytic_slope_range": [-0.9450480237315048, 0.9049518265115544],
+          "finite_difference_slope_range": [-0.9450480237312847, 0.9049518265116276],
+          "maximum_absolute_difference": 7.189804307472514e-13
+        }
+      }
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_count": 28,
+      "reports": {
+        "cri": {
+          "analytic_slope_range": [-0.4973661677776578, 0.9910182404996744],
+          "finite_difference_slope_range": [-0.49736616777765785, 0.9910182404996744],
+          "maximum_absolute_difference": 1.1102230246251565e-16
+        },
+        "cii": {
+          "analytic_slope_range": [-0.8642743283714067, 0.8564107802364774],
+          "finite_difference_slope_range": [-0.8642743283714067, 0.8564107802364773],
+          "maximum_absolute_difference": 2.220446049250313e-16
+        }
+      }
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "target_row_count": 28,
+      "reports": {
+        "cri": {
+          "analytic_slope_range": [-0.5536660456035618, 1.0949930386061824],
+          "finite_difference_slope_range": [-0.5536660456040114, 1.0949930386058675],
+          "maximum_absolute_difference": 5.627165400312606e-13
+        },
+        "cii": {
+          "analytic_slope_range": [-0.9451757026264893, 0.9134377224427768],
+          "finite_difference_slope_range": [-0.945175702626519, 0.9134377224428829],
+          "maximum_absolute_difference": 4.942435349875041e-13
+        }
+      }
+    }
+  ],
+  "finding": "Analytic family-direction slopes and central finite differences agree to approximately 9e-13 absolute at the worst t13 row and to roundoff on t01. This validates the local evaluator derivative direction used by the preceding probes; it is not a KKT, conditioning, or causal certificate."
+}
