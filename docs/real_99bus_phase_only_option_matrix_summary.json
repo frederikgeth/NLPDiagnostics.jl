@@ -1,0 +1,63 @@
+{
+  "schema_version": "nlpdiagnostics-real-99bus-phase-only-option-matrix-summary-v1",
+  "source": {
+    "campaign": "benchmarks/real_99bus_phase_only_campaign.jl",
+    "runner": "benchmarks/real_99bus_phase_only_option_matrix.jl",
+    "selected_snapshot_count": 6,
+    "local_environment": "work/benchmark-environment",
+    "absolute_physical_claim": false
+  },
+  "cases": [
+    {
+      "label": "baseline_max40",
+      "ipopt_options": {},
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance": {"1.0e-5": 2, "1.1e-5": 4, "1.2e-5": 6, "2.0e-5": 6, "0.0001": 6},
+      "phase_only_maximum_complementarity_residual": 1.141720164003029e-05,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    },
+    {
+      "label": "tight_tol_max60",
+      "ipopt_options": {"tol": 1e-10, "acceptable_tol": 1e-10},
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance": {"1.0e-5": 2, "1.1e-5": 4, "1.2e-5": 6, "2.0e-5": 6, "0.0001": 6},
+      "phase_only_maximum_complementarity_residual": 1.142962858849188e-05,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    },
+    {
+      "label": "monotone_mu_max60",
+      "ipopt_options": {"mu_strategy": "monotone"},
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance": {"1.0e-5": 2, "1.1e-5": 4, "1.2e-5": 6, "2.0e-5": 6, "0.0001": 6},
+      "phase_only_maximum_complementarity_residual": 1.141720164003029e-05,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    },
+    {
+      "label": "scaling_none_max60",
+      "ipopt_options": {"nlp_scaling_method": "none"},
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance": {"1.0e-5": 2, "1.1e-5": 4, "1.2e-5": 6, "2.0e-5": 6, "0.0001": 6},
+      "phase_only_maximum_complementarity_residual": 1.1428434380299394e-05,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    }
+  ],
+  "interpretation": {
+    "policy_result": "All four local policies solve all six snapshots and retain 2/6 strict compound-KKT acceptance.",
+    "complementarity_floor": "The maximum phase-only physical complementarity residual ranges from 1.141720164003029e-05 to 1.142962858849188e-05; the option spread is 1.24e-08.",
+    "solver_floor_and_scaling": "All cases pass the solver-floor feasibility screen and all six complementarity scaling audits.",
+    "conclusion": "These option perturbations do not materially move the ibr_p_upper floor; no automatic Ipopt policy is selected.",
+    "next_investigation": "Residual semantics or a more targeted convergence/initialization trace for ibr_p_upper remains open."
+  }
+}

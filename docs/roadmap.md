@@ -3845,6 +3845,15 @@ rules out a residual unit-conversion mismatch as the explanation for the
 `ibr_p_upper` failures and leaves solver convergence or the underlying residual
 semantics as the next investigation, without making a causal claim.
 
+The local Ipopt option matrix is now tracked at
+`docs/real_99bus_phase_only_option_matrix_summary.json`, with executable
+protocol `benchmarks/real_99bus_phase_only_option_matrix.jl`. Baseline,
+`tol=acceptable_tol=1e-10`, monotone barrier strategy, and no-NLP-scaling
+policies all solve the six snapshots, preserve 2/6 strict KKT acceptance, and
+pass the six-case scaling audit. The maximum phase-only complementarity floor
+spans only `1.24e-8` across these policies, so no automatic option policy is
+selected; this is local sensitivity evidence, not a causal convergence claim.
+
 A phase-only covariance report now compares source and transformed endpoint
 point, objective, residual, derivative, sparse-Jacobian geometry, and scalar
 variable-domain sets through the declared semantic block maps. All six reports

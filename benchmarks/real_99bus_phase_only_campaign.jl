@@ -27,10 +27,18 @@ function set_start_values!(model, variables, values)
     end
 end
 
-function solve_reference(context, point; max_iter)
+function apply_ipopt_options!(model; max_iter, ipopt_options=Dict{String,Any}())
+    JuMP.set_optimizer_attribute(model, "max_iter", max_iter)
+    for (name, value) in ipopt_options
+        JuMP.set_optimizer_attribute(model, String(name), value)
+    end
+    return model
+end
+
+function solve_reference(context, point; max_iter, ipopt_options=Dict{String,Any}())
     model = BMOPFTools.opf_model(context)
     set_start_values!(model, point.variables, point.values)
-    JuMP.set_optimizer_attribute(model, "max_iter", max_iter)
+    apply_ipopt_options!(model; max_iter, ipopt_options)
     try
         JuMP.optimize!(model)
         return Dict{String,Any}(
@@ -493,6 +501,7 @@ function run_snapshot(
     endpoint_tolerance,
     baseline_margin,
     model_feasibility_tolerance,
+    ipopt_options=Dict{String,Any}(),
 )
     path = joinpath(root, relative)
     try
@@ -518,7 +527,7 @@ function run_snapshot(
             angle,
             max_dense_entries=0,
         )
-        reference = solve_reference(context, point; max_iter)
+        reference = solve_reference(context, point; max_iter, ipopt_options)
         reference_summary = Dict{String,Any}(
             "available" => get(reference, "available", false),
             "solver_run_completed" => get(reference, "solver_run_completed", false),
@@ -567,7 +576,7 @@ function run_snapshot(
         attach_physical_kkt_tolerance_sensitivity!(reference_kkt)
         attach_complementarity_scaling_audit!(reference_kkt)
         candidate_model = JuMP.Model(Ipopt.Optimizer)
-        JuMP.set_optimizer_attribute(candidate_model, "max_iter", max_iter)
+        apply_ipopt_options!(candidate_model; max_iter, ipopt_options)
         phase_only = NLPDiagnostics.bmopf_phase_only_solve_model(
             context,
             evaluation;
@@ -706,6 +715,22 @@ function run_campaign()
     model_feasibility_tolerance = parse(Float64, get(
         ENV, "NLPDIAGNOSTICS_REAL_99BUS_MODEL_FEASIBILITY_TOLERANCE", "1.0e-8",
     ))
+    ipopt_options = Dict{String,Any}()
+    for (environment_name, option_name, parser) in [
+        ("NLPDIAGNOSTICS_REAL_99BUS_IPOPT_TOL", "tol", x -> parse(Float64, x)),
+        ("NLPDIAGNOSTICS_REAL_99BUS_IPOPT_ACCEPTABLE_TOL", "acceptable_tol", x -> parse(Float64, x)),
+        ("NLPDIAGNOSTICS_REAL_99BUS_IPOPT_ACCEPTABLE_ITER", "acceptable_iter", x -> parse(Int, x)),
+    ]
+        raw = get(ENV, environment_name, "")
+        isempty(raw) || (ipopt_options[option_name] = parser(raw))
+    end
+    for (environment_name, option_name) in [
+        ("NLPDIAGNOSTICS_REAL_99BUS_IPOPT_MU_STRATEGY", "mu_strategy"),
+        ("NLPDIAGNOSTICS_REAL_99BUS_IPOPT_NLP_SCALING_METHOD", "nlp_scaling_method"),
+    ]
+        raw = get(ENV, environment_name, "")
+        isempty(raw) || (ipopt_options[option_name] = raw)
+    end
     runs = [run_snapshot(
         root,
         relative;
@@ -714,6 +739,7 @@ function run_campaign()
         endpoint_tolerance,
         baseline_margin,
         model_feasibility_tolerance,
+        ipopt_options,
     ) for relative in SELECTED_SNAPSHOTS]
     solved = [
         run for run in runs
@@ -821,6 +847,20 @@ function run_campaign()
                 "maximum_relative_product_error", 0.0)
             for run in phase_only_kkt_available
         )
+    reference_maximum_complementarity_residual = isempty(reference_kkt_available) ?
+        nothing : maximum(
+            get(get(get(run, "reference_physical_solver_kkt", Dict()),
+                "tolerance_sensitivity", Dict()),
+                "maximum_complementarity_residual", 0.0)
+            for run in reference_kkt_available
+        )
+    phase_only_maximum_complementarity_residual = isempty(phase_only_kkt_available) ?
+        nothing : maximum(
+            get(get(get(get(run, "phase_only", Dict()), "physical_solver_kkt", Dict()),
+                "tolerance_sensitivity", Dict()),
+                "maximum_complementarity_residual", 0.0)
+            for run in phase_only_kkt_available
+        )
     phase_only_covariance_available = [
         run for run in runs
         if get(get(get(run, "phase_only", Dict()), "covariance", Dict()), "available", false) === true
@@ -839,6 +879,7 @@ function run_campaign()
             "endpoint_tolerance" => endpoint_tolerance,
             "baseline_margin" => baseline_margin,
             "model_feasibility_tolerance" => model_feasibility_tolerance,
+            "ipopt_options" => ipopt_options,
         ),
         "runs" => runs,
         "summary" => Dict(
@@ -861,6 +902,8 @@ function run_campaign()
             "phase_only_complementarity_scaling_audit_pass_count" => phase_only_complementarity_scaling_audit_passed,
             "reference_maximum_complementarity_scaling_product_relative_error" => reference_maximum_complementarity_scaling_product_relative_error,
             "phase_only_maximum_complementarity_scaling_product_relative_error" => phase_only_maximum_complementarity_scaling_product_relative_error,
+            "reference_maximum_complementarity_residual" => reference_maximum_complementarity_residual,
+            "phase_only_maximum_complementarity_residual" => phase_only_maximum_complementarity_residual,
             "phase_only_covariance_available_count" => length(phase_only_covariance_available),
             "phase_only_covariance_acceptance_count" => length(phase_only_covariance_accepted),
             "phase_only_physical_endpoint_acceptance_count" => length(phase_only_physical),
