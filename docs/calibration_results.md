@@ -1051,3 +1051,19 @@ transformer association, not a universal recommendation: full connection
 matrices, winding-local bases, and wall-time portability remain outside this
 fixture. The compact result is tracked at
 `docs/phase_only_transformer_ipopt_campaign_summary.json`.
+
+## 2026-08-22: feeder phase-only Ipopt promotion
+
+The fixed-magnitude protocol now covers a three-bus radial feeder truth
+fixture with nonlinear voltage-magnitude equations and declared branch-drop
+projections. Two fresh reference and two fresh phase-only Ipopt solves all
+terminate `LOCALLY_SOLVED`; intervention, endpoint-covariance, and geometry
+gates pass.
+
+The reference uses seven callback records and six line-search trials per
+repeat. The phase-only policy uses nine records and twelve line-search trials,
+with no positive regularization in either policy. The extra work is retained
+as a negative control rather than a recommendation: this bounded feeder
+fixture does not establish global policy superiority, wall-time portability,
+or full network semantics. The compact result is tracked at
+`docs/phase_only_feeder_ipopt_campaign_summary.json`.

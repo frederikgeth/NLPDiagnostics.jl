@@ -3733,16 +3733,15 @@ complete and qualified at both native and perturbed physical starts for Ipopt
 and MadNLP. Both show the same scaling--initialization interaction: the
 AC-zone-2-high-only intervention helps at the native start and reverses
 direction after perturbation. This is not a universal base-selection rule.
-The next research sequence is:
+The transformer and feeder truth-fixture promotions are now complete, with
+compact summaries and executable protocols. The next research sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
-2. extend the completed phase-only algebraic, quadratic, nonlinear,
-   controller-rich, and transformer Ipopt controls to feeder truth fixtures
-   while keeping magnitude bases fixed;
-3. publish the same compact summary shape for each promoted calibration
-   campaign; and
-4. only then evaluate a bounded 99-bus snapshot matrix or automatic-policy
+2. compare the completed feeder, transformer, controller-rich, nonlinear, and
+   algebraic phase-only campaigns, retaining the feeder work increase as a
+   negative control rather than a policy recommendation; and
+3. only then evaluate a bounded 99-bus snapshot matrix or automatic-policy
    candidates.
 
 The held-out LG summary is tracked at `docs/calibration_summary.json`. The
@@ -3760,7 +3759,9 @@ protocols are `benchmarks/phase_only_orthogonal_control.jl`,
 `benchmarks/phase_only_ipopt_campaign.jl`,
 `benchmarks/phase_only_nonlinear_ipopt_campaign.jl`,
 `benchmarks/phase_only_controller_ipopt_campaign.jl`, and
-`benchmarks/phase_only_transformer_ipopt_campaign.jl`.
+`benchmarks/phase_only_transformer_ipopt_campaign.jl`. The feeder promotion
+is tracked at `docs/phase_only_feeder_ipopt_campaign_summary.json`, with
+executable protocol `benchmarks/phase_only_feeder_ipopt_campaign.jl`.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and

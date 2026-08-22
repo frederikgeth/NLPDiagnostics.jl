@@ -1,0 +1,27 @@
+{
+  "schema_version": "nlpdiagnostics-phase-only-feeder-ipopt-campaign-summary-v1",
+  "runner": "benchmarks/phase_only_feeder_ipopt_campaign.jl",
+  "design": {
+    "repeats_per_policy": 2,
+    "magnitude_bases_held_fixed": true,
+    "dense_decompositions_enabled": false,
+    "fixture": "three-bus radial feeder with nonlinear voltage magnitudes and branch-drop projections",
+    "physical_start": [1.0, 0.05, 0.96, 0.08, 0.91, 0.12]
+  },
+  "gates": {
+    "intervention_classification": "phase_only",
+    "endpoint_covariance_passed": true,
+    "geometry_gate_passed": true,
+    "all_endpoints_locally_solved": true
+  },
+  "solver_work": {
+    "reference": {"record_count": [7, 7], "line_search_trial_sum": [6, 6], "positive_regularization_record_count": [0, 0]},
+    "phase_only": {"record_count": [9, 9], "line_search_trial_sum": [12, 12], "positive_regularization_record_count": [0, 0]},
+    "matched_work_difference": {"record_count": 2, "line_search_trial_sum": 6, "positive_regularization_record_count": 0}
+  },
+  "qualification": {
+    "claim": "On the nonlinear three-bus radial feeder truth fixture, the phase-only formulation preserves the physical endpoint and remains locally solved, but uses more recorded Ipopt work than the reference in this run.",
+    "scope": "Two fresh reference and two fresh phase-only Ipopt solves with fixed voltage-magnitude bases and two declared branch-drop projections.",
+    "does_not_establish": ["global phase-policy superiority", "wall-time portability", "full feeder network semantics"]
+  }
+}
