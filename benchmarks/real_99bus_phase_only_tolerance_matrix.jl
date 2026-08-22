@@ -63,12 +63,16 @@ function run_case(label, max_iter, model_tolerance)
                 summary["reference_physical_solver_kkt_acceptance_count"],
             "reference_solver_floor_compound_kkt_acceptance_count" =>
                 summary["reference_solver_floor_compound_kkt_acceptance_count"],
+            "reference_physical_solver_kkt_acceptance_by_complementarity_tolerance" =>
+                summary["reference_physical_solver_kkt_acceptance_by_complementarity_tolerance"],
             "phase_only_physical_solver_kkt_available_count" =>
                 summary["phase_only_physical_solver_kkt_available_count"],
             "phase_only_physical_solver_kkt_acceptance_count" =>
                 summary["phase_only_physical_solver_kkt_acceptance_count"],
             "phase_only_solver_floor_compound_kkt_acceptance_count" =>
                 summary["phase_only_solver_floor_compound_kkt_acceptance_count"],
+            "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance" =>
+                summary["phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance"],
             "phase_only_covariance_available_count" =>
                 summary["phase_only_covariance_available_count"],
             "phase_only_covariance_acceptance_count" =>
@@ -99,7 +103,7 @@ output = abspath(get(
 ))
 mkpath(dirname(output))
 write(output, JSON.json(Dict(
-    "schema_version" => "nlpdiagnostics-real-99bus-phase-only-tolerance-matrix-v1",
+    "schema_version" => "nlpdiagnostics-real-99bus-phase-only-tolerance-matrix-v2",
     "source" => Dict(
         "campaign" => basename(CAMPAIGN),
         "project" => PROJECT,

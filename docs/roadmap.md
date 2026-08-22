@@ -3812,8 +3812,9 @@ alignment is below `7e-16` on all six snapshots, source-coordinate stationarity
 passes all six, and full compound KKT acceptance also passes 2/6. This closes
 the representation/transport blocker while preserving the distinction between
 solver-scale KKT evidence and absolute physical acceptance. Physical covariance
-validation and the remaining complementarity failures are still open; this is
-readiness and failure-localization evidence, not an optimality claim.
+validation now passes for all six reports; the remaining strict complementarity
+failures are still open. This is readiness and failure-localization evidence,
+not an optimality claim.
 
 The campaign now records a separate solver-floor compound-complementarity
 calibration. At the declared `1e-8` model floor, its family envelope is the
@@ -3824,6 +3825,15 @@ phase-only reports; strict `1e-5` physical complementarity still passes only
 zero dual violation and physical complementarity around `1.1e-5`, matching
 the observed `1e-8` model-coordinate residual floor. This is calibrated
 solver-scale evidence, not an absolute physical KKT claim.
+
+The campaign also records a physical complementarity-tolerance sensitivity
+curve. With primal feasibility, stationarity, and dual feasibility held fixed,
+the strict `1e-5` policy accepts 2/6 native and 2/6 transported reports; the
+`1.1e-5` policy accepts 4/6; and the `1.2e-5` policy accepts all six in both
+coordinate paths. The `1e-5` policy remains the declared strict gate. The
+`1.2e-5` crossing is diagnostic evidence for the next `ibr_p_upper`
+semantics/scaling or convergence investigation, not permission to relax the
+physical policy automatically.
 
 A phase-only covariance report now compares source and transformed endpoint
 point, objective, residual, derivative, sparse-Jacobian geometry, and scalar

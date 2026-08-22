@@ -303,6 +303,86 @@ function attach_solver_floor_complementarity!(kkt; model_tolerance)
     return kkt
 end
 
+function physical_kkt_tolerance_sensitivity(
+    kkt;
+    complementarity_tolerances=(1.0e-5, 1.1e-5, 1.2e-5, 2.0e-5, 1.0e-4),
+)
+    get(kkt, "available", false) === true || return Dict{String,Any}(
+        "available" => false,
+        "reason" => "the physical solver-KKT report is unavailable",
+    )
+    complementarity = get(kkt, "complementarity", Dict())
+    sides = get(complementarity, "sides", Dict())
+    semantic_records = get(
+        get(get(kkt, "semantic_attribution", Dict()), "complementarity", Dict()),
+        "records", Dict(),
+    )
+    residuals = Float64[
+        get(side, "complementarity_residual", NaN)
+        for side in values(sides)
+    ]
+    finite = !isempty(residuals) && all(isfinite, residuals)
+    primal_and_stationarity_passed = all(
+        get(get(kkt, component, Dict()), "acceptance_passed", false) === true
+        for component in ("primal_feasibility", "stationarity")
+    )
+    dual_finite = all(
+        isfinite(Float64(get(side, "dual_violation", NaN)))
+        for side in values(sides)
+    )
+    dual_feasibility_passed = dual_finite && all(
+        abs(Float64(get(side, "dual_violation", NaN))) <=
+            Float64(get(side, "dual_absolute_tolerance", Inf))
+        for side in values(sides)
+    )
+    base_gates = primal_and_stationarity_passed && dual_feasibility_passed
+    policies = Dict{String,Any}()
+    for raw_tolerance in complementarity_tolerances
+        tolerance = Float64(raw_tolerance)
+        failed_sides = [
+            string(key) for (key, side) in pairs(sides)
+            if !isfinite(Float64(get(side, "complementarity_residual", NaN))) ||
+                Float64(get(side, "complementarity_residual", NaN)) > tolerance
+        ]
+        failed_families = sort!(unique([
+            string(get(get(semantic_records, key, Dict()), "constraint_family", "unknown"))
+            for key in failed_sides
+        ]))
+        policy_key = string(tolerance)
+        policies[policy_key] = Dict{String,Any}(
+            "complementarity_absolute_tolerance" => tolerance,
+            "failed_side_count" => length(failed_sides),
+            "failed_sides" => failed_sides,
+            "failed_constraint_families" => failed_families,
+            "compound_acceptance_passed" => base_gates && finite && isempty(failed_sides),
+        )
+    end
+    return Dict{String,Any}(
+        "available" => true,
+        "base_gates_passed" => base_gates,
+        "primal_and_stationarity_passed" => primal_and_stationarity_passed,
+        "dual_feasibility_passed" => dual_feasibility_passed,
+        "finite" => finite,
+        "side_count" => length(sides),
+        "maximum_complementarity_residual" => finite ? maximum(residuals) : nothing,
+        "minimum_observed_complementarity_tolerance" => finite ? maximum(residuals) : nothing,
+        "policies" => policies,
+        "qualification" => Dict{String,Any}(
+            "claim" => "compound KKT acceptance sensitivity to the declared physical complementarity tolerance",
+            "does_not_establish" => [
+                "absolute physical correctness",
+                "solver stopping-test equivalence",
+                "optimality beyond the declared KKT gates",
+            ],
+        ),
+    )
+end
+
+function attach_physical_kkt_tolerance_sensitivity!(kkt)
+    kkt["tolerance_sensitivity"] = physical_kkt_tolerance_sensitivity(kkt)
+    return kkt
+end
+
 function run_snapshot(
     root,
     relative;
@@ -382,6 +462,7 @@ function run_snapshot(
         attach_solver_floor_complementarity!(
             reference_kkt; model_tolerance=model_feasibility_tolerance,
         )
+        attach_physical_kkt_tolerance_sensitivity!(reference_kkt)
         candidate_model = JuMP.Model(Ipopt.Optimizer)
         JuMP.set_optimizer_attribute(candidate_model, "max_iter", max_iter)
         phase_only = NLPDiagnostics.bmopf_phase_only_solve_model(
@@ -441,6 +522,7 @@ function run_snapshot(
         attach_solver_floor_complementarity!(
             phase_only_kkt; model_tolerance=model_feasibility_tolerance,
         )
+        attach_physical_kkt_tolerance_sensitivity!(phase_only_kkt)
         phase_only_covariance = get(endpoint, "available", false) === true ?
             NLPDiagnostics.bmopf_phase_only_covariance_report(
                 context,
@@ -585,6 +667,32 @@ function run_campaign()
             "solver_floor_complementarity", Dict()),
             "acceptance_passed", false) === true
     ]
+    reference_kkt_tolerance_sensitivity = Dict{String,Int}()
+    for run in reference_kkt_available
+        policies = get(
+            get(get(run, "reference_physical_solver_kkt", Dict()),
+                "tolerance_sensitivity", Dict()),
+            "policies", Dict(),
+        )
+        for (tolerance, policy) in policies
+            reference_kkt_tolerance_sensitivity[tolerance] =
+                get(reference_kkt_tolerance_sensitivity, tolerance, 0) +
+                (get(policy, "compound_acceptance_passed", false) === true ? 1 : 0)
+        end
+    end
+    phase_only_kkt_tolerance_sensitivity = Dict{String,Int}()
+    for run in phase_only_kkt_available
+        policies = get(
+            get(get(get(run, "phase_only", Dict()), "physical_solver_kkt", Dict()),
+                "tolerance_sensitivity", Dict()),
+            "policies", Dict(),
+        )
+        for (tolerance, policy) in policies
+            phase_only_kkt_tolerance_sensitivity[tolerance] =
+                get(phase_only_kkt_tolerance_sensitivity, tolerance, 0) +
+                (get(policy, "compound_acceptance_passed", false) === true ? 1 : 0)
+        end
+    end
     phase_only_covariance_available = [
         run for run in runs
         if get(get(get(run, "phase_only", Dict()), "covariance", Dict()), "available", false) === true
@@ -594,7 +702,7 @@ function run_campaign()
         if get(get(get(run, "phase_only", Dict()), "covariance", Dict()), "equivalence_gate_passed", false) === true
     ]
     return Dict(
-        "schema_version" => "nlpdiagnostics-real-99bus-phase-only-campaign-v4",
+        "schema_version" => "nlpdiagnostics-real-99bus-phase-only-campaign-v5",
         "source" => Dict(
             "root_basename" => basename(root),
             "selected_snapshot_count" => length(SELECTED_SNAPSHOTS),
@@ -619,6 +727,8 @@ function run_campaign()
             "phase_only_physical_solver_kkt_available_count" => length(phase_only_kkt_available),
             "phase_only_physical_solver_kkt_acceptance_count" => length(phase_only_kkt_accepted),
             "phase_only_solver_floor_compound_kkt_acceptance_count" => length(phase_only_solver_floor_kkt_accepted),
+            "reference_physical_solver_kkt_acceptance_by_complementarity_tolerance" => reference_kkt_tolerance_sensitivity,
+            "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance" => phase_only_kkt_tolerance_sensitivity,
             "phase_only_covariance_available_count" => length(phase_only_covariance_available),
             "phase_only_covariance_acceptance_count" => length(phase_only_covariance_accepted),
             "phase_only_physical_endpoint_acceptance_count" => length(phase_only_physical),
