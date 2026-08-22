@@ -61,10 +61,14 @@ function run_case(label, max_iter, model_tolerance)
                 summary["reference_physical_solver_kkt_available_count"],
             "reference_physical_solver_kkt_acceptance_count" =>
                 summary["reference_physical_solver_kkt_acceptance_count"],
+            "reference_solver_floor_compound_kkt_acceptance_count" =>
+                summary["reference_solver_floor_compound_kkt_acceptance_count"],
             "phase_only_physical_solver_kkt_available_count" =>
                 summary["phase_only_physical_solver_kkt_available_count"],
             "phase_only_physical_solver_kkt_acceptance_count" =>
                 summary["phase_only_physical_solver_kkt_acceptance_count"],
+            "phase_only_solver_floor_compound_kkt_acceptance_count" =>
+                summary["phase_only_solver_floor_compound_kkt_acceptance_count"],
             "phase_only_covariance_available_count" =>
                 summary["phase_only_covariance_available_count"],
             "phase_only_covariance_acceptance_count" =>

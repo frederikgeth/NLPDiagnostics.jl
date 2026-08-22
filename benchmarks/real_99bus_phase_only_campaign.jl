@@ -218,6 +218,91 @@ function physical_kkt(context, model, evaluation, quantity_tolerances)
     end
 end
 
+function solver_floor_complementarity_calibration(kkt; model_tolerance)
+    records = get(
+        get(get(kkt, "semantic_attribution", Dict()), "complementarity", Dict()),
+        "records", Dict(),
+    )
+    isempty(records) && return Dict{String,Any}(
+        "available" => false,
+        "acceptance_passed" => nothing,
+        "reason" => "semantic complementarity records are unavailable",
+    )
+    by_family = Dict{String,Dict{String,Any}}()
+    for (key, raw_record) in records
+        record = raw_record isa AbstractDict ? raw_record : Dict{String,Any}()
+        family = string(get(record, "constraint_family", "unknown"))
+        summary = get!(by_family, family) do
+            Dict{String,Any}(
+                "side_count" => 0,
+                "maximum_model_multiplier" => 0.0,
+                "maximum_absolute_model_slack" => 0.0,
+                "maximum_complementarity_residual" => 0.0,
+                "failed_strict_side_count" => 0,
+                "failed_strict_sides" => String[],
+            )
+        end
+        summary["side_count"] += 1
+        summary["maximum_model_multiplier"] = max(
+            summary["maximum_model_multiplier"],
+            abs(Float64(get(record, "model_multiplier", 0.0))),
+        )
+        summary["maximum_absolute_model_slack"] = max(
+            summary["maximum_absolute_model_slack"],
+            abs(Float64(get(record, "model_slack", 0.0))),
+        )
+        residual = Float64(get(record, "complementarity_residual", 0.0))
+        summary["maximum_complementarity_residual"] = max(
+            summary["maximum_complementarity_residual"], residual,
+        )
+        get(record, "passed", false) === true && continue
+        summary["failed_strict_side_count"] += 1
+        push!(summary["failed_strict_sides"], string(key))
+    end
+    barrier_candidates = [
+        summary["maximum_complementarity_residual"] for summary in values(by_family)
+        if summary["maximum_model_multiplier"] <= 1.0
+    ]
+    observed_barrier_floor = isempty(barrier_candidates) ?
+        Float64(model_tolerance) : maximum(barrier_candidates)
+    calibrated_passed = true
+    for summary in values(by_family)
+        envelope = observed_barrier_floor + Float64(model_tolerance) *
+            summary["maximum_model_multiplier"]
+        summary["solver_floor_complementarity_tolerance"] = envelope
+        summary["solver_floor_envelope_formula"] =
+            "observed barrier floor + model_tolerance * maximum absolute model multiplier"
+        summary["solver_floor_passed"] =
+            summary["maximum_complementarity_residual"] <= envelope
+        calibrated_passed &= summary["solver_floor_passed"]
+    end
+    return Dict{String,Any}(
+        "available" => true,
+        "acceptance_passed" => calibrated_passed,
+        "model_feasibility_tolerance" => Float64(model_tolerance),
+        "observed_barrier_floor" => observed_barrier_floor,
+        "family_count" => length(by_family),
+        "families" => by_family,
+        "qualification" => Dict{String,Any}(
+            "claim" => "compound complementarity is within a declared solver-floor envelope",
+            "strict_physical_kkt_remains_separate" => true,
+            "does_not_establish" => [
+                "absolute physical complementarity acceptance",
+                "solver stopping-test equivalence",
+                "optimality",
+            ],
+        ),
+    )
+end
+
+function attach_solver_floor_complementarity!(kkt; model_tolerance)
+    calibration = solver_floor_complementarity_calibration(
+        kkt; model_tolerance,
+    )
+    kkt["solver_floor_complementarity"] = calibration
+    return kkt
+end
+
 function run_snapshot(
     root,
     relative;
@@ -294,6 +379,9 @@ function run_snapshot(
             reference_evaluation,
             calibrated_tolerances,
         )
+        attach_solver_floor_complementarity!(
+            reference_kkt; model_tolerance=model_feasibility_tolerance,
+        )
         candidate_model = JuMP.Model(Ipopt.Optimizer)
         JuMP.set_optimizer_attribute(candidate_model, "max_iter", max_iter)
         phase_only = NLPDiagnostics.bmopf_phase_only_solve_model(
@@ -334,6 +422,24 @@ function run_snapshot(
             reference_feasibility,
             phase_only_feasibility;
             margin=baseline_margin,
+        )
+        phase_only_kkt = get(endpoint, "available", false) === true ?
+            NLPDiagnostics.bmopf_phase_only_physical_solver_kkt_report(
+                context,
+                endpoint["endpoint_evaluation"],
+                phase_only,
+                endpoint;
+                quantity_feasibility_absolute_tolerances=calibrated_tolerances,
+                stationarity_default_absolute_tolerance=1.0e-5,
+                dual_default_absolute_tolerance=1.0e-5,
+                complementarity_default_absolute_tolerance=1.0e-5,
+            ) : Dict{String,Any}(
+                "available" => false,
+                "acceptance_passed" => nothing,
+                "reason" => "the source-coordinate phase-only endpoint was unavailable",
+            )
+        attach_solver_floor_complementarity!(
+            phase_only_kkt; model_tolerance=model_feasibility_tolerance,
         )
         phase_only_covariance = get(endpoint, "available", false) === true ?
             NLPDiagnostics.bmopf_phase_only_covariance_report(
@@ -382,21 +488,7 @@ function run_snapshot(
                     "quantity_absolute_tolerances" => calibrated_tolerances,
                     "absolute_physical_claim" => false,
                 ),
-                "physical_solver_kkt" => get(endpoint, "available", false) === true ?
-                    NLPDiagnostics.bmopf_phase_only_physical_solver_kkt_report(
-                        context,
-                        endpoint["endpoint_evaluation"],
-                        phase_only,
-                        endpoint;
-                        quantity_feasibility_absolute_tolerances=calibrated_tolerances,
-                        stationarity_default_absolute_tolerance=1.0e-5,
-                        dual_default_absolute_tolerance=1.0e-5,
-                        complementarity_default_absolute_tolerance=1.0e-5,
-                    ) : Dict{String,Any}(
-                        "available" => false,
-                        "acceptance_passed" => nothing,
-                        "reason" => "the source-coordinate phase-only endpoint was unavailable",
-                    ),
+                "physical_solver_kkt" => phase_only_kkt,
                 "covariance" => phase_only_covariance,
                 "native_baseline_comparison" => baseline_comparison,
             ),
@@ -473,6 +565,12 @@ function run_campaign()
         run for run in reference_kkt_available
         if get(get(run, "reference_physical_solver_kkt", Dict()), "acceptance_passed", false) === true
     ]
+    reference_solver_floor_kkt_accepted = [
+        run for run in runs
+        if get(get(get(run, "reference_physical_solver_kkt", Dict()),
+            "solver_floor_complementarity", Dict()),
+            "acceptance_passed", false) === true
+    ]
     phase_only_kkt_available = [
         run for run in runs
         if get(get(get(run, "phase_only", Dict()), "physical_solver_kkt", Dict()), "available", false) === true
@@ -480,6 +578,12 @@ function run_campaign()
     phase_only_kkt_accepted = [
         run for run in phase_only_kkt_available
         if get(get(get(run, "phase_only", Dict()), "physical_solver_kkt", Dict()), "acceptance_passed", false) === true
+    ]
+    phase_only_solver_floor_kkt_accepted = [
+        run for run in phase_only_kkt_available
+        if get(get(get(get(run, "phase_only", Dict()), "physical_solver_kkt", Dict()),
+            "solver_floor_complementarity", Dict()),
+            "acceptance_passed", false) === true
     ]
     phase_only_covariance_available = [
         run for run in runs
@@ -510,9 +614,11 @@ function run_campaign()
             "reference_physical_endpoint_acceptance_count" => length(reference_physical),
             "reference_physical_solver_kkt_available_count" => length(reference_kkt_available),
             "reference_physical_solver_kkt_acceptance_count" => length(reference_kkt_accepted),
+            "reference_solver_floor_compound_kkt_acceptance_count" => length(reference_solver_floor_kkt_accepted),
             "all_reference_physical_solver_kkt_accepted" => length(reference_kkt_accepted) == length(SELECTED_SNAPSHOTS),
             "phase_only_physical_solver_kkt_available_count" => length(phase_only_kkt_available),
             "phase_only_physical_solver_kkt_acceptance_count" => length(phase_only_kkt_accepted),
+            "phase_only_solver_floor_compound_kkt_acceptance_count" => length(phase_only_solver_floor_kkt_accepted),
             "phase_only_covariance_available_count" => length(phase_only_covariance_available),
             "phase_only_covariance_acceptance_count" => length(phase_only_covariance_accepted),
             "phase_only_physical_endpoint_acceptance_count" => length(phase_only_physical),

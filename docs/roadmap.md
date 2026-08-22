@@ -3815,6 +3815,16 @@ solver-scale KKT evidence and absolute physical acceptance. Physical covariance
 validation and the remaining complementarity failures are still open; this is
 readiness and failure-localization evidence, not an optimality claim.
 
+The campaign now records a separate solver-floor compound-complementarity
+calibration. At the declared `1e-8` model floor, its family envelope is the
+observed low-multiplier barrier floor plus `model_tolerance * maximum absolute
+model multiplier`. The envelope passes all six native and all six transported
+phase-only reports; strict `1e-5` physical complementarity still passes only
+2/6. The strict failures are localized to `ibr_p_upper` upper sides, with
+zero dual violation and physical complementarity around `1.1e-5`, matching
+the observed `1e-8` model-coordinate residual floor. This is calibrated
+solver-scale evidence, not an absolute physical KKT claim.
+
 A phase-only covariance report now compares source and transformed endpoint
 point, objective, residual, derivative, sparse-Jacobian geometry, and scalar
 variable-domain sets through the declared semantic block maps. All six reports
