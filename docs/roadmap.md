@@ -4204,6 +4204,14 @@ positives, false negatives, or unavailable backend results. Four of nine
 deliberate threshold-cluster controls disagree across backends, as expected
 tolerance-sensitive evidence. Broader adversarial and large-model statistics
 remain open.
+The runtime/memory calibration increment is tracked at
+`docs/sparse_runtime_memory_scaling_summary.json`, with executable runner
+`benchmarks/profile_sparse_runtime_memory_scaling.jl`. It records 12
+warm-up-aware repeated profiles across the deterministic sparse corpus at
+dimensions 16, 32, 64, and 128, including per-stage wall time and allocated
+bytes. Process `Sys.maxrss` high-water marks are retained as descriptive
+observations only; OPF-solver scaling and isolated peak-memory measurements
+remain open.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and

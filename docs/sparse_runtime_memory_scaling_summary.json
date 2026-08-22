@@ -1,0 +1,2136 @@
+{
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "architecture": "aarch64",
+    "git_revision": "dba7ca84b366835d4c872086ad8cb573b0b825c3",
+    "git_status_entry_count": 5,
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6",
+    "os": "Darwin"
+  },
+  "interpretation": {
+    "claim": "Local warm-up-aware runtime and allocation observations for the synthetic sparse profiling corpus.",
+    "does_not_establish": [
+      "OPF solver runtime or solver memory scaling",
+      "a portable complexity law or production threshold",
+      "isolated per-case peak memory from process high-water marks"
+    ],
+    "memory_note": "Sys.maxrss is retained as a process high-water mark; incremental values are descriptive only."
+  },
+  "records": [
+    {
+      "case": "sparse_banded_full_rank",
+      "constraint_count": 16,
+      "dimension": 16,
+      "expected_evidence": {},
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 1783054336,
+      "process_maxrss_before_bytes": 403652608,
+      "process_maxrss_increment_bytes": 1379401728,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 1156672,
+          "mean_bytes": 1.156672e6,
+          "minimum_bytes": 1156672,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 132752,
+          "mean_bytes": 132752.0,
+          "minimum_bytes": 132752,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 110112,
+          "mean_bytes": 110112.0,
+          "minimum_bytes": 110112,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 1135408,
+          "mean_bytes": 1.135408e6,
+          "minimum_bytes": 1135408,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 903376,
+          "mean_bytes": 903376.0,
+          "minimum_bytes": 903376,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 1134192,
+          "mean_bytes": 1.134192e6,
+          "minimum_bytes": 1134192,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 18128,
+          "mean_bytes": 18128.0,
+          "minimum_bytes": 18128,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 4141312,
+          "mean_bytes": 4.141312e6,
+          "minimum_bytes": 4141312,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_dm": {
+          "maximum_bytes": 3520,
+          "mean_bytes": 3520.0,
+          "minimum_bytes": 3520,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 43744,
+          "mean_bytes": 43744.0,
+          "minimum_bytes": 43744,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 2672,
+          "mean_bytes": 2672.0,
+          "minimum_bytes": 2672,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.002430125,
+          "mean_seconds": 0.0022674580000000004,
+          "minimum_seconds": 0.002172708,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00011554340350131048
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.000349917,
+          "mean_seconds": 0.00032437533333333333,
+          "minimum_seconds": 0.000309584,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.8135875538709328e-5
+        },
+        "evaluation": {
+          "maximum_seconds": 0.000779292,
+          "mean_seconds": 0.000728514,
+          "minimum_seconds": 0.000689,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.77122401703567e-5
+        },
+        "expressions": {
+          "maximum_seconds": 0.0032745,
+          "mean_seconds": 0.0032225139999999997,
+          "minimum_seconds": 0.003138917,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.969438255536831e-5
+        },
+        "numerical": {
+          "maximum_seconds": 0.002384458,
+          "mean_seconds": 0.002367319,
+          "minimum_seconds": 0.002340541,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.9180866560194914e-5
+        },
+        "reformulation": {
+          "maximum_seconds": 0.003506833,
+          "mean_seconds": 0.003320166333333334,
+          "minimum_seconds": 0.003176208,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00013831419295293684
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000190166,
+          "mean_seconds": 0.000129208,
+          "minimum_seconds": 9.7958e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 4.3108411893736005e-5
+        },
+        "static": {
+          "maximum_seconds": 0.008075833,
+          "mean_seconds": 0.007835166666666666,
+          "minimum_seconds": 0.007606208,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0001919022533311047
+        },
+        "structural_dm": {
+          "maximum_seconds": 3.959e-6,
+          "mean_seconds": 1.9863333333333333e-6,
+          "minimum_seconds": 9.58e-7,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.395307453176141e-6
+        },
+        "structural_graph": {
+          "maximum_seconds": 4.7792e-5,
+          "mean_seconds": 2.7833666666666667e-5,
+          "minimum_seconds": 1.7292e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.4120144199767302e-5
+        },
+        "structural_matching": {
+          "maximum_seconds": 5.625e-6,
+          "mean_seconds": 3.416666666666667e-6,
+          "minimum_seconds": 2.25e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.5623611049377229e-6
+        }
+      },
+      "total_stage_mean_allocated_bytes": 8.781888e6,
+      "total_stage_mean_seconds": 0.020227957999999997,
+      "variable_count": 16,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_rank_deficient",
+      "constraint_count": 16,
+      "dimension": 16,
+      "expected_evidence": {
+        "sparse_qr_jacobian_rank_deficiency": {
+          "fraction": 1.0,
+          "occurrence_count": 3,
+          "run_count": 3
+        }
+      },
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 1783054336,
+      "process_maxrss_before_bytes": 403652608,
+      "process_maxrss_increment_bytes": 1379401728,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 1225200,
+          "mean_bytes": 1.2252e6,
+          "minimum_bytes": 1225200,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 132256,
+          "mean_bytes": 132256.0,
+          "minimum_bytes": 132256,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 109920,
+          "mean_bytes": 109920.0,
+          "minimum_bytes": 109920,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 1150176,
+          "mean_bytes": 1.150176e6,
+          "minimum_bytes": 1150176,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 935536,
+          "mean_bytes": 935536.0,
+          "minimum_bytes": 935536,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 1148960,
+          "mean_bytes": 1.14896e6,
+          "minimum_bytes": 1148960,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 18096,
+          "mean_bytes": 18096.0,
+          "minimum_bytes": 18096,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 4317312,
+          "mean_bytes": 4.317312e6,
+          "minimum_bytes": 4317312,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_dm": {
+          "maximum_bytes": 3888,
+          "mean_bytes": 3888.0,
+          "minimum_bytes": 3888,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 43280,
+          "mean_bytes": 43280.0,
+          "minimum_bytes": 43280,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 2672,
+          "mean_bytes": 2672.0,
+          "minimum_bytes": 2672,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.002538458,
+          "mean_seconds": 0.0024984996666666667,
+          "minimum_seconds": 0.002445541,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.903117320239757e-5
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.000309375,
+          "mean_seconds": 0.000306347,
+          "minimum_seconds": 0.000303416,
+          "sample_count": 3,
+          "standard_deviation_seconds": 2.4337182800535383e-6
+        },
+        "evaluation": {
+          "maximum_seconds": 0.000719375,
+          "mean_seconds": 0.000674861,
+          "minimum_seconds": 0.000640833,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.291077420339218e-5
+        },
+        "expressions": {
+          "maximum_seconds": 0.00348725,
+          "mean_seconds": 0.003370139,
+          "minimum_seconds": 0.003251125,
+          "sample_count": 3,
+          "standard_deviation_seconds": 9.640701898029338e-5
+        },
+        "numerical": {
+          "maximum_seconds": 0.002513416,
+          "mean_seconds": 0.0024352913333333336,
+          "minimum_seconds": 0.002382625,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.6348123141374915e-5
+        },
+        "reformulation": {
+          "maximum_seconds": 0.00337875,
+          "mean_seconds": 0.003282889,
+          "minimum_seconds": 0.003166917,
+          "sample_count": 3,
+          "standard_deviation_seconds": 8.76418629537277e-5
+        },
+        "snapshot": {
+          "maximum_seconds": 9.925e-5,
+          "mean_seconds": 9.8472e-5,
+          "minimum_seconds": 9.8083e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.501290757631328e-7
+        },
+        "static": {
+          "maximum_seconds": 0.008280166,
+          "mean_seconds": 0.008229944000000001,
+          "minimum_seconds": 0.008147833,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.8541648781017375e-5
+        },
+        "structural_dm": {
+          "maximum_seconds": 4.542e-6,
+          "mean_seconds": 2.3473333333333334e-6,
+          "minimum_seconds": 1.208e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.5522425354592267e-6
+        },
+        "structural_graph": {
+          "maximum_seconds": 1.8916e-5,
+          "mean_seconds": 1.849966666666667e-5,
+          "minimum_seconds": 1.8166e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.1171603887013764e-7
+        },
+        "structural_matching": {
+          "maximum_seconds": 2.458e-6,
+          "mean_seconds": 2.1386666666666665e-6,
+          "minimum_seconds": 1.875e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 2.4124169530898996e-7
+        }
+      },
+      "total_stage_mean_allocated_bytes": 9.087296e6,
+      "total_stage_mean_seconds": 0.020919428666666667,
+      "variable_count": 16,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_scaled",
+      "constraint_count": 16,
+      "dimension": 16,
+      "expected_evidence": {},
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 1783054336,
+      "process_maxrss_before_bytes": 403652608,
+      "process_maxrss_increment_bytes": 1379401728,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 1156672,
+          "mean_bytes": 1.156672e6,
+          "minimum_bytes": 1156672,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 132752,
+          "mean_bytes": 132752.0,
+          "minimum_bytes": 132752,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 110112,
+          "mean_bytes": 110112.0,
+          "minimum_bytes": 110112,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 1135408,
+          "mean_bytes": 1.135408e6,
+          "minimum_bytes": 1135408,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 959872,
+          "mean_bytes": 959872.0,
+          "minimum_bytes": 959872,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 1134192,
+          "mean_bytes": 1.134192e6,
+          "minimum_bytes": 1134192,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 18128,
+          "mean_bytes": 18128.0,
+          "minimum_bytes": 18128,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 4142608,
+          "mean_bytes": 4.1417546666666665e6,
+          "minimum_bytes": 4141328,
+          "sample_count": 3,
+          "standard_deviation_bytes": 603.3977866125206
+        },
+        "structural_dm": {
+          "maximum_bytes": 3520,
+          "mean_bytes": 3520.0,
+          "minimum_bytes": 3520,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 43744,
+          "mean_bytes": 43744.0,
+          "minimum_bytes": 43744,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 2672,
+          "mean_bytes": 2672.0,
+          "minimum_bytes": 2672,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.002310625,
+          "mean_seconds": 0.0022100973333333334,
+          "minimum_seconds": 0.002074708,
+          "sample_count": 3,
+          "standard_deviation_seconds": 9.941733441854533e-5
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.000362625,
+          "mean_seconds": 0.0003413333333333333,
+          "minimum_seconds": 0.000312792,
+          "sample_count": 3,
+          "standard_deviation_seconds": 2.0980152880493718e-5
+        },
+        "evaluation": {
+          "maximum_seconds": 0.000665083,
+          "mean_seconds": 0.000656972,
+          "minimum_seconds": 0.000644042,
+          "sample_count": 3,
+          "standard_deviation_seconds": 9.241139576192231e-6
+        },
+        "expressions": {
+          "maximum_seconds": 0.003398583,
+          "mean_seconds": 0.0032680276666666665,
+          "minimum_seconds": 0.003162459,
+          "sample_count": 3,
+          "standard_deviation_seconds": 9.80030134820128e-5
+        },
+        "numerical": {
+          "maximum_seconds": 0.002559458,
+          "mean_seconds": 0.0024955556666666667,
+          "minimum_seconds": 0.002450667,
+          "sample_count": 3,
+          "standard_deviation_seconds": 4.6404095080307564e-5
+        },
+        "reformulation": {
+          "maximum_seconds": 0.003132167,
+          "mean_seconds": 0.003125625333333333,
+          "minimum_seconds": 0.003114625,
+          "sample_count": 3,
+          "standard_deviation_seconds": 7.824756538633458e-6
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000103375,
+          "mean_seconds": 0.00010040266666666666,
+          "minimum_seconds": 9.8833e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 2.1028625463612482e-6
+        },
+        "static": {
+          "maximum_seconds": 0.030328,
+          "mean_seconds": 0.015348722,
+          "minimum_seconds": 0.007793666,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.010592083724330858
+        },
+        "structural_dm": {
+          "maximum_seconds": 1.709e-6,
+          "mean_seconds": 1.153e-6,
+          "minimum_seconds": 7.91e-7,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.9908896251337243e-7
+        },
+        "structural_graph": {
+          "maximum_seconds": 1.9333e-5,
+          "mean_seconds": 1.8888666666666668e-5,
+          "minimum_seconds": 1.8583e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.2150306720499867e-7
+        },
+        "structural_matching": {
+          "maximum_seconds": 2.584e-6,
+          "mean_seconds": 2.402666666666667e-6,
+          "minimum_seconds": 2.291e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.293633985673262e-7
+        }
+      },
+      "total_stage_mean_allocated_bytes": 8.838826666666666e6,
+      "total_stage_mean_seconds": 0.027569180333333332,
+      "variable_count": 16,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_full_rank",
+      "constraint_count": 32,
+      "dimension": 32,
+      "expected_evidence": {},
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 1796063232,
+      "process_maxrss_before_bytes": 1785053184,
+      "process_maxrss_increment_bytes": 11010048,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 2193584,
+          "mean_bytes": 2.193584e6,
+          "minimum_bytes": 2193584,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 233616,
+          "mean_bytes": 233616.0,
+          "minimum_bytes": 233616,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 204608,
+          "mean_bytes": 204608.0,
+          "minimum_bytes": 204608,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 4224400,
+          "mean_bytes": 4.2244e6,
+          "minimum_bytes": 4224400,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 1754960,
+          "mean_bytes": 1.75496e6,
+          "minimum_bytes": 1754960,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 4222352,
+          "mean_bytes": 4.222352e6,
+          "minimum_bytes": 4222352,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 30544,
+          "mean_bytes": 30544.0,
+          "minimum_bytes": 30544,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 10210176,
+          "mean_bytes": 1.0210176e7,
+          "minimum_bytes": 10210176,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_dm": {
+          "maximum_bytes": 3520,
+          "mean_bytes": 3520.0,
+          "minimum_bytes": 3520,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 81952,
+          "mean_bytes": 81952.0,
+          "minimum_bytes": 81952,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 4736,
+          "mean_bytes": 4736.0,
+          "minimum_bytes": 4736,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.003165917,
+          "mean_seconds": 0.0031218333333333337,
+          "minimum_seconds": 0.003087625,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.271646855772917e-5
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.000579208,
+          "mean_seconds": 0.0005138886666666667,
+          "minimum_seconds": 0.000478291,
+          "sample_count": 3,
+          "standard_deviation_seconds": 4.624999693213204e-5
+        },
+        "evaluation": {
+          "maximum_seconds": 0.000911417,
+          "mean_seconds": 0.0008988749999999999,
+          "minimum_seconds": 0.00088175,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.2537560608028951e-5
+        },
+        "expressions": {
+          "maximum_seconds": 0.011709333,
+          "mean_seconds": 0.011472152333333333,
+          "minimum_seconds": 0.011296166,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00017413654086440996
+        },
+        "numerical": {
+          "maximum_seconds": 0.003914292,
+          "mean_seconds": 0.003858,
+          "minimum_seconds": 0.003808041,
+          "sample_count": 3,
+          "standard_deviation_seconds": 4.3607330553474564e-5
+        },
+        "reformulation": {
+          "maximum_seconds": 0.011592416,
+          "mean_seconds": 0.011503944,
+          "minimum_seconds": 0.011338666,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00011696619697445325
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000119584,
+          "mean_seconds": 0.00010769433333333334,
+          "minimum_seconds": 9.8916e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 8.71978028520342e-6
+        },
+        "static": {
+          "maximum_seconds": 0.020738334,
+          "mean_seconds": 0.020575444666666668,
+          "minimum_seconds": 0.020448542,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00012101275676372147
+        },
+        "structural_dm": {
+          "maximum_seconds": 1.375e-6,
+          "mean_seconds": 1.1803333333333331e-6,
+          "minimum_seconds": 1.041e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.418575185020362e-7
+        },
+        "structural_graph": {
+          "maximum_seconds": 3.4084e-5,
+          "mean_seconds": 3.334733333333333e-5,
+          "minimum_seconds": 3.2833e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.343683706541354e-7
+        },
+        "structural_matching": {
+          "maximum_seconds": 6.291e-6,
+          "mean_seconds": 6.180333333333333e-6,
+          "minimum_seconds": 6.083e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 8.543743649920438e-8
+        }
+      },
+      "total_stage_mean_allocated_bytes": 2.3164448e7,
+      "total_stage_mean_seconds": 0.05209254033333334,
+      "variable_count": 32,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_rank_deficient",
+      "constraint_count": 32,
+      "dimension": 32,
+      "expected_evidence": {
+        "sparse_qr_jacobian_rank_deficiency": {
+          "fraction": 1.0,
+          "occurrence_count": 3,
+          "run_count": 3
+        }
+      },
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 1796063232,
+      "process_maxrss_before_bytes": 1785053184,
+      "process_maxrss_increment_bytes": 11010048,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 2333840,
+          "mean_bytes": 2.33384e6,
+          "minimum_bytes": 2333840,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 233120,
+          "mean_bytes": 233120.0,
+          "minimum_bytes": 233120,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 204416,
+          "mean_bytes": 204416.0,
+          "minimum_bytes": 204416,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 4260672,
+          "mean_bytes": 4.260672e6,
+          "minimum_bytes": 4260672,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 1805936,
+          "mean_bytes": 1.805936e6,
+          "minimum_bytes": 1805936,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 4258624,
+          "mean_bytes": 4.258624e6,
+          "minimum_bytes": 4258624,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 30512,
+          "mean_bytes": 30512.0,
+          "minimum_bytes": 30512,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 10407680,
+          "mean_bytes": 1.040768e7,
+          "minimum_bytes": 10407680,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_dm": {
+          "maximum_bytes": 3888,
+          "mean_bytes": 3888.0,
+          "minimum_bytes": 3888,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 81488,
+          "mean_bytes": 81488.0,
+          "minimum_bytes": 81488,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 4736,
+          "mean_bytes": 4736.0,
+          "minimum_bytes": 4736,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.00377725,
+          "mean_seconds": 0.0035942500000000002,
+          "minimum_seconds": 0.003432208,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00014164021030766644
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.000520125,
+          "mean_seconds": 0.000487986,
+          "minimum_seconds": 0.000463875,
+          "sample_count": 3,
+          "standard_deviation_seconds": 2.3655192706887838e-5
+        },
+        "evaluation": {
+          "maximum_seconds": 0.000922625,
+          "mean_seconds": 0.000875625,
+          "minimum_seconds": 0.000839375,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.482635496287263e-5
+        },
+        "expressions": {
+          "maximum_seconds": 0.011679416,
+          "mean_seconds": 0.011621041333333332,
+          "minimum_seconds": 0.011511125,
+          "sample_count": 3,
+          "standard_deviation_seconds": 7.777262895703636e-5
+        },
+        "numerical": {
+          "maximum_seconds": 0.003908834,
+          "mean_seconds": 0.0038013056666666664,
+          "minimum_seconds": 0.003674833,
+          "sample_count": 3,
+          "standard_deviation_seconds": 9.646513299057265e-5
+        },
+        "reformulation": {
+          "maximum_seconds": 0.0118865,
+          "mean_seconds": 0.011708958666666667,
+          "minimum_seconds": 0.011587459,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00012835336957616464
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000136209,
+          "mean_seconds": 0.000123625,
+          "minimum_seconds": 0.000103791,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.4192804655881096e-5
+        },
+        "static": {
+          "maximum_seconds": 0.022274459,
+          "mean_seconds": 0.021563653000000002,
+          "minimum_seconds": 0.020942208,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0005475473939858234
+        },
+        "structural_dm": {
+          "maximum_seconds": 3.709e-6,
+          "mean_seconds": 2.375e-6,
+          "minimum_seconds": 1.541e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 9.530848160928106e-7
+        },
+        "structural_graph": {
+          "maximum_seconds": 4.6958e-5,
+          "mean_seconds": 4.1972000000000004e-5,
+          "minimum_seconds": 3.6375e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 4.342039689669666e-6
+        },
+        "structural_matching": {
+          "maximum_seconds": 6.75e-6,
+          "mean_seconds": 6.360666666666666e-6,
+          "minimum_seconds": 5.666e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 4.923991154428377e-7
+        }
+      },
+      "total_stage_mean_allocated_bytes": 2.3624912e7,
+      "total_stage_mean_seconds": 0.053827152333333336,
+      "variable_count": 32,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_scaled",
+      "constraint_count": 32,
+      "dimension": 32,
+      "expected_evidence": {},
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 1796063232,
+      "process_maxrss_before_bytes": 1785053184,
+      "process_maxrss_increment_bytes": 11010048,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 2193584,
+          "mean_bytes": 2.193584e6,
+          "minimum_bytes": 2193584,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 233616,
+          "mean_bytes": 233616.0,
+          "minimum_bytes": 233616,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 204608,
+          "mean_bytes": 204608.0,
+          "minimum_bytes": 204608,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 4224400,
+          "mean_bytes": 4.2244e6,
+          "minimum_bytes": 4224400,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 1834272,
+          "mean_bytes": 1.834272e6,
+          "minimum_bytes": 1834272,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 4222352,
+          "mean_bytes": 4.222352e6,
+          "minimum_bytes": 4222352,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 30544,
+          "mean_bytes": 30544.0,
+          "minimum_bytes": 30544,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 10210192,
+          "mean_bytes": 1.0210192e7,
+          "minimum_bytes": 10210192,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_dm": {
+          "maximum_bytes": 3520,
+          "mean_bytes": 3520.0,
+          "minimum_bytes": 3520,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 81952,
+          "mean_bytes": 81952.0,
+          "minimum_bytes": 81952,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 4736,
+          "mean_bytes": 4736.0,
+          "minimum_bytes": 4736,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.003113917,
+          "mean_seconds": 0.003014333333333333,
+          "minimum_seconds": 0.002927,
+          "sample_count": 3,
+          "standard_deviation_seconds": 7.679862942498099e-5
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.00047775,
+          "mean_seconds": 0.0004745276666666667,
+          "minimum_seconds": 0.000470792,
+          "sample_count": 3,
+          "standard_deviation_seconds": 2.8636892677492467e-6
+        },
+        "evaluation": {
+          "maximum_seconds": 0.000949459,
+          "mean_seconds": 0.0009037916666666668,
+          "minimum_seconds": 0.000868166,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.393881027509496e-5
+        },
+        "expressions": {
+          "maximum_seconds": 0.01188425,
+          "mean_seconds": 0.011640486,
+          "minimum_seconds": 0.011364291,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00021350748268074052
+        },
+        "numerical": {
+          "maximum_seconds": 0.00386225,
+          "mean_seconds": 0.003842514,
+          "minimum_seconds": 0.003806875,
+          "sample_count": 3,
+          "standard_deviation_seconds": 2.5249115007593115e-5
+        },
+        "reformulation": {
+          "maximum_seconds": 0.011713292,
+          "mean_seconds": 0.01158925,
+          "minimum_seconds": 0.011526166,
+          "sample_count": 3,
+          "standard_deviation_seconds": 8.77152335382326e-5
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000105125,
+          "mean_seconds": 0.00010473599999999998,
+          "minimum_seconds": 0.000104375,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.0682568340997423e-7
+        },
+        "static": {
+          "maximum_seconds": 0.020910333,
+          "mean_seconds": 0.020836347,
+          "minimum_seconds": 0.0207805,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.4533900545134524e-5
+        },
+        "structural_dm": {
+          "maximum_seconds": 1.083e-6,
+          "mean_seconds": 1.0136666666666667e-6,
+          "minimum_seconds": 9.58e-7,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.193799722318487e-8
+        },
+        "structural_graph": {
+          "maximum_seconds": 4.2666e-5,
+          "mean_seconds": 3.616666666666667e-5,
+          "minimum_seconds": 3.2584e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 4.603758561098626e-6
+        },
+        "structural_matching": {
+          "maximum_seconds": 5.959e-6,
+          "mean_seconds": 5.833666666666667e-6,
+          "minimum_seconds": 5.709e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.0206316127226759e-7
+        }
+      },
+      "total_stage_mean_allocated_bytes": 2.3243776e7,
+      "total_stage_mean_seconds": 0.05244899966666667,
+      "variable_count": 32,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_full_rank",
+      "constraint_count": 64,
+      "dimension": 64,
+      "expected_evidence": {},
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 1811120128,
+      "process_maxrss_before_bytes": 1796128768,
+      "process_maxrss_increment_bytes": 14991360,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 4416080,
+          "mean_bytes": 4.41608e6,
+          "minimum_bytes": 4416080,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 458896,
+          "mean_bytes": 458896.0,
+          "minimum_bytes": 458896,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 452464,
+          "mean_bytes": 452464.0,
+          "minimum_bytes": 452464,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 16366304,
+          "mean_bytes": 1.6366304e7,
+          "minimum_bytes": 16366304,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 3571792,
+          "mean_bytes": 3.571792e6,
+          "minimum_bytes": 3571792,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 16362656,
+          "mean_bytes": 1.6362656e7,
+          "minimum_bytes": 16362656,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 64288,
+          "mean_bytes": 64288.0,
+          "minimum_bytes": 64288,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 28329312,
+          "mean_bytes": 2.8329312e7,
+          "minimum_bytes": 28329312,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_dm": {
+          "maximum_bytes": 5856,
+          "mean_bytes": 5856.0,
+          "minimum_bytes": 5856,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 172704,
+          "mean_bytes": 172704.0,
+          "minimum_bytes": 172704,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 8864,
+          "mean_bytes": 8864.0,
+          "minimum_bytes": 8864,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.005214541,
+          "mean_seconds": 0.005093194333333333,
+          "minimum_seconds": 0.005006125,
+          "sample_count": 3,
+          "standard_deviation_seconds": 8.847036772966524e-5
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.000938417,
+          "mean_seconds": 0.0008662363333333334,
+          "minimum_seconds": 0.000820959,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.158770815697172e-5
+        },
+        "evaluation": {
+          "maximum_seconds": 0.001430083,
+          "mean_seconds": 0.0013207219999999999,
+          "minimum_seconds": 0.001228083,
+          "sample_count": 3,
+          "standard_deviation_seconds": 8.330953912167959e-5
+        },
+        "expressions": {
+          "maximum_seconds": 0.044994708,
+          "mean_seconds": 0.044609458,
+          "minimum_seconds": 0.044100958,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0003751356976704115
+        },
+        "numerical": {
+          "maximum_seconds": 0.007014542,
+          "mean_seconds": 0.006900930666666667,
+          "minimum_seconds": 0.006821625,
+          "sample_count": 3,
+          "standard_deviation_seconds": 8.24091471311825e-5
+        },
+        "reformulation": {
+          "maximum_seconds": 0.045211084,
+          "mean_seconds": 0.04465591666666666,
+          "minimum_seconds": 0.044156958,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00043217663566750956
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000146708,
+          "mean_seconds": 0.000133722,
+          "minimum_seconds": 0.000117833,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.1965560663838537e-5
+        },
+        "static": {
+          "maximum_seconds": 0.062443084,
+          "mean_seconds": 0.062239542333333335,
+          "minimum_seconds": 0.062114459,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00014517892456858062
+        },
+        "structural_dm": {
+          "maximum_seconds": 5.084e-6,
+          "mean_seconds": 3.083666666666667e-6,
+          "minimum_seconds": 1.875e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.4246572297300927e-6
+        },
+        "structural_graph": {
+          "maximum_seconds": 6.9375e-5,
+          "mean_seconds": 6.783333333333333e-5,
+          "minimum_seconds": 6.6e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.3931877914417075e-6
+        },
+        "structural_matching": {
+          "maximum_seconds": 2.3458e-5,
+          "mean_seconds": 2.2930333333333333e-5,
+          "minimum_seconds": 2.2208e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.285491672703893e-7
+        }
+      },
+      "total_stage_mean_allocated_bytes": 7.0209216e7,
+      "total_stage_mean_seconds": 0.16591356966666668,
+      "variable_count": 64,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_rank_deficient",
+      "constraint_count": 64,
+      "dimension": 64,
+      "expected_evidence": {
+        "sparse_qr_jacobian_rank_deficiency": {
+          "fraction": 1.0,
+          "occurrence_count": 3,
+          "run_count": 3
+        }
+      },
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 1811120128,
+      "process_maxrss_before_bytes": 1796128768,
+      "process_maxrss_increment_bytes": 14991360,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 4740768,
+          "mean_bytes": 4.740768e6,
+          "minimum_bytes": 4740768,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 458400,
+          "mean_bytes": 458400.0,
+          "minimum_bytes": 458400,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 452272,
+          "mean_bytes": 452272.0,
+          "minimum_bytes": 452272,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 16445584,
+          "mean_bytes": 1.6445584e7,
+          "minimum_bytes": 16445584,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 3638640,
+          "mean_bytes": 3.63864e6,
+          "minimum_bytes": 3638640,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 16441936,
+          "mean_bytes": 1.6441936e7,
+          "minimum_bytes": 16441936,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 64256,
+          "mean_bytes": 64256.0,
+          "minimum_bytes": 64256,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 28570592,
+          "mean_bytes": 2.857008e7,
+          "minimum_bytes": 28569824,
+          "sample_count": 3,
+          "standard_deviation_bytes": 362.03867196751236
+        },
+        "structural_dm": {
+          "maximum_bytes": 6224,
+          "mean_bytes": 6224.0,
+          "minimum_bytes": 6224,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 172240,
+          "mean_bytes": 172240.0,
+          "minimum_bytes": 172240,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 8864,
+          "mean_bytes": 8864.0,
+          "minimum_bytes": 8864,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.006218333,
+          "mean_seconds": 0.006003347333333333,
+          "minimum_seconds": 0.005848834,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0001567908481052246
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.000858042,
+          "mean_seconds": 0.000832167,
+          "minimum_seconds": 0.000818667,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.830215151286867e-5
+        },
+        "evaluation": {
+          "maximum_seconds": 0.001344083,
+          "mean_seconds": 0.0012839863333333334,
+          "minimum_seconds": 0.001242417,
+          "sample_count": 3,
+          "standard_deviation_seconds": 4.352348369431025e-5
+        },
+        "expressions": {
+          "maximum_seconds": 0.045838958,
+          "mean_seconds": 0.045495791333333334,
+          "minimum_seconds": 0.044948708,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00039100108340287616
+        },
+        "numerical": {
+          "maximum_seconds": 0.00708375,
+          "mean_seconds": 0.006925485999999999,
+          "minimum_seconds": 0.00671925,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0001526238231469777
+        },
+        "reformulation": {
+          "maximum_seconds": 0.045336416,
+          "mean_seconds": 0.044953193999999995,
+          "minimum_seconds": 0.044605375,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0002994943129421082
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000131333,
+          "mean_seconds": 0.00012348600000000002,
+          "minimum_seconds": 0.000118708,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.592359490113869e-6
+        },
+        "static": {
+          "maximum_seconds": 0.081212292,
+          "mean_seconds": 0.06940398633333333,
+          "minimum_seconds": 0.063120292,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.008355481784963946
+        },
+        "structural_dm": {
+          "maximum_seconds": 2.125e-6,
+          "mean_seconds": 1.972e-6,
+          "minimum_seconds": 1.875e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.094745023586162e-7
+        },
+        "structural_graph": {
+          "maximum_seconds": 7.3583e-5,
+          "mean_seconds": 6.884733333333333e-5,
+          "minimum_seconds": 6.425e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.8114366786758454e-6
+        },
+        "structural_matching": {
+          "maximum_seconds": 2.6792e-5,
+          "mean_seconds": 2.3694666666666665e-5,
+          "minimum_seconds": 2.1958e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 2.195518060858429e-6
+        }
+      },
+      "total_stage_mean_allocated_bytes": 7.0999264e7,
+      "total_stage_mean_seconds": 0.17511595833333335,
+      "variable_count": 64,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_scaled",
+      "constraint_count": 64,
+      "dimension": 64,
+      "expected_evidence": {},
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 1811120128,
+      "process_maxrss_before_bytes": 1796128768,
+      "process_maxrss_increment_bytes": 14991360,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 4416080,
+          "mean_bytes": 4.41608e6,
+          "minimum_bytes": 4416080,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 458896,
+          "mean_bytes": 458896.0,
+          "minimum_bytes": 458896,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 452464,
+          "mean_bytes": 452464.0,
+          "minimum_bytes": 452464,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 16366304,
+          "mean_bytes": 1.6366304e7,
+          "minimum_bytes": 16366304,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 3675600,
+          "mean_bytes": 3.6756e6,
+          "minimum_bytes": 3675600,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 16363040,
+          "mean_bytes": 1.6362784e7,
+          "minimum_bytes": 16362656,
+          "sample_count": 3,
+          "standard_deviation_bytes": 181.01933598375618
+        },
+        "snapshot": {
+          "maximum_bytes": 64288,
+          "mean_bytes": 64288.0,
+          "minimum_bytes": 64288,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 28329328,
+          "mean_bytes": 2.8329328e7,
+          "minimum_bytes": 28329328,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_dm": {
+          "maximum_bytes": 5856,
+          "mean_bytes": 5856.0,
+          "minimum_bytes": 5856,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 172704,
+          "mean_bytes": 172704.0,
+          "minimum_bytes": 172704,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 8864,
+          "mean_bytes": 8864.0,
+          "minimum_bytes": 8864,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.005171125,
+          "mean_seconds": 0.0049483470000000005,
+          "minimum_seconds": 0.004828375,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00015768364077481224
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.000953458,
+          "mean_seconds": 0.0008710556666666667,
+          "minimum_seconds": 0.000826167,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.834498584759065e-5
+        },
+        "evaluation": {
+          "maximum_seconds": 0.001281667,
+          "mean_seconds": 0.0012703473333333334,
+          "minimum_seconds": 0.001259625,
+          "sample_count": 3,
+          "standard_deviation_seconds": 9.008516205359403e-6
+        },
+        "expressions": {
+          "maximum_seconds": 0.0447675,
+          "mean_seconds": 0.044324485999999996,
+          "minimum_seconds": 0.044064541,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0003148264421243348
+        },
+        "numerical": {
+          "maximum_seconds": 0.00715025,
+          "mean_seconds": 0.0069848056666666665,
+          "minimum_seconds": 0.006748625,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00017142225020172323
+        },
+        "reformulation": {
+          "maximum_seconds": 0.055850417,
+          "mean_seconds": 0.04830419466666667,
+          "minimum_seconds": 0.04447825,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.005336159355866123
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000124875,
+          "mean_seconds": 0.00012256933333333335,
+          "minimum_seconds": 0.00012,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.9989240994984208e-6
+        },
+        "static": {
+          "maximum_seconds": 0.0626505,
+          "mean_seconds": 0.062238805333333334,
+          "minimum_seconds": 0.061891125,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0003133006796570275
+        },
+        "structural_dm": {
+          "maximum_seconds": 3.041e-6,
+          "mean_seconds": 2.25e-6,
+          "minimum_seconds": 1.792e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.616446088645975e-7
+        },
+        "structural_graph": {
+          "maximum_seconds": 6.7333e-5,
+          "mean_seconds": 6.566666666666667e-5,
+          "minimum_seconds": 6.4792e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.178762722330306e-6
+        },
+        "structural_matching": {
+          "maximum_seconds": 7.5042e-5,
+          "mean_seconds": 4.020833333333333e-5,
+          "minimum_seconds": 2.2583e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 2.4631710217161586e-5
+        }
+      },
+      "total_stage_mean_allocated_bytes": 7.0313168e7,
+      "total_stage_mean_seconds": 0.169172736,
+      "variable_count": 64,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_full_rank",
+      "constraint_count": 128,
+      "dimension": 128,
+      "expected_evidence": {},
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 1815019520,
+      "process_maxrss_before_bytes": 1811120128,
+      "process_maxrss_increment_bytes": 3899392,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 8425232,
+          "mean_bytes": 8.425232e6,
+          "minimum_bytes": 8425232,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 856496,
+          "mean_bytes": 856496.0,
+          "minimum_bytes": 856496,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 977776,
+          "mean_bytes": 977776.0,
+          "minimum_bytes": 977776,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 64110112,
+          "mean_bytes": 6.4110112e7,
+          "minimum_bytes": 64110112,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 7684160,
+          "mean_bytes": 7.68416e6,
+          "minimum_bytes": 7684160,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 64103424,
+          "mean_bytes": 6.4103424e7,
+          "minimum_bytes": 64103424,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 113984,
+          "mean_bytes": 113984.0,
+          "minimum_bytes": 113984,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 87988416,
+          "mean_bytes": 8.7988416e7,
+          "minimum_bytes": 87988416,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_dm": {
+          "maximum_bytes": 5984,
+          "mean_bytes": 5984.0,
+          "minimum_bytes": 5984,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 325504,
+          "mean_bytes": 325504.0,
+          "minimum_bytes": 325504,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 19344,
+          "mean_bytes": 19344.0,
+          "minimum_bytes": 19344,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.009769042,
+          "mean_seconds": 0.009175444666666666,
+          "minimum_seconds": 0.008857667,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00042008607375658446
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.001639583,
+          "mean_seconds": 0.0016089303333333335,
+          "minimum_seconds": 0.001553958,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.8957196993053204e-5
+        },
+        "evaluation": {
+          "maximum_seconds": 0.002116834,
+          "mean_seconds": 0.002068694666666667,
+          "minimum_seconds": 0.001992459,
+          "sample_count": 3,
+          "standard_deviation_seconds": 5.4524233855741373e-5
+        },
+        "expressions": {
+          "maximum_seconds": 0.174847167,
+          "mean_seconds": 0.17376515300000003,
+          "minimum_seconds": 0.173027667,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0007817372617395192
+        },
+        "numerical": {
+          "maximum_seconds": 0.014160458,
+          "mean_seconds": 0.014003652666666666,
+          "minimum_seconds": 0.013779583,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0001626034220843943
+        },
+        "reformulation": {
+          "maximum_seconds": 0.190119334,
+          "mean_seconds": 0.18455786166666666,
+          "minimum_seconds": 0.178874709,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.004591405189793671
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000180125,
+          "mean_seconds": 0.00016091666666666666,
+          "minimum_seconds": 0.000149458,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.366648509635484e-5
+        },
+        "static": {
+          "maximum_seconds": 0.211890292,
+          "mean_seconds": 0.21130516700000002,
+          "minimum_seconds": 0.210891,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0004254927368271664
+        },
+        "structural_dm": {
+          "maximum_seconds": 4.625e-6,
+          "mean_seconds": 4.236333333333333e-6,
+          "minimum_seconds": 4.042e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 2.7482883562117155e-7
+        },
+        "structural_graph": {
+          "maximum_seconds": 0.000141959,
+          "mean_seconds": 0.000135889,
+          "minimum_seconds": 0.000131833,
+          "sample_count": 3,
+          "standard_deviation_seconds": 4.372346128415111e-6
+        },
+        "structural_matching": {
+          "maximum_seconds": 0.000115041,
+          "mean_seconds": 0.000105083,
+          "minimum_seconds": 0.000100083,
+          "sample_count": 3,
+          "standard_deviation_seconds": 7.041390203645869e-6
+        }
+      },
+      "total_stage_mean_allocated_bytes": 2.34610432e8,
+      "total_stage_mean_seconds": 0.596891029,
+      "variable_count": 128,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_rank_deficient",
+      "constraint_count": 128,
+      "dimension": 128,
+      "expected_evidence": {
+        "sparse_qr_jacobian_rank_deficiency": {
+          "fraction": 1.0,
+          "occurrence_count": 3,
+          "run_count": 3
+        }
+      },
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 1815019520,
+      "process_maxrss_before_bytes": 1811120128,
+      "process_maxrss_increment_bytes": 3899392,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 9054256,
+          "mean_bytes": 9.054256e6,
+          "minimum_bytes": 9054256,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 856000,
+          "mean_bytes": 856000.0,
+          "minimum_bytes": 856000,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 977584,
+          "mean_bytes": 977584.0,
+          "minimum_bytes": 977584,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 64275536,
+          "mean_bytes": 6.4275450666666664e7,
+          "minimum_bytes": 64275408,
+          "sample_count": 3,
+          "standard_deviation_bytes": 60.339778661252055
+        },
+        "numerical": {
+          "maximum_bytes": 7782400,
+          "mean_bytes": 7.7824e6,
+          "minimum_bytes": 7782400,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 64268592,
+          "mean_bytes": 6.4268592e7,
+          "minimum_bytes": 64268592,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 113952,
+          "mean_bytes": 113952.0,
+          "minimum_bytes": 113952,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 88315072,
+          "mean_bytes": 8.831502933333333e7,
+          "minimum_bytes": 88314944,
+          "sample_count": 3,
+          "standard_deviation_bytes": 60.339778661252055
+        },
+        "structural_dm": {
+          "maximum_bytes": 6352,
+          "mean_bytes": 6352.0,
+          "minimum_bytes": 6352,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 325040,
+          "mean_bytes": 325040.0,
+          "minimum_bytes": 325040,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 19344,
+          "mean_bytes": 19344.0,
+          "minimum_bytes": 19344,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.011005875,
+          "mean_seconds": 0.010869583333333334,
+          "minimum_seconds": 0.010725583,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0001145584828005134
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.001560958,
+          "mean_seconds": 0.0015516803333333335,
+          "minimum_seconds": 0.001543333,
+          "sample_count": 3,
+          "standard_deviation_seconds": 7.225385633691528e-6
+        },
+        "evaluation": {
+          "maximum_seconds": 0.002102083,
+          "mean_seconds": 0.0020717500000000002,
+          "minimum_seconds": 0.002025459,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.325460035343485e-5
+        },
+        "expressions": {
+          "maximum_seconds": 0.179534916,
+          "mean_seconds": 0.17542826366666664,
+          "minimum_seconds": 0.1729345,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0029260246332479065
+        },
+        "numerical": {
+          "maximum_seconds": 0.013936083,
+          "mean_seconds": 0.013814569,
+          "minimum_seconds": 0.013656041,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00011728429161088291
+        },
+        "reformulation": {
+          "maximum_seconds": 0.179349917,
+          "mean_seconds": 0.17701386099999997,
+          "minimum_seconds": 0.174395833,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0020323005398401746
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000146875,
+          "mean_seconds": 0.00014619433333333334,
+          "minimum_seconds": 0.00014575,
+          "sample_count": 3,
+          "standard_deviation_seconds": 4.887373755118686e-7
+        },
+        "static": {
+          "maximum_seconds": 0.215420792,
+          "mean_seconds": 0.21419934733333335,
+          "minimum_seconds": 0.212213584,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0014164940421047337
+        },
+        "structural_dm": {
+          "maximum_seconds": 4.083e-6,
+          "mean_seconds": 3.819333333333333e-6,
+          "minimum_seconds": 3.667e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.8719033688260245e-7
+        },
+        "structural_graph": {
+          "maximum_seconds": 0.000130875,
+          "mean_seconds": 0.00012881933333333334,
+          "minimum_seconds": 0.000126708,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.7016259544591089e-6
+        },
+        "structural_matching": {
+          "maximum_seconds": 9.8375e-5,
+          "mean_seconds": 9.833333333333334e-5,
+          "minimum_seconds": 9.8292e-5,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.3885427874270446e-8
+        }
+      },
+      "total_stage_mean_allocated_bytes": 2.35994e8,
+      "total_stage_mean_seconds": 0.5953262209999999,
+      "variable_count": 128,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_scaled",
+      "constraint_count": 128,
+      "dimension": 128,
+      "expected_evidence": {},
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 1815019520,
+      "process_maxrss_before_bytes": 1811120128,
+      "process_maxrss_increment_bytes": 3899392,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 8425360,
+          "mean_bytes": 8.425274666666666e6,
+          "minimum_bytes": 8425232,
+          "sample_count": 3,
+          "standard_deviation_bytes": 60.339778661252055
+        },
+        "degeneracy": {
+          "maximum_bytes": 856496,
+          "mean_bytes": 856496.0,
+          "minimum_bytes": 856496,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 977776,
+          "mean_bytes": 977776.0,
+          "minimum_bytes": 977776,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 64110112,
+          "mean_bytes": 6.4110112e7,
+          "minimum_bytes": 64110112,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 7848304,
+          "mean_bytes": 7.848304e6,
+          "minimum_bytes": 7848304,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 64103296,
+          "mean_bytes": 6.4103296e7,
+          "minimum_bytes": 64103296,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 113984,
+          "mean_bytes": 113984.0,
+          "minimum_bytes": 113984,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 87988784,
+          "mean_bytes": 8.798874133333333e7,
+          "minimum_bytes": 87988656,
+          "sample_count": 3,
+          "standard_deviation_bytes": 60.339778661252055
+        },
+        "structural_dm": {
+          "maximum_bytes": 5984,
+          "mean_bytes": 5984.0,
+          "minimum_bytes": 5984,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 325504,
+          "mean_bytes": 325504.0,
+          "minimum_bytes": 325504,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 19344,
+          "mean_bytes": 19344.0,
+          "minimum_bytes": 19344,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.014297792,
+          "mean_seconds": 0.010483347333333332,
+          "minimum_seconds": 0.008482584,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.002698300823972664
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.001750416,
+          "mean_seconds": 0.0016411663333333333,
+          "minimum_seconds": 0.001556541,
+          "sample_count": 3,
+          "standard_deviation_seconds": 8.10417474734816e-5
+        },
+        "evaluation": {
+          "maximum_seconds": 0.002191333,
+          "mean_seconds": 0.0020741386666666664,
+          "minimum_seconds": 0.002012833,
+          "sample_count": 3,
+          "standard_deviation_seconds": 8.289841090689799e-5
+        },
+        "expressions": {
+          "maximum_seconds": 0.178553209,
+          "mean_seconds": 0.174695264,
+          "minimum_seconds": 0.172622041,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.002730520453932907
+        },
+        "numerical": {
+          "maximum_seconds": 0.0144475,
+          "mean_seconds": 0.014149597333333333,
+          "minimum_seconds": 0.013918667,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.00022102798547745582
+        },
+        "reformulation": {
+          "maximum_seconds": 0.176788542,
+          "mean_seconds": 0.173768806,
+          "minimum_seconds": 0.171680709,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0021868474887705353
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000201958,
+          "mean_seconds": 0.00016363866666666666,
+          "minimum_seconds": 0.000144458,
+          "sample_count": 3,
+          "standard_deviation_seconds": 2.709586587573011e-5
+        },
+        "static": {
+          "maximum_seconds": 0.21542475,
+          "mean_seconds": 0.21365040266666666,
+          "minimum_seconds": 0.21025125,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0024043391109854315
+        },
+        "structural_dm": {
+          "maximum_seconds": 5.083e-6,
+          "mean_seconds": 3.416666666666667e-6,
+          "minimum_seconds": 2.542e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.1787627223303068e-6
+        },
+        "structural_graph": {
+          "maximum_seconds": 0.000147458,
+          "mean_seconds": 0.000134236,
+          "minimum_seconds": 0.000126416,
+          "sample_count": 3,
+          "standard_deviation_seconds": 9.401334798846385e-6
+        },
+        "structural_matching": {
+          "maximum_seconds": 0.000108584,
+          "mean_seconds": 0.00010300033333333333,
+          "minimum_seconds": 0.000100167,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.948393963232253e-6
+        }
+      },
+      "total_stage_mean_allocated_bytes": 2.34774816e8,
+      "total_stage_mean_seconds": 0.590867014,
+      "variable_count": 128,
+      "warmup_performed": true
+    }
+  ],
+  "schema_version": "nlpdiagnostics-sparse-runtime-memory-scaling-v1",
+  "source": {
+    "dimensions": [
+      16,
+      32,
+      64,
+      128
+    ],
+    "profile_corpus": "NLPDiagnostics.synthetic_sparse_profile_corpus",
+    "rank_max_dense_entries": 0,
+    "repetitions": 3,
+    "runner": "benchmarks/profile_sparse_runtime_memory_scaling.jl",
+    "warmup": true
+  }
+}

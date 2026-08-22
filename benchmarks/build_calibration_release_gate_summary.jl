@@ -18,6 +18,7 @@ real_covariance = read_summary("docs/real_99bus_phase_only_covariance_summary.js
 ibr_tolerance = read_summary("docs/bmopf_30bus_ibr_p_upper_tolerance_margin_summary.json")
 ibr_sparse = read_summary("docs/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit_summary.json")
 rank_oracles = read_summary("docs/randomized_rank_oracle_calibration_summary.json")
+runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
 
 function gate(id, status, rationale, evidence; blocking=false)
     Dict{String,Any}(
@@ -64,9 +65,9 @@ gates = Dict{String,Any}[
     ),
     gate(
         "runtime_memory_scaling",
-        "unavailable",
-        "The current local benchmark summaries do not provide a complete, comparable runtime, allocation, and peak-memory table across the release corpus.",
-        ["docs/mission_and_scope.md"],
+        "partial",
+        "The synthetic sparse ladder now provides 12 warm-up-aware runtime/allocation records across four dimensions; process high-water marks are retained descriptively, but OPF-solver scaling and isolated peak-memory measurements remain open.",
+        ["docs/sparse_runtime_memory_scaling_summary.json"],
         blocking=true,
     ),
     gate(
