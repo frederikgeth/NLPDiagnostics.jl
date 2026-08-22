@@ -4181,6 +4181,14 @@ counts, and family attribution agree exactly; four snapshots fail only on
 `ibr_p_upper` sides and both t13 snapshots pass. This closes a localization gap
 for the readiness ledger, but does not close absolute physical acceptance or
 covariance interpretation.
+The covariance detail audit is tracked at
+`docs/real_99bus_phase_only_covariance_summary.json`, with executable summarizer
+`benchmarks/summarize_real_99bus_phase_only_covariance.jl`. All six phase-only
+transforms pass the seven available covariance checks, including scalar-set,
+point, objective, residual, and semantic Jacobian comparisons. Physical rank is
+explicitly unavailable because dense rank is disabled, and inequality-multiplier
+covariance remains outside the report; these are retained as open gates rather
+than inferred successes.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and

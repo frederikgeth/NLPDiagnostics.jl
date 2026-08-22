@@ -1,0 +1,88 @@
+{
+  "schema_version": "nlpdiagnostics-real-99bus-phase-only-covariance-summary-v1",
+  "source": {
+    "runner": "benchmarks/summarize_real_99bus_phase_only_covariance.jl",
+    "campaign_artifact": "work/real-99bus-phase-only-campaign.json",
+    "covariance_report_version": "bmopf-phase-only-covariance-v1",
+    "relative_tolerance": 1e-7,
+    "absolute_tolerance": 1e-8,
+    "snapshots": 6
+  },
+  "summary": {
+    "covariance_available_count": 6,
+    "equivalence_gate_passed_count": 6,
+    "overall_covariant_count": 6,
+    "set_transform_gate_passed_count": 6,
+    "seven_check_pass_count": 6,
+    "physical_rank_available_count": 0,
+    "maximum_objective_value_difference": 5.684341886080802e-14,
+    "maximum_objective_gradient_difference": 5.551115123125783e-17,
+    "maximum_constraint_residual_difference": 2.3492319201068335e-11,
+    "maximum_physical_point_difference": 9.094947017729282e-13,
+    "maximum_physical_jacobian_difference": 6.400622254432164e-10,
+    "maximum_physical_jacobian_relative_difference": 0.0003960313728790792
+  },
+  "runs": [
+    {
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json",
+      "equivalence_gate_passed": true,
+      "set_transform_gate_passed": true,
+      "passed_available_check_count": 7,
+      "physical_jacobian_max_abs_difference": 5.417109136615509e-10,
+      "physical_jacobian_max_relative_difference": 0.000022105224154279562,
+      "physical_rank_available": false,
+      "physical_solver_kkt_accepted": false
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json",
+      "equivalence_gate_passed": true,
+      "set_transform_gate_passed": true,
+      "passed_available_check_count": 7,
+      "physical_jacobian_max_abs_difference": 5.446789685947806e-10,
+      "physical_jacobian_max_relative_difference": 1.734723475976807e-10,
+      "physical_rank_available": false,
+      "physical_solver_kkt_accepted": true
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json",
+      "equivalence_gate_passed": true,
+      "set_transform_gate_passed": true,
+      "passed_available_check_count": 7,
+      "physical_jacobian_max_abs_difference": 4.6337077089838447e-10,
+      "physical_jacobian_max_relative_difference": 0.00001672644945796847,
+      "physical_rank_available": false,
+      "physical_solver_kkt_accepted": false
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json",
+      "equivalence_gate_passed": true,
+      "set_transform_gate_passed": true,
+      "passed_available_check_count": 7,
+      "physical_jacobian_max_abs_difference": 5.480446252386804e-10,
+      "physical_jacobian_max_relative_difference": 0.0003960313728790792,
+      "physical_rank_available": false,
+      "physical_solver_kkt_accepted": false
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json",
+      "equivalence_gate_passed": true,
+      "set_transform_gate_passed": true,
+      "passed_available_check_count": 7,
+      "physical_jacobian_max_abs_difference": 6.400622254432164e-10,
+      "physical_jacobian_max_relative_difference": 1.734723475976807e-10,
+      "physical_rank_available": false,
+      "physical_solver_kkt_accepted": true
+    },
+    {
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json",
+      "equivalence_gate_passed": true,
+      "set_transform_gate_passed": true,
+      "passed_available_check_count": 7,
+      "physical_jacobian_max_abs_difference": 5.519761664410307e-10,
+      "physical_jacobian_max_relative_difference": 0.000024502899742283455,
+      "physical_rank_available": false,
+      "physical_solver_kkt_accepted": false
+    }
+  ],
+  "finding": "All six phase-only transformations pass the seven available covariance checks, including scalar-set transport, point/objective/residual covariance, and semantic Jacobian comparison. Physical rank remains explicitly unavailable because dense rank is disabled, and inequality-multiplier covariance is outside this report."
+}
