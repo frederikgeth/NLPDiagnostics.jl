@@ -3553,12 +3553,15 @@ function _bmopf_phase_only_rebuild_model(
             "error" => sprint(showerror, error),
         )
     end
+    source_slot = Dict(variable => position for
+        (position, variable) in enumerate(source_variables))
     target_for_position = position -> target_variables[
-        findfirst(==(point_variables[position]), source_variables),
+        source_slot[point_variables[position]],
     ]
     reference_map = phase_plan["reference_map"]
     candidate_map = phase_plan["candidate_map"]
     variable_map = Dict{MOI.VariableIndex,Any}()
+    transformed_values = Float64.(evaluation.point.values)
     for (reference_block, candidate_block) in zip(
         reference_map.variable_blocks, candidate_map.variable_blocks,
     )
@@ -3570,6 +3573,8 @@ function _bmopf_phase_only_rebuild_model(
             "reason" => "candidate and reference semantic block partitions differ",
         )
         rotation = reference_block.model_to_physical \ candidate_block.model_to_physical
+        transformed_values[reference_block.positions] = rotation \
+            transformed_values[reference_block.positions]
         for (row, position) in enumerate(reference_block.positions)
             terms = MOI.ScalarAffineTerm{Float64}[]
             for (column, target_position) in enumerate(reference_block.positions)
@@ -3586,6 +3591,23 @@ function _bmopf_phase_only_rebuild_model(
         variable_map[variable] = target_variables[findfirst(==(variable), source_variables)]
     end
     substitution = variable -> variable_map[variable]
+    start_values_copied = true
+    start_values_reason = nothing
+    for (position, variable) in enumerate(point_variables)
+        target_variable = target_for_position(position)
+        try
+            MOI.set(
+                target,
+                MOI.VariablePrimalStart(),
+                target_variable,
+                transformed_values[position],
+            )
+        catch error
+            start_values_copied = false
+            start_values_reason = sprint(showerror, error)
+            break
+        end
+    end
     try
         for (function_type, set_type) in MOI.get(
             source, MOI.ListOfConstraintTypesPresent(),
@@ -3641,7 +3663,8 @@ function _bmopf_phase_only_rebuild_model(
         ),
         "target_model" => target,
         "variable_map" => variable_map,
-        "start_values_copied" => false,
+        "start_values_copied" => start_values_copied,
+        "start_values_reason" => start_values_reason,
         "qualification" => Dict{String,Any}(
             "claim" => "non-mutating MOI transformed-coordinate model copy",
             "requires_optimizer_attachment" => true,

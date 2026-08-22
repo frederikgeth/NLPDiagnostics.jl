@@ -3752,7 +3752,8 @@ and a quadratic objective per snapshot. The remaining gap is a
 transformed-coordinate solver runner for BMOPFTools contexts that attaches and
 validates the rebuilt model. The non-mutating MOI model copy now succeeds for
 all six snapshots; optimizer attachment, start transport, and endpoint gates
-remain. The next research sequence is:
+remain (start transport itself now passes on the real matrix). The next
+research sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;

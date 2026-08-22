@@ -1434,8 +1434,9 @@ substitution API to build a separate transformed model copy. It rewrites
 variable, affine, quadratic, and nonlinear constraint functions plus the
 objective without mutating the source context. The six selected real
 snapshots all rebuild 1,968 variables and 2,208 constraints successfully. The
-returned target is solver-free by design; optimizer attachment, start
-transport, and endpoint validation remain separate gates.
+returned target now receives the inverse-rotation start values from the
+completed evaluation point. It is solver-free by design; optimizer attachment
+and endpoint validation remain separate gates.
 
 Residual-set semantics are deliberately exact. KCL and other equations whose
 actual JuMP sets are equality to zero use `ZeroEqualitySetContract`. Source

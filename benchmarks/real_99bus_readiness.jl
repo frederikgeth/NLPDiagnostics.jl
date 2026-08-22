@@ -107,6 +107,7 @@ function semantic_map_probe_snapshot(root, relative)
                 "source_variable_count" => get(rebuilt, "source_variable_count", nothing),
                 "target_variable_count" => get(rebuilt, "target_variable_count", nothing),
                 "source_constraint_count" => get(rebuilt, "source_constraint_count", nothing),
+                "start_values_copied" => get(rebuilt, "start_values_copied", false),
                 "error" => get(rebuilt, "error", nothing),
             ),
         )
@@ -152,7 +153,8 @@ function run_inventory()
     )
     rebuild_copy_ready = !isempty(rebuild_copies) && all(
         get(report, "available", false) === true &&
-        get(report, "model_rebuilt", false) === true
+        get(report, "model_rebuilt", false) === true &&
+        get(report, "start_values_copied", false) === true
         for report in rebuild_copies
     )
     return Dict(

@@ -1121,4 +1121,5 @@ a quadratic objective per snapshot; these are the remaining implementation
 requirements for a genuine transformed-coordinate solve.
 The non-mutating MOI rebuild copy now succeeds for all six snapshots with
 1,968 target variables and 2,208 target constraints; it is not yet attached
-to an optimizer and carries no solver evidence.
+to an optimizer. Inverse-rotation starts are copied successfully, but the
+artifact carries no solver evidence.
