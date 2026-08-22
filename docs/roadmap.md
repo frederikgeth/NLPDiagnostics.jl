@@ -3767,12 +3767,15 @@ sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
-2. use the new matched native-baseline screen as an interim relative gate: all
-   six transformed endpoints remain within `1e-8` of their native residual
-   maxima (worst absolute delta about `1.43e-9`), while absolute physical
-   acceptance remains unqualified; then calibrate quantity/set-specific
-   tolerances and add transformed-domain-set handling before applying KKT and
-   covariance gates; and
+2. use the new matched native-baseline screen as an interim relative gate. The
+   block-level screen passes four of six snapshots at `1e-8`; the two t25
+   outliers are localized to `ibr_p_upper`, with the largest delta
+   `4.18e-6` at `pv_22` in LN t25. This points the next investigation at
+   IBR upper-power residual semantics/scaling or solver convergence rather
+   than generic endpoint transport. Absolute physical acceptance remains
+   unqualified; then calibrate quantity/set-specific tolerances and add
+   transformed-domain-set handling before applying KKT and covariance gates;
+   and
 3. consider automatic-policy candidates only after the endpoint-qualified
    real snapshot matrix
    has been reviewed for fixture-specific reversals.

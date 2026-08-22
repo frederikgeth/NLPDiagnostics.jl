@@ -57,13 +57,33 @@ function native_baseline_comparison(reference, candidate; margin)
     comparable = reference_max isa Real && candidate_max isa Real &&
         isfinite(reference_max) && isfinite(candidate_max)
     threshold = comparable ? Float64(reference_max) + margin : nothing
+    reference_by_block = get(reference, "maximum_violation_by_block", Dict())
+    candidate_by_block = get(candidate, "maximum_violation_by_block", Dict())
+    common_blocks = intersect(Set(keys(reference_by_block)), Set(keys(candidate_by_block)))
+    block_deltas = Dict{String,Float64}(
+        string(block) => Float64(candidate_by_block[block]) -
+            Float64(reference_by_block[block])
+        for block in common_blocks
+    )
+    maximum_absolute_block_delta = isempty(block_deltas) ? nothing : maximum(abs, values(block_deltas))
+    worst_block_deltas = sort!(collect(block_deltas); by=pair -> abs(pair.second), rev=true)
     return Dict{String,Any}(
-        "available" => comparable,
+        "available" => comparable && length(common_blocks) == length(reference_by_block) &&
+            length(common_blocks) == length(candidate_by_block),
+        "common_block_count" => length(common_blocks),
+        "reference_block_count" => length(reference_by_block),
+        "candidate_block_count" => length(candidate_by_block),
         "reference_maximum_violation" => comparable ? Float64(reference_max) : nothing,
         "candidate_maximum_violation" => comparable ? Float64(candidate_max) : nothing,
         "absolute_margin" => margin,
         "candidate_within_native_margin" => comparable &&
-            Float64(candidate_max) <= threshold,
+            Float64(candidate_max) <= threshold &&
+            all(delta -> delta <= margin, values(block_deltas)),
+        "maximum_absolute_block_delta" => maximum_absolute_block_delta,
+        "worst_block_deltas" => [
+            Dict("block_id" => string(pair.first), "delta" => pair.second)
+            for pair in Iterators.take(worst_block_deltas, 5)
+        ],
         "qualification" => Dict{String,Any}(
             "claim" => "candidate endpoint residual scale is no worse than the matched native endpoint by the declared margin",
             "absolute_physical_acceptance" => false,
@@ -84,7 +104,25 @@ function physical_feasibility(context, evaluation; tolerance)
         evaluation;
         quantity_absolute_tolerances=Dict(quantity => tolerance for quantity in quantities),
     )
-    residuals = collect(values(get(report, "residuals", Dict())))
+    residual_pairs = collect(pairs(get(report, "residuals", Dict())))
+    residuals = [pair.second for pair in residual_pairs]
+    worst = sort(residual_pairs; by=pair -> get(pair.second, "violation", 0.0), rev=true)
+    by_block = Dict{String,Float64}()
+    for record in residuals
+        block_id = string(get(record, "block_id", ""))
+        violation = Float64(get(record, "violation", 0.0))
+        by_block[block_id] = max(get(by_block, block_id, 0.0), violation)
+    end
+    worst_records = [
+        Dict(
+            "residual_key" => string(pair.first),
+            "id" => get(pair.second, "id", nothing),
+            "block_id" => get(pair.second, "block_id", nothing),
+            "physical_quantity" => get(pair.second, "physical_quantity", nothing),
+            "violation" => get(pair.second, "violation", nothing),
+            "passed" => get(pair.second, "passed", nothing),
+        ) for pair in Iterators.take(worst, 5)
+    ]
     return Dict{String,Any}(
         "available" => get(report, "available", false),
         "acceptance_passed" => get(report, "acceptance_passed", nothing),
@@ -93,6 +131,8 @@ function physical_feasibility(context, evaluation; tolerance)
         "passed_residual_count" => count(record -> get(record, "passed", false) === true, residuals),
         "maximum_violation" => isempty(residuals) ? nothing : maximum(
             get(record, "violation", 0.0) for record in residuals),
+        "maximum_violation_by_block" => by_block,
+        "worst_residuals" => worst_records,
     )
 end
 
