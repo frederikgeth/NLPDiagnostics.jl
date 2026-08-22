@@ -7,7 +7,8 @@ score and keeps structural, solver-result, context, and log fingerprints in
 separate namespaces.
 """
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 function _int(value, default = 0)
     value isa Integer && return Int(value)
@@ -21,8 +22,7 @@ function _int(value, default = 0)
 end
 
 function _load(path)
-    isfile(path) || error("summary file is missing: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(path; root = "/")
     value isa AbstractDict || error("summary must be a JSON object: $path")
     return value
 end
@@ -265,7 +265,7 @@ function main()
                 get(all_solver_log_codes, String(code), 0) + Int(count)
         end
     end
-    write(output_path, JSON.json(Dict(
+    write_json(output_path, Dict(
         "report_version" => "bmopf-campaign-summary-v1",
         "structural" => structural,
         "additional_corpus" => additional_corpus,
@@ -326,7 +326,7 @@ function main()
             ),
         ),
         "interpretation" => "Evidence aggregation only; structural, solver-result, context, and log findings remain separately attributable.",
-    )))
+    ))
     println("wrote BMOPF campaign summary to $output_path")
 end
 
