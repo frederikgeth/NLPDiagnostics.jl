@@ -1,0 +1,60 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-ibr-p-upper-row-scaling-audit-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_30bus_ibr_p_upper_row_scaling_audit.jl",
+    "raw_probe": "/private/tmp/bmopf-30bus-ibr-row-scaling.json",
+    "solver": "Ipopt",
+    "max_iter": 80,
+    "target_row_family": "ibr_p_upper",
+    "bound_source": "solver_dual_snapshot"
+  },
+  "protocol": {
+    "snapshots": 4,
+    "target_rows_per_snapshot": 28,
+    "identity_checked": "reported model slack = upper bound - evaluated value; reported physical slack = model slack * declared residual scale",
+    "physical_violation_measure": "absolute expected physical slack"
+  },
+  "cases": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "physical_kkt_acceptance_passed": false,
+      "bound_range": [0.0, 0.0],
+      "scale_range": [1e6, 1e6],
+      "physical_violation_range": [0.00997524670603539, 0.009976176743116998],
+      "maximum_model_slack_difference": 0.0,
+      "maximum_physical_slack_difference": 0.0
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "physical_kkt_acceptance_passed": true,
+      "bound_range": [0.004780854170090343, 0.00525],
+      "scale_range": [1e6, 1e6],
+      "physical_violation_range": [0.00996787166782781, 258.4769329200005],
+      "maximum_model_slack_difference": 0.0,
+      "maximum_physical_slack_difference": 0.0
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "physical_kkt_acceptance_passed": false,
+      "bound_range": [0.0, 0.0],
+      "scale_range": [1e6, 1e6],
+      "physical_violation_range": [0.00997524672351823, 0.009976176772531127],
+      "maximum_model_slack_difference": 0.0,
+      "maximum_physical_slack_difference": 0.0
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "physical_kkt_acceptance_passed": true,
+      "bound_range": [0.004780854170090343, 0.00525],
+      "scale_range": [1e6, 1e6],
+      "physical_violation_range": [0.009968940173354923, 80.47041400193345],
+      "maximum_model_slack_difference": 0.0,
+      "maximum_physical_slack_difference": 0.0
+    }
+  ],
+  "finding": "All 112 target rows reproduce the KKT audit's model and physical slack exactly from their row-specific upper bound, evaluated value, and declared 1e6 scale. t01 rows use zero upper bounds and show the approximately 0.00998 physical floor; t13 rows use row-specific positive bounds and remain KKT-accepted. This is scaling-semantic evidence only, not a causal explanation."
+}

@@ -4067,6 +4067,15 @@ single-column central difference at `1e-6`; the worst absolute discrepancy is
 below `9e-13`. This validates the local sparse evaluator Jacobian pattern,
 without upgrading it to a KKT, conditioning, or causal claim.
 
+The row-level scaling audit is tracked at
+`docs/bmopf_30bus_ibr_p_upper_row_scaling_audit_summary.json`, with executable
+runner `benchmarks/bmopf_30bus_ibr_p_upper_row_scaling_audit.jl`. Across all 112
+target rows, the reported model and physical slacks reproduce exactly from the
+solver-dual upper bound, evaluated row value, and declared `1e6` scale. The t01
+rows use zero upper bounds and retain the approximately `0.00998` physical
+floor; t13 rows use row-specific positive bounds and remain KKT-accepted. This
+clarifies scaling semantics without assigning a solver or formulation cause.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
