@@ -1,0 +1,69 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-ibr-p-upper-geometry-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_30bus_ibr_p_upper_geometry.jl",
+    "local_environment": "work/benchmark-environment",
+    "solver": "Ipopt",
+    "max_iter": 80,
+    "row_family": "ibr_p_upper",
+    "interpretation": "endpoint Jacobian geometry; not causal conditioning evidence"
+  },
+  "cases": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "physical_kkt_acceptance_passed": false,
+      "target_row_count": 28,
+      "target_row_value_range": [9.97524670603539e-9, 9.976176743116997e-9],
+      "target_physical_violation_max": 0.009976176743116998,
+      "combined_nonzero_entry_count": 168,
+      "nonzero_entries_per_row_range": [6, 6],
+      "row_max_abs_jacobian_range": [0.8424388672805707, 0.9910182542879458],
+      "row_scale_ratio": 1.1763681529640195,
+      "top_column_families": ["cri", "cii", "vr", "vi"]
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "physical_kkt_acceptance_passed": true,
+      "target_row_count": 28,
+      "target_row_value_range": [0.004780864141168498, 0.005197198088161236],
+      "target_physical_violation_max": 0.009971078155103896,
+      "combined_nonzero_entry_count": 168,
+      "nonzero_entries_per_row_range": [6, 6],
+      "row_max_abs_jacobian_range": [0.9008287855180884, 1.0812782464219077],
+      "row_scale_ratio": 1.2003149364282786,
+      "top_column_families": ["cri", "cii", "vi", "vr"]
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "physical_kkt_acceptance_passed": false,
+      "target_row_count": 28,
+      "target_row_value_range": [9.97524672351823e-9, 9.976176772531128e-9],
+      "target_physical_violation_max": 0.009976176772531127,
+      "combined_nonzero_entry_count": 168,
+      "nonzero_entries_per_row_range": [6, 6],
+      "row_max_abs_jacobian_range": [0.8424387821985186, 0.9910182404996744],
+      "row_scale_ratio": 1.1763682554041575,
+      "top_column_families": ["cri", "cii", "vr", "vi"]
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "physical_kkt_acceptance_passed": true,
+      "target_row_count": 28,
+      "target_row_value_range": [0.0047808641405732, 0.005246999723995885],
+      "target_physical_violation_max": 0.009970907362003345,
+      "combined_nonzero_entry_count": 168,
+      "nonzero_entries_per_row_range": [6, 6],
+      "row_max_abs_jacobian_range": [0.9086280570405457, 1.0949930386061824],
+      "row_scale_ratio": 1.2051059067806449,
+      "top_column_families": ["cri", "cii", "vi", "vr"]
+    }
+  ],
+  "comparison": {
+    "all_cases_have_complete_finite_target_rows": true,
+    "all_cases_have_six_nonzero_entries_per_target_row": true,
+    "row_norm_range_across_cases": [0.8424387821985186, 1.0949930386061824],
+    "dominant_column_families": ["cri", "cii"],
+    "interpretation": "The ibr_p_upper rows have complete finite Jacobian coverage, exactly six nonzero entries per row, and order-one row norms with within-family scale ratios near 1.18-1.21. The t01 KKT failures are not accompanied by a zero or weak endpoint row in this bounded geometry report.",
+    "qualification": "This is local endpoint derivative geometry on four 30-bus snapshots. It does not prove conditioning, identify a causal formulation defect, or replace physical KKT evidence."
+  }
+}

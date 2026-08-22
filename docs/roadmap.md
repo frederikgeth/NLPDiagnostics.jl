@@ -4009,6 +4009,16 @@ produces orders-of-magnitude larger residuals. This confirms initialization is
 material for completion, while leaving the qualified endpoint floor unchanged
 under the tested complete-start controls.
 
+The endpoint geometry probe is tracked at
+`docs/bmopf_30bus_ibr_p_upper_geometry_summary.json`, with executable runner
+`benchmarks/bmopf_30bus_ibr_p_upper_geometry.jl`. All 28 `ibr_p_upper` rows
+have complete finite Jacobians with exactly six nonzero entries each; row norms
+stay order-one (`0.842`–`1.095`) with within-family ratios near `1.18`–`1.21`.
+The dominant column families are `cri` and `cii`, with voltage columns much
+smaller in the recorded sum. The t01 failures therefore are not accompanied by
+a zero or weak endpoint row in this bounded geometry report; this remains local
+derivative evidence rather than a conditioning or causality proof.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
