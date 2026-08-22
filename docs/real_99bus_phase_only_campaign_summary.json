@@ -1,5 +1,5 @@
 {
-  "schema_version": "nlpdiagnostics-real-99bus-phase-only-campaign-summary-v3",
+  "schema_version": "nlpdiagnostics-real-99bus-phase-only-campaign-summary-v4",
   "source": {
     "selected_snapshot_count": 6,
     "phase_angle": 0.01,
@@ -26,7 +26,7 @@
     "phase_only_physical_solver_kkt_acceptance_count": 2,
     "phase_only_kkt_transport_alignment_maximum_absolute_difference": 6.661338147750939e-16,
     "phase_only_covariance_available_count": 6,
-    "phase_only_covariance_acceptance_count": 0,
+    "phase_only_covariance_acceptance_count": 6,
     "kkt_compound_tolerance_policy": {
       "stationarity_default_absolute_tolerance": 1e-05,
       "dual_default_absolute_tolerance": 1e-05,
@@ -50,7 +50,7 @@
     "model_rebuild_and_start_gate": "passed for all six snapshots",
     "solver_campaign_ready": false,
     "physical_endpoint_validation": false,
-    "blocking_reason": "solver-floor calibrated feasibility is qualified as relative solver-scale evidence, but absolute physical acceptance, full compound KKT acceptance, transformed-domain-set covariance, and covariance validation remain open"
+    "blocking_reason": "solver-floor calibrated feasibility is qualified as relative solver-scale evidence, but absolute physical acceptance and full compound KKT acceptance remain open"
   },
   "runs": [
     {

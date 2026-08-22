@@ -490,7 +490,7 @@ function run_campaign()
         if get(get(get(run, "phase_only", Dict()), "covariance", Dict()), "equivalence_gate_passed", false) === true
     ]
     return Dict(
-        "schema_version" => "nlpdiagnostics-real-99bus-phase-only-campaign-v3",
+        "schema_version" => "nlpdiagnostics-real-99bus-phase-only-campaign-v4",
         "source" => Dict(
             "root_basename" => basename(root),
             "selected_snapshot_count" => length(SELECTED_SNAPSHOTS),
@@ -525,7 +525,7 @@ function run_campaign()
             "all_phase_only_physical_endpoints_accepted" => length(phase_only_physical) == length(SELECTED_SNAPSHOTS),
             "solver_campaign_ready" => false,
             "physical_endpoint_validation" => false,
-            "blocking_reason" => "solver-floor calibrated feasibility is qualified as relative solver-scale evidence, but absolute physical acceptance, full compound KKT acceptance, transformed-domain-set covariance, and physical covariance validation are not yet qualified",
+            "blocking_reason" => "solver-floor calibrated feasibility is qualified as relative solver-scale evidence, but absolute physical acceptance and full compound KKT acceptance are not yet qualified",
         ),
     )
 end

@@ -3468,7 +3468,7 @@ function _bmopf_phase_only_model_rebuild_report(context; plan=nothing)
     affine_count > 0 && push!(blockers,
         "affine constraint substitution is required")
     variable_domain_count > 0 && push!(blockers,
-        "variable-domain sets must be transformed into coupled rotated sets")
+        "coupled-cone variable-domain transforms remain unsupported; scalar domains use affine substitution")
     objective_is_nonlinear && push!(blockers,
         "nonlinear objective substitution is required")
     objective_is_quadratic && push!(blockers,
@@ -3488,6 +3488,8 @@ function _bmopf_phase_only_model_rebuild_report(context; plan=nothing)
         "quadratic_constraint_count" => quadratic_count,
         "affine_constraint_count" => affine_count,
         "variable_domain_constraint_count" => variable_domain_count,
+        "scalar_variable_domain_transform_supported" => true,
+        "coupled_cone_variable_domain_transform_supported" => false,
         "objective_function_type" => objective_type,
         "objective_is_nonlinear" => objective_is_nonlinear,
         "objective_is_quadratic" => objective_is_quadratic,
@@ -3497,7 +3499,7 @@ function _bmopf_phase_only_model_rebuild_report(context; plan=nothing)
             "substitute MOI variable leaves with affine combinations",
             "preserve affine and quadratic function semantics",
             "rewrite ScalarNonlinearFunction expression trees",
-            "transform variable-domain and residual sets",
+            "rewrite scalar variable-domain sets as affine functions and retain scalar sets",
             "rebuild the objective and retain start-value provenance",
         ],
     )
@@ -3602,6 +3604,9 @@ function _bmopf_phase_only_rebuild_model(
     start_values_copied = true
     start_values_reason = nothing
     constraint_index_map = Dict{Tuple{String,String,Int},Tuple{String,String,Int}}()
+    source_variable_domain_count = 0
+    transformed_variable_domain_count = 0
+    variable_domain_transform_failures = String[]
     for (position, variable) in enumerate(point_variables)
         target_variable = target_for_position(position)
         try
@@ -3625,6 +3630,8 @@ function _bmopf_phase_only_rebuild_model(
                 function_value = MOI.get(source, MOI.ConstraintFunction(), index)
                 set_value = MOI.get(source, MOI.ConstraintSet(), index)
                 source_function_type = string(typeof(function_value))
+                source_is_variable_domain = function_value isa MOI.VariableIndex
+                source_is_variable_domain && (source_variable_domain_count += 1)
                 function_value isa MOI.VariableIndex && (function_value =
                     MOI.ScalarAffineFunction([
                         MOI.ScalarAffineTerm(1.0, function_value),
@@ -3632,6 +3639,14 @@ function _bmopf_phase_only_rebuild_model(
                 transformed = MOI.Utilities.substitute_variables(
                     substitution, function_value,
                 )
+                if source_is_variable_domain
+                    if transformed isa MOI.ScalarAffineFunction
+                        transformed_variable_domain_count += 1
+                    else
+                        push!(variable_domain_transform_failures,
+                            "source constraint $(index.value) became $(typeof(transformed))")
+                    end
+                end
                 target_index = MOI.add_constraint(target, transformed, set_value)
                 constraint_index_map[(
                     string(typeof(transformed)), string(typeof(set_value)), target_index.value,
@@ -3684,6 +3699,14 @@ function _bmopf_phase_only_rebuild_model(
         "target_model" => target,
         "variable_map" => variable_map,
         "constraint_index_map" => constraint_index_map,
+        "variable_domain_transform" => Dict{String,Any}(
+            "source_constraint_count" => source_variable_domain_count,
+            "transformed_constraint_count" => transformed_variable_domain_count,
+            "all_transformed_to_affine" => isempty(variable_domain_transform_failures) &&
+                source_variable_domain_count == transformed_variable_domain_count,
+            "failures" => variable_domain_transform_failures,
+            "method" => "scalar variable-domain constraints are rewritten as affine functions of the rotated coordinates while retaining their scalar sets",
+        ),
         "start_values_copied" => start_values_copied,
         "start_values_reason" => start_values_reason,
         "qualification" => Dict{String,Any}(
@@ -4080,24 +4103,32 @@ function _bmopf_phase_only_covariance_report(
         relative_tolerance,
         max_dense_entries,
     )
-    source_backend = JuMP.backend(_bmopf_context_model(context))
-    source_variable_domain_count = 0
-    for (function_type, set_type) in MOI.get(
-        source_backend, MOI.ListOfConstraintTypesPresent(),
+    variable_domain_transform = get(
+        rebuild, "variable_domain_transform", Dict{String,Any}(),
     )
-        function_type === MOI.VariableIndex && (source_variable_domain_count +=
-            MOI.get(source_backend, MOI.NumberOfConstraints{function_type,set_type}()))
-    end
-    set_transform_gate = source_variable_domain_count == 0
+    source_variable_domain_count = get(
+        variable_domain_transform, "source_constraint_count", 0,
+    )
+    transformed_variable_domain_count = get(
+        variable_domain_transform, "transformed_constraint_count", 0,
+    )
+    set_transform_gate = get(
+        variable_domain_transform, "all_transformed_to_affine", false,
+    ) === true
     report["report_version"] = "bmopf-phase-only-covariance-v1"
     report["available"] = true
     report["phase_only_set_transform"] = Dict{String,Any}(
         "available" => set_transform_gate,
         "acceptance_passed" => set_transform_gate,
         "source_variable_domain_constraint_count" => source_variable_domain_count,
+        "transformed_variable_domain_constraint_count" => transformed_variable_domain_count,
+        "transformed_to_affine" => get(
+            variable_domain_transform, "all_transformed_to_affine", false,
+        ),
+        "failures" => get(variable_domain_transform, "failures", String[]),
         "reason" => set_transform_gate ?
-            "no variable-domain constraints require rotation" :
-            "rotated variable-domain sets were copied without a coupled-set transform",
+            "variable-domain constraints were rewritten as affine functions of rotated coordinates with their scalar sets retained" :
+            "one or more variable-domain constraints were not rewritten as affine functions of rotated coordinates",
     )
     report["equivalence_gate_passed"] =
         report["equivalence_gate_passed"] === true && set_transform_gate
@@ -4107,7 +4138,7 @@ function _bmopf_phase_only_covariance_report(
             "claim" => "same-point source/transformed phase-only endpoint covariance under semantic blocks",
             "set_transform_gate_passed" => set_transform_gate,
             "does_not_establish" => [
-                "rotated variable-domain set equivalence when the set gate is blocked",
+                "coupled-cone set equivalence beyond the supported scalar affine-domain transform",
                 "solver merit or global optimality",
                 "KKT acceptance or covariance of inequality multipliers",
             ],

@@ -16,7 +16,7 @@
       "phase_only_physical_solver_kkt_available_count": 6,
       "phase_only_physical_solver_kkt_acceptance_count": 2,
       "phase_only_covariance_available_count": 6,
-      "phase_only_covariance_acceptance_count": 0,
+      "phase_only_covariance_acceptance_count": 6,
       "all_phase_only_runs_locally_solved": true,
       "all_phase_only_solver_floor_calibrated_accepted": true,
       "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
@@ -30,7 +30,7 @@
       "phase_only_physical_solver_kkt_available_count": 6,
       "phase_only_physical_solver_kkt_acceptance_count": 0,
       "phase_only_covariance_available_count": 6,
-      "phase_only_covariance_acceptance_count": 0,
+      "phase_only_covariance_acceptance_count": 6,
       "all_phase_only_runs_locally_solved": true,
       "all_phase_only_solver_floor_calibrated_accepted": false,
       "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
@@ -44,7 +44,7 @@
       "phase_only_physical_solver_kkt_available_count": 6,
       "phase_only_physical_solver_kkt_acceptance_count": 2,
       "phase_only_covariance_available_count": 6,
-      "phase_only_covariance_acceptance_count": 0,
+      "phase_only_covariance_acceptance_count": 6,
       "all_phase_only_runs_locally_solved": false,
       "all_phase_only_solver_floor_calibrated_accepted": true,
       "phase_only_termination_statuses": ["LOCALLY_SOLVED", "ITERATION_LIMIT", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
@@ -58,7 +58,7 @@
       "phase_only_physical_solver_kkt_available_count": 6,
       "phase_only_physical_solver_kkt_acceptance_count": 2,
       "phase_only_covariance_available_count": 6,
-      "phase_only_covariance_acceptance_count": 0,
+      "phase_only_covariance_acceptance_count": 6,
       "all_phase_only_runs_locally_solved": true,
       "all_phase_only_solver_floor_calibrated_accepted": true,
       "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
@@ -71,7 +71,7 @@
     "absolute_physical_claim": false,
     "kkt_transport": "available for all six snapshots with source/target constraint-value alignment below 7e-16",
     "kkt_acceptance": "compound KKT acceptance passes 2/6 at the 1e-8 policy; the remaining cases are complementarity-limited",
-    "covariance": "point, objective, residual, derivative, and sparse-Jacobian covariance are available for all six, but the equivalence gate is blocked by 104 unrotated variable-domain constraints",
-    "covariance_validation": false
+    "covariance": "point, objective, residual, derivative, sparse-Jacobian, and scalar variable-domain-set covariance pass for all six; coupled-cone set transforms remain outside this contract",
+    "covariance_validation": true
   }
 }
