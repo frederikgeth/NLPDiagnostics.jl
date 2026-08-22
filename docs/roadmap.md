@@ -3968,6 +3968,17 @@ explicit small upper-bound residual at the public endpoint; it does not by
 itself identify whether the residual is caused by convergence, formulation
 semantics, or solver tolerances.
 
+The trajectory extraction is now tracked at
+`docs/bmopf_30bus_ibr_p_upper_trace_summary.json`, with executable summarizer
+`benchmarks/summarize_bmopf_ibr_p_upper_trace.jl`. In the matched unlimited
+30-bus traces, `ibr_p_upper` first appears at iteration 1 on both t01 cases and
+at iteration 7 on both t13 cases; endpoint residuals remain in the narrow
+`9.971e-9`–`9.976e-9` range. The residual decays from `1.12e-3` on t01 and
+about `2.3e-6`–`2.9e-6` on t13 before reaching the endpoint floor. This shows
+that the floor is a trajectory endpoint observation rather than an endpoint-
+only artifact, while remaining primal trace evidence without callback duals or
+causal solver attribution.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative

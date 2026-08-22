@@ -1,0 +1,55 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-ibr-p-upper-trace-summary-v1",
+  "source": {
+    "runner": "benchmarks/summarize_bmopf_ibr_p_upper_trace.jl",
+    "trace_runner": "benchmarks/bmopf_solver_trace.jl",
+    "trace_probe_max_points": 0,
+    "local_raw_artifacts": true,
+    "family": "ibr_p_upper"
+  },
+  "cases": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "trace_record_count": 19,
+      "positive_iteration_count": 11,
+      "positive_iterations": [1, 2, 4, 6, 8, 10, 12, 15, 16, 17, 18],
+      "peak_residual": 0.0011232497165828551,
+      "endpoint_residual": 9.976176744766563e-9,
+      "endpoint_to_peak_ratio": 8.881530613794446e-6
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "trace_record_count": 18,
+      "positive_iteration_count": 3,
+      "positive_iterations": [7, 16, 17],
+      "peak_residual": 2.914600933053013e-6,
+      "endpoint_residual": 9.971078154986934e-9,
+      "endpoint_to_peak_ratio": 0.003421078351382512
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "trace_record_count": 19,
+      "positive_iteration_count": 11,
+      "positive_iterations": [1, 2, 4, 6, 8, 10, 12, 15, 16, 17, 18],
+      "peak_residual": 0.0011232497199109655,
+      "endpoint_residual": 9.976176652784826e-9,
+      "endpoint_to_peak_ratio": 8.881530505590146e-6
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "trace_record_count": 19,
+      "positive_iteration_count": 4,
+      "positive_iterations": [7, 8, 17, 18],
+      "peak_residual": 2.3173373321309226e-6,
+      "endpoint_residual": 9.970907361052384e-9,
+      "endpoint_to_peak_ratio": 0.004302743162508659
+    }
+  ],
+  "comparison": {
+    "t01_first_positive_iteration": 1,
+    "t13_first_positive_iteration": 7,
+    "endpoint_residual_range": [9.970907361052384e-9, 9.976176744766563e-9],
+    "interpretation": "The ibr_p_upper feasibility residual is present early and decays by roughly five orders of magnitude on t01, while t13 first exposes it at iteration 7 and again near the endpoint after zero-valued intermediate records. The approximately 1e-8 endpoint floor is therefore a trajectory endpoint observation, not an endpoint-only artifact.",
+    "qualification": "This is point-local primal feasibility trajectory evidence from four bounded 30-bus Ipopt traces. It does not include callback duals and does not establish KKT acceptance, solver causality, or a global convergence mechanism."
+  }
+}
