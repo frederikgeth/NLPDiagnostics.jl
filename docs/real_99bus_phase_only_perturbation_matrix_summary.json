@@ -1,0 +1,68 @@
+{
+  "schema_version": "nlpdiagnostics-real-99bus-phase-only-perturbation-matrix-summary-v1",
+  "source": {
+    "campaign": "benchmarks/real_99bus_phase_only_campaign.jl",
+    "runner": "benchmarks/real_99bus_phase_only_perturbation_matrix.jl",
+    "selected_snapshot_count": 6,
+    "local_environment": "work/benchmark-environment",
+    "absolute_physical_claim": false
+  },
+  "cases": [
+    {
+      "label": "completed_baseline_max40",
+      "initialization_policy": "completed",
+      "seed": 11,
+      "relative_size": 0.0,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_maximum_complementarity_residual": 1.141720164003029e-05,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    },
+    {
+      "label": "perturbed_seed11_1e5_max60",
+      "initialization_policy": "perturbed",
+      "seed": 11,
+      "relative_size": 1e-05,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_maximum_complementarity_residual": 1.1417199769445483e-05,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED", "LOCALLY_SOLVED"]
+    },
+    {
+      "label": "perturbed_seed11_1e4_max60",
+      "initialization_policy": "perturbed",
+      "seed": 11,
+      "relative_size": 1e-04,
+      "phase_only_locally_solved_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 2,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_maximum_complementarity_residual": 6950228447.490811,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["ITERATION_LIMIT", "LOCALLY_SOLVED", "ITERATION_LIMIT", "ITERATION_LIMIT", "LOCALLY_SOLVED", "ITERATION_LIMIT"],
+      "qualification": "KKT counts are not solver-completion counts; four endpoints remained at ITERATION_LIMIT."
+    },
+    {
+      "label": "perturbed_seed29_1e4_max60",
+      "initialization_policy": "perturbed",
+      "seed": 29,
+      "relative_size": 1e-04,
+      "phase_only_locally_solved_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 4,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_maximum_complementarity_residual": 227941287795.62088,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_termination_statuses": ["ITERATION_LIMIT", "LOCALLY_SOLVED", "ITERATION_LIMIT", "ITERATION_LIMIT", "LOCALLY_SOLVED", "ITERATION_LIMIT"],
+      "qualification": "KKT counts are not solver-completion counts; four endpoints remained at ITERATION_LIMIT."
+    }
+  ],
+  "interpretation": {
+    "near_start": "A 1e-5 bounded perturbation preserves all six local solves, the 2/6 strict KKT result, and the approximately 1.14172e-5 complementarity floor.",
+    "larger_start": "At 1e-4, both seeds leave four of six snapshots at ITERATION_LIMIT and produce residual spikes between 6.95e9 and 2.28e11.",
+    "conclusion": "The qualified ibr_p_upper floor is stable to the tested 1e-5 perturbation but solver completion is initialization-sensitive at 1e-4; this is not a causal or global robustness claim.",
+    "next_investigation": "Capture a native start or use smaller structured perturbations tied to physical variable blocks before interpreting trajectory differences."
+  }
+}

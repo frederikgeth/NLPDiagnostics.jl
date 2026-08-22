@@ -7,6 +7,7 @@ using Ipopt
 using JSON
 using JuMP
 using NLPDiagnostics
+using Random
 using SHA
 import MathOptInterface as MOI
 
@@ -35,9 +36,47 @@ function apply_ipopt_options!(model; max_iter, ipopt_options=Dict{String,Any}())
     return model
 end
 
+function campaign_perturbed_point(context, point; seed, relative_size)
+    model = BMOPFTools.opf_model(context)
+    rng = MersenneTwister(seed)
+    values = copy(Float64.(point.values))
+    for (index, variable) in enumerate(point.variables)
+        reference = JuMP.VariableRef(model, variable)
+        JuMP.is_fixed(reference) && continue
+        scale = max(abs(values[index]), 1.0)
+        proposed = values[index] + relative_size * scale * randn(rng)
+        lower = JuMP.has_lower_bound(reference) ? JuMP.lower_bound(reference) : -Inf
+        upper = JuMP.has_upper_bound(reference) ? JuMP.upper_bound(reference) : Inf
+        if isfinite(lower) && isfinite(upper) && lower == upper
+            values[index] = lower
+            continue
+        end
+        width = upper - lower
+        margin = isfinite(width) ? min(0.01 * width, 1.0e-8 * max(abs(lower), abs(upper), 1.0)) : 0.0
+        isfinite(lower) && (proposed = max(proposed, lower + margin))
+        isfinite(upper) && (proposed = min(proposed, upper - margin))
+        values[index] = proposed
+    end
+    return NLPDiagnostics.EvaluationPoint(
+        point.variables,
+        values;
+        label="real-99bus-phase-only-campaign-perturbed-start-$seed",
+        provenance=NLPDiagnostics.EvaluationPointProvenance(
+            NLPDiagnostics.PerturbedPoint;
+            source="deterministic bounded perturbation of completed start",
+            complete=true,
+            metadata=Dict(
+                "seed" => seed,
+                "relative_size" => relative_size,
+                "base_fingerprint" => NLPDiagnostics.evaluation_point_fingerprint(point),
+            ),
+        ),
+    )
+end
+
 function campaign_initialization_point(context, policy)
-    policy in ("completed", "bmopf", "zero") || error(
-        "NLPDIAGNOSTICS_REAL_99BUS_INITIALIZATION_POLICY must be completed, bmopf, or zero",
+    policy in ("completed", "bmopf", "zero", "perturbed") || error(
+        "NLPDIAGNOSTICS_REAL_99BUS_INITIALIZATION_POLICY must be completed, bmopf, zero, or perturbed",
     )
     completed = NLPDiagnostics.bmopf_start_completion_point(
         context;
@@ -50,6 +89,18 @@ function campaign_initialization_point(context, policy)
         zeros(length(completed.values));
         label="real-99bus-phase-only-campaign-zero-start",
     )
+    if policy == "perturbed"
+        seed = parse(Int, get(ENV, "NLPDIAGNOSTICS_REAL_99BUS_START_PERTURBATION_SEED", "11"))
+        relative_size = parse(Float64, get(
+            ENV, "NLPDIAGNOSTICS_REAL_99BUS_START_PERTURBATION_RELATIVE_SIZE", "1.0e-3",
+        ))
+        return campaign_perturbed_point(
+            context,
+            completed;
+            seed,
+            relative_size,
+        )
+    end
     native = NLPDiagnostics.bmopf_initialization_point(context)
     native isa NLPDiagnostics.EvaluationPoint || error(
         "BMOPFTools native initialization point is unavailable",
@@ -753,6 +804,12 @@ function run_campaign()
     initialization_policy = lowercase(strip(get(
         ENV, "NLPDIAGNOSTICS_REAL_99BUS_INITIALIZATION_POLICY", "completed",
     )))
+    start_perturbation_seed = parse(Int, get(
+        ENV, "NLPDIAGNOSTICS_REAL_99BUS_START_PERTURBATION_SEED", "11",
+    ))
+    start_perturbation_relative_size = parse(Float64, get(
+        ENV, "NLPDIAGNOSTICS_REAL_99BUS_START_PERTURBATION_RELATIVE_SIZE", "1.0e-3",
+    ))
     runs = [run_snapshot(
         root,
         relative;
@@ -904,6 +961,8 @@ function run_campaign()
             "model_feasibility_tolerance" => model_feasibility_tolerance,
             "ipopt_options" => ipopt_options,
             "initialization_policy" => initialization_policy,
+            "start_perturbation_seed" => start_perturbation_seed,
+            "start_perturbation_relative_size" => start_perturbation_relative_size,
         ),
         "runs" => runs,
         "summary" => Dict(

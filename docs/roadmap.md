@@ -3865,6 +3865,16 @@ complementarity residual near `2.46e11`. This confirms initialization is a
 material solver-completion variable, but it does not establish causality for
 the qualified `ibr_p_upper` floor.
 
+The bounded completed-start perturbation matrix is tracked at
+`docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
+protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative
+`1e-5` perturbation preserves all six local solves and the same 2/6 strict KKT
+result, with the complementarity floor unchanged at approximately `1.14172e-5`.
+At `1e-4`, both deterministic seeds leave four of six snapshots at
+`ITERATION_LIMIT` and produce residual spikes from `6.95e9` to `2.28e11`.
+This establishes tested initialization sensitivity for solver completion, not
+causality or global robustness of the physical endpoint.
+
 A phase-only covariance report now compares source and transformed endpoint
 point, objective, residual, derivative, sparse-Jacobian geometry, and scalar
 variable-domain sets through the declared semantic block maps. All six reports
