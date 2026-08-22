@@ -2898,10 +2898,18 @@ function _bmopf_constraint_result_keys(context)
 end
 
 function _bmopf_scaling_policy_label(context)
-    record = _bmopf_diagnostic_schema(context).scaling
-    kind = string(get(record, "kind", "unknown"))
-    name = get(record, "name", nothing)
-    return isnothing(name) ? kind : "$kind/$(string(name))"
+    if isdefined(BMOPFTools, :opf_diagnostic_schema)
+        record = _bmopf_diagnostic_schema(context).scaling
+        kind = string(get(record, "kind", "unknown"))
+        name = get(record, "name", nothing)
+        return isnothing(name) ? kind : "$kind/$(string(name))"
+    end
+    # Older BMOPFTools revisions expose the effective policy and public
+    # semantic-block registry without the versioned diagnostic-schema wrapper.
+    if isdefined(BMOPFTools, :opf_scaling_policy)
+        return string(BMOPFTools.opf_scaling_policy(context))
+    end
+    return "unknown"
 end
 
 function _bmopf_diagonal_scaling_map(context, evaluation)
@@ -3134,28 +3142,36 @@ function _bmopf_semantic_block_scaling_map(context, evaluation)
             "diagonal_map" => diagonal_build,
         )
     end
-    if !isdefined(BMOPFTools, :opf_diagnostic_schema)
-        return Dict{String,Any}(
-            "report_version" => "bmopf-semantic-block-scaling-map-v1",
-            "available" => false,
-            "reason" => "this BMOPFTools version does not expose the OPF diagnostic schema",
-            "diagonal_map" => diagonal_build,
-        )
-    end
-
     diagonal = diagonal_build["map"]
-    schema = _bmopf_diagnostic_schema(context)
-    capabilities = schema.capabilities
-    if get(capabilities, "semantic_blocks_available", true) !== true
+    declared, capabilities = if isdefined(BMOPFTools, :opf_diagnostic_schema)
+        schema = _bmopf_diagnostic_schema(context)
+        schema_capabilities = schema.capabilities
+        if get(schema_capabilities, "semantic_blocks_available", true) !== true
+            return Dict{String,Any}(
+                "report_version" => "bmopf-semantic-block-scaling-map-v1",
+                "available" => false,
+                "reason" => "BMOPFTools semantic blocks are not complete before KCL finalisation",
+                "schema_capabilities" => copy(schema_capabilities),
+                "diagonal_map" => diagonal_build,
+            )
+        end
+        (schema.semantic_blocks, schema_capabilities)
+    elseif isdefined(BMOPFTools, :opf_semantic_blocks)
+        # Compatibility path for the public OpfSemanticBlock registry that
+        # predates the versioned OpfDiagnosticSchema wrapper.
+        (BMOPFTools.opf_semantic_blocks(context), Dict{String,Any}(
+            "semantic_blocks_available" => true,
+            "semantic_blocks_registered" => true,
+            "compatibility_source" => "BMOPFTools.opf_semantic_blocks",
+        ))
+    else
         return Dict{String,Any}(
             "report_version" => "bmopf-semantic-block-scaling-map-v1",
             "available" => false,
-            "reason" => "BMOPFTools semantic blocks are not complete before KCL finalisation",
-            "schema_capabilities" => copy(capabilities),
+            "reason" => "BMOPFTools exposes neither the versioned diagnostic schema nor the public semantic-block registry",
             "diagonal_map" => diagonal_build,
         )
     end
-    declared = schema.semantic_blocks
     model_variables = evaluation.point.variables
     variable_positions = Dict(
         variable => position for (position, variable) in enumerate(model_variables)

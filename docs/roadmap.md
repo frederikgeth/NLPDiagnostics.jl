@@ -3740,15 +3740,17 @@ a policy recommendation. The bounded 99-bus surrogate matrix is now complete
 with matched work across light, nominal, and heavy snapshots; it does not
 replace a full network model. A readiness gate now confirms six real ENWL
 99-bus LN/LG snapshots with clean integrity and saved local solutions, but the
-pinned BMOPFTools environment lacks the versioned semantic-block schema needed
-for a real phase-only run. The next research sequence is:
+pinned BMOPFTools environment uses the pre-wrapper public semantic-block API.
+The compatibility path now opens the phase-only semantic-map gate; the
+remaining gap is a transformed-coordinate solver runner for BMOPFTools
+contexts. The next research sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
-2. align the pinned BMOPFTools revision with the versioned semantic-block
-   schema, then replace or augment the surrogate with the real 99-bus snapshot
-   matrix using the same fixed-magnitude intervention, covariance, geometry,
-   and local-solve gates; and
+2. implement the transformed-coordinate BMOPFTools runner, then replace or
+   augment the surrogate with the real 99-bus snapshot matrix using the same
+   fixed-magnitude intervention, covariance, geometry, and local-solve gates;
+   and
 3. consider automatic-policy candidates only after the real snapshot matrix
    has been reviewed for fixture-specific reversals.
 

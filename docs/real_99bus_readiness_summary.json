@@ -17,11 +17,22 @@
   "readiness": {
     "snapshots_parse_and_integrity_gate_passed": true,
     "saved_locally_solved_result_count": 6,
-    "phase_only_real_campaign_ready": false,
-    "blocking_reason": "The pinned BMOPFTools version does not expose the versioned OPF diagnostic schema required by bmopf_semantic_block_scaling_map."
+    "phase_only_semantic_gate_ready": true,
+    "phase_only_solver_campaign_ready": false,
+    "blocking_reason": "A transformed-coordinate solver runner for BMOPFTools contexts is still required; the semantic-map schema compatibility gate is now open."
+  },
+  "semantic_map_probe": {
+    "available": true,
+    "variable_count": 1968,
+    "constraint_count": 2208,
+    "applied_variable_block_count": 936,
+    "applied_constraint_block_count": 887,
+    "rotated_variable_block_count": 936,
+    "intervention_classification": "phase_only",
+    "skipped_declaration_count": 0
   },
   "qualification": {
-    "claim": "The selected real ENWL 99-bus snapshots are available, parseable, integrity-clean, and accompanied by saved SI results; phase-only execution remains gated on the versioned BMOPF semantic-block schema.",
-    "does_not_establish": ["phase-only solver behavior on the real network", "global phase-policy superiority", "wall-time portability", "automatic policy safety"]
+    "claim": "The selected real ENWL 99-bus snapshots are available, parseable, integrity-clean, and accompanied by saved SI results; the current BMOPFTools public semantic-block registry is sufficient for a phase-only map gate.",
+    "does_not_establish": ["phase-only solver behavior on the real network", "transformed-coordinate feasibility", "global phase-policy superiority", "wall-time portability", "automatic policy safety"]
   }
 }

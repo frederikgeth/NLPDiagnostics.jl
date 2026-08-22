@@ -19,6 +19,8 @@ const SELECTED_SNAPSHOTS = [
     "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json",
 ]
 
+rotation(theta) = [cos(theta) -sin(theta); sin(theta) cos(theta)]
+
 function integrity_preflight(network)
     findings = BMOPFTools.Finding[]
     result = BMOPFTools.integrity_check(network, findings)
@@ -76,6 +78,37 @@ function semantic_map_probe(root)
         point = NLPDiagnostics.bmopf_start_completion_point(context; missing_value=0.0, label="real-99bus-readiness-probe")
         evaluation = NLPDiagnostics.evaluate_numerical(JuMP.backend(BMOPFTools.opf_model(context)), point)
         build = NLPDiagnostics.bmopf_semantic_block_scaling_map(context, evaluation)
+        reference_map = build["map"]
+        variable_blocks = NLPDiagnostics.SemanticLinearBlock[]
+        rotated_variable_block_count = 0
+        for (index, block) in enumerate(reference_map.variable_blocks)
+            transform = block.model_to_physical
+            if length(block.positions) == 2
+                transform = transform * rotation(0.015 * sin(index))
+                rotated_variable_block_count += 1
+            end
+            push!(variable_blocks, NLPDiagnostics.SemanticLinearBlock(
+                block.keys, block.positions, transform,
+            ))
+        end
+        constraint_blocks = NLPDiagnostics.SemanticConstraintBlock[]
+        for block in reference_map.constraint_blocks
+            push!(constraint_blocks, NLPDiagnostics.SemanticConstraintBlock(
+                block.linear.keys,
+                block.linear.positions,
+                block.linear.model_to_physical;
+                set=block.set_contract,
+            ))
+        end
+        candidate_map = NLPDiagnostics.SemanticBlockScalingMap(
+            "real-99bus-phase-only-probe";
+            variable_blocks,
+            constraint_blocks,
+            objective_scale=reference_map.objective_scale,
+        )
+        intervention = NLPDiagnostics.scaling_intervention_classification(
+            reference_map, candidate_map; max_dense_entries=0,
+        )
         return Dict(
             "available" => build["available"],
             "variable_count" => length(evaluation.point.variables),
@@ -83,6 +116,8 @@ function semantic_map_probe(root)
             "applied_variable_block_count" => get(build, "applied_variable_block_count", nothing),
             "applied_constraint_block_count" => get(build, "applied_constraint_block_count", nothing),
             "skipped_declaration_count" => length(get(build, "skipped_declarations", Any[])),
+            "rotated_variable_block_count" => rotated_variable_block_count,
+            "intervention_classification" => intervention["classification"],
         )
     catch error
         return Dict(
@@ -113,12 +148,13 @@ function run_inventory()
         "readiness" => Dict(
             "snapshots_parse_and_integrity_gate_passed" => all_integrity_clean,
             "saved_locally_solved_result_count" => saved_solutions,
-            "phase_only_real_campaign_ready" => all_integrity_clean && probe["available"] === true,
-            "blocking_reason" => probe["available"] === true ? nothing : get(probe, "reason", "semantic map probe unavailable"),
+            "phase_only_semantic_gate_ready" => all_integrity_clean && probe["available"] === true && get(probe, "intervention_classification", nothing) == "phase_only",
+            "phase_only_solver_campaign_ready" => false,
+            "blocking_reason" => "a transformed-coordinate solver runner for BMOPFTools contexts is still required; the semantic-map schema compatibility gate is now open",
         ),
         "qualification" => Dict(
-            "claim" => "The selected real ENWL 99-bus snapshots are available, parseable, integrity-clean, and accompanied by saved SI results; phase-only execution remains gated on the versioned BMOPF semantic-block schema.",
-            "does_not_establish" => ["phase-only solver behavior on the real network", "global phase-policy superiority", "wall-time portability", "automatic policy safety"],
+            "claim" => "The selected real ENWL 99-bus snapshots are available, parseable, integrity-clean, and accompanied by saved SI results; the current BMOPFTools public semantic-block registry is sufficient for a phase-only map gate.",
+            "does_not_establish" => ["phase-only solver behavior on the real network", "transformed-coordinate feasibility", "global phase-policy superiority", "wall-time portability", "automatic policy safety"],
         ),
     )
 end

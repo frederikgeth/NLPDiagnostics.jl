@@ -1405,6 +1405,14 @@ only after that gate passes. The first line/load truth fixture applies ten
 two-coordinate variable blocks and eight two-row residual blocks. It passes
 classic-versus-custom covariance and rejects a changed line resistance.
 
+For BMOPFTools revisions that predate the versioned `opf_diagnostic_schema`
+wrapper, the adapter now consumes the public `opf_semantic_blocks` registry
+directly and labels the resulting capability as a compatibility path. This
+preserves the declared block transforms and scalar fallback coverage without
+claiming the newer schema metadata. Real-network campaigns should still record
+the BMOPFTools revision and distinguish semantic-map readiness from a solver
+run in transformed coordinates.
+
 Residual-set semantics are deliberately exact. KCL and other equations whose
 actual JuMP sets are equality to zero use `ZeroEqualitySetContract`. Source
 voltage and load power equations with nonzero equality values use
