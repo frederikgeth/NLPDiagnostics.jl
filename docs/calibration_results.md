@@ -1183,7 +1183,7 @@ summary loading, JSON writing, Git provenance, and recursive file inventory for
 seven core release, rank, runtime, and audit runners. The new
 `benchmarks/audit_bmopf_api_contract.jl` audit extracts every BMOPFTools symbol
 referenced by the JuMP extension and records the resolved dependency revision,
-branch, and dirty state. Against the current `codex/source-schema-fidelity`
+branch, dirty state, and runtime schema major version. Against the current `codex/source-schema-fidelity`
 checkout it is intentionally failing because `OpfDiagnosticSchema` and
 `opf_diagnostic_schema` are absent. The tracked clean-main artifact passes at
 BMOPFTools `8f121216065bcd692f18444836c7c80149e5cf4a`, and the full local suite

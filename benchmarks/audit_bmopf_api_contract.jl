@@ -49,6 +49,43 @@ function package_git_root(source_path::AbstractString)
     end
 end
 
+function runtime_schema_contract(BMOPF)
+    isdefined(BMOPF, :OpfDiagnosticSchema) || return Dict{String,Any}(
+        "checked" => false,
+        "passed" => false,
+        "reason" => "OpfDiagnosticSchema is not defined",
+    )
+    try
+        schema_type = getfield(BMOPF, :OpfDiagnosticSchema)
+        semantic_block_vector_type = fieldtype(schema_type, 4)
+        schema = Base.invokelatest(BMOPF.OpfDiagnosticSchema,
+            v"1.0.0",
+            Dict{String,Any}(),
+            Dict{String,Any}(),
+            semantic_block_vector_type[],
+            Dict{String,Any}(),
+            Dict{String,Any}(),
+            Dict{String,Any}(),
+            Dict{String,Any}(),
+        )
+        version = schema.schema_version
+        return Dict{String,Any}(
+            "checked" => true,
+            "passed" => version.major == 1,
+            "schema_version" => string(version),
+            "schema_major" => version.major,
+            "required_major" => 1,
+        )
+    catch error
+        return Dict{String,Any}(
+            "checked" => true,
+            "passed" => false,
+            "reason" => sprint(showerror, error),
+            "error_type" => string(typeof(error)),
+        )
+    end
+end
+
 function audit_contract()
     package_path = Base.find_package("BMOPFTools")
     package_path === nothing && return Dict{String,Any}(
@@ -77,9 +114,11 @@ function audit_contract()
     type_status = Dict(
         name => isdefined(BMOPF, Symbol(name)) for name in REQUIRED_TYPES
     )
+    schema_runtime = runtime_schema_contract(BMOPF)
     return Dict{String,Any}(
         "schema_version" => "nlpdiagnostics-bmopf-api-contract-v1",
-        "status" => isempty(missing_symbols) && all(values(type_status)) ?
+        "status" => isempty(missing_symbols) && all(values(type_status)) &&
+            get(schema_runtime, "passed", false) === true ?
             "pass" : "fail",
         "dependency" => Dict{String,Any}(
             "name" => "BMOPFTools",
@@ -103,7 +142,8 @@ function audit_contract()
             "required_types" => REQUIRED_TYPES,
             "required_type_status" => type_status,
             "schema_major_required" => 1,
-            "schema_version_checked_at_runtime" => false,
+            "schema_version_checked_at_runtime" => get(schema_runtime, "checked", false),
+            "schema_runtime" => schema_runtime,
             "compatibility_fallbacks" => ["opf_semantic_blocks"],
         ),
         "interpretation" => Dict{String,Any}(

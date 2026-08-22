@@ -4239,10 +4239,12 @@ seven core release, rank, runtime, and audit runners; migration of remaining
 scripts remains open. The executable
 `benchmarks/audit_bmopf_api_contract.jl` audit now extracts the exact
 BMOPFTools surface consumed by the JuMP extension and records dependency
-revision, branch, and dirty state. It currently fails on the active
+revision, branch, dirty state, and runtime `OpfDiagnosticSchema` major version.
+It currently fails on the active
 `codex/source-schema-fidelity` checkout because `OpfDiagnosticSchema` and
 `opf_diagnostic_schema` are absent. The tracked clean-main artifact now passes
-at BMOPFTools `8f121216065bcd692f18444836c7c80149e5cf4a`, and the full local
+the runtime schema check at major version 1 at BMOPFTools
+`8f121216065bcd692f18444836c7c80149e5cf4a`, and the full local
 suite passes 1634/1634 against that worktree. The dependency handoff remains
 the next PR gate: resolve the active checkout onto the clean-main API (or
 merge the schema branch), then rerun `benchmarks/audit_bmopf_pr_handoff.jl`

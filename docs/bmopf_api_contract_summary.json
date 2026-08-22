@@ -59,6 +59,11 @@
       "OpfScaling"
     ],
     "schema_major_required": 1,
+    "schema_runtime": {
+      "checked": false,
+      "passed": false,
+      "reason": "OpfDiagnosticSchema is not defined"
+    },
     "schema_version_checked_at_runtime": false,
     "symbol_status": {
       "OpfDiagnosticSchema": false,

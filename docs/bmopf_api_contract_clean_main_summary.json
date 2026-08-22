@@ -56,7 +56,14 @@
       "OpfScaling"
     ],
     "schema_major_required": 1,
-    "schema_version_checked_at_runtime": false,
+    "schema_runtime": {
+      "checked": true,
+      "passed": true,
+      "required_major": 1,
+      "schema_major": 1,
+      "schema_version": "1.0.0"
+    },
+    "schema_version_checked_at_runtime": true,
     "symbol_status": {
       "OpfDiagnosticSchema": true,
       "OpfModelKey": true,
