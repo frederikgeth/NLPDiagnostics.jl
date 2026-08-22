@@ -57,6 +57,12 @@ function run_case(label, max_iter, model_tolerance)
                 summary["all_phase_only_solver_floor_calibrated_accepted"],
             "native_baseline_comparison_pass_count" =>
                 summary["native_baseline_comparison_pass_count"],
+            "reference_physical_solver_kkt_available_count" =>
+                summary["reference_physical_solver_kkt_available_count"],
+            "reference_physical_solver_kkt_acceptance_count" =>
+                summary["reference_physical_solver_kkt_acceptance_count"],
+            "phase_only_physical_solver_kkt_available_count" =>
+                summary["phase_only_physical_solver_kkt_available_count"],
             "phase_only_termination_statuses" => [
                 get(get(run, "phase_only", Dict()), "termination_status", nothing)
                 for run in report["runs"]

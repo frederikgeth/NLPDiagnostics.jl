@@ -196,6 +196,28 @@ function physical_feasibility(
     )
 end
 
+function physical_kkt(context, model, evaluation, quantity_tolerances)
+    try
+        return NLPDiagnostics.bmopf_physical_solver_kkt_report(
+            context,
+            model,
+            evaluation;
+            quantity_feasibility_absolute_tolerances=quantity_tolerances,
+            stationarity_default_absolute_tolerance=1.0e-5,
+            dual_default_absolute_tolerance=1.0e-5,
+            complementarity_default_absolute_tolerance=1.0e-5,
+        )
+    catch error
+        return Dict{String,Any}(
+            "report_version" => "bmopf-physical-solver-kkt-v1",
+            "available" => false,
+            "acceptance_passed" => nothing,
+            "reason" => "the physical solver-KKT report failed",
+            "error" => sprint(showerror, error),
+        )
+    end
+end
+
 function run_snapshot(
     root,
     relative;
@@ -266,6 +288,12 @@ function run_snapshot(
             tolerance=endpoint_tolerance,
             quantity_tolerances=calibrated_tolerances,
         )
+        reference_kkt = physical_kkt(
+            context,
+            reference["model"],
+            reference_evaluation,
+            calibrated_tolerances,
+        )
         candidate_model = JuMP.Model(Ipopt.Optimizer)
         JuMP.set_optimizer_attribute(candidate_model, "max_iter", max_iter)
         phase_only = NLPDiagnostics.bmopf_phase_only_solve_model(
@@ -319,6 +347,7 @@ function run_snapshot(
             "reference" => reference_summary,
             "reference_physical_feasibility" => reference_feasibility,
             "reference_solver_floor_calibrated_feasibility" => reference_calibrated_feasibility,
+            "reference_physical_solver_kkt" => reference_kkt,
             "phase_only" => Dict(
                 "available" => get(phase_only, "available", false),
                 "model_attached" => get(phase_only, "model_attached", false),
@@ -338,6 +367,11 @@ function run_snapshot(
                     "physical_tolerance_formula" => "model_feasibility_tolerance * declared physical scale",
                     "quantity_absolute_tolerances" => calibrated_tolerances,
                     "absolute_physical_claim" => false,
+                ),
+                "physical_solver_kkt" => Dict{String,Any}(
+                    "available" => false,
+                    "acceptance_passed" => nothing,
+                    "reason" => "transformed optimizer duals are not yet transported into source-coordinate KKT evidence",
                 ),
                 "native_baseline_comparison" => baseline_comparison,
             ),
@@ -406,8 +440,24 @@ function run_campaign()
         run for run in baseline_comparable
         if get(get(get(run, "phase_only", Dict()), "native_baseline_comparison", Dict()), "candidate_within_native_margin", false) === true
     ]
+    reference_kkt_available = [
+        run for run in runs
+        if get(get(run, "reference_physical_solver_kkt", Dict()), "available", false) === true
+    ]
+    reference_kkt_accepted = [
+        run for run in reference_kkt_available
+        if get(get(run, "reference_physical_solver_kkt", Dict()), "acceptance_passed", false) === true
+    ]
+    phase_only_kkt_available = [
+        run for run in runs
+        if get(get(get(run, "phase_only", Dict()), "physical_solver_kkt", Dict()), "available", false) === true
+    ]
+    phase_only_kkt_accepted = [
+        run for run in phase_only_kkt_available
+        if get(get(get(run, "phase_only", Dict()), "physical_solver_kkt", Dict()), "acceptance_passed", false) === true
+    ]
     return Dict(
-        "schema_version" => "nlpdiagnostics-real-99bus-phase-only-campaign-v2",
+        "schema_version" => "nlpdiagnostics-real-99bus-phase-only-campaign-v3",
         "source" => Dict(
             "root_basename" => basename(root),
             "selected_snapshot_count" => length(SELECTED_SNAPSHOTS),
@@ -425,6 +475,11 @@ function run_campaign()
             "phase_only_locally_solved_count" => length(locally_solved),
             "all_phase_only_runs_locally_solved" => length(locally_solved) == length(SELECTED_SNAPSHOTS),
             "reference_physical_endpoint_acceptance_count" => length(reference_physical),
+            "reference_physical_solver_kkt_available_count" => length(reference_kkt_available),
+            "reference_physical_solver_kkt_acceptance_count" => length(reference_kkt_accepted),
+            "all_reference_physical_solver_kkt_accepted" => length(reference_kkt_accepted) == length(SELECTED_SNAPSHOTS),
+            "phase_only_physical_solver_kkt_available_count" => length(phase_only_kkt_available),
+            "phase_only_physical_solver_kkt_acceptance_count" => length(phase_only_kkt_accepted),
             "phase_only_physical_endpoint_acceptance_count" => length(phase_only_physical),
             "phase_only_solver_floor_calibrated_acceptance_count" => length(phase_only_solver_floor_calibrated),
             "all_phase_only_solver_floor_calibrated_accepted" => length(phase_only_solver_floor_calibrated) == length(SELECTED_SNAPSHOTS),
@@ -435,7 +490,7 @@ function run_campaign()
             "all_phase_only_physical_endpoints_accepted" => length(phase_only_physical) == length(SELECTED_SNAPSHOTS),
             "solver_campaign_ready" => false,
             "physical_endpoint_validation" => false,
-            "blocking_reason" => "source-coordinate endpoint recovery is implemented, but solver-aware physical tolerance calibration, KKT acceptance, and physical covariance validation are not yet qualified",
+            "blocking_reason" => "solver-floor calibrated feasibility is qualified as relative solver-scale evidence, but absolute physical acceptance, transformed-endpoint KKT transport, and physical covariance validation are not yet qualified",
         ),
     )
 end

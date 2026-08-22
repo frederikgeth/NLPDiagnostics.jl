@@ -3798,7 +3798,17 @@ The `max_iter=20` budget leaves the LN t13 phase-only run at
 `ITERATION_LIMIT`; its calibrated feasibility pass is retained as endpoint
 evidence but does not count as solver completion. This separates endpoint
 residual calibration from termination qualification and keeps the KKT gate
-closed until dual transport and compound-unit tolerances are explicit.
+closed for transformed endpoints until dual transport and compound-unit
+tolerances are explicit.
+
+The native KKT readiness probe is now also recorded in the campaign. Public
+solver duals align for all six native endpoints and stationarity passes all
+six under explicit `1e-5` compound tolerances, but full KKT acceptance passes
+only 2/6 (the two t13 snapshots); complementarity blocks the remaining four.
+The transformed phase-only endpoints remain explicitly unavailable for KKT
+acceptance because their optimizer duals have not yet been transported through
+the retained MOI copy map and inverse phase rotation. This is readiness and
+failure-localization evidence, not an optimality claim.
 
 The held-out LG summary is tracked at `docs/calibration_summary.json`. The
 two-direction Ipopt extension is tracked at
