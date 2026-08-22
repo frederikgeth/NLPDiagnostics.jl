@@ -526,7 +526,7 @@
     ]
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 43,
+    "benchmark_scripts_with_schema_version_count": 44,
     "json_file_count": 46,
     "json_schema_file_count": 46,
     "json_without_schema_count": 0,
@@ -575,7 +575,7 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 105,
+    "benchmark_script_count": 106,
     "shared_benchmark_helper": "benchmarks/common.jl",
     "shared_benchmark_helper_user_count": 7,
     "shared_benchmark_helper_users": [

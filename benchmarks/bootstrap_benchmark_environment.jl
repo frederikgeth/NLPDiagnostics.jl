@@ -9,7 +9,11 @@
 using Pkg
 
 const REPO_ROOT = normpath(joinpath(@__DIR__, ".."))
-const ENV_ROOT = normpath(joinpath(REPO_ROOT, "work", "benchmark-environment"))
+const ENV_ROOT = abspath(get(
+    ENV,
+    "NLPDIAGNOSTICS_BENCHMARK_ENVIRONMENT",
+    normpath(joinpath(REPO_ROOT, "work", "benchmark-environment")),
+))
 const BMOPF_ROOT = get(
     ENV,
     "NLPDIAGNOSTICS_BMOPFTOOLS_PATH",

@@ -4224,7 +4224,7 @@ remain open.
 The API/test/benchmark consolidation audit is tracked at
 `docs/api_test_benchmark_consolidation_summary.json`, with executable runner
 `benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 510 root
-exports, 111 root testsets across nine included test modules, 105 benchmark
+exports, 111 root testsets across nine included test modules, 106 benchmark
 scripts, and schema versions on all 46 JSON artifacts. A typed
 `UnavailableReason` report-boundary schema is now present, while explicit
 advanced namespaces now have a non-breaking `NLPDiagnostics.Advanced` facade;
@@ -4247,7 +4247,10 @@ suite passes 1634/1634 against that worktree. The dependency handoff remains
 the next PR gate: resolve the active checkout onto the clean-main API (or
 merge the schema branch), then rerun `benchmarks/audit_bmopf_pr_handoff.jl`
 and the suite. The handoff audit is intentionally blocked while the active
-checkout remains on the older source-schema-fidelity revision.
+checkout remains on the older source-schema-fidelity revision. The new
+`benchmarks/validate_bmopf_checkout.jl` runner validates an arbitrary local
+BMOPFTools checkout in an isolated environment; against clean main it passes
+the API contract and all 1634 regression tests.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and
