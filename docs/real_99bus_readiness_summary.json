@@ -1,0 +1,27 @@
+{
+  "schema_version": "nlpdiagnostics-real-99bus-readiness-v1",
+  "runner": "benchmarks/real_99bus_readiness.jl",
+  "source": {
+    "environment_variable": "NLPDIAGNOSTICS_REAL_99BUS_ROOT",
+    "selected_snapshot_count": 6,
+    "selected_families": ["99bus_LN", "99bus_LG"]
+  },
+  "snapshots": [
+    {"snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json", "sha256": "afee62f8ecb6e9f6ea63697ecd0bcecb282b414a6d420f7a52222275e11f905f", "integrity_blocking": false, "saved_result_termination": "LOCALLY_SOLVED"},
+    {"snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json", "sha256": "df96fa2b872a12dbd443647e9aa973ff7b4fbb779b8b3e86f5dd0fadf46ff806", "integrity_blocking": false, "saved_result_termination": "LOCALLY_SOLVED"},
+    {"snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json", "sha256": "14beea112fa9618adaee3063c9e61847c90437fa961409b5bd888c0c27e63502", "integrity_blocking": false, "saved_result_termination": "LOCALLY_SOLVED"},
+    {"snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json", "sha256": "3004f67b1eb6efe61829e732d730a12ed1818ae136ef8eae79cb1d404809bc15", "integrity_blocking": false, "saved_result_termination": "LOCALLY_SOLVED"},
+    {"snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json", "sha256": "97afea75ed96536894ff378b195fcf4868f27e466af477827ad9aa6976a758a6", "integrity_blocking": false, "saved_result_termination": "LOCALLY_SOLVED"},
+    {"snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json", "sha256": "d5c4689bd4413a6ed33cb061d5e0b3920b339b49160cdffd613b45cd7a79b139", "integrity_blocking": false, "saved_result_termination": "LOCALLY_SOLVED"}
+  ],
+  "readiness": {
+    "snapshots_parse_and_integrity_gate_passed": true,
+    "saved_locally_solved_result_count": 6,
+    "phase_only_real_campaign_ready": false,
+    "blocking_reason": "The pinned BMOPFTools version does not expose the versioned OPF diagnostic schema required by bmopf_semantic_block_scaling_map."
+  },
+  "qualification": {
+    "claim": "The selected real ENWL 99-bus snapshots are available, parseable, integrity-clean, and accompanied by saved SI results; phase-only execution remains gated on the versioned BMOPF semantic-block schema.",
+    "does_not_establish": ["phase-only solver behavior on the real network", "global phase-policy superiority", "wall-time portability", "automatic policy safety"]
+  }
+}

@@ -3738,14 +3738,17 @@ compact summaries and executable protocols. The six-fixture comparison is
 also complete; its feeder work increase remains a negative control rather than
 a policy recommendation. The bounded 99-bus surrogate matrix is now complete
 with matched work across light, nominal, and heavy snapshots; it does not
-replace a full network model. The next research sequence is:
+replace a full network model. A readiness gate now confirms six real ENWL
+99-bus LN/LG snapshots with clean integrity and saved local solutions, but the
+pinned BMOPFTools environment lacks the versioned semantic-block schema needed
+for a real phase-only run. The next research sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
-2. replace or augment the surrogate with a real 99-bus snapshot matrix when
-   public feeder data and the pinned local environment are available, using
-   the same fixed-magnitude intervention, covariance, geometry, and local-solve
-   gates; and
+2. align the pinned BMOPFTools revision with the versioned semantic-block
+   schema, then replace or augment the surrogate with the real 99-bus snapshot
+   matrix using the same fixed-magnitude intervention, covariance, geometry,
+   and local-solve gates; and
 3. consider automatic-policy candidates only after the real snapshot matrix
    has been reviewed for fixture-specific reversals.
 
@@ -3771,7 +3774,9 @@ cross-fixture comparison is tracked at
 `docs/phase_only_campaign_comparison_summary.json`, with executable protocol
 `benchmarks/phase_only_campaign_comparison.jl`. The bounded 99-bus surrogate
 is tracked at `docs/phase_only_99bus_snapshot_campaign_summary.json`, with
-executable protocol `benchmarks/phase_only_99bus_snapshot_campaign.jl`.
+executable protocol `benchmarks/phase_only_99bus_snapshot_campaign.jl`. Real
+99-bus data readiness is tracked at `docs/real_99bus_readiness_summary.json`,
+with executable probe `benchmarks/real_99bus_readiness.jl`.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and

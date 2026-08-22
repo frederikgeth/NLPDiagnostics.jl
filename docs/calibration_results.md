@@ -1097,3 +1097,15 @@ portability, and automatic-policy safety remain outside the fixture. The
 executable protocol is `benchmarks/phase_only_99bus_snapshot_campaign.jl` and
 the compact result is tracked at
 `docs/phase_only_99bus_snapshot_campaign_summary.json`.
+
+## 2026-08-22: real 99-bus readiness gate
+
+The local BMOPF corpus contains six selected ENWL 99-bus snapshots spanning
+three LN and three LG times. All six parse with zero blocking integrity
+findings and have saved SI results marked `LOCALLY_SOLVED`. The phase-only
+campaign is not yet run on this real network: the pinned BMOPFTools revision
+does not expose the versioned OPF diagnostic schema required to build the
+semantic block map. The readiness runner records file hashes, provenance, and
+this explicit blocker at
+`docs/real_99bus_readiness_summary.json`; it does not substitute surrogate
+results for the real-network claim.
