@@ -4235,7 +4235,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-the release ledger and core calibration/audit runners; migration of remaining
+five core release, rank, runtime, and audit runners; migration of remaining
 scripts remains open.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,

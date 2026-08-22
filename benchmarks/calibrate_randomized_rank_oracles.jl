@@ -10,9 +10,11 @@ allowed to disagree: their purpose is to expose policy sensitivity, not to
 manufacture a single "true numerical rank".
 """
 
-using JSON
 using LinearAlgebra
 using Random
+
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 import MathOptInterface as MOI
 import NLPDiagnostics
@@ -256,6 +258,11 @@ function randomized_rank_oracle_campaign(; seeds = [11, 29, 47])
     ]
     return Dict{String,Any}(
         "report_version" => "seeded-randomized-rank-oracles-v1",
+        "source" => Dict(
+            "runner" => "benchmarks/calibrate_randomized_rank_oracles.jl",
+            "git_revision" => git_revision(),
+            "git_worktree_dirty" => !isempty(git_status_entries()),
+        ),
         "seeds" => Int.(seeds),
         "record_count" => length(records),
         "hard_expectation_count" => count(record -> record["hard_expectation"], records),
@@ -274,10 +281,7 @@ function main()
     )
     payload = randomized_rank_oracle_campaign()
     output = abspath(only(ARGS))
-    mkpath(dirname(output))
-    temporary = "$output.tmp"
-    write(temporary, JSON.json(payload))
-    mv(temporary, output; force = true)
+    write_json(output, payload)
     mismatches = payload["hard_expectation_mismatches"]
     payload["all_hard_expectations_matched"] || error(
         "hard oracle mismatches: $(join(mismatches, ','))",

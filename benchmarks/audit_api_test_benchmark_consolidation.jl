@@ -40,6 +40,10 @@ benchmark_files = filter(
     path -> basename(path) != "common.jl",
     recursive_files(joinpath(REPO_ROOT, "benchmarks"), ".jl"),
 )
+shared_helper_users = [
+    path for path in benchmark_files
+    if occursin("using .NLPDiagnosticsBenchmarkCommon", read_text(path))
+]
 json_files = recursive_files(joinpath(REPO_ROOT, "docs"), ".json")
 
 source_includes = String[]
@@ -132,6 +136,8 @@ summary = Dict{String,Any}(
         "testset_count_in_root" => testset_count,
         "benchmark_script_count" => length(benchmark_files),
         "shared_benchmark_helper" => "benchmarks/common.jl",
+        "shared_benchmark_helper_user_count" => length(shared_helper_users),
+        "shared_benchmark_helper_users" => relative_paths(shared_helper_users),
     ),
     "benchmark_schema_inventory" => Dict(
         "json_file_count" => length(json_files),
@@ -156,6 +162,7 @@ summary = Dict{String,Any}(
             "source and test include boundaries",
             "benchmark JSON schema coverage",
             "source catch-boundary inventory",
+            "core release, rank, and runtime runners using benchmarks/common.jl",
         ],
         "remaining_work" => [
             "define and document stable versus advanced/experimental API tiers",
@@ -171,9 +178,5 @@ summary = Dict{String,Any}(
     ),
 )
 
-mkpath(dirname(OUTPUT))
-open(OUTPUT, "w") do io
-    JSON.print(io, summary, 2)
-    write(io, '\n')
-end
+write_json(OUTPUT, summary)
 println("wrote API/test/benchmark consolidation summary to $OUTPUT")

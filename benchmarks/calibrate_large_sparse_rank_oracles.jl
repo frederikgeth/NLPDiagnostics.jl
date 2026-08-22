@@ -8,7 +8,6 @@ construction supplies the expected rank, while SuiteSparseQR remains a local
 numerical observation with explicit availability and mismatch accounting.
 """
 
-using JSON
 using LinearAlgebra
 using SparseArrays
 
@@ -212,9 +211,5 @@ summary = Dict{String,Any}(
     ),
 )
 
-mkpath(dirname(OUTPUT))
-open(OUTPUT, "w") do io
-    JSON.print(io, summary, 2)
-    write(io, '\n')
-end
+write_json(OUTPUT, summary)
 println("wrote large sparse rank-oracle summary to $OUTPUT")

@@ -2,8 +2,6 @@
 
 """Build the machine-readable calibration release-gate ledger from summaries."""
 
-using JSON
-
 include(joinpath(@__DIR__, "common.jl"))
 using .NLPDiagnosticsBenchmarkCommon
 
@@ -72,15 +70,14 @@ gates = Dict{String,Any}[
     gate(
         "api_test_benchmark_consolidation",
         "partial",
-        "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, 103 benchmark scripts, and complete schema coverage for 43 JSON artifacts. A typed unavailable-reason schema, profile-result serialization, non-breaking Advanced facade, and shared benchmark helper are now available; remaining work is broad adapter adoption, root-export tiering, migration of the remaining runners, and reviewed quality-tool policies.",
+        "The consolidation audit now inventories 510 root exports, 111 root testsets across nine included test modules, 103 benchmark scripts, and complete schema coverage for 43 JSON artifacts. A typed unavailable-reason schema, profile-result serialization, non-breaking Advanced facade, and shared benchmark helper are now available; five core release, rank, runtime, and audit runners use the helper. Remaining work is broad adapter adoption, root-export tiering, migration of the remaining runners, and reviewed quality-tool policies.",
         ["docs/api_test_benchmark_consolidation_summary.json"],
         blocking=true,
     ),
 ]
 
 output = abspath(get(ENV, "NLPDIAGNOSTICS_CALIBRATION_RELEASE_OUTPUT", joinpath(ROOT, "docs", "calibration_release_gate_summary.json")))
-mkpath(dirname(output))
-write(output, JSON.json(Dict(
+write_json(output, Dict(
     "schema_version" => "nlpdiagnostics-calibration-release-gate-summary-v1",
     "generated_by" => basename(@__FILE__),
     "project_phase" => "consolidate_and_calibrate",
@@ -88,5 +85,5 @@ write(output, JSON.json(Dict(
     "blocking_gate_count" => count(gate -> gate["blocking"] === true, gates),
     "gates" => gates,
     "interpretation" => "This ledger separates completed evidence from release blockers. It does not promote local research observations into causal or physical claims.",
-)))
+))
 println("wrote calibration release-gate summary to $output")

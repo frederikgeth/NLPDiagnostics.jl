@@ -21,7 +21,6 @@ Environment overrides:
     NLPDIAGNOSTICS_PROFILE_REPETITIONS=3
 """
 
-using JSON
 using NLPDiagnostics
 
 include(joinpath(@__DIR__, "common.jl"))
@@ -171,9 +170,5 @@ summary = Dict{String,Any}(
     ),
 )
 
-mkpath(dirname(OUTPUT))
-open(OUTPUT, "w") do io
-    JSON.print(io, summary, 2)
-    write(io, '\n')
-end
+write_json(OUTPUT, summary)
 println("wrote sparse runtime/memory scaling summary to $OUTPUT")

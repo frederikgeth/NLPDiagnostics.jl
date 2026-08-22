@@ -537,7 +537,8 @@
       "root export inventory",
       "source and test include boundaries",
       "benchmark JSON schema coverage",
-      "source catch-boundary inventory"
+      "source catch-boundary inventory",
+      "core release, rank, and runtime runners using benchmarks/common.jl"
     ],
     "does_not_establish": [
       "API compatibility across a future namespace refactor",
@@ -556,6 +557,14 @@
   "module_boundaries": {
     "benchmark_script_count": 103,
     "shared_benchmark_helper": "benchmarks/common.jl",
+    "shared_benchmark_helper_user_count": 5,
+    "shared_benchmark_helper_users": [
+      "benchmarks/audit_api_test_benchmark_consolidation.jl",
+      "benchmarks/build_calibration_release_gate_summary.jl",
+      "benchmarks/calibrate_large_sparse_rank_oracles.jl",
+      "benchmarks/calibrate_randomized_rank_oracles.jl",
+      "benchmarks/profile_sparse_runtime_memory_scaling.jl"
+    ],
     "source_file_count": 30,
     "source_include_count": 29,
     "source_includes": [
