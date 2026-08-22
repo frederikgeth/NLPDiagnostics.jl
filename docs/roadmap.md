@@ -3737,9 +3737,9 @@ The next research sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;
-2. extend the completed phase-only algebraic, quadratic, and nonlinear Ipopt
-   controls to feeder, transformer, and controller-rich truth fixtures while
-   keeping magnitude bases fixed;
+2. extend the completed phase-only algebraic, quadratic, nonlinear, and
+   controller-rich Ipopt controls to feeder and transformer truth fixtures
+   while keeping magnitude bases fixed;
 3. publish the same compact summary shape for each promoted calibration
    campaign; and
 4. only then evaluate a bounded 99-bus snapshot matrix or automatic-policy
@@ -3751,10 +3751,13 @@ two-direction Ipopt extension is tracked at
 phase-only algebraic and matched Ipopt controls are tracked at
 `docs/phase_only_control_summary.json` and
 `docs/phase_only_ipopt_campaign_summary.json`. The nonlinear promotion is
-tracked at `docs/phase_only_nonlinear_ipopt_campaign_summary.json`. The
+tracked at `docs/phase_only_nonlinear_ipopt_campaign_summary.json`; the
+controller-rich promotion is tracked at
+`docs/phase_only_controller_ipopt_campaign_summary.json`. The
 executable protocols are `benchmarks/phase_only_orthogonal_control.jl`,
 `benchmarks/phase_only_ipopt_campaign.jl`, and
-`benchmarks/phase_only_nonlinear_ipopt_campaign.jl`.
+`benchmarks/phase_only_nonlinear_ipopt_campaign.jl`, plus
+`benchmarks/phase_only_controller_ipopt_campaign.jl`.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and

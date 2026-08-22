@@ -1020,3 +1020,18 @@ control without turning it into a universal performance claim. Feeder,
 transformer, and controller-rich nonlinear cases remain future work. The
 compact result is tracked at
 `docs/phase_only_nonlinear_ipopt_campaign_summary.json`.
+
+## 2026-08-22: controller-rich phase-only Ipopt promotion
+
+The fixed-magnitude phase-only protocol now includes a smooth droop-like
+active-power/voltage coupling equation. Two fresh reference and two fresh
+phase-only Ipopt solves all terminate `LOCALLY_SOLVED`; intervention,
+endpoint-covariance, and geometry gates pass.
+
+Both policies use eight callback records, eleven total line-search trials, and
+no positive regularization records per repeat. The matched work difference is
+zero here as well. This is evidence that the phase-only contract remains a
+valid negative control in the presence of controller-like nonlinear coupling,
+not evidence about full BMOPF droop semantics or global policy superiority.
+The compact result is tracked at
+`docs/phase_only_controller_ipopt_campaign_summary.json`.
