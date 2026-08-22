@@ -4085,6 +4085,14 @@ retains a tiny negative model gap but remains inside the accepted tolerance.
 This aligns the split with bound and tolerance semantics, without claiming a
 solver or formulation cause.
 
+The per-row tolerance margin ledger is tracked at
+`docs/bmopf_30bus_ibr_p_upper_tolerance_margin_summary.json`, with executable
+runner `benchmarks/bmopf_30bus_ibr_p_upper_tolerance_margin.jl`. The t01 rows
+miss `1e-5` by margins between roughly `2e-8` and `4.93e-7`; only 7/28 pass at
+`1.01e-5`, while all 28 pass at `1.05e-5`. Both t13 fixtures pass all 28 at
+`1e-5`. This sharpens the tolerance boundary observation without treating it
+as a solver or formulation cause.
+
 The bounded completed-start perturbation matrix is tracked at
 `docs/real_99bus_phase_only_perturbation_matrix_summary.json`, with executable
 protocol `benchmarks/real_99bus_phase_only_perturbation_matrix.jl`. A relative

@@ -1,0 +1,54 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-30bus-ibr-p-upper-tolerance-margin-summary-v1",
+  "source": {
+    "runner": "benchmarks/bmopf_30bus_ibr_p_upper_tolerance_margin.jl",
+    "raw_probe": "/private/tmp/bmopf-30bus-ibr-tolerance-margin.json",
+    "solver": "Ipopt",
+    "max_iter": 80,
+    "tolerances": [1e-5, 1.01e-5, 1.05e-5, 1.1e-5],
+    "target_row_family": "ibr_p_upper"
+  },
+  "cases": [
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "bound_regime": "zero_bound",
+      "target_row_count": 28,
+      "complementarity_residual_range": [0.000010019714309137886, 0.00001049343932476267],
+      "margin_at_1e-5_range": [-4.934393247626686e-7, -1.9714309137885234e-8],
+      "required_tolerance_max": 0.00001049343932476267,
+      "passed_rows_by_tolerance": {"1e-5": 0, "1.01e-5": 7, "1.05e-5": 28, "1.1e-5": 28}
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "bound_regime": "positive_bound",
+      "target_row_count": 28,
+      "complementarity_residual_range": [2.4965908708048102e-8, 0.000008639323370055962],
+      "margin_at_1e-5_range": [0.0000013606766299440387, 0.000009975034091291952],
+      "required_tolerance_max": 0.000008639323370055962,
+      "passed_rows_by_tolerance": {"1e-5": 28, "1.01e-5": 28, "1.05e-5": 28, "1.1e-5": 28}
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "bound_regime": "zero_bound",
+      "target_row_count": 28,
+      "complementarity_residual_range": [0.000010019711760153115, 0.000010493452407338264],
+      "margin_at_1e-5_range": [-4.934524073382629e-7, -1.9711760153114216e-8],
+      "required_tolerance_max": 0.000010493452407338264,
+      "passed_rows_by_tolerance": {"1e-5": 0, "1.01e-5": 7, "1.05e-5": 28, "1.1e-5": 28}
+    },
+    {
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "bound_regime": "positive_bound",
+      "target_row_count": 28,
+      "complementarity_residual_range": [2.496858720274932e-8, 0.000008588485697044737],
+      "margin_at_1e-5_range": [0.0000014115143029552638, 0.000009975031412797251],
+      "required_tolerance_max": 0.000008588485697044737,
+      "passed_rows_by_tolerance": {"1e-5": 28, "1.01e-5": 28, "1.05e-5": 28, "1.1e-5": 28}
+    }
+  ],
+  "finding": "The t01 zero-bound rows all miss the 1e-5 gate by margins from about 2e-8 to 4.93e-7 and require approximately 1.04935e-5. At 1.01e-5 only 7/28 pass; at 1.05e-5 all 28 pass. Both t13 positive-bound fixtures pass all 28 already at 1e-5. This is tolerance-margin evidence, not a causal explanation."
+}
