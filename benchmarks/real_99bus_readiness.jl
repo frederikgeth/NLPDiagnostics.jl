@@ -83,6 +83,11 @@ function semantic_map_probe_snapshot(root, relative)
         rebuild = NLPDiagnostics.bmopf_phase_only_model_rebuild_report(
             context; plan,
         )
+        rebuilt = NLPDiagnostics.bmopf_phase_only_rebuild_model(
+            context,
+            evaluation;
+            plan,
+        )
         return Dict(
             "available" => plan["available"],
             "snapshot" => relative,
@@ -96,6 +101,14 @@ function semantic_map_probe_snapshot(root, relative)
             "solver_campaign_ready" => plan["solver_campaign_ready"],
             "solver_transform_applied" => plan["solver_transform_applied"],
             "model_rebuild" => rebuild,
+            "model_rebuild_copy" => Dict(
+                "available" => get(rebuilt, "available", false),
+                "model_rebuilt" => get(rebuilt, "model_rebuilt", false),
+                "source_variable_count" => get(rebuilt, "source_variable_count", nothing),
+                "target_variable_count" => get(rebuilt, "target_variable_count", nothing),
+                "source_constraint_count" => get(rebuilt, "source_constraint_count", nothing),
+                "error" => get(rebuilt, "error", nothing),
+            ),
         )
     catch error
         return Dict(
@@ -132,9 +145,15 @@ function run_inventory()
     all_integrity_clean = all(!snapshot["integrity"]["blocking"] for snapshot in snapshots)
     saved_solutions = count(snapshot -> get(snapshot["saved_result_si"], "termination_status", nothing) == "LOCALLY_SOLVED", snapshots)
     rebuild_reports = [get(snapshot, "model_rebuild", Dict{String,Any}()) for snapshot in get(probe, "snapshots", Any[])]
+    rebuild_copies = [get(snapshot, "model_rebuild_copy", Dict{String,Any}()) for snapshot in get(probe, "snapshots", Any[])]
     rebuild_hook_available = !isempty(rebuild_reports) && all(
         get(report, "model_rebuild_hook_available", false) === true
         for report in rebuild_reports
+    )
+    rebuild_copy_ready = !isempty(rebuild_copies) && all(
+        get(report, "available", false) === true &&
+        get(report, "model_rebuilt", false) === true
+        for report in rebuild_copies
     )
     return Dict(
         "schema_version" => "nlpdiagnostics-real-99bus-readiness-v1",
@@ -151,6 +170,7 @@ function run_inventory()
             "saved_locally_solved_result_count" => saved_solutions,
             "phase_only_semantic_gate_ready" => all_integrity_clean && probe["available"] === true && get(probe, "all_snapshots_phase_only", false) === true,
             "phase_only_solver_campaign_ready" => false,
+            "phase_only_model_copy_ready" => rebuild_copy_ready,
             "model_rebuild_hook_available" => rebuild_hook_available,
             "blocking_reason" => "a transformed-coordinate solver runner still requires nonlinear, quadratic, affine, objective, and rotated-domain-set rebuild support; the current BMOPFTools model-rebuild hook is unavailable",
         ),

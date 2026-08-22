@@ -3503,6 +3503,153 @@ function _bmopf_phase_only_model_rebuild_report(context; plan=nothing)
     )
 end
 
+function _bmopf_phase_only_rebuild_model(
+    context,
+    evaluation;
+    plan=nothing,
+    target_model=nothing,
+)
+    phase_plan = isnothing(plan) ?
+        _bmopf_phase_only_transform_plan(context, evaluation) : plan
+    if !get(phase_plan, "available", false)
+        return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-rebuild-model-v1",
+            "available" => false,
+            "model_rebuilt" => false,
+            "solver_campaign_ready" => false,
+            "reason" => "the phase-only semantic intervention plan is unavailable",
+            "plan" => phase_plan,
+        )
+    end
+    source_model = _bmopf_context_model(context)
+    source = JuMP.backend(source_model)
+    source_variables = MOI.get(source, MOI.ListOfVariableIndices())
+    point_variables = evaluation.point.variables
+    source_position = Dict(variable => position for
+        (position, variable) in enumerate(point_variables))
+    length(source_variables) == length(point_variables) &&
+        all(haskey(source_position, variable) for variable in source_variables) ||
+        return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-rebuild-model-v1",
+            "available" => false,
+            "model_rebuilt" => false,
+            "solver_campaign_ready" => false,
+            "reason" => "evaluation variable order does not cover the source MOI model variables",
+            "source_variable_count" => length(source_variables),
+            "evaluation_variable_count" => length(point_variables),
+        )
+    target = isnothing(target_model) ?
+        MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()) :
+        target_model
+    target_variables = try
+        MOI.add_variables(target, length(source_variables))
+    catch error
+        return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-rebuild-model-v1",
+            "available" => false,
+            "model_rebuilt" => false,
+            "solver_campaign_ready" => false,
+            "reason" => "target model cannot allocate the transformed variables",
+            "error" => sprint(showerror, error),
+        )
+    end
+    target_for_position = position -> target_variables[
+        findfirst(==(point_variables[position]), source_variables),
+    ]
+    reference_map = phase_plan["reference_map"]
+    candidate_map = phase_plan["candidate_map"]
+    variable_map = Dict{MOI.VariableIndex,Any}()
+    for (reference_block, candidate_block) in zip(
+        reference_map.variable_blocks, candidate_map.variable_blocks,
+    )
+        reference_block.positions == candidate_block.positions || return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-rebuild-model-v1",
+            "available" => false,
+            "model_rebuilt" => false,
+            "solver_campaign_ready" => false,
+            "reason" => "candidate and reference semantic block partitions differ",
+        )
+        rotation = reference_block.model_to_physical \ candidate_block.model_to_physical
+        for (row, position) in enumerate(reference_block.positions)
+            terms = MOI.ScalarAffineTerm{Float64}[]
+            for (column, target_position) in enumerate(reference_block.positions)
+                coefficient = Float64(rotation[row, column])
+                iszero(coefficient) || push!(terms,
+                    MOI.ScalarAffineTerm(coefficient, target_for_position(target_position)))
+            end
+            variable_map[point_variables[position]] =
+                MOI.ScalarAffineFunction(terms, 0.0)
+        end
+    end
+    for variable in source_variables
+        haskey(variable_map, variable) && continue
+        variable_map[variable] = target_variables[findfirst(==(variable), source_variables)]
+    end
+    substitution = variable -> variable_map[variable]
+    try
+        for (function_type, set_type) in MOI.get(
+            source, MOI.ListOfConstraintTypesPresent(),
+        )
+            for index in MOI.get(source, MOI.ListOfConstraintIndices{function_type,set_type}())
+                function_value = MOI.get(source, MOI.ConstraintFunction(), index)
+                set_value = MOI.get(source, MOI.ConstraintSet(), index)
+                function_value isa MOI.VariableIndex && (function_value =
+                    MOI.ScalarAffineFunction([
+                        MOI.ScalarAffineTerm(1.0, function_value),
+                    ], 0.0))
+                transformed = MOI.Utilities.substitute_variables(
+                    substitution, function_value,
+                )
+                MOI.add_constraint(target, transformed, set_value)
+            end
+        end
+        MOI.set(target, MOI.ObjectiveSense(), MOI.get(source, MOI.ObjectiveSense()))
+        objective_type = MOI.get(source, MOI.ObjectiveFunctionType())
+        objective = MOI.get(source, MOI.ObjectiveFunction{objective_type}())
+        objective isa MOI.VariableIndex && (objective =
+            MOI.ScalarAffineFunction([
+                MOI.ScalarAffineTerm(1.0, objective),
+            ], 0.0))
+        transformed_objective = MOI.Utilities.substitute_variables(
+            substitution, objective,
+        )
+        MOI.set(target, MOI.ObjectiveFunction{typeof(transformed_objective)}(), transformed_objective)
+    catch error
+        return Dict{String,Any}(
+            "report_version" => "bmopf-phase-only-rebuild-model-v1",
+            "available" => false,
+            "model_rebuilt" => false,
+            "solver_campaign_ready" => false,
+            "reason" => "target model rejected a transformed constraint or objective",
+            "error" => sprint(showerror, error),
+            "source_variable_count" => length(source_variables),
+            "target_variable_count" => length(target_variables),
+        )
+    end
+    return Dict{String,Any}(
+        "report_version" => "bmopf-phase-only-rebuild-model-v1",
+        "available" => true,
+        "model_rebuilt" => true,
+        "solver_campaign_ready" => false,
+        "model_transform_applied" => true,
+        "solver_transform_applied" => false,
+        "source_variable_count" => length(source_variables),
+        "target_variable_count" => length(target_variables),
+        "source_constraint_count" => get(
+            _bmopf_phase_only_model_rebuild_report(context; plan=phase_plan),
+            "constraint_count", nothing,
+        ),
+        "target_model" => target,
+        "variable_map" => variable_map,
+        "start_values_copied" => false,
+        "qualification" => Dict{String,Any}(
+            "claim" => "non-mutating MOI transformed-coordinate model copy",
+            "requires_optimizer_attachment" => true,
+            "solver_evidence_present" => false,
+        ),
+    )
+end
+
 """
     bmopf_transport_scaling_point(source_context, source_evaluation,
                                   target_context, target_evaluation; kwargs...)

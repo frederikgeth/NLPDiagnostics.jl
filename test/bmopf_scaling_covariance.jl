@@ -696,6 +696,16 @@ end
     @test rebuild["constraint_count"] > 0
     @test rebuild["plan_available"]
     @test !isempty(rebuild["required_capabilities"])
+    rebuilt = NLPDiagnostics.bmopf_phase_only_rebuild_model(
+        context,
+        evaluation;
+        plan,
+    )
+    @test rebuilt["available"]
+    @test rebuilt["model_rebuilt"]
+    @test rebuilt["source_variable_count"] ==
+          rebuilt["target_variable_count"]
+    @test !rebuilt["solver_campaign_ready"]
 
     scheduled = NLPDiagnostics.bmopf_phase_only_transform_plan(
         context,

@@ -1425,8 +1425,17 @@ coordinates and restamping nonlinear expressions in the rotated basis.
 must be covered before that hook can be implemented. On the selected real
 99-bus models it records 96 nonlinear, 432 quadratic, and 1,576 affine
 constraints, 104 variable-domain constraints, and a quadratic objective. These
-are capability requirements, not solver evidence; the report remains blocked
-until expression substitution and rotated-domain-set handling are provided.
+are capability requirements, not solver evidence; the solver campaign remains
+blocked until the rebuilt model is attached through a BMOPFTools runner with
+explicit start and endpoint contracts.
+
+`bmopf_phase_only_rebuild_model` now consumes the plan and uses the public MOI
+substitution API to build a separate transformed model copy. It rewrites
+variable, affine, quadratic, and nonlinear constraint functions plus the
+objective without mutating the source context. The six selected real
+snapshots all rebuild 1,968 variables and 2,208 constraints successfully. The
+returned target is solver-free by design; optimizer attachment, start
+transport, and endpoint validation remain separate gates.
 
 Residual-set semantics are deliberately exact. KCL and other equations whose
 actual JuMP sets are equality to zero use `ZeroEqualitySetContract`. Source

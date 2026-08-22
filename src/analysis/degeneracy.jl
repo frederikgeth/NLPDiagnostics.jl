@@ -207,6 +207,10 @@ bmopf_phase_only_transform_plan(context, evaluation; kwargs...) =
 bmopf_phase_only_model_rebuild_report(context; kwargs...) =
     _bmopf_extension(:BMOPFToolsJuMPExt,
         "BMOPFTools and JuMP are required for BMOPF model-rebuild capability reports")._bmopf_phase_only_model_rebuild_report(context; kwargs...)
+"""Build a non-mutating MOI model copy with the planned phase-only variable substitution."""
+bmopf_phase_only_rebuild_model(context, evaluation; kwargs...) =
+    _bmopf_extension(:BMOPFToolsJuMPExt,
+        "BMOPFTools and JuMP are required for BMOPF phase-only model rebuilding")._bmopf_phase_only_rebuild_model(context, evaluation; kwargs...)
 """Transport one BMOPF point between scaling policies through declared physical coordinates."""
 bmopf_transport_scaling_point(
     source_context, source_evaluation,

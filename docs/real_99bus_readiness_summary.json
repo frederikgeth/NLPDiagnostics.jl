@@ -19,7 +19,8 @@
     "saved_locally_solved_result_count": 6,
     "phase_only_semantic_gate_ready": true,
     "phase_only_solver_campaign_ready": false,
-    "blocking_reason": "A transformed-coordinate solver runner for BMOPFTools contexts is still required; the semantic-map schema compatibility gate is now open."
+    "phase_only_model_copy_ready": true,
+    "blocking_reason": "A transformed-coordinate solver runner still requires nonlinear, quadratic, affine, objective, and rotated-domain-set rebuild support; the current BMOPFTools model-rebuild hook is unavailable."
   },
   "semantic_map_probe": {
     "available": true,
@@ -46,6 +47,13 @@
       "affine_constraint_count": 1576,
       "variable_domain_constraint_count": 104,
       "objective_function_type": "MathOptInterface.ScalarQuadraticFunction{Float64}"
+    },
+    "model_rebuild_copy": {
+      "available": true,
+      "model_rebuilt": true,
+      "source_variable_count": 1968,
+      "target_variable_count": 1968,
+      "source_constraint_count": 2208
     },
     "snapshot_contract": "all six selected LN/LG snapshots expose the same complete semantic-map shape and phase-only classification"
   },

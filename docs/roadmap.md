@@ -3749,8 +3749,10 @@ reusable `bmopf_phase_only_transform_plan` now records the candidate map and
 The companion `bmopf_phase_only_model_rebuild_report` inventories 96 nonlinear,
 432 quadratic, and 1,576 affine constraints, 104 variable-domain constraints,
 and a quadratic objective per snapshot. The remaining gap is a
-transformed-coordinate solver runner for BMOPFTools contexts that covers these
-pieces. The next research sequence is:
+transformed-coordinate solver runner for BMOPFTools contexts that attaches and
+validates the rebuilt model. The non-mutating MOI model copy now succeeds for
+all six snapshots; optimizer attachment, start transport, and endpoint gates
+remain. The next research sequence is:
 
 1. use the two-direction LG Ipopt extension and its twelve-point traces to
    localize the mechanism without promoting a causal claim;

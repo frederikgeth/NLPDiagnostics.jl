@@ -1119,3 +1119,6 @@ The accompanying rebuild-capability report inventories 96 nonlinear, 432
 quadratic, and 1,576 affine constraints, 104 variable-domain constraints, and
 a quadratic objective per snapshot; these are the remaining implementation
 requirements for a genuine transformed-coordinate solve.
+The non-mutating MOI rebuild copy now succeeds for all six snapshots with
+1,968 target variables and 2,208 target constraints; it is not yet attached
+to an optimizer and carries no solver evidence.
