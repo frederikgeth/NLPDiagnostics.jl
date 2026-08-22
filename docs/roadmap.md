@@ -36,7 +36,9 @@ existing schemas and CLIs. The residual-trend validator's local smoke run
 completed successfully; the checkout validator's contract stage passes, while
 its child-suite rerun is environment-blocked by the local Julia precompile
 cache. The dependency handoff remains blocked until the active BMOPFTools
-checkout matches the validated clean-main API.
+checkout matches the validated clean-main API. The handoff audit now also uses
+the shared summary reader/writer and has local blocked and pass-path smoke
+coverage.
 
 ## 2026 architecture review: consolidate and calibrate
 
@@ -4245,7 +4247,8 @@ The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
 eleven core release, rank, runtime, and audit runners; the BMOPF campaign,
-residual-trend, and checkout validators now use the same JSON/repository helper.
+residual-trend, checkout, and PR-handoff gates now use the same JSON/repository
+helper.
 The remaining benchmark scripts are not yet required by the current release
 gate. The executable
 `benchmarks/audit_bmopf_api_contract.jl` audit now extracts the exact

@@ -2,8 +2,6 @@
 
 """Audit whether the active BMOPFTools checkout matches validated clean main."""
 
-using JSON
-
 include(joinpath(@__DIR__, "common.jl"))
 using .NLPDiagnosticsBenchmarkCommon
 
@@ -26,7 +24,7 @@ function artifact_label(path::AbstractString)
 end
 
 function load_or_missing(path::AbstractString)
-    isfile(path) ? JSON.parsefile(path) : Dict{String,Any}(
+    isfile(path) ? read_summary(path; root = "/") : Dict{String,Any}(
         "status" => "missing",
         "reason" => "artifact is absent",
     )
