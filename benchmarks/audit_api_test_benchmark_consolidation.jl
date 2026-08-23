@@ -47,7 +47,8 @@ benchmark_files = filter(
 )
 shared_helper_users = [
     path for path in benchmark_files
-    if occursin("using .NLPDiagnosticsBenchmarkCommon", read_text(path))
+    if occursin("using .NLPDiagnosticsBenchmarkCommon", read_text(path)) ||
+       occursin("NLPDiagnosticsBenchmarkCommon.", read_text(path))
 ]
 json_files = recursive_files(joinpath(REPO_ROOT, "docs"), ".json")
 bmopf_contract_path = joinpath(REPO_ROOT, "docs", "bmopf_api_contract_summary.json")

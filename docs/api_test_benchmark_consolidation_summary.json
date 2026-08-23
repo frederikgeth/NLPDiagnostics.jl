@@ -620,7 +620,7 @@
   "module_boundaries": {
     "benchmark_script_count": 107,
     "shared_benchmark_helper": "benchmarks/common.jl",
-    "shared_benchmark_helper_user_count": 100,
+    "shared_benchmark_helper_user_count": 104,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
       "benchmarks/audit_api_tiers.jl",
@@ -638,6 +638,10 @@
       "benchmarks/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit.jl",
       "benchmarks/bmopf_30bus_ibr_p_upper_tolerance_margin.jl",
       "benchmarks/bmopf_30bus_physical_kkt_probe.jl",
+      "benchmarks/bmopf_acdc_base_grid_campaign.jl",
+      "benchmarks/bmopf_acdc_feeder_policy_campaign.jl",
+      "benchmarks/bmopf_acdc_multiconverter_campaign.jl",
+      "benchmarks/bmopf_acdc_multiconverter_madnlp_campaign.jl",
       "benchmarks/bmopf_acdc_scaling_campaign.jl",
       "benchmarks/bmopf_draft_corpus.jl",
       "benchmarks/bmopf_magnitude_scaling_campaign.jl",

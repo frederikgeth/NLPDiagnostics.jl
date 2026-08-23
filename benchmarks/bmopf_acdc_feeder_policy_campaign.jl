@@ -534,7 +534,7 @@ function _acdc_feeder_write_checkpoint(path, payload)
     path isa AbstractString || return
     mkpath(dirname(path))
     temporary_path = path * ".tmp"
-    write(temporary_path, JSON.json(_json_safe(payload)))
+    NLPDiagnosticsBenchmarkCommon.write_json(temporary_path, _json_safe(payload))
     mv(temporary_path, path; force=true)
     return
 end
@@ -928,12 +928,11 @@ function acdc_feeder_policy_main()
         checkpoint_path=output * ".checkpoint.json",
     )
     mkpath(dirname(output))
-    write(output, JSON.json(_json_safe(campaign)))
+    NLPDiagnosticsBenchmarkCommon.write_json(output, _json_safe(campaign))
     stem, extension = splitext(output)
     summary_output = stem * "-summary" * extension
-    write(
-        summary_output,
-        JSON.json(_json_safe(_compact_acdc_feeder_policy_campaign(campaign))),
+    NLPDiagnosticsBenchmarkCommon.write_json(
+        summary_output, _json_safe(_compact_acdc_feeder_policy_campaign(campaign)),
     )
     println("wrote feeder policy campaign to $output")
     println("wrote compact feeder policy summary to $summary_output")

@@ -30,10 +30,20 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
+`benchmarks/bmopf_acdc_base_grid_campaign.jl`,
+`benchmarks/bmopf_acdc_feeder_policy_campaign.jl`,
+`benchmarks/bmopf_acdc_multiconverter_campaign.jl`, and
+`benchmarks/bmopf_acdc_multiconverter_madnlp_campaign.jl` to qualified
+`benchmarks/common.jl` JSON writes, including feeder checkpoints. The audit now
+recognizes both imported and qualified helper usage, bringing the shared helper
+to 104 core runners. All AC/DC campaign files pass local include/syntax checks.
+A bounded AC/DC scaling launch reaches the known active BMOPFTools `OpfScaling`
+contract boundary (`UndefVarError`), so no AC/DC scaling or solver
+qualification was promoted. The prior increment migrated
 `benchmarks/bmopf_magnitude_scaling_campaign.jl`,
 `benchmarks/bmopf_stratified_scaling_campaign.jl`, and
 `benchmarks/bmopf_stratified_madnlp_campaign.jl` to `benchmarks/common.jl`,
-bringing the shared helper to one hundred core runners while preserving full
+preserving full
 and compact campaign artifacts. All three scripts pass local include/syntax
 checks. A bounded magnitude-campaign launch reaches the known active
 BMOPFTools `OpfScaling` contract boundary (`UndefVarError`), so no scaling or
@@ -4413,7 +4423,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-one hundred core release, rank, runtime, and audit runners; the BMOPF campaign and
+104 core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

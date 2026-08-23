@@ -19,7 +19,6 @@ Environment controls:
 """
 
 Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
-using .NLPDiagnosticsBenchmarkCommon: write_json
 include(joinpath(@__DIR__, "bmopf_stratified_scaling_campaign.jl"))
 
 const _ACDC_RUNNER_VERSION = "bmopf-acdc-scaling-campaign-v1"
@@ -433,10 +432,12 @@ function acdc_main()
         solver_tolerance,
     )
     mkpath(dirname(output))
-    write_json(output, _json_safe(campaign))
+    NLPDiagnosticsBenchmarkCommon.write_json(output, _json_safe(campaign))
     stem, extension = splitext(output)
     summary_output = stem * "-summary" * extension
-    write_json(summary_output, _json_safe(_compact_acdc_campaign(campaign)))
+    NLPDiagnosticsBenchmarkCommon.write_json(
+        summary_output, _json_safe(_compact_acdc_campaign(campaign)),
+    )
     println("wrote matched AC/DC scaling campaign to $output")
     println("wrote compact AC/DC campaign summary to $summary_output")
     println("campaign_qualified=$(campaign["campaign_qualified"])")

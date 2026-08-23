@@ -569,12 +569,11 @@ function acdc_multiconverter_main()
         solver_tolerance,
     )
     mkpath(dirname(output))
-    write(output, JSON.json(_json_safe(campaign)))
+    NLPDiagnosticsBenchmarkCommon.write_json(output, _json_safe(campaign))
     stem, extension = splitext(output)
     summary_output = stem * "-summary" * extension
-    write(
-        summary_output,
-        JSON.json(_json_safe(_compact_acdc_multiconverter_campaign(campaign))),
+    NLPDiagnosticsBenchmarkCommon.write_json(
+        summary_output, _json_safe(_compact_acdc_multiconverter_campaign(campaign)),
     )
     println("wrote multi-converter AC/DC campaign to $output")
     println("wrote compact multi-converter summary to $summary_output")

@@ -20,7 +20,6 @@ Environment controls:
 """
 
 include(joinpath(@__DIR__, "bmopf_magnitude_scaling_campaign.jl"))
-using .NLPDiagnosticsBenchmarkCommon: write_json
 
 using Random
 
@@ -579,10 +578,12 @@ function stratified_main()
         solver_tolerance,
     )
     mkpath(dirname(output))
-    write_json(output, _json_safe(campaign))
+    NLPDiagnosticsBenchmarkCommon.write_json(output, _json_safe(campaign))
     stem, extension = splitext(output)
     summary_output = stem * "-summary" * extension
-    write_json(summary_output, _json_safe(_compact_stratified_campaign(campaign)))
+    NLPDiagnosticsBenchmarkCommon.write_json(
+        summary_output, _json_safe(_compact_stratified_campaign(campaign)),
+    )
     println("wrote objective-bearing stratified campaign to $output")
     println("wrote compact campaign summary to $summary_output")
     println("campaign_qualified=$(campaign["campaign_qualified"])")

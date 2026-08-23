@@ -776,14 +776,12 @@ function acdc_multiconverter_madnlp_main()
         solver_tolerance,
     )
     mkpath(dirname(output))
-    write(output, JSON.json(_json_safe(campaign)))
+    NLPDiagnosticsBenchmarkCommon.write_json(output, _json_safe(campaign))
     stem, extension = splitext(output)
     summary_output = stem * "-summary" * extension
-    write(
+    NLPDiagnosticsBenchmarkCommon.write_json(
         summary_output,
-        JSON.json(_json_safe(
-            _compact_acdc_multiconverter_madnlp_campaign(campaign),
-        )),
+        _json_safe(_compact_acdc_multiconverter_madnlp_campaign(campaign)),
     )
     println("wrote MadNLP multi-converter campaign to $output")
     println("wrote compact MadNLP multi-converter summary to $summary_output")

@@ -1068,6 +1068,17 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: AC/DC campaign helper migration
+
+The AC/DC base-grid, feeder-policy, multi-converter, and MadNLP
+multi-converter campaign writers now use qualified shared
+`benchmarks/common.jl` JSON writes, including the feeder checkpoint path. The
+consolidation audit now recognizes both imported and qualified helper usage;
+the inventory reaches 104 shared-helper runners. All AC/DC campaign files pass
+local include/syntax checks. A bounded AC/DC scaling launch reaches the known
+active BMOPFTools `OpfScaling` contract boundary (`UndefVarError`), so no AC/DC
+scaling or solver qualification was promoted.
+
 ## 2026-08-23: Stratified scaling campaign helper migration
 
 The magnitude-scaling, objective-bearing stratified-scaling, and MadNLP
@@ -1601,7 +1612,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-one hundred core release, rank, runtime, and audit runners; the BMOPF campaign and
+104 core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

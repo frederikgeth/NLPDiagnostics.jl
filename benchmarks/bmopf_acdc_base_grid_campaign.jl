@@ -561,12 +561,11 @@ function acdc_base_grid_main()
         solver_tolerance,
     )
     mkpath(dirname(output))
-    write(output, JSON.json(_json_safe(campaign)))
+    NLPDiagnosticsBenchmarkCommon.write_json(output, _json_safe(campaign))
     stem, extension = splitext(output)
     summary_output = stem * "-summary" * extension
-    write(
-        summary_output,
-        JSON.json(_json_safe(_compact_acdc_base_grid_campaign(campaign))),
+    NLPDiagnosticsBenchmarkCommon.write_json(
+        summary_output, _json_safe(_compact_acdc_base_grid_campaign(campaign)),
     )
     println("wrote AC/DC base-grid campaign to $output")
     println("wrote compact AC/DC base-grid summary to $summary_output")
