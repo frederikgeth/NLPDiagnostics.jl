@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Typed solver-dual unavailable boundaries
+
+Solver-dual snapshots, fixed-variable dual completion, and complementarity
+reports now preserve their historical `reason` strings while also emitting
+typed unavailable records with stable codes, categories, stages, and schema
+versions. The solver-dual regression cases pass locally. This is
+capability/provenance evidence, not KKT or solver-quality qualification.
+
 ## 2026-08-23: Typed solver-telemetry unavailable boundary
 
 Solver linear telemetry now preserves its historical factorization-numerics

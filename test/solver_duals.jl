@@ -52,6 +52,7 @@
         :fixed_equality_stationarity_completion
     data = NLPDiagnostics.fixed_variable_dual_completion_data(completion)
     @test data["available"]
+    @test data["unavailable_reason"] === nothing
     @test data["qualification"]["original_public_snapshot_preserved"]
 
     scaling = NLPDiagnostics.DiagonalScalingMap(
@@ -99,6 +100,11 @@
     )
     @test !unavailable.available
     @test occursin("no scalar fixed-variable", unavailable.reason)
+    unavailable_data = NLPDiagnostics.fixed_variable_dual_completion_data(unavailable)
+    @test unavailable_data["unavailable_reason"]["schema_version"] ==
+        "nlpdiagnostics-unavailable-reason-v1"
+    @test unavailable_data["unavailable_reason"]["code"] ==
+        "fixed_variable_dual_completion_unavailable"
 
     relabeled_point = NLPDiagnostics.EvaluationPoint(
         [variable], [1.0]; label="different-label",
@@ -183,6 +189,8 @@ end
     )
     @test !unavailable["available"]
     @test occursin("unavailable", unavailable["reason"])
+    @test unavailable["unavailable_reason"]["code"] ==
+        "solver_complementarity_unavailable"
 
     iteration = NLPDiagnostics.SolverIterationRecord(
         :synthetic,

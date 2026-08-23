@@ -29,7 +29,12 @@ calibration cases, complete physical KKT/covariance coverage on the real
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
-The latest consolidation increment adds a typed unavailable-reason record to
+The latest consolidation increment adds additive typed unavailable-reason
+records to solver-dual snapshots, fixed-variable dual completion, and
+complementarity reports while preserving their legacy reason strings and
+schemas. The solver-dual regression cases pass in the known local environment;
+this is capability/provenance evidence, not KKT or solver-quality
+qualification. The prior increment adds a typed unavailable-reason record to
 solver linear telemetry while preserving its legacy `reason` field. The
 factorization-numerics boundary now emits a stable capability code, category,
 stage, and schema version; the local regression suite passes with this contract.

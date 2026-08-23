@@ -250,6 +250,7 @@ summary = Dict{String,Any}(
             "isolated BMOPFTools checkout validation",
             "explicit Stable/Advanced facades and root-export tier inventory",
             "typed unavailable-reason serialization for solver linear telemetry",
+            "typed unavailable-reason serialization for solver-dual and complementarity boundaries",
         ],
         "remaining_work" => [
             "review the deliberately small Stable facade and document stable versus advanced/experimental API tiers",

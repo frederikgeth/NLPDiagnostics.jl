@@ -55,6 +55,20 @@ struct FixedVariableDualCompletion{T<:AbstractFloat}
     free_coordinate_maximum_stationarity_residual::Union{Nothing,T}
 end
 
+function _dual_unavailable_reason_data(
+    reason::Union{Nothing,AbstractString};
+    code::Symbol,
+    stage::Symbol,
+)
+    isnothing(reason) && return nothing
+    return unavailable_reason_data(UnavailableReason(
+        reason;
+        code,
+        category = :capability,
+        stage,
+    ))
+end
+
 function _solver_dual_unavailable(
     evaluation::NumericalEvaluation{T},
     result_index::Int,
@@ -344,6 +358,11 @@ function solver_dual_snapshot_data(snapshot::SolverDualSnapshot)
         "schema_version" => "solver-dual-snapshot-v1",
         "available" => snapshot.available,
         "reason" => snapshot.reason,
+        "unavailable_reason" => _dual_unavailable_reason_data(
+            snapshot.reason;
+            code = :solver_dual_snapshot_unavailable,
+            stage = :solver_dual,
+        ),
         "result_index" => snapshot.result_index,
         "dual_status" => snapshot.dual_status,
         "objective_weight" => snapshot.objective_weight,
@@ -593,6 +612,11 @@ function fixed_variable_dual_completion_data(
         "schema_version" => "fixed-variable-dual-completion-v1",
         "available" => completion.available,
         "reason" => completion.reason,
+        "unavailable_reason" => _dual_unavailable_reason_data(
+            completion.reason;
+            code = :fixed_variable_dual_completion_unavailable,
+            stage = :dual_completion,
+        ),
         "fixed_rows" => copy(completion.fixed_rows),
         "fixed_columns" => copy(completion.fixed_columns),
         "original_multipliers" => copy(completion.original_multipliers),
@@ -639,6 +663,12 @@ function solver_complementarity_report(
             "acceptance_passed" => nothing,
             "reason" => snapshot.available ?
                 "one or more rows lack scalar side semantics" : snapshot.reason,
+            "unavailable_reason" => _dual_unavailable_reason_data(
+                snapshot.available ?
+                    "one or more rows lack scalar side semantics" : snapshot.reason;
+                code = :solver_complementarity_unavailable,
+                stage = :complementarity,
+            ),
             "sides" => Dict{String,Any}[],
         )
     end
