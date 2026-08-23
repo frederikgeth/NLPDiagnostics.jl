@@ -8,7 +8,8 @@
 #   julia --project=. benchmarks/inventory_bmopf_draft_corpus.jl
 
 using BMOPFTools
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 const _INVENTORY_SKIP_KEYS = Set(["_meta", "meta", "settings", "base", "time_series"])
 
@@ -65,14 +66,14 @@ function main()
         end
     end
     sort!(records; by = record -> (-record["coarse_component_count"], record["snapshot"]))
-    write(output_path, JSON.json(Dict(
+    write_json(output_path, Dict(
         "benchmark_root" => abspath(root),
         "snapshot_count" => length(records),
         "parse_failure_count" => length(failures),
         "snapshots" => records,
         "parse_failures" => failures,
         "interpretation" => "Read-only schema inventory; coarse component counts are not JuMP dimensions or numerical complexity estimates.",
-    )))
+    ))
     println("inventoried $(length(records)) snapshots ($(length(failures)) parse failures)")
     for record in first(records, min(length(records), 10))
         snapshot = record["snapshot"]
