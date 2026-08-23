@@ -1548,6 +1548,29 @@ function analyze_degeneracy(
         "0" : string(length(expected_mode_tangent_policy.variables))
     report.metadata[:expected_mode_tangent_policy_description] = isnothing(expected_mode_tangent_policy) ?
         "" : expected_mode_tangent_policy.description
+    report.metadata[:structural_numerical_comparison_available] =
+        string(comparison.available)
+    if !comparison.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    comparison.reason,
+                    "structural-to-numerical rank comparison is unavailable",
+                ),
+            );
+            code = :structural_numerical_comparison_unavailable,
+            category = isnothing(comparison.estimate) ? :capability : :numerical,
+            stage = :degeneracy_structural_numerical,
+        )
+        report.metadata[:structural_numerical_comparison_reason] = typed_reason.message
+        report.metadata[:structural_numerical_comparison_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:structural_numerical_comparison_category] =
+            string(typed_reason.category)
+        report.metadata[:structural_numerical_comparison_stage] =
+            string(typed_reason.stage)
+    end
     if !isnothing(expected_mode_tangent_policy)
         for (key, value) in expected_mode_tangent_policy.metadata
             report.metadata[Symbol("expected_mode_tangent_policy_" * key)] = value
@@ -1630,8 +1653,6 @@ function analyze_degeneracy(
         string(!isnothing(iterative_left_nullspace_probe_dimension))
     report.metadata[:degeneracy_iterative_spectrum_probe_requested] =
         string(!isnothing(iterative_spectrum_probe_dimension))
-    report.metadata[:structural_numerical_comparison_available] =
-        string(comparison.available)
     report.metadata[:structural_matching_rank] =
         string(comparison.structural_matching_rank)
     report.metadata[:aligned_numerical_rank] = string(comparison.numerical_rank)

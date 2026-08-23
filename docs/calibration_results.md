@@ -50,6 +50,11 @@ wrapper. Existing findings and legacy metadata remain unchanged. The bounded
 local guard passes; this is numerical capability evidence, not a curvature or
 second-order optimality claim.
 
+Structural-to-numerical rank comparison now serializes dense-work-guard
+unavailability in the degeneracy report with a typed numerical record. The
+existing conservative finding remains intact and no nullspace or physical
+interpretation is promoted.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.

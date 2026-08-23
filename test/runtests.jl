@@ -7984,6 +7984,22 @@ end
         @test length(
             findings(report, :candidate_uniform_coordinate_shift_null_mode),
         ) == 1
+        guarded_degeneracy = NLPDiagnostics.analyze_degeneracy(
+            underdetermined,
+            [0.0, 0.0];
+            max_dense_entries = 0,
+        )
+        @test guarded_degeneracy.metadata[
+            :structural_numerical_comparison_available
+        ] == "false"
+        guarded_degeneracy_data = NLPDiagnostics.report_data(guarded_degeneracy)
+        guarded_degeneracy_reason = only(filter(
+            item -> item["code"] == "structural_numerical_comparison_unavailable",
+            guarded_degeneracy_data["unavailable_reasons"],
+        ))
+        @test guarded_degeneracy_reason["category"] == "numerical"
+        @test guarded_degeneracy_reason["stage"] ==
+              "degeneracy_structural_numerical"
         common_shift = NLPDiagnostics.ExpectedNullspaceMode(
             :common_shift,
             [x, y],
