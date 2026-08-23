@@ -6,11 +6,12 @@ The report keeps recurrence, baseline consistency, sparse-rank observations,
 and cross-solver agreement separate. It is deliberately not a benchmark score.
 """
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 function _load(path)
     isfile(path) || error("missing perturbation summary: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(path; root = "/")
     value isa AbstractDict || error("summary is not a JSON object: $path")
     value
 end
@@ -266,7 +267,7 @@ function main()
                 "Report solver-specific iteration sensitivity and preserve option/provenance metadata.",
             ))
     end
-    write(output_path, JSON.json(Dict(
+    write_json(output_path, Dict(
         "runner_version" => "bmopf-perturbation-corpus-summary-v1",
         "source_summaries" => paths, "source_error_count" => length(source_errors),
         "environment_fingerprints" => sort!(unique(environment_fingerprints)),
@@ -282,7 +283,7 @@ function main()
         "findings" => findings,
         "solver_agreement" => solver_agreement,
         "interpretation" => "Corpus recurrence and solver agreement are descriptive evidence. Family omissions are incomplete formulation experiments, and sparse rank effects remain local linearized observations.",
-    )))
+    ))
     println("wrote BMOPF perturbation corpus summary to $output_path")
 end
 
