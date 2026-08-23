@@ -2646,6 +2646,28 @@ function analyze_sparse_qr_nullspace_persistence(
     report.metadata[:minimum_evaluations] = string(persistence.minimum_evaluations)
     report.metadata[:sparse_qr_nullspace_persistence_available] =
         string(persistence.available)
+    if !persistence.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    persistence.reason,
+                    "sparse-QR nullspace persistence is unavailable",
+                ),
+            );
+            code = :sparse_qr_nullspace_persistence_unavailable,
+            category = :numerical,
+            stage = :sparse_qr_nullspace_persistence,
+        )
+        report.metadata[:sparse_qr_nullspace_persistence_reason] =
+            typed_reason.message
+        report.metadata[:sparse_qr_nullspace_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:sparse_qr_nullspace_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:sparse_qr_nullspace_persistence_stage] =
+            string(typed_reason.stage)
+    end
     report.metadata[:sparse_qr_nullspace_persistence_point_labels] =
         join(persistence.point_labels, ",")
     report.metadata[:sparse_qr_persistent_expected_mode_count] =

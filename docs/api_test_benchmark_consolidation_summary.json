@@ -624,6 +624,7 @@
       "typed unavailable-reason serialization for dense and sparse Jacobian rank backend boundaries",
       "typed unavailable-reason serialization for sparse-QR nullspace extraction work guards",
       "typed unavailable-reason serialization for sparse-QR nullspace dense calibration boundaries",
+      "typed unavailable-reason serialization for sparse-QR nullspace persistence boundaries",
       "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
       "reviewed local quality policy with explicit deferred-tool boundaries"
     ],
@@ -843,6 +844,6 @@
     "explicit_typed_unavailable_tokens": [
       "UnavailableReason"
     ],
-    "typed_adapter_call_count": 33
+    "typed_adapter_call_count": 34
   }
 }

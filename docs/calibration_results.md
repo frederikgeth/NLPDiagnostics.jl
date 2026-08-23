@@ -73,6 +73,10 @@ Sparse-QR nullspace dense calibration now serializes guarded dense-oracle
 unavailability with a typed numerical record. The local dense-work guard
 passes without promoting sparse/dense agreement or disagreement.
 
+Sparse-QR nullspace persistence now serializes cross-point extraction
+unavailability with a typed numerical record. The bounded repeated-point guard
+passes without promoting rank or subspace persistence.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.

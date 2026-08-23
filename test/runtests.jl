@@ -7501,6 +7501,21 @@ end
         @test sparse_dense_calibration_guard_reason["category"] == "numerical"
         @test sparse_dense_calibration_guard_reason["stage"] ==
               "sparse_qr_nullspace_dense_calibration"
+        sparse_persistence_guard_report =
+            NLPDiagnostics.analyze_sparse_qr_nullspace_persistence(
+                [evaluation, evaluation];
+                max_input_nonzeros = 0,
+            )
+        sparse_persistence_guard_reason = only(filter(
+            item -> item["code"] ==
+                "sparse_qr_nullspace_persistence_unavailable",
+            NLPDiagnostics.report_data(sparse_persistence_guard_report)[
+                "unavailable_reasons"
+            ],
+        ))
+        @test sparse_persistence_guard_reason["category"] == "numerical"
+        @test sparse_persistence_guard_reason["stage"] ==
+              "sparse_qr_nullspace_persistence"
         scaled_sparse_qr = NLPDiagnostics.sparse_qr_rank_estimate(
             evaluation;
             scaling = :row_column,
