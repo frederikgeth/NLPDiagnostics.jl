@@ -2789,6 +2789,12 @@ end
         bad_connection_report,
         :component_port_connection_unaligned,
     )) == 1
+    bad_connection_reason = only(filter(
+        item -> item["code"] == "component_port_connection_unavailable",
+        NLPDiagnostics.report_data(bad_connection_report)["unavailable_reasons"],
+    ))
+    @test bad_connection_reason["category"] == "input"
+    @test bad_connection_reason["stage"] == "component_port_connection"
     isolated_port = NLPDiagnostics.ComponentPortMetadata(
         :load, "load_1", "terminal";
         terminal_labels = ["a"], mode_labels = ["a"],

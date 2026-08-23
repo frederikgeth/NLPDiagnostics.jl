@@ -1800,6 +1800,9 @@ Terminal-space component-port mode projection now serializes typed input
 unavailability when a declared mode lacks its port or coordinate map; non-terminal
 mode-space projection remains a capability boundary.
 
+Component-port connection validation now serializes typed input unavailability
+when a connection references an undeclared source or destination port.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

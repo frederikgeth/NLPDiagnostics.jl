@@ -1889,6 +1889,30 @@ function _component_port_connection_findings(
          (item.to_component_type, item.to_component_id, item.to_port_id))
         for item in connections
     ]
+    missing_endpoint_pairs = unique([
+        key for key in keys
+        if !haskey(port_by_key, key[1]) || !haskey(port_by_key, key[2])
+    ])
+    report.metadata[:component_port_connection_available] =
+        string(isempty(missing_endpoint_pairs))
+    if !isempty(missing_endpoint_pairs)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "one or more port connections reference undeclared source or destination ports",
+            );
+            code = :component_port_connection_unavailable,
+            category = :input,
+            stage = :component_port_connection,
+        )
+        report.metadata[:component_port_connection_reason] = typed_reason.message
+        report.metadata[:component_port_connection_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:component_port_connection_category] =
+            string(typed_reason.category)
+        report.metadata[:component_port_connection_stage] =
+            string(typed_reason.stage)
+    end
     for key in unique([key for key in keys if count(==(key), keys) > 1])
         push!(report, Finding(:duplicate_component_port_connection;
             severity = SeverityWarning, domain = RepresentationalIssue,

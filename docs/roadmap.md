@@ -4750,3 +4750,7 @@ semantics findings remain informational.
 The next plugin-coordinate increment types missing terminal-to-model projection
 endpoints for terminal-space port modes as input unavailability. Non-terminal
 mode-space projections remain an explicit capability boundary.
+
+The next plugin-coordinate increment types undeclared source or destination
+ports in connection metadata as input unavailability for port-topology assembly.
+Existing representational connection findings remain unchanged.
