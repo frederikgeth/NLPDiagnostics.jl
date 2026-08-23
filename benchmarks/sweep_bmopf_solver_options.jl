@@ -17,6 +17,9 @@ using BMOPFTools
 using JuMP
 using Ipopt
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
+
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
 function _parse_sweep()
@@ -46,7 +49,7 @@ function _run(command, environment)
 end
 
 function _write_manifest(path, root, environment, common_options, entries)
-    write(path, JSON.json(Dict(
+    write_json(path, Dict(
         "runner" => "bmopf_solver_trace.jl",
         "summary_runner" => "summarize_bmopf_solver_trace.jl",
         "benchmark_root" => abspath(root),
@@ -56,7 +59,7 @@ function _write_manifest(path, root, environment, common_options, entries)
         "capture_points" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CAPTURE_POINTS", "false"),
         "environment" => environment,
         "configurations" => entries,
-    )))
+    ))
     return path
 end
 

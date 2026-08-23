@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Solver-option sweep helper migration
+
+The solver-option sweep now uses the shared `benchmarks/common.jl` JSON writer
+for its incremental manifest. A bounded baseline configuration completed one
+30-bus LN case with two Ipopt iterations and status `ok`; trace profiling was
+intentionally skipped by the selected stage. This is controlled option-harness
+evidence, not a solver-policy ranking.
+
 ## 2026-08-23: Tangent-policy calibration launcher helper migration
 
 The paired tangent-policy calibration launcher now uses the shared
@@ -1572,7 +1580,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-ninety-five core release, rank, runtime, and audit runners; the BMOPF campaign and
+ninety-six core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
