@@ -3,11 +3,12 @@
 """Run a fixed-magnitude phase-only Ipopt campaign on a transformer truth fixture."""
 
 using LinearAlgebra
-using JSON
 using JuMP
 using Ipopt
 import MathOptInterface as MOI
 using NLPDiagnostics
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 rotation(theta) = [cos(theta) -sin(theta); sin(theta) cos(theta)]
 blockdiag(a, b) = [a zeros(2, 2); zeros(2, 2) b]
@@ -117,5 +118,5 @@ end
 
 output = abspath(get(ENV, "NLPDIAGNOSTICS_PHASE_ONLY_TRANSFORMER_OUTPUT", joinpath(@__DIR__, "..", "work", "phase-only-transformer-ipopt-campaign.json")))
 mkpath(dirname(output))
-write(output, JSON.json(run_campaign()))
+write_json(output, run_campaign())
 println("wrote transformer phase-only Ipopt campaign to $output")
