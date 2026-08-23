@@ -16,8 +16,10 @@ Use `NLPDIAGNOSTICS_BMOPF_CASE_SELECTION` or the explicit
 `NLPDIAGNOSTICS_BMOPF_CASES` environment variable to select snapshots.
 """
 
-using JSON
 using Statistics
+
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 const _DEFAULT_CASES = [
     "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
@@ -182,8 +184,8 @@ function main()
         pu_path = replace(snapshot, ".bmopf.json" => "_result_pu.json")
         isfile(si_path) || (push!(missing_si, relative); continue)
         isfile(pu_path) || (push!(missing_pu, relative); continue)
-        si = JSON.parsefile(si_path)
-        pu = JSON.parsefile(pu_path)
+        si = read_summary(si_path; root = "/")
+        pu = read_summary(pu_path; root = "/")
         stats = Dict{String,Any}()
         _walk_pair!(si, pu, String[], stats)
         _merge_stats!(aggregate, stats)
@@ -206,7 +208,7 @@ function main()
         "cases" => case_records,
         "interpretation" => "Observed PU/SI numeric ratios only; this report does not certify a unit convention or model feasibility.",
     )
-    write(output_path, JSON.json(report))
+    write_json(output_path, report)
     println("wrote BMOPF saved-result unit comparison to $output_path")
 end
 
