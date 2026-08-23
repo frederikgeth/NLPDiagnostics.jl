@@ -1773,6 +1773,10 @@ input unavailability when incidence is incomplete or support coordinates are
 not represented in the model graph. No component-localization conclusion is
 promoted in these guarded cases.
 
+Reduced-Hessian expected-mode persistence now serializes typed input
+unavailability when a declared mode uses variables outside the shared snapshot
+coordinate scope. Existing expected-subspace findings remain unchanged.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

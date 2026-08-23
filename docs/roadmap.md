@@ -214,6 +214,11 @@ unavailability when too few complete snapshots contain a nonempty flat
 subspace. Existing active-row, multiplier, scaling, and expected-mode findings
 remain unchanged.
 
+The next reduced-Hessian expectation increment types expected-mode persistence
+as input-unavailable when a declaration falls outside the shared snapshot
+coordinates. Existing representational findings and finite subspace
+comparisons remain unchanged.
+
 The next reduced-Hessian multiplier increment types row-length mismatch
 unavailability in persistence comparisons. Existing multiplier persistence and
 change findings remain unchanged, while incomplete row-aligned vectors are

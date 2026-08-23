@@ -11189,6 +11189,31 @@ end
             unexpected_subspace_report,
             :reduced_hessian_persistent_expected_mode_subspace_not_observed,
         )) == 1
+        misaligned_flat_expected_mode = NLPDiagnostics.ExpectedNullspaceMode(
+            :misaligned_flat_mode,
+            [c1, MOI.VariableIndex(999)],
+            [1.0, 1.0],
+        )
+        misaligned_flat_expected_report =
+            NLPDiagnostics.analyze_reduced_hessian_persistence(
+                compact_model,
+                [
+                    NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),
+                    NLPDiagnostics.ReducedHessianSnapshot(persistent_evaluation, persistent_analysis),
+                ];
+                expected_modes = [misaligned_flat_expected_mode],
+                include_port_topology_modes = false,
+            )
+        misaligned_flat_expected_reason = only(filter(
+            item -> item["code"] ==
+                "reduced_hessian_expected_mode_persistence_unavailable",
+            NLPDiagnostics.report_data(misaligned_flat_expected_report)[
+                "unavailable_reasons"
+            ],
+        ))
+        @test misaligned_flat_expected_reason["category"] == "input"
+        @test misaligned_flat_expected_reason["stage"] ==
+              "reduced_hessian_expected_mode_persistence"
         @test length(findings(
             persistence_report,
             :reduced_hessian_flat_support_persistent,

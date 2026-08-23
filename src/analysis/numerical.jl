@@ -7187,6 +7187,25 @@ function _append_persistent_flat_expected_mode_findings!(
     for (mode_column, mode) in enumerate(modes)
         coordinates = [get(columns_by_variable, variable, 0) for variable in mode.variables]
         if any(iszero, coordinates)
+            typed_reason = unavailable_reason(
+                (
+                    available = false,
+                    reason = "a declared expected reduced-Hessian mode cannot be aligned with the shared evaluation coordinates",
+                );
+                code = :reduced_hessian_expected_mode_persistence_unavailable,
+                category = :input,
+                stage = :reduced_hessian_expected_mode_persistence,
+            )
+            report.metadata[:reduced_hessian_expected_mode_persistence_available] =
+                "false"
+            report.metadata[:reduced_hessian_expected_mode_persistence_reason] =
+                typed_reason.message
+            report.metadata[:reduced_hessian_expected_mode_persistence_unavailable_reason] =
+                typed_reason.message
+            report.metadata[:reduced_hessian_expected_mode_persistence_category] =
+                string(typed_reason.category)
+            report.metadata[:reduced_hessian_expected_mode_persistence_stage] =
+                string(typed_reason.stage)
             push!(report, Finding(
                 :reduced_hessian_persistent_expected_mode_subspace_unaligned;
                 severity = SeverityInfo,
@@ -7209,6 +7228,7 @@ function _append_persistent_flat_expected_mode_findings!(
             directions[coordinate, mode_column] += convert(T, value)
         end
     end
+    report.metadata[:reduced_hessian_expected_mode_persistence_available] = "true"
     declared_basis = _orthonormal_mode_basis(
         directions; relative_tolerance = mode_rank_relative_tolerance,
     )
