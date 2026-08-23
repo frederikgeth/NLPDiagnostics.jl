@@ -2,7 +2,8 @@
 
 """Summarize saved real 99-bus phase-only covariance evidence."""
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 function metric(covariance, group, field)
     get(get(covariance, "metrics", Dict()), group, Dict()) |> report -> get(report, field, nothing)
@@ -14,7 +15,7 @@ input = abspath(get(
     joinpath(@__DIR__, "..", "work", "real-99bus-phase-only-campaign.json"),
 ))
 isfile(input) || error("campaign artifact does not exist: $input")
-campaign = JSON.parsefile(input)
+campaign = read_summary(input; root = "/")
 runs = get(campaign, "runs", Any[])
 run_summaries = Dict{String,Any}[]
 for run in runs
@@ -62,7 +63,7 @@ output = abspath(get(
     joinpath(@__DIR__, "..", "work", "real-99bus-phase-only-covariance-summary.json"),
 ))
 mkpath(dirname(output))
-write(output, JSON.json(Dict(
+write_json(output, Dict(
     "schema_version" => "nlpdiagnostics-real-99bus-phase-only-covariance-summary-v1",
     "source" => Dict(
         "runner" => basename(@__FILE__),
@@ -73,5 +74,5 @@ write(output, JSON.json(Dict(
     ),
     "summary" => summary,
     "runs" => run_summaries,
-)))
+))
 println("wrote real 99-bus covariance summary to $output")
