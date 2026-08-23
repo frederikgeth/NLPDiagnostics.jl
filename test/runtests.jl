@@ -3511,6 +3511,15 @@ end
         unaligned_coordinate_map_report,
         :component_port_coordinate_map_unaligned,
     )) == 1
+    unaligned_coordinate_map_reason = only(filter(
+        item -> item["code"] == "component_port_coordinate_map_unavailable",
+        NLPDiagnostics.report_data(unaligned_coordinate_map_report)[
+            "unavailable_reasons"
+        ],
+    ))
+    @test unaligned_coordinate_map_reason["category"] == "input"
+    @test unaligned_coordinate_map_reason["stage"] ==
+          "component_port_coordinate_map"
     coordinate_projection = NLPDiagnostics.port_topology_coordinate_projection(
         [rank_deficient_port, second_port], [connection],
         [coordinate_map, NLPDiagnostics.PortCoordinateMap(

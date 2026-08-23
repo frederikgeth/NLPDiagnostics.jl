@@ -1998,6 +1998,27 @@ function _component_port_coordinate_map_findings(
         (port.component_type, port.component_id, port.port_id) => port for port in ports
     )
     keys = [(item.component_type, item.component_id, item.port_id) for item in maps]
+    unaligned_keys = unique([key for key in keys if !haskey(port_by_key, key)])
+    report.metadata[:component_port_coordinate_map_available] =
+        string(isempty(unaligned_keys))
+    if !isempty(unaligned_keys)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "one or more terminal-to-variable maps reference undeclared component ports",
+            );
+            code = :component_port_coordinate_map_unavailable,
+            category = :input,
+            stage = :component_port_coordinate_map,
+        )
+        report.metadata[:component_port_coordinate_map_reason] = typed_reason.message
+        report.metadata[:component_port_coordinate_map_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:component_port_coordinate_map_category] =
+            string(typed_reason.category)
+        report.metadata[:component_port_coordinate_map_stage] =
+            string(typed_reason.stage)
+    end
     for key in unique([key for key in keys if count(==(key), keys) > 1])
         push!(report, Finding(:duplicate_component_port_coordinate_map;
             severity = SeverityWarning, domain = RepresentationalIssue,
