@@ -8261,6 +8261,20 @@ end
                 "jacobian_derivative_provenance_persistence_unavailable",
                 "jacobian_derivative_provenance_persistence",
             ),
+            (
+                NLPDiagnostics.analyze_jacobian_condition_persistence(
+                    [evaluations[1], misaligned_evaluation],
+                ),
+                "jacobian_condition_persistence_unavailable",
+                "jacobian_condition_persistence",
+            ),
+            (
+                NLPDiagnostics.analyze_jacobian_rank_persistence(
+                    [evaluations[1], misaligned_evaluation],
+                ),
+                "jacobian_rank_persistence_unavailable",
+                "jacobian_rank_persistence",
+            ),
         )
             reason = only(filter(
                 item -> item["code"] == code,
@@ -11689,6 +11703,40 @@ end
             scaling_changing_report,
             :reduced_hessian_jacobian_scaling_changing,
         )) == 1
+        swapped_point = NLPDiagnostics.EvaluationPoint(
+            [scale_y, scale_x], [0.0, 100.0]; label = "swapped_coordinates",
+        )
+        misaligned_coordinate_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+            swapped_point,
+            scaling_evaluation_2.objective_value,
+            scaling_evaluation_2.objective_source,
+            scaling_evaluation_2.objective_gradient,
+            scaling_evaluation_2.constraint_values,
+            scaling_evaluation_2.constraint_sources,
+            scaling_evaluation_2.jacobian_entries,
+            scaling_evaluation_2.jacobian_row_methods,
+            scaling_evaluation_2.capabilities,
+            scaling_evaluation_2.failures,
+        )
+        reduced_hessian_alignment_report =
+            NLPDiagnostics.analyze_reduced_hessian_persistence([
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    scaling_evaluation_1, scaling_analysis_1,
+                ),
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    misaligned_coordinate_evaluation, scaling_analysis_2,
+                ),
+            ])
+        reduced_hessian_alignment_reason = only(filter(
+            item -> item["code"] ==
+                "reduced_hessian_persistence_unavailable" &&
+                item["category"] == "input",
+            NLPDiagnostics.report_data(reduced_hessian_alignment_report)[
+                "unavailable_reasons"
+            ],
+        ))
+        @test reduced_hessian_alignment_reason["stage"] ==
+              "reduced_hessian_persistence"
         misaligned_scaling_report =
             NLPDiagnostics.analyze_reduced_hessian_persistence([
                 NLPDiagnostics.ReducedHessianSnapshot(

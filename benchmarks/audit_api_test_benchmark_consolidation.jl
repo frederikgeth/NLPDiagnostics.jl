@@ -331,6 +331,7 @@ summary = Dict{String,Any}(
             "typed unavailable-reason serialization for persistent reduced-Hessian structural-scope boundaries",
             "typed unavailable-reason serialization for reduced-Hessian expected-mode persistence boundaries",
             "typed unavailable-reason serialization for persistence coordinate-alignment boundaries",
+            "typed unavailable-reason serialization for top-level condition, rank, and reduced-Hessian coordinate boundaries",
             "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
             "reviewed local quality policy with explicit deferred-tool boundaries",
         ],

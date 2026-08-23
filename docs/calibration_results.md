@@ -1782,6 +1782,10 @@ multiplier, Jacobian-scaling, and derivative-provenance comparisons. Existing
 alignment findings remain available for diagnosis without implying numerical
 or physical change.
 
+Top-level Jacobian condition/rank and reduced-Hessian coordinate mismatches now
+serialize typed input unavailability. Existing coordinate-mismatch findings
+remain available without implying a numerical or physical conclusion.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

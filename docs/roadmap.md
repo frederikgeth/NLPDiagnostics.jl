@@ -214,6 +214,10 @@ unavailability when too few complete snapshots contain a nonempty flat
 subspace. Existing active-row, multiplier, scaling, and expected-mode findings
 remain unchanged.
 
+The next top-level persistence increment types coordinate unavailability for
+Jacobian condition, Jacobian rank, and reduced-Hessian snapshot comparisons.
+Existing coordinate-mismatch findings remain unchanged.
+
 The next persistence-infrastructure increment types coordinate-alignment
 unavailability across multiplier, Jacobian-scaling, and derivative-provenance
 comparisons. Existing representational mismatch findings remain unchanged.
@@ -4726,3 +4730,7 @@ The next structural-inference increment types persistent reduced-Hessian
 structural-scope unavailability when incidence is incomplete or flat-direction
 support falls outside the model graph. Existing conservative scope findings
 remain unchanged.
+
+The top-level condition/rank and reduced-Hessian coordinate-alignment
+deliverable is now implemented with typed input availability records and local
+regression coverage; existing mismatch findings remain unchanged.

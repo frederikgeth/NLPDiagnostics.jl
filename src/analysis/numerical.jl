@@ -5573,6 +5573,23 @@ function analyze_jacobian_condition_persistence(
     reference_rows = first(evaluations).constraint_sources
     if any(evaluation.point.variables != reference_variables for evaluation in evaluations) ||
        any(evaluation.constraint_sources != reference_rows for evaluation in evaluations)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "supplied Jacobian evaluations do not share one ordered variable and constraint-row scope",
+            );
+            code = :jacobian_condition_persistence_unavailable,
+            category = :input,
+            stage = :jacobian_condition_persistence,
+        )
+        report.metadata[:jacobian_condition_persistence_available] = "false"
+        report.metadata[:jacobian_condition_persistence_reason] = typed_reason.message
+        report.metadata[:jacobian_condition_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_condition_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:jacobian_condition_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:jacobian_condition_persistence_coordinate_mismatch;
             severity = SeverityInfo, domain = RepresentationalIssue,
             basis = StructuralProof, confidence = ConfidenceCertain,
@@ -7515,6 +7532,23 @@ function analyze_jacobian_rank_persistence(
     reference_rows = evaluations[1].constraint_sources
     if any(evaluation.point.variables != reference_variables for evaluation in evaluations) ||
        any(evaluation.constraint_sources != reference_rows for evaluation in evaluations)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "supplied Jacobian evaluations do not share one ordered variable and constraint-row scope",
+            );
+            code = :jacobian_rank_persistence_unavailable,
+            category = :input,
+            stage = :jacobian_rank_persistence,
+        )
+        report.metadata[:jacobian_rank_persistence_available] = "false"
+        report.metadata[:jacobian_rank_persistence_reason] = typed_reason.message
+        report.metadata[:jacobian_rank_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_rank_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:jacobian_rank_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:jacobian_rank_persistence_coordinate_mismatch;
             severity = SeverityInfo, domain = RepresentationalIssue,
             basis = StructuralProof, confidence = ConfidenceCertain,
@@ -7912,6 +7946,23 @@ function analyze_reduced_hessian_persistence(
     isempty(snapshots) && return report
     reference_variables = snapshots[1].evaluation.point.variables
     if any(snapshot.evaluation.point.variables != reference_variables for snapshot in snapshots)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "supplied reduced-Hessian snapshots do not share one evaluation-coordinate ordering",
+            );
+            code = :reduced_hessian_persistence_unavailable,
+            category = :input,
+            stage = :reduced_hessian_persistence,
+        )
+        report.metadata[:reduced_hessian_persistence_available] = "false"
+        report.metadata[:reduced_hessian_persistence_reason] = typed_reason.message
+        report.metadata[:reduced_hessian_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:reduced_hessian_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(
             :reduced_hessian_flat_persistence_coordinate_mismatch;
             severity = SeverityInfo,
