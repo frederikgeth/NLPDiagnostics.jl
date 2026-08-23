@@ -13,7 +13,9 @@ using NLPDiagnostics
 using BMOPFTools
 using JuMP
 using Ipopt
-using JSON
+
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
@@ -162,7 +164,7 @@ function main()
         "component_rank_capability" => NLPDiagnostics.report_data(component_capability_report),
         "interpretation" => "Cross-point numerical persistence evidence only; persistent rank or nullspace patterns do not establish a physical cause.",
     )
-    write(output_path, JSON.json(report))
+    write_json(output_path, report)
     println("wrote BMOPF saved-result persistence report to $output_path")
 end
 

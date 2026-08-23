@@ -30,13 +30,15 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/bmopf_smoke.jl` to `benchmarks/common.jl`, bringing the shared
-helper to seventy-eight core runners while preserving per-fixture records and
-the aggregate index schema. A local known-environment smoke wrote all six
-fixture records and an index; each retained an explicit `error` status because
-the default staged starts were incomplete, preserving the runner's instruction
-to use the synthetic zero-point policy for a separate probe. The prior
-increment migrated `benchmarks/bmopf_acdc_scaling_campaign.jl`; its local launch
+`benchmarks/bmopf_saved_result_persistence.jl` to `benchmarks/common.jl`,
+bringing the shared helper to seventy-nine core runners while preserving the
+saved-result persistence report schema. A bounded known-environment probe
+mapped two 30-bus LN snapshots and wrote the persistence report with both
+mapping and controller-curve snapshot records. The prior increment migrated
+`benchmarks/bmopf_smoke.jl`; its local known-environment smoke wrote all six
+fixture records and an index, each retaining an explicit `error` status because
+the default staged starts were incomplete. The prior increment migrated
+`benchmarks/bmopf_acdc_scaling_campaign.jl`; its local launch
 is explicitly blocked because active BMOPFTools lacks `OpfScaling`, matching
 the existing dependency-contract failure. The prior increment migrated
 `benchmarks/bmopf_30bus_ibr_p_upper_directional_probe.jl`; its local smoke
@@ -4332,7 +4334,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-seventy-eight core release, rank, runtime, and audit runners; the BMOPF campaign and
+seventy-nine core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
