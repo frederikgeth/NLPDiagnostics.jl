@@ -4,13 +4,15 @@
 
 using JSON
 
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
+
 _dict(value) = value isa AbstractDict ?
     Dict{String,Any}(String(key) => item for (key, item) in value) :
     Dict{String,Any}()
 
 function _load(path)
-    isfile(path) || error("missing multiconductor summary: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(abspath(path); root = "/")
     value isa AbstractDict || error("summary is not a JSON object: $path")
     return value
 end
@@ -238,7 +240,7 @@ function main()
             "Controlled Jacobian-scaling sensitivity evidence only; scaled-system convergence and backend-relation changes are not rank, solver-scaling, or physical-gauge certificates." :
             "Numerical-policy sensitivity evidence only; convergence gains and backend-relation changes are not rank or physical-gauge certificates.",
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote multiconductor crosscheck comparison to $output_path")
 end
 
