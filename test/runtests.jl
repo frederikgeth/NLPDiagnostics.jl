@@ -3700,6 +3700,19 @@ end
         topology_nullspace_report,
         :component_port_topology_expected_nullspace,
     )) == 1
+    unavailable_topology_nullspace_report =
+        NLPDiagnostics._component_port_topology_nullspace_findings(
+            [rank_deficient_port, second_port], [bad_connection],
+        )
+    unavailable_topology_nullspace_reason = only(filter(
+        item -> item["code"] == "component_port_topology_nullspace_unavailable",
+        NLPDiagnostics.report_data(unavailable_topology_nullspace_report)[
+            "unavailable_reasons"
+        ],
+    ))
+    @test unavailable_topology_nullspace_reason["category"] == "input"
+    @test unavailable_topology_nullspace_reason["stage"] ==
+          "component_port_topology_nullspace"
     @test_throws DimensionMismatch NLPDiagnostics.ComponentPortMetadata(
         :line, "line_1", "bad";
         terminal_labels = ["a"], mode_labels = ["a", "b"],

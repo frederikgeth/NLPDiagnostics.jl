@@ -3142,6 +3142,26 @@ function _component_port_topology_nullspace_findings(
     report.metadata[:component_port_topology_rank] = string(analysis.rank)
     report.metadata[:component_port_topology_nullity] = string(size(analysis.nullspace, 2))
     if !analysis.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    analysis.reason,
+                    "declared port-topology nullspace assembly is unavailable",
+                ),
+            );
+            code = :component_port_topology_nullspace_unavailable,
+            category = :input,
+            stage = :component_port_topology_nullspace,
+        )
+        report.metadata[:component_port_topology_nullspace_reason] =
+            typed_reason.message
+        report.metadata[:component_port_topology_nullspace_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:component_port_topology_nullspace_category] =
+            string(typed_reason.category)
+        report.metadata[:component_port_topology_nullspace_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:component_port_topology_nullspace_unavailable;
             severity = SeverityInfo, domain = RepresentationalIssue,
             basis = StructuralProof, confidence = ConfidenceCertain,

@@ -1822,6 +1822,9 @@ Component-port constitutive-map validation now serializes typed input
 unavailability when map identity, dimensions, equation labels, or coefficients
 are invalid.
 
+Terminal-topology nullspace assembly now serializes typed input unavailability
+when declared ports or connections prevent a valid nullspace calculation.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

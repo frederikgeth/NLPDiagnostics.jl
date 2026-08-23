@@ -4778,3 +4778,7 @@ scalar and coupled mismatch findings remain unchanged.
 The next plugin-coordinate increment types malformed constitutive maps as input
 unavailability when identity, dimensions, equation labels, or coefficients fail
 validation. Existing valid map rank evidence remains unchanged.
+
+The next plugin-coordinate increment types failed terminal-topology nullspace
+assembly as input unavailability when declared ports or connections are invalid.
+Existing expected-nullspace evidence remains unchanged.
