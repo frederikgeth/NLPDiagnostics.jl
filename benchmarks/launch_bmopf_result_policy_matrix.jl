@@ -16,6 +16,9 @@ conversion policy from the saved-file choice, override suffixes with
 
 using JSON
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
+
 const _ALL_SI = "bus_voltage=si,line_current=si,load_current=si,generator_current=si,generator_power=si,source_current=si,ibr_current=si,ibr_power=si,switch_current=si,ground_current=si"
 const _POLICIES = Dict{String,NamedTuple}(
     "si" => (result_units = "si", field_units = ""),
@@ -199,12 +202,12 @@ function main()
     for name in _selected_policies()
         entry = _run_policy(script, project, root, output_root, name, _POLICIES[name], timeout_seconds, result_suffixes)
         push!(entries, entry)
-        write(index_path, JSON.json(_manifest(root, output_root, project,
-            timeout_seconds, result_suffixes, entries)))
+        write_json(index_path, _manifest(root, output_root, project,
+            timeout_seconds, result_suffixes, entries))
         println("$name: $(entry["status"]) timeout=$(entry["process_timeout"])")
     end
-    write(index_path, JSON.json(_manifest(root, output_root, project,
-        timeout_seconds, result_suffixes, entries)))
+    write_json(index_path, _manifest(root, output_root, project,
+        timeout_seconds, result_suffixes, entries))
     println("wrote BMOPF result-policy matrix manifest to $index_path")
 end
 

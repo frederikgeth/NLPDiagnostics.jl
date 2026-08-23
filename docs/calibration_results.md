@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Result-policy matrix launcher helper migration
+
+The saved-result policy-matrix launcher now uses the shared
+`benchmarks/common.jl` JSON writer for incremental manifests. A bounded local
+run wrote one explicit `process_exit` policy record because its child hit the
+sandboxed Julia precompile-lock permission boundary before loading the corpus
+runner. No policy qualification is promoted from this launcher run.
+
 ## 2026-08-23: Point-calibration launcher helper migration
 
 The repeated BMOPF point-calibration launcher now uses the shared
@@ -1521,7 +1529,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-eighty-nine core release, rank, runtime, and audit runners; the BMOPF campaign and
+ninety core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
