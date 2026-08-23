@@ -6882,6 +6882,25 @@ function _append_reduced_hessian_jacobian_scaling_persistence_findings!(
     summaries = [jacobian_scale_summary(snapshot.evaluation) for snapshot in candidates]
     if any(!isempty(summary.nonfinite_rows) || !isempty(summary.nonfinite_columns)
            for summary in summaries)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "at least one retained reduced-Hessian snapshot has non-finite Jacobian derivatives",
+            );
+            code = :reduced_hessian_jacobian_scaling_persistence_unavailable,
+            category = :numerical,
+            stage = :reduced_hessian_jacobian_scaling_persistence,
+        )
+        report.metadata[:reduced_hessian_jacobian_scaling_persistence_available] =
+            "false"
+        report.metadata[:reduced_hessian_jacobian_scaling_persistence_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_jacobian_scaling_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_jacobian_scaling_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:reduced_hessian_jacobian_scaling_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(
             :reduced_hessian_jacobian_scaling_persistence_unavailable;
             severity = SeverityInfo,
@@ -6921,6 +6940,7 @@ function _append_reduced_hessian_jacobian_scaling_persistence_findings!(
     )
     persistent = row_change_factor <= convert(T, change_factor_threshold) &&
                  column_change_factor <= convert(T, change_factor_threshold)
+    report.metadata[:reduced_hessian_jacobian_scaling_persistence_available] = "true"
     labels = join((snapshot.evaluation.point.label for snapshot in candidates), ",")
     push!(report, Finding(
         persistent ? :reduced_hessian_jacobian_scaling_persistent :
@@ -6972,6 +6992,25 @@ function _append_reduced_hessian_spectral_scale_persistence_findings!(
         for snapshot in candidates
     ]
     if any(!isfinite, spectral_scales)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "at least one retained reduced-Hessian spectrum has non-finite eigenvalues",
+            );
+            code = :reduced_hessian_spectral_scale_persistence_unavailable,
+            category = :numerical,
+            stage = :reduced_hessian_spectral_scale_persistence,
+        )
+        report.metadata[:reduced_hessian_spectral_scale_persistence_available] =
+            "false"
+        report.metadata[:reduced_hessian_spectral_scale_persistence_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_spectral_scale_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_spectral_scale_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:reduced_hessian_spectral_scale_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(
             :reduced_hessian_spectral_scale_persistence_unavailable;
             severity = SeverityInfo,
@@ -6996,6 +7035,7 @@ function _append_reduced_hessian_spectral_scale_persistence_findings!(
         init = one(T),
     )
     persistent = change_factor <= convert(T, change_factor_threshold)
+    report.metadata[:reduced_hessian_spectral_scale_persistence_available] = "true"
     labels = join((snapshot.evaluation.point.label for snapshot in candidates), ",")
     push!(report, Finding(
         persistent ? :reduced_hessian_spectral_scale_persistent :

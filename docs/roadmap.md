@@ -4696,3 +4696,9 @@ migration, complete unavailable-reason adoption, dependency handoff, and
 activation of deferred quality tools remain parallel engineering work. New
 finding families and automatic model reformulation remain
 outside the next increment.
+
+The next reduced-Hessian scale increment types Jacobian scaling and
+spectral-scale persistence unavailability when non-finite derivative or
+curvature scales prevent comparison. Existing persistent and changing findings
+remain unchanged; the new metadata makes this boundary explicit for release
+audit consumers.

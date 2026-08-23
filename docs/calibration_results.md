@@ -1753,6 +1753,11 @@ dense rank is disabled, and inequality-multiplier covariance remains outside
 the covariance report. The machine-readable release-gate ledger is
 `docs/calibration_release_gate_summary.json`.
 
+The reduced-Hessian persistence slice now also serializes typed numerical
+unavailability for Jacobian scaling and spectral-scale comparisons when
+non-finite derivative or eigenvalue evidence prevents a safe change-factor
+calculation. Finite inputs retain the existing persistent/changing findings.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

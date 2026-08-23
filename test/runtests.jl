@@ -11492,6 +11492,37 @@ end
             scaling_changing_report,
             :reduced_hessian_jacobian_scaling_changing,
         )) == 1
+        malformed_scaling_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+            scaling_evaluation_2.point,
+            scaling_evaluation_2.objective_value,
+            scaling_evaluation_2.objective_source,
+            scaling_evaluation_2.objective_gradient,
+            scaling_evaluation_2.constraint_values,
+            scaling_evaluation_2.constraint_sources,
+            NLPDiagnostics.JacobianEntry{Float64}[NLPDiagnostics.JacobianEntry(1, 1, NaN)],
+            scaling_evaluation_2.jacobian_row_methods,
+            scaling_evaluation_2.capabilities,
+            scaling_evaluation_2.failures,
+        )
+        malformed_scaling_report =
+            NLPDiagnostics.analyze_reduced_hessian_persistence([
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    scaling_evaluation_1, scaling_analysis_1,
+                ),
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    malformed_scaling_evaluation, scaling_analysis_2,
+                ),
+            ])
+        malformed_scaling_reason = only(filter(
+            item -> item["code"] ==
+                "reduced_hessian_jacobian_scaling_persistence_unavailable",
+            NLPDiagnostics.report_data(malformed_scaling_report)[
+                "unavailable_reasons"
+            ],
+        ))
+        @test malformed_scaling_reason["category"] == "numerical"
+        @test malformed_scaling_reason["stage"] ==
+              "reduced_hessian_jacobian_scaling_persistence"
 
         spectral_hessian = NLPDiagnostics.HessianEvaluation(
             persistent_evaluation.point,
@@ -11520,6 +11551,42 @@ end
             spectral_changing_report,
             :reduced_hessian_spectral_scale_changing,
         )) == 1
+        malformed_spectral_analysis = NLPDiagnostics.ReducedHessianAnalysis{Float64}(
+            spectral_analysis.available,
+            spectral_analysis.reason,
+            spectral_analysis.point,
+            spectral_analysis.active_rows,
+            spectral_analysis.jacobian_rank,
+            spectral_analysis.tangent_dimension,
+            spectral_analysis.jacobian_threshold,
+            spectral_analysis.eigenvalue_threshold,
+            [NaN],
+            spectral_analysis.positive_eigenvalues,
+            spectral_analysis.negative_eigenvalues,
+            spectral_analysis.zero_eigenvalues,
+            spectral_analysis.condition_estimate,
+            spectral_analysis.tangent_basis,
+            spectral_analysis.reduced_eigenvectors,
+        )
+        malformed_spectral_report =
+            NLPDiagnostics.analyze_reduced_hessian_persistence([
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    compact_evaluation, compact_analysis,
+                ),
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    persistent_evaluation, malformed_spectral_analysis,
+                ),
+            ])
+        malformed_spectral_reason = only(filter(
+            item -> item["code"] ==
+                "reduced_hessian_spectral_scale_persistence_unavailable",
+            NLPDiagnostics.report_data(malformed_spectral_report)[
+                "unavailable_reasons"
+            ],
+        ))
+        @test malformed_spectral_reason["category"] == "numerical"
+        @test malformed_spectral_reason["stage"] ==
+              "reduced_hessian_spectral_scale_persistence"
     end
 
     @testset "non-unit circular equalities are explicit scaling hints" begin
