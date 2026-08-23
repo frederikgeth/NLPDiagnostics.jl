@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Draft-corpus helper migration
+
+The size-aware BMOPF draft-corpus runner now uses the shared
+`benchmarks/common.jl` JSON writer for campaign manifests, per-case records,
+and the aggregate index. A bounded structural-only run completed both default
+30-bus representatives, each with 704 variables, 844 rows, and 265 structural
+findings. These are structural observations, not physical or causal claims.
+
 ## 2026-08-23: Solver-trace helper migration
 
 The size-guarded BMOPF solver-trace runner now uses the shared
@@ -1449,7 +1457,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-eighty core release, rank, runtime, and audit runners; the BMOPF campaign and
+eighty-one core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

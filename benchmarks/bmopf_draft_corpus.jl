@@ -36,6 +36,9 @@ using Ipopt # activates BMOPFTools' public staged OPF extension
 using JSON
 using SHA
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
+
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
 const _RUNNER_VERSION = "bmopf-draft-corpus-v12"
@@ -402,7 +405,7 @@ function main()
             "campaign_fingerprint" => fingerprint,
         ))
     end
-    write(joinpath(output_dir, "campaign_manifest.json"), JSON.json(Dict(
+    write_json(joinpath(output_dir, "campaign_manifest.json"), Dict(
         "runner_version" => _RUNNER_VERSION,
         "benchmark_root" => abspath(root),
         "case_selection" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASE_SELECTION", ""),
@@ -423,7 +426,7 @@ function main()
         "environment" => environment,
         "environment_fingerprint" => environment_fingerprint,
         "cases" => manifest_cases,
-    )))
+    ))
     index = Vector{Dict{String,Any}}()
 
     for relative in selected_cases
@@ -576,7 +579,7 @@ function main()
                 "kcl_allocations" => run.kcl_allocations,
                 analysis_data_key => data,
             )
-            write(result_path, JSON.json(payload))
+            write_json(result_path, payload)
             push!(index, Dict(
                 "name" => name, "snapshot" => relative, "status" => "ok",
                 "campaign_fingerprint" => fingerprint,
@@ -607,13 +610,13 @@ function main()
                     "findings=$generic_findings")
         catch error
             message = sprint(showerror, error, catch_backtrace())
-            write(result_path, JSON.json(Dict(
+            write_json(result_path, Dict(
                 "snapshot" => relative, "snapshot_path" => abspath(path),
                 "status" => "error", "error" => message,
                 "integrity_preflight" => preflight,
                 "campaign_fingerprint" => fingerprint,
                 "environment_fingerprint" => environment_fingerprint,
-            )))
+            ))
             push!(index, Dict(
                 "name" => name, "snapshot" => relative, "status" => "error",
                 "result_file" => basename(result_path), "error" => message,
@@ -622,7 +625,7 @@ function main()
             println("$name: ERROR — $(sprint(showerror, error))")
         end
     end
-    write(joinpath(output_dir, "index.json"), JSON.json(Dict(
+    write_json(joinpath(output_dir, "index.json"), Dict(
         "benchmark_root" => abspath(root),
         "runner_version" => _RUNNER_VERSION,
         "case_selection" => get(ENV, "NLPDIAGNOSTICS_BMOPF_CASE_SELECTION", ""),
@@ -643,7 +646,7 @@ function main()
         "environment" => environment,
         "environment_fingerprint" => environment_fingerprint,
         "cases" => index,
-    )))
+    ))
     println("wrote evidence records to $output_dir")
 end
 
