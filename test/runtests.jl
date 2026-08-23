@@ -7420,6 +7420,59 @@ end
             "max_input_nonzeros=0",
             resource_guarded_report.metadata[:sparse_qr_rank_reason],
         )
+        resource_guarded_data = NLPDiagnostics.report_data(resource_guarded_report)
+        resource_guarded_reasons = resource_guarded_data["unavailable_reasons"]
+        @test Set(item["code"] for item in resource_guarded_reasons) ⊇ Set([
+            "jacobian_rank_unavailable",
+            "sparse_qr_rank_unavailable",
+            "scaled_sparse_qr_rank_unavailable",
+        ])
+        @test all(
+            item -> item["category"] == "numerical",
+            filter(
+                item -> item["code"] in Set([
+                    "jacobian_rank_unavailable",
+                    "sparse_qr_rank_unavailable",
+                    "scaled_sparse_qr_rank_unavailable",
+                ]),
+                resource_guarded_reasons,
+            ),
+        )
+        incomplete_rank_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+            evaluation.point,
+            evaluation.objective_value,
+            evaluation.objective_source,
+            evaluation.objective_gradient,
+            evaluation.constraint_values,
+            evaluation.constraint_sources,
+            evaluation.jacobian_entries,
+            fill(:unavailable, length(evaluation.jacobian_row_methods)),
+            evaluation.capabilities,
+            evaluation.failures,
+        )
+        incomplete_rank_report = NLPDiagnostics.analyze_numerical(
+            model,
+            incomplete_rank_evaluation,
+        )
+        incomplete_rank_reasons = NLPDiagnostics.report_data(
+            incomplete_rank_report,
+        )["unavailable_reasons"]
+        @test any(
+            item -> item["code"] == "sparse_jacobian_pattern_unavailable",
+            incomplete_rank_reasons,
+        )
+        @test all(
+            item -> item["category"] == "numerical",
+            filter(
+                item -> item["code"] in Set([
+                    "jacobian_rank_unavailable",
+                    "sparse_jacobian_pattern_unavailable",
+                    "sparse_qr_rank_unavailable",
+                    "scaled_sparse_qr_rank_unavailable",
+                ]),
+                incomplete_rank_reasons,
+            ),
+        )
         scaled_sparse_qr = NLPDiagnostics.sparse_qr_rank_estimate(
             evaluation;
             scaling = :row_column,

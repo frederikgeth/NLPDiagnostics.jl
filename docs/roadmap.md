@@ -154,6 +154,12 @@ native-operator provenance remain intact while direct `report_data` gains
 stable numerical codes, stages, categories, and reasons for each withheld
 probe.
 
+The next numerical-backend increment types dense Jacobian rank, sparse pattern,
+and sparse-QR rank unavailability in the main numerical report. Existing rank
+metadata and findings remain unchanged while `report_data` exposes separate
+numerical records for dense, sparse-pattern, unscaled sparse-QR, and scaled
+sparse-QR boundaries.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

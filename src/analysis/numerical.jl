@@ -5576,6 +5576,23 @@ function _analyze_numerical_evaluation(
     report.metadata[:jacobian_rank_scaling] = string(unscaled_rank.scaling)
     report.metadata[:jacobian_rank_available] = string(unscaled_rank.available)
     report.metadata[:jacobian_rank_reason] = string(unscaled_rank.reason)
+    if !unscaled_rank.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    unscaled_rank.reason,
+                    "dense Jacobian rank estimate is unavailable",
+                ),
+            );
+            code = :jacobian_rank_unavailable,
+            category = :numerical,
+            stage = :numerical_jacobian_rank,
+        )
+        report.metadata[:jacobian_rank_unavailable_reason] = typed_reason.message
+        report.metadata[:jacobian_rank_category] = string(typed_reason.category)
+        report.metadata[:jacobian_rank_stage] = string(typed_reason.stage)
+    end
     report.metadata[:jacobian_rank_relative_tolerance] =
         string(unscaled_rank.policy.relative_tolerance)
     report.metadata[:jacobian_rank_absolute_tolerance] =
@@ -5586,9 +5603,46 @@ function _analyze_numerical_evaluation(
         string(unscaled_rank.policy.provenance)
     report.metadata[:sparse_jacobian_pattern_available] =
         string(sparse_pattern.available)
+    if !sparse_pattern.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    sparse_pattern.reason,
+                    "sparse Jacobian pattern estimate is unavailable",
+                ),
+            );
+            code = :sparse_jacobian_pattern_unavailable,
+            category = :numerical,
+            stage = :sparse_jacobian_pattern,
+        )
+        report.metadata[:sparse_jacobian_pattern_reason] = typed_reason.message
+        report.metadata[:sparse_jacobian_pattern_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:sparse_jacobian_pattern_category] =
+            string(typed_reason.category)
+        report.metadata[:sparse_jacobian_pattern_stage] = string(typed_reason.stage)
+    end
     report.metadata[:sparse_jacobian_pattern_rank_upper_bound] =
         string(sparse_pattern.rank_upper_bound)
     report.metadata[:sparse_qr_rank_available] = string(sparse_qr.available)
+    if !sparse_qr.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    sparse_qr.reason,
+                    "sparse QR rank estimate is unavailable",
+                ),
+            );
+            code = :sparse_qr_rank_unavailable,
+            category = :numerical,
+            stage = :sparse_qr_rank,
+        )
+        report.metadata[:sparse_qr_rank_unavailable_reason] = typed_reason.message
+        report.metadata[:sparse_qr_rank_category] = string(typed_reason.category)
+        report.metadata[:sparse_qr_rank_stage] = string(typed_reason.stage)
+    end
     report.metadata[:sparse_qr_rank] = string(sparse_qr.rank)
     report.metadata[:sparse_qr_rank_scaling] = string(sparse_qr.scaling)
     report.metadata[:sparse_qr_row_column_rank] = string(scaled_sparse_qr.rank)
@@ -5619,6 +5673,25 @@ function _analyze_numerical_evaluation(
         string(scaled_sparse_qr.available)
     report.metadata[:scaled_sparse_qr_rank_reason] =
         string(scaled_sparse_qr.reason)
+    if !scaled_sparse_qr.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    scaled_sparse_qr.reason,
+                    "scaled sparse QR rank estimate is unavailable",
+                ),
+            );
+            code = :scaled_sparse_qr_rank_unavailable,
+            category = :numerical,
+            stage = :scaled_sparse_qr_rank,
+        )
+        report.metadata[:scaled_sparse_qr_rank_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:scaled_sparse_qr_rank_category] =
+            string(typed_reason.category)
+        report.metadata[:scaled_sparse_qr_rank_stage] = string(typed_reason.stage)
+    end
     report.metadata[:scaled_sparse_qr_input_nonzeros] =
         string(scaled_sparse_qr.input_nonzeros)
     report.metadata[:scaled_sparse_qr_factor_nonzeros] =
