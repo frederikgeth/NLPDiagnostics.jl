@@ -2,11 +2,12 @@
 
 """Summarize the deterministic operator/domain fingerprint corpus."""
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 function _load(path)
     isfile(path) || error("missing operator fingerprint report: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(path; root = "/")
     value isa AbstractDict || error("operator fingerprint report is not a JSON object")
     value
 end
@@ -117,7 +118,7 @@ function main()
         "readiness" => readiness,
         "interpretation" => "Summary and trust gates for static operator/domain observations; findings are evidence and not a model-quality score.",
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote operator fingerprint summary to $output_path")
 end
 
