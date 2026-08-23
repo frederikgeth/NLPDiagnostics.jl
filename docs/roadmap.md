@@ -30,11 +30,14 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/phase_only_ipopt_campaign.jl` to `benchmarks/common.jl`, bringing
-the shared helper to fifty-three core runners while preserving the matched
-four-record Ipopt campaign schema. Its local smoke run classified the
-intervention as `phase_only`, passed endpoint-covariance and geometry gates,
-and accepted all four endpoints. The prior increment migrated
+`benchmarks/phase_only_nonlinear_ipopt_campaign.jl` to `benchmarks/common.jl`,
+bringing the shared helper to fifty-four core runners while preserving the
+matched four-record nonlinear campaign schema. Its local smoke run classified
+the intervention as `phase_only`, passed endpoint-covariance and geometry
+gates, and reported all four endpoints as `LOCALLY_SOLVED`. The prior
+increment migrated `benchmarks/phase_only_ipopt_campaign.jl`; its local smoke
+run classified the intervention as `phase_only`, passed endpoint-covariance and
+geometry gates, and accepted all four endpoints. The prior increment migrated
 `benchmarks/phase_only_orthogonal_control.jl`; its local smoke run passed
 covariance, geometry, and singular-value invariance gates while retaining
 solver work as deliberately unavailable. The prior increment migrated
@@ -4261,7 +4264,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-fifty-three core release, rank, runtime, and audit runners; the BMOPF campaign and
+fifty-four core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
