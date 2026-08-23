@@ -3466,6 +3466,24 @@ end
         port_mode_coordinate_report,
         :component_port_mode_coordinate_projection_available,
     )) == 1
+    missing_port_mode_coordinate_report =
+        NLPDiagnostics._component_port_mode_coordinate_projection_findings(
+            [rank_deficient_port], [terminal_port_mode], NLPDiagnostics.PortCoordinateMap[],
+        )
+    @test length(findings(
+        missing_port_mode_coordinate_report,
+        :component_port_mode_coordinate_projection_unavailable,
+    )) == 1
+    missing_port_mode_reason = only(filter(
+        item -> item["code"] ==
+            "component_port_mode_coordinate_projection_unavailable",
+        NLPDiagnostics.report_data(missing_port_mode_coordinate_report)[
+            "unavailable_reasons"
+        ],
+    ))
+    @test missing_port_mode_reason["category"] == "input"
+    @test missing_port_mode_reason["stage"] ==
+          "component_port_mode_coordinate_projection"
     component_projected_modes = NLPDiagnostics.port_component_expected_nullspace_modes(
         [rank_deficient_port], [terminal_port_mode], [visible_coordinate_map],
     )

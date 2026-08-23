@@ -1725,6 +1725,33 @@ function _component_port_mode_coordinate_projection_findings(
     map_by_key = Dict(
         (map.component_type, map.component_id, map.port_id) => map for map in coordinate_maps
     )
+    missing_endpoint_keys = unique([
+        (mode.component_type, mode.component_id, mode.port_id) for mode in modes
+        if mode.space == :terminal &&
+           (!haskey(port_by_key, (mode.component_type, mode.component_id, mode.port_id)) ||
+            !haskey(map_by_key, (mode.component_type, mode.component_id, mode.port_id)))
+    ])
+    report.metadata[:component_port_mode_coordinate_projection_available] =
+        string(isempty(missing_endpoint_keys))
+    if !isempty(missing_endpoint_keys)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "one or more terminal-space port modes lack a declared port or terminal-to-model coordinate map",
+            );
+            code = :component_port_mode_coordinate_projection_unavailable,
+            category = :input,
+            stage = :component_port_mode_coordinate_projection,
+        )
+        report.metadata[:component_port_mode_coordinate_projection_reason] =
+            typed_reason.message
+        report.metadata[:component_port_mode_coordinate_projection_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:component_port_mode_coordinate_projection_category] =
+            string(typed_reason.category)
+        report.metadata[:component_port_mode_coordinate_projection_stage] =
+            string(typed_reason.stage)
+    end
     for mode in modes
         key = (mode.component_type, mode.component_id, mode.port_id)
         if mode.space != :terminal

@@ -4746,3 +4746,7 @@ Existing representational map findings remain unchanged.
 The next plugin-coordinate increment types undeclared component-port endpoints
 as input unavailability for coordinate-semantics validation. Existing unmapped
 semantics findings remain informational.
+
+The next plugin-coordinate increment types missing terminal-to-model projection
+endpoints for terminal-space port modes as input unavailability. Non-terminal
+mode-space projections remain an explicit capability boundary.
