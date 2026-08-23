@@ -2,8 +2,6 @@
 
 """Run the real-99-bus phase-only campaign under deterministic start policies."""
 
-using JSON
-
 const CAMPAIGN = joinpath(@__DIR__, "real_99bus_phase_only_campaign.jl")
 const PROJECT = abspath(joinpath(@__DIR__, "..", "work", "benchmark-environment"))
 const CASES = [
@@ -20,6 +18,7 @@ const ACTIVE_CASES = let
 end
 
 include(CAMPAIGN)
+using .NLPDiagnosticsBenchmarkCommon
 
 function with_campaign_environment(callback, max_iter, initialization_policy)
     settings = Dict(
@@ -117,7 +116,7 @@ output = abspath(get(
     joinpath(@__DIR__, "..", "work", "real-99bus-phase-only-initialization-matrix.json"),
 ))
 mkpath(dirname(output))
-write(output, JSON.json(Dict(
+NLPDiagnosticsBenchmarkCommon.write_json(output, Dict(
     "schema_version" => "nlpdiagnostics-real-99bus-phase-only-initialization-matrix-v1",
     "source" => Dict(
         "campaign" => basename(CAMPAIGN),
@@ -126,5 +125,5 @@ write(output, JSON.json(Dict(
         "qualification" => "local initialization sensitivity; no automatic start-policy selection",
     ),
     "cases" => results,
-)))
+))
 println("wrote real 99-bus phase-only initialization matrix to $output")

@@ -30,13 +30,17 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/real_99bus_phase_only_campaign.jl` to `benchmarks/common.jl`,
-bringing the shared helper to fifty-nine core runners while preserving the
-six-snapshot matched reference/phase-only report schema. Its local smoke run
-completed all six snapshot pairs, with six phase-only covariance passes and
-six solver-floor-calibrated acceptances; strict physical KKT acceptance remains
-2/6 for both policies and the absolute physical gate remains open. The prior
-increment migrated `benchmarks/real_99bus_readiness.jl`; its local smoke run
+`benchmarks/real_99bus_phase_only_initialization_matrix.jl` to
+`benchmarks/common.jl`, bringing the shared helper to sixty core runners while
+preserving the four-case initialization sensitivity schema. Its bounded local
+smoke selected the completed-start case and produced a report with all six
+phase-only runs locally solved, six solver-floor-calibrated acceptances, and
+strict physical KKT acceptance of 2/6. The prior increment migrated
+`benchmarks/real_99bus_phase_only_campaign.jl`; its local smoke completed all
+six snapshot pairs, with six phase-only covariance passes and six solver-floor-
+calibrated acceptances; strict physical KKT acceptance remains 2/6 for both
+policies and the absolute physical gate remains open. The prior increment
+migrated `benchmarks/real_99bus_readiness.jl`; its local smoke run
 parsed all six selected ENWL snapshots, found all six saved results
 `LOCALLY_SOLVED`, passed the phase-only semantic-map gate, and confirmed
 non-mutating model-copy readiness; the transformed solver hook remains
@@ -4267,7 +4271,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-fifty-nine core release, rank, runtime, and audit runners; the BMOPF campaign and
+sixty core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
