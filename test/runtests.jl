@@ -11377,6 +11377,38 @@ end
             multiplier_persistent_report,
             :reduced_hessian_multiplier_representative_persistent,
         )) == 1
+        malformed_multiplier_hessian = NLPDiagnostics.HessianEvaluation(
+            active_evaluation_2.point,
+            1.0,
+            Float64[],
+            NLPDiagnostics.HessianEntry{Float64}[],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        malformed_multiplier_report =
+            NLPDiagnostics.analyze_reduced_hessian_persistence([
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    active_evaluation_1,
+                    multiplier_analysis_1,
+                    multiplier_hessian_1,
+                ),
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    active_evaluation_2,
+                    multiplier_analysis_2,
+                    malformed_multiplier_hessian,
+                ),
+            ])
+        malformed_multiplier_reason = only(filter(
+            item -> item["code"] ==
+                "reduced_hessian_multiplier_persistence_unavailable",
+            NLPDiagnostics.report_data(malformed_multiplier_report)[
+                "unavailable_reasons"
+            ],
+        ))
+        @test malformed_multiplier_reason["category"] == "numerical"
+        @test malformed_multiplier_reason["stage"] ==
+              "reduced_hessian_multiplier_persistence"
         multiplier_changing_hessian = NLPDiagnostics.HessianEvaluation(
             active_evaluation_2.point,
             1.0,

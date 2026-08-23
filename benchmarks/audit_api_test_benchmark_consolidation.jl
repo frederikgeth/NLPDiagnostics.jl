@@ -324,6 +324,7 @@ summary = Dict{String,Any}(
             "typed unavailable-reason serialization for Jacobian row-family perturbation boundaries",
             "typed unavailable-reason serialization for iterative right/left candidate persistence boundaries",
             "typed unavailable-reason serialization for reduced-Hessian flat-subspace persistence boundaries",
+            "typed unavailable-reason serialization for reduced-Hessian multiplier persistence boundaries",
             "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
             "reviewed local quality policy with explicit deferred-tool boundaries",
         ],

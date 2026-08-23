@@ -111,6 +111,11 @@ Reduced-Hessian flat-subspace persistence now serializes a typed numerical
 record when too few complete snapshots contain nonempty flat directions. The
 existing conservative persistence and expected-mode semantics remain intact.
 
+Reduced-Hessian multiplier persistence now serializes a typed numerical record
+when a retained snapshot lacks a complete row-aligned multiplier vector. The
+existing multiplier persistence findings remain unchanged; no multiplier
+uniqueness or KKT conclusion is promoted.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.

@@ -632,6 +632,7 @@
       "typed unavailable-reason serialization for Jacobian row-family perturbation boundaries",
       "typed unavailable-reason serialization for iterative right/left candidate persistence boundaries",
       "typed unavailable-reason serialization for reduced-Hessian flat-subspace persistence boundaries",
+      "typed unavailable-reason serialization for reduced-Hessian multiplier persistence boundaries",
       "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
       "reviewed local quality policy with explicit deferred-tool boundaries"
     ],
@@ -851,6 +852,6 @@
     "explicit_typed_unavailable_tokens": [
       "UnavailableReason"
     ],
-    "typed_adapter_call_count": 52
+    "typed_adapter_call_count": 53
   }
 }

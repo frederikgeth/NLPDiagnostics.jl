@@ -6413,6 +6413,25 @@ function _append_reduced_hessian_multiplier_persistence_findings!(
     hessians = HessianEvaluation{T}[snapshot.hessian for snapshot in candidates]
     if any(length(hessian.constraint_multipliers) != length(reference_sources)
            for hessian in hessians)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "at least one retained Hessian snapshot does not provide one multiplier per evaluated constraint row",
+            );
+            code = :reduced_hessian_multiplier_persistence_unavailable,
+            category = :numerical,
+            stage = :reduced_hessian_multiplier_persistence,
+        )
+        report.metadata[:reduced_hessian_multiplier_persistence_available] =
+            "false"
+        report.metadata[:reduced_hessian_multiplier_persistence_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_multiplier_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_multiplier_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:reduced_hessian_multiplier_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(
             :reduced_hessian_multiplier_persistence_unavailable;
             severity = SeverityInfo,
@@ -6453,6 +6472,7 @@ function _append_reduced_hessian_multiplier_persistence_findings!(
     multiplier_persistent = maximum_difference <= convert(T, relative_tolerance) * scale &&
                              weight_difference <= convert(T, relative_tolerance) *
                                                   max(one(T), abs(reference_hessian.objective_weight))
+    report.metadata[:reduced_hessian_multiplier_persistence_available] = "true"
     active_rows = sort!(collect(union((Set(snapshot.analysis.active_rows) for snapshot in candidates)...)))
     push!(report, Finding(
         multiplier_persistent ? :reduced_hessian_multiplier_representative_persistent :

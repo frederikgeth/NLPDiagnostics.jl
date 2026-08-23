@@ -214,6 +214,11 @@ unavailability when too few complete snapshots contain a nonempty flat
 subspace. Existing active-row, multiplier, scaling, and expected-mode findings
 remain unchanged.
 
+The next reduced-Hessian multiplier increment types row-length mismatch
+unavailability in persistence comparisons. Existing multiplier persistence and
+change findings remain unchanged, while incomplete row-aligned vectors are
+kept as numerical capability evidence rather than dual conclusions.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,
