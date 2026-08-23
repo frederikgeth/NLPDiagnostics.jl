@@ -2,11 +2,13 @@
 
 """Emit deterministic dense-oracle and cross-backend smallest-mode evidence."""
 
-using JSON
 using LinearAlgebra
 
 import MathOptInterface as MOI
 import NLPDiagnostics
+
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 function _evaluation(matrix::AbstractMatrix{<:Real}, label::AbstractString)
     values = Float64.(matrix)
@@ -353,7 +355,7 @@ function main()
     )
     mkpath(dirname(output))
     temporary = "$output.tmp"
-    write(temporary, JSON.json(payload))
+    write_json(temporary, payload)
     mv(temporary, output; force = true)
     isempty(mismatches) || error(
         "calibration expectation mismatch: $(join(mismatches, ','))",
