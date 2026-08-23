@@ -2,7 +2,8 @@
 
 """Produce a bounded, evidence-preserving restoration campaign report."""
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 _dict(value) = value isa AbstractDict ? Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()
 
@@ -60,7 +61,7 @@ function main()
     comparison_path = abspath(ARGS[1])
     output_path = length(ARGS) == 2 ? abspath(ARGS[2]) :
         joinpath(dirname(comparison_path), "restoration_campaign_report.json")
-    comparison = JSON.parsefile(comparison_path)
+    comparison = read_summary(comparison_path; root = "/")
     rows = Dict{String,Any}[]
     restoration_count = 0
     endpoint_failure_count = 0
@@ -118,7 +119,7 @@ function main()
         "interpretation" =>
             "This report preserves bounded restoration evidence and co-occurrence counts. It does not identify a causal formulation defect or certify convergence.",
     )
-    write(output_path, JSON.json(output))
+    write_json(output_path, output)
     println("wrote bounded restoration campaign report to $output_path")
 end
 
