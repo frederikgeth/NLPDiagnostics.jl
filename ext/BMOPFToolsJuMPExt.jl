@@ -7522,7 +7522,19 @@ function _bmopf_component_rank_capability_report(context)
     report.metadata[:bmopf_component_expected_rank_unavailable_count] = string(unavailable)
     report.metadata[:bmopf_component_expected_rank_coverage] = isempty(components) ?
         "unavailable" : string(declared / length(components))
+    report.metadata[:bmopf_component_expected_rank_available] = string(unavailable == 0)
     if unavailable > 0
+        typed_reason = NLPDiagnostics.unavailable_reason(
+            (
+                available = false,
+                reason = "one or more BMOPFTools component metadata entries omit expected_rank",
+            );
+            code = :bmopf_component_expected_rank_unavailable,
+            category = :capability,
+            stage = :bmopf_component_rank_capability,
+        )
+        report.metadata[:bmopf_component_expected_rank_reason] = typed_reason.message
+        report.metadata[:bmopf_component_expected_rank_unavailable_reason] = typed_reason.message
         push!(report, NLPDiagnostics.Finding(:bmopf_component_expected_rank_unavailable;
             severity = NLPDiagnostics.SeverityInfo,
             domain = NLPDiagnostics.RepresentationalIssue,

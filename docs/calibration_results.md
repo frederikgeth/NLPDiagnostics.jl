@@ -1672,14 +1672,14 @@ CI execution or scientific qualification.
 
 ## 2026-08-23: typed component-rank capability unavailability
 
-The generic `component_rank_capability_report` now adds an additive typed
-unavailable-reason record when a component declaration omits `expected_rank`.
-The existing availability counts, reason-compatible metadata, finding code,
-and affected-entity evidence remain intact. The renderer-neutral report data
-exposes code `component_expected_rank_unavailable`, category `capability`, and
-the `component_rank_capability` stage. A focused local serializer probe and the
-known local regression command pass; this does not qualify observed rank or
-physical interpretation.
+The generic `component_rank_capability_report` and the BMOPFTools extension
+report now add additive typed unavailable-reason records when a component
+declaration omits `expected_rank`. Existing availability counts,
+reason-compatible metadata, finding codes, and affected-entity evidence remain
+intact. Renderer-neutral report data exposes the capability codes, category
+`capability`, and their respective stages. A focused local serializer probe,
+extension syntax parse, and the known local regression command pass; this does
+not qualify observed rank or physical interpretation.
 
 ## 2026-08-22: sparse runtime/allocation scaling calibration
 

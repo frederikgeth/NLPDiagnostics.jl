@@ -1004,6 +1004,16 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test component_report.metadata[:bmopf_component_expected_rank_coverage] == "0.0"
     rank_capability_report = NLPDiagnostics.bmopf_component_rank_capability_report(context)
     @test rank_capability_report.metadata[:stage] == "bmopf_component_rank_capability"
+    @test rank_capability_report.metadata[:bmopf_component_expected_rank_available] == "false"
+    @test rank_capability_report.metadata[:bmopf_component_expected_rank_reason] ==
+          "one or more BMOPFTools component metadata entries omit expected_rank"
+    rank_capability_data = NLPDiagnostics.report_data(rank_capability_report)
+    @test length(rank_capability_data["unavailable_reasons"]) == 1
+    @test rank_capability_data["unavailable_reasons"][1]["code"] ==
+          "bmopf_component_expected_rank_unavailable"
+    @test rank_capability_data["unavailable_reasons"][1]["category"] == "capability"
+    @test rank_capability_data["unavailable_reasons"][1]["stage"] ==
+          "bmopf_component_rank_capability"
     @test length(findings(rank_capability_report, :bmopf_component_expected_rank_unavailable)) == 1
     source_schema_report = NLPDiagnostics.bmopf_source_schema_report(context)
     @test source_schema_report.metadata[:stage] == "bmopf_source_schema"

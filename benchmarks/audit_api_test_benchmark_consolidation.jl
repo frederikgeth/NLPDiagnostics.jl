@@ -125,6 +125,10 @@ benchmark_schema_files = [
 ]
 source_text = join(read_text.(source_files), "\n")
 benchmark_text = join(read_text.(benchmark_files), "\n")
+extension_text = join(
+    read_text.(recursive_files(joinpath(REPO_ROOT, "ext"), ".jl")),
+    "\n",
+)
 bare_catch_count = count(line -> occursin(r"^\s*catch\s*$", line),
     split(source_text, '\n'))
 bound_catch_count = count(line -> occursin(r"^\s*catch\s+\w+", line),
@@ -135,7 +139,7 @@ typed_unavailable_tokens = [
 ]
 typed_adapter_call_count = count(
     line -> occursin(r"unavailable_reason\(", line),
-    split(source_text * "\n" * benchmark_text, '\n'),
+    split(source_text * "\n" * benchmark_text * "\n" * extension_text, '\n'),
 )
 namespace_tokens = [
     token for token in ("module Advanced", "module Experimental", "module Research")
@@ -293,6 +297,7 @@ summary = Dict{String,Any}(
             "typed unavailable-reason serialization for solver-dual and complementarity boundaries",
             "generic report-boundary unavailable-reason collection for paired and suffix-only metadata",
             "typed unavailable-reason serialization for generic component-rank capability reports",
+            "typed unavailable-reason serialization for BMOPFTools component-rank capability reports",
             "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
             "reviewed local quality policy with explicit deferred-tool boundaries",
         ],

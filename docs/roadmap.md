@@ -50,13 +50,13 @@ targeted JET checks are explicitly deferred with reasons rather than treated
 as silently passing. The baseline validates the policy shape without CI or
 dependency installation.
 
-The latest API-boundary increment adds a typed unavailable-reason record to
-the generic component expected-rank capability report. Legacy metadata and
-the existing `component_expected_rank_unavailable` finding remain unchanged;
-renderer-neutral `report_data` now exposes a stable capability code, category,
-stage, and reason for this missing declaration path. A focused local probe and
-the regression suite pass; this is capability/provenance evidence, not a rank
-or physical conclusion.
+The latest API-boundary increment adds typed unavailable-reason records to the
+generic and BMOPFTools component expected-rank capability reports. Legacy
+metadata and the existing finding codes remain unchanged; renderer-neutral
+`report_data` now exposes stable capability codes, categories, stages, and
+reasons for missing declaration paths. A focused local probe and the
+regression suite pass; this is capability/provenance evidence, not a rank or
+physical conclusion.
 
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
