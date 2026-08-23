@@ -6,6 +6,8 @@ using JSON
 using SHA
 
 Base.include(@__MODULE__, joinpath(@__DIR__, "benchmark_environment.jl"))
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 _dict(value) = value isa AbstractDict ? Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()
 
@@ -193,7 +195,7 @@ end
 function _record(entry, profile, options, policy, tolerances = _tolerances())
     summary_path = get(entry, "summary_path", nothing)
     summary_path isa AbstractString && isfile(summary_path) || return nothing
-    summary = JSON.parsefile(summary_path)
+    summary = read_summary(abspath(summary_path); root = "/")
     cases = get(summary, "cases", Any[])
     isempty(cases) && return nothing
     case = _dict(first(cases))
@@ -291,7 +293,7 @@ function main()
     manifest_path = abspath(ARGS[1])
     output_path = length(ARGS) == 2 ? abspath(ARGS[2]) :
         joinpath(dirname(manifest_path), "option_perturbation_summary.json")
-    manifest = JSON.parsefile(manifest_path)
+    manifest = read_summary(manifest_path; root = "/")
     tolerances = _tolerances()
     manifest_entries = get(manifest, "entries", Any[])
     declared_expected_entries = length(get(manifest, "options", Any[])) *
@@ -305,7 +307,7 @@ function main()
             push!(missing, String(get(entry, "label", "unknown")))
             continue
         end
-        matrix = JSON.parsefile(matrix_path)
+        matrix = read_summary(abspath(matrix_path); root = "/")
         for raw_matrix_entry in get(matrix, "entries", Any[])
             matrix_entry = _dict(raw_matrix_entry)
             row = _record(matrix_entry, get(entry, "profile", "unknown"),
@@ -434,7 +436,7 @@ function main()
             "interpretation" => "Within-family raw residual changes below this combined absolute-relative tolerance are treated as evaluation noise. The threshold is not a physical normalization and must not be used to rank different constraint families.",
         ),
     )
-    write(output_path, JSON.json(output))
+    write_json(output_path, output)
     println("wrote solver-option perturbation summary to $output_path")
 end
 
