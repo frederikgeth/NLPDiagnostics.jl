@@ -188,6 +188,11 @@ candidate unavailability. Existing finite-projection and convergence findings
 remain unchanged while `report_data` records stable numerical codes, stages,
 categories, and reasons when these bounded paths cannot run.
 
+The next Jacobian-sensitivity increment types tolerance-sweep and
+condition-persistence unavailability. Existing sensitivity and persistence
+findings remain unchanged while `report_data` distinguishes numerical work or
+finite-estimate limits from an actual rank or conditioning observation.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

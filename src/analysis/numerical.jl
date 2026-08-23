@@ -5360,11 +5360,38 @@ function analyze_jacobian_rank_tolerance_sweep(
     report.metadata[:scaling] = string(scaling)
     report.metadata[:relative_tolerances] = join(tolerances, ",")
     report.metadata[:available_estimate_count] = string(count(estimate -> estimate.available, estimates))
+    sweep_available = all(estimate -> estimate.available, estimates)
+    report.metadata[:jacobian_rank_tolerance_sweep_available] =
+        string(sweep_available)
     affected = vcat(
         evaluation.constraint_sources,
         EntityRef[EntityRef(:variable, variable.value) for variable in evaluation.point.variables],
     )
     if any(!estimate.available for estimate in estimates)
+        first_unavailable = something(
+            findfirst(estimate -> !estimate.available, estimates), 1,
+        )
+        unavailable_estimate = estimates[first_unavailable]
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    unavailable_estimate.reason,
+                    "Jacobian rank tolerance sweep is unavailable",
+                ),
+            );
+            code = :jacobian_rank_tolerance_sweep_unavailable,
+            category = :numerical,
+            stage = :jacobian_rank_tolerance_sweep,
+        )
+        report.metadata[:jacobian_rank_tolerance_sweep_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_rank_tolerance_sweep_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_rank_tolerance_sweep_category] =
+            string(typed_reason.category)
+        report.metadata[:jacobian_rank_tolerance_sweep_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:jacobian_rank_tolerance_sweep_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -5461,6 +5488,23 @@ function analyze_jacobian_condition_persistence(
     report.metadata[:scaling] = string(scaling)
     report.metadata[:change_factor_threshold] = string(change_factor_threshold)
     if length(evaluations) < minimum_evaluations
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "only $(length(evaluations)) evaluation(s) supplied; at least $(minimum_evaluations) required",
+            );
+            code = :jacobian_condition_persistence_unavailable,
+            category = :numerical,
+            stage = :jacobian_condition_persistence,
+        )
+        report.metadata[:jacobian_condition_persistence_available] = "false"
+        report.metadata[:jacobian_condition_persistence_reason] = typed_reason.message
+        report.metadata[:jacobian_condition_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_condition_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:jacobian_condition_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:jacobian_condition_persistence_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -5505,6 +5549,35 @@ function analyze_jacobian_condition_persistence(
         for (estimate, condition) in zip(estimates, conditions)
     )
     if !finite_available
+        first_unavailable = findfirst(
+            index -> begin
+                estimate = estimates[index]
+                condition = conditions[index]
+                !estimate.available || isnothing(condition) || !isfinite(condition)
+            end,
+            eachindex(estimates),
+        )
+        unavailable_estimate = estimates[something(first_unavailable, 1)]
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    unavailable_estimate.reason,
+                    "at least one Jacobian condition estimate is unavailable",
+                ),
+            );
+            code = :jacobian_condition_persistence_unavailable,
+            category = :numerical,
+            stage = :jacobian_condition_persistence,
+        )
+        report.metadata[:jacobian_condition_persistence_available] = "false"
+        report.metadata[:jacobian_condition_persistence_reason] = typed_reason.message
+        report.metadata[:jacobian_condition_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_condition_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:jacobian_condition_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:jacobian_condition_persistence_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -5532,6 +5605,7 @@ function analyze_jacobian_condition_persistence(
         for condition in finite_conditions[2:end]
     ); init = one(T))
     persistent = change_factor <= convert(T, change_factor_threshold)
+    report.metadata[:jacobian_condition_persistence_available] = "true"
     report.metadata[:condition_estimates] = join(finite_conditions, ",")
     report.metadata[:change_factor] = string(change_factor)
     push!(report, Finding(

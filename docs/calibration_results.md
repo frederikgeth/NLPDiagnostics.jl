@@ -87,6 +87,11 @@ restarted candidate analysis now serialize numerical unavailability with typed
 records. Empty-row and bounded-storage local guards pass without promoting a
 candidate span, nullspace, or dense-oracle conclusion.
 
+Jacobian rank tolerance sweeps and cross-point condition persistence now expose
+typed numerical records when dense work or finite multi-point estimates are
+unavailable. Guarded local cases preserve their existing findings without
+promoting rank sensitivity or conditioning conclusions.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.

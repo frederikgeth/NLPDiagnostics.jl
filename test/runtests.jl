@@ -8063,6 +8063,18 @@ end
         )
         @test length(findings(sensitive, :jacobian_rank_tolerance_sensitive)) == 1
         @test sensitive.metadata[:ranks] == "2,1"
+        guarded_sweep = NLPDiagnostics.analyze_jacobian_rank_tolerance_sweep(
+            model,
+            point;
+            relative_tolerances = [1.0e-10, 1.0e-6],
+            max_dense_entries = 0,
+        )
+        guarded_sweep_reason = only(filter(
+            item -> item["code"] == "jacobian_rank_tolerance_sweep_unavailable",
+            NLPDiagnostics.report_data(guarded_sweep)["unavailable_reasons"],
+        ))
+        @test guarded_sweep_reason["category"] == "numerical"
+        @test guarded_sweep_reason["stage"] == "jacobian_rank_tolerance_sweep"
         combined = NLPDiagnostics.analyze(
             model;
             point = point,
@@ -8121,6 +8133,15 @@ end
         )
         @test length(findings(conditioning, :jacobian_condition_changing)) == 1
         @test conditioning.metadata[:change_factor] == "100.0"
+        short_conditioning = NLPDiagnostics.analyze_jacobian_condition_persistence(
+            [NLPDiagnostics.evaluate_numerical(model, points[1])];
+        )
+        short_conditioning_reason = only(filter(
+            item -> item["code"] == "jacobian_condition_persistence_unavailable",
+            NLPDiagnostics.report_data(short_conditioning)["unavailable_reasons"],
+        ))
+        @test short_conditioning_reason["category"] == "numerical"
+        @test short_conditioning_reason["stage"] == "jacobian_condition_persistence"
         evaluations = [NLPDiagnostics.evaluate_numerical(model, point) for point in points]
         changed_provenance = NLPDiagnostics.NumericalEvaluation{Float64}(
             evaluations[2].point,
