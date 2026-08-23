@@ -30,11 +30,14 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/bmopf_30bus_ibr_p_upper_directional_delta_matrix.jl` to
-`benchmarks/common.jl`, bringing the shared helper to seventy core runners while
-preserving the finite-difference delta-matrix schema. Its local smoke selected
-one 30-bus LN snapshot and completed without an error, covering 28 target rows
-with six delta measures. The prior increment migrated
+`benchmarks/bmopf_30bus_ibr_p_upper_geometry.jl` to `benchmarks/common.jl`,
+bringing the shared helper to seventy-one core runners while preserving the
+endpoint-Jacobian geometry schema. Its local smoke selected one 30-bus LN
+snapshot and completed without an error, covering 28 target rows; physical KKT
+availability remains explicitly separate from geometry. The prior increment
+migrated `benchmarks/bmopf_30bus_ibr_p_upper_directional_delta_matrix.jl`; its
+local smoke selected one 30-bus LN snapshot and completed without an error,
+covering 28 target rows with six delta measures. The prior increment migrated
 `benchmarks/bmopf_30bus_ibr_p_upper_directional_jacobian_check.jl`; its local
 smoke selected one 30-bus LN snapshot and completed without an error, covering
 28 target rows with two directional reports. The prior increment migrated
@@ -4305,7 +4308,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-seventy core release, rank, runtime, and audit runners; the BMOPF campaign and
+seventy-one core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
