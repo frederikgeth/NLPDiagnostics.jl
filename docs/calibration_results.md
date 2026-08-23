@@ -1068,6 +1068,15 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: phase-only campaign comparison helper migration
+
+The reproducible phase-only campaign comparison now uses the shared
+`benchmarks/common.jl` summary reader and JSON writer. Its local smoke run
+retains the six campaign rows, six gate-qualified campaigns, five locally
+solved campaigns, and five comparable solver-work records. The migration is
+consolidation-only: the comparison findings and qualification boundaries are
+unchanged.
+
 ## 2026-08-22: phase-only campaign comparison
 
 The six tracked phase-only summaries now have a reproducible comparison
@@ -1184,7 +1193,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-forty-nine core release, rank, runtime, and audit runners; the BMOPF campaign and
+fifty core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

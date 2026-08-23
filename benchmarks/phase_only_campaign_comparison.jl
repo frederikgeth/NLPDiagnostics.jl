@@ -2,7 +2,8 @@
 
 """Compare the tracked phase-only calibration campaigns without rerunning solvers."""
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 const SUMMARY_FILES = [
     ("algebraic", "docs/phase_only_control_summary.json"),
@@ -43,7 +44,7 @@ function work_delta(summary)
 end
 
 function campaign_row(root, id, relative_path)
-    summary = JSON.parsefile(joinpath(root, relative_path))
+    summary = read_summary(relative_path; root=root)
     gates = get(summary, "gates", Dict{String,Any}())
     solver_work = get(summary, "solver_work", Dict{String,Any}())
     intervention = get(gates, "intervention_classification", "unavailable")
@@ -99,5 +100,5 @@ end
 
 output = abspath(get(ENV, "NLPDIAGNOSTICS_PHASE_ONLY_COMPARISON_OUTPUT", joinpath(@__DIR__, "..", "work", "phase-only-campaign-comparison.json")))
 mkpath(dirname(output))
-write(output, JSON.json(run_comparison()))
+write_json(output, run_comparison())
 println("wrote phase-only campaign comparison to $output")
