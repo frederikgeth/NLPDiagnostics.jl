@@ -30,14 +30,18 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/launch_bmopf_solver_trace.jl` to `benchmarks/common.jl`, bringing
-the shared helper to eighty-five core runners while preserving incremental
-isolated-process index writes and checkpoint parsing. A bounded local launcher
-run wrote its index with an explicit child `process_exit` record; the child was
-blocked by the sandboxed Julia precompile-lock permission boundary before
-loading the trace runner. The direct trace runner remains locally validated, so
-this launcher result is retained as environment evidence rather than trace
+`benchmarks/compare_bmopf_sparse_qr_nullspaces.jl` to `benchmarks/common.jl`,
+bringing the shared helper to eighty-six core runners while preserving paired
+policy comparison and readiness schemas. A bounded paired-policy control held
+environment and point policy fixed, varied scaling only, and reported one
+available sparse-QR pair with dense calibration available, no rank change, and
+no findings. This is harness-level numerical evidence, not corpus
 qualification. The prior increment migrated
+`benchmarks/launch_bmopf_solver_trace.jl`; its bounded local launcher wrote an
+explicit child `process_exit` record but the child was blocked by the sandboxed
+Julia precompile-lock permission boundary before loading the trace runner. The
+direct trace runner remains locally validated, so that result is retained as
+environment evidence rather than trace qualification. The prior increment
 `benchmarks/solver_failure_cases.jl`; its local Ipopt run completed all four
 intentionally problematic cases and retained distinct observed categories for
 resource limit, infeasibility, and numerical failure. The prior increment
@@ -4357,7 +4361,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-eighty-five core release, rank, runtime, and audit runners; the BMOPF campaign and
+eighty-six core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

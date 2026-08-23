@@ -4,6 +4,9 @@
 
 using JSON
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
+
 _dict(value) = value isa AbstractDict ?
     Dict{String,Any}(String(key) => item for (key, item) in value) :
     Dict{String,Any}()
@@ -218,7 +221,7 @@ function main()
         "findings" => findings,
         "interpretation" => "Controlled sparse-QR policy evidence only. Stable rank and dense-subspace agreement raise confidence in the local numerical nullspace, but do not identify a physical gauge or prove exact rank.",
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote sparse-QR nullspace comparison to $output_path")
 end
 
