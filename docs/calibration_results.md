@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Solver-option perturbation launcher helper migration
+
+The source-preserving solver-option perturbation launcher now uses the shared
+`benchmarks/common.jl` JSON writer for atomic manifests. A bounded local run
+retained one `runner_error` entry because the selected DSS deck was absent from
+the configured BMOPFDraftData root. This is an input-corpus boundary, not an
+option-result claim.
+
 ## 2026-08-23: Solver-matrix launcher helper migration
 
 The solver-by-snapshot BMOPF matrix launcher now uses the shared
@@ -1538,7 +1546,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-ninety-one core release, rank, runtime, and audit runners; the BMOPF campaign and
+ninety-two core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

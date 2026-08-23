@@ -2,7 +2,8 @@
 
 """Run bounded source-preserving solver-option perturbation matrices."""
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 function _canonical_options(raw::AbstractString)
     options = Pair{String,String}[]
@@ -117,7 +118,7 @@ function _write_manifest(path, root, entries, specs, policies; status)
         ),
     )
     temporary = "$path.tmp"
-    write(temporary, JSON.json(payload))
+    write_json(temporary, payload)
     mv(temporary, path; force = true)
     return path
 end

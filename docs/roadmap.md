@@ -30,13 +30,17 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/launch_bmopf_solver_matrix.jl` to `benchmarks/common.jl`, bringing
-the shared helper to ninety-one core runners while preserving per-solver child
-indexes, incremental matrix manifests, and termination fields. A bounded local
-run wrote one Ipopt entry with explicit `process_exit` status and no timeout;
-the child was blocked by the sandboxed Julia precompile-lock permission
-boundary before loading the trace runner. This is process-environment evidence
-rather than solver-matrix qualification. The prior increment migrated
+`benchmarks/launch_bmopf_solver_option_perturbations.jl` to
+`benchmarks/common.jl`, bringing the shared helper to ninety-two core runners
+while preserving atomic manifests and per-profile status records. A bounded
+local run retained one `runner_error` entry because the selected DSS deck was
+absent from the configured BMOPFDraftData root. This is an input-corpus
+boundary, not an option-result claim. The prior increment migrated
+`benchmarks/launch_bmopf_solver_matrix.jl`; its bounded local run wrote one
+Ipopt entry with explicit `process_exit` status and no timeout, but the child was
+blocked by the sandboxed Julia precompile-lock permission boundary before
+loading the trace runner. This is process-environment evidence rather than
+solver-matrix qualification. The prior increment migrated
 `benchmarks/launch_bmopf_result_policy_matrix.jl`; its bounded local run wrote
 one explicit `process_exit` policy record under the same child-startup boundary,
 so no policy qualification was promoted. The prior increment migrated
@@ -4379,7 +4383,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-ninety-one core release, rank, runtime, and audit runners; the BMOPF campaign and
+ninety-two core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
