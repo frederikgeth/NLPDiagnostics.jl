@@ -30,15 +30,15 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/compare_bmopf_source_solver_matrices.jl` to `benchmarks/common.jl`,
-bringing the shared helper to twenty-five core runners while preserving the
-comparison's report schema. Its local smoke run completed successfully with
-two policy inputs and zero rows for the non-matrix fixture. The campaign and
-evidence-ledger summarizers and comparisons, formulation-intervention,
-multiconductor point/probe/crosscheck, saved-result unit/profile, IBR
-cross-fixture, tangent-policy, solver-trace and summary comparisons,
-residual-trend, and checkout validators remain covered; the checkout
-validator's contract stage passes, while its child-suite rerun is
+`benchmarks/summarize_bmopf_solver_trace.jl` to `benchmarks/common.jl`,
+bringing the shared helper to twenty-six core runners while preserving the
+summarizer's report schema. Its local smoke run completed successfully against
+the known two-case trace output, retaining both cases and their statuses. The
+campaign and evidence-ledger summarizers and comparisons, formulation-
+intervention, multiconductor point/probe/crosscheck, saved-result unit/profile,
+IBR cross-fixture, source-solver and tangent-policy, solver-trace and summary
+comparisons, residual-trend, and checkout validators remain covered; the
+checkout validator's contract stage passes, while its child-suite rerun is
 environment-blocked by the local Julia precompile cache. The dependency
 handoff remains blocked until the active BMOPFTools checkout matches the
 validated clean-main API. The handoff audit has local blocked and pass-path
@@ -4250,10 +4250,10 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-twenty-five core release, rank, runtime, and audit runners; the BMOPF campaign and
+twenty-six core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
-cross-fixture, and source-solver-matrix comparisons,
+cross-fixture, source-solver-matrix, and solver-trace summarizer/comparisons,
 tangent-policy, solver-trace and summary comparisons,
 residual-trend, checkout, and PR-handoff gates now use the same JSON/repository
 helper.

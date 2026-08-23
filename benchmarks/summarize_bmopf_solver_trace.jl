@@ -2,7 +2,8 @@
 
 """Summarize `bmopf_solver_trace.jl` records without reducing them to a score."""
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 _as_dict(value) = value isa AbstractDict ?
     Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()
@@ -738,7 +739,7 @@ function main()
     output_dir = abspath(ARGS[1])
     index_path = joinpath(output_dir, "index.json")
     isfile(index_path) || error("missing index.json in $output_dir")
-    index = JSON.parsefile(index_path)
+    index = read_summary(index_path; root = "/")
     cases = Dict{String,Any}[]
     trace_finding_codes = Dict{String,Int}()
     bmopf_finding_codes = Dict{String,Int}()
@@ -874,7 +875,7 @@ function main()
             continue
         end
         path = joinpath(output_dir, result_file)
-        record = JSON.parsefile(path)
+        record = read_summary(path; root = "/")
         status = String(get(record, "status", get(entry, "status", "unknown")))
         status_counts[status] = get(status_counts, status, 0) + 1
         summary = Dict{String,Any}(entry)
@@ -1469,7 +1470,7 @@ function main()
         "family_perturbation_by_family" => family_perturbation_by_family,
         "cases" => cases,
     )
-    write(summary_path, JSON.json(payload))
+    write_json(summary_path, payload)
     println("wrote solver-trace summary to $summary_path")
 end
 
