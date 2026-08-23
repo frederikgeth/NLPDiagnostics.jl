@@ -7516,6 +7516,56 @@ end
         @test sparse_persistence_guard_reason["category"] == "numerical"
         @test sparse_persistence_guard_reason["stage"] ==
               "sparse_qr_nullspace_persistence"
+        restarted_dense_calibration_guard_report =
+            NLPDiagnostics.analyze_restarted_smallest_singular_dense_calibration(
+                evaluation;
+                dense_max_entries = 0,
+                iterations = 4,
+            )
+        restarted_dense_calibration_guard_reason = only(filter(
+            item -> item["code"] == "restarted_dense_calibration_unavailable",
+            NLPDiagnostics.report_data(restarted_dense_calibration_guard_report)[
+                "unavailable_reasons"
+            ],
+        ))
+        @test restarted_dense_calibration_guard_reason["category"] == "numerical"
+        @test restarted_dense_calibration_guard_reason["stage"] ==
+              "restarted_smallest_singular_dense_calibration"
+        harmonic_dense_calibration_guard_report =
+            NLPDiagnostics.analyze_harmonic_golub_kahan_dense_calibration(
+                evaluation;
+                dense_max_entries = 0,
+                steps_per_seed = 1,
+                cycles = 2,
+            )
+        harmonic_dense_calibration_guard_reason = only(filter(
+            item -> item["code"] == "harmonic_dense_calibration_unavailable",
+            NLPDiagnostics.report_data(harmonic_dense_calibration_guard_report)[
+                "unavailable_reasons"
+            ],
+        ))
+        @test harmonic_dense_calibration_guard_reason["category"] == "numerical"
+        @test harmonic_dense_calibration_guard_reason["stage"] ==
+              "harmonic_golub_kahan_dense_calibration"
+        backend_crosscheck_guard_report =
+            NLPDiagnostics.analyze_smallest_singular_backend_crosscheck(
+                evaluation;
+                dimension = 1,
+                restarted_iterations = 4,
+                harmonic_steps_per_seed = 1,
+                harmonic_cycles = 2,
+                max_basis_entries = 0,
+            )
+        backend_crosscheck_guard_reason = only(filter(
+            item -> item["code"] ==
+                "smallest_singular_backend_crosscheck_unavailable",
+            NLPDiagnostics.report_data(backend_crosscheck_guard_report)[
+                "unavailable_reasons"
+            ],
+        ))
+        @test backend_crosscheck_guard_reason["category"] == "numerical"
+        @test backend_crosscheck_guard_reason["stage"] ==
+              "smallest_singular_backend_crosscheck"
         scaled_sparse_qr = NLPDiagnostics.sparse_qr_rank_estimate(
             evaluation;
             scaling = :row_column,

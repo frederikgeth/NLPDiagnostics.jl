@@ -317,6 +317,7 @@ summary = Dict{String,Any}(
             "typed unavailable-reason serialization for sparse-QR nullspace extraction work guards",
             "typed unavailable-reason serialization for sparse-QR nullspace dense calibration boundaries",
             "typed unavailable-reason serialization for sparse-QR nullspace persistence boundaries",
+            "typed unavailable-reason serialization for restarted/harmonic smallest-singular dense calibration and backend crosscheck boundaries",
             "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
             "reviewed local quality policy with explicit deferred-tool boundaries",
         ],

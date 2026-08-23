@@ -3198,6 +3198,26 @@ function analyze_restarted_smallest_singular_dense_calibration(
     report.metadata[:restarted_dense_calibration_relation] =
         string(calibration.relation)
     if !calibration.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    calibration.reason,
+                    "restarted smallest-singular dense calibration is unavailable",
+                ),
+            );
+            code = :restarted_dense_calibration_unavailable,
+            category = :numerical,
+            stage = :restarted_smallest_singular_dense_calibration,
+        )
+        report.metadata[:restarted_dense_calibration_reason] =
+            typed_reason.message
+        report.metadata[:restarted_dense_calibration_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:restarted_dense_calibration_category] =
+            string(typed_reason.category)
+        report.metadata[:restarted_dense_calibration_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:restarted_smallest_singular_dense_calibration_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -3426,6 +3446,26 @@ function analyze_harmonic_golub_kahan_dense_calibration(
     report.metadata[:harmonic_dense_calibration_relation] =
         string(calibration.relation)
     if !calibration.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    calibration.reason,
+                    "harmonic Golub--Kahan dense calibration is unavailable",
+                ),
+            );
+            code = :harmonic_dense_calibration_unavailable,
+            category = :numerical,
+            stage = :harmonic_golub_kahan_dense_calibration,
+        )
+        report.metadata[:harmonic_dense_calibration_reason] =
+            typed_reason.message
+        report.metadata[:harmonic_dense_calibration_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:harmonic_dense_calibration_category] =
+            string(typed_reason.category)
+        report.metadata[:harmonic_dense_calibration_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:harmonic_golub_kahan_dense_calibration_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -3577,6 +3617,26 @@ function analyze_smallest_singular_backend_crosscheck(
         ))
     end
     if !crosscheck.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    crosscheck.reason,
+                    "smallest-singular backend crosscheck is unavailable",
+                ),
+            );
+            code = :smallest_singular_backend_crosscheck_unavailable,
+            category = :numerical,
+            stage = :smallest_singular_backend_crosscheck,
+        )
+        report.metadata[:smallest_singular_backend_crosscheck_reason] =
+            typed_reason.message
+        report.metadata[:smallest_singular_backend_crosscheck_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:smallest_singular_backend_crosscheck_category] =
+            string(typed_reason.category)
+        report.metadata[:smallest_singular_backend_crosscheck_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:smallest_singular_backend_crosscheck_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
