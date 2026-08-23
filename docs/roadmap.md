@@ -165,6 +165,12 @@ unavailability. Existing residual, fill, and basis-storage findings remain
 unchanged while `report_data` exposes a stable numerical code, stage, category,
 and reason for withheld sparse-QR directions.
 
+The next sparse-calibration increment types guarded dense-SVD comparison
+unavailability for sparse-QR nullspace candidates. Existing agreement and
+disagreement findings remain unchanged while `report_data` records a stable
+numerical code, stage, category, and reason when the oracle comparison cannot
+be completed.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

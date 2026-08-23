@@ -2515,6 +2515,26 @@ function analyze_sparse_qr_nullspace_dense_calibration(
     report.metadata[:sparse_qr_nullspace_dense_calibration_relation] =
         string(calibration.relation)
     if !calibration.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    calibration.reason,
+                    "sparse-QR nullspace dense calibration is unavailable",
+                ),
+            );
+            code = :sparse_qr_nullspace_dense_calibration_unavailable,
+            category = :numerical,
+            stage = :sparse_qr_nullspace_dense_calibration,
+        )
+        report.metadata[:sparse_qr_nullspace_dense_calibration_reason] =
+            typed_reason.message
+        report.metadata[:sparse_qr_nullspace_dense_calibration_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:sparse_qr_nullspace_dense_calibration_category] =
+            string(typed_reason.category)
+        report.metadata[:sparse_qr_nullspace_dense_calibration_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:sparse_qr_nullspace_dense_calibration_unavailable;
             severity = SeverityInfo,
             domain = NumericalIssue,

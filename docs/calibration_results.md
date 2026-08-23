@@ -69,6 +69,10 @@ Sparse-QR nullspace extraction now serializes input/factor-fill and basis
 storage guard failures with a typed numerical record. The local guard case
 passes without promoting a nullspace, rank, or physical interpretation.
 
+Sparse-QR nullspace dense calibration now serializes guarded dense-oracle
+unavailability with a typed numerical record. The local dense-work guard
+passes without promoting sparse/dense agreement or disagreement.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.
