@@ -9,11 +9,12 @@ solved from the same physical start transported into its coordinates.
 """
 
 using LinearAlgebra
-using JSON
 using JuMP
 using Ipopt
 import MathOptInterface as MOI
 using NLPDiagnostics
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 function _rotation(theta)
     return [cos(theta) -sin(theta); sin(theta) cos(theta)]
@@ -226,5 +227,5 @@ output = abspath(get(
     joinpath(@__DIR__, "..", "work", "phase-only-ipopt-campaign.json"),
 ))
 mkpath(dirname(output))
-write(output, JSON.json(run_campaign()))
+write_json(output, run_campaign())
 println("wrote phase-only Ipopt campaign to $output")

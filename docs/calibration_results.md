@@ -1068,6 +1068,15 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: matched phase-only Ipopt campaign helper migration
+
+The matched two-policy, two-replicate phase-only Ipopt campaign now uses the
+shared `benchmarks/common.jl` JSON writer. Its local smoke run produced four
+accepted endpoints, classified the intervention as `phase_only`, and passed
+the endpoint-covariance and geometry gates. This remains bounded fixture
+evidence and does not establish global policy superiority or wall-time
+portability.
+
 ## 2026-08-23: phase-only orthogonal control helper migration
 
 The bounded algebraic phase-only control now uses the shared
@@ -1211,7 +1220,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-fifty-two core release, rank, runtime, and audit runners; the BMOPF campaign and
+fifty-three core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
