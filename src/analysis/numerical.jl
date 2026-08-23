@@ -1275,7 +1275,26 @@ function analyze_jacobian_row_family_perturbations(
     report.metadata[:scaling] = string(scaling)
     report.metadata[:relative_tolerance] = string(relative_tolerance)
     report.metadata[:max_dense_entries] = string(max_dense_entries)
+    mark_unavailable!(message, category::Symbol = :numerical) = begin
+        typed_reason = unavailable_reason(
+            (available = false, reason = String(message));
+            code = :jacobian_row_family_perturbation_unavailable,
+            category,
+            stage = :jacobian_row_family_perturbations,
+        )
+        report.metadata[:jacobian_row_family_perturbation_available] = "false"
+        report.metadata[:jacobian_row_family_perturbation_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_row_family_perturbation_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_row_family_perturbation_category] =
+            string(typed_reason.category)
+        report.metadata[:jacobian_row_family_perturbation_stage] =
+            string(typed_reason.stage)
+        nothing
+    end
     if isempty(unique_labels)
+        mark_unavailable!("no labelled rows", :input)
         report.metadata[:baseline_rank_available] = "false"
         report.metadata[:baseline_rank_reason] = "no labelled rows"
         return report
@@ -1293,6 +1312,10 @@ function analyze_jacobian_row_family_perturbations(
     report.metadata[:baseline_left_nullity] = baseline.available ? string(baseline.left_nullity) : "unavailable"
     report.metadata[:baseline_right_nullity] = baseline.available ? string(baseline.right_nullity) : "unavailable"
     if !baseline.available
+        mark_unavailable!(something(
+            baseline.reason,
+            "baseline dense Jacobian rank is unavailable",
+        ))
         report.metadata[:baseline_rank_reason] = something(baseline.reason, "unavailable")
     end
     report.metadata[:baseline_sparse_pattern_available] = string(baseline_sparse.available)
@@ -1304,6 +1327,9 @@ function analyze_jacobian_row_family_perturbations(
         retained = [row for row in 1:row_count if !(row in removed)]
         affected = copy(evaluation.constraint_sources[removed])
         if isempty(retained)
+            mark_unavailable!(
+                "family '$label' contains every evaluated row; retained perturbation has no rows",
+            )
             push!(report, Finding(:jacobian_row_family_perturbation_unavailable;
                 severity = SeverityInfo, domain = NumericalIssue,
                 basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -1359,6 +1385,10 @@ function analyze_jacobian_row_family_perturbations(
             continue
         end
         if !baseline.available || !estimate.available
+            !estimate.available && mark_unavailable!(something(
+                estimate.reason,
+                "retained Jacobian rank is unavailable for family '$label'",
+            ))
             push!(report, Finding(:jacobian_row_family_perturbation_unavailable;
                 severity = SeverityInfo, domain = NumericalIssue,
                 basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -1424,6 +1454,8 @@ function analyze_jacobian_row_family_perturbations(
     report.metadata[:sparse_pattern_effect_family_count] = string(length(findings(
         report; code = :jacobian_row_family_perturbation_sparse_pattern_effect,
     )))
+    get(report.metadata, :jacobian_row_family_perturbation_available, "true") ==
+        "false" || (report.metadata[:jacobian_row_family_perturbation_available] = "true")
     report.metadata[:sparse_pattern_no_rank_effect_family_count] = string(length(findings(
         report; code = :jacobian_row_family_perturbation_sparse_pattern_no_rank_effect,
     )))

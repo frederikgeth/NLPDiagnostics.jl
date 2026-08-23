@@ -7960,6 +7960,23 @@ end
         @test length(findings(
             family_report, :jacobian_row_family_perturbation_no_rank_effect,
         )) == 1
+        guarded_family_report =
+            NLPDiagnostics.analyze_jacobian_row_family_perturbations(
+                family_evaluation,
+                Dict(1 => "dependent", 2 => "dependent",
+                     3 => "independent", 4 => "zero");
+                max_dense_entries = 0,
+            )
+        guarded_family_reason = only(filter(
+            item -> item["code"] ==
+                "jacobian_row_family_perturbation_unavailable",
+            NLPDiagnostics.report_data(guarded_family_report)[
+                "unavailable_reasons"
+            ],
+        ))
+        @test guarded_family_reason["category"] == "numerical"
+        @test guarded_family_reason["stage"] ==
+              "jacobian_row_family_perturbations"
         @test_throws ArgumentError NLPDiagnostics.analyze_jacobian_row_family_perturbations(
             evaluation, ["only one row"],
         )

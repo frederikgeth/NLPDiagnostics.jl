@@ -199,6 +199,11 @@ unchanged while `report_data` records stable numerical codes, stages,
 categories, and reasons when common-point evidence or dense rank estimates are
 insufficient.
 
+The next row-family increment types local perturbation unavailability when the
+baseline or retained-family dense rank path is guarded or has no retained
+rows. Sparse-pattern fallback findings remain intact and are not promoted to a
+numerical rank or causal formulation conclusion.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

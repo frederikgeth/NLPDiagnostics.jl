@@ -97,6 +97,11 @@ typed numerical records for insufficient point coverage or unavailable dense
 rank estimates. Existing cross-point observations remain unchanged and are not
 promoted to formulation or physical claims.
 
+Row-family Jacobian perturbations now serialize a typed numerical boundary when
+the baseline or retained-family dense rank path is unavailable. Sparse-pattern
+fallback findings remain available, while the local guard case makes no rank or
+causal attribution claim.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.
