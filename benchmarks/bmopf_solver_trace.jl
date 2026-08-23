@@ -35,6 +35,9 @@ using JSON
 using SHA
 import MathOptInterface as MOI
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
+
 const _MADNLP_AVAILABLE = try
     @eval import MadNLP
     true
@@ -839,7 +842,7 @@ end
 function _write_case_checkpoint(path, phase; fields = Dict{String,Any}())
     payload = Dict{String,Any}("phase" => String(phase), "updated_at" => time())
     merge!(payload, fields)
-    write(path, JSON.json(_json_safe(payload)))
+    write_json(path, _json_safe(payload))
     return path
 end
 
@@ -938,7 +941,7 @@ function _case_record(root, relative, input_format, solver_name, output_dir, max
                 "solver_log_path" => solver_log_path,
                 "solver_log_configuration_error" => log_configuration_error,
             )
-            write(result_path, JSON.json(_json_safe(payload)))
+            write_json(result_path, _json_safe(payload))
             _write_case_checkpoint(checkpoint_path, "size_guard_skipped"; fields = Dict(
                 "name" => name, "model_variable_count" => variable_count,
                 "max_solver_variables" => max_variables,
@@ -1122,7 +1125,7 @@ function _case_record(root, relative, input_format, solver_name, output_dir, max
                     payload["profile_skip_reason"] = nothing
                 end
             end
-            write(result_path, JSON.json(_json_safe(payload)))
+            write_json(result_path, _json_safe(payload))
             checkpoint_phase = profile_stage in ("context", "numerical") ? "complete" :
                 "profile_skipped_resource_budget"
             _write_case_checkpoint(checkpoint_path, checkpoint_phase;
@@ -1247,7 +1250,7 @@ function _case_record(root, relative, input_format, solver_name, output_dir, max
             "solver_log_path" => solver_log_path,
             "solver_log_configuration_error" => log_configuration_error,
         )
-        write(result_path, JSON.json(_json_safe(payload)))
+        write_json(result_path, _json_safe(payload))
         _write_case_checkpoint(checkpoint_path, "complete"; fields = Dict(
             "name" => name, "result_file" => basename(result_path),
             "trace_record_count" => length(run.trace.records),
@@ -1288,7 +1291,7 @@ function _case_record(root, relative, input_format, solver_name, output_dir, max
             "solver_log_path" => solver_log_path,
             "solver_log_configuration_error" => log_configuration_error,
         )
-        write(result_path, JSON.json(_json_safe(payload)))
+        write_json(result_path, _json_safe(payload))
         _write_case_checkpoint(checkpoint_path, "error"; fields = Dict(
             "name" => name, "error" => _truncate_log(message, 4_000),
             "result_file" => basename(result_path),
@@ -1360,7 +1363,7 @@ function main()
         println("$(entry["name"]): $(entry["status"]) solver=$solver_name " *
             "iterations=$(get(entry, "iteration_count", "n/a"))")
     end
-    write(joinpath(output_dir, "index.json"), JSON.json(Dict(
+    write_json(joinpath(output_dir, "index.json"), Dict(
         "runner_version" => _RUNNER_VERSION,
         "benchmark_root" => abspath(root), "solver" => solver_name,
         "input_format" => input_format,
@@ -1389,7 +1392,7 @@ function main()
         "run_id" => run_id,
         "replicate_index" => replicate_index,
         "cases" => index,
-    )))
+    ))
     println("wrote solver-trace evidence to $output_dir")
 end
 

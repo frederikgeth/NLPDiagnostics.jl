@@ -30,11 +30,15 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/bmopf_saved_result_persistence.jl` to `benchmarks/common.jl`,
-bringing the shared helper to seventy-nine core runners while preserving the
-saved-result persistence report schema. A bounded known-environment probe
-mapped two 30-bus LN snapshots and wrote the persistence report with both
-mapping and controller-curve snapshot records. The prior increment migrated
+`benchmarks/bmopf_solver_trace.jl` to `benchmarks/common.jl`, bringing the
+shared helper to eighty core runners while preserving strict JSON handling for
+non-finite trace values and the aggregate index schema. A bounded
+known-environment run captured one 30-bus LN Ipopt trace, completed 19 solver
+iterations, and wrote one `ok_solver_trace_profile_skipped` evidence record plus
+its checkpoint. The prior increment migrated
+`benchmarks/bmopf_saved_result_persistence.jl`; its bounded probe mapped two
+30-bus LN snapshots into one model coordinate space and wrote both mapping and
+controller-curve snapshot records. The prior increment migrated
 `benchmarks/bmopf_smoke.jl`; its local known-environment smoke wrote all six
 fixture records and an index, each retaining an explicit `error` status because
 the default staged starts were incomplete. The prior increment migrated
@@ -4334,7 +4338,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-seventy-nine core release, rank, runtime, and audit runners; the BMOPF campaign and
+eighty core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

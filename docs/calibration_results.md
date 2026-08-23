@@ -1068,6 +1068,15 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Solver-trace helper migration
+
+The size-guarded BMOPF solver-trace runner now uses the shared
+`benchmarks/common.jl` JSON writer for trace records, checkpoints, and the
+aggregate index while retaining its strict non-finite-value normalization. A
+bounded known-environment run captured one 30-bus LN Ipopt trace with 19 solver
+iterations and wrote an `ok_solver_trace_profile_skipped` evidence record. This
+is solver-event telemetry evidence, not a physical or causal claim.
+
 ## 2026-08-23: Saved-result persistence helper migration
 
 The cross-point BMOPF persistence probe now uses the shared
@@ -1440,7 +1449,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-seventy-nine core release, rank, runtime, and audit runners; the BMOPF campaign and
+eighty core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
