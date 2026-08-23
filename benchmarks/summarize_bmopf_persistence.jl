@@ -11,11 +11,12 @@ Usage:
     julia benchmarks/summarize_bmopf_persistence.jl output.json report1.json report2.json ...
 """
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 function _load(path)
     isfile(path) || error("persistence report is missing: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(path; root = "/")
     value isa AbstractDict || error("persistence report is not a JSON object: $path")
     return value
 end
@@ -98,7 +99,8 @@ function _active_set_summary(report)
     common_rows = isempty(row_sets) ? Set{Int}() : foldl(intersect, row_sets)
     union_rows = isempty(row_sets) ? Set{Int}() : foldl(union, row_sets)
     transition_count = sum(
-        row_sets[index] != row_sets[index - 1] for index in 2:length(row_sets)
+        row_sets[index] != row_sets[index - 1] for index in 2:length(row_sets);
+        init = 0,
     )
     return Dict(
         "point_count" => length(records),
@@ -257,12 +259,12 @@ function main()
     length(ARGS) >= 2 || error("usage: summarize_bmopf_persistence.jl output.json report1.json report2.json ...")
     output_path = abspath(first(ARGS))
     reports = [_persistence_view(abspath(path)) for path in ARGS[2:end]]
-    write(output_path, JSON.json(Dict(
+    write_json(output_path, Dict(
         "report_version" => "bmopf-persistence-summary-v2",
         "report_count" => length(reports),
         "reports" => reports,
         "interpretation" => "Availability, persistence, nullspace alignment, and scaling observations remain separately attributable; unavailable rank is not rank change.",
-    )))
+    ))
     println("wrote BMOPF persistence summary to $output_path")
 end
 
