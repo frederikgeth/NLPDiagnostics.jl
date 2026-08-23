@@ -1809,6 +1809,9 @@ unavailability when a declared mode references an undeclared component port.
 Component-port nullspace-mode semantic validation now serializes typed input
 unavailability when a semantic label does not match a declared named mode.
 
+Terminal-topology projection now serializes typed input unavailability when
+coordinate-map consistency prevents projection into model coordinates.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

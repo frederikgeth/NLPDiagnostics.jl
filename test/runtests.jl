@@ -3633,6 +3633,21 @@ end
         coordinate_projection_report,
         :component_port_topology_model_projection_available,
     )) == 1
+    unavailable_coordinate_projection_report =
+        NLPDiagnostics._component_port_topology_coordinate_projection_findings(
+            [rank_deficient_port, second_port], [connection],
+            [unaligned_coordinate_map],
+        )
+    unavailable_coordinate_projection_reason = only(filter(
+        item -> item["code"] ==
+            "component_port_topology_model_projection_unavailable",
+        NLPDiagnostics.report_data(unavailable_coordinate_projection_report)[
+            "unavailable_reasons"
+        ],
+    ))
+    @test unavailable_coordinate_projection_reason["category"] == "input"
+    @test unavailable_coordinate_projection_reason["stage"] ==
+          "component_port_topology_model_projection"
     @test_throws DimensionMismatch NLPDiagnostics.PortCoordinateMap(
         :transformer, "tx_1", "high", MOI.VariableIndex[MOI.VariableIndex(1)];
         terminal_to_variable = [1.0 0.0; 0.0 1.0],

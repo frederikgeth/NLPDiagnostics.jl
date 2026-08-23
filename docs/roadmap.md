@@ -4762,3 +4762,7 @@ dimension and observed/not-observed findings remain unchanged.
 The next plugin-coordinate increment types semantic labels that do not match a
 declared named port nullspace mode as input unavailability. Existing semantic
 alignment findings remain available for plugin diagnostics.
+
+The next plugin-coordinate increment types failed terminal-topology projection
+into model coordinates as input unavailability. Successful projection evidence
+and existing representational findings remain unchanged.

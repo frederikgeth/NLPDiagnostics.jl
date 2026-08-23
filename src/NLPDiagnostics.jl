@@ -2611,6 +2611,26 @@ function _component_port_topology_coordinate_projection_findings(
     )
     report.metadata[:component_port_topology_model_projection_available] = string(projection.available)
     if !projection.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    projection.reason,
+                    "terminal topology cannot be projected into model coordinates",
+                ),
+            );
+            code = :component_port_topology_model_projection_unavailable,
+            category = :input,
+            stage = :component_port_topology_model_projection,
+        )
+        report.metadata[:component_port_topology_model_projection_reason] =
+            typed_reason.message
+        report.metadata[:component_port_topology_model_projection_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:component_port_topology_model_projection_category] =
+            string(typed_reason.category)
+        report.metadata[:component_port_topology_model_projection_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:component_port_topology_model_projection_unavailable;
             severity = SeverityInfo, domain = RepresentationalIssue,
             basis = StructuralProof, confidence = ConfidenceCertain,
