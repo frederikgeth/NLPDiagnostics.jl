@@ -30,12 +30,15 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/launch_bmopf_solver_option_perturbations.jl` to
-`benchmarks/common.jl`, bringing the shared helper to ninety-two core runners
-while preserving atomic manifests and per-profile status records. A bounded
-local run retained one `runner_error` entry because the selected DSS deck was
-absent from the configured BMOPFDraftData root. This is an input-corpus
-boundary, not an option-result claim. The prior increment migrated
+`benchmarks/launch_solver_failure_cases.jl` to `benchmarks/common.jl`, bringing
+the shared helper to ninety-three core runners while also hardening child-timeout
+cleanup with a bounded grace period and `SIGKILL` fallback. A one-case bounded
+run now writes durable `process_timeout` evidence instead of hanging the parent.
+The prior increment migrated
+`benchmarks/launch_bmopf_solver_option_perturbations.jl`; its bounded local run
+retained one `runner_error` entry because the selected DSS deck was absent from
+the configured BMOPFDraftData root. This is an input-corpus boundary, not an
+option-result claim. The prior increment migrated
 `benchmarks/launch_bmopf_solver_matrix.jl`; its bounded local run wrote one
 Ipopt entry with explicit `process_exit` status and no timeout, but the child was
 blocked by the sandboxed Julia precompile-lock permission boundary before
@@ -4383,7 +4386,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-ninety-two core release, rank, runtime, and audit runners; the BMOPF campaign and
+ninety-three core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

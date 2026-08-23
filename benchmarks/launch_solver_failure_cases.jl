@@ -9,6 +9,9 @@ parent or prevent already-written case records from being summarized.
 
 using JSON
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
+
 const _CASES = ("iteration-limit", "infeasible-bounds", "invalid-log-domain",
                 "restoration-candidate")
 const _EXPECTED_SIGNALS = Dict(
@@ -60,6 +63,16 @@ function _run_child(script, project, output_dir, solver, case, timeout_seconds)
             Base.kill(process, Base.SIGTERM)
         catch
             Base.kill(process)
+        end
+        grace_deadline = time() + min(10.0, max(1.0, timeout_seconds / 20))
+        while Base.process_running(process) && time() < grace_deadline
+            sleep(0.1)
+        end
+        if Base.process_running(process)
+            try
+                Base.kill(process, Base.SIGKILL)
+            catch
+            end
         end
     end
     wait(process)
@@ -127,13 +140,13 @@ function main()
             break
         end
     end
-    write(joinpath(output_dir, "index.json"), JSON.json(Dict(
+    write_json(joinpath(output_dir, "index.json"), Dict(
         "runner_version" => "solver-failure-cases-v2",
         "child_timeout_seconds" => timeout_seconds,
         "environment" => environment,
         "solvers" => unique(solvers),
         "cases" => index,
-    )))
+    ))
     println("wrote isolated solver-failure evidence to $output_dir")
 end
 
