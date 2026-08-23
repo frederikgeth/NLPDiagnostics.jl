@@ -4,6 +4,9 @@
 
 using JSON
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
+
 _dict(value) = value isa AbstractDict ? Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()
 _key(entry) = string(get(entry, "case", "unknown"), "|max_iter=", get(entry, "budget", "unknown"))
 
@@ -113,7 +116,7 @@ function main()
         "cooccurring_ibr_sensitivity_count" => count(row ->
             get(row, "endpoint_change_and_ibr_sensitivity_cooccur", false), rows),
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote structural/family-omission correlation to $output_path")
 end
 
