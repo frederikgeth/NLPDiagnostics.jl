@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: 30-bus IBR bound-regime helper migration
+
+The `ibr_p_upper` bound-regime ledger now uses the shared
+`benchmarks/common.jl` JSON writer. A local smoke on one 30-bus LN snapshot
+recorded 28 zero-bound rows, with strict complementarity passing 0/28 and
+physical gaps around `-9.98e-3`. This remains localization evidence, not a
+causal solver or formulation diagnosis.
+
 ## 2026-08-23: 30-bus IBR tolerance-margin helper migration
 
 The per-row `ibr_p_upper` tolerance-margin ledger now uses the shared
@@ -1327,7 +1335,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-sixty-five core release, rank, runtime, and audit runners; the BMOPF campaign and
+sixty-six core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

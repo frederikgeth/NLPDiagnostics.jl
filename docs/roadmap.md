@@ -30,9 +30,13 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/bmopf_30bus_ibr_p_upper_tolerance_margin.jl` to
-`benchmarks/common.jl`, bringing the shared helper to sixty-five core runners
-while preserving the per-row tolerance-margin ledger schema. Its local smoke
+`benchmarks/bmopf_30bus_ibr_p_upper_bound_regime_ledger.jl` to
+`benchmarks/common.jl`, bringing the shared helper to sixty-six core runners
+while preserving the bound-regime and strict-complementarity ledger schema. Its
+local smoke selected one 30-bus LN snapshot and recorded 28 zero-bound rows,
+with strict complementarity passing 0/28 and physical gaps around `-9.98e-3`.
+The prior increment migrated
+`benchmarks/bmopf_30bus_ibr_p_upper_tolerance_margin.jl`; its local smoke
 selected one 30-bus LN snapshot and produced a margin report with required
 tolerance `1.049343932476267e-5`, sharpening the previously observed `1e-5`
 boundary without promoting a causal explanation. The prior increment migrated
@@ -4288,7 +4292,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-sixty-five core release, rank, runtime, and audit runners; the BMOPF campaign and
+sixty-six core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
