@@ -13,15 +13,15 @@ claim.  Causal interpretation requires matching fixtures and numerical
 policies plus clean, distinct BMOPFTools source revisions on both sides.
 """
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 _dict(value) = value isa AbstractDict ?
     Dict{String,Any}(String(key) => item for (key, item) in value) :
     Dict{String,Any}()
 
 function _load(path)
-    isfile(path) || error("missing multiconductor summary: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(abspath(path); root = "/")
     value isa AbstractDict || error("summary is not a JSON object: $path")
     return _dict(value)
 end
@@ -340,8 +340,7 @@ function main()
         "findings" => findings,
         "interpretation" => "Controlled pre/post formulation evidence, not a proof of causality. A persistent nullity change is numerical evidence; causal attribution additionally requires identical fixtures and numerical policies plus an isolated, recorded source revision.",
     )
-    mkpath(dirname(output_path))
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote formulation-intervention comparison to $output_path")
 end
 
