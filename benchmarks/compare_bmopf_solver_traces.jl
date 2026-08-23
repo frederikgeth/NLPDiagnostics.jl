@@ -4,6 +4,9 @@
 
 using JSON
 
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
+
 function _as_dict(value)
     return value isa AbstractDict ? Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()
 end
@@ -250,8 +253,8 @@ function main()
         "usage: compare_bmopf_solver_traces.jl <left-summary.json> <right-summary.json> [comparison.json]",
     )
     left_path, right_path = abspath.(ARGS[1:2])
-    left = JSON.parsefile(left_path)
-    right = JSON.parsefile(right_path)
+    left = read_summary(left_path; root = "/")
+    right = read_summary(right_path; root = "/")
     left_cases = _case_map(left)
     right_cases = _case_map(right)
     names = sort!(collect(union(keys(left_cases), keys(right_cases))))
@@ -280,7 +283,7 @@ function main()
         "case_count" => length(comparisons),
         "comparisons" => comparisons,
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote solver-trace comparison to $output_path")
 end
 
