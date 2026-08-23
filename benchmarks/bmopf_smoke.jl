@@ -13,9 +13,10 @@ using NLPDiagnostics
 using BMOPFTools
 using JuMP
 using Ipopt # together with JuMP, activates BMOPFTools' public staged OPF extension
-using JSON
 using LinearAlgebra
 using SHA
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
 
@@ -1100,7 +1101,7 @@ function main()
                 "kcl_allocations" => run.kcl_allocations,
                 "profile" => data,
             )
-            write(result_path, JSON.json(payload))
+            write_json(result_path, payload)
             push!(index, Dict(
                 "name" => spec.name, "status" => "ok",
                 "result_file" => basename(result_path),
@@ -1170,7 +1171,7 @@ function main()
                     "generic_findings=$generic_findings context_findings=$context_findings")
         catch error
             message = sprint(showerror, error, catch_backtrace())
-            write(result_path, JSON.json(Dict(
+            write_json(result_path, Dict(
                 "fixture" => spec.file, "fixture_path" => abspath(path),
                 "source_snapshot" => source_snapshot,
                 "status" => "error", "error" => message,
@@ -1222,7 +1223,7 @@ function main()
                     sparse_qr_persistence_alignment_threshold,
                 "expected_mode_tangent_policy" => "unavailable",
                 "integrity_preflight" => preflight,
-            )))
+            ))
             push!(index, Dict(
                 "name" => spec.name, "status" => "error",
                 "result_file" => basename(result_path), "error" => message,
@@ -1239,7 +1240,7 @@ function main()
             println("$(spec.name): ERROR — $(sprint(showerror, error))")
         end
     end
-    write(joinpath(output_dir, "index.json"), JSON.json(Dict(
+    write_json(joinpath(output_dir, "index.json"), Dict(
         "fixture_root" => abspath(root),
         "environment" => environment,
         "environment_fingerprint" => environment_fingerprint,
@@ -1291,7 +1292,7 @@ function main()
             ENV, "NLPDIAGNOSTICS_BMOPF_EXPECTED_MODE_TANGENT_POLICY", "fixed",
         ),
         "cases" => index,
-    )))
+    ))
     println("wrote evidence records to $output_dir")
 end
 

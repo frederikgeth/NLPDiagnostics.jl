@@ -30,12 +30,15 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/bmopf_acdc_scaling_campaign.jl` to `benchmarks/common.jl`, bringing
-the shared helper to seventy-seven core runners while preserving both full and
-compact AC/DC campaign JSON schemas. Its local launch is explicitly blocked in
-the active environment because `BMOPFTools.OpfScaling` is absent; this matches
-the existing dependency-contract failure and does not change scientific
-qualification. The prior increment migrated
+`benchmarks/bmopf_smoke.jl` to `benchmarks/common.jl`, bringing the shared
+helper to seventy-eight core runners while preserving per-fixture records and
+the aggregate index schema. A local known-environment smoke wrote all six
+fixture records and an index; each retained an explicit `error` status because
+the default staged starts were incomplete, preserving the runner's instruction
+to use the synthetic zero-point policy for a separate probe. The prior
+increment migrated `benchmarks/bmopf_acdc_scaling_campaign.jl`; its local launch
+is explicitly blocked because active BMOPFTools lacks `OpfScaling`, matching
+the existing dependency-contract failure. The prior increment migrated
 `benchmarks/bmopf_30bus_ibr_p_upper_directional_probe.jl`; its local smoke
 selected one 30-bus LN snapshot and completed without an error, with the
 directional report boundary retained explicitly. The prior increment
@@ -4329,7 +4332,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-seventy-seven core release, rank, runtime, and audit runners; the BMOPF campaign and
+seventy-eight core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

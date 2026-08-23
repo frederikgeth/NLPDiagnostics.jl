@@ -1068,6 +1068,15 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: BMOPF smoke helper migration
+
+The bounded BMOPF smoke runner now uses the shared
+`benchmarks/common.jl` JSON writer for per-fixture records and the aggregate
+index. A known-environment smoke wrote all six fixture records; each retained
+an explicit `error` status because default staged starts were incomplete. The
+runner's synthetic zero-point policy remains a separate probe boundary, so no
+success claim is promoted from this run.
+
 ## 2026-08-23: AC/DC scaling campaign helper migration
 
 The objective-bearing AC/DC scaling campaign now uses the shared
@@ -1423,7 +1432,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-seventy-seven core release, rank, runtime, and audit runners; the BMOPF campaign and
+seventy-eight core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
