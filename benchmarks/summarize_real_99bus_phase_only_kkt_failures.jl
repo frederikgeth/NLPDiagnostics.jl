@@ -2,7 +2,8 @@
 
 """Summarize real 99-bus physical-KKT failure localization from a campaign artifact."""
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 function failed_keys(report)
     sides = get(get(report, "complementarity", Dict()), "sides", Dict())
@@ -49,7 +50,7 @@ input = abspath(get(
     joinpath(@__DIR__, "..", "work", "real-99bus-phase-only-campaign.json"),
 ))
 isfile(input) || error("campaign artifact does not exist: $input")
-campaign = JSON.parsefile(input)
+campaign = read_summary(input; root = "/")
 runs = get(campaign, "runs", Any[])
 run_summaries = Dict{String,Any}[]
 for run in runs
@@ -86,7 +87,7 @@ output = abspath(get(
     joinpath(@__DIR__, "..", "work", "real-99bus-phase-only-kkt-failure-summary.json"),
 ))
 mkpath(dirname(output))
-write(output, JSON.json(Dict(
+write_json(output, Dict(
     "schema_version" => "nlpdiagnostics-real-99bus-phase-only-kkt-failure-summary-v1",
     "source" => Dict(
         "runner" => basename(@__FILE__),
@@ -96,5 +97,5 @@ write(output, JSON.json(Dict(
     ),
     "summary" => summary,
     "runs" => run_summaries,
-)))
+))
 println("wrote real 99-bus KKT failure summary to $output")

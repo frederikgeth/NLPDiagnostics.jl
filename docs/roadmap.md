@@ -30,12 +30,12 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/summarize_real_99bus_phase_only_covariance.jl` to
-`benchmarks/common.jl`, bringing the shared helper to forty-four core runners
-while preserving the six-run covariance summary schema. Its local smoke run
-completed successfully against the tracked 99-bus campaign, with all six
-covariance/equivalence checks available and physical-rank availability still
-explicitly zero. The
+`benchmarks/summarize_real_99bus_phase_only_kkt_failures.jl` to
+`benchmarks/common.jl`, bringing the shared helper to forty-five core runners
+while preserving the six-run physical-KKT failure-localization schema. Its
+local smoke run completed successfully against the tracked 99-bus campaign:
+two strict-KKT acceptances, four failures, and all failed sides localized to
+`ibr_p_upper`. The
 campaign and evidence-ledger summarizers and comparisons, formulation-
 intervention, multiconductor point/probe/crosscheck, saved-result unit/profile,
 IBR cross-fixture, source-solver and tangent-policy, solver-trace and matrix
@@ -4253,7 +4253,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-forty-four core release, rank, runtime, and audit runners; the BMOPF campaign and
+forty-five core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
