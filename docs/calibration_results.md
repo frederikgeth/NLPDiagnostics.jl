@@ -31,6 +31,10 @@ the equality-Jacobian work guard prevents the screen. This remains numerical
 capability evidence only; it does not classify MFCQ or establish a constraint
 qualification failure.
 
+Selected active-row Jacobian rank analysis now emits the same typed numerical
+boundary when its dense-work guard is exceeded. The local contract keeps this
+as a capability limitation rather than a rank-loss conclusion.
+
 ## 2026-08-10: corrected Ipopt option campaign
 
 Status: **design-qualified, provenance-limited development result**.

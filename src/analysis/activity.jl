@@ -2834,6 +2834,24 @@ function analyze_active_set(
     ))
     report.metadata[:active_jacobian_rank] = string(estimate.rank)
     report.metadata[:active_jacobian_rank_available] = string(estimate.available)
+    if !estimate.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    estimate.reason,
+                    "active-row Jacobian rank analysis is unavailable",
+                ),
+            );
+            code = :active_jacobian_rank_unavailable,
+            category = :numerical,
+            stage = :active_set_rank,
+        )
+        report.metadata[:active_jacobian_rank_reason] = typed_reason.message
+        report.metadata[:active_jacobian_rank_unavailable_reason] = typed_reason.message
+        report.metadata[:active_jacobian_rank_category] = string(typed_reason.category)
+        report.metadata[:active_jacobian_rank_stage] = string(typed_reason.stage)
+    end
     report.metadata[:active_structural_matching_available] = string(active_matching.complete)
     report.metadata[:active_structural_matching_cardinality] =
         string(matching_cardinality(active_matching.matching))

@@ -118,6 +118,11 @@ Jacobian work is unavailable under the configured guard. Existing MFCQ
 availability metadata and findings remain unchanged, while `report_data`
 records a stable numerical code, category, stage, and reason.
 
+The next active-set increment types selected-Jacobian rank unavailability
+under the same dense-work guard. The existing LICQ-style finding and metadata
+remain intact, while `report_data` records a stable numerical code, category,
+stage, and reason.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

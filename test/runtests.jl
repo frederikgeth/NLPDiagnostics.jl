@@ -8894,6 +8894,12 @@ end
         ))
         @test guarded_mfcq_reason["category"] == "numerical"
         @test guarded_mfcq_reason["stage"] == "active_set_mfcq_screen"
+        guarded_rank_reason = only(filter(
+            item -> item["code"] == "active_jacobian_rank_unavailable",
+            guarded_mfcq_data["unavailable_reasons"],
+        ))
+        @test guarded_rank_reason["category"] == "numerical"
+        @test guarded_rank_reason["stage"] == "active_set_rank"
 
         dependent = new_model()
         z = MOI.add_variable(dependent)

@@ -615,6 +615,7 @@
       "typed unavailable-reason serialization for solver-result point and postmortem capability reports",
       "typed unavailable-reason serialization for active-set multiplier-recovery work guards",
       "typed unavailable-reason serialization for active-set MFCQ screen work guards",
+      "typed unavailable-reason serialization for active-set Jacobian-rank work guards",
       "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
       "reviewed local quality policy with explicit deferred-tool boundaries"
     ],
@@ -834,6 +835,6 @@
     "explicit_typed_unavailable_tokens": [
       "UnavailableReason"
     ],
-    "typed_adapter_call_count": 17
+    "typed_adapter_call_count": 18
   }
 }
