@@ -6272,6 +6272,24 @@ function _append_reduced_hessian_active_row_persistence_findings!(
     length(candidates) >= 2 || return report
     reference_sources = first(candidates).evaluation.constraint_sources
     if any(snapshot.evaluation.constraint_sources != reference_sources for snapshot in candidates)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "retained reduced-Hessian snapshots do not share one constraint-row source ordering",
+            );
+            code = :reduced_hessian_active_row_persistence_unavailable,
+            category = :input,
+            stage = :reduced_hessian_active_row_persistence,
+        )
+        report.metadata[:reduced_hessian_active_row_persistence_available] = "false"
+        report.metadata[:reduced_hessian_active_row_persistence_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_active_row_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_active_row_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:reduced_hessian_active_row_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(
             :reduced_hessian_active_row_persistence_unaligned;
             severity = SeverityInfo,
@@ -6293,6 +6311,7 @@ function _append_reduced_hessian_active_row_persistence_findings!(
     active_rows_persistent = all(==(first(row_sets)), row_sets)
     changing_rows = sort!(collect(union(row_sets...)))
     labels = join((snapshot.evaluation.point.label for snapshot in candidates), ",")
+    report.metadata[:reduced_hessian_active_row_persistence_available] = "true"
     push!(report, Finding(
         active_rows_persistent ? :reduced_hessian_active_rows_persistent :
                                  :reduced_hessian_active_rows_changing;
@@ -6328,6 +6347,25 @@ function _append_reduced_hessian_active_jacobian_persistence_findings!(
     length(candidates) >= 2 || return report
     reference_sources = first(candidates).evaluation.constraint_sources
     if any(snapshot.evaluation.constraint_sources != reference_sources for snapshot in candidates)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "retained reduced-Hessian snapshots do not share one constraint-row source ordering",
+            );
+            code = :reduced_hessian_active_jacobian_rank_persistence_unavailable,
+            category = :input,
+            stage = :reduced_hessian_active_jacobian_rank_persistence,
+        )
+        report.metadata[:reduced_hessian_active_jacobian_rank_persistence_available] =
+            "false"
+        report.metadata[:reduced_hessian_active_jacobian_rank_persistence_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_active_jacobian_rank_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_active_jacobian_rank_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:reduced_hessian_active_jacobian_rank_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(
             :reduced_hessian_active_jacobian_rank_persistence_unaligned;
             severity = SeverityInfo,
@@ -6353,6 +6391,8 @@ function _append_reduced_hessian_active_jacobian_persistence_findings!(
     active_rows_persistent = all(==(first(row_sets)), row_sets)
     affected_rows = sort!(collect(union(row_sets...)))
     labels = join((snapshot.evaluation.point.label for snapshot in candidates), ",")
+    report.metadata[:reduced_hessian_active_jacobian_rank_persistence_available] =
+        "true"
     push!(report, Finding(
         persistent ? :reduced_hessian_active_jacobian_rank_persistent :
                      :reduced_hessian_active_jacobian_rank_changing;

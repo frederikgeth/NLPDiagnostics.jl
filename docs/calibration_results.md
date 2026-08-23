@@ -1758,6 +1758,11 @@ unavailability for Jacobian scaling and spectral-scale comparisons when
 non-finite derivative or eigenvalue evidence prevents a safe change-factor
 calculation. Finite inputs retain the existing persistent/changing findings.
 
+Reduced-Hessian active-row and active-Jacobian persistence now also serialize
+typed input unavailability when retained snapshots use different constraint-row
+source orderings. The existing alignment findings remain available for human
+diagnosis without implying a rank or active-set conclusion.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

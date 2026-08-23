@@ -11492,6 +11492,45 @@ end
             scaling_changing_report,
             :reduced_hessian_jacobian_scaling_changing,
         )) == 1
+        misaligned_scaling_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+            scaling_evaluation_2.point,
+            scaling_evaluation_2.objective_value,
+            scaling_evaluation_2.objective_source,
+            scaling_evaluation_2.objective_gradient,
+            scaling_evaluation_2.constraint_values,
+            collect(reverse(scaling_evaluation_2.constraint_sources)),
+            scaling_evaluation_2.jacobian_entries,
+            scaling_evaluation_2.jacobian_row_methods,
+            scaling_evaluation_2.capabilities,
+            scaling_evaluation_2.failures,
+        )
+        misaligned_scaling_report =
+            NLPDiagnostics.analyze_reduced_hessian_persistence([
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    scaling_evaluation_1, scaling_analysis_1,
+                ),
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    misaligned_scaling_evaluation, scaling_analysis_2,
+                ),
+            ])
+        misaligned_scaling_reasons = NLPDiagnostics.report_data(
+            misaligned_scaling_report,
+        )["unavailable_reasons"]
+        @test any(
+            item -> item["code"] ==
+                "reduced_hessian_active_row_persistence_unavailable" &&
+                item["category"] == "input" &&
+                item["stage"] == "reduced_hessian_active_row_persistence",
+            misaligned_scaling_reasons,
+        )
+        @test any(
+            item -> item["code"] ==
+                "reduced_hessian_active_jacobian_rank_persistence_unavailable" &&
+                item["category"] == "input" &&
+                item["stage"] ==
+                "reduced_hessian_active_jacobian_rank_persistence",
+            misaligned_scaling_reasons,
+        )
         malformed_scaling_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
             scaling_evaluation_2.point,
             scaling_evaluation_2.objective_value,

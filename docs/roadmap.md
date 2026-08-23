@@ -4702,3 +4702,8 @@ spectral-scale persistence unavailability when non-finite derivative or
 curvature scales prevent comparison. Existing persistent and changing findings
 remain unchanged; the new metadata makes this boundary explicit for release
 audit consumers.
+
+The next reduced-Hessian alignment increment types active-row and active-
+Jacobian persistence as input-unavailable when retained snapshots disagree on
+constraint-row source ordering. Existing representational alignment findings
+and finite persistence findings remain unchanged.
