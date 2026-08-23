@@ -4758,3 +4758,7 @@ Existing representational connection findings remain unchanged.
 The next plugin-coordinate increment types declared nullspace modes that lack
 their component-port declaration as input unavailability. Existing mode
 dimension and observed/not-observed findings remain unchanged.
+
+The next plugin-coordinate increment types semantic labels that do not match a
+declared named port nullspace mode as input unavailability. Existing semantic
+alignment findings remain available for plugin diagnostics.

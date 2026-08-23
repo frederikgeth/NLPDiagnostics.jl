@@ -1806,6 +1806,9 @@ when a connection references an undeclared source or destination port.
 Component-port nullspace-mode validation now serializes typed input
 unavailability when a declared mode references an undeclared component port.
 
+Component-port nullspace-mode semantic validation now serializes typed input
+unavailability when a semantic label does not match a declared named mode.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

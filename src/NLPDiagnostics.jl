@@ -1684,6 +1684,28 @@ function _component_port_nullspace_mode_semantic_findings(
         ((item.component_type, item.component_id, item.port_id), item.mode_name)
         for item in semantics
     ]
+    unaligned_semantic_keys = unique([key for key in semantic_keys if !(key in mode_keys)])
+    report.metadata[:component_port_nullspace_mode_semantics_available] =
+        string(isempty(unaligned_semantic_keys))
+    if !isempty(unaligned_semantic_keys)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "one or more port-mode semantic labels do not match a declared named port nullspace mode",
+            );
+            code = :component_port_nullspace_mode_semantics_unavailable,
+            category = :input,
+            stage = :component_port_nullspace_mode_semantics,
+        )
+        report.metadata[:component_port_nullspace_mode_semantics_reason] =
+            typed_reason.message
+        report.metadata[:component_port_nullspace_mode_semantics_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:component_port_nullspace_mode_semantics_category] =
+            string(typed_reason.category)
+        report.metadata[:component_port_nullspace_mode_semantics_stage] =
+            string(typed_reason.stage)
+    end
     aligned = 0
     unaligned = 0
     for key in unique([key for key in semantic_keys if count(==(key), semantic_keys) > 1])

@@ -3477,6 +3477,20 @@ end
         ),
         :component_port_nullspace_mode_semantics_unaligned,
     )) == 1
+    unaligned_mode_semantics_report =
+        NLPDiagnostics._component_port_nullspace_mode_semantic_findings(
+            [named_terminal_port_mode], [unaligned_mode_semantics],
+        )
+    unaligned_mode_semantics_reason = only(filter(
+        item -> item["code"] ==
+            "component_port_nullspace_mode_semantics_unavailable",
+        NLPDiagnostics.report_data(unaligned_mode_semantics_report)[
+            "unavailable_reasons"
+        ],
+    ))
+    @test unaligned_mode_semantics_reason["category"] == "input"
+    @test unaligned_mode_semantics_reason["stage"] ==
+          "component_port_nullspace_mode_semantics"
     visible_coordinate_map = NLPDiagnostics.PortCoordinateMap(
         :transformer, "tx_1", "high", MOI.VariableIndex[MOI.VariableIndex(1)];
         terminal_to_variable = reshape([0.0, 1.0], 1, 2),
