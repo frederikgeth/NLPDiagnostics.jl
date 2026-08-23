@@ -1184,10 +1184,11 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-eighteen core release, rank, runtime, and audit runners; the BMOPF campaign and
+nineteen core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
-tangent-policy, solver-trace and summary comparisons, residual-trend, checkout,
-and PR-handoff validators now use the shared JSON/repository helper. The new
+multiconductor-point and tangent-policy, solver-trace and summary comparisons,
+residual-trend, checkout, and PR-handoff validators now use the shared
+JSON/repository helper. The new
 `benchmarks/audit_bmopf_api_contract.jl` audit extracts every BMOPFTools symbol
 referenced by the JuMP extension and records the resolved dependency revision,
 branch, dirty state, and runtime schema major version. Against the current `codex/source-schema-fidelity`

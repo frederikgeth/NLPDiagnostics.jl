@@ -9,12 +9,14 @@ promoting them to physical or rank claims.
 
 using JSON
 
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
+
 _dict(value) = value isa AbstractDict ?
     Dict{String,Any}(String(k) => v for (k, v) in value) : Dict{String,Any}()
 
 function _load(path)
-    isfile(path) || error("missing multiconductor point summary: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(abspath(path); root = "/")
     value isa AbstractDict || error("summary is not a JSON object: $path")
     value
 end
@@ -630,7 +632,7 @@ function main()
         "readiness" => readiness, "findings" => findings,
         "interpretation" => "Point-policy comparison is local and representational evidence; changes are not physical certificates or solver-quality scores.",
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote multiconductor point comparison to $output_path")
 end
 
