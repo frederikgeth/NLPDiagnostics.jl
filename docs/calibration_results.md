@@ -1803,6 +1803,9 @@ mode-space projection remains a capability boundary.
 Component-port connection validation now serializes typed input unavailability
 when a connection references an undeclared source or destination port.
 
+Component-port nullspace-mode validation now serializes typed input
+unavailability when a declared mode references an undeclared component port.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

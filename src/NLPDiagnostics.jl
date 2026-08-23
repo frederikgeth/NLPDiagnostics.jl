@@ -1576,6 +1576,31 @@ function _component_port_nullspace_mode_findings(
         ((mode.component_type, mode.component_id, mode.port_id), mode.name)
         for mode in modes if !isnothing(mode.name)
     ]
+    unaligned_mode_keys = unique([
+        (mode.component_type, mode.component_id, mode.port_id) for mode in modes
+        if !haskey(port_by_key, (mode.component_type, mode.component_id, mode.port_id))
+    ])
+    report.metadata[:component_port_expected_nullspace_mode_available] =
+        string(isempty(unaligned_mode_keys))
+    if !isempty(unaligned_mode_keys)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "one or more declared port nullspace modes reference undeclared component ports",
+            );
+            code = :component_port_expected_nullspace_mode_unavailable,
+            category = :input,
+            stage = :component_port_expected_nullspace_mode,
+        )
+        report.metadata[:component_port_expected_nullspace_mode_reason] =
+            typed_reason.message
+        report.metadata[:component_port_expected_nullspace_mode_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:component_port_expected_nullspace_mode_category] =
+            string(typed_reason.category)
+        report.metadata[:component_port_expected_nullspace_mode_stage] =
+            string(typed_reason.stage)
+    end
     for key in unique([key for key in named_mode_keys if count(==(key), named_mode_keys) > 1])
         push!(report, Finding(:component_port_expected_nullspace_mode_duplicate_name;
             severity = SeverityWarning, domain = RepresentationalIssue,

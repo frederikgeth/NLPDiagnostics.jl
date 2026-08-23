@@ -2765,6 +2765,23 @@ end
         port_mode_report,
         :component_port_expected_nullspace_mode_not_observed,
     )) == 1
+    unaligned_port_mode_report = NLPDiagnostics._component_port_nullspace_mode_findings(
+        NLPDiagnostics.ComponentPortMetadata[], [observed_port_mode],
+    )
+    @test length(findings(
+        unaligned_port_mode_report,
+        :component_port_expected_nullspace_mode_unaligned,
+    )) == 1
+    unaligned_port_mode_reason = only(filter(
+        item -> item["code"] ==
+            "component_port_expected_nullspace_mode_unavailable",
+        NLPDiagnostics.report_data(unaligned_port_mode_report)[
+            "unavailable_reasons"
+        ],
+    ))
+    @test unaligned_port_mode_reason["category"] == "input"
+    @test unaligned_port_mode_reason["stage"] ==
+          "component_port_expected_nullspace_mode"
     second_port = NLPDiagnostics.ComponentPortMetadata(
         :transformer, "tx_1", "low";
         terminal_labels = ["a", "b"], mode_labels = ["a", "b"],
