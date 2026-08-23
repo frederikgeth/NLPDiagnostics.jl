@@ -4,7 +4,8 @@
 #
 # julia --project=. benchmarks/summarize_bmopf_smoke.jl /path/to/bmopf-smoke-results
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 function _int(value, default = 0)
     value isa Integer && return Int(value)
@@ -118,7 +119,7 @@ function main()
     )
     index_path = joinpath(output_dir, "index.json")
     isfile(index_path) || error("index file is missing: $index_path")
-    index = JSON.parsefile(index_path)
+    index = read_summary(index_path; root = "/")
     cases = Vector{Dict{String,Any}}()
     aggregate_generic = Dict{String,Int}()
     aggregate_context = Dict{String,Int}()
@@ -207,7 +208,7 @@ function main()
     multiconductor_physical_mode_categories = Dict{String,Int}()
     for entry in index["cases"]
         record_path = joinpath(output_dir, entry["result_file"])
-        record = JSON.parsefile(record_path)
+        record = read_summary(record_path; root = "/")
         summary = Dict{String,Any}(entry)
         preflight = get(record, "integrity_preflight", nothing)
         if preflight isa AbstractDict
@@ -878,7 +879,7 @@ function main()
         "aggregate_integrity_finding_codes" => _sorted_counts(aggregate_integrity),
     )
     summary_path = joinpath(output_dir, "summary.json")
-    write(summary_path, JSON.json(summary))
+    write_json(summary_path, summary)
     for case in cases
         name = case["name"]
         status = case["status"]
