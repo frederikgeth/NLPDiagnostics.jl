@@ -959,6 +959,25 @@ function analyze_component_constraint_scales(
     report.metadata[:component_constraint_scale_unavailable_count] = string(unavailable)
     report.metadata[:component_constraint_scale_missing_source_count] = string(missing_source)
     report.metadata[:component_constraint_scale_unavailable_residual_count] = string(unavailable_residual)
+    if unavailable > 0
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "one or more component constraint scales cannot be aligned with an evaluated scalar constraint row",
+            );
+            code = :component_constraint_scale_alignment_unavailable,
+            category = :capability,
+            stage = :component_constraint_scale_alignment,
+        )
+        report.metadata[:component_constraint_scale_alignment_reason] =
+            typed_reason.message
+        report.metadata[:component_constraint_scale_alignment_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:component_constraint_scale_alignment_category] =
+            string(typed_reason.category)
+        report.metadata[:component_constraint_scale_alignment_stage] =
+            string(typed_reason.stage)
+    end
     unavailable == 0 || push!(report, Finding(:component_constraint_scale_alignment_unavailable;
         severity = SeverityInfo, domain = RepresentationalIssue,
         basis = StructuralProof, confidence = ConfidenceCertain,

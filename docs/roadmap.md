@@ -4782,3 +4782,7 @@ validation. Existing valid map rank evidence remains unchanged.
 The next plugin-coordinate increment types failed terminal-topology nullspace
 assembly as input unavailability when declared ports or connections are invalid.
 Existing expected-nullspace evidence remains unchanged.
+
+The next scaling increment types scalar constraint-scale alignments that lack an
+evaluated source row or residual as capability unavailability. Existing scalar
+mismatch findings remain unchanged.

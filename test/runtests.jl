@@ -3264,6 +3264,16 @@ end
     @test length(findings(
         stale_constraint_scale_report, :component_constraint_scale_alignment_unavailable,
     )) == 1
+    stale_constraint_scale_reason = only(filter(
+        item -> item["code"] ==
+            "component_constraint_scale_alignment_unavailable",
+        NLPDiagnostics.report_data(stale_constraint_scale_report)[
+            "unavailable_reasons"
+        ],
+    ))
+    @test stale_constraint_scale_reason["category"] == "capability"
+    @test stale_constraint_scale_reason["stage"] ==
+          "component_constraint_scale_alignment"
     unavailable_scalar_activity = NLPDiagnostics.ConstraintActivity{Float64}(
         1, constraint_scale_reference, missing, 0.0, 0.0, nothing, nothing,
         nothing, false, false, :unavailable,

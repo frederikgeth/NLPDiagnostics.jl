@@ -1753,6 +1753,10 @@ dense rank is disabled, and inequality-multiplier covariance remains outside
 the covariance report. The machine-readable release-gate ledger is
 `docs/calibration_release_gate_summary.json`.
 
+Scalar constraint-scale alignment now serializes typed capability unavailability
+when a declared scale lacks an evaluated source row or residual. Existing scalar
+mismatch findings remain unchanged.
+
 The reduced-Hessian persistence slice now also serializes typed numerical
 unavailability for Jacobian scaling and spectral-scale comparisons when
 non-finite derivative or eigenvalue evidence prevents a safe change-factor
