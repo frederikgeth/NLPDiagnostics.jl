@@ -6,7 +6,8 @@ using NLPDiagnostics
 using BMOPFTools
 using JuMP
 using Ipopt
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 const DEFAULT_ROOT = joinpath(@__DIR__, "..", "..", "BMOPFDraftData", "benchmarks")
 const DEFAULT_CASES = [
@@ -122,7 +123,7 @@ output = abspath(get(
     joinpath(@__DIR__, "..", "work", "bmopf-30bus-ibr-p-upper-budget-matrix.json"),
 ))
 mkpath(dirname(output))
-write(output, JSON.json(Dict(
+write_json(output, Dict(
     "schema_version" => "nlpdiagnostics-bmopf-30bus-ibr-p-upper-budget-matrix-v1",
     "source" => Dict(
         "runner" => basename(@__FILE__),
@@ -135,5 +136,5 @@ write(output, JSON.json(Dict(
         "complementarity_tolerance" => 1.0e-5,
     ),
     "cases" => results,
-)))
+))
 println("wrote 30-bus IBR upper budget matrix to $output")
