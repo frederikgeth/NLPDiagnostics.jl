@@ -157,6 +157,14 @@
     ],
     "next_action": "review root-only exports and promote selected research-facing names into explicit namespaces before a breaking API release; keep Stable intentionally small"
   },
+  "policy": {
+    "advanced_contract": "research-facing profiling, rank-policy, and capability APIs may evolve without Stable-tier compatibility guarantees",
+    "advanced_namespace": "NLPDiagnostics.Advanced",
+    "legacy_root_contract": "root exports remain backward-compatible during consolidation; root-only exports are not implicitly Stable",
+    "review_artifact": "docs/api_stability.md",
+    "stable_contract": "new application code may depend on the Stable exports; additive fields and typed report-boundary records are allowed, while breaking signature or semantic changes require a documented release decision",
+    "stable_namespace": "NLPDiagnostics.Stable"
+  },
   "schema_version": "nlpdiagnostics-api-tier-inventory-v1",
   "source": {
     "advanced_module": "src/api/advanced.jl",

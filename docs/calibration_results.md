@@ -1068,6 +1068,13 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: API stability policy artifact
+
+`docs/api_stability.md` now records the compatibility boundary for the 16-name
+Stable facade, the research-only Advanced facade, and legacy root exports. The
+policy is mirrored in `docs/api_tier_inventory_summary.json` and does not
+promote root-only names or numerical behavior to release-stable status.
+
 ## 2026-08-23: Generic report unavailable-reason collection
 
 `report_data` now emits a typed `unavailable_reasons` collection for legacy

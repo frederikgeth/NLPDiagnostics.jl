@@ -69,6 +69,17 @@ summary = Dict{String,Any}(
         "root_overlap" => stable_overlap,
         "stable_only" => sort!(setdiff(stable_exports, root_exports)),
     ),
+    "policy" => Dict{String,Any}(
+        "stable_namespace" => "NLPDiagnostics.Stable",
+        "stable_contract" =>
+            "new application code may depend on the Stable exports; additive fields and typed report-boundary records are allowed, while breaking signature or semantic changes require a documented release decision",
+        "advanced_namespace" => "NLPDiagnostics.Advanced",
+        "advanced_contract" =>
+            "research-facing profiling, rank-policy, and capability APIs may evolve without Stable-tier compatibility guarantees",
+        "legacy_root_contract" =>
+            "root exports remain backward-compatible during consolidation; root-only exports are not implicitly Stable",
+        "review_artifact" => "docs/api_stability.md",
+    ),
     "domain_extension_root_exports" => domain_extension,
     "interpretation" => Dict{String,Any}(
         "claim" => "inventory of explicit Stable and Advanced aliases and domain-extension root exports",

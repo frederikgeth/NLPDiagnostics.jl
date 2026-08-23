@@ -29,7 +29,11 @@ calibration cases, complete physical KKT/covariance coverage on the real
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
-The latest consolidation increment extends the generic typed
+The latest consolidation increment documents the Stable/Advanced/legacy-root
+API compatibility policy in `docs/api_stability.md` and the machine-readable
+tier inventory. The policy makes Stable an additive adoption target while
+keeping Advanced experimental and root-only exports explicitly non-Stable. The
+prior increment extends the generic typed
 `unavailable_reasons` collection in `report_data` to both paired
 `*_available`/`*_reason` metadata and suffix-only `*_unavailable_reason` fields
 without changing the original metadata. Focused serializer probes and the
