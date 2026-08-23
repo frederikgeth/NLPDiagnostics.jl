@@ -620,13 +620,14 @@
   "module_boundaries": {
     "benchmark_script_count": 107,
     "shared_benchmark_helper": "benchmarks/common.jl",
-    "shared_benchmark_helper_user_count": 68,
+    "shared_benchmark_helper_user_count": 69,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
       "benchmarks/audit_api_tiers.jl",
       "benchmarks/audit_bmopf_api_contract.jl",
       "benchmarks/audit_bmopf_pr_handoff.jl",
       "benchmarks/bmopf_30bus_ibr_p_upper_bound_regime_ledger.jl",
+      "benchmarks/bmopf_30bus_ibr_p_upper_directional_jacobian_check.jl",
       "benchmarks/bmopf_30bus_ibr_p_upper_row_scaling_audit.jl",
       "benchmarks/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit.jl",
       "benchmarks/bmopf_30bus_ibr_p_upper_tolerance_margin.jl",
