@@ -1895,9 +1895,11 @@ function _component_port_constitutive_map_findings(
 )
     report = DiagnosticReport()
     seen = Set{Tuple{Symbol,String,String}}()
+    unavailable = 0
     for item in maps
         key = (item.component_type, item.component_id, item.map_id)
         if key in seen
+            unavailable += 1
             push!(report, Finding(:component_port_constitutive_map_duplicate;
                 severity = SeverityWarning, domain = RepresentationalIssue,
                 basis = StructuralProof, confidence = ConfidenceCertain,
@@ -1914,6 +1916,7 @@ function _component_port_constitutive_map_findings(
         push!(seen, key)
         expected_columns = sum(length, item.port_terminal_labels; init = 0)
         if size(item.matrix, 2) != expected_columns
+            unavailable += 1
             push!(report, Finding(:component_port_constitutive_map_dimension_mismatch;
                 severity = SeverityError, domain = RepresentationalIssue,
                 basis = StructuralProof, confidence = ConfidenceCertain,
@@ -1929,6 +1932,7 @@ function _component_port_constitutive_map_findings(
             ))
         end
         if length(item.equation_labels) != size(item.matrix, 1)
+            unavailable += 1
             push!(report, Finding(:component_port_constitutive_map_equation_dimension_mismatch;
                 severity = SeverityError, domain = RepresentationalIssue,
                 basis = StructuralProof, confidence = ConfidenceCertain,
@@ -1942,22 +1946,44 @@ function _component_port_constitutive_map_findings(
                 suggested_actions = ["Provide one stable equation label per constitutive-map row."],
             ))
         end
-        all(isfinite, item.matrix) || push!(report, Finding(:component_port_constitutive_map_nonfinite;
-            severity = SeverityError, domain = RepresentationalIssue,
-            basis = StructuralProof, confidence = ConfidenceCertain,
-            observation = "Constitutive map :$(item.map_id) contains non-finite coefficients.",
-            why_it_matters = "Non-finite constitutive coefficients cannot support structural or numerical diagnostics.",
-            evidence = [Evidence("Constitutive-map coefficients"; details = [
-                "component_type" => item.component_type,
-                "component_id" => item.component_id,
-                "map_id" => item.map_id,
-            ])],
-            suggested_actions = ["Use finite, explicitly scaled map coefficients or omit the map until its units are known."],
-        ))
+        if !all(isfinite, item.matrix)
+            unavailable += 1
+            push!(report, Finding(:component_port_constitutive_map_nonfinite;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Constitutive map :$(item.map_id) contains non-finite coefficients.",
+                why_it_matters = "Non-finite constitutive coefficients cannot support structural or numerical diagnostics.",
+                evidence = [Evidence("Constitutive-map coefficients"; details = [
+                    "component_type" => item.component_type,
+                    "component_id" => item.component_id,
+                    "map_id" => item.map_id,
+                ])],
+                suggested_actions = ["Use finite, explicitly scaled map coefficients or omit the map until its units are known."],
+            ))
+        end
         map_rank = isempty(item.matrix) ? 0 : LinearAlgebra.rank(Matrix(item.matrix))
         report.metadata[Symbol("constitutive_map_rank_", item.component_type, "_", item.component_id, "_", item.map_id)] = string(map_rank)
     end
     report.metadata[:component_port_constitutive_map_count] = string(length(maps))
+    report.metadata[:component_port_constitutive_map_unavailable_count] = string(unavailable)
+    if unavailable > 0
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "one or more component-port constitutive maps fail identity, dimension, or finite-coefficient validation",
+            );
+            code = :component_port_constitutive_map_unavailable,
+            category = :input,
+            stage = :component_port_constitutive_map,
+        )
+        report.metadata[:component_port_constitutive_map_reason] = typed_reason.message
+        report.metadata[:component_port_constitutive_map_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:component_port_constitutive_map_category] =
+            string(typed_reason.category)
+        report.metadata[:component_port_constitutive_map_stage] =
+            string(typed_reason.stage)
+    end
     return report
 end
 

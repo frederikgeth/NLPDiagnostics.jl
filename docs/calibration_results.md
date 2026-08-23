@@ -1818,6 +1818,10 @@ the generic core lacks a directly supported one-terminal coordinate map.
 Coupled-constraint scale alignment now serializes typed capability unavailability
 when source associations or supported feasibility-margin geometry are missing.
 
+Component-port constitutive-map validation now serializes typed input
+unavailability when map identity, dimensions, equation labels, or coefficients
+are invalid.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

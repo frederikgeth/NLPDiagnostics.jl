@@ -4774,3 +4774,7 @@ mismatch and expected-value findings remain unchanged.
 The next scaling increment types coupled-constraint scale alignments that lack a
 supported feasibility-margin geometry as capability unavailability. Existing
 scalar and coupled mismatch findings remain unchanged.
+
+The next plugin-coordinate increment types malformed constitutive maps as input
+unavailability when identity, dimensions, equation labels, or coefficients fail
+validation. Existing valid map rank evidence remains unchanged.

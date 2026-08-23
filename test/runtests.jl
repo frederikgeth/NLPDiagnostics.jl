@@ -967,6 +967,27 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
         zeros(1, 1);
         equation_labels = ["equation"],
     )
+    malformed_constitutive_map = NLPDiagnostics.PortConstitutiveMap{Float64}(
+        :transformer, "tx", "malformed_map", ["high"], [["a"]],
+        [1.0 0.0], ["equation"], Dict{String,String}(),
+    )
+    malformed_constitutive_map_report =
+        NLPDiagnostics._component_port_constitutive_map_findings(
+            [malformed_constitutive_map],
+        )
+    @test length(findings(
+        malformed_constitutive_map_report,
+        :component_port_constitutive_map_dimension_mismatch,
+    )) == 1
+    malformed_constitutive_map_reason = only(filter(
+        item -> item["code"] == "component_port_constitutive_map_unavailable",
+        NLPDiagnostics.report_data(malformed_constitutive_map_report)[
+            "unavailable_reasons"
+        ],
+    ))
+    @test malformed_constitutive_map_reason["category"] == "input"
+    @test malformed_constitutive_map_reason["stage"] ==
+          "component_port_constitutive_map"
     per_unit_context = TestBMOPFContext(
         model, net, objects, (v_base = Dict("bus" => 230.0),),
     )
