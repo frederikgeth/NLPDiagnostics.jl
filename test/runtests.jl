@@ -97,6 +97,29 @@ end
     @test NLPDiagnostics.Stable.snapshot === NLPDiagnostics.snapshot
     @test NLPDiagnostics.Stable.analyze === NLPDiagnostics.analyze
     @test NLPDiagnostics.Stable.report_data === NLPDiagnostics.report_data
+
+    stable_model = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
+    stable_variable = MOI.add_variable(stable_model)
+    stable_constraint = MOI.ScalarAffineFunction(
+        [MOI.ScalarAffineTerm(1.0, stable_variable)], 0.0,
+    )
+    MOI.add_constraint(stable_model, stable_constraint, MOI.EqualTo(0.0))
+    stable_point = NLPDiagnostics.Stable.EvaluationPoint(
+        [stable_variable], [0.0]; label = "stable-api-smoke",
+    )
+    stable_snapshot = NLPDiagnostics.Stable.snapshot(stable_model)
+    stable_evaluation = NLPDiagnostics.Stable.evaluate_numerical(
+        stable_model, stable_point,
+    )
+    stable_report = NLPDiagnostics.Stable.analyze(
+        stable_model;
+        evaluation = stable_evaluation,
+        rank_max_dense_entries = 100,
+    )
+    @test length(stable_snapshot.variables) == 1
+    @test stable_evaluation.point == stable_point
+    @test stable_report isa NLPDiagnostics.DiagnosticReport
+    @test haskey(NLPDiagnostics.Stable.report_data(stable_report), "findings")
 end
 
 if Base.find_package("Ipopt") !== nothing

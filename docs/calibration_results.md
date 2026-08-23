@@ -1068,6 +1068,13 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Stable API runtime smoke
+
+The Stable-tier contract now has an MOI-only runtime smoke covering model
+snapshotting, explicit-point evaluation, solver-neutral analysis, and report
+serialization. It does not require Ipopt, MadNLP, or BMOPFTools and makes no
+solver-quality claim.
+
 ## 2026-08-23: Legacy root-export inventory
 
 The API-tier artifact now includes the complete list of 525 root-only exports,

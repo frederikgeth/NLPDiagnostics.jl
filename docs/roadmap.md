@@ -29,7 +29,10 @@ calibration cases, complete physical KKT/covariance coverage on the real
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
-The latest consolidation increment makes the legacy-root tier explicit in the
+The latest consolidation increment adds a MOI-only runtime smoke test for the
+Stable facade: it snapshots a model, evaluates an explicit point, runs
+solver-neutral analysis, and serializes the report without optional solver
+extensions. The legacy-root tier is now explicit in the
 machine-readable inventory: all 525 root-only exports are listed for review
 and are not implicitly Stable. The prior increment documents the
 Stable/Advanced/legacy-root
