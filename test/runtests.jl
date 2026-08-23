@@ -11764,6 +11764,14 @@ end
                 "reduced_hessian_active_jacobian_rank_persistence",
             misaligned_scaling_reasons,
         )
+        @test any(
+            item -> item["code"] ==
+                "reduced_hessian_jacobian_scaling_persistence_unavailable" &&
+                item["category"] == "input" &&
+                item["stage"] ==
+                "reduced_hessian_jacobian_scaling_persistence",
+            misaligned_scaling_reasons,
+        )
         malformed_scaling_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
             scaling_evaluation_2.point,
             scaling_evaluation_2.objective_value,

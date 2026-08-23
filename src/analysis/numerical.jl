@@ -6973,6 +6973,25 @@ function _append_reduced_hessian_jacobian_scaling_persistence_findings!(
     length(candidates) >= 2 || return report
     reference_sources = first(candidates).evaluation.constraint_sources
     if any(snapshot.evaluation.constraint_sources != reference_sources for snapshot in candidates)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "retained reduced-Hessian snapshots do not share one constraint-row source ordering",
+            );
+            code = :reduced_hessian_jacobian_scaling_persistence_unavailable,
+            category = :input,
+            stage = :reduced_hessian_jacobian_scaling_persistence,
+        )
+        report.metadata[:reduced_hessian_jacobian_scaling_persistence_available] =
+            "false"
+        report.metadata[:reduced_hessian_jacobian_scaling_persistence_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_jacobian_scaling_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_jacobian_scaling_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:reduced_hessian_jacobian_scaling_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(
             :reduced_hessian_jacobian_scaling_persistence_unaligned;
             severity = SeverityInfo,

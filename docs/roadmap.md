@@ -4734,3 +4734,7 @@ remain unchanged.
 The top-level condition/rank and reduced-Hessian coordinate-alignment
 deliverable is now implemented with typed input availability records and local
 regression coverage; existing mismatch findings remain unchanged.
+
+The next reduced-Hessian scaling increment types constraint-row alignment
+unavailability for Jacobian-scaling persistence. Existing alignment findings
+remain unchanged.
