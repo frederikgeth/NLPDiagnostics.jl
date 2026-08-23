@@ -6,7 +6,8 @@ using NLPDiagnostics
 using BMOPFTools
 using JuMP
 using Ipopt
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 const DEFAULT_ROOT = joinpath(@__DIR__, "..", "..", "BMOPFDraftData", "benchmarks")
 const DEFAULT_CASES = [
@@ -132,7 +133,7 @@ for relative in selected_cases(root)
 end
 output = abspath(get(ENV, "NLPDIAGNOSTICS_BMOPF_TOLERANCE_MARGIN_OUTPUT", joinpath(@__DIR__, "..", "work", "bmopf-30bus-ibr-p-upper-tolerance-margin.json")))
 mkpath(dirname(output))
-write(output, JSON.json(Dict(
+write_json(output, Dict(
     "schema_version" => "nlpdiagnostics-bmopf-30bus-ibr-p-upper-tolerance-margin-v1",
     "source" => Dict(
         "runner" => basename(@__FILE__),
@@ -144,5 +145,5 @@ write(output, JSON.json(Dict(
         "row_family" => "ibr_p_upper",
     ),
     "cases" => results,
-)))
+))
 println("wrote 30-bus IBR upper tolerance margin to $output")

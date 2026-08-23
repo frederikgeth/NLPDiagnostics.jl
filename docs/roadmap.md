@@ -30,12 +30,16 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/real_99bus_phase_only_tolerance_matrix.jl` to
-`benchmarks/common.jl`, bringing the shared helper to sixty-four core runners
-while preserving the four-case tolerance/budget sensitivity schema. Its
-bounded local smoke selected the baseline tolerance case and produced a report
-with all six phase-only runs locally solved, six solver-floor-calibrated
-acceptances, and strict physical KKT acceptance of 2/6. The prior increment
+`benchmarks/bmopf_30bus_ibr_p_upper_tolerance_margin.jl` to
+`benchmarks/common.jl`, bringing the shared helper to sixty-five core runners
+while preserving the per-row tolerance-margin ledger schema. Its local smoke
+selected one 30-bus LN snapshot and produced a margin report with required
+tolerance `1.049343932476267e-5`, sharpening the previously observed `1e-5`
+boundary without promoting a causal explanation. The prior increment migrated
+`benchmarks/real_99bus_phase_only_tolerance_matrix.jl`; its bounded local smoke
+selected the baseline tolerance case and produced a report with all six
+phase-only runs locally solved, six solver-floor-calibrated acceptances, and
+strict physical KKT acceptance of 2/6. The prior increment
 migrated `benchmarks/real_99bus_phase_only_structured_perturbation_matrix.jl`;
 its bounded local smoke selected the completed baseline case and produced a
 report with all six phase-only runs locally solved, six solver-floor-calibrated
@@ -4284,7 +4288,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-sixty-four core release, rank, runtime, and audit runners; the BMOPF campaign and
+sixty-five core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

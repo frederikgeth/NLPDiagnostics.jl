@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: 30-bus IBR tolerance-margin helper migration
+
+The per-row `ibr_p_upper` tolerance-margin ledger now uses the shared
+`benchmarks/common.jl` JSON writer. A local smoke on one 30-bus LN snapshot
+reported a required complementarity tolerance of `1.049343932476267e-5`,
+sharpening the `1e-5` boundary without turning it into a solver or formulation
+causal claim.
+
 ## 2026-08-23: real 99-bus tolerance matrix helper migration
 
 The real 99-bus phase-only tolerance/budget matrix now uses the shared
@@ -1319,7 +1327,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-sixty-four core release, rank, runtime, and audit runners; the BMOPF campaign and
+sixty-five core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
