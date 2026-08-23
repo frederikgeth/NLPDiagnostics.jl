@@ -7,11 +7,12 @@ termination or iteration changes are reported as observations only; no score
 or causal claim is inferred.
 """
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 function _load(path)
     isfile(path) || error("missing repeat artifact: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(path; root = "/")
     value isa AbstractDict || error("repeat artifact is not a JSON object: $path")
     value
 end
@@ -119,7 +120,7 @@ function main()
         aggregate["termination_change_count"] += changed_count
     end
     output_path = length(ARGS) == 2 ? abspath(ARGS[2]) : joinpath(root, "repeat_summary.json")
-    write(output_path, JSON.json(Dict(
+    write_json(output_path, Dict(
         "runner_version" => get(index, "runner_version", nothing),
         "repeat_index" => index_path,
         "benchmark_root" => get(index, "benchmark_root", nothing),
@@ -134,7 +135,7 @@ function main()
         "by_family" => by_family,
         "by_pair" => by_pair,
         "interpretation" => "Repeated observations expose baseline consistency and variant sensitivity; incomplete family omissions remain formulation experiments, not causal or physical proofs.",
-    )))
+    ))
     println("wrote repeated BMOPF perturbation summary to $output_path")
 end
 

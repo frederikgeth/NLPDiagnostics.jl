@@ -30,12 +30,11 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/summarize_bmopf_persistence.jl` to `benchmarks/common.jl`,
-bringing the shared helper to thirty-four core runners while preserving the
-availability, active-set, controller, and persistence summary schema. Its
-local smoke run completed successfully against both available saved-result
-artifacts, and the active-set transition count now handles empty sequences
-explicitly. The
+`benchmarks/summarize_bmopf_perturbation_repeats.jl` to `benchmarks/common.jl`,
+bringing the shared helper to thirty-five core runners while preserving the
+repeatability and artifact-error summary schema. Its local smoke run completed
+successfully against a two-replicate missing-artifact manifest, retaining both
+artifact errors explicitly and producing zero observations. The
 campaign and evidence-ledger summarizers and comparisons, formulation-
 intervention, multiconductor point/probe/crosscheck, saved-result unit/profile,
 IBR cross-fixture, source-solver and tangent-policy, solver-trace and matrix
@@ -4253,7 +4252,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-thirty-four core release, rank, runtime, and audit runners; the BMOPF campaign and
+thirty-five core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
