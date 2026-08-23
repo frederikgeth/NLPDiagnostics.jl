@@ -1068,6 +1068,13 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Read-only local quality baseline
+
+`benchmarks/check_local_quality.jl` now provides a local, non-CI quality
+baseline covering whitespace, API-tier/list consistency, JSON schema coverage,
+and release-gate shape. The known local run reports `ready=true` without
+installing packages or mutating repository artifacts.
+
 ## 2026-08-23: Stable API runtime smoke
 
 The Stable-tier contract now has an MOI-only runtime smoke covering model
@@ -1650,7 +1657,7 @@ release work.
 
 The consolidation audit records the current engineering boundary without
 changing existing result layouts: 539 unique root exports, 113 root testsets
-across nine included test modules, 107 benchmark scripts, and schema versions
+across nine included test modules, 108 benchmark scripts, and schema versions
 on all 48 JSON artifacts. It also counts 28 bare source `catch` boundaries.
 The new
 `UnavailableReason` type and `unavailable_reason_data` boundary serializer
@@ -1669,7 +1676,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-104 core release, rank, runtime, and audit runners; the BMOPF campaign and
+105 core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

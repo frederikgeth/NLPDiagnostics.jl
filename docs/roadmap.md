@@ -29,7 +29,11 @@ calibration cases, complete physical KKT/covariance coverage on the real
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
-The latest consolidation increment adds a MOI-only runtime smoke test for the
+The latest consolidation increment adds the read-only
+`benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
+tier/list consistency, JSON schema coverage, and release-gate shape without CI,
+package installation, or artifact mutation; the known local run reports
+`ready=true`. The prior increment adds a MOI-only runtime smoke test for the
 Stable facade: it snapshots a model, evaluates an explicit point, runs
 solver-neutral analysis, and serializes the report without optional solver
 extensions. The legacy-root tier is now explicit in the
@@ -67,7 +71,7 @@ migrated
 `benchmarks/bmopf_acdc_multiconverter_madnlp_campaign.jl` to qualified
 `benchmarks/common.jl` JSON writes, including feeder checkpoints. The audit now
 recognizes both imported and qualified helper usage, bringing the shared helper
-to 104 core runners. All AC/DC campaign files pass local include/syntax checks.
+to 105 core runners. All AC/DC campaign files pass local include/syntax checks.
 A bounded AC/DC scaling launch reaches the known active BMOPFTools `OpfScaling`
 contract boundary (`UndefVarError`), so no AC/DC scaling or solver
 qualification was promoted. The prior increment migrated
@@ -4454,7 +4458,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-104 core release, rank, runtime, and audit runners; the BMOPF campaign and
+105 core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
