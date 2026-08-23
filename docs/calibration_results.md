@@ -102,6 +102,11 @@ the baseline or retained-family dense rank path is unavailable. Sparse-pattern
 fallback findings remain available, while the local guard case makes no rank or
 causal attribution claim.
 
+Iterative right- and left-null candidate persistence now serialize typed
+numerical records when too few finite probes are available for comparison. The
+existing finite-budget persistence semantics remain unchanged; no nullspace or
+physical conclusion is promoted.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.

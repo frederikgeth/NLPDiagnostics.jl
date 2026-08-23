@@ -7659,6 +7659,29 @@ end
             left_probe_persistence,
             :iterative_left_nullspace_persistence_persistent,
         )) == 1
+        for (report, code, stage) in (
+            (
+                NLPDiagnostics.analyze_iterative_right_nullspace_persistence(
+                    [evaluation],
+                ),
+                "iterative_right_nullspace_persistence_unavailable",
+                "iterative_right_nullspace_persistence",
+            ),
+            (
+                NLPDiagnostics.analyze_iterative_left_nullspace_persistence(
+                    [evaluation],
+                ),
+                "iterative_left_nullspace_persistence_unavailable",
+                "iterative_left_nullspace_persistence",
+            ),
+        )
+            reason = only(filter(
+                item -> item["code"] == code,
+                NLPDiagnostics.report_data(report)["unavailable_reasons"],
+            ))
+            @test reason["category"] == "numerical"
+            @test reason["stage"] == stage
+        end
         right_probe_persistence_from_model =
             NLPDiagnostics.analyze_iterative_right_nullspace_persistence(
                 model,

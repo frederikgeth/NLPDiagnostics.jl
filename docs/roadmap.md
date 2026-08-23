@@ -204,6 +204,11 @@ baseline or retained-family dense rank path is guarded or has no retained
 rows. Sparse-pattern fallback findings remain intact and are not promoted to a
 numerical rank or causal formulation conclusion.
 
+The next iterative-persistence increment types right- and left-candidate
+subspace unavailability when too few finite probes complete their bounded
+product paths. Existing coordinate-mismatch, no-candidate, and persistence
+findings remain unchanged.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

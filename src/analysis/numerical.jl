@@ -4045,6 +4045,24 @@ function _iterative_probe_persistence_report(
     available_indices = findall(probe -> probe.available, probes)
     report.metadata[:available_evaluation_count] = string(length(available_indices))
     if length(available_indices) < minimum_evaluations
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "only $(length(available_indices)) supplied evaluation(s) have an available iterative $(side)-candidate probe; at least $(minimum_evaluations) required",
+            );
+            code = Symbol(stage_prefix * "_unavailable"),
+            category = :numerical,
+            stage = Symbol(stage_prefix),
+        )
+        availability_key = Symbol(stage_prefix * "_available")
+        report.metadata[availability_key] = "false"
+        report.metadata[Symbol(stage_prefix * "_reason")] = typed_reason.message
+        report.metadata[Symbol(stage_prefix * "_unavailable_reason")] =
+            typed_reason.message
+        report.metadata[Symbol(stage_prefix * "_category")] =
+            string(typed_reason.category)
+        report.metadata[Symbol(stage_prefix * "_stage")] =
+            string(typed_reason.stage)
         push!(report, Finding(
             Symbol(stage_prefix * "_unavailable");
             severity = SeverityInfo,
@@ -4090,6 +4108,7 @@ function _iterative_probe_persistence_report(
     report.metadata[:candidate_probe_converged_count] = string(count(identity, converged))
     report.metadata[:candidate_support_coordinate_count] =
         string(length(supported_coordinates))
+    report.metadata[Symbol(stage_prefix * "_available")] = "true"
     if all(iszero, dimensions)
         push!(report, Finding(
             Symbol(stage_prefix * "_no_small_residual_candidate");
