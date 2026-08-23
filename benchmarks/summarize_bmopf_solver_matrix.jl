@@ -8,7 +8,8 @@ comparison subprocesses are recorded explicitly rather than treated as empty
 or successful evidence.
 """
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 function _int(value, default = 0)
     value isa Integer && return Int(value)
@@ -258,7 +259,7 @@ function main()
     root = abspath(ARGS[1])
     index_path = joinpath(root, "matrix_index.json")
     isfile(index_path) || error("missing matrix_index.json in $root")
-    index = JSON.parsefile(index_path)
+    index = read_summary(index_path; root = "/")
     solvers = String.(get(index, "solvers", String[]))
     isempty(solvers) && error("matrix_index.json contains no solvers")
     project_raw = get(ENV, "NLPDIAGNOSTICS_BENCHMARK_PROJECT", "")
@@ -275,7 +276,7 @@ function main()
             summaries[solver] = _compact_summary(Dict{String,Any}())
         else
             summary_paths[solver] = result.path
-            summary = JSON.parsefile(result.path)
+            summary = read_summary(result.path; root = "/")
             full_summaries[solver] = summary
             compact = _compact_summary(summary)
             compact["summary_path"] = result.path
@@ -305,7 +306,7 @@ function main()
                 "left" => left,
                 "right" => right,
                 "path" => output_path,
-                "comparison" => JSON.parsefile(output_path),
+                "comparison" => read_summary(output_path; root = "/"),
             )
         else
             comparisons[key] = Dict{String,Any}(
@@ -352,7 +353,7 @@ function main()
         statuses = Dict{String,Int}()
         if available
             child_index = try
-                JSON.parsefile(child_index_path)
+                read_summary(child_index_path; root = "/")
             catch
                 Dict{String,Any}()
             end
@@ -385,7 +386,7 @@ function main()
                             process_health["process_timeout_count"] == 0 &&
                             process_health["process_wait_error_count"] == 0 &&
                             process_health["nonzero_process_exit_count"] == 0
-    write(output_path, JSON.json(Dict(
+    write_json(output_path, Dict(
         "runner_version" => get(index, "runner_version", nothing),
         "matrix_index" => index_path,
         "benchmark_root" => get(index, "benchmark_root", nothing),
@@ -412,7 +413,7 @@ function main()
         ),
         "child_status_counts" => child_status_counts,
         "process_health" => process_health,
-    )))
+    ))
     println("wrote BMOPF solver matrix summary to $output_path")
 end
 
