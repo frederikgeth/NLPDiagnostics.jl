@@ -341,6 +341,7 @@ summary = Dict{String,Any}(
             "typed unavailable-reason serialization for component-port nullspace-mode semantics boundaries",
             "typed unavailable-reason serialization for component-port topology projection boundaries",
             "typed unavailable-reason serialization for component-port nominal-scale projection boundaries",
+            "typed unavailable-reason serialization for coupled-constraint scale alignment boundaries",
             "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
             "reviewed local quality policy with explicit deferred-tool boundaries",
         ],

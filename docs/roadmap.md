@@ -4770,3 +4770,7 @@ and existing representational findings remain unchanged.
 The next plugin-coordinate increment types nominal-scale projections that lack a
 directly supported one-terminal map as capability unavailability. Existing scale
 mismatch and expected-value findings remain unchanged.
+
+The next scaling increment types coupled-constraint scale alignments that lack a
+supported feasibility-margin geometry as capability unavailability. Existing
+scalar and coupled mismatch findings remain unchanged.

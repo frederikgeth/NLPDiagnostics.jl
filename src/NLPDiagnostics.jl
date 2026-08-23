@@ -1189,6 +1189,25 @@ function analyze_component_constraint_scales(
     report.metadata[:component_coupled_constraint_scale_unsupported_geometry_count] = string(unsupported_geometry)
     report.metadata[:component_coupled_constraint_scale_unavailable_residual_count] = string(unavailable_residual)
     report.metadata[:component_coupled_constraint_scale_supported_geometry_count] = string(checked + unavailable_residual)
+    if unavailable > 0
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "one or more component constraint scales cannot be aligned with a supported coupled-set feasibility margin",
+            );
+            code = :component_coupled_constraint_scale_alignment_unavailable,
+            category = :capability,
+            stage = :component_coupled_constraint_scale_alignment,
+        )
+        report.metadata[:component_coupled_constraint_scale_alignment_reason] =
+            typed_reason.message
+        report.metadata[:component_coupled_constraint_scale_alignment_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:component_coupled_constraint_scale_alignment_category] =
+            string(typed_reason.category)
+        report.metadata[:component_coupled_constraint_scale_alignment_stage] =
+            string(typed_reason.stage)
+    end
     unavailable == 0 || push!(report, Finding(:component_coupled_constraint_scale_alignment_unavailable;
         severity = SeverityInfo, domain = RepresentationalIssue,
         basis = StructuralProof, confidence = ConfidenceCertain,

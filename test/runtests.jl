@@ -3306,6 +3306,16 @@ end
         stale_coupled_scale_report,
         :component_coupled_constraint_scale_alignment_unavailable,
     )) == 1
+    stale_coupled_scale_reason = only(filter(
+        item -> item["code"] ==
+            "component_coupled_constraint_scale_alignment_unavailable",
+        NLPDiagnostics.report_data(stale_coupled_scale_report)[
+            "unavailable_reasons"
+        ],
+    ))
+    @test stale_coupled_scale_reason["category"] == "capability"
+    @test stale_coupled_scale_reason["stage"] ==
+          "component_coupled_constraint_scale_alignment"
     unsupported_coupled_activity = NLPDiagnostics.CoupledSetActivity{Float64}(
         constraint_scale_reference, :plugin_coupled_set,
         Union{Missing,Float64}[0.0], nothing, 1.0, false, :violated, nothing,

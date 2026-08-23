@@ -1815,6 +1815,9 @@ coordinate-map consistency prevents projection into model coordinates.
 Nominal-scale port projection now serializes typed capability unavailability when
 the generic core lacks a directly supported one-terminal coordinate map.
 
+Coupled-constraint scale alignment now serializes typed capability unavailability
+when source associations or supported feasibility-margin geometry are missing.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at
