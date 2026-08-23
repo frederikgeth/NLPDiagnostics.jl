@@ -274,6 +274,15 @@ if Base.find_package("MadNLP") !== nothing
         ]["monotone_within_segments"] !== false
         capability = NLPDiagnostics.madnlp_primal_capture_capability()
         @test capability.metadata[:primal_callback] == "unavailable"
+        @test capability.metadata[:primal_callback_reason] ==
+              "MadNLP's public intermediate callback exposes no stable public primal-vector accessor"
+        capability_data = NLPDiagnostics.report_data(capability)
+        @test length(capability_data["unavailable_reasons"]) == 1
+        @test capability_data["unavailable_reasons"][1]["code"] ==
+              "madnlp_primal_capture_unavailable"
+        @test capability_data["unavailable_reasons"][1]["category"] == "capability"
+        @test capability_data["unavailable_reasons"][1]["stage"] ==
+              "madnlp_primal_capture"
         @test count(finding -> finding.code == :madnlp_primal_capture_unavailable,
                     capability.findings) == 1
     end

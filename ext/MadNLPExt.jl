@@ -173,6 +173,17 @@ function NLPDiagnostics.madnlp_primal_capture_capability()
     report.metadata[:solver] = "MadNLP"
     report.metadata[:metric_callback] = "available"
     report.metadata[:primal_callback] = "unavailable"
+    typed_reason = NLPDiagnostics.unavailable_reason(
+        (
+            available = false,
+            reason = "MadNLP's public intermediate callback exposes no stable public primal-vector accessor",
+        );
+        code = :madnlp_primal_capture_unavailable,
+        category = :capability,
+        stage = :madnlp_primal_capture,
+    )
+    report.metadata[:primal_callback_reason] = typed_reason.message
+    report.metadata[:primal_callback_unavailable_reason] = typed_reason.message
     push!(report, NLPDiagnostics.Finding(:madnlp_primal_capture_unavailable;
         severity = NLPDiagnostics.SeverityInfo,
         domain = NLPDiagnostics.RepresentationalIssue,

@@ -1693,6 +1693,12 @@ the existing per-network findings and counts. The extension source parses
 successfully, while optional PowerModels execution remains dependent on the
 configured local environment.
 
+The MadNLP primal-capture capability report now emits a typed capability record
+for its unavailable primal-vector accessor while preserving the existing
+metric/primal metadata and finding. The extension source parses successfully,
+but MadNLP is not installed in the known environment, so no MadNLP runtime
+qualification is claimed.
+
 ## 2026-08-22: sparse runtime/allocation scaling calibration
 
 The deterministic sparse profiling corpus was measured at dimensions 16, 32,

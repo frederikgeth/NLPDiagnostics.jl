@@ -70,6 +70,13 @@ findings and counts while renderer-neutral report data gains a stable
 capability code, category, stage, and reason. The extension source parses
 locally; optional PowerModels execution remains environment-dependent.
 
+The next capability increment types the MadNLP primal-capture boundary. The
+metric callback remains explicitly available while the primal-vector accessor
+remains unavailable; report data now records the capability code, category,
+stage, and preserved reason. The extension source parses locally, but MadNLP
+is not installed in the known environment, so no solver-extension runtime
+qualification is promoted.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,
