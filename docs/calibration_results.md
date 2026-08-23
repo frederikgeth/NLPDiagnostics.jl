@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Solver-failure helper migration
+
+The intentionally problematic solver-case harness now uses the shared
+`benchmarks/common.jl` JSON writer for per-case records and the aggregate index.
+A local Ipopt run completed all four cases and retained observed resource-limit,
+infeasible, and numerical-failure categories. These outcomes are diagnostic
+telemetry, not solver-quality claims.
+
 ## 2026-08-23: Restarted smallest-singular calibration helper migration
 
 The deterministic restarted smallest-singular calibration now uses the shared
@@ -1473,7 +1481,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-eighty-three core release, rank, runtime, and audit runners; the BMOPF campaign and
+eighty-four core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

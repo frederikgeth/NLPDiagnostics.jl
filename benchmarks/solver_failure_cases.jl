@@ -11,9 +11,11 @@ is evidence for follow-up, not a failed benchmark assertion.
 using NLPDiagnostics
 using JuMP
 using Ipopt
-using JSON
 
 import MathOptInterface as MOI
+
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 const _MADNLP_AVAILABLE = try
     @eval import MadNLP
@@ -260,7 +262,7 @@ function _run_case(case, solver, output_dir)
         "log_configuration_error" => log_configuration_error,
     )
     filename = "$(solver)__$(case.name).json"
-    write(joinpath(output_dir, filename), JSON.json(payload))
+    write_json(joinpath(output_dir, filename), payload)
     return Dict{String,Any}(
         "case" => case.name, "solver" => solver,
         "result_file" => filename, "status" => payload["status"],
@@ -270,12 +272,12 @@ function _run_case(case, solver, output_dir)
 end
 
 function _write_index(output_dir, environment, solvers, index)
-    write(joinpath(output_dir, "index.json"), JSON.json(Dict(
+    write_json(joinpath(output_dir, "index.json"), Dict(
         "runner_version" => "solver-failure-cases-v2",
         "environment" => environment,
         "solvers" => solvers,
         "cases" => index,
-    )))
+    ))
     return nothing
 end
 
