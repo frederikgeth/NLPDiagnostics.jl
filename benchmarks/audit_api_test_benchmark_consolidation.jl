@@ -251,7 +251,7 @@ summary = Dict{String,Any}(
             "explicit Stable/Advanced facades and root-export tier inventory",
             "typed unavailable-reason serialization for solver linear telemetry",
             "typed unavailable-reason serialization for solver-dual and complementarity boundaries",
-            "generic report-boundary unavailable-reason collection",
+            "generic report-boundary unavailable-reason collection for paired and suffix-only metadata",
         ],
         "remaining_work" => [
             "review the deliberately small Stable facade and document stable versus advanced/experimental API tiers",

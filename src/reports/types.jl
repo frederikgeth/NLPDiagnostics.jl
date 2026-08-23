@@ -335,6 +335,7 @@ end
 
 function _report_unavailable_reason_data(metadata::Dict{String,String})
     records = Dict{String,Any}[]
+    seen = Set{String}()
     for availability_key in sort!(collect(keys(metadata)))
         endswith(availability_key, "_available") || continue
         metadata[availability_key] == "false" || continue
@@ -356,6 +357,27 @@ function _report_unavailable_reason_data(metadata::Dict{String,String})
         data = unavailable_reason_data(typed)
         data["capability"] = stem
         data["availability_key"] = availability_key
+        data["reason_key"] = reason_key
+        push!(records, data)
+        push!(seen, stem)
+    end
+    for reason_key in sort!(collect(keys(metadata)))
+        endswith(reason_key, "_unavailable_reason") || continue
+        reason = metadata[reason_key]
+        isempty(reason) && continue
+        stem = reason_key[1:(end - length("_unavailable_reason"))]
+        stem in seen && continue
+        stage_text = get(metadata, "stage", nothing)
+        stage = isnothing(stage_text) || isempty(stage_text) ?
+            nothing : Symbol(stage_text)
+        typed = UnavailableReason(
+            reason;
+            code = Symbol(stem * "_unavailable"),
+            category = :capability,
+            stage,
+        )
+        data = unavailable_reason_data(typed)
+        data["capability"] = stem
         data["reason_key"] = reason_key
         push!(records, data)
     end

@@ -1071,9 +1071,10 @@ or full network semantics. The compact result is tracked at
 ## 2026-08-23: Generic report unavailable-reason collection
 
 `report_data` now emits a typed `unavailable_reasons` collection for legacy
-`*_available`/`*_reason` metadata pairs while preserving the original metadata
-verbatim. The focused serializer probe and local regression suite pass. This
-is report-boundary schema evidence, not a capability-availability or solver
+`*_available`/`*_reason` metadata pairs and suffix-only
+`*_unavailable_reason` fields while preserving the original metadata verbatim.
+Focused serializer probes and the local regression suite pass. This is
+report-boundary schema evidence, not a capability-availability or solver
 quality claim.
 
 ## 2026-08-23: Typed solver-dual unavailable boundaries

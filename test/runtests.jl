@@ -2558,6 +2558,17 @@ end
     @test only(unavailable_data["unavailable_reasons"])["stage"] == "numerical"
     @test only(unavailable_data["unavailable_reasons"])["reason_key"] ==
         "sparse_qr_rank_reason"
+    native_unavailable_report = NLPDiagnostics.DiagnosticReport(
+        NLPDiagnostics.Finding[],
+        Dict(
+            :stage => "iterative_right_nullspace_probe",
+            :iterative_probe_native_operator_unavailable_reason =>
+                "native JacVec callback unavailable",
+        ),
+    )
+    native_unavailable_data = NLPDiagnostics.report_data(native_unavailable_report)
+    @test only(native_unavailable_data["unavailable_reasons"])["code"] ==
+        "iterative_probe_native_operator_unavailable"
     finding_data = only(data["findings"])
     @test finding_data["severity"] == "warning"
     @test finding_data["domain"] == "numerical"
