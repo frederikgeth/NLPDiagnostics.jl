@@ -2,7 +2,8 @@
 
 """Summarize BMOPF multiconductor smoke records without scoring them."""
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 _as_dict(value) = value isa AbstractDict ?
     Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()
@@ -146,7 +147,7 @@ end
 
 function _load(path)
     isfile(path) || error("missing smoke report: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(path; root = "/")
     value isa AbstractDict || error("smoke report is not a JSON object: $path")
     return value
 end
@@ -1968,7 +1969,7 @@ function main()
         "findings" => findings,
         "interpretation" => "Multiconductor contract aggregation only; port maps and physical modes are evidence records, not solver-independent physical certificates.",
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote BMOPF multiconductor smoke summary to $output_path")
 end
 
