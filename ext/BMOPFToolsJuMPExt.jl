@@ -8050,6 +8050,7 @@ function _bmopf_passive_network_current_map_report(context; basis::Symbol = :si)
     report = NLPDiagnostics._component_port_constitutive_map_findings(maps)
     report.metadata[:bmopf_passive_network_current_map_count] = string(length(maps))
     report.metadata[:bmopf_passive_network_current_map_basis] = "BMOPFTools.ybus_passive"
+    report.metadata[:bmopf_passive_network_current_map_available] = string(!isempty(maps))
     if !isempty(maps)
         metadata = first(maps).metadata
         report.metadata[:bmopf_passive_network_node_count] = get(metadata, "node_count", "0")
@@ -8070,6 +8071,17 @@ function _bmopf_passive_network_current_map_report(context; basis::Symbol = :si)
             ))
         end
     elseif requested_model_basis
+        typed_reason = NLPDiagnostics.unavailable_reason(
+            (
+                available = false,
+                reason = "a model-basis passive Ybus map could not be assembled because public bus voltage/current bases are missing or invalid",
+            );
+            code = :bmopf_passive_network_model_basis_unavailable,
+            category = :capability,
+            stage = :bmopf_passive_network_current_map,
+        )
+        report.metadata[:bmopf_passive_network_current_map_reason] = typed_reason.message
+        report.metadata[:bmopf_passive_network_current_map_unavailable_reason] = typed_reason.message
         push!(report, NLPDiagnostics.Finding(:bmopf_passive_network_model_basis_unavailable;
             severity = NLPDiagnostics.SeverityWarning,
             domain = NLPDiagnostics.RepresentationalIssue,
@@ -8080,6 +8092,17 @@ function _bmopf_passive_network_current_map_report(context; basis::Symbol = :si)
             suggested_actions = ["Declare finite positive public voltage and current bases for every Ybus node, or request basis=:si and retain the unit conversion boundary."],
         ))
     else
+        typed_reason = NLPDiagnostics.unavailable_reason(
+            (
+                available = false,
+                reason = "BMOPFTools did not provide a nonempty passive Ybus map for this staged context",
+            );
+            code = :bmopf_passive_network_map_unavailable,
+            category = :capability,
+            stage = :bmopf_passive_network_current_map,
+        )
+        report.metadata[:bmopf_passive_network_current_map_reason] = typed_reason.message
+        report.metadata[:bmopf_passive_network_current_map_unavailable_reason] = typed_reason.message
         push!(report, NLPDiagnostics.Finding(:bmopf_passive_network_map_unavailable;
             severity = NLPDiagnostics.SeverityInfo,
             domain = NLPDiagnostics.RepresentationalIssue,

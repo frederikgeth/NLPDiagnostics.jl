@@ -83,6 +83,12 @@ renderer-neutral report data gains a stable capability code, category, stage,
 and reason. The extension source parses locally; runtime qualification remains
 dependent on the active BMOPFTools checkout.
 
+The next BMOPFTools capability increment types passive-network current-map
+availability. Missing model bases and missing public Ybus maps retain their
+existing warning/info findings, while renderer-neutral report data gains
+stable capability codes, category, stage, and reason fields. The extension
+source parses locally; runtime qualification remains dependency-bound.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

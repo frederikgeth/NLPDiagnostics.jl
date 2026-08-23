@@ -302,6 +302,7 @@ summary = Dict{String,Any}(
             "typed unavailable-reason serialization for PowerModels scalar-angle capability reports",
             "typed unavailable-reason serialization for MadNLP primal-capture capability reports",
             "typed unavailable-reason serialization for BMOPFTools terminal-current capability reports",
+            "typed unavailable-reason serialization for BMOPFTools passive-network map capability reports",
             "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
             "reviewed local quality policy with explicit deferred-tool boundaries",
         ],

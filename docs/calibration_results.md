@@ -1705,6 +1705,11 @@ preserving the skipped-port count and existing finding. The extension source
 parses successfully; runtime qualification remains dependent on the active
 BMOPFTools checkout.
 
+The BMOPFTools passive-network current-map report now emits typed capability
+records for missing model-basis maps and missing public Ybus maps, preserving
+the existing unit and warning/info boundaries. The extension source parses
+successfully; runtime qualification remains dependent on the active checkout.
+
 ## 2026-08-22: sparse runtime/allocation scaling calibration
 
 The deterministic sparse profiling corpus was measured at dimensions 16, 32,

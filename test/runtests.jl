@@ -931,7 +931,10 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     @test length(passive_current_maps) == 1
     @test passive_current_maps[1].metadata["map_role"] == "passive_network_current"
     @test size(passive_current_maps[1].matrix, 1) == size(passive_current_maps[1].matrix, 2)
-    @test isempty(NLPDiagnostics.bmopf_passive_network_current_map_report(transformer_context).findings)
+    passive_map_report = NLPDiagnostics.bmopf_passive_network_current_map_report(transformer_context)
+    @test isempty(passive_map_report.findings)
+    @test passive_map_report.metadata[:bmopf_passive_network_current_map_available] == "true"
+    @test isempty(NLPDiagnostics.report_data(passive_map_report)["unavailable_reasons"])
     pu_transformer_context = TestBMOPFContext(
         transformer_model, transformer_net, transformer_objects,
         (v_base = Dict("high" => 100.0, "low" => 10.0),
