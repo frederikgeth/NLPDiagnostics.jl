@@ -10,11 +10,12 @@ Usage:
     julia summarize_bmopf_controller_campaign.jl output.json persistence1.json ...
 """
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 function _load(path)
     isfile(path) || error("controller campaign report is missing: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(path; root = "/")
     value isa AbstractDict || error("controller campaign report is not an object: $path")
     return value
 end
@@ -257,14 +258,14 @@ function main()
     reports = [_summarize(abspath(path);
         slope_change_factor = threshold, residual_tolerance,
     ) for path in ARGS[2:end]]
-    write(output_path, JSON.json(Dict(
+    write_json(output_path, Dict(
         "report_version" => "bmopf-controller-campaign-summary-v1",
         "report_count" => length(reports),
         "slope_change_factor_threshold" => threshold,
         "residual_tolerance" => residual_tolerance,
         "reports" => reports,
         "interpretation" => "Controller observations are local numerical evidence. Slope changes, breakpoint proximity, residuals, and coverage transitions do not by themselves establish a physical or formulation defect.",
-    )))
+    ))
     println("wrote BMOPF controller campaign summary to $output_path")
 end
 
