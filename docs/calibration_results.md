@@ -1068,6 +1068,15 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Source-preserving solver-matrix helper migration
+
+The source-preserving DSS solver matrix now uses the shared
+`benchmarks/common.jl` JSON writer for its matrix manifest. A bounded run
+completed one `pf_zip_3ph.dss` case at `max_iter=1` with status `ok`,
+classification `solver_failure_not_explained_by_source_domain_thresholds`, and
+all source-contract, coordinate-alignment, auxiliary-model, derivative,
+row-family, and completion readiness gates passing.
+
 ## 2026-08-23: Isolated solver-failure launcher hardening
 
 The isolated solver-failure launcher now uses the shared
@@ -1554,7 +1563,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-ninety-three core release, rank, runtime, and audit runners; the BMOPF campaign and
+ninety-four core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

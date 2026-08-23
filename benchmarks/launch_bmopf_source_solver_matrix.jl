@@ -10,6 +10,9 @@ a scalar score.
 
 using JSON
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
+
 const _RUNNER_VERSION = "bmopf-source-solver-matrix-v4"
 const _DEFAULT_CASES = [
     "pf_1ph_perfectneutral.dss",
@@ -414,7 +417,7 @@ function main()
         "capture_points" => capture_points,
         "capture_row_family_residuals" => capture_residuals,
     )
-        write(manifest_path, JSON.json(payload))
+        write_json(manifest_path, payload)
         println("max_iter=$(budget) $(relative): $(entry["status"]) " *
                 "classification=$(entry["classification"])")
     end
