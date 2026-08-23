@@ -620,7 +620,7 @@
   "module_boundaries": {
     "benchmark_script_count": 107,
     "shared_benchmark_helper": "benchmarks/common.jl",
-    "shared_benchmark_helper_user_count": 84,
+    "shared_benchmark_helper_user_count": 85,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
       "benchmarks/audit_api_tiers.jl",
@@ -661,6 +661,7 @@
       "benchmarks/compare_bmopf_tangent_policies.jl",
       "benchmarks/corpus_fingerprint_report.jl",
       "benchmarks/inventory_bmopf_draft_corpus.jl",
+      "benchmarks/launch_bmopf_solver_trace.jl",
       "benchmarks/operator_fingerprint_smoke.jl",
       "benchmarks/phase_only_99bus_snapshot_campaign.jl",
       "benchmarks/phase_only_campaign_comparison.jl",

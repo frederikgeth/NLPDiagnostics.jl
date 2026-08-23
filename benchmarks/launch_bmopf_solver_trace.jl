@@ -11,6 +11,9 @@ stdout/stderr evidence to `index.json`.
 
 using JSON
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
+
 function _selected_cases()
     raw = filter(!isempty, strip.(split(
         get(ENV, "NLPDIAGNOSTICS_BMOPF_CASES", ""), ',';
@@ -219,10 +222,10 @@ function main()
         push!(entries, _run_child(script, project, output_dir, relative, timeout_seconds))
         # Persist after each child. A later native crash or parent interruption
         # must not erase completed case records.
-        write(index_path, JSON.json(_index_data(project, timeout_seconds, entries)))
+        write_json(index_path, _index_data(project, timeout_seconds, entries))
         println("$(entries[end]["name"]): $(entries[end]["status"]) exit=$(entries[end]["process_exit_code"])")
     end
-    write(index_path, JSON.json(_index_data(project, timeout_seconds, entries)))
+    write_json(index_path, _index_data(project, timeout_seconds, entries))
     println("wrote isolated BMOPF solver-trace evidence to $output_dir")
 end
 

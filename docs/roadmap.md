@@ -30,9 +30,15 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/solver_failure_cases.jl` to `benchmarks/common.jl`, bringing the
-shared helper to eighty-four core runners while preserving per-case failure
-records and the aggregate index schema. A local Ipopt run completed all four
+`benchmarks/launch_bmopf_solver_trace.jl` to `benchmarks/common.jl`, bringing
+the shared helper to eighty-five core runners while preserving incremental
+isolated-process index writes and checkpoint parsing. A bounded local launcher
+run wrote its index with an explicit child `process_exit` record; the child was
+blocked by the sandboxed Julia precompile-lock permission boundary before
+loading the trace runner. The direct trace runner remains locally validated, so
+this launcher result is retained as environment evidence rather than trace
+qualification. The prior increment migrated
+`benchmarks/solver_failure_cases.jl`; its local Ipopt run completed all four
 intentionally problematic cases and retained distinct observed categories for
 resource limit, infeasibility, and numerical failure. The prior increment
 migrated `benchmarks/calibrate_restarted_smallest_singular.jl`; its local run
@@ -4351,7 +4357,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-eighty-four core release, rank, runtime, and audit runners; the BMOPF campaign and
+eighty-five core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
