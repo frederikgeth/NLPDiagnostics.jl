@@ -7810,7 +7810,19 @@ function _bmopf_terminal_current_port_report(context)
     report.metadata[:bmopf_terminal_current_port_coordinate_map_count] = string(length(declaration.maps))
     report.metadata[:bmopf_terminal_current_port_coordinate_semantics_count] = string(length(declaration.semantics))
     report.metadata[:bmopf_terminal_current_port_skipped_count] = string(length(declaration.skipped))
+    report.metadata[:bmopf_terminal_current_port_available] = string(isempty(declaration.skipped))
     if !isempty(declaration.skipped)
+        typed_reason = NLPDiagnostics.unavailable_reason(
+            (
+                available = false,
+                reason = "one or more BMOPFTools terminal-current coordinate ports could not be mapped to registered variables",
+            );
+            code = :bmopf_terminal_current_port_unavailable,
+            category = :capability,
+            stage = :bmopf_terminal_current_port,
+        )
+        report.metadata[:bmopf_terminal_current_port_reason] = typed_reason.message
+        report.metadata[:bmopf_terminal_current_port_unavailable_reason] = typed_reason.message
         push!(report, NLPDiagnostics.Finding(:bmopf_terminal_current_port_unavailable;
             severity = NLPDiagnostics.SeverityInfo,
             domain = NLPDiagnostics.RepresentationalIssue,

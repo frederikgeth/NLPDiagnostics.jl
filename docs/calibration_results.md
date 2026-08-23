@@ -1699,6 +1699,12 @@ metric/primal metadata and finding. The extension source parses successfully,
 but MadNLP is not installed in the known environment, so no MadNLP runtime
 qualification is claimed.
 
+The BMOPFTools terminal-current port report now emits a typed capability record
+when registered current coordinates cannot be mapped to model variables,
+preserving the skipped-port count and existing finding. The extension source
+parses successfully; runtime qualification remains dependent on the active
+BMOPFTools checkout.
+
 ## 2026-08-22: sparse runtime/allocation scaling calibration
 
 The deterministic sparse profiling corpus was measured at dimensions 16, 32,

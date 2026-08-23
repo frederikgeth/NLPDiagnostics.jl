@@ -77,6 +77,12 @@ stage, and preserved reason. The extension source parses locally, but MadNLP
 is not installed in the known environment, so no solver-extension runtime
 qualification is promoted.
 
+The next BMOPFTools capability increment types the terminal-current port
+coverage boundary. Skipped ports retain their existing count and finding, while
+renderer-neutral report data gains a stable capability code, category, stage,
+and reason. The extension source parses locally; runtime qualification remains
+dependent on the active BMOPFTools checkout.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

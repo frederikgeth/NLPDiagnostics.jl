@@ -798,9 +798,12 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
         NLPDiagnostics.bmopf_terminal_current_port_coordinate_maps(branch_current_context)
     @test length(branch_current_maps) == 2
     @test all(map -> map.terminal_to_variable ≈ [0.5 -0.5], branch_current_maps)
-    @test isempty(NLPDiagnostics.bmopf_terminal_current_port_report(
+    branch_current_report = NLPDiagnostics.bmopf_terminal_current_port_report(
         branch_current_context,
-    ).findings)
+    )
+    @test isempty(branch_current_report.findings)
+    @test branch_current_report.metadata[:bmopf_terminal_current_port_available] == "true"
+    @test isempty(NLPDiagnostics.report_data(branch_current_report)["unavailable_reasons"])
 
     transformer_model = JuMP.Model()
     JuMP.@variable(transformer_model, vr_high[1:2])
