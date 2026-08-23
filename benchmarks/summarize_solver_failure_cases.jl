@@ -2,7 +2,8 @@
 
 """Summarize `solver_failure_cases.jl` evidence without asserting expected outcomes."""
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 function _count_codes(report)
     counts = Dict{String,Int}()
@@ -28,7 +29,7 @@ function main()
     output_dir = abspath(ARGS[1])
     index_path = joinpath(output_dir, "index.json")
     isfile(index_path) || error("missing index.json in $output_dir")
-    index = JSON.parsefile(index_path)
+    index = read_summary(index_path; root = "/")
     records = Dict{String,Any}[]
     observed_categories = Dict{String,Int}()
     terminations = Dict{String,Int}()
@@ -40,7 +41,7 @@ function main()
     for entry in get(index, "cases", Any[])
         file = get(entry, "result_file", nothing)
         record = if file isa AbstractString && isfile(joinpath(output_dir, file))
-            JSON.parsefile(joinpath(output_dir, file))
+            read_summary(joinpath(output_dir, file); root = "/")
         else
             # Preserve an isolated child that exited before writing its case
             # JSON. The index still contains its expected signal, process
@@ -117,7 +118,7 @@ function main()
         ))
     end
     output_path = length(ARGS) == 2 ? abspath(ARGS[2]) : joinpath(output_dir, "summary.json")
-    write(output_path, JSON.json(Dict(
+    write_json(output_path, Dict(
         "runner_version" => get(index, "runner_version", nothing),
         "environment" => get(index, "environment", nothing),
         "solvers" => get(index, "solvers", nothing),
@@ -130,7 +131,7 @@ function main()
         "log_observation_count" => log_observation_count,
         "postmortem_log_conflicting_marker_count" => log_conflicting_marker_count,
         "records" => records,
-    )))
+    ))
     println("wrote solver-failure summary to $output_path")
 end
 

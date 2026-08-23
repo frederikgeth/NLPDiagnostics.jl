@@ -30,11 +30,12 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/summarize_operator_fingerprint.jl` to `benchmarks/common.jl`,
-bringing the shared helper to forty-six core runners while preserving the
-static, expression, initialization, finding, and readiness summary schema. Its
-local smoke run completed successfully with one complete case and one explicit
-error case, retaining all three stage counts and the not-ready gate. The
+`benchmarks/summarize_solver_failure_cases.jl` to `benchmarks/common.jl`,
+bringing the shared helper to forty-seven core runners while preserving the
+expected-signal, observed-category, termination, log-evidence, and postmortem
+summary schema. Its local smoke run completed successfully with an isolated
+missing child, retaining the expected resource-limit signal and unknown
+observed outcome explicitly. The
 campaign and evidence-ledger summarizers and comparisons, formulation-
 intervention, multiconductor point/probe/crosscheck, saved-result unit/profile,
 IBR cross-fixture, source-solver and tangent-policy, solver-trace and matrix
@@ -4252,7 +4253,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-forty-six core release, rank, runtime, and audit runners; the BMOPF campaign and
+forty-seven core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
