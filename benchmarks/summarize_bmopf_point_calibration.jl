@@ -10,6 +10,9 @@ and the dense-analysis budget used by every child.
 
 using JSON
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
+
 const _POINT_INVARIANT_STAGES = Set(("static", "expressions", "reformulation"))
 const _POINT_LOCAL_STAGES = Set(("numerical", "active_set", "degeneracy"))
 const _CALIBRATION_METRICS = Dict(
@@ -100,7 +103,7 @@ end
 
 function _load(path)
     isfile(path) || error("missing point-calibration artifact: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(path; root = "/")
     value isa AbstractDict || error("point-calibration artifact is not an object: $path")
     return value
 end
@@ -1404,7 +1407,7 @@ function main()
         "findings" => findings,
         "interpretation" => "Finding recurrence and point persistence are empirical evidence. Point-local agreement is not a mathematical or physical proof.",
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote BMOPF point-calibration summary to $output_path")
 end
 
