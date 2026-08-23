@@ -36,6 +36,13 @@ machine-readable release-gate ledger into
 evidence links. The generated report records `release_ready=false` with four
 blocking gates; it is a handoff and review artifact, not release qualification.
 
+The latest consolidation increment formalizes the shared benchmark-helper
+boundary. The audit now records the 106 data-producing runners that use
+`benchmarks/common.jl`, plus explicit, reasoned exemptions for the metadata
+library, environment bootstrapper, and process launcher. The local quality
+baseline verifies that the exemption list exactly matches the repository and
+that no unclassified non-helper runner exists.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,
@@ -78,7 +85,8 @@ migrated
 `benchmarks/bmopf_acdc_multiconverter_madnlp_campaign.jl` to qualified
 `benchmarks/common.jl` JSON writes, including feeder checkpoints. The audit now
 recognizes both imported and qualified helper usage, bringing the shared helper
-to 105 core runners. All AC/DC campaign files pass local include/syntax checks.
+to 106 data-producing runners with three explicit infrastructure exemptions.
+All AC/DC campaign files pass local include/syntax checks.
 A bounded AC/DC scaling launch reaches the known active BMOPFTools `OpfScaling`
 contract boundary (`UndefVarError`), so no AC/DC scaling or solver
 qualification was promoted. The prior increment migrated
@@ -4465,7 +4473,8 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-106 core release, rank, runtime, and audit runners; the BMOPF campaign and
+106 data-producing release, rank, runtime, and audit runners, plus three
+explicit infrastructure exemptions; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

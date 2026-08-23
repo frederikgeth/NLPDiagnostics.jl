@@ -46,10 +46,28 @@ function _check_consolidation()
     summary = read_summary("docs/api_test_benchmark_consolidation_summary.json")
     boundaries = get(summary, "module_boundaries", Dict{String,Any}())
     schemas = get(summary, "benchmark_schema_inventory", Dict{String,Any}())
+    benchmark_files = filter(
+        path -> basename(path) != "common.jl",
+        recursive_files(joinpath(ROOT, "benchmarks"), ".jl"),
+    )
+    actual_non_helpers = sort([
+        relpath(path, ROOT) for path in benchmark_files
+        if !occursin("using .NLPDiagnosticsBenchmarkCommon", read_text(path)) &&
+           !occursin("NLPDiagnosticsBenchmarkCommon.", read_text(path))
+    ])
+    recorded_exemptions = sort([
+        String(get(entry, "path", ""))
+        for entry in get(boundaries, "shared_benchmark_helper_exemptions", Any[])
+        if entry isa AbstractDict
+    ])
     return Dict{String,Any}(
         "helper_count_matches_inventory" =>
             get(boundaries, "shared_benchmark_helper_user_count", -1) ==
             length(get(boundaries, "shared_benchmark_helper_users", Any[])),
+        "helper_exemptions_match_inventory" =>
+            actual_non_helpers == recorded_exemptions,
+        "unclassified_non_helper_paths_absent" =>
+            isempty(get(boundaries, "unclassified_non_helper_benchmark_paths", Any[])),
         "schema_errors_absent" => isempty(get(schemas, "schema_errors", Any[])),
         "json_without_schema_absent" =>
             get(schemas, "json_without_schema_count", -1) == 0,

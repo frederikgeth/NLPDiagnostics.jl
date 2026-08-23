@@ -45,11 +45,29 @@ benchmark_files = filter(
     path -> basename(path) != "common.jl",
     recursive_files(joinpath(REPO_ROOT, "benchmarks"), ".jl"),
 )
+const benchmark_helper_exemption_reasons = Dict(
+    "benchmarks/benchmark_environment.jl" =>
+        "shared metadata library included by benchmark runners; it does not write benchmark artifacts",
+    "benchmarks/bootstrap_benchmark_environment.jl" =>
+        "explicit environment bootstrapper that mutates Julia project metadata rather than benchmark artifacts",
+    "benchmarks/run_benchmark.jl" =>
+        "process launcher that executes another benchmark script and does not produce benchmark artifacts",
+)
 shared_helper_users = [
     path for path in benchmark_files
     if occursin("using .NLPDiagnosticsBenchmarkCommon", read_text(path)) ||
        occursin("NLPDiagnosticsBenchmarkCommon.", read_text(path))
 ]
+non_helper_benchmark_paths = relative_paths(setdiff(benchmark_files, shared_helper_users))
+sort!(non_helper_benchmark_paths)
+benchmark_helper_exemptions = [
+    Dict("path" => path, "reason" => benchmark_helper_exemption_reasons[path])
+    for path in sort!(collect(keys(benchmark_helper_exemption_reasons)))
+]
+unclassified_non_helper_paths = setdiff(
+    non_helper_benchmark_paths,
+    [entry["path"] for entry in benchmark_helper_exemptions],
+)
 json_files = recursive_files(joinpath(REPO_ROOT, "docs"), ".json")
 bmopf_contract_path = joinpath(REPO_ROOT, "docs", "bmopf_api_contract_summary.json")
 bmopf_contract = isfile(bmopf_contract_path) ? JSON.parsefile(bmopf_contract_path) :
@@ -163,6 +181,9 @@ summary = Dict{String,Any}(
         "shared_benchmark_helper" => "benchmarks/common.jl",
         "shared_benchmark_helper_user_count" => length(shared_helper_users),
         "shared_benchmark_helper_users" => relative_paths(shared_helper_users),
+        "shared_benchmark_helper_exemptions" => benchmark_helper_exemptions,
+        "shared_benchmark_helper_exemption_count" => length(benchmark_helper_exemptions),
+        "unclassified_non_helper_benchmark_paths" => unclassified_non_helper_paths,
     ),
     "benchmark_schema_inventory" => Dict(
         "json_file_count" => length(json_files),
@@ -252,11 +273,12 @@ summary = Dict{String,Any}(
             "typed unavailable-reason serialization for solver linear telemetry",
             "typed unavailable-reason serialization for solver-dual and complementarity boundaries",
             "generic report-boundary unavailable-reason collection for paired and suffix-only metadata",
+            "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
         ],
         "remaining_work" => [
             "review the deliberately small Stable facade and document stable versus advanced/experimental API tiers",
             "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
-            "migrate the remaining runners to benchmarks/common.jl",
+            "review helper exemptions when infrastructure scripts begin producing benchmark artifacts",
             "keep the tracked BMOPFTools contract artifact synchronized with the active dependency checkout",
             "resolve the active BMOPFTools revision against the validated clean-main handoff gate",
             "add reviewed formatting, documentation-example, Aqua, and targeted JET policies",

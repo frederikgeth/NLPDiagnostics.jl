@@ -603,7 +603,8 @@
       "explicit Stable/Advanced facades and root-export tier inventory",
       "typed unavailable-reason serialization for solver linear telemetry",
       "typed unavailable-reason serialization for solver-dual and complementarity boundaries",
-      "generic report-boundary unavailable-reason collection for paired and suffix-only metadata"
+      "generic report-boundary unavailable-reason collection for paired and suffix-only metadata",
+      "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper"
     ],
     "does_not_establish": [
       "API compatibility across a future namespace refactor",
@@ -614,7 +615,7 @@
     "remaining_work": [
       "review the deliberately small Stable facade and document stable versus advanced/experimental API tiers",
       "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
-      "migrate the remaining runners to benchmarks/common.jl",
+      "review helper exemptions when infrastructure scripts begin producing benchmark artifacts",
       "keep the tracked BMOPFTools contract artifact synchronized with the active dependency checkout",
       "resolve the active BMOPFTools revision against the validated clean-main handoff gate",
       "add reviewed formatting, documentation-example, Aqua, and targeted JET policies"
@@ -624,6 +625,21 @@
   "module_boundaries": {
     "benchmark_script_count": 109,
     "shared_benchmark_helper": "benchmarks/common.jl",
+    "shared_benchmark_helper_exemption_count": 3,
+    "shared_benchmark_helper_exemptions": [
+      {
+        "path": "benchmarks/benchmark_environment.jl",
+        "reason": "shared metadata library included by benchmark runners; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/bootstrap_benchmark_environment.jl",
+        "reason": "explicit environment bootstrapper that mutates Julia project metadata rather than benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/run_benchmark.jl",
+        "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
+      }
+    ],
     "shared_benchmark_helper_user_count": 106,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
@@ -780,7 +796,8 @@
       "bmopf_scaling_covariance.jl",
       "bmopf_scaling_formulations.jl"
     ],
-    "testset_count_in_root": 113
+    "testset_count_in_root": 113,
+    "unclassified_non_helper_benchmark_paths": []
   },
   "schema_version": "nlpdiagnostics-api-test-benchmark-consolidation-v1",
   "source": {
