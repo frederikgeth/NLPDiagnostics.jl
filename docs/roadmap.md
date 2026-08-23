@@ -30,14 +30,14 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/summarize_bmopf_solver_option_perturbations.jl` to
-`benchmarks/common.jl`, bringing the shared helper to twenty-nine core runners
-while preserving the option-perturbation schema and readiness fields. Its
-local smoke run completed successfully with an empty manifest, exercising the
-bounded no-observation path. The campaign and evidence-ledger summarizers and
-comparisons, formulation-intervention, multiconductor point/probe/crosscheck,
-saved-result unit/profile, IBR cross-fixture, source-solver and tangent-policy,
-solver-trace and matrix summaries/comparisons, repeat summarizer,
+`benchmarks/summarize_bmopf_solver_sweep.jl` to `benchmarks/common.jl`,
+bringing the shared helper to thirty core runners while preserving the sweep
+schema and pairwise comparison output. Its local smoke run completed
+successfully with two configuration entries and one comparison. The campaign
+and evidence-ledger summarizers and comparisons, formulation-intervention,
+multiconductor point/probe/crosscheck, saved-result unit/profile, IBR
+cross-fixture, source-solver and tangent-policy, solver-trace and matrix
+summaries/comparisons, repeat and option-perturbation summarizers,
 residual-trend, and checkout validators remain covered; the checkout
 validator's contract stage passes, while its child-suite rerun is
 environment-blocked by the local Julia precompile cache. The dependency
@@ -4251,11 +4251,11 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-twenty-nine core release, rank, runtime, and audit runners; the BMOPF campaign and
+thirty core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
-comparisons, repeat and option-perturbation summarizers,
+comparisons, repeat, option-perturbation, and sweep summarizers,
 tangent-policy, solver-trace and summary comparisons,
 residual-trend, checkout, and PR-handoff gates now use the same JSON/repository
 helper.

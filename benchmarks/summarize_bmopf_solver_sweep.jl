@@ -8,7 +8,8 @@ with its effective options, status, solver-log evidence, objective alignment,
 and semantic row-family scaling evidence relative to the baseline.
 """
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 function _as_dict(value)
     value isa AbstractDict ? Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()
@@ -319,13 +320,15 @@ end
 
 function _read_summary(entry)
     path = get(entry, "summary_file", nothing)
-    isnothing(path) || !isfile(String(path)) ? nothing : JSON.parsefile(String(path))
+    isnothing(path) && return nothing
+    absolute = abspath(String(path))
+    isfile(absolute) ? read_summary(absolute; root = "/") : nothing
 end
 
 function main()
     length(ARGS) in (1, 2) || error("usage: summarize_bmopf_solver_sweep.jl <sweep-manifest.json> [sweep-summary.json]")
     manifest_path = abspath(ARGS[1])
-    manifest = JSON.parsefile(manifest_path)
+    manifest = read_summary(manifest_path; root = "/")
     entries = get(manifest, "configurations", Any[])
     isempty(entries) && error("sweep manifest contains no configurations")
     baseline_label = get(ENV, "NLPDIAGNOSTICS_BMOPF_SWEEP_BASELINE", "baseline")
@@ -400,7 +403,7 @@ function main()
         "comparisons" => comparisons,
     )
     output_path = length(ARGS) == 2 ? abspath(ARGS[2]) : joinpath(dirname(manifest_path), "sweep_summary.json")
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote solver sweep summary to $output_path")
 end
 
