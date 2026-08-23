@@ -2,7 +2,8 @@
 
 """Summarize a sparse-first source-preserving BMOPF corpus campaign."""
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 _dict(value) = value isa AbstractDict ? Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()
 
@@ -36,7 +37,7 @@ function main()
     matrix_path = abspath(ARGS[1])
     output_path = length(ARGS) == 2 ? abspath(ARGS[2]) :
         joinpath(dirname(matrix_path), "sparse_corpus_summary.json")
-    matrix = JSON.parsefile(matrix_path)
+    matrix = read_summary(matrix_path; root = "/")
     rows = [_case_view(raw) for raw in get(matrix, "entries", Any[])]
     variable_counts = [Int(row["model_variable_count"]) for row in rows
                        if row["model_variable_count"] isa Number]
@@ -81,7 +82,7 @@ function main()
         "interpretation" =>
             "This is sparse-first campaign coverage. Resource-budget and size-guard outcomes are explicit boundaries, not solver failures; dense rank and endpoint derivative conclusions require a separate small-fixture campaign.",
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote sparse-first BMOPF corpus summary to $output_path")
 end
 
