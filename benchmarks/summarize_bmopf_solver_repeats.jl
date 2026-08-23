@@ -8,7 +8,8 @@ readiness recurrence, but deliberately does not rank configurations or infer
 causality from a repeated iteration delta.
 """
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 function _dict(value)
     value isa AbstractDict ? Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()
@@ -33,7 +34,9 @@ end
 
 function _summary_path(entry)
     path = get(entry, "summary_file", nothing)
-    isnothing(path) || !isfile(String(path)) ? nothing : String(path)
+    isnothing(path) && return nothing
+    absolute = abspath(String(path))
+    isfile(absolute) ? absolute : nothing
 end
 
 function _case_name(case)
@@ -99,7 +102,7 @@ function _row_family_scale(case, summary_directory = nothing)
             record_path = joinpath(summary_directory, String(result_file))
             if isfile(record_path)
                 try
-                    record = JSON.parsefile(record_path)
+                    record = read_summary(record_path; root = "/")
                     profile = _dict(get(record, "profile", nothing))
                     raw = _dict(get(profile,
                         "bmopf_jacobian_row_family_scale_attribution", nothing))
@@ -299,7 +302,7 @@ function main()
     by_configuration = Dict{String,Dict{String,Vector{Any}}}()
     manifest_records = Any[]
     for (manifest_index, manifest_path) in enumerate(manifests)
-        manifest = JSON.parsefile(manifest_path)
+        manifest = read_summary(manifest_path; root = "/")
         entries = get(manifest, "configurations", Any[])
         push!(manifest_records, Dict(
             "manifest_index" => manifest_index, "path" => manifest_path,
@@ -311,7 +314,7 @@ function main()
             label = String(get(entry, "label", "unknown"))
             summary_path = _summary_path(entry)
             isnothing(summary_path) && continue
-            summary = JSON.parsefile(summary_path)
+            summary = read_summary(summary_path; root = "/")
             for case in get(summary, "cases", Any[])
                 case isa AbstractDict || continue
                 cases = get!(by_configuration, label, Dict{String,Vector{Any}}())
@@ -359,7 +362,7 @@ function main()
         "interpretation" => "Repeated solver-policy observations are descriptive and provenance-scoped; termination, iteration, sparse-rank, and readiness recurrence are not a solver-quality score or causal proof.",
     )
     output = get(ENV, "NLPDIAGNOSTICS_BMOPF_REPEAT_OUTPUT", joinpath(dirname(manifests[1]), "solver_repeat_summary.json"))
-    write(abspath(output), JSON.json(payload))
+    write_json(abspath(output), payload)
     println("wrote repeated solver-sweep summary to $(abspath(output))")
 end
 
