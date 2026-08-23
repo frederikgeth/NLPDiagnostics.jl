@@ -107,6 +107,12 @@ dependency codes, categories, stages, and reasons. The local solver-result
 contracts cover both explicit missing-result paths and automatic postmortem
 adapter failure.
 
+The next numerical-capability increment types active-set multiplier recovery.
+When the dense work guard or another numerical prerequisite prevents recovery,
+the existing second-order finding remains intact while `report_data` records a
+stable numerical code, category, stage, and reason. A bounded local guard case
+now exercises this path without turning it into a curvature or KKT claim.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

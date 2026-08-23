@@ -21,6 +21,11 @@ vector is unavailable or a solver-postmortem adapter cannot be read. The
 existing findings and metadata remain intact; local contracts distinguish the
 capability boundary from the dependency boundary.
 
+Active-set second-order analysis now serializes multiplier-recovery work-guard
+unavailability with a typed numerical record, while preserving the existing
+unavailable finding. The bounded local guard case confirms the record without
+promoting any reduced-Hessian or KKT interpretation.
+
 ## 2026-08-10: corrected Ipopt option campaign
 
 Status: **design-qualified, provenance-limited development result**.

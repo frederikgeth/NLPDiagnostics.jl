@@ -2974,6 +2974,22 @@ function analyze_active_set_second_order(
     report.metadata[:second_order_multiplier_recovery_available] =
         string(recovery.available)
     if !recovery.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    recovery.reason,
+                    "stationarity multiplier recovery is unavailable",
+                ),
+            );
+            code = :second_order_multiplier_recovery_unavailable,
+            category = :numerical,
+            stage = :active_set_second_order,
+        )
+        report.metadata[:second_order_multiplier_recovery_reason] = typed_reason.message
+        report.metadata[:second_order_multiplier_recovery_unavailable_reason] = typed_reason.message
+        report.metadata[:second_order_multiplier_recovery_category] = string(typed_reason.category)
+        report.metadata[:second_order_multiplier_recovery_stage] = string(typed_reason.stage)
         push!(
             report,
             Finding(

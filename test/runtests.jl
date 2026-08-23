@@ -10563,6 +10563,22 @@ end
         )
         @test length(findings(report, :ill_conditioned_reduced_hessian)) == 1
 
+        guarded_report = NLPDiagnostics.analyze_active_set_second_order(
+            constrained,
+            evaluation;
+            rank_max_dense_entries = 0,
+        )
+        @test length(findings(
+            guarded_report, :active_set_second_order_analysis_unavailable,
+        )) == 1
+        guarded_data = NLPDiagnostics.report_data(guarded_report)
+        @test length(guarded_data["unavailable_reasons"]) == 1
+        @test guarded_data["unavailable_reasons"][1]["code"] ==
+              "second_order_multiplier_recovery_unavailable"
+        @test guarded_data["unavailable_reasons"][1]["category"] == "numerical"
+        @test guarded_data["unavailable_reasons"][1]["stage"] ==
+              "active_set_second_order"
+
         flat_model = new_model()
         flat_variable = MOI.add_variable(flat_model)
         flat_objective = MOI.ScalarAffineFunction(
