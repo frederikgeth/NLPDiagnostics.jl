@@ -570,6 +570,8 @@ function _component_metadata_findings(
     known_variables = isnothing(model_variables) ? nothing : Set(model_variables)
     known_constraint_indices = isnothing(model_constraints) ? nothing :
         Set(item.index for item in model_constraints if item.kind == :constraint)
+    unknown_variable_count = 0
+    unknown_constraint_count = 0
     for item in items
         if isempty(String(item.component_type)) || isempty(strip(item.component_id))
             push!(report, Finding(:invalid_component_metadata_identity;
@@ -620,6 +622,7 @@ function _component_metadata_findings(
         if !isnothing(known_variables)
             unknown_variables = [variable for variable in item.variables if !(variable in known_variables)]
             if !isempty(unknown_variables)
+                unknown_variable_count += length(unknown_variables)
                 push!(report, Finding(:component_metadata_unknown_variable;
                     severity = SeverityError, domain = RepresentationalIssue,
                     basis = StructuralProof, confidence = ConfidenceCertain,
@@ -679,6 +682,7 @@ function _component_metadata_findings(
             unknown_constraints = [constraint for constraint in item.constraints if
                 constraint.kind != :constraint || !(constraint.index in known_constraint_indices)]
             if !isempty(unknown_constraints)
+                unknown_constraint_count += length(unknown_constraints)
                 push!(report, Finding(:component_metadata_unknown_constraint;
                     severity = SeverityError, domain = RepresentationalIssue,
                     basis = StructuralProof, confidence = ConfidenceCertain,
@@ -690,6 +694,36 @@ function _component_metadata_findings(
                 ))
             end
         end
+    end
+    unavailable = unknown_variable_count + unknown_constraint_count
+    report.metadata[:component_metadata_scope_unavailable_count] = string(unavailable)
+    report.metadata[:component_metadata_unknown_variable_count] = string(unknown_variable_count)
+    report.metadata[:component_metadata_unknown_constraint_count] = string(unknown_constraint_count)
+    if unavailable > 0
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "one or more component metadata scopes reference coordinates or constraints absent from the analyzed model",
+            );
+            code = :component_metadata_scope_unavailable,
+            category = :input,
+            stage = :component_metadata_scope_validation,
+        )
+        report.metadata[:component_metadata_scope_reason] = typed_reason.message
+        report.metadata[:component_metadata_scope_unavailable_reason] = typed_reason.message
+        report.metadata[:component_metadata_scope_category] = string(typed_reason.category)
+        report.metadata[:component_metadata_scope_stage] = string(typed_reason.stage)
+        push!(report, Finding(:component_metadata_scope_unavailable;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "$(unavailable) component metadata scope reference(s) cannot be aligned with the analyzed model.",
+            why_it_matters = "Rank, nullspace, and physical metadata interpretation is withheld for stale component coordinates or constraint references.",
+            evidence = [Evidence("Component metadata scope validation"; details = [
+                "unknown_variable_count" => unknown_variable_count,
+                "unknown_constraint_count" => unknown_constraint_count,
+            ])],
+            suggested_actions = ["Rebuild component metadata after model construction and use only current model variables and constraints."],
+        ))
     end
     return report
 end

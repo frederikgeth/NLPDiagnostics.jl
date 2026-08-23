@@ -1757,6 +1757,10 @@ Scalar constraint-scale alignment now serializes typed capability unavailability
 when a declared scale lacks an evaluated source row or residual. Existing scalar
 mismatch findings remain unchanged.
 
+Component metadata scope validation now serializes typed input unavailability
+when plugin declarations reference variables or constraints absent from the
+analyzed model. Existing detailed stale-reference findings remain unchanged.
+
 The reduced-Hessian persistence slice now also serializes typed numerical
 unavailability for Jacobian scaling and spectral-scale comparisons when
 non-finite derivative or eigenvalue evidence prevents a safe change-factor

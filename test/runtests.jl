@@ -3808,6 +3808,14 @@ end
     @test length(findings(metadata_report, :component_metadata_duplicate_constraints)) == 1
     @test length(findings(metadata_report, :invalid_component_metadata_constraint_reference)) == 1
     @test length(findings(metadata_report, :component_metadata_unknown_constraint)) == 1
+    @test metadata_report.metadata[:component_metadata_scope_unavailable_count] == "6"
+    metadata_scope_reason = only(filter(
+        item -> item["code"] == "component_metadata_scope_unavailable",
+        NLPDiagnostics.report_data(metadata_report)["unavailable_reasons"],
+    ))
+    @test metadata_scope_reason["category"] == "input"
+    @test metadata_scope_reason["stage"] == "component_metadata_scope_validation"
+    @test length(findings(metadata_report, :component_metadata_scope_unavailable)) == 1
 
     rank_model = MOIU.Model{Float64}()
     x = MOI.add_variable(rank_model)

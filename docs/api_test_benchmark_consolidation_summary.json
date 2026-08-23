@@ -653,6 +653,7 @@
       "typed unavailable-reason serialization for component-port constitutive-map validation boundaries",
       "typed unavailable-reason serialization for component-port topology-nullspace boundaries",
       "typed unavailable-reason serialization for scalar-constraint scale alignment boundaries",
+      "typed unavailable-reason serialization for component metadata scope boundaries",
       "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
       "reviewed local quality policy with explicit deferred-tool boundaries"
     ],
@@ -872,6 +873,6 @@
     "explicit_typed_unavailable_tokens": [
       "UnavailableReason"
     ],
-    "typed_adapter_call_count": 81
+    "typed_adapter_call_count": 82
   }
 }

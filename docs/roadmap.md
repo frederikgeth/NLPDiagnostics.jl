@@ -4786,3 +4786,7 @@ Existing expected-nullspace evidence remains unchanged.
 The next scaling increment types scalar constraint-scale alignments that lack an
 evaluated source row or residual as capability unavailability. Existing scalar
 mismatch findings remain unchanged.
+
+The next metadata increment types component variable or constraint scopes that
+reference absent model coordinates as input unavailability. Existing detailed
+scope findings remain unchanged.
