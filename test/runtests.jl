@@ -8143,6 +8143,36 @@ end
         @test short_conditioning_reason["category"] == "numerical"
         @test short_conditioning_reason["stage"] == "jacobian_condition_persistence"
         evaluations = [NLPDiagnostics.evaluate_numerical(model, point) for point in points]
+        for (report, code, stage) in (
+            (
+                NLPDiagnostics.analyze_jacobian_scaling_persistence(
+                    [evaluations[1]],
+                ),
+                "jacobian_scaling_persistence_unavailable",
+                "jacobian_scaling_persistence",
+            ),
+            (
+                NLPDiagnostics.analyze_jacobian_derivative_provenance_persistence(
+                    [evaluations[1]],
+                ),
+                "jacobian_derivative_provenance_persistence_unavailable",
+                "jacobian_derivative_provenance_persistence",
+            ),
+            (
+                NLPDiagnostics.analyze_jacobian_rank_persistence(
+                    [evaluations[1]],
+                ),
+                "jacobian_rank_persistence_unavailable",
+                "jacobian_rank_persistence",
+            ),
+        )
+            reason = only(filter(
+                item -> item["code"] == code,
+                NLPDiagnostics.report_data(report)["unavailable_reasons"],
+            ))
+            @test reason["category"] == "numerical"
+            @test reason["stage"] == stage
+        end
         changed_provenance = NLPDiagnostics.NumericalEvaluation{Float64}(
             evaluations[2].point,
             evaluations[2].objective_value,

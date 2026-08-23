@@ -6467,6 +6467,23 @@ function analyze_jacobian_scaling_persistence(
     report.metadata[:minimum_evaluations] = string(minimum_evaluations)
     report.metadata[:change_factor_threshold] = string(change_factor_threshold)
     if length(evaluations) < minimum_evaluations
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "only $(length(evaluations)) evaluation(s) supplied; at least $(minimum_evaluations) required",
+            );
+            code = :jacobian_scaling_persistence_unavailable,
+            category = :numerical,
+            stage = :jacobian_scaling_persistence,
+        )
+        report.metadata[:jacobian_scaling_persistence_available] = "false"
+        report.metadata[:jacobian_scaling_persistence_reason] = typed_reason.message
+        report.metadata[:jacobian_scaling_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_scaling_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:jacobian_scaling_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:jacobian_scaling_persistence_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -6505,6 +6522,23 @@ function analyze_jacobian_scaling_persistence(
     )
     if any(!isempty(summary.nonfinite_rows) || !isempty(summary.nonfinite_columns)
            for summary in summaries)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "at least one supplied evaluation has non-finite derivatives",
+            );
+            code = :jacobian_scaling_persistence_unavailable,
+            category = :numerical,
+            stage = :jacobian_scaling_persistence,
+        )
+        report.metadata[:jacobian_scaling_persistence_available] = "false"
+        report.metadata[:jacobian_scaling_persistence_reason] = typed_reason.message
+        report.metadata[:jacobian_scaling_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_scaling_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:jacobian_scaling_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:jacobian_scaling_persistence_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -6532,6 +6566,7 @@ function analyze_jacobian_scaling_persistence(
                  column_change_factor <= convert(T, change_factor_threshold)
     report.metadata[:row_change_factor] = string(row_change_factor)
     report.metadata[:column_change_factor] = string(column_change_factor)
+    report.metadata[:jacobian_scaling_persistence_available] = "true"
     push!(report, Finding(
         persistent ? :jacobian_scaling_persistent : :jacobian_scaling_changing;
         severity = persistent ? SeverityInfo : SeverityWarning,
@@ -6597,6 +6632,25 @@ function analyze_jacobian_derivative_provenance_persistence(
     report.metadata[:evaluation_count] = string(length(evaluations))
     report.metadata[:minimum_evaluations] = string(minimum_evaluations)
     if length(evaluations) < minimum_evaluations
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "only $(length(evaluations)) evaluation(s) supplied; at least $(minimum_evaluations) required",
+            );
+            code = :jacobian_derivative_provenance_persistence_unavailable,
+            category = :numerical,
+            stage = :jacobian_derivative_provenance_persistence,
+        )
+        report.metadata[:jacobian_derivative_provenance_persistence_available] =
+            "false"
+        report.metadata[:jacobian_derivative_provenance_persistence_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_derivative_provenance_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_derivative_provenance_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:jacobian_derivative_provenance_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:jacobian_derivative_provenance_persistence_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -6626,6 +6680,25 @@ function analyze_jacobian_derivative_provenance_persistence(
     end
     if any(length(evaluation.jacobian_row_methods) != length(reference_rows)
            for evaluation in evaluations)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "at least one evaluation lacks one row-level derivative-provenance label",
+            );
+            code = :jacobian_derivative_provenance_persistence_unavailable,
+            category = :numerical,
+            stage = :jacobian_derivative_provenance_persistence,
+        )
+        report.metadata[:jacobian_derivative_provenance_persistence_available] =
+            "false"
+        report.metadata[:jacobian_derivative_provenance_persistence_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_derivative_provenance_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_derivative_provenance_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:jacobian_derivative_provenance_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:jacobian_derivative_provenance_persistence_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -6667,6 +6740,7 @@ function analyze_jacobian_derivative_provenance_persistence(
         ))
     end
     persistent = isempty(changing_rows)
+    report.metadata[:jacobian_derivative_provenance_persistence_available] = "true"
     push!(report, Finding(
         persistent ? :jacobian_derivative_provenance_persistent :
                      :jacobian_derivative_provenance_changing;
@@ -7219,6 +7293,23 @@ function analyze_jacobian_rank_persistence(
     candidates = findall(estimate -> estimate.available, estimates)
     report.metadata[:available_evaluation_count] = string(length(candidates))
     if length(candidates) < minimum_evaluations
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "only $(length(candidates)) supplied evaluation(s) have an available dense Jacobian rank estimate",
+            );
+            code = :jacobian_rank_persistence_unavailable,
+            category = :numerical,
+            stage = :jacobian_rank_persistence,
+        )
+        report.metadata[:jacobian_rank_persistence_available] = "false"
+        report.metadata[:jacobian_rank_persistence_reason] = typed_reason.message
+        report.metadata[:jacobian_rank_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:jacobian_rank_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:jacobian_rank_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:jacobian_rank_persistence_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -7234,6 +7325,7 @@ function analyze_jacobian_rank_persistence(
         return report
     end
     available_estimates = estimates[candidates]
+    report.metadata[:jacobian_rank_persistence_available] = "true"
     scaling_report = analyze_jacobian_scaling_persistence(
         evaluations[candidates];
         minimum_evaluations = minimum_evaluations,

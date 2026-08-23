@@ -92,6 +92,11 @@ typed numerical records when dense work or finite multi-point estimates are
 unavailable. Guarded local cases preserve their existing findings without
 promoting rank sensitivity or conditioning conclusions.
 
+Jacobian scaling, derivative-provenance, and rank-persistence reports now expose
+typed numerical records for insufficient point coverage or unavailable dense
+rank estimates. Existing cross-point observations remain unchanged and are not
+promoted to formulation or physical claims.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.
