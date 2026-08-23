@@ -5,7 +5,9 @@
 import MathOptInterface as MOI
 import NLPDiagnostics
 import JuMP
-using JSON
+
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 new_model() = JuMP.backend(JuMP.Model())
 
@@ -145,7 +147,7 @@ function main()
         "aggregate_finding_codes" => Dict(k => codes[k] for k in sort!(collect(keys(codes)))),
         "interpretation" => "Static operator/domain fingerprints only; findings describe representational or numerical risks and are not solver or model-quality scores.",
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote operator fingerprint smoke report to $output_path")
 end
 

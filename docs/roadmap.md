@@ -30,9 +30,12 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/bmopf_draft_corpus.jl` to `benchmarks/common.jl`, bringing the
-shared helper to eighty-one core runners while preserving campaign-manifest,
-per-case, and aggregate-index schemas. A bounded structural-only run completed
+`benchmarks/operator_fingerprint_smoke.jl` to `benchmarks/common.jl`, bringing
+the shared helper to eighty-two core runners while preserving its deterministic
+fingerprint report schema. A local run completed all six operator/domain cases
+successfully and retained aggregate domain, derivative, rank, and
+initialization finding codes. The prior increment migrated
+`benchmarks/bmopf_draft_corpus.jl`; its bounded structural-only run completed
 both default 30-bus representatives, each with 704 variables, 844 rows, and
 265 structural findings. The prior increment migrated
 `benchmarks/bmopf_solver_trace.jl`; its bounded known-environment run captured
@@ -4341,7 +4344,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-eighty-one core release, rank, runtime, and audit runners; the BMOPF campaign and
+eighty-two core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
