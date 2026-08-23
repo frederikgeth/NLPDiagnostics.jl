@@ -43,6 +43,13 @@ library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
 that no unclassified non-helper runner exists.
 
+The latest consolidation increment adds the reviewed local quality policy in
+`docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are
+active in the known local environment; documentation-example, Aqua, and
+targeted JET checks are explicitly deferred with reasons rather than treated
+as silently passing. The baseline validates the policy shape without CI or
+dependency installation.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,
@@ -4463,7 +4470,7 @@ The API/test/benchmark consolidation audit is tracked at
 `docs/api_test_benchmark_consolidation_summary.json`, with executable runner
 `benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 539
 unique root exports, 113 root testsets across nine included test modules, 109
-benchmark scripts, and schema versions on all 48 JSON artifacts. A typed
+benchmark scripts, and schema versions on all 49 JSON artifacts. A typed
 `UnavailableReason` report-boundary schema is now present, while explicit
 advanced namespaces now have a non-breaking `NLPDiagnostics.Advanced` facade;
 broad tier migration and adapter adoption remain the next engineering work
@@ -4516,7 +4523,7 @@ consolidation are now partially instrumented through the `NLPDiagnostics.Stable`
 and `NLPDiagnostics.Advanced` facades, typed
 report-boundary adapters, typed scaling-covariance unavailable records, profile serialization, centralized core benchmark
 helpers, and a clean-main BMOPFTools compatibility gate. Broad root-export tier
-migration, complete unavailable-reason adoption, remaining runner migration,
-dependency handoff, and reviewed quality-tool policies remain parallel
-engineering work. New finding families and automatic model reformulation remain
+migration, complete unavailable-reason adoption, dependency handoff, and
+activation of deferred quality tools remain parallel engineering work. New
+finding families and automatic model reformulation remain
 outside the next increment.

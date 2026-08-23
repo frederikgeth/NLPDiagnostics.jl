@@ -1,0 +1,53 @@
+{
+  "schema_version": "nlpdiagnostics-quality-policy-v1",
+  "scope": "known_local_environment",
+  "ci_execution": false,
+  "interpretation": "This policy records reviewed local checks and explicit deferrals; it is not a claim that CI, Aqua, JET, or documentation hosting has run.",
+  "checks": [
+    {
+      "id": "diff_whitespace",
+      "status": "active",
+      "command": "git diff --check",
+      "scope": "tracked working-tree whitespace errors"
+    },
+    {
+      "id": "package_regression",
+      "status": "active",
+      "command": "JULIA_PKG_PRECOMPILE_AUTO=0 julia --compiled-modules=no --project=work/benchmark-environment --startup-file=no -e 'include(\"test/runtests.jl\")'",
+      "scope": "local package regression suite in the benchmark environment"
+    },
+    {
+      "id": "consolidation_inventory",
+      "status": "active",
+      "command": "julia --project=work/benchmark-environment --startup-file=no benchmarks/audit_api_test_benchmark_consolidation.jl",
+      "scope": "API tiers, benchmark helper accounting, and JSON schema inventory"
+    },
+    {
+      "id": "local_quality_baseline",
+      "status": "active",
+      "command": "julia --project=work/benchmark-environment --startup-file=no benchmarks/check_local_quality.jl /tmp/nlpdiagnostics-local-quality.json",
+      "scope": "read-only consistency checks and release-gate shape"
+    },
+    {
+      "id": "documentation_examples",
+      "status": "deferred",
+      "command": null,
+      "scope": "public documentation execution",
+      "reason": "No reviewed documentation build environment is configured in the local benchmark project."
+    },
+    {
+      "id": "aqua",
+      "status": "deferred",
+      "command": null,
+      "scope": "Aqua.jl package-quality checks",
+      "reason": "Aqua is not a declared package dependency and is intentionally not installed by the local baseline."
+    },
+    {
+      "id": "jet",
+      "status": "deferred",
+      "command": null,
+      "scope": "targeted JET.jl static analysis",
+      "reason": "JET is not a declared package dependency and extension-specific targets require a reviewed environment."
+    }
+  ]
+}

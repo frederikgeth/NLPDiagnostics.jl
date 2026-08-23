@@ -4,7 +4,8 @@
 
 This runner does not install packages, invoke CI, or rewrite generated
 artifacts. It checks whitespace, API-tier inventory consistency, consolidation
-schema coverage, and release-gate shape in the known local environment.
+schema coverage, release-gate shape, and the reviewed local quality policy in
+the known local environment.
 """
 
 include(joinpath(@__DIR__, "common.jl"))
@@ -83,6 +84,42 @@ function _check_release_gate()
     )
 end
 
+function _check_quality_policy()
+    policy = read_summary("docs/quality_policy.json")
+    checks = get(policy, "checks", Any[])
+    expected = Set([
+        "diff_whitespace",
+        "package_regression",
+        "consolidation_inventory",
+        "local_quality_baseline",
+        "documentation_examples",
+        "aqua",
+        "jet",
+    ])
+    actual = Set(String(get(check, "id", "")) for check in checks if check isa AbstractDict)
+    active_valid = all(
+        get(check, "status", nothing) == "active" &&
+        get(check, "command", nothing) isa AbstractString &&
+        !isempty(get(check, "command", ""))
+        for check in checks if check isa AbstractDict && get(check, "status", nothing) == "active"
+    )
+    deferred_valid = all(
+        get(check, "status", nothing) == "deferred" &&
+        get(check, "command", nothing) === nothing &&
+        get(check, "reason", nothing) isa AbstractString &&
+        !isempty(get(check, "reason", ""))
+        for check in checks if check isa AbstractDict && get(check, "status", nothing) == "deferred"
+    )
+    return Dict{String,Any}(
+        "schema_version_present" => haskey(policy, "schema_version"),
+        "scope_is_local" => get(policy, "scope", nothing) == "known_local_environment",
+        "ci_execution_explicitly_false" => get(policy, "ci_execution", nothing) === false,
+        "expected_check_ids_match" => actual == expected,
+        "active_checks_have_commands" => active_valid,
+        "deferred_checks_have_reasons" => deferred_valid,
+    )
+end
+
 function main()
     diff_check = _git_diff_check()
     checks = Dict{String,Any}(
@@ -90,6 +127,7 @@ function main()
         "api_tiers" => _check_api_tiers(),
         "consolidation" => _check_consolidation(),
         "release_gate_shape" => _check_release_gate(),
+        "quality_policy" => _check_quality_policy(),
     )
     function all_passed(value)
         value isa Bool && return value

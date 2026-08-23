@@ -88,6 +88,9 @@ bmopf_validation = isfile(bmopf_validation_path) ?
 api_tier_path = joinpath(REPO_ROOT, "docs", "api_tier_inventory_summary.json")
 api_tiers = isfile(api_tier_path) ?
     JSON.parsefile(api_tier_path) : Dict{String,Any}("status" => "missing")
+quality_policy_path = joinpath(REPO_ROOT, "docs", "quality_policy.json")
+quality_policy = isfile(quality_policy_path) ?
+    JSON.parsefile(quality_policy_path) : Dict{String,Any}("status" => "missing")
 
 source_includes = String[]
 for line in root_lines
@@ -255,6 +258,22 @@ summary = Dict{String,Any}(
             nothing,
         ),
     ),
+    "quality_policy" => Dict{String,Any}(
+        "artifact" => "docs/quality_policy.json",
+        "documentation" => "docs/quality_policy.md",
+        "status" => haskey(quality_policy, "checks") ? "present" : "missing",
+        "scope" => get(quality_policy, "scope", nothing),
+        "ci_execution" => get(quality_policy, "ci_execution", nothing),
+        "check_count" => length(get(quality_policy, "checks", Any[])),
+        "active_check_count" => count(
+            check -> check isa AbstractDict && get(check, "status", nothing) == "active",
+            get(quality_policy, "checks", Any[]),
+        ),
+        "deferred_check_count" => count(
+            check -> check isa AbstractDict && get(check, "status", nothing) == "deferred",
+            get(quality_policy, "checks", Any[]),
+        ),
+    ),
     "interpretation" => Dict(
         "status" => "partial",
         "finding" =>
@@ -274,6 +293,7 @@ summary = Dict{String,Any}(
             "typed unavailable-reason serialization for solver-dual and complementarity boundaries",
             "generic report-boundary unavailable-reason collection for paired and suffix-only metadata",
             "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
+            "reviewed local quality policy with explicit deferred-tool boundaries",
         ],
         "remaining_work" => [
             "review the deliberately small Stable facade and document stable versus advanced/experimental API tiers",
@@ -281,7 +301,7 @@ summary = Dict{String,Any}(
             "review helper exemptions when infrastructure scripts begin producing benchmark artifacts",
             "keep the tracked BMOPFTools contract artifact synchronized with the active dependency checkout",
             "resolve the active BMOPFTools revision against the validated clean-main handoff gate",
-            "add reviewed formatting, documentation-example, Aqua, and targeted JET policies",
+            "activate documentation-example, Aqua, and targeted JET checks only after reviewed environments are available",
         ],
         "does_not_establish" => [
             "API compatibility across a future namespace refactor",

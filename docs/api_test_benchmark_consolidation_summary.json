@@ -564,8 +564,8 @@
   },
   "benchmark_schema_inventory": {
     "benchmark_scripts_with_schema_version_count": 46,
-    "json_file_count": 48,
-    "json_schema_file_count": 48,
+    "json_file_count": 49,
+    "json_schema_file_count": 49,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -604,7 +604,8 @@
       "typed unavailable-reason serialization for solver linear telemetry",
       "typed unavailable-reason serialization for solver-dual and complementarity boundaries",
       "generic report-boundary unavailable-reason collection for paired and suffix-only metadata",
-      "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper"
+      "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
+      "reviewed local quality policy with explicit deferred-tool boundaries"
     ],
     "does_not_establish": [
       "API compatibility across a future namespace refactor",
@@ -618,7 +619,7 @@
       "review helper exemptions when infrastructure scripts begin producing benchmark artifacts",
       "keep the tracked BMOPFTools contract artifact synchronized with the active dependency checkout",
       "resolve the active BMOPFTools revision against the validated clean-main handoff gate",
-      "add reviewed formatting, documentation-example, Aqua, and targeted JET policies"
+      "activate documentation-example, Aqua, and targeted JET checks only after reviewed environments are available"
     ],
     "status": "partial"
   },
@@ -798,6 +799,16 @@
     ],
     "testset_count_in_root": 113,
     "unclassified_non_helper_benchmark_paths": []
+  },
+  "quality_policy": {
+    "active_check_count": 4,
+    "artifact": "docs/quality_policy.json",
+    "check_count": 7,
+    "ci_execution": false,
+    "deferred_check_count": 3,
+    "documentation": "docs/quality_policy.md",
+    "scope": "known_local_environment",
+    "status": "present"
   },
   "schema_version": "nlpdiagnostics-api-test-benchmark-consolidation-v1",
   "source": {
