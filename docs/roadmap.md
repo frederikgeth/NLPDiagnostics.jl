@@ -30,15 +30,15 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/phase_only_transformer_ipopt_campaign.jl` to `benchmarks/common.jl`,
-bringing the shared helper to fifty-six core runners while preserving the
-matched four-record transformer campaign schema. Its local smoke run
-classified the intervention as `phase_only`, passed endpoint-covariance and
+`benchmarks/phase_only_feeder_ipopt_campaign.jl` to `benchmarks/common.jl`,
+bringing the shared helper to fifty-seven core runners while preserving the
+matched four-record feeder campaign schema. Its local smoke run classified the
+intervention as `phase_only`, passed endpoint-covariance and geometry gates,
+and reported all four endpoints as `LOCALLY_SOLVED`. The prior increment
+migrated `benchmarks/phase_only_transformer_ipopt_campaign.jl`; its local smoke
+run classified the intervention as `phase_only`, passed endpoint-covariance and
 geometry gates, and reported all four endpoints as `LOCALLY_SOLVED`. The prior
-increment migrated `benchmarks/phase_only_controller_ipopt_campaign.jl`; its
-local smoke run classified the intervention as `phase_only`, passed
-endpoint-covariance and geometry gates, and reported all four endpoints as
-`LOCALLY_SOLVED`. The prior increment migrated
+increment migrated
 `benchmarks/phase_only_orthogonal_control.jl`; its local smoke run passed
 covariance, geometry, and singular-value invariance gates while retaining
 solver work as deliberately unavailable. The prior increment migrated
@@ -4265,7 +4265,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-fifty-six core release, rank, runtime, and audit runners; the BMOPF campaign and
+fifty-seven core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
