@@ -1068,6 +1068,16 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Stratified scaling campaign helper migration
+
+The magnitude-scaling, objective-bearing stratified-scaling, and MadNLP
+stratified campaign writers now use the shared `benchmarks/common.jl` JSON
+writer for their full and compact artifacts. All three scripts pass local
+include/syntax checks. A bounded magnitude-campaign launch reaches the known
+active BMOPFTools `OpfScaling` contract boundary (`UndefVarError`), so no
+scaling or solver qualification was promoted. This is consolidation and
+dependency-boundary evidence only.
+
 ## 2026-08-23: Perturbation-repeat launcher helper migration
 
 The repeated BMOPF perturbation launcher now uses the shared
@@ -1591,7 +1601,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-ninety-seven core release, rank, runtime, and audit runners; the BMOPF campaign and
+one hundred core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

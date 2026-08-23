@@ -14,6 +14,7 @@ Environment controls mirror the Ipopt runner, using the prefix
 """
 
 include(joinpath(@__DIR__, "bmopf_stratified_scaling_campaign.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 using MadNLP
 
@@ -68,13 +69,10 @@ function madnlp_stratified_main()
         runner_version=_MADNLP_STRATIFIED_RUNNER_VERSION,
     )
     mkpath(dirname(output))
-    write(output, JSON.json(_json_safe(campaign)))
+    write_json(output, _json_safe(campaign))
     stem, extension = splitext(output)
     summary_output = stem * "-summary" * extension
-    write(
-        summary_output,
-        JSON.json(_json_safe(_compact_stratified_campaign(campaign))),
-    )
+    write_json(summary_output, _json_safe(_compact_stratified_campaign(campaign)))
     println("wrote MadNLP stratified campaign to $output")
     println("wrote compact campaign summary to $summary_output")
     qualified = campaign["campaign_qualified"]

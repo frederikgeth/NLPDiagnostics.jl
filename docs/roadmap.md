@@ -30,8 +30,16 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
+`benchmarks/bmopf_magnitude_scaling_campaign.jl`,
+`benchmarks/bmopf_stratified_scaling_campaign.jl`, and
+`benchmarks/bmopf_stratified_madnlp_campaign.jl` to `benchmarks/common.jl`,
+bringing the shared helper to one hundred core runners while preserving full
+and compact campaign artifacts. All three scripts pass local include/syntax
+checks. A bounded magnitude-campaign launch reaches the known active
+BMOPFTools `OpfScaling` contract boundary (`UndefVarError`), so no scaling or
+solver qualification was promoted. The prior increment migrated
 `benchmarks/launch_bmopf_perturbation_repeats.jl` to `benchmarks/common.jl`,
-bringing the shared helper to ninety-seven core runners while preserving repeat
+preserving repeat
 manifests, child process evidence, and per-replicate summaries. A bounded
 single-replicate run completed one 30-bus LN matrix launch with parent status
 `ok`; its child matrix retained an explicit `process_exit` record from the
@@ -4405,7 +4413,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-ninety-seven core release, rank, runtime, and audit runners; the BMOPF campaign and
+one hundred core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

@@ -20,10 +20,11 @@ using NLPDiagnostics
 using BMOPFTools
 using JuMP
 using Ipopt
-using JSON
 import MathOptInterface as MOI
 
 include(joinpath(@__DIR__, "benchmark_environment.jl"))
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 const _RUNNER_VERSION = "bmopf-magnitude-scaling-campaign-v1"
 
@@ -473,7 +474,7 @@ function main()
     ))
     mkpath(dirname(output))
     campaign = run_campaign(; repeats, max_iter, solver_tolerance)
-    write(output, JSON.json(_json_safe(campaign)))
+    write_json(output, _json_safe(campaign))
     println("wrote matched magnitude-only campaign to $output")
     campaign_qualified = campaign["campaign_qualified"]
     println("campaign_qualified=$campaign_qualified")
