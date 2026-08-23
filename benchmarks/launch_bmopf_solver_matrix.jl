@@ -11,6 +11,9 @@ command after the matrix completes.
 
 using JSON
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
+
 function _list(name, defaults)
     selected = filter(!isempty, strip.(split(get(ENV, name, ""), ',')))
     isempty(selected) && return String[defaults...]
@@ -207,23 +210,23 @@ function main()
         for selected_solver in unique(solvers)
             solver_entries = [item for item in entries if item["solver"] == selected_solver]
             mkpath(joinpath(output_root, selected_solver))
-            write(joinpath(output_root, selected_solver, "index.json"), JSON.json(
+            write_json(joinpath(output_root, selected_solver, "index.json"),
                 _child_index(abspath(root), selected_solver, timeout_seconds, project, solver_entries),
-            ))
+            )
         end
-        write(matrix_index_path, JSON.json(_matrix_index(abspath(root), output_root,
-            project, unique(solvers), cases, timeout_seconds, entries)))
+        write_json(matrix_index_path, _matrix_index(abspath(root), output_root,
+            project, unique(solvers), cases, timeout_seconds, entries))
         println("$(solver)/$(_case_name(relative)): $(entry["status"]) " *
                 "timeout=$(entry["process_timeout"])")
     end
     for solver in unique(solvers)
         solver_entries = [entry for entry in entries if entry["solver"] == solver]
-        write(joinpath(output_root, solver, "index.json"), JSON.json(
+        write_json(joinpath(output_root, solver, "index.json"),
             _child_index(abspath(root), solver, timeout_seconds, project, solver_entries),
-        ))
+        )
     end
-    write(matrix_index_path, JSON.json(_matrix_index(abspath(root), output_root,
-        project, unique(solvers), cases, timeout_seconds, entries)))
+    write_json(matrix_index_path, _matrix_index(abspath(root), output_root,
+        project, unique(solvers), cases, timeout_seconds, entries))
     println("wrote BMOPF solver matrix manifest to $matrix_index_path")
 end
 
