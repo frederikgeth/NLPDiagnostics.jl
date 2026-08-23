@@ -1068,6 +1068,15 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: real 99-bus option matrix helper migration
+
+The real 99-bus phase-only solver-option matrix now uses the shared
+`benchmarks/common.jl` JSON writer and supports bounded case selection for
+local smoke runs. The baseline-option smoke produced a report with all six
+phase-only runs locally solved, six solver-floor-calibrated acceptances, and
+strict physical KKT acceptance of 2/6. This remains option-sensitivity
+evidence, not automatic policy selection or physical acceptance.
+
 ## 2026-08-23: real 99-bus initialization matrix helper migration
 
 The real 99-bus phase-only initialization matrix now uses the shared
@@ -1283,7 +1292,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-sixty core release, rank, runtime, and audit runners; the BMOPF campaign and
+sixty-one core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
