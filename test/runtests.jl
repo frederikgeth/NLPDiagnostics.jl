@@ -11105,6 +11105,21 @@ end
             persistence_report,
             :reduced_hessian_flat_subspace_persistent,
         )) == 1
+        reduced_hessian_short_report =
+            NLPDiagnostics.analyze_reduced_hessian_persistence([
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    compact_evaluation, compact_analysis,
+                ),
+            ])
+        reduced_hessian_short_reason = only(filter(
+            item -> item["code"] == "reduced_hessian_persistence_unavailable",
+            NLPDiagnostics.report_data(reduced_hessian_short_report)[
+                "unavailable_reasons"
+            ],
+        ))
+        @test reduced_hessian_short_reason["category"] == "numerical"
+        @test reduced_hessian_short_reason["stage"] ==
+              "reduced_hessian_persistence"
         expected_subspace_report = NLPDiagnostics.analyze_reduced_hessian_persistence(
             [
                 NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),

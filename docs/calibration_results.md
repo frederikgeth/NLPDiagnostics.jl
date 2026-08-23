@@ -107,6 +107,10 @@ numerical records when too few finite probes are available for comparison. The
 existing finite-budget persistence semantics remain unchanged; no nullspace or
 physical conclusion is promoted.
 
+Reduced-Hessian flat-subspace persistence now serializes a typed numerical
+record when too few complete snapshots contain nonempty flat directions. The
+existing conservative persistence and expected-mode semantics remain intact.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.

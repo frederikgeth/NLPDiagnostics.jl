@@ -209,6 +209,11 @@ subspace unavailability when too few finite probes complete their bounded
 product paths. Existing coordinate-mismatch, no-candidate, and persistence
 findings remain unchanged.
 
+The next reduced-Hessian persistence increment types flat-subspace
+unavailability when too few complete snapshots contain a nonempty flat
+subspace. Existing active-row, multiplier, scaling, and expected-mode findings
+remain unchanged.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

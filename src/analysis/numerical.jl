@@ -7718,6 +7718,23 @@ function analyze_reduced_hessian_persistence(
     ]
     report.metadata[:flat_snapshot_count] = string(length(candidates))
     if length(candidates) < minimum_snapshots
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "only $(length(candidates)) supplied snapshot(s) have an available nonempty reduced-Hessian flat subspace; at least $(minimum_snapshots) required",
+            );
+            code = :reduced_hessian_persistence_unavailable,
+            category = :numerical,
+            stage = :reduced_hessian_persistence,
+        )
+        report.metadata[:reduced_hessian_persistence_available] = "false"
+        report.metadata[:reduced_hessian_persistence_reason] = typed_reason.message
+        report.metadata[:reduced_hessian_persistence_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_persistence_category] =
+            string(typed_reason.category)
+        report.metadata[:reduced_hessian_persistence_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(
             :reduced_hessian_flat_persistence_unavailable;
             severity = SeverityInfo,
@@ -7737,6 +7754,7 @@ function analyze_reduced_hessian_persistence(
         ))
         return report
     end
+    report.metadata[:reduced_hessian_persistence_available] = "true"
     subspaces = [_flat_reduced_hessian_subspace(snapshot.analysis) for snapshot in candidates]
     dimensions = size.(subspaces, 2)
     same_dimension = all(==(first(dimensions)), dimensions)
