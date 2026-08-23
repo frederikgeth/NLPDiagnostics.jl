@@ -81,6 +81,7 @@ summary = Dict{String,Any}(
         "review_artifact" => "docs/api_stability.md",
     ),
     "domain_extension_root_exports" => domain_extension,
+    "legacy_root_exports" => root_only,
     "interpretation" => Dict{String,Any}(
         "claim" => "inventory of explicit Stable and Advanced aliases and domain-extension root exports",
         "does_not_establish" => [

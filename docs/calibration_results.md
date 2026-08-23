@@ -1068,6 +1068,13 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Legacy root-export inventory
+
+The API-tier artifact now includes the complete list of 525 root-only exports,
+making the non-Stable legacy tier directly reviewable instead of count-only.
+This is compatibility-policy evidence and does not deprecate or remove any
+root export.
+
 ## 2026-08-23: API stability policy artifact
 
 `docs/api_stability.md` now records the compatibility boundary for the 16-name

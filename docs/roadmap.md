@@ -29,7 +29,10 @@ calibration cases, complete physical KKT/covariance coverage on the real
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
-The latest consolidation increment documents the Stable/Advanced/legacy-root
+The latest consolidation increment makes the legacy-root tier explicit in the
+machine-readable inventory: all 525 root-only exports are listed for review
+and are not implicitly Stable. The prior increment documents the
+Stable/Advanced/legacy-root
 API compatibility policy in `docs/api_stability.md` and the machine-readable
 tier inventory. The policy makes Stable an additive adoption target while
 keeping Advanced experimental and root-only exports explicitly non-Stable. The

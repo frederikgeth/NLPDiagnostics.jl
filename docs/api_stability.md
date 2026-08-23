@@ -37,6 +37,10 @@ julia --project=work/benchmark-environment --startup-file=no \
   benchmarks/audit_api_tiers.jl
 ```
 
+The generated inventory includes the complete `legacy_root_exports` list, so
+each of the 525 root-only names is explicitly reviewable rather than hidden
+behind an aggregate count.
+
 This policy does not claim semantic correctness, numerical qualification, or
 release readiness. Those remain governed by the roadmap trust gates and the
 calibration release gate.
