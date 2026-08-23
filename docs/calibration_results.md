@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: 30-bus IBR directional-probe helper migration
+
+The dominant-current-coordinate `ibr_p_upper` directional probe now uses the
+shared `benchmarks/common.jl` JSON writer. A local smoke on one 30-bus LN
+snapshot completed without an error and retained the directional-report
+availability boundary explicitly. This remains a primal response probe, not a
+KKT, conditioning, or causal certificate.
+
 ## 2026-08-23: 30-bus physical-KKT probe helper migration
 
 The bounded 30-bus physical-KKT probe now uses the shared
@@ -1407,7 +1415,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-seventy-five core release, rank, runtime, and audit runners; the BMOPF campaign and
+seventy-six core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
