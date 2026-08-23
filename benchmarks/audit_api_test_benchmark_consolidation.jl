@@ -292,6 +292,7 @@ summary = Dict{String,Any}(
             "typed unavailable-reason serialization for solver linear telemetry",
             "typed unavailable-reason serialization for solver-dual and complementarity boundaries",
             "generic report-boundary unavailable-reason collection for paired and suffix-only metadata",
+            "typed unavailable-reason serialization for generic component-rank capability reports",
             "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
             "reviewed local quality policy with explicit deferred-tool boundaries",
         ],

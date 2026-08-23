@@ -1670,6 +1670,17 @@ explicitly deferred with reasons because their reviewed environments are not
 configured. The policy and its shape checks pass locally; this does not claim
 CI execution or scientific qualification.
 
+## 2026-08-23: typed component-rank capability unavailability
+
+The generic `component_rank_capability_report` now adds an additive typed
+unavailable-reason record when a component declaration omits `expected_rank`.
+The existing availability counts, reason-compatible metadata, finding code,
+and affected-entity evidence remain intact. The renderer-neutral report data
+exposes code `component_expected_rank_unavailable`, category `capability`, and
+the `component_rank_capability` stage. A focused local serializer probe and the
+known local regression command pass; this does not qualify observed rank or
+physical interpretation.
+
 ## 2026-08-22: sparse runtime/allocation scaling calibration
 
 The deterministic sparse profiling corpus was measured at dimensions 16, 32,

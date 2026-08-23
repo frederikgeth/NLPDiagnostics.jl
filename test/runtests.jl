@@ -3540,6 +3540,16 @@ end
     @test generic_capability_report.metadata[:component_expected_rank_declared_count] == "1"
     @test generic_capability_report.metadata[:component_expected_rank_unavailable_count] == "1"
     @test generic_capability_report.metadata[:component_expected_rank_coverage] == "0.5"
+    @test generic_capability_report.metadata[:component_expected_rank_available] == "false"
+    @test generic_capability_report.metadata[:component_expected_rank_reason] ==
+          "one or more component metadata entries omit expected_rank"
+    generic_capability_data = NLPDiagnostics.report_data(generic_capability_report)
+    @test length(generic_capability_data["unavailable_reasons"]) == 1
+    @test generic_capability_data["unavailable_reasons"][1]["code"] ==
+          "component_expected_rank_unavailable"
+    @test generic_capability_data["unavailable_reasons"][1]["category"] == "capability"
+    @test generic_capability_data["unavailable_reasons"][1]["stage"] ==
+          "component_rank_capability"
     @test length(findings(generic_capability_report,
                           :component_expected_rank_unavailable)) == 1
     complete_capability_report = NLPDiagnostics.component_rank_capability_report([
@@ -3550,6 +3560,7 @@ end
         ),
     ])
     @test isempty(complete_capability_report.findings)
+    @test complete_capability_report.metadata[:component_expected_rank_available] == "true"
     malformed = NLPDiagnostics.ComponentMetadata[
         NLPDiagnostics.ComponentMetadata(Symbol(""), "", MOI.VariableIndex[MOI.VariableIndex(2), MOI.VariableIndex(2)], NLPDiagnostics.EntityRef[], Dict(Symbol("") => " "), -1, Dict{String,String}()),
         NLPDiagnostics.ComponentMetadata(:line, "duplicate", MOI.VariableIndex[], NLPDiagnostics.EntityRef[], Dict{Symbol,String}(), nothing, Dict{String,String}()),

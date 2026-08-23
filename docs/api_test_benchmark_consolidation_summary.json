@@ -604,6 +604,7 @@
       "typed unavailable-reason serialization for solver linear telemetry",
       "typed unavailable-reason serialization for solver-dual and complementarity boundaries",
       "generic report-boundary unavailable-reason collection for paired and suffix-only metadata",
+      "typed unavailable-reason serialization for generic component-rank capability reports",
       "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
       "reviewed local quality policy with explicit deferred-tool boundaries"
     ],
@@ -823,6 +824,6 @@
     "explicit_typed_unavailable_tokens": [
       "UnavailableReason"
     ],
-    "typed_adapter_call_count": 5
+    "typed_adapter_call_count": 6
   }
 }

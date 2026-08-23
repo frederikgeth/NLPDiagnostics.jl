@@ -29,7 +29,19 @@ function component_rank_capability_report(
     report.metadata[:component_expected_rank_unavailable_count] = string(unavailable)
     report.metadata[:component_expected_rank_coverage] = isempty(components) ?
         "unavailable" : string(declared / length(components))
+    report.metadata[:component_expected_rank_available] = string(unavailable == 0)
     unavailable == 0 && return report
+    typed_reason = unavailable_reason(
+        (
+            available = false,
+            reason = "one or more component metadata entries omit expected_rank",
+        );
+        code = :component_expected_rank_unavailable,
+        category = :capability,
+        stage,
+    )
+    report.metadata[:component_expected_rank_reason] = typed_reason.message
+    report.metadata[:component_expected_rank_unavailable_reason] = typed_reason.message
     missing_components = filter(component -> isnothing(component.expected_rank), components)
     affected = EntityRef[]
     for component in missing_components
