@@ -119,6 +119,21 @@ function NLPDiagnostics.powermodels_capability_report(
     end
     report.metadata[:powermodels_scalar_angle_coordinate_missing_network_count] =
         string(length(missing_networks))
+    report.metadata[:powermodels_scalar_angle_coordinates_available] =
+        string(isempty(missing_networks))
+    if !isempty(missing_networks)
+        typed_reason = NLPDiagnostics.unavailable_reason(
+            (
+                available = false,
+                reason = "one or more PowerModels networks expose no public scalar :va coordinates",
+            );
+            code = :powermodels_scalar_angle_coordinates_unavailable,
+            category = :capability,
+            stage = :powermodels_capabilities,
+        )
+        report.metadata[:powermodels_scalar_angle_coordinates_reason] = typed_reason.message
+        report.metadata[:powermodels_scalar_angle_coordinates_unavailable_reason] = typed_reason.message
+    end
     for network in missing_networks
         push!(report, NLPDiagnostics.Finding(:powermodels_scalar_angle_coordinates_unavailable;
             severity = NLPDiagnostics.SeverityInfo,

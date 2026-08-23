@@ -357,6 +357,20 @@ import PowerModels
           "powermodels_component_rank_capability"
     @test length(findings(component_capability_report,
                           :component_expected_rank_unavailable)) == 1
+    power_capability_report = NLPDiagnostics.powermodels_capability_report(pm)
+    power_available = power_capability_report.metadata[:powermodels_scalar_angle_coordinates_available]
+    @test power_available in ("true", "false")
+    power_capability_data = NLPDiagnostics.report_data(power_capability_report)
+    @test length(power_capability_data["unavailable_reasons"]) == (power_available == "false" ? 1 : 0)
+    if power_available == "false"
+        @test power_capability_report.metadata[:powermodels_scalar_angle_coordinates_reason] ==
+              "one or more PowerModels networks expose no public scalar :va coordinates"
+        @test power_capability_data["unavailable_reasons"][1]["code"] ==
+              "powermodels_scalar_angle_coordinates_unavailable"
+        @test power_capability_data["unavailable_reasons"][1]["category"] == "capability"
+        @test power_capability_data["unavailable_reasons"][1]["stage"] ==
+              "powermodels_capabilities"
+    end
     owner = NLPDiagnostics.powermodels_jump_model(pm)
     @test owner !== nothing
     backend = JuMP.backend(owner)

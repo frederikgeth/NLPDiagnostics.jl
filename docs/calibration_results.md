@@ -1687,6 +1687,12 @@ the existing unavailable finding and reason text. The extension source parses
 successfully, but the active local checkout does not load the BMOPFTools
 extension, so no extension runtime qualification is claimed.
 
+The PowerModels public scalar-angle capability report now emits a typed
+capability record when any network lacks public `:va` coordinates, preserving
+the existing per-network findings and counts. The extension source parses
+successfully, while optional PowerModels execution remains dependent on the
+configured local environment.
+
 ## 2026-08-22: sparse runtime/allocation scaling calibration
 
 The deterministic sparse profiling corpus was measured at dimensions 16, 32,

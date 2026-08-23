@@ -64,6 +64,12 @@ dependency category, stable stage, and preserved reason string. The extension
 source parses locally, while extension execution remains unavailable in the
 active checkout and is not promoted as runtime evidence.
 
+The same boundary work now types the PowerModels scalar-angle capability
+report. Networks without public `:va` coordinates retain their per-network
+findings and counts while renderer-neutral report data gains a stable
+capability code, category, stage, and reason. The extension source parses
+locally; optional PowerModels execution remains environment-dependent.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,
