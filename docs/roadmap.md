@@ -30,11 +30,16 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/phase_only_99bus_snapshot_campaign.jl` to `benchmarks/common.jl`,
-bringing the shared helper to fifty-one core runners while preserving the
-bounded three-snapshot campaign schema. Its local smoke run completed all six
-Ipopt solves as `LOCALLY_SOLVED`, with covariance, geometry, and endpoint gates
-passing for every snapshot. The prior increment migrated
+`benchmarks/phase_only_orthogonal_control.jl` to `benchmarks/common.jl`,
+bringing the shared helper to fifty-two core runners while preserving the
+algebraic control's intervention, covariance, geometry, singular-value, and
+withheld-solver-work evidence. Its local smoke run classified the intervention
+as `phase_only` and passed covariance, geometry, and singular-value invariance
+gates while retaining solver work as deliberately unavailable. The prior
+increment migrated `benchmarks/phase_only_99bus_snapshot_campaign.jl`; its
+local smoke run completed all six Ipopt solves as `LOCALLY_SOLVED`, with
+covariance, geometry, and endpoint gates passing for every snapshot. The prior
+increment migrated
 `benchmarks/phase_only_campaign_comparison.jl`, whose local smoke run retained
 all six campaigns, six gate-qualified rows, five locally solved rows, and five
 comparable solver-work records. The
@@ -4255,7 +4260,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-fifty-one core release, rank, runtime, and audit runners; the BMOPF campaign and
+fifty-two core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

@@ -14,9 +14,10 @@ so this control cannot be mistaken for a performance campaign.
 """
 
 using LinearAlgebra
-using JSON
 import MathOptInterface as MOI
 using NLPDiagnostics
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 function _evaluation(variables, point, gradient, constraints, jacobian; label)
     entries = NLPDiagnostics.JacobianEntry{Float64}[]
@@ -183,5 +184,5 @@ output = abspath(get(
     joinpath(@__DIR__, "..", "work", "phase-only-orthogonal-control.json"),
 ))
 mkpath(dirname(output))
-write(output, JSON.json(run_phase_only_control()))
+write_json(output, run_phase_only_control())
 println("wrote phase-only orthogonal control to $output")
