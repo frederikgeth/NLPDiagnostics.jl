@@ -55,6 +55,11 @@ unavailability in the degeneracy report with a typed numerical record. The
 existing conservative finding remains intact and no nullspace or physical
 interpretation is promoted.
 
+Iterative right-nullspace, left-nullspace, and spectrum probes now serialize
+incomplete-Jacobian unavailability with typed numerical records. Existing
+probe findings remain unchanged; no candidate nullspace, dependency, or
+spectral interpretation is promoted when the sparse operator is unavailable.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.

@@ -1499,6 +1499,22 @@ function analyze_iterative_right_nullspace_probe(
         string(residual_tolerance)
     report.metadata[:iterative_probe_support_relative] = string(support_relative)
     if !probe.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    probe.reason,
+                    "iterative right-nullspace probe is unavailable",
+                ),
+            );
+            code = :iterative_probe_unavailable,
+            category = :numerical,
+            stage = :iterative_right_nullspace_probe,
+        )
+        report.metadata[:iterative_probe_reason] = typed_reason.message
+        report.metadata[:iterative_probe_unavailable_reason] = typed_reason.message
+        report.metadata[:iterative_probe_category] = string(typed_reason.category)
+        report.metadata[:iterative_probe_stage] = string(typed_reason.stage)
         push!(report, Finding(:iterative_jacobian_nullspace_probe_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -1612,6 +1628,22 @@ function analyze_iterative_left_nullspace_probe(
         string(residual_tolerance)
     report.metadata[:iterative_left_probe_support_relative] = string(support_relative)
     if !probe.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    probe.reason,
+                    "iterative left-nullspace probe is unavailable",
+                ),
+            );
+            code = :iterative_left_probe_unavailable,
+            category = :numerical,
+            stage = :iterative_left_nullspace_probe,
+        )
+        report.metadata[:iterative_left_probe_reason] = typed_reason.message
+        report.metadata[:iterative_left_probe_unavailable_reason] = typed_reason.message
+        report.metadata[:iterative_left_probe_category] = string(typed_reason.category)
+        report.metadata[:iterative_left_probe_stage] = string(typed_reason.stage)
         push!(report, Finding(:iterative_jacobian_left_nullspace_probe_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -1722,6 +1754,25 @@ function analyze_iterative_jacobian_spectrum_probe(
     report.metadata[:iterative_spectrum_probe_spread_threshold] =
         string(spectral_spread_threshold)
     if !estimate.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    estimate.reason,
+                    "iterative Jacobian spectrum probe is unavailable",
+                ),
+            );
+            code = :iterative_spectrum_probe_unavailable,
+            category = :numerical,
+            stage = :iterative_jacobian_spectrum_probe,
+        )
+        report.metadata[:iterative_spectrum_probe_reason] = typed_reason.message
+        report.metadata[:iterative_spectrum_probe_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:iterative_spectrum_probe_category] =
+            string(typed_reason.category)
+        report.metadata[:iterative_spectrum_probe_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:iterative_jacobian_spectrum_probe_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,

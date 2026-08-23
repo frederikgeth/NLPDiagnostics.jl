@@ -7656,6 +7656,44 @@ end
             iterative_spectrum_report,
             :iterative_jacobian_large_spectral_spread_proxy,
         )) == 2
+        incomplete_probe_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+            evaluation.point,
+            evaluation.objective_value,
+            evaluation.objective_source,
+            evaluation.objective_gradient,
+            evaluation.constraint_values,
+            evaluation.constraint_sources,
+            evaluation.jacobian_entries,
+            fill(:unavailable, length(evaluation.jacobian_row_methods)),
+            evaluation.capabilities,
+            evaluation.failures,
+        )
+        incomplete_right_probe = NLPDiagnostics.analyze_iterative_right_nullspace_probe(
+            incomplete_probe_evaluation,
+        )
+        incomplete_left_probe = NLPDiagnostics.analyze_iterative_left_nullspace_probe(
+            incomplete_probe_evaluation,
+        )
+        incomplete_spectrum_probe =
+            NLPDiagnostics.analyze_iterative_jacobian_spectrum_probe(
+                incomplete_probe_evaluation,
+            )
+        @test incomplete_right_probe.metadata[:iterative_probe_available] == "false"
+        @test incomplete_left_probe.metadata[:iterative_left_probe_available] == "false"
+        @test incomplete_spectrum_probe.metadata[
+            :iterative_spectrum_probe_available
+        ] == "false"
+        incomplete_probe_data = vcat(
+            NLPDiagnostics.report_data(incomplete_right_probe)["unavailable_reasons"],
+            NLPDiagnostics.report_data(incomplete_left_probe)["unavailable_reasons"],
+            NLPDiagnostics.report_data(incomplete_spectrum_probe)["unavailable_reasons"],
+        )
+        @test Set(item["code"] for item in incomplete_probe_data) == Set([
+            "iterative_probe_unavailable",
+            "iterative_left_probe_unavailable",
+            "iterative_spectrum_probe_unavailable",
+        ])
+        @test all(item -> item["category"] == "numerical", incomplete_probe_data)
         iterative_spectrum_from_model = NLPDiagnostics.analyze_iterative_jacobian_spectrum_probe(
             two_dimensional_model,
             NLPDiagnostics.evaluation_point(

@@ -148,6 +148,12 @@ dense rank work guards retain numerical classification; `report_data` will
 expose stable codes, stages, categories, and reasons without converting an
 unavailable comparison into a nullspace or physical conclusion.
 
+The next numerical-capability increment types iterative right-nullspace,
+left-nullspace, and spectrum probe unavailability. Existing probe findings and
+native-operator provenance remain intact while direct `report_data` gains
+stable numerical codes, stages, categories, and reasons for each withheld
+probe.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,
