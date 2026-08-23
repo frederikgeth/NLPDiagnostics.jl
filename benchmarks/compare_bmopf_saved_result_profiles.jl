@@ -20,8 +20,10 @@ Set `NLPDIAGNOSTICS_BMOPF_UNIT_RATIO_REPORT` to the output of
 motivated the policy comparison.
 """
 
-using JSON
 using Statistics
+
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
 const _EXCLUDED = Set(("summary.json", "index.json", "campaign_manifest.json"))
 const _SCALE_CODES = Set((
@@ -33,8 +35,7 @@ const _SCALE_CODES = Set((
 ))
 
 function _load(path)
-    isfile(path) || error("JSON record is missing: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(abspath(path); root = "/")
     value isa AbstractDict || error("JSON record is not an object: $path")
     return value
 end
@@ -570,7 +571,7 @@ function main()
         "unit_ratio_report" => ratio_report,
         "interpretation" => "Paired evidence comparison only. Positive deltas mean more right-campaign findings; this is not a quality score and does not certify either unit policy.",
     )
-    write(output_path, JSON.json(report))
+    write_json(output_path, report)
     println("wrote BMOPF saved-result profile comparison to $output_path")
 end
 
