@@ -24,6 +24,9 @@ elapsed-time limit remains active.
 
 using JSON
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
+
 const _CALIBRATION_POINTS = Dict{String,NamedTuple}(
     "engine_start" => (
         point_policy = "bmopf_start_values", result_units = nothing,
@@ -474,17 +477,17 @@ function main()
         )
         entry["previous_attempts"] = previous_attempts
         push!(entries, entry)
-        write(manifest_path, JSON.json(_manifest(
+        write_json(manifest_path, _manifest(
             root, output_root, project, points, repetitions,
             timeout_seconds, max_rss_kib, case_selectors, resume, entries,
-        )))
+        ))
         label = isnothing(case_selector) ? "selected corpus" : case_selector
         println("$point replicate $replicate $label: $(entry["status"])")
     end
-    write(manifest_path, JSON.json(_manifest(
+    write_json(manifest_path, _manifest(
         root, output_root, project, points, repetitions,
         timeout_seconds, max_rss_kib, case_selectors, resume, entries,
-    )))
+    ))
     println("wrote BMOPF point-calibration manifest to $manifest_path")
 end
 
