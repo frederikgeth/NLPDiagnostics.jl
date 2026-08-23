@@ -5,6 +5,7 @@ using JSON
 export repo_root
 export read_text
 export read_summary
+export json_text
 export write_json
 export git_revision
 export git_branch
@@ -17,6 +18,13 @@ repo_root() = REPO_ROOT
 
 read_text(path::AbstractString) = isfile(path) ? read(path, String) : ""
 
+function json_text(payload)
+    io = IOBuffer()
+    JSON.print(io, payload, 2)
+    write(io, '\n')
+    return String(take!(io))
+end
+
 function read_summary(relative::AbstractString; root::AbstractString = REPO_ROOT)
     path = joinpath(root, relative)
     isfile(path) || error("required summary is missing: $relative")
@@ -25,10 +33,7 @@ end
 
 function write_json(path::AbstractString, payload)
     mkpath(dirname(path))
-    open(path, "w") do io
-        JSON.print(io, payload, 2)
-        write(io, '\n')
-    end
+    write(path, json_text(payload))
     return path
 end
 

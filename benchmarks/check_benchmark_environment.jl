@@ -3,7 +3,8 @@
 # Read-only preflight for the benchmark/test stack. It does not install or
 # mutate packages. Exit status is nonzero when a required package is absent.
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: json_text
 
 const _REQUIRED = ["JuMP", "Ipopt", "BMOPFTools"]
 const _OPTIONAL = ["PowerModels", "MadNLP", "PowerIO"]
@@ -61,7 +62,7 @@ function main()
         "missing_required" => missing_required,
         "ready" => isempty(missing_required),
     )
-    println(JSON.json(result))
+    print(json_text(result))
     isempty(missing_required) || exit(1)
 end
 
