@@ -314,6 +314,7 @@ summary = Dict{String,Any}(
             "typed unavailable-reason serialization for structural-to-numerical rank comparison boundaries",
             "typed unavailable-reason serialization for iterative right/left/spectrum probe boundaries",
             "typed unavailable-reason serialization for dense and sparse Jacobian rank backend boundaries",
+            "typed unavailable-reason serialization for sparse-QR nullspace extraction work guards",
             "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
             "reviewed local quality policy with explicit deferred-tool boundaries",
         ],

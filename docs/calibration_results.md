@@ -65,6 +65,10 @@ unscaled/scaled sparse-QR backend unavailability. Guarded and incomplete-row
 local cases preserve their existing rank findings and reasons; no rank-loss
 interpretation is promoted from an unavailable backend.
 
+Sparse-QR nullspace extraction now serializes input/factor-fill and basis
+storage guard failures with a typed numerical record. The local guard case
+passes without promoting a nullspace, rank, or physical interpretation.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.

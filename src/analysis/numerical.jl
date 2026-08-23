@@ -2356,6 +2356,25 @@ function analyze_sparse_qr_nullspace(
     report.metadata[:stage] = "sparse_qr_nullspace"
     report.metadata[:evaluation_point_label] = evaluation.point.label
     report.metadata[:sparse_qr_nullspace_available] = string(estimate.available)
+    if !estimate.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    estimate.reason,
+                    "sparse-QR nullspace extraction is unavailable",
+                ),
+            );
+            code = :sparse_qr_nullspace_unavailable,
+            category = :numerical,
+            stage = :sparse_qr_nullspace,
+        )
+        report.metadata[:sparse_qr_nullspace_reason] = typed_reason.message
+        report.metadata[:sparse_qr_nullspace_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:sparse_qr_nullspace_category] = string(typed_reason.category)
+        report.metadata[:sparse_qr_nullspace_stage] = string(typed_reason.stage)
+    end
     report.metadata[:sparse_qr_nullspace_scaling] = string(estimate.policy.scaling)
     report.metadata[:sparse_qr_nullspace_rank] = string(estimate.rank)
     report.metadata[:sparse_qr_right_nullity] = string(estimate.right_nullity)

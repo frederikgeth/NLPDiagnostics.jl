@@ -7473,6 +7473,19 @@ end
                 incomplete_rank_reasons,
             ),
         )
+        sparse_nullspace_guard_report = NLPDiagnostics.analyze_sparse_qr_nullspace(
+            evaluation;
+            max_input_nonzeros = 0,
+        )
+        sparse_nullspace_guard_data = NLPDiagnostics.report_data(
+            sparse_nullspace_guard_report,
+        )
+        sparse_nullspace_guard_reason = only(filter(
+            item -> item["code"] == "sparse_qr_nullspace_unavailable",
+            sparse_nullspace_guard_data["unavailable_reasons"],
+        ))
+        @test sparse_nullspace_guard_reason["category"] == "numerical"
+        @test sparse_nullspace_guard_reason["stage"] == "sparse_qr_nullspace"
         scaled_sparse_qr = NLPDiagnostics.sparse_qr_rank_estimate(
             evaluation;
             scaling = :row_column,
