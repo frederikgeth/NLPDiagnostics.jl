@@ -58,6 +58,12 @@ reasons for missing declaration paths. A focused local probe and the
 regression suite pass; this is capability/provenance evidence, not a rank or
 physical conclusion.
 
+The same increment types the BMOPFTools differentiability capability boundary:
+when the optional engine report is unavailable, report data now records a
+dependency category, stable stage, and preserved reason string. The extension
+source parses locally, while extension execution remains unavailable in the
+active checkout and is not promoted as runtime evidence.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

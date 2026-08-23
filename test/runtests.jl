@@ -986,6 +986,15 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     ))
     differentiability_report = NLPDiagnostics.bmopf_opf_differentiability_report(context)
     @test differentiability_report.metadata[:bmopf_opf_differentiability_available] == "false"
+    @test differentiability_report.metadata[:bmopf_opf_differentiability_reason] ==
+          "BMOPFTools' JuMP/IPOPT OPF extension is not loaded for this context"
+    differentiability_data = NLPDiagnostics.report_data(differentiability_report)
+    @test length(differentiability_data["unavailable_reasons"]) == 1
+    @test differentiability_data["unavailable_reasons"][1]["code"] ==
+          "bmopf_opf_differentiability_unavailable"
+    @test differentiability_data["unavailable_reasons"][1]["category"] == "dependency"
+    @test differentiability_data["unavailable_reasons"][1]["stage"] ==
+          "bmopf_opf_differentiability"
     @test length(findings(differentiability_report, :bmopf_opf_differentiability_unavailable)) == 1
     registry_report = NLPDiagnostics.bmopf_opf_registry_report(context)
     @test registry_report.metadata[:bmopf_opf_registry_direct_variable_count] == "4"

@@ -298,6 +298,7 @@ summary = Dict{String,Any}(
             "generic report-boundary unavailable-reason collection for paired and suffix-only metadata",
             "typed unavailable-reason serialization for generic component-rank capability reports",
             "typed unavailable-reason serialization for BMOPFTools component-rank capability reports",
+            "typed unavailable-reason serialization for BMOPFTools differentiability capability reports",
             "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
             "reviewed local quality policy with explicit deferred-tool boundaries",
         ],

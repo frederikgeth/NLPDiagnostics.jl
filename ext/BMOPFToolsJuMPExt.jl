@@ -7288,6 +7288,14 @@ end
 function _bmopf_differentiability_unavailable_report(reason::AbstractString)
     report = NLPDiagnostics.DiagnosticReport()
     report.metadata[:bmopf_opf_differentiability_available] = "false"
+    typed_reason = NLPDiagnostics.unavailable_reason(
+        (available = false, reason = reason);
+        code = :bmopf_opf_differentiability_unavailable,
+        category = :dependency,
+        stage = :bmopf_opf_differentiability,
+    )
+    report.metadata[:bmopf_opf_differentiability_reason] = typed_reason.message
+    report.metadata[:bmopf_opf_differentiability_unavailable_reason] = typed_reason.message
     push!(report, NLPDiagnostics.Finding(:bmopf_opf_differentiability_unavailable;
         severity = NLPDiagnostics.SeverityInfo,
         domain = NLPDiagnostics.RepresentationalIssue,

@@ -1681,6 +1681,12 @@ intact. Renderer-neutral report data exposes the capability codes, category
 extension syntax parse, and the known local regression command pass; this does
 not qualify observed rank or physical interpretation.
 
+The BMOPFTools differentiability capability boundary now also emits a typed
+`dependency` record when the optional engine report is not loaded, preserving
+the existing unavailable finding and reason text. The extension source parses
+successfully, but the active local checkout does not load the BMOPFTools
+extension, so no extension runtime qualification is claimed.
+
 ## 2026-08-22: sparse runtime/allocation scaling calibration
 
 The deterministic sparse profiling corpus was measured at dimensions 16, 32,
