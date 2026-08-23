@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 
-"""Inventory root API exports against the explicit Advanced facade."""
+"""Inventory root API exports against the explicit Stable and Advanced facades."""
 
 using JSON
 
@@ -11,6 +11,7 @@ const ROOT = repo_root()
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "api_tier_inventory_summary.json") : ARGS[1])
 const ROOT_MODULE = joinpath(ROOT, "src", "NLPDiagnostics.jl")
+const STABLE_MODULE = joinpath(ROOT, "src", "api", "stable.jl")
 const ADVANCED_MODULE = joinpath(ROOT, "src", "api", "advanced.jl")
 
 function exported_names(path::AbstractString)
@@ -27,7 +28,9 @@ function exported_names(path::AbstractString)
 end
 
 root_exports = exported_names(ROOT_MODULE)
+stable_exports = exported_names(STABLE_MODULE)
 advanced_exports = exported_names(ADVANCED_MODULE)
+stable_overlap = sort!(intersect(root_exports, stable_exports))
 advanced_overlap = sort!(intersect(root_exports, advanced_exports))
 domain_extension = sort!([
     name for name in root_exports
@@ -42,11 +45,14 @@ summary = Dict{String,Any}(
     "status" => "inventory",
     "source" => Dict{String,Any}(
         "root_module" => relpath(ROOT_MODULE, ROOT),
+        "stable_module" => relpath(STABLE_MODULE, ROOT),
         "advanced_module" => relpath(ADVANCED_MODULE, ROOT),
         "runner" => "benchmarks/audit_api_tiers.jl",
     ),
     "counts" => Dict{String,Any}(
         "root_export_count" => length(root_exports),
+        "stable_export_count" => length(stable_exports),
+        "stable_root_overlap_count" => length(stable_overlap),
         "advanced_export_count" => length(advanced_exports),
         "advanced_root_overlap_count" => length(advanced_overlap),
         "advanced_only_count" => length(advanced_only),
@@ -58,16 +64,21 @@ summary = Dict{String,Any}(
         "root_overlap" => advanced_overlap,
         "advanced_only" => advanced_only,
     ),
+    "stable_facade" => Dict{String,Any}(
+        "exports" => stable_exports,
+        "root_overlap" => stable_overlap,
+        "stable_only" => sort!(setdiff(stable_exports, root_exports)),
+    ),
     "domain_extension_root_exports" => domain_extension,
     "interpretation" => Dict{String,Any}(
-        "claim" => "inventory of explicit Advanced aliases and domain-extension root exports",
+        "claim" => "inventory of explicit Stable and Advanced aliases and domain-extension root exports",
         "does_not_establish" => [
             "that root-only exports are stable rather than legacy",
             "that an export can be removed without a compatibility policy",
             "semantic correctness of any exported function",
         ],
         "next_action" =>
-            "review root-only exports and promote selected research-facing names into explicit namespaces before a breaking API release",
+            "review root-only exports and promote selected research-facing names into explicit namespaces before a breaking API release; keep Stable intentionally small",
     ),
 )
 

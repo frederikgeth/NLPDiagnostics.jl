@@ -5,14 +5,14 @@
       "module Advanced"
     ],
     "export_buckets": {
-      "core_or_unclassified": 398,
+      "core_or_unclassified": 399,
       "domain_extension": 96,
       "profiling": 15,
       "scaling": 3,
       "solver_extension": 16,
       "structural": 10
     },
-    "root_export_count": 538,
+    "root_export_count": 539,
     "root_export_names": [
       "AbstractSemanticConstraintSetContract",
       "ActiveSetStructuralDecomposition",
@@ -189,6 +189,7 @@
       "SparseQRNullspaceEstimate",
       "SparseQRNullspacePersistenceEstimate",
       "SparseQRRankEstimate",
+      "Stable",
       "StableReformulationCandidate",
       "StableReformulationPlan",
       "StructuralComponent",
@@ -558,7 +559,7 @@
     "advanced_root_overlap_count": 14,
     "artifact": "docs/api_tier_inventory_summary.json",
     "domain_extension_root_count": 102,
-    "root_export_count": 538,
+    "root_export_count": 539,
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
@@ -599,16 +600,16 @@
       "clean-main BMOPFTools API contract and full local suite evidence",
       "BMOPFTools PR handoff gate",
       "isolated BMOPFTools checkout validation",
-      "explicit Advanced facade and root-export tier inventory"
+      "explicit Stable/Advanced facades and root-export tier inventory"
     ],
     "does_not_establish": [
       "API compatibility across a future namespace refactor",
       "quality or correctness from export counts alone",
       "CI readiness or GitHub Actions execution"
     ],
-    "finding": "The repository has broad root exports and split implementation files. A typed unavailable-reason schema now exists at the report boundary, while explicit advanced namespaces and broad adapter adoption are not yet complete.",
+    "finding": "The repository has broad root exports and split implementation files. A typed unavailable-reason schema and explicit Stable/Advanced facades now exist at the report boundary, while broad adapter adoption and root-export tier migration are not yet complete.",
     "remaining_work": [
-      "define and document stable versus advanced/experimental API tiers",
+      "review the deliberately small Stable facade and document stable versus advanced/experimental API tiers",
       "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
       "migrate the remaining runners to benchmarks/common.jl",
       "keep the tracked BMOPFTools contract artifact synchronized with the active dependency checkout",
@@ -727,8 +728,8 @@
       "benchmarks/validate_bmopf_checkout.jl",
       "benchmarks/validate_bmopf_residual_trends.jl"
     ],
-    "source_file_count": 30,
-    "source_include_count": 29,
+    "source_file_count": 31,
+    "source_include_count": 30,
     "source_includes": [
       "reports/types.jl",
       "reports/text.jl",
@@ -758,7 +759,8 @@
       "analysis/profiling.jl",
       "analysis/postmortem.jl",
       "analysis/initialization.jl",
-      "api/advanced.jl"
+      "api/advanced.jl",
+      "api/stable.jl"
     ],
     "test_file_count": 10,
     "test_include_count": 9,
@@ -773,7 +775,7 @@
       "bmopf_scaling_covariance.jl",
       "bmopf_scaling_formulations.jl"
     ],
-    "testset_count_in_root": 112
+    "testset_count_in_root": 113
   },
   "schema_version": "nlpdiagnostics-api-test-benchmark-consolidation-v1",
   "source": {

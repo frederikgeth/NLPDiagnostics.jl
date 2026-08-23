@@ -1068,6 +1068,16 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Stable API facade contract
+
+The new `NLPDiagnostics.Stable` facade defines a deliberately small
+16-export surface for model snapshots, numerical evaluations, solver-neutral
+analysis, findings, evidence, and report serialization. The focused facade
+contract test passes in the known local benchmark environment. The tier audit
+records 539 root exports, 16 Stable exports (15 root overlaps), and 14
+Advanced/root overlaps; this is an adoption boundary, not a claim that all
+legacy root exports are release-stable.
+
 ## 2026-08-23: AC/DC campaign helper migration
 
 The AC/DC base-grid, feeder-policy, multi-converter, and MadNLP
@@ -1593,7 +1603,7 @@ release work.
 ## 2026-08-22: API/test/benchmark consolidation audit
 
 The consolidation audit records the current engineering boundary without
-changing existing result layouts: 538 unique root exports, 112 root testsets
+changing existing result layouts: 539 unique root exports, 113 root testsets
 across nine included test modules, 107 benchmark scripts, and schema versions
 on all 48 JSON artifacts. It also counts 28 bare source `catch` boundaries.
 The new
@@ -1601,8 +1611,9 @@ The new
 provide the typed unavailable schema, and profile-result serialization now
 emits typed records for guarded dense, sparse-QR, and scaled sparse-QR rank
 paths without changing legacy metadata. Broad adapter adoption and
-root-export tiering remain open. The non-breaking
-`NLPDiagnostics.Advanced` facade now exposes the research-facing profiling,
+root-export tiering remain open. The non-breaking `NLPDiagnostics.Stable`
+facade now exposes the deliberately small model-analysis/reporting surface,
+while `NLPDiagnostics.Advanced` exposes the research-facing profiling,
 rank-policy, and typed-capability APIs; broad root-export tier migration is
 still open. The audit records five typed adapter call sites, including the
 guarded large sparse rank campaign and profiling serialization.

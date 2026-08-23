@@ -29,7 +29,14 @@ calibration cases, complete physical KKT/covariance coverage on the real
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
-The latest consolidation increment migrated
+The latest consolidation increment adds the deliberately small
+`NLPDiagnostics.Stable` facade for model snapshots, evaluations, analysis,
+findings, and report serialization. A focused facade contract test passes in the
+known local benchmark environment, and the API-tier inventory now records 16
+Stable exports alongside the 14 Advanced exports. The broad root surface
+remains backward-compatible; Stable is an explicit adoption target rather than
+a claim that every legacy export is release-stable. The prior increment
+migrated
 `benchmarks/bmopf_acdc_base_grid_campaign.jl`,
 `benchmarks/bmopf_acdc_feeder_policy_campaign.jl`,
 `benchmarks/bmopf_acdc_multiconverter_campaign.jl`, and
@@ -4411,8 +4418,8 @@ observations only; OPF-solver scaling and isolated peak-memory measurements
 remain open.
 The API/test/benchmark consolidation audit is tracked at
 `docs/api_test_benchmark_consolidation_summary.json`, with executable runner
-`benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 538
-unique root exports, 112 root testsets across nine included test modules, 107
+`benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 539
+unique root exports, 113 root testsets across nine included test modules, 107
 benchmark scripts, and schema versions on all 48 JSON artifacts. A typed
 `UnavailableReason` report-boundary schema is now present, while explicit
 advanced namespaces now have a non-breaking `NLPDiagnostics.Advanced` facade;
@@ -4457,10 +4464,12 @@ calibrated contrasts. The LG runner used a temporary copy of the known local
 environment with BMOPFTools `8f121216`; the current research checkout remains
 on its separate development revision until the API branch is merged.
 
-The companion `benchmarks/audit_api_tiers.jl` inventory records 14 explicit
-Advanced/root overlaps and 102 domain-extension root exports without changing
-the backward-compatible root surface. API modularization, typed unavailable schemas, and benchmark consolidation are
-now partially instrumented through the `NLPDiagnostics.Advanced` facade, typed
+The companion `benchmarks/audit_api_tiers.jl` inventory records 16 explicit
+Stable exports (15 root overlaps), 14 Advanced/root overlaps, and 102
+domain-extension root exports without changing the backward-compatible root
+surface. API modularization, typed unavailable schemas, and benchmark
+consolidation are now partially instrumented through the `NLPDiagnostics.Stable`
+and `NLPDiagnostics.Advanced` facades, typed
 report-boundary adapters, typed scaling-covariance unavailable records, profile serialization, centralized core benchmark
 helpers, and a clean-main BMOPFTools compatibility gate. Broad root-export tier
 migration, complete unavailable-reason adoption, remaining runner migration,

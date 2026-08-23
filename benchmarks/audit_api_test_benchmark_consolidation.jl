@@ -237,7 +237,7 @@ summary = Dict{String,Any}(
     "interpretation" => Dict(
         "status" => "partial",
         "finding" =>
-            "The repository has broad root exports and split implementation files. A typed unavailable-reason schema now exists at the report boundary, while explicit advanced namespaces and broad adapter adoption are not yet complete.",
+            "The repository has broad root exports and split implementation files. A typed unavailable-reason schema and explicit Stable/Advanced facades now exist at the report boundary, while broad adapter adoption and root-export tier migration are not yet complete.",
         "completed_evidence" => [
             "root export inventory",
             "source and test include boundaries",
@@ -248,10 +248,10 @@ summary = Dict{String,Any}(
             "clean-main BMOPFTools API contract and full local suite evidence",
             "BMOPFTools PR handoff gate",
             "isolated BMOPFTools checkout validation",
-            "explicit Advanced facade and root-export tier inventory",
+            "explicit Stable/Advanced facades and root-export tier inventory",
         ],
         "remaining_work" => [
-            "define and document stable versus advanced/experimental API tiers",
+            "review the deliberately small Stable facade and document stable versus advanced/experimental API tiers",
             "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
             "migrate the remaining runners to benchmarks/common.jl",
             "keep the tracked BMOPFTools contract artifact synchronized with the active dependency checkout",

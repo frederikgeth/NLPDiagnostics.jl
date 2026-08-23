@@ -89,6 +89,16 @@ end
     @test all(isdefined(NLPDiagnostics.Advanced, name) for name in advanced_exports)
 end
 
+@testset "Stable facade export tier contract" begin
+    stable_exports = names(NLPDiagnostics.Stable; all=false, imported=false)
+    @test length(stable_exports) == 16
+    @test all(isdefined(NLPDiagnostics.Stable, name) for name in stable_exports)
+    @test NLPDiagnostics.Stable.ModelSnapshot === NLPDiagnostics.ModelSnapshot
+    @test NLPDiagnostics.Stable.snapshot === NLPDiagnostics.snapshot
+    @test NLPDiagnostics.Stable.analyze === NLPDiagnostics.analyze
+    @test NLPDiagnostics.Stable.report_data === NLPDiagnostics.report_data
+end
+
 if Base.find_package("Ipopt") !== nothing
     import Ipopt
 

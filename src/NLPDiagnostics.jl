@@ -37,6 +37,7 @@ include("analysis/postmortem.jl")
 include("analysis/initialization.jl")
 include("api/advanced.jl")
 
+export Stable
 export Advanced
 export Confidence
 export ConfidenceCertain, ConfidenceHigh, ConfidenceLow, ConfidenceMedium
@@ -5901,5 +5902,7 @@ function analyze(
     )
     return report
 end
+
+include("api/stable.jl")
 
 end
