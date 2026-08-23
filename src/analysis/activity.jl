@@ -2874,6 +2874,20 @@ function analyze_active_set(
     report.metadata[:supported_coupled_set_count] = string(length(coupled_summary.activities))
     report.metadata[:mfcq_screen_available] = string(mfcq.available)
     report.metadata[:mfcq_screen_reason] = string(mfcq.reason)
+    if !mfcq.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(mfcq.reason, "MFCQ screen is unavailable"),
+            );
+            code = :mfcq_screen_unavailable,
+            category = :numerical,
+            stage = :active_set_mfcq_screen,
+        )
+        report.metadata[:mfcq_screen_unavailable_reason] = typed_reason.message
+        report.metadata[:mfcq_screen_category] = string(typed_reason.category)
+        report.metadata[:mfcq_screen_stage] = string(typed_reason.stage)
+    end
     report.metadata[:mfcq_equality_jacobian_rank] =
         string(mfcq.equality_jacobian_rank)
     report.metadata[:mfcq_equality_jacobian_threshold] =

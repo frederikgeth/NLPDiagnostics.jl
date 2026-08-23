@@ -113,6 +113,11 @@ the existing second-order finding remains intact while `report_data` records a
 stable numerical code, category, stage, and reason. A bounded local guard case
 now exercises this path without turning it into a curvature or KKT claim.
 
+The next active-set increment types MFCQ screen unavailability when equality
+Jacobian work is unavailable under the configured guard. Existing MFCQ
+availability metadata and findings remain unchanged, while `report_data`
+records a stable numerical code, category, stage, and reason.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

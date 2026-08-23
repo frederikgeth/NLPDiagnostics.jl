@@ -26,6 +26,11 @@ unavailability with a typed numerical record, while preserving the existing
 unavailable finding. The bounded local guard case confirms the record without
 promoting any reduced-Hessian or KKT interpretation.
 
+The scalar active-set report also serializes MFCQ screen unavailability when
+the equality-Jacobian work guard prevents the screen. This remains numerical
+capability evidence only; it does not classify MFCQ or establish a constraint
+qualification failure.
+
 ## 2026-08-10: corrected Ipopt option campaign
 
 Status: **design-qualified, provenance-limited development result**.

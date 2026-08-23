@@ -8881,6 +8881,19 @@ end
         )
         @test rank_deficient_mfcq_report.metadata[:mfcq_equality_jacobian_rank] ==
               "0"
+        guarded_mfcq_report = NLPDiagnostics.analyze_active_set(
+            rank_deficient_mfcq,
+            [0.0];
+            rank_max_dense_entries = 0,
+        )
+        @test guarded_mfcq_report.metadata[:mfcq_screen_available] == "false"
+        guarded_mfcq_data = NLPDiagnostics.report_data(guarded_mfcq_report)
+        guarded_mfcq_reason = only(filter(
+            item -> item["code"] == "mfcq_screen_unavailable",
+            guarded_mfcq_data["unavailable_reasons"],
+        ))
+        @test guarded_mfcq_reason["category"] == "numerical"
+        @test guarded_mfcq_reason["stage"] == "active_set_mfcq_screen"
 
         dependent = new_model()
         z = MOI.add_variable(dependent)
