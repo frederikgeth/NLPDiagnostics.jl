@@ -9,9 +9,11 @@
 
 using JSON
 
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
+
 function _load_summary(path)
-    isfile(path) || error("summary file is missing: $path")
-    data = JSON.parsefile(path)
+    data = read_summary(abspath(path); root = "/")
     data isa AbstractDict || error("summary must be a JSON object: $path")
     return data
 end
@@ -155,12 +157,11 @@ function main()
         "usage: compare_bmopf_summaries.jl baseline/summary.json candidate/summary.json [output.json]",
     )
     comparison = _comparison(_load_summary(ARGS[1]), _load_summary(ARGS[2]))
-    serialized = JSON.json(comparison)
     if length(ARGS) == 3
-        write(ARGS[3], serialized)
+        write_json(abspath(ARGS[3]), comparison)
         println("wrote ", ARGS[3])
     else
-        println(serialized)
+        println(JSON.json(comparison))
     end
 end
 

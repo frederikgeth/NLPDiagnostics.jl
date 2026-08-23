@@ -1184,8 +1184,8 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-fourteen core release, rank, runtime, and audit runners; the BMOPF campaign and
-evidence-ledger summarizers and comparison, residual-trend, checkout, and
+fifteen core release, rank, runtime, and audit runners; the BMOPF campaign and
+evidence-ledger summarizers and comparisons, residual-trend, checkout, and
 PR-handoff validators now use the shared JSON/repository helper. The new
 `benchmarks/audit_bmopf_api_contract.jl` audit extracts every BMOPFTools symbol
 referenced by the JuMP extension and records the resolved dependency revision,
