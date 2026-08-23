@@ -214,6 +214,10 @@ unavailability when too few complete snapshots contain a nonempty flat
 subspace. Existing active-row, multiplier, scaling, and expected-mode findings
 remain unchanged.
 
+The next persistence-infrastructure increment types coordinate-alignment
+unavailability across multiplier, Jacobian-scaling, and derivative-provenance
+comparisons. Existing representational mismatch findings remain unchanged.
+
 The next reduced-Hessian expectation increment types expected-mode persistence
 as input-unavailable when a declaration falls outside the shared snapshot
 coordinates. Existing representational findings and finite subspace

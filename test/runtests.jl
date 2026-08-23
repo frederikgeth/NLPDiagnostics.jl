@@ -8234,6 +8234,41 @@ end
         @test length(only(findings(
             provenance, :jacobian_derivative_provenance_changing,
         )).affected) == 1
+        misaligned_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+            evaluations[2].point,
+            evaluations[2].objective_value,
+            evaluations[2].objective_source,
+            evaluations[2].objective_gradient,
+            evaluations[2].constraint_values,
+            collect(reverse(evaluations[2].constraint_sources)),
+            evaluations[2].jacobian_entries,
+            evaluations[2].jacobian_row_methods,
+            evaluations[2].capabilities,
+            evaluations[2].failures,
+        )
+        for (report, code, stage) in (
+            (
+                NLPDiagnostics.analyze_jacobian_scaling_persistence(
+                    [evaluations[1], misaligned_evaluation],
+                ),
+                "jacobian_scaling_persistence_unavailable",
+                "jacobian_scaling_persistence",
+            ),
+            (
+                NLPDiagnostics.analyze_jacobian_derivative_provenance_persistence(
+                    [evaluations[1], misaligned_evaluation],
+                ),
+                "jacobian_derivative_provenance_persistence_unavailable",
+                "jacobian_derivative_provenance_persistence",
+            ),
+        )
+            reason = only(filter(
+                item -> item["code"] == code,
+                NLPDiagnostics.report_data(report)["unavailable_reasons"],
+            ))
+            @test reason["category"] == "input"
+            @test reason["stage"] == stage
+        end
     end
 
     @testset "structural and numerical rank comparison stays nonphysical" begin
@@ -11588,6 +11623,59 @@ end
         scaling_analysis_2 = NLPDiagnostics.reduced_hessian_analysis(
             scaling_evaluation_2, scaling_hessian_2; active_rows = Int[],
         )
+        misaligned_scaling_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
+            scaling_evaluation_2.point,
+            scaling_evaluation_2.objective_value,
+            scaling_evaluation_2.objective_source,
+            scaling_evaluation_2.objective_gradient,
+            scaling_evaluation_2.constraint_values,
+            collect(reverse(scaling_evaluation_2.constraint_sources)),
+            scaling_evaluation_2.jacobian_entries,
+            scaling_evaluation_2.jacobian_row_methods,
+            scaling_evaluation_2.capabilities,
+            scaling_evaluation_2.failures,
+        )
+        multiplier_alignment_hessian_1 = NLPDiagnostics.HessianEvaluation(
+            scaling_evaluation_1.point,
+            1.0,
+            [1.0, 1.0],
+            NLPDiagnostics.HessianEntry{Float64}[],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        multiplier_alignment_hessian_2 = NLPDiagnostics.HessianEvaluation(
+            misaligned_scaling_evaluation.point,
+            1.0,
+            [1.0, 1.0],
+            NLPDiagnostics.HessianEntry{Float64}[],
+            [:test_exact],
+            true,
+            NLPDiagnostics.EvaluationFailure[],
+        )
+        multiplier_alignment_report =
+            NLPDiagnostics.analyze_reduced_hessian_persistence([
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    scaling_evaluation_1,
+                    scaling_analysis_1,
+                    multiplier_alignment_hessian_1,
+                ),
+                NLPDiagnostics.ReducedHessianSnapshot(
+                    misaligned_scaling_evaluation,
+                    scaling_analysis_2,
+                    multiplier_alignment_hessian_2,
+                ),
+            ])
+        multiplier_alignment_reason = only(filter(
+            item -> item["code"] ==
+                "reduced_hessian_multiplier_persistence_unavailable",
+            NLPDiagnostics.report_data(multiplier_alignment_report)[
+                "unavailable_reasons"
+            ],
+        ))
+        @test multiplier_alignment_reason["category"] == "input"
+        @test multiplier_alignment_reason["stage"] ==
+              "reduced_hessian_multiplier_persistence"
         scaling_changing_report =
             NLPDiagnostics.analyze_reduced_hessian_persistence([
                 NLPDiagnostics.ReducedHessianSnapshot(
@@ -11601,18 +11689,6 @@ end
             scaling_changing_report,
             :reduced_hessian_jacobian_scaling_changing,
         )) == 1
-        misaligned_scaling_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
-            scaling_evaluation_2.point,
-            scaling_evaluation_2.objective_value,
-            scaling_evaluation_2.objective_source,
-            scaling_evaluation_2.objective_gradient,
-            scaling_evaluation_2.constraint_values,
-            collect(reverse(scaling_evaluation_2.constraint_sources)),
-            scaling_evaluation_2.jacobian_entries,
-            scaling_evaluation_2.jacobian_row_methods,
-            scaling_evaluation_2.capabilities,
-            scaling_evaluation_2.failures,
-        )
         misaligned_scaling_report =
             NLPDiagnostics.analyze_reduced_hessian_persistence([
                 NLPDiagnostics.ReducedHessianSnapshot(

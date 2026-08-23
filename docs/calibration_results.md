@@ -1777,6 +1777,11 @@ Reduced-Hessian expected-mode persistence now serializes typed input
 unavailability when a declared mode uses variables outside the shared snapshot
 coordinate scope. Existing expected-subspace findings remain unchanged.
 
+Persistence coordinate mismatches now serialize typed input unavailability for
+multiplier, Jacobian-scaling, and derivative-provenance comparisons. Existing
+alignment findings remain available for diagnosis without implying numerical
+or physical change.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at
