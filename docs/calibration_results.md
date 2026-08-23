@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: 30-bus IBR directional-delta helper migration
+
+The `ibr_p_upper` finite-difference directional-delta matrix now uses the
+shared `benchmarks/common.jl` JSON writer. A local smoke on one 30-bus LN
+snapshot completed without an error, covering 28 target rows with six delta
+measures. This remains a primal response audit, not a KKT, conditioning, or
+causal certificate.
+
 ## 2026-08-23: 30-bus IBR directional-Jacobian helper migration
 
 The `ibr_p_upper` analytic-versus-finite-difference directional Jacobian check
@@ -1359,7 +1367,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-sixty-nine core release, rank, runtime, and audit runners; the BMOPF campaign and
+seventy core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
