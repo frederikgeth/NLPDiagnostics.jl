@@ -8,6 +8,8 @@ using JSON
 using JuMP
 using NLPDiagnostics
 using SHA
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 const DEFAULT_ROOT = normpath(joinpath(@__DIR__, "..", "..", "BMOPFDraftData", "benchmarks"))
 const SELECTED_SNAPSHOTS = [
@@ -185,5 +187,5 @@ end
 
 output = abspath(get(ENV, "NLPDIAGNOSTICS_REAL_99BUS_OUTPUT", joinpath(@__DIR__, "..", "work", "real-99bus-readiness.json")))
 mkpath(dirname(output))
-write(output, JSON.json(run_inventory()))
+write_json(output, run_inventory())
 println("wrote real 99-bus readiness report to $output")

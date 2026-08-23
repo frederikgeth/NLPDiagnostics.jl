@@ -620,7 +620,7 @@
   "module_boundaries": {
     "benchmark_script_count": 107,
     "shared_benchmark_helper": "benchmarks/common.jl",
-    "shared_benchmark_helper_user_count": 57,
+    "shared_benchmark_helper_user_count": 58,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
       "benchmarks/audit_api_tiers.jl",
@@ -652,6 +652,7 @@
       "benchmarks/phase_only_orthogonal_control.jl",
       "benchmarks/phase_only_transformer_ipopt_campaign.jl",
       "benchmarks/profile_sparse_runtime_memory_scaling.jl",
+      "benchmarks/real_99bus_readiness.jl",
       "benchmarks/summarize_bmopf_campaign.jl",
       "benchmarks/summarize_bmopf_controller_campaign.jl",
       "benchmarks/summarize_bmopf_endpoint_triangulation.jl",
