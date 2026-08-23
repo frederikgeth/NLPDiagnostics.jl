@@ -1068,6 +1068,15 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: bounded 99-bus phase-only campaign helper migration
+
+The bounded three-snapshot phase-only 99-bus feeder campaign now uses the
+shared `benchmarks/common.jl` JSON writer. Its local smoke run completed all
+six Ipopt solves as `LOCALLY_SOLVED`; covariance, geometry, and endpoint gates
+passed for light, nominal, and heavy snapshots. The migration preserves the
+surrogate-fixture qualification boundaries and does not broaden its network or
+policy claims.
+
 ## 2026-08-23: phase-only campaign comparison helper migration
 
 The reproducible phase-only campaign comparison now uses the shared
@@ -1193,7 +1202,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-fifty core release, rank, runtime, and audit runners; the BMOPF campaign and
+fifty-one core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

@@ -3,11 +3,12 @@
 """Run a bounded three-snapshot phase-only Ipopt campaign on a 99-bus feeder surrogate."""
 
 using LinearAlgebra
-using JSON
 using JuMP
 using Ipopt
 import MathOptInterface as MOI
 using NLPDiagnostics
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 const BUS_COUNT = 99
 const COORDINATE_COUNT = 2 * BUS_COUNT
@@ -213,5 +214,5 @@ end
 
 output = abspath(get(ENV, "NLPDIAGNOSTICS_PHASE_ONLY_99BUS_OUTPUT", joinpath(@__DIR__, "..", "work", "phase-only-99bus-snapshot-campaign.json")))
 mkpath(dirname(output))
-write(output, JSON.json(run_campaign()))
+write_json(output, run_campaign())
 println("wrote 99-bus phase-only snapshot campaign to $output")
