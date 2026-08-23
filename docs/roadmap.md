@@ -29,6 +29,13 @@ calibration cases, complete physical KKT/covariance coverage on the real
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
+The latest consolidation increment adds
+`benchmarks/build_calibration_release_report.jl`, which renders the
+machine-readable release-gate ledger into
+`docs/calibration_release_report.md` with gate status, blocker rationale, and
+evidence links. The generated report records `release_ready=false` with four
+blocking gates; it is a handoff and review artifact, not release qualification.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,
@@ -4447,7 +4454,7 @@ remain open.
 The API/test/benchmark consolidation audit is tracked at
 `docs/api_test_benchmark_consolidation_summary.json`, with executable runner
 `benchmarks/audit_api_test_benchmark_consolidation.jl`. It inventories 539
-unique root exports, 113 root testsets across nine included test modules, 107
+unique root exports, 113 root testsets across nine included test modules, 109
 benchmark scripts, and schema versions on all 48 JSON artifacts. A typed
 `UnavailableReason` report-boundary schema is now present, while explicit
 advanced namespaces now have a non-breaking `NLPDiagnostics.Advanced` facade;
@@ -4458,7 +4465,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-105 core release, rank, runtime, and audit runners; the BMOPF campaign and
+106 core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

@@ -1637,6 +1637,17 @@ dense rank is disabled, and inequality-multiplier covariance remains outside
 the covariance report. The machine-readable release-gate ledger is
 `docs/calibration_release_gate_summary.json`.
 
+## 2026-08-23: calibration release report
+
+The release-gate ledger now has a generated Markdown handoff report at
+`docs/calibration_release_report.md`, produced by
+`benchmarks/build_calibration_release_report.jl`. The report preserves the
+machine-readable status, renders all seven gate rows, links each gate to its
+evidence artifacts, and makes the four blocking gates visible for review.
+The local generation run succeeded. This is documentation and handoff
+evidence only: `release_ready` remains `false`, and no scientific or causal
+claim was promoted.
+
 ## 2026-08-22: sparse runtime/allocation scaling calibration
 
 The deterministic sparse profiling corpus was measured at dimensions 16, 32,
@@ -1657,7 +1668,7 @@ release work.
 
 The consolidation audit records the current engineering boundary without
 changing existing result layouts: 539 unique root exports, 113 root testsets
-across nine included test modules, 108 benchmark scripts, and schema versions
+across nine included test modules, 109 benchmark scripts, and schema versions
 on all 48 JSON artifacts. It also counts 28 bare source `catch` boundaries.
 The new
 `UnavailableReason` type and `unavailable_reason_data` boundary serializer
@@ -1676,7 +1687,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-105 core release, rank, runtime, and audit runners; the BMOPF campaign and
+106 core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
