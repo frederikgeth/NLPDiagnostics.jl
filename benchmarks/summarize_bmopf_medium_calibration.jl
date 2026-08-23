@@ -9,7 +9,8 @@ result projection, derivative provenance and crosscheck, sparse-QR resources,
 scaling policy, and BMOPFTools differentiability qualifications.
 """
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 _dict(value) = value isa AbstractDict ?
     Dict{String,Any}(string(key) => item for (key, item) in value) :
@@ -64,7 +65,7 @@ function _case_record(run, child_case)
     end
     path = joinpath(output_directory, result_file)
     isfile(path) || return Dict{String,Any}()
-    return _dict(JSON.parsefile(path))
+    return _dict(read_summary(path; root = "/"))
 end
 
 function _case_row(run, child_case, record)
@@ -181,14 +182,14 @@ function main()
     isfile(index_path) || error("calibration index is missing: $index_path")
     output_path = length(ARGS) == 2 ? abspath(ARGS[2]) :
                   joinpath(root, "medium_profile_summary.json")
-    index = _dict(JSON.parsefile(index_path))
+    index = _dict(read_summary(index_path; root = "/"))
     rows = Dict{String,Any}[]
     for raw_run in get(index, "runs", Any[])
         run = _dict(raw_run)
         output_directory = String(get(run, "output_directory", ""))
         child_index_path = joinpath(output_directory, "index.json")
         isfile(child_index_path) || continue
-        child_index = _dict(JSON.parsefile(child_index_path))
+        child_index = _dict(read_summary(child_index_path; root = "/"))
         for raw_case in get(child_index, "cases", Any[])
             child_case = _dict(raw_case)
             record = _case_record(run, child_case)
@@ -232,7 +233,7 @@ function main()
         "cases" => rows,
         "interpretation" => "Passing gates support local, point-specific numerical comparisons across the retained scaling policies. They do not establish global optimality, physical-mode identity, LICQ, second-order sufficiency, or solver-independent difficulty.",
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote medium BMOPF calibration summary to $output_path")
 end
 
