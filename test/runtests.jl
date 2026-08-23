@@ -10528,6 +10528,14 @@ end
         )
         @test !unsupported_cone_summary.complete
         @test occursin("no generic", unsupported_cone_summary.reason)
+        unsupported_cone_data = NLPDiagnostics.report_data(unsupported_cone_report)
+        unsupported_coupled_reason = only(filter(
+            item -> item["code"] == "coupled_qualification_unavailable",
+            unsupported_cone_data["unavailable_reasons"],
+        ))
+        @test unsupported_coupled_reason["category"] == "capability"
+        @test unsupported_coupled_reason["stage"] ==
+              "coupled_set_qualification"
     end
 
     @testset "finite-difference and reduced Hessian evidence" begin

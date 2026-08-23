@@ -2496,6 +2496,24 @@ function analyze_coupled_set_qualification(
         activity -> activity.classification == :unavailable, summary.activities,
     ))
     report.metadata[:coupled_qualification_available] = string(screen.available)
+    if !screen.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    screen.reason,
+                    "coupled-set Robinson-CQ screen is unavailable",
+                ),
+            );
+            code = :coupled_qualification_unavailable,
+            category = :capability,
+            stage = :coupled_set_qualification,
+        )
+        report.metadata[:coupled_qualification_reason] = typed_reason.message
+        report.metadata[:coupled_qualification_unavailable_reason] = typed_reason.message
+        report.metadata[:coupled_qualification_category] = string(typed_reason.category)
+        report.metadata[:coupled_qualification_stage] = string(typed_reason.stage)
+    end
     report.metadata[:coupled_robinson_regular] = string(screen.robinson_regular)
     report.metadata[:coupled_tangent_source_count] = string(length(screen.tangent_sources))
     report.metadata[:coupled_normal_combination_residual] =
@@ -2808,6 +2826,15 @@ function analyze_active_set(
         append!(report.findings, _active_coupled_set_scope_findings(coupled_summary))
         report.metadata[:coupled_qualification_available] =
             coupled_qualification_report.metadata[:coupled_qualification_available]
+        for key in (
+            :coupled_qualification_reason,
+            :coupled_qualification_unavailable_reason,
+            :coupled_qualification_category,
+            :coupled_qualification_stage,
+        )
+            haskey(coupled_qualification_report.metadata, key) || continue
+            report.metadata[key] = coupled_qualification_report.metadata[key]
+        end
         report.metadata[:coupled_robinson_regular] =
             coupled_qualification_report.metadata[:coupled_robinson_regular]
     end

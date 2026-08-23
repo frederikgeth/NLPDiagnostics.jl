@@ -123,6 +123,11 @@ under the same dense-work guard. The existing LICQ-style finding and metadata
 remain intact, while `report_data` records a stable numerical code, category,
 stage, and reason.
 
+The next capability increment types coupled-set Robinson qualification
+unavailability for unsupported or incomplete coupled geometry. Existing cone
+findings remain unchanged, while combined active-set `report_data` now carries
+a stable capability code, category, stage, and reason.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,
