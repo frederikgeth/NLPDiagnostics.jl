@@ -11212,6 +11212,55 @@ end
             spanning_report,
             :reduced_hessian_persistent_flat_spans_components,
         )) == 1
+        opaque_scope_model = new_model()
+        MOI.add_variables(opaque_scope_model, 3)
+        MOI.set(opaque_scope_model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(
+            opaque_scope_model,
+            MOI.NLPBlock(),
+            MOI.NLPBlockData(
+                MOI.NLPBoundsPair.([0.0, 0.0, 0.0], [0.0, 0.0, 0.0]),
+                TestNLPEvaluator(),
+                true,
+            ),
+        )
+        opaque_scope_report = NLPDiagnostics.analyze_reduced_hessian_persistence(
+            opaque_scope_model,
+            [
+                NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),
+                NLPDiagnostics.ReducedHessianSnapshot(persistent_evaluation, persistent_analysis),
+            ];
+            components = NLPDiagnostics.ComponentMetadata[],
+            include_port_topology_modes = false,
+        )
+        opaque_scope_reason = only(filter(
+            item -> item["code"] ==
+                "reduced_hessian_persistent_flat_structural_scope_unavailable",
+            NLPDiagnostics.report_data(opaque_scope_report)["unavailable_reasons"],
+        ))
+        @test opaque_scope_reason["category"] == "domain"
+        @test opaque_scope_reason["stage"] ==
+              "reduced_hessian_persistent_flat_structural_scope"
+        unaligned_scope_model = new_model()
+        MOI.add_variable(unaligned_scope_model)
+        unaligned_scope_report = NLPDiagnostics.analyze_reduced_hessian_persistence(
+            unaligned_scope_model,
+            [
+                NLPDiagnostics.ReducedHessianSnapshot(compact_evaluation, compact_analysis),
+                NLPDiagnostics.ReducedHessianSnapshot(persistent_evaluation, persistent_analysis),
+            ];
+            components = NLPDiagnostics.ComponentMetadata[],
+            include_port_topology_modes = false,
+        )
+        unaligned_scope_reason = only(filter(
+            item -> item["code"] ==
+                "reduced_hessian_persistent_flat_structural_scope_unavailable" &&
+                item["category"] == "input",
+            NLPDiagnostics.report_data(unaligned_scope_report)["unavailable_reasons"],
+        ))
+        @test unaligned_scope_reason["category"] == "input"
+        @test unaligned_scope_reason["stage"] ==
+              "reduced_hessian_persistent_flat_structural_scope"
         linking_constraint = MOI.ScalarAffineFunction(
             [MOI.ScalarAffineTerm(1.0, c1), MOI.ScalarAffineTerm(-1.0, c2)],
             0.0,

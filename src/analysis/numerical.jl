@@ -8036,6 +8036,25 @@ function analyze_reduced_hessian_persistence(
     )
     graph = incidence_graph(model)
     if !graph.complete
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "model incidence is incomplete because one or more structural expressions are opaque or unsupported",
+            );
+            code = :reduced_hessian_persistent_flat_structural_scope_unavailable,
+            category = :domain,
+            stage = :reduced_hessian_persistent_flat_structural_scope,
+        )
+        report.metadata[:reduced_hessian_persistent_flat_structural_scope_available] =
+            "false"
+        report.metadata[:reduced_hessian_persistent_flat_structural_scope_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_persistent_flat_structural_scope_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_persistent_flat_structural_scope_category] =
+            string(typed_reason.category)
+        report.metadata[:reduced_hessian_persistent_flat_structural_scope_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(
             :reduced_hessian_persistent_flat_structural_scope_unavailable;
             severity = SeverityInfo,
@@ -8045,7 +8064,7 @@ function analyze_reduced_hessian_persistence(
             observation = "The persistent flat subspace cannot be scoped to structural components because incidence is incomplete.",
             why_it_matters = "Missing symbolic edges can make a localized mode appear to span unrelated components.",
             evidence = [Evidence("Persistent flat-mode structural scope"; details = [
-                "opaque_source_count" => length(graph.opaque_sources),
+                "opaque_source_count" => length(graph.unsupported_types),
             ])],
             suggested_actions = [
                 "Resolve opaque or unsupported expressions before interpreting structural component scope.",
@@ -8061,6 +8080,25 @@ function analyze_reduced_hessian_persistence(
     )
     variable_positions = [get(graph_positions, variable, 0) for variable in support_variables]
     if any(iszero, variable_positions)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "persistent flat-direction support includes variables outside the model incidence coordinate scope",
+            );
+            code = :reduced_hessian_persistent_flat_structural_scope_alignment_unavailable,
+            category = :input,
+            stage = :reduced_hessian_persistent_flat_structural_scope,
+        )
+        report.metadata[:reduced_hessian_persistent_flat_structural_scope_available] =
+            "false"
+        report.metadata[:reduced_hessian_persistent_flat_structural_scope_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_persistent_flat_structural_scope_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:reduced_hessian_persistent_flat_structural_scope_category] =
+            string(typed_reason.category)
+        report.metadata[:reduced_hessian_persistent_flat_structural_scope_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(
             :reduced_hessian_persistent_flat_structural_scope_unaligned;
             severity = SeverityInfo,
@@ -8087,6 +8125,8 @@ function analyze_reduced_hessian_persistence(
     if any(iszero, component_numbers)
         return report
     end
+    report.metadata[:reduced_hessian_persistent_flat_structural_scope_available] =
+        "true"
     component_labels = join(sort(component_numbers), ",")
     localized = length(component_numbers) == 1
     push!(report, Finding(

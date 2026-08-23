@@ -1768,6 +1768,11 @@ input unavailability when declared variables fall outside the common
 persistence coordinate scope. Existing alignment and observed/not-observed
 findings remain unchanged.
 
+Persistent reduced-Hessian structural scoping now serializes typed domain or
+input unavailability when incidence is incomplete or support coordinates are
+not represented in the model graph. No component-localization conclusion is
+promoted in these guarded cases.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

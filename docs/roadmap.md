@@ -4712,3 +4712,8 @@ The next Jacobian expectation increment types expected-mode and expected-mode-
 span persistence as input-unavailable when declarations cannot be aligned with
 the common persistence coordinates. Existing representational findings and
 finite observed/not-observed comparisons remain unchanged.
+
+The next structural-inference increment types persistent reduced-Hessian
+structural-scope unavailability when incidence is incomplete or flat-direction
+support falls outside the model graph. Existing conservative scope findings
+remain unchanged.
