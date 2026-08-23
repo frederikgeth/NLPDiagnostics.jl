@@ -2,8 +2,6 @@
 
 """Run the bounded real-99-bus phase-only campaign under local tolerance/budget policies."""
 
-using JSON
-
 const CAMPAIGN = joinpath(@__DIR__, "real_99bus_phase_only_campaign.jl")
 const PROJECT = abspath(joinpath(@__DIR__, "..", "work", "benchmark-environment"))
 const CASES = [
@@ -12,8 +10,15 @@ const CASES = [
     ("budget_1e8_max20", 20, 1.0e-8),
     ("budget_1e8_max60", 60, 1.0e-8),
 ]
+const ACTIVE_CASES = let
+    selected = filter(!isempty, strip.(split(
+        get(ENV, "NLPDIAGNOSTICS_REAL_99BUS_TOLERANCE_MATRIX_CASES", ""), ',';
+    )))
+    isempty(selected) ? CASES : [case for case in CASES if case[1] in selected]
+end
 
 include(CAMPAIGN)
+using .NLPDiagnosticsBenchmarkCommon
 
 function with_campaign_environment(callback, max_iter, model_tolerance)
     settings = Dict(
@@ -99,20 +104,20 @@ function run_case(label, max_iter, model_tolerance)
 end
 
 results = [run_case(label, max_iter, model_tolerance) for
-    (label, max_iter, model_tolerance) in CASES]
+    (label, max_iter, model_tolerance) in ACTIVE_CASES]
 output = abspath(get(
     ENV,
     "NLPDIAGNOSTICS_REAL_99BUS_TOLERANCE_MATRIX_OUTPUT",
     joinpath(@__DIR__, "..", "work", "real-99bus-phase-only-tolerance-matrix.json"),
 ))
 mkpath(dirname(output))
-write(output, JSON.json(Dict(
+NLPDiagnosticsBenchmarkCommon.write_json(output, Dict(
     "schema_version" => "nlpdiagnostics-real-99bus-phase-only-tolerance-matrix-v2",
     "source" => Dict(
         "campaign" => basename(CAMPAIGN),
         "project" => PROJECT,
-        "case_count" => length(CASES),
+        "case_count" => length(ACTIVE_CASES),
     ),
     "cases" => results,
-)))
+))
 println("wrote real 99-bus phase-only tolerance matrix to $output")
