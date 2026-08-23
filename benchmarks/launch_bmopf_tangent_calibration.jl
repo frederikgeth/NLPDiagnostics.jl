@@ -9,6 +9,9 @@ produces `tangent_policy_comparison.json` for local calibration evidence.
 
 using JSON
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
+
 function _policies()
     values = unique(filter(!isempty, strip.(split(get(
         ENV, "NLPDIAGNOSTICS_BMOPF_TANGENT_CALIBRATION_POLICIES", "none,fixed",
@@ -104,7 +107,7 @@ function main()
         "interpretation" => "Paired tangent-policy campaign; changes remain local calibration evidence.",
     )
     manifest_path = joinpath(output_root, "calibration.json")
-    write(manifest_path, JSON.json(manifest))
+    write_json(manifest_path, manifest)
     println("wrote BMOPF tangent calibration manifest to $manifest_path")
 end
 

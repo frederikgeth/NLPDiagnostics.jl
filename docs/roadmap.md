@@ -30,10 +30,15 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/launch_bmopf_source_solver_matrix.jl` to `benchmarks/common.jl`,
-bringing the shared helper to ninety-four core runners while preserving the
-source-matrix manifest schema. A bounded run completed one `pf_zip_3ph.dss`
-case at `max_iter=1` with status `ok`, classification
+`benchmarks/launch_bmopf_tangent_calibration.jl` to `benchmarks/common.jl`,
+bringing the shared helper to ninety-five core runners while preserving paired
+policy manifests. A bounded `delta-load` zero-probe campaign completed under
+`none` and `fixed` tangent policies; environment, point-policy,
+free-coordinate-policy, and paired-case compatibility all passed. Dense rank
+was intentionally unavailable at budget 0, so the comparison remained
+non-qualifying without findings. The prior increment migrated
+`benchmarks/launch_bmopf_source_solver_matrix.jl`; its bounded run completed one
+`pf_zip_3ph.dss` case at `max_iter=1` with status `ok`, classification
 `solver_failure_not_explained_by_source_domain_thresholds`, and every source,
 alignment, auxiliary-model, derivative, row-family, and completion readiness
 gate passing. The prior increment migrated
@@ -4391,7 +4396,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-ninety-four core release, rank, runtime, and audit runners; the BMOPF campaign and
+ninety-five core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
