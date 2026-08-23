@@ -171,8 +171,10 @@ end
 function NLPDiagnostics.madnlp_primal_capture_capability()
     report = NLPDiagnostics.DiagnosticReport()
     report.metadata[:solver] = "MadNLP"
+    report.metadata[:stage] = "madnlp_primal_capture"
     report.metadata[:metric_callback] = "available"
     report.metadata[:primal_callback] = "unavailable"
+    report.metadata[:madnlp_primal_capture_available] = "false"
     typed_reason = NLPDiagnostics.unavailable_reason(
         (
             available = false,
@@ -183,7 +185,7 @@ function NLPDiagnostics.madnlp_primal_capture_capability()
         stage = :madnlp_primal_capture,
     )
     report.metadata[:primal_callback_reason] = typed_reason.message
-    report.metadata[:primal_callback_unavailable_reason] = typed_reason.message
+    report.metadata[:madnlp_primal_capture_reason] = typed_reason.message
     push!(report, NLPDiagnostics.Finding(:madnlp_primal_capture_unavailable;
         severity = NLPDiagnostics.SeverityInfo,
         domain = NLPDiagnostics.RepresentationalIssue,

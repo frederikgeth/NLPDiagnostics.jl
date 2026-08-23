@@ -3,6 +3,7 @@ using Test
 
 import JuMP
 import MathOptInterface as MOI
+import JSON
 import NLPDiagnostics
 
 const MOIU = MOI.Utilities
@@ -90,7 +91,10 @@ end
 end
 
 @testset "Stable facade export tier contract" begin
-    stable_exports = names(NLPDiagnostics.Stable; all=false, imported=false)
+    stable_exports = filter(
+        name -> name != :Stable,
+        names(NLPDiagnostics.Stable; all=false, imported=false),
+    )
     @test length(stable_exports) == 16
     @test all(isdefined(NLPDiagnostics.Stable, name) for name in stable_exports)
     @test NLPDiagnostics.Stable.ModelSnapshot === NLPDiagnostics.ModelSnapshot
@@ -757,6 +761,16 @@ BMOPFTools.opf_object_keys(context::TestBMOPFContext; kind=nothing) = [
     broken_attachment_report = NLPDiagnostics.bmopf_terminal_port_report(broken_attachment_context)
     @test length(findings(broken_attachment_report, :bmopf_terminal_attachment_port_unavailable)) == 1
     @test broken_attachment_report.metadata[:bmopf_terminal_attachment_skipped_count] == "1"
+    @test broken_attachment_report.metadata[:bmopf_terminal_attachment_ports_available] == "false"
+    @test broken_attachment_report.metadata[:bmopf_terminal_attachment_port_reason] ==
+          "one or more BMOPFTools terminal attachment ports could not be mapped to registered bus-voltage coordinates"
+    broken_attachment_data = NLPDiagnostics.report_data(broken_attachment_report)
+    @test length(broken_attachment_data["unavailable_reasons"]) == 1
+    @test broken_attachment_data["unavailable_reasons"][1]["code"] ==
+          "bmopf_terminal_attachment_port_unavailable"
+    @test broken_attachment_data["unavailable_reasons"][1]["category"] == "capability"
+    @test broken_attachment_data["unavailable_reasons"][1]["stage"] ==
+          "bmopf_terminal_attachment_ports"
 
     branch_current_model = JuMP.Model()
     JuMP.@variable(branch_current_model, crd_branch)
@@ -2158,6 +2172,7 @@ end
     )
     @test semantic_contract(reordered_semantic_case)[2] == contract_fingerprint
     option_launcher_module = Module(:NLPDiagnosticsOptionLauncherContract)
+    Core.eval(option_launcher_module, :(import JSON))
     Base.include(option_launcher_module, joinpath(
         benchmark_directory, "launch_bmopf_solver_option_perturbations.jl",
     ))

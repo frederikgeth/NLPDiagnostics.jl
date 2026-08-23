@@ -89,6 +89,17 @@ existing warning/info findings, while renderer-neutral report data gains
 stable capability codes, category, stage, and reason fields. The extension
 source parses locally; runtime qualification remains dependency-bound.
 
+The next BMOPFTools capability increment types terminal attachment coverage.
+Skipped attachment ports retain their existing counts and findings, while
+renderer-neutral report data gains a stable capability code, category, stage,
+and reason. The extension source parses locally; runtime qualification remains
+dependency-bound.
+
+The report-boundary serializer now also honors adapter-specific unavailable
+categories and stages, so dependency-bound reports do not collapse into the
+generic capability category. The local regression suite exercises this through
+the BMOPFTools differentiability and MadNLP capture adapters.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

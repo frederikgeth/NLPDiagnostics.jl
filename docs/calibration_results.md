@@ -4,6 +4,18 @@ This document records bounded empirical results that have passed the current
 artifact/readiness checks. It is not a leaderboard and does not convert local
 solver behavior into a physical diagnosis.
 
+## 2026-08-23: typed BMOPFTools capability boundaries
+
+The BMOPFTools terminal-current, passive-network map, and terminal-attachment
+reports now preserve their existing counts and findings while exposing typed
+capability records through `report_data`. The terminal-attachment adapter emits
+stable code, category, stage, and reason fields when one or more attachment
+ports cannot be mapped to registered bus-voltage coordinates. Extension syntax
+parses in the known local environment; runtime qualification remains dependent
+on the active BMOPFTools checkout. The serializer also preserves adapter-
+specific dependency categories and stages, as exercised by the BMOPFTools
+differentiability and MadNLP capture capability reports.
+
 ## 2026-08-10: corrected Ipopt option campaign
 
 Status: **design-qualified, provenance-limited development result**.

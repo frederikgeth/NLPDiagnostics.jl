@@ -1529,6 +1529,11 @@ function physical_complementarity_report(
             "applicable" => true,
             "acceptance_passed" => nothing,
             "reason" => reason,
+            "unavailable_reason" => _dual_unavailable_reason_data(
+                reason;
+                code = :solver_complementarity_unavailable,
+                stage = :physical_complementarity,
+            ),
             "sides" => Dict{String,Any}(),
         )
     end

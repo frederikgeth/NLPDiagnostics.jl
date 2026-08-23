@@ -7288,6 +7288,8 @@ end
 function _bmopf_differentiability_unavailable_report(reason::AbstractString)
     report = NLPDiagnostics.DiagnosticReport()
     report.metadata[:bmopf_opf_differentiability_available] = "false"
+    report.metadata[:bmopf_opf_differentiability_category] = "dependency"
+    report.metadata[:bmopf_opf_differentiability_stage] = "bmopf_opf_differentiability"
     typed_reason = NLPDiagnostics.unavailable_reason(
         (available = false, reason = reason);
         code = :bmopf_opf_differentiability_unavailable,
@@ -9671,10 +9673,23 @@ _bmopf_current_law_operating_point_trace_public(context, trace; kwargs...) =
 function _bmopf_terminal_port_connection_report(context)
     attachment = _bmopf_attachment_port_declarations(context)
     report = NLPDiagnostics.DiagnosticReport()
+    report.metadata[:stage] = "bmopf_terminal_attachment_ports"
     report.metadata[:bmopf_terminal_attachment_port_count] = string(length(attachment.ports))
     report.metadata[:bmopf_terminal_attachment_connection_count] = string(length(attachment.connections))
     report.metadata[:bmopf_terminal_attachment_skipped_count] = string(length(attachment.skipped))
+    report.metadata[:bmopf_terminal_attachment_ports_available] = string(isempty(attachment.skipped))
     if !isempty(attachment.skipped)
+        typed_reason = NLPDiagnostics.unavailable_reason(
+            (
+                available = false,
+                reason = "one or more BMOPFTools terminal attachment ports could not be mapped to registered bus-voltage coordinates",
+            );
+            code = :bmopf_terminal_attachment_port_unavailable,
+            category = :capability,
+            stage = :bmopf_terminal_attachment_ports,
+        )
+        report.metadata[:bmopf_terminal_attachment_port_reason] = typed_reason.message
+        report.metadata[:bmopf_terminal_attachment_port_unavailable_reason] = typed_reason.message
         push!(report, NLPDiagnostics.Finding(:bmopf_terminal_attachment_port_unavailable;
             severity = NLPDiagnostics.SeverityInfo,
             domain = NLPDiagnostics.RepresentationalIssue,

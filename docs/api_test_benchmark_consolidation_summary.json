@@ -611,6 +611,7 @@
       "typed unavailable-reason serialization for MadNLP primal-capture capability reports",
       "typed unavailable-reason serialization for BMOPFTools terminal-current capability reports",
       "typed unavailable-reason serialization for BMOPFTools passive-network map capability reports",
+      "typed unavailable-reason serialization for BMOPFTools terminal-attachment capability reports",
       "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
       "reviewed local quality policy with explicit deferred-tool boundaries"
     ],
@@ -830,6 +831,6 @@
     "explicit_typed_unavailable_tokens": [
       "UnavailableReason"
     ],
-    "typed_adapter_call_count": 13
+    "typed_adapter_call_count": 14
   }
 }

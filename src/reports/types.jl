@@ -345,13 +345,15 @@ function _report_unavailable_reason_data(metadata::Dict{String,String})
         if isnothing(reason) || isempty(reason)
             continue
         end
-        stage_text = get(metadata, "stage", nothing)
+        category_text = get(metadata, stem * "_category", "capability")
+        category = Symbol(category_text)
+        stage_text = get(metadata, stem * "_stage", get(metadata, "stage", nothing))
         stage = isnothing(stage_text) || isempty(stage_text) ?
             nothing : Symbol(stage_text)
         typed = UnavailableReason(
             reason;
             code = Symbol(stem * "_unavailable"),
-            category = :capability,
+            category,
             stage,
         )
         data = unavailable_reason_data(typed)
@@ -367,13 +369,15 @@ function _report_unavailable_reason_data(metadata::Dict{String,String})
         isempty(reason) && continue
         stem = reason_key[1:(end - length("_unavailable_reason"))]
         stem in seen && continue
-        stage_text = get(metadata, "stage", nothing)
+        category_text = get(metadata, stem * "_category", "capability")
+        category = Symbol(category_text)
+        stage_text = get(metadata, stem * "_stage", get(metadata, "stage", nothing))
         stage = isnothing(stage_text) || isempty(stage_text) ?
             nothing : Symbol(stage_text)
         typed = UnavailableReason(
             reason;
             code = Symbol(stem * "_unavailable"),
-            category = :capability,
+            category,
             stage,
         )
         data = unavailable_reason_data(typed)
