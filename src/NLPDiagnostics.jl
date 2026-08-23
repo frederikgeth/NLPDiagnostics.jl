@@ -1457,6 +1457,25 @@ function _port_coordinate_scale_findings(
     report.metadata[:component_port_intentionally_unscaled_coordinate_count] =
         string(intentionally_unscaled)
     report.metadata[:component_port_nominal_scale_projection_unavailable_count] = string(unavailable)
+    if unavailable > 0
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "one or more nominal-scale port declarations lack a directly supported one-terminal-coordinate projection",
+            );
+            code = :component_port_nominal_scale_projection_unavailable,
+            category = :capability,
+            stage = :component_port_nominal_scale_projection,
+        )
+        report.metadata[:component_port_nominal_scale_projection_reason] =
+            typed_reason.message
+        report.metadata[:component_port_nominal_scale_projection_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:component_port_nominal_scale_projection_category] =
+            string(typed_reason.category)
+        report.metadata[:component_port_nominal_scale_projection_stage] =
+            string(typed_reason.stage)
+    end
     unavailable == 0 || push!(report, Finding(:component_port_nominal_scale_projection_unavailable;
         severity = SeverityInfo, domain = RepresentationalIssue,
         basis = StructuralProof, confidence = ConfidenceCertain,

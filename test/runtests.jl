@@ -2888,6 +2888,16 @@ end
         unmapped_port_scale_report,
         :component_port_nominal_scale_projection_unavailable,
     )) == 1
+    unmapped_port_scale_reason = only(filter(
+        item -> item["code"] ==
+            "component_port_nominal_scale_projection_unavailable",
+        NLPDiagnostics.report_data(unmapped_port_scale_report)[
+            "unavailable_reasons"
+        ],
+    ))
+    @test unmapped_port_scale_reason["category"] == "capability"
+    @test unmapped_port_scale_reason["stage"] ==
+          "component_port_nominal_scale_projection"
     @test_throws ArgumentError NLPDiagnostics.PortCoordinateSemantics(
         :transformer, "tx_1", "high"; quantity = :voltage, nominal_scale = 0.0,
     )
