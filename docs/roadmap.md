@@ -29,7 +29,11 @@ calibration cases, complete physical KKT/covariance coverage on the real
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
-The latest consolidation increment adds the deliberately small
+The latest consolidation increment adds a typed unavailable-reason record to
+solver linear telemetry while preserving its legacy `reason` field. The
+factorization-numerics boundary now emits a stable capability code, category,
+stage, and schema version; the local regression suite passes with this contract.
+The prior increment adds the deliberately small
 `NLPDiagnostics.Stable` facade for model snapshots, evaluations, analysis,
 findings, and report serialization. A focused facade contract test passes in the
 known local benchmark environment, and the API-tier inventory now records 16

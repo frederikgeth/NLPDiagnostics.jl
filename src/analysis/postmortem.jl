@@ -1481,9 +1481,15 @@ function solver_linear_telemetry_data(trace::SolverIterationTrace)
     )
     formats = sort!(unique!([string(record.format) for record in trace.records]))
     ipopt_only = !isempty(formats) && all(==("ipopt_callback"), formats)
-    unavailable_reason = ipopt_only ?
+    unavailable_message = ipopt_only ?
         "Ipopt.CallbackFunction exposes regularization and step metrics but not factorization counts, backsolves, inertia, fill, pivots, or linear-solver time" :
         "the retained callback records do not expose the requested field"
+    factorization_unavailable_reason = UnavailableReason(
+        unavailable_message;
+        code = :factorization_telemetry_unavailable,
+        category = :capability,
+        stage = :solver_trace,
+    )
     return Dict{String,Any}(
         "schema_version" => "solver-linear-telemetry-v1",
         "available" => any(
@@ -1514,7 +1520,10 @@ function solver_linear_telemetry_data(trace::SolverIterationTrace)
             "factor_nonzeros_available" => false,
             "fill_ratio_available" => false,
             "backward_error_available" => false,
-            "reason" => unavailable_reason,
+            "reason" => unavailable_message,
+            "unavailable_reason" => unavailable_reason_data(
+                factorization_unavailable_reason,
+            ),
         ),
         "qualification" => Dict{String,Any}(
             "claim" =>

@@ -171,6 +171,12 @@ if Base.find_package("Ipopt") !== nothing
         @test !linear_telemetry["available"]
         @test !linear_telemetry["factorization_work_available"]
         @test linear_telemetry["regularization_proxy"]["coverage_complete"]
+        @test linear_telemetry["factorization_numerics"][
+            "unavailable_reason"
+        ]["schema_version"] == "nlpdiagnostics-unavailable-reason-v1"
+        @test linear_telemetry["factorization_numerics"][
+            "unavailable_reason"
+        ]["code"] == "factorization_telemetry_unavailable"
         @test !endpoint_data["linear_solver_telemetry"]["available"]
         geometry = NLPDiagnostics.iteration_trace_jacobian_family_geometry_data(
             JuMP.backend(model),

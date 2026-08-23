@@ -600,7 +600,8 @@
       "clean-main BMOPFTools API contract and full local suite evidence",
       "BMOPFTools PR handoff gate",
       "isolated BMOPFTools checkout validation",
-      "explicit Stable/Advanced facades and root-export tier inventory"
+      "explicit Stable/Advanced facades and root-export tier inventory",
+      "typed unavailable-reason serialization for solver linear telemetry"
     ],
     "does_not_establish": [
       "API compatibility across a future namespace refactor",

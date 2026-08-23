@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Typed solver-telemetry unavailable boundary
+
+Solver linear telemetry now preserves its historical factorization-numerics
+`reason` string while also emitting a typed unavailable record with stable code,
+category, stage, and schema-version fields. The local regression suite passes;
+this is capability-boundary evidence, not factorization telemetry or solver
+quality evidence.
+
 ## 2026-08-23: Stable API facade contract
 
 The new `NLPDiagnostics.Stable` facade defines a deliberately small
