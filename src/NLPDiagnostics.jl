@@ -2101,6 +2101,28 @@ function _component_port_coordinate_semantics_findings(
     report = DiagnosticReport()
     port_keys = Set((port.component_type, port.component_id, port.port_id) for port in ports)
     semantic_keys = [(item.component_type, item.component_id, item.port_id) for item in semantics]
+    unaligned_semantic_keys = unique([key for key in semantic_keys if !(key in port_keys)])
+    report.metadata[:component_port_coordinate_semantics_available] =
+        string(isempty(unaligned_semantic_keys))
+    if !isempty(unaligned_semantic_keys)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "one or more port-coordinate semantics entries reference undeclared component ports",
+            );
+            code = :component_port_coordinate_semantics_unavailable,
+            category = :input,
+            stage = :component_port_coordinate_semantics,
+        )
+        report.metadata[:component_port_coordinate_semantics_reason] =
+            typed_reason.message
+        report.metadata[:component_port_coordinate_semantics_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:component_port_coordinate_semantics_category] =
+            string(typed_reason.category)
+        report.metadata[:component_port_coordinate_semantics_stage] =
+            string(typed_reason.stage)
+    end
     for key in unique([key for key in semantic_keys if count(==(key), semantic_keys) > 1])
         push!(report, Finding(:duplicate_component_port_coordinate_semantics;
             severity = SeverityWarning, domain = RepresentationalIssue,

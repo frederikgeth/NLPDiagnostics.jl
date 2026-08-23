@@ -1792,6 +1792,10 @@ unavailability when retained snapshots use different constraint-row ordering.
 Component-port coordinate-map validation now serializes typed input unavailability
 when a terminal-to-model map references an undeclared port.
 
+Component-port coordinate-semantics validation now serializes typed input
+unavailability when semantics reference an undeclared port; unmapped semantics
+remain an informational boundary.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

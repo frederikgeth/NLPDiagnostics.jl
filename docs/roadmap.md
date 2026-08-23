@@ -4742,3 +4742,7 @@ remain unchanged.
 The next plugin-coordinate increment types undeclared component-port endpoints
 as input unavailability for terminal-to-model coordinate-map validation.
 Existing representational map findings remain unchanged.
+
+The next plugin-coordinate increment types undeclared component-port endpoints
+as input unavailability for coordinate-semantics validation. Existing unmapped
+semantics findings remain informational.

@@ -2947,6 +2947,25 @@ end
         unmapped_semantics_report,
         :component_port_coordinate_semantics_unmapped,
     )) == 1
+    orphan_semantics = NLPDiagnostics.PortCoordinateSemantics(
+        :transformer, "tx_1", "missing";
+        quantity = :voltage, representation = :polar,
+        units = Dict("voltage" => "p.u."),
+    )
+    orphan_semantics_report = NLPDiagnostics._component_port_coordinate_semantics_findings(
+        [rank_deficient_port], [orphan_semantics],
+    )
+    @test length(findings(
+        orphan_semantics_report,
+        :component_port_coordinate_semantics_unaligned,
+    )) == 1
+    orphan_semantics_reason = only(filter(
+        item -> item["code"] == "component_port_coordinate_semantics_unavailable",
+        NLPDiagnostics.report_data(orphan_semantics_report)["unavailable_reasons"],
+    ))
+    @test orphan_semantics_reason["category"] == "input"
+    @test orphan_semantics_reason["stage"] ==
+          "component_port_coordinate_semantics"
     mapped_semantics_report =
         NLPDiagnostics._component_port_coordinate_semantics_findings(
             [rank_deficient_port], [port_semantics], [coordinate_map],
