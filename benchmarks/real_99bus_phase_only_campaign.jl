@@ -10,6 +10,8 @@ using NLPDiagnostics
 using Random
 using SHA
 import MathOptInterface as MOI
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 const DEFAULT_ROOT = normpath(joinpath(@__DIR__, "..", "..", "BMOPFDraftData", "benchmarks"))
 const SELECTED_SNAPSHOTS = [
@@ -1139,6 +1141,6 @@ end
 if abspath(PROGRAM_FILE) == @__FILE__
     output = abspath(get(ENV, "NLPDIAGNOSTICS_REAL_99BUS_CAMPAIGN_OUTPUT", joinpath(@__DIR__, "..", "work", "real-99bus-phase-only-campaign.json")))
     mkpath(dirname(output))
-    write(output, JSON.json(run_campaign()))
+    write_json(output, run_campaign())
     println("wrote real 99-bus phase-only campaign report to $output")
 end

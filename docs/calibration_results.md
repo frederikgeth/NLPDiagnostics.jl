@@ -1068,6 +1068,15 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: real 99-bus phase-only campaign helper migration
+
+The bounded matched reference/phase-only campaign now uses the shared
+`benchmarks/common.jl` JSON writer. Its local smoke run completed all six
+snapshot pairs, with six phase-only covariance passes and six solver-floor-
+calibrated acceptances. Strict physical KKT acceptance remains 2/6 for both
+policies, so the absolute physical gate and solver-campaign release claim
+remain open.
+
 ## 2026-08-23: real 99-bus readiness helper migration
 
 The real ENWL 99-bus readiness probe now uses the shared
@@ -1265,7 +1274,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-fifty-eight core release, rank, runtime, and audit runners; the BMOPF campaign and
+fifty-nine core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
