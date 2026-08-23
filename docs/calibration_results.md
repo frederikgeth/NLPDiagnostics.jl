@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: 30-bus IBR sparse-Jacobian helper migration
+
+The `ibr_p_upper` sparse single-column Jacobian audit now uses the shared
+`benchmarks/common.jl` JSON writer. A local smoke on one 30-bus LN snapshot
+completed without an error, covering 28 target rows and 168 nonzero entries.
+This is a primal derivative audit, not a KKT, conditioning, or causal
+certificate.
+
 ## 2026-08-23: 30-bus IBR row-scaling helper migration
 
 The `ibr_p_upper` row-level model-to-physical scaling audit now uses the
@@ -1343,7 +1351,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-sixty-seven core release, rank, runtime, and audit runners; the BMOPF campaign and
+sixty-eight core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

@@ -30,12 +30,15 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/bmopf_30bus_ibr_p_upper_row_scaling_audit.jl` to
-`benchmarks/common.jl`, bringing the shared helper to sixty-seven core runners
-while preserving the row-level model-to-physical scaling audit schema. Its
-local smoke selected one 30-bus LN snapshot and completed without an error,
-with the model-to-physical slack difference reported as zero. The prior
-increment migrated
+`benchmarks/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit.jl` to
+`benchmarks/common.jl`, bringing the shared helper to sixty-eight core runners
+while preserving the sparse single-column Jacobian audit schema. Its local
+smoke selected one 30-bus LN snapshot and completed without an error, covering
+28 target rows and 168 nonzero entries. The prior increment migrated
+`benchmarks/bmopf_30bus_ibr_p_upper_row_scaling_audit.jl`; its local smoke
+selected one 30-bus LN snapshot and completed without an error, with the
+model-to-physical slack difference reported as zero. The prior increment
+migrated
 `benchmarks/bmopf_30bus_ibr_p_upper_bound_regime_ledger.jl`; its local smoke
 selected one 30-bus LN snapshot and recorded 28 zero-bound rows, with strict
 complementarity passing 0/28 and physical gaps around `-9.98e-3`. The prior
@@ -4296,7 +4299,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-sixty-seven core release, rank, runtime, and audit runners; the BMOPF campaign and
+sixty-eight core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
