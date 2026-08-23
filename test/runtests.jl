@@ -2544,6 +2544,20 @@ end
     report = NLPDiagnostics.DiagnosticReport([finding], Dict(:stage => "test"))
     data = NLPDiagnostics.report_data(report)
     @test data["metadata"] == Dict("stage" => "test")
+    unavailable_report = NLPDiagnostics.DiagnosticReport(
+        NLPDiagnostics.Finding[],
+        Dict(
+            :stage => "numerical",
+            :sparse_qr_rank_available => "false",
+            :sparse_qr_rank_reason => "dense work guard exceeded",
+        ),
+    )
+    unavailable_data = NLPDiagnostics.report_data(unavailable_report)
+    @test only(unavailable_data["unavailable_reasons"])["code"] ==
+        "sparse_qr_rank_unavailable"
+    @test only(unavailable_data["unavailable_reasons"])["stage"] == "numerical"
+    @test only(unavailable_data["unavailable_reasons"])["reason_key"] ==
+        "sparse_qr_rank_reason"
     finding_data = only(data["findings"])
     @test finding_data["severity"] == "warning"
     @test finding_data["domain"] == "numerical"

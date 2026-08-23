@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Generic report unavailable-reason collection
+
+`report_data` now emits a typed `unavailable_reasons` collection for legacy
+`*_available`/`*_reason` metadata pairs while preserving the original metadata
+verbatim. The focused serializer probe and local regression suite pass. This
+is report-boundary schema evidence, not a capability-availability or solver
+quality claim.
+
 ## 2026-08-23: Typed solver-dual unavailable boundaries
 
 Solver-dual snapshots, fixed-variable dual completion, and complementarity

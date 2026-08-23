@@ -29,7 +29,11 @@ calibration cases, complete physical KKT/covariance coverage on the real
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
-The latest consolidation increment adds additive typed unavailable-reason
+The latest consolidation increment adds a generic typed `unavailable_reasons`
+collection to `report_data`, derived from legacy `*_available`/`*_reason`
+metadata pairs without changing the original metadata. A focused serializer
+probe and the local regression suite pass. The prior increment adds additive
+typed unavailable-reason
 records to solver-dual snapshots, fixed-variable dual completion, and
 complementarity reports while preserving their legacy reason strings and
 schemas. The solver-dual regression cases pass in the known local environment;

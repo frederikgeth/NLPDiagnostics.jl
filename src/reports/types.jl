@@ -333,6 +333,35 @@ function finding_data(finding::Finding)
     )
 end
 
+function _report_unavailable_reason_data(metadata::Dict{String,String})
+    records = Dict{String,Any}[]
+    for availability_key in sort!(collect(keys(metadata)))
+        endswith(availability_key, "_available") || continue
+        metadata[availability_key] == "false" || continue
+        stem = availability_key[1:(end - length("_available"))]
+        reason_key = stem * "_reason"
+        reason = get(metadata, reason_key, nothing)
+        if isnothing(reason) || isempty(reason)
+            continue
+        end
+        stage_text = get(metadata, "stage", nothing)
+        stage = isnothing(stage_text) || isempty(stage_text) ?
+            nothing : Symbol(stage_text)
+        typed = UnavailableReason(
+            reason;
+            code = Symbol(stem * "_unavailable"),
+            category = :capability,
+            stage,
+        )
+        data = unavailable_reason_data(typed)
+        data["capability"] = stem
+        data["availability_key"] = availability_key
+        data["reason_key"] = reason_key
+        push!(records, data)
+    end
+    return records
+end
+
 """
     report_data(report)
 
@@ -350,5 +379,6 @@ function report_data(report::DiagnosticReport)
             string(code) => count for (code, count) in finding_code_counts(report)
         ),
         "metadata" => metadata,
+        "unavailable_reasons" => _report_unavailable_reason_data(metadata),
     )
 end
