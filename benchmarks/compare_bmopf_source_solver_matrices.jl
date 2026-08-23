@@ -4,6 +4,9 @@
 
 using JSON
 
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
+
 function _dict(value)
     value isa AbstractDict ? Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()
 end
@@ -72,14 +75,14 @@ function _trace_view(entry)
     summary_path isa AbstractString && isfile(summary_path) ||
         return Dict{String,Any}("status" => "unavailable")
     try
-        summary = JSON.parsefile(summary_path)
+        summary = read_summary(abspath(summary_path); root = "/")
         cases = get(summary, "cases", Any[])
         case = isempty(cases) ? Dict{String,Any}() : _dict(first(cases))
         result_file = get(case, "result_file", nothing)
         result_file isa AbstractString || return Dict{String,Any}("status" => "unavailable")
         result_path = joinpath(dirname(summary_path), result_file)
         isfile(result_path) || return Dict{String,Any}("status" => "unavailable")
-        record = JSON.parsefile(result_path)
+        record = read_summary(abspath(result_path); root = "/")
         trace = _dict(get(record, "iteration_trace", nothing))
         raw_records = get(trace, "records", Any[])
         records = [Dict{String,Any}(
@@ -182,7 +185,7 @@ function main()
     paths = abspath.(ARGS)
     output_path = endswith(lowercase(paths[end]), ".json") && length(paths) >= 3 ? pop!(paths) :
         joinpath(pwd(), "source_solver_matrix_policy_comparison.json")
-    matrices = [JSON.parsefile(path) for path in paths]
+    matrices = [read_summary(path; root = "/") for path in paths]
     maps = [_entry_map(matrix) for matrix in matrices]
     policies = [_policy(matrix, map, path) for (matrix, map, path) in zip(matrices, maps, paths)]
     grid_keys = sort!(collect(union((Base.keys(map) for map in maps)...)))
@@ -314,7 +317,7 @@ function main()
         "endpoint_derivative_change_count" => count(row ->
             get(row, "endpoint_derivative_changed", false), rows),
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote source-solver policy comparison to $output_path")
 end
 

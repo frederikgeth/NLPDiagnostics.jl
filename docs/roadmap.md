@@ -30,13 +30,13 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/compare_bmopf_ibr_p_upper_floors.jl` to `benchmarks/common.jl`,
-bringing the shared helper to twenty-four core runners while preserving the
-cross-fixture report schema. Its local smoke run completed successfully using
-the tracked 30-bus and real-99bus summaries, covering four and six snapshots.
-The campaign and evidence-ledger summarizers and comparisons,
-formulation-intervention, multiconductor point/probe/crosscheck, saved-result
-unit/profile, tangent-policy, solver-trace and summary comparisons,
+`benchmarks/compare_bmopf_source_solver_matrices.jl` to `benchmarks/common.jl`,
+bringing the shared helper to twenty-five core runners while preserving the
+comparison's report schema. Its local smoke run completed successfully with
+two policy inputs and zero rows for the non-matrix fixture. The campaign and
+evidence-ledger summarizers and comparisons, formulation-intervention,
+multiconductor point/probe/crosscheck, saved-result unit/profile, IBR
+cross-fixture, tangent-policy, solver-trace and summary comparisons,
 residual-trend, and checkout validators remain covered; the checkout
 validator's contract stage passes, while its child-suite rerun is
 environment-blocked by the local Julia precompile cache. The dependency
@@ -4250,10 +4250,10 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-twenty-four core release, rank, runtime, and audit runners; the BMOPF campaign and
+twenty-five core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
-multiconductor-point, probe, crosscheck, saved-result-unit/profile and IBR
-cross-fixture comparisons,
+multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
+cross-fixture, and source-solver-matrix comparisons,
 tangent-policy, solver-trace and summary comparisons,
 residual-trend, checkout, and PR-handoff gates now use the same JSON/repository
 helper.
