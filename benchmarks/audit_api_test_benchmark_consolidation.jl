@@ -310,6 +310,7 @@ summary = Dict{String,Any}(
             "typed unavailable-reason serialization for active-set Jacobian-rank work guards",
             "typed unavailable-reason serialization for coupled-set qualification capability boundaries",
             "typed unavailable-reason serialization for active-set structural matching and DM-partition capability boundaries",
+            "typed unavailable-reason serialization for reduced-Hessian analysis work guards",
             "explicit policy for infrastructure benchmark scripts that do not use the shared artifact helper",
             "reviewed local quality policy with explicit deferred-tool boundaries",
         ],

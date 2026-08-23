@@ -7460,6 +7460,22 @@ function analyze_reduced_hessian(
     report.metadata[:evaluation_point_label] = evaluation.point.label
     report.metadata[:reduced_hessian_available] = string(analysis.available)
     if !analysis.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    analysis.reason,
+                    "reduced-Hessian analysis is unavailable",
+                ),
+            );
+            code = :reduced_hessian_unavailable,
+            category = :numerical,
+            stage = :reduced_hessian,
+        )
+        report.metadata[:reduced_hessian_reason] = typed_reason.message
+        report.metadata[:reduced_hessian_unavailable_reason] = typed_reason.message
+        report.metadata[:reduced_hessian_category] = string(typed_reason.category)
+        report.metadata[:reduced_hessian_stage] = string(typed_reason.stage)
         push!(
             report,
             Finding(

@@ -3183,6 +3183,28 @@ function analyze_active_set_second_order(
     report.metadata[:second_order_hessian_methods] = join(hessian.methods, ",")
     report.metadata[:second_order_reduced_hessian_available] =
         get(reduced_report.metadata, :reduced_hessian_available, "false")
+    if report.metadata[:second_order_reduced_hessian_available] == "false"
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = get(
+                    reduced_report.metadata,
+                    :reduced_hessian_reason,
+                    "reduced-Hessian analysis is unavailable",
+                ),
+            );
+            code = :second_order_reduced_hessian_unavailable,
+            category = :numerical,
+            stage = :active_set_second_order,
+        )
+        report.metadata[:second_order_reduced_hessian_reason] = typed_reason.message
+        report.metadata[:second_order_reduced_hessian_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:second_order_reduced_hessian_category] =
+            string(typed_reason.category)
+        report.metadata[:second_order_reduced_hessian_stage] =
+            string(typed_reason.stage)
+    end
     report.metadata[:second_order_expected_flat_mode_count] = string(length(expected_modes))
     if !recovery.unique
         push!(

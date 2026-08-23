@@ -10630,6 +10630,21 @@ end
         )
         @test length(findings(report, :ill_conditioned_reduced_hessian)) == 1
 
+        guarded_reduced_report = NLPDiagnostics.analyze_reduced_hessian(
+            evaluation,
+            exact_hessian;
+            active_rows = [1],
+            max_dense_entries = 0,
+        )
+        @test guarded_reduced_report.metadata[:reduced_hessian_available] == "false"
+        guarded_reduced_data = NLPDiagnostics.report_data(guarded_reduced_report)
+        guarded_reduced_reason = only(filter(
+            item -> item["code"] == "reduced_hessian_unavailable",
+            guarded_reduced_data["unavailable_reasons"],
+        ))
+        @test guarded_reduced_reason["category"] == "numerical"
+        @test guarded_reduced_reason["stage"] == "reduced_hessian"
+
         guarded_report = NLPDiagnostics.analyze_active_set_second_order(
             constrained,
             evaluation;
@@ -10668,6 +10683,22 @@ end
         @test length(findings(
             flat_report, :active_set_second_order_finite_difference_hessian,
         )) == 1
+
+        guarded_flat_report = NLPDiagnostics.analyze_active_set_second_order(
+            flat_model,
+            flat_evaluation;
+            max_dense_entries = 0,
+        )
+        @test guarded_flat_report.metadata[
+            :second_order_reduced_hessian_available
+        ] == "false"
+        guarded_flat_data = NLPDiagnostics.report_data(guarded_flat_report)
+        guarded_flat_reason = only(filter(
+            item -> item["code"] == "second_order_reduced_hessian_unavailable",
+            guarded_flat_data["unavailable_reasons"],
+        ))
+        @test guarded_flat_reason["category"] == "numerical"
+        @test guarded_flat_reason["stage"] == "active_set_second_order"
 
         flat_shift_model = new_model()
         s1, s2 = MOI.add_variables(flat_shift_model, 2)

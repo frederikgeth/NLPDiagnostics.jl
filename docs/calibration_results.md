@@ -44,6 +44,12 @@ withholding of matching-based conclusions remain unchanged. The regression
 case passes locally; this is alignment/provenance evidence, not a structural
 or physical conclusion.
 
+Reduced-Hessian analysis now serializes dense-work-guard unavailability with a
+typed numerical record in both the direct report and active-set second-order
+wrapper. Existing findings and legacy metadata remain unchanged. The bounded
+local guard passes; this is numerical capability evidence, not a curvature or
+second-order optimality claim.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.

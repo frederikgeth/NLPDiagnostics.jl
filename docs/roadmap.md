@@ -136,6 +136,12 @@ reasons for both unavailable views. Local regression coverage confirms that
 matching-based conclusions remain conservatively withheld when alignment is
 incomplete.
 
+The next numerical-capability increment types reduced-Hessian analysis work
+guards. Direct reduced-Hessian reports and the active-set second-order wrapper
+now preserve the existing unavailable finding while exposing stable numerical
+codes, stages, categories, and reasons. The guard remains a capability limit;
+it is not a curvature or second-order optimality conclusion.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,
