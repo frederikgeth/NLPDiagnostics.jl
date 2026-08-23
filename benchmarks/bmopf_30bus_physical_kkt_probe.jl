@@ -5,8 +5,9 @@
 using BMOPFTools
 using Ipopt
 using JuMP
-using JSON
 using NLPDiagnostics
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 const DEFAULT_ROOT = "/Users/uqfgeth/Documents/GitHub/BMOPFDraftData/benchmarks"
 const DEFAULT_CASES = [
@@ -217,7 +218,7 @@ output = abspath(get(
     joinpath(@__DIR__, "..", "work", "bmopf-30bus-physical-kkt-probe.json"),
 ))
 mkpath(dirname(output))
-write(output, JSON.json(Dict(
+write_json(output, Dict(
     "schema_version" => "nlpdiagnostics-bmopf-30bus-physical-kkt-probe-v4",
     "source" => Dict(
         "runner" => basename(@__FILE__),
@@ -229,5 +230,5 @@ write(output, JSON.json(Dict(
         "complementarity_tolerances_evaluated" => complementarity_tolerance_values,
     ),
     "cases" => results,
-)))
+))
 println("wrote 30-bus physical KKT probe to $output")

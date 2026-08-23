@@ -1068,6 +1068,14 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: 30-bus physical-KKT probe helper migration
+
+The bounded 30-bus physical-KKT probe now uses the shared
+`benchmarks/common.jl` JSON writer. A local smoke on one LN snapshot completed
+without an error and evaluated four complementarity tolerances, while keeping
+physical-KKT availability and acceptance explicitly separate. This remains a
+gate measurement, not a causal solver or formulation diagnosis.
+
 ## 2026-08-23: 30-bus IBR budget-matrix helper migration
 
 The `ibr_p_upper` four-budget max-iteration matrix now uses the shared
@@ -1399,7 +1407,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-seventy-four core release, rank, runtime, and audit runners; the BMOPF campaign and
+seventy-five core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,

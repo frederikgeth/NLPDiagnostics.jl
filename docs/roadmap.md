@@ -30,11 +30,15 @@ API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
 The latest consolidation increment migrated
-`benchmarks/bmopf_30bus_ibr_p_upper_budget_matrix.jl` to
-`benchmarks/common.jl`, bringing the shared helper to seventy-four core
-runners while preserving the four-budget max-iteration matrix schema. Its
-local smoke selected one 30-bus LN snapshot and completed all four budgets
-(`10`, `20`, `40`, and `80`) without an error. The prior increment migrated
+`benchmarks/bmopf_30bus_physical_kkt_probe.jl` to `benchmarks/common.jl`,
+bringing the shared helper to seventy-five core runners while preserving the
+physical-KKT and complementarity tolerance-curve schema. Its local smoke
+selected one 30-bus LN snapshot, completed without an error, and evaluated four
+complementarity tolerances with physical-KKT availability reported explicitly.
+The prior increment migrated
+`benchmarks/bmopf_30bus_ibr_p_upper_budget_matrix.jl`; its local smoke selected
+one 30-bus LN snapshot and completed all four budgets (`10`, `20`, `40`, and
+`80`) without an error. The prior increment migrated
 `benchmarks/bmopf_30bus_ibr_p_upper_option_matrix.jl`; its local smoke selected
 one 30-bus LN snapshot and completed all four policies without an error. The
 prior increment migrated
@@ -4318,7 +4322,7 @@ sparse-QR, and scaled sparse-QR rank paths without changing legacy metadata.
 The
 shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-seventy-four core release, rank, runtime, and audit runners; the BMOPF campaign and
+seventy-five core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
