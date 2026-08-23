@@ -2,9 +2,10 @@
 
 """Compare committed 30-bus and real-99-bus IBR upper floor summaries."""
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
 
-const ROOT = abspath(joinpath(@__DIR__, ".."))
+const ROOT = repo_root()
 const DEFAULT_30BUS = joinpath(ROOT, "docs", "bmopf_30bus_endpoint_kkt_comparison_summary.json")
 const DEFAULT_30BUS_GEOMETRY = joinpath(ROOT, "docs", "bmopf_30bus_ibr_p_upper_geometry_summary.json")
 const DEFAULT_99BUS = joinpath(ROOT, "docs", "real_99bus_phase_only_campaign_summary.json")
@@ -12,7 +13,7 @@ const DEFAULT_99BUS = joinpath(ROOT, "docs", "real_99bus_phase_only_campaign_sum
 function read_path(name, default)
     path = abspath(get(ENV, name, default))
     isfile(path) || error("summary file does not exist: $path")
-    return path, JSON.parsefile(path)
+    return path, read_summary(path; root = "/")
 end
 
 path_30bus, summary_30bus = read_path("NLPDIAGNOSTICS_30BUS_KKT_SUMMARY", DEFAULT_30BUS)
@@ -81,6 +82,5 @@ output = abspath(get(
     "NLPDIAGNOSTICS_IBR_CROSS_FIXTURE_OUTPUT",
     joinpath(ROOT, "work", "bmopf-ibr-p-upper-cross-fixture-summary.json"),
 ))
-mkpath(dirname(output))
-write(output, JSON.json(result))
+write_json(output, result)
 println("wrote cross-fixture IBR upper summary to $output")

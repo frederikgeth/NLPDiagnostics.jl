@@ -1184,9 +1184,10 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-twenty-three core release, rank, runtime, and audit runners; the BMOPF campaign and
+twenty-four core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
-multiconductor-point, probe, crosscheck, saved-result-unit and saved-result-profile comparisons,
+multiconductor-point, probe, crosscheck, saved-result-unit/profile and IBR
+cross-fixture comparisons,
 tangent-policy, solver-trace and summary comparisons,
 residual-trend, checkout, and PR-handoff validators now use the shared
 JSON/repository helper. The new
