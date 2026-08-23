@@ -1228,6 +1228,48 @@ end
         guarded_report, :multi_seed_golub_kahan_probe_unavailable,
     )) == 1
 
+    unavailable_evaluation = _rank_calibration_evaluation(
+        zeros(0, 2); label = "unavailable smallest-direction backends",
+    )
+    for (report, code, stage) in (
+        (
+            NLPDiagnostics.analyze_golub_kahan_probe(
+                unavailable_evaluation; steps = 1,
+            ),
+            "golub_kahan_unavailable",
+            "golub_kahan_ritz_probe",
+        ),
+        (
+            NLPDiagnostics.analyze_multi_seed_golub_kahan_probe(
+                unavailable_evaluation; seed_count = 2, steps = 1,
+            ),
+            "multi_seed_golub_kahan_unavailable",
+            "multi_seed_golub_kahan_probe",
+        ),
+        (
+            NLPDiagnostics.analyze_golub_kahan_dense_calibration(
+                unavailable_evaluation; seed_count = 2, steps = 1,
+            ),
+            "golub_kahan_dense_calibration_unavailable",
+            "golub_kahan_dense_calibration",
+        ),
+        (
+            NLPDiagnostics.analyze_restarted_smallest_singular_candidates(
+                unavailable_evaluation; dimension = 1, iterations = 1,
+                minimum_iterations = 1,
+            ),
+            "restarted_smallest_singular_unavailable",
+            "restarted_smallest_singular_candidates",
+        ),
+    )
+        reason = only(filter(
+            item -> item["code"] == code,
+            NLPDiagnostics.report_data(report)["unavailable_reasons"],
+        ))
+        @test reason["category"] == "numerical"
+        @test reason["stage"] == stage
+    end
+
     dense_policy = NLPDiagnostics.RankPolicy(
         Float64;
         backend = :dense_svd,

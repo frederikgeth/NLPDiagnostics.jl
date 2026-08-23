@@ -1874,6 +1874,22 @@ function analyze_golub_kahan_probe(
     report.metadata[:golub_kahan_ritz_backward_error_tolerance] =
         string(backward_tolerance)
     if !estimate.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    estimate.reason,
+                    "Golub--Kahan Ritz probe is unavailable",
+                ),
+            );
+            code = :golub_kahan_unavailable,
+            category = :numerical,
+            stage = :golub_kahan_ritz_probe,
+        )
+        report.metadata[:golub_kahan_reason] = typed_reason.message
+        report.metadata[:golub_kahan_unavailable_reason] = typed_reason.message
+        report.metadata[:golub_kahan_category] = string(typed_reason.category)
+        report.metadata[:golub_kahan_stage] = string(typed_reason.stage)
         push!(report, Finding(:golub_kahan_probe_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -2002,6 +2018,24 @@ function analyze_multi_seed_golub_kahan_probe(
     report.metadata[:multi_seed_golub_kahan_max_basis_entries] =
         string(estimate.max_basis_entries)
     if !estimate.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    estimate.reason,
+                    "multi-seed Golub--Kahan probe is unavailable",
+                ),
+            );
+            code = :multi_seed_golub_kahan_unavailable,
+            category = :numerical,
+            stage = :multi_seed_golub_kahan_probe,
+        )
+        report.metadata[:multi_seed_golub_kahan_reason] = typed_reason.message
+        report.metadata[:multi_seed_golub_kahan_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:multi_seed_golub_kahan_category] =
+            string(typed_reason.category)
+        report.metadata[:multi_seed_golub_kahan_stage] = string(typed_reason.stage)
         push!(report, Finding(:multi_seed_golub_kahan_probe_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -2130,6 +2164,26 @@ function analyze_golub_kahan_dense_calibration(
     report.metadata[:golub_kahan_dense_minimum_principal_cosine] =
         string(calibration.minimum_principal_cosine)
     if !calibration.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    calibration.reason,
+                    "Golub--Kahan dense calibration is unavailable",
+                ),
+            );
+            code = :golub_kahan_dense_calibration_unavailable,
+            category = :numerical,
+            stage = :golub_kahan_dense_calibration,
+        )
+        report.metadata[:golub_kahan_dense_calibration_reason] =
+            typed_reason.message
+        report.metadata[:golub_kahan_dense_calibration_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:golub_kahan_dense_calibration_category] =
+            string(typed_reason.category)
+        report.metadata[:golub_kahan_dense_calibration_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:golub_kahan_dense_calibration_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,
@@ -2221,6 +2275,25 @@ function analyze_restarted_smallest_singular_candidates(
     report.metadata[:restarted_smallest_singular_max_basis_entries] =
         string(estimate.max_basis_entries)
     if !estimate.available
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    estimate.reason,
+                    "restarted smallest-singular probe is unavailable",
+                ),
+            );
+            code = :restarted_smallest_singular_unavailable,
+            category = :numerical,
+            stage = :restarted_smallest_singular_candidates,
+        )
+        report.metadata[:restarted_smallest_singular_reason] = typed_reason.message
+        report.metadata[:restarted_smallest_singular_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:restarted_smallest_singular_category] =
+            string(typed_reason.category)
+        report.metadata[:restarted_smallest_singular_stage] =
+            string(typed_reason.stage)
         push!(report, Finding(:restarted_smallest_singular_probe_unavailable;
             severity = SeverityInfo, domain = NumericalIssue,
             basis = NumericalObservation, confidence = ConfidenceHigh,

@@ -82,6 +82,11 @@ independent backend crosscheck, now serialize guarded candidate/oracle
 unavailability with typed numerical records. Bounded local guards pass without
 promoting candidate agreement, disagreement, or convergence conclusions.
 
+Golub--Kahan Ritz probing, multi-seed coverage, guarded dense calibration, and
+restarted candidate analysis now serialize numerical unavailability with typed
+records. Empty-row and bounded-storage local guards pass without promoting a
+candidate span, nullspace, or dense-oracle conclusion.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.

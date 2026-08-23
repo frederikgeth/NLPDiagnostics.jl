@@ -176,11 +176,17 @@ unavailability. Existing coordinate-alignment, resource-guard, and repeated
 point findings remain unchanged while `report_data` records a stable numerical
 code, stage, category, and reason when persistence cannot be evaluated.
 
-The next smallest-singular calibration increment types guarded dense-oracle
+The latest smallest-singular calibration increment types guarded dense-oracle
 unavailability for restarted and harmonic candidate engines, plus the
 independent backend crosscheck. Existing candidate, agreement, disagreement,
 and convergence findings remain unchanged while `report_data` records stable
 numerical codes, stages, categories, and reasons for each withheld comparison.
+
+The next smallest-direction increment types Golub--Kahan Ritz probing,
+multi-seed candidate coverage, guarded dense calibration, and restarted
+candidate unavailability. Existing finite-projection and convergence findings
+remain unchanged while `report_data` records stable numerical codes, stages,
+categories, and reasons when these bounded paths cannot run.
 
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
