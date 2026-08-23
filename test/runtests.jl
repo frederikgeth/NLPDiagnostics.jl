@@ -8901,6 +8901,46 @@ end
         @test guarded_rank_reason["category"] == "numerical"
         @test guarded_rank_reason["stage"] == "active_set_rank"
 
+        # NLP-block rows are numerically evaluable but have no ordinary MOI
+        # incidence nodes. The active structural view must expose both the
+        # alignment boundary and its dependent DM-partition boundary through
+        # the typed unavailable-reason schema.
+        callback_active_model = new_model()
+        MOI.add_variables(callback_active_model, 2)
+        MOI.set(callback_active_model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(
+            callback_active_model,
+            MOI.NLPBlock(),
+            MOI.NLPBlockData(
+                MOI.NLPBoundsPair.([0.0, 0.0], [0.0, 0.0]),
+                TestNLPEvaluator(),
+                true,
+            ),
+        )
+        callback_active_evaluation = NLPDiagnostics.evaluate_numerical(
+            callback_active_model, [0.0, 0.0],
+        )
+        callback_active_report = NLPDiagnostics.analyze_active_set(
+            callback_active_model, callback_active_evaluation,
+        )
+        @test callback_active_report.metadata[
+            :active_structural_matching_available
+        ] == "false"
+        @test callback_active_report.metadata[:active_dm_partition_available] == "false"
+        callback_active_data = NLPDiagnostics.report_data(callback_active_report)
+        callback_matching_reason = only(filter(
+            item -> item["code"] == "active_structural_matching_unavailable",
+            callback_active_data["unavailable_reasons"],
+        ))
+        @test callback_matching_reason["category"] == "capability"
+        @test callback_matching_reason["stage"] == "active_set_structural_matching"
+        callback_dm_reason = only(filter(
+            item -> item["code"] == "active_dm_partition_unavailable",
+            callback_active_data["unavailable_reasons"],
+        ))
+        @test callback_dm_reason["category"] == "capability"
+        @test callback_dm_reason["stage"] == "active_set_dm_partition"
+
         dependent = new_model()
         z = MOI.add_variable(dependent)
         F = MOI.ScalarAffineFunction{Float64}

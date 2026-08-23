@@ -128,6 +128,14 @@ unavailability for unsupported or incomplete coupled geometry. Existing cone
 findings remain unchanged, while combined active-set `report_data` now carries
 a stable capability code, category, stage, and reason.
 
+The latest structural increment types active-set scalar matching and its
+dependent Dulmage–Mendelsohn partition boundary. Callback/NLP-block or
+otherwise unmapped active rows retain the existing representational finding,
+while `report_data` records separate capability codes, categories, stages, and
+reasons for both unavailable views. Local regression coverage confirms that
+matching-based conclusions remain conservatively withheld when alignment is
+incomplete.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

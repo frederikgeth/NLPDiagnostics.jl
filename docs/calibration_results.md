@@ -36,6 +36,14 @@ record when generic geometry is unsupported or incomplete. The combined
 active-set report carries the record without promoting a cone qualification or
 physical interpretation.
 
+Active-set structural matching now exposes typed capability records when
+callback/NLP-block rows cannot be aligned with ordinary scalar incidence
+nodes. The dependent Dulmage–Mendelsohn partition boundary is typed
+separately, while the existing representational finding and conservative
+withholding of matching-based conclusions remain unchanged. The regression
+case passes locally; this is alignment/provenance evidence, not a structural
+or physical conclusion.
+
 Selected active-row Jacobian rank analysis now emits the same typed numerical
 boundary when its dense-work guard is exceeded. The local contract keeps this
 as a capability limitation rather than a rank-loss conclusion.

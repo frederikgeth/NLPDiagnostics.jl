@@ -2880,12 +2880,52 @@ function analyze_active_set(
         report.metadata[:active_jacobian_rank_stage] = string(typed_reason.stage)
     end
     report.metadata[:active_structural_matching_available] = string(active_matching.complete)
+    if !active_matching.complete
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    active_matching.reason,
+                    "active-set structural matching is unavailable",
+                ),
+            );
+            code = :active_structural_matching_unavailable,
+            category = :capability,
+            stage = :active_set_structural_matching,
+        )
+        report.metadata[:active_structural_matching_reason] = typed_reason.message
+        report.metadata[:active_structural_matching_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:active_structural_matching_category] =
+            string(typed_reason.category)
+        report.metadata[:active_structural_matching_stage] =
+            string(typed_reason.stage)
+    end
     report.metadata[:active_structural_matching_cardinality] =
         string(matching_cardinality(active_matching.matching))
     report.metadata[:active_structural_aligned_row_count] =
         string(length(active_matching.aligned_rows))
     report.metadata[:active_dm_partition_available] =
         string(!isnothing(active_decomposition.partition))
+    if isnothing(active_decomposition.partition)
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = something(
+                    active_matching.reason,
+                    "active-set Dulmage–Mendelsohn partition is unavailable",
+                ),
+            );
+            code = :active_dm_partition_unavailable,
+            category = :capability,
+            stage = :active_set_dm_partition,
+        )
+        report.metadata[:active_dm_partition_reason] = typed_reason.message
+        report.metadata[:active_dm_partition_unavailable_reason] =
+            typed_reason.message
+        report.metadata[:active_dm_partition_category] = string(typed_reason.category)
+        report.metadata[:active_dm_partition_stage] = string(typed_reason.stage)
+    end
     report.metadata[:active_dm_well_determined_block_count] =
         string(length(active_decomposition.well_determined_blocks))
     if !isnothing(active_decomposition.partition)
