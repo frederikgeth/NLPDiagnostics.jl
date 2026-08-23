@@ -2,8 +2,6 @@
 
 """Run deterministic completed-start perturbations by physical variable block."""
 
-using JSON
-
 const CAMPAIGN = joinpath(@__DIR__, "real_99bus_phase_only_campaign.jl")
 const PROJECT = abspath(joinpath(@__DIR__, "..", "work", "benchmark-environment"))
 const CASES = [
@@ -12,8 +10,15 @@ const CASES = [
     ("voltage_seed11_1e4_max60", 60, "perturbed", 11, 1.0e-4, "voltage"),
     ("current_seed11_1e4_max60", 60, "perturbed", 11, 1.0e-4, "current"),
 ]
+const ACTIVE_CASES = let
+    selected = filter(!isempty, strip.(split(
+        get(ENV, "NLPDIAGNOSTICS_REAL_99BUS_STRUCTURED_PERTURBATION_MATRIX_CASES", ""), ',';
+    )))
+    isempty(selected) ? CASES : [case for case in CASES if case[1] in selected]
+end
 
 include(CAMPAIGN)
+using .NLPDiagnosticsBenchmarkCommon
 
 function with_campaign_environment(callback, max_iter, policy, seed, relative_size, family)
     settings = Dict(
@@ -87,7 +92,7 @@ end
 
 results = [
     run_case(label, max_iter, policy, seed, relative_size, family)
-    for (label, max_iter, policy, seed, relative_size, family) in CASES
+    for (label, max_iter, policy, seed, relative_size, family) in ACTIVE_CASES
 ]
 output = abspath(get(
     ENV,
@@ -95,14 +100,14 @@ output = abspath(get(
     joinpath(@__DIR__, "..", "work", "real-99bus-phase-only-structured-perturbation-matrix.json"),
 ))
 mkpath(dirname(output))
-write(output, JSON.json(Dict(
+NLPDiagnosticsBenchmarkCommon.write_json(output, Dict(
     "schema_version" => "nlpdiagnostics-real-99bus-phase-only-structured-perturbation-matrix-v1",
     "source" => Dict(
         "campaign" => basename(CAMPAIGN),
         "project" => PROJECT,
-        "case_count" => length(CASES),
+        "case_count" => length(ACTIVE_CASES),
         "qualification" => "local bounded-start block perturbation sensitivity; no causal or automatic policy claim",
     ),
     "cases" => results,
-)))
+))
 println("wrote real 99-bus phase-only structured perturbation matrix to $output")
