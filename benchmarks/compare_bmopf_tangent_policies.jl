@@ -9,12 +9,15 @@ coordinates were retained, but never calls that change a physical diagnosis.
 
 using JSON
 
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
+
 _dict(value) = value isa AbstractDict ?
     Dict{String,Any}(String(key) => item for (key, item) in value) : Dict{String,Any}()
 _int(value, default = 0) = try Int(value) catch; default end
 
 function _load(path)
-    value = JSON.parsefile(path)
+    value = read_summary(abspath(path); root = "/")
     value isa AbstractDict || error("summary must contain a JSON object: $path")
     return _dict(value)
 end
@@ -196,7 +199,7 @@ function main()
         "findings" => findings,
         "interpretation" => "Tangent-policy calibration is paired local evidence. It does not certify a physical gauge, formulation quality, or solver behavior.",
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote BMOPF tangent-policy comparison to $output_path")
 end
 
