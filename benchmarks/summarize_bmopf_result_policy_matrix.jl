@@ -13,11 +13,12 @@ JSON keeps policy provenance, process status, derivative fingerprints, and
 finding deltas together.
 """
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 function _load(path)
     isfile(path) || error("missing JSON file: $path")
-    return JSON.parsefile(path)
+    return read_summary(path; root = "/")
 end
 
 function _run_comparison(script, project, left, right, output)
@@ -221,7 +222,7 @@ function main()
         ),
         "interpretation" => "Pairwise evidence aggregation only; derivative, feasibility, scaling, and representational deltas remain policy-specific observations rather than a score.",
     )
-    write(output_path, JSON.json(summary))
+    write_json(output_path, summary)
     println("wrote BMOPF result-policy matrix summary to $output_path")
 end
 
