@@ -10,7 +10,7 @@ It never turns recurrence into a model-quality score.
 using JSON
 using SHA
 
-include(joinpath(@__DIR__, "common.jl"))
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
 using .NLPDiagnosticsBenchmarkCommon
 
 function _load(path)

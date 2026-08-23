@@ -6,7 +6,7 @@ using JSON
 using SHA
 
 Base.include(@__MODULE__, joinpath(@__DIR__, "benchmark_environment.jl"))
-include(joinpath(@__DIR__, "common.jl"))
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
 using .NLPDiagnosticsBenchmarkCommon
 
 _dict(value) = value isa AbstractDict ? Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()

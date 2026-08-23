@@ -15,7 +15,8 @@ NLPDIAGNOSTICS_BMOPF_IBR_TRACE_OUTPUT=work/bmopf-ibr-p-upper-trace.json \\
 julia --startup-file=no benchmarks/summarize_bmopf_ibr_p_upper_trace.jl
 """
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 function _artifact_paths()
     raw = get(ENV, "NLPDIAGNOSTICS_BMOPF_TRACE_ARTIFACTS", "")
@@ -53,7 +54,7 @@ function _trajectory(payload)
 end
 
 function _summarize(path)
-    payload = JSON.parsefile(path)
+    payload = read_summary(path; root = "/")
     sequence = _trajectory(payload)
     positive = filter(item -> item["max_feasibility_violation"] > 0, sequence)
     isempty(sequence) && error("trace artifact has no usable ibr_p_upper rows: $path")
@@ -84,7 +85,7 @@ output = abspath(get(
     joinpath(@__DIR__, "..", "work", "bmopf-ibr-p-upper-trace-summary.json"),
 ))
 mkpath(dirname(output))
-write(output, JSON.json(Dict(
+write_json(output, Dict(
     "schema_version" => "nlpdiagnostics-bmopf-ibr-p-upper-trace-summary-v1",
     "source" => Dict(
         "runner" => basename(@__FILE__),
@@ -94,5 +95,5 @@ write(output, JSON.json(Dict(
             "point-local feasibility trajectory; not a KKT, optimality, or causal certificate",
     ),
     "cases" => cases,
-)))
+))
 println("wrote ibr_p_upper trace summary to $output")
