@@ -189,6 +189,28 @@ function _solver_postmortem_unavailable_finding(error_text::AbstractString)
     )
 end
 
+function _set_solver_result_unavailable_metadata!(
+    report::DiagnosticReport,
+    stem::Symbol,
+    reason::AbstractString;
+    code::Symbol,
+    category::Symbol,
+    stage::Symbol,
+)
+    typed_reason = unavailable_reason(
+        (available = false, reason = reason);
+        code,
+        category,
+        stage,
+    )
+    stem_text = string(stem)
+    report.metadata[Symbol(stem_text * "_available")] = "false"
+    report.metadata[Symbol(stem_text * "_reason")] = typed_reason.message
+    report.metadata[Symbol(stem_text * "_category")] = string(typed_reason.category)
+    report.metadata[Symbol(stem_text * "_stage")] = string(typed_reason.stage)
+    return typed_reason
+end
+
 function _analyze_solver_result(
     model::MOI.ModelLike;
     result_index::Integer = 1,
@@ -207,10 +229,26 @@ function _analyze_solver_result(
     report.metadata[:solver_result_point_available] = string(!isnothing(point))
     report.metadata[:solver_result_postmortem_available] = string(!isnothing(postmortem))
     if isnothing(point)
+        _set_solver_result_unavailable_metadata!(
+            report,
+            :solver_result_point,
+            "result index $index does not expose a complete real primal vector for all model variables";
+            code = :solver_result_point_unavailable,
+            category = :capability,
+            stage = :solver_result_point,
+        )
         push!(report, _solver_result_unavailable_finding(index))
     end
     read_error = isnothing(postmortem_read_error) ? nothing : String(postmortem_read_error)
     if !isnothing(read_error)
+        _set_solver_result_unavailable_metadata!(
+            report,
+            :solver_result_postmortem,
+            read_error;
+            code = :solver_result_postmortem_unavailable,
+            category = :dependency,
+            stage = :solver_result_postmortem,
+        )
         report.metadata[:solver_result_postmortem_read_error] = read_error
         push!(report, _solver_postmortem_unavailable_finding(read_error))
     end
@@ -277,6 +315,14 @@ function _solver_profile_result_report(
     report.metadata[:solver_result_solver_log_available] = string(!isnothing(solver_log))
     report.metadata[:solver_result_iteration_bindings_available] = string(!isnothing(iteration_bindings))
     if isnothing(point)
+        _set_solver_result_unavailable_metadata!(
+            report,
+            :solver_result_point,
+            "result index $result_index does not expose a complete real primal vector for all model variables";
+            code = :solver_result_point_unavailable,
+            category = :capability,
+            stage = :solver_result_point,
+        )
         push!(report, _solver_result_unavailable_finding(result_index))
     end
     if !isnothing(postmortem)
@@ -288,6 +334,14 @@ function _solver_profile_result_report(
     end
     read_error = isnothing(postmortem_read_error) ? nothing : String(postmortem_read_error)
     if !isnothing(read_error)
+        _set_solver_result_unavailable_metadata!(
+            report,
+            :solver_result_postmortem,
+            read_error;
+            code = :solver_result_postmortem_unavailable,
+            category = :dependency,
+            stage = :solver_result_postmortem,
+        )
         report.metadata[:solver_result_postmortem_read_error] = read_error
         push!(report, _solver_postmortem_unavailable_finding(read_error))
     end

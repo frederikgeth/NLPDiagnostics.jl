@@ -16,6 +16,11 @@ on the active BMOPFTools checkout. The serializer also preserves adapter-
 specific dependency categories and stages, as exercised by the BMOPFTools
 differentiability and MadNLP capture capability reports.
 
+Solver-result analysis now emits typed records when a complete public primal
+vector is unavailable or a solver-postmortem adapter cannot be read. The
+existing findings and metadata remain intact; local contracts distinguish the
+capability boundary from the dependency boundary.
+
 ## 2026-08-10: corrected Ipopt option campaign
 
 Status: **design-qualified, provenance-limited development result**.

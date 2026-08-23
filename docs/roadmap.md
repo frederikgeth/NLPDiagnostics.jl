@@ -100,6 +100,13 @@ categories and stages, so dependency-bound reports do not collapse into the
 generic capability category. The local regression suite exercises this through
 the BMOPFTools differentiability and MadNLP capture adapters.
 
+The next provenance increment types solver-result boundaries. Missing public
+primal vectors and failed solver-postmortem reads retain their existing
+findings and legacy metadata while `report_data` gains stable capability or
+dependency codes, categories, stages, and reasons. The local solver-result
+contracts cover both explicit missing-result paths and automatic postmortem
+adapter failure.
+
 The latest consolidation increment adds the read-only
 `benchmarks/check_local_quality.jl` baseline. It checks `git diff --check`, API
 tier/list consistency, JSON schema coverage, and release-gate shape without CI,

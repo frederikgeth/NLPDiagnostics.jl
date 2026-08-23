@@ -13661,6 +13661,16 @@ end
         @test length(findings(
             explicit_result_analysis.report, :solver_result_point_unavailable,
         )) == 1
+        explicit_result_data = NLPDiagnostics.report_data(
+            explicit_result_analysis.report,
+        )
+        @test length(explicit_result_data["unavailable_reasons"]) == 1
+        @test explicit_result_data["unavailable_reasons"][1]["code"] ==
+              "solver_result_point_unavailable"
+        @test explicit_result_data["unavailable_reasons"][1]["category"] ==
+              "capability"
+        @test explicit_result_data["unavailable_reasons"][1]["stage"] ==
+              "solver_result_point"
         unavailable_profile = NLPDiagnostics.profile_solver_result(
             combined_model; read_postmortem = false,
         )
@@ -13674,6 +13684,11 @@ end
             unavailable_profile,
         )
         @test unavailable_profile_data["profile"] === nothing
+        @test length(
+            unavailable_profile_data["result_report"]["unavailable_reasons"],
+        ) == 1
+        @test unavailable_profile_data["result_report"]["unavailable_reasons"][1]["code"] ==
+              "solver_result_point_unavailable"
         automatic_result_analysis = NLPDiagnostics.analyze_solver_result(
             combined_model,
         )
@@ -13682,6 +13697,22 @@ end
         @test length(findings(
             automatic_result_analysis.report, :solver_postmortem_unavailable,
         )) == 1
+        automatic_result_data = NLPDiagnostics.report_data(
+            automatic_result_analysis.report,
+        )
+        @test length(automatic_result_data["unavailable_reasons"]) == 2
+        @test Set(
+            item["code"] for item in automatic_result_data["unavailable_reasons"]
+        ) == Set([
+            "solver_result_point_unavailable",
+            "solver_result_postmortem_unavailable",
+        ])
+        postmortem_reason = only(filter(
+            item -> item["code"] == "solver_result_postmortem_unavailable",
+            automatic_result_data["unavailable_reasons"],
+        ))
+        @test postmortem_reason["category"] == "dependency"
+        @test postmortem_reason["stage"] == "solver_result_postmortem"
         combined_log = """
         iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
            0  1.0e+00 1.0e+00 2.0e+00  -1.0 0.0e+00    -  0.0e+00 0.0e+00   0
