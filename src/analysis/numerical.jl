@@ -7290,6 +7290,25 @@ function _append_persistent_jacobian_expected_mode_span_findings!(
             push!(affected, EntityRef(:variable, variable.value))
         end
         if !isempty(missing)
+            typed_reason = unavailable_reason(
+                (
+                    available = false,
+                    reason = "a declared expected Jacobian nullspace mode span cannot be aligned with the common persistence coordinates",
+                );
+                code = :jacobian_expected_mode_span_persistence_unavailable,
+                category = :input,
+                stage = :jacobian_expected_mode_span_persistence,
+            )
+            report.metadata[:jacobian_expected_mode_span_persistence_available] =
+                "false"
+            report.metadata[:jacobian_expected_mode_span_persistence_reason] =
+                typed_reason.message
+            report.metadata[:jacobian_expected_mode_span_persistence_unavailable_reason] =
+                typed_reason.message
+            report.metadata[:jacobian_expected_mode_span_persistence_category] =
+                string(typed_reason.category)
+            report.metadata[:jacobian_expected_mode_span_persistence_stage] =
+                string(typed_reason.stage)
             push!(report, Finding(:persistent_jacobian_expected_mode_span_unaligned;
                 severity = SeverityInfo, domain = RepresentationalIssue,
                 basis = StructuralProof, confidence = ConfidenceCertain,
@@ -7304,6 +7323,7 @@ function _append_persistent_jacobian_expected_mode_span_findings!(
             return report
         end
     end
+    report.metadata[:jacobian_expected_mode_span_persistence_available] = "true"
     unique!(affected)
     declared_basis = _orthonormal_mode_basis(
         directions; relative_tolerance = mode_rank_relative_tolerance,
@@ -7652,6 +7672,7 @@ function analyze_jacobian_rank_persistence(
                             ["Inspect nullspace fingerprints, derivative scaling, and active geometry at each point."],
     ))
     if persistent && !isempty(expected_modes)
+        expected_mode_alignment_available = true
         point_columns = Dict(
             variable => column for (column, variable) in enumerate(reference_variables)
         )
@@ -7668,6 +7689,25 @@ function analyze_jacobian_rank_persistence(
                 end
             end
             if !isempty(missing_variables) || iszero(norm(direction))
+                typed_reason = unavailable_reason(
+                    (
+                        available = false,
+                        reason = "a declared expected Jacobian nullspace mode cannot be aligned with the common persistence coordinates",
+                    );
+                    code = :jacobian_expected_mode_persistence_unavailable,
+                    category = :input,
+                    stage = :jacobian_expected_mode_persistence,
+                )
+                expected_mode_alignment_available = false
+                report.metadata[:jacobian_expected_mode_persistence_available] = "false"
+                report.metadata[:jacobian_expected_mode_persistence_reason] =
+                    typed_reason.message
+                report.metadata[:jacobian_expected_mode_persistence_unavailable_reason] =
+                    typed_reason.message
+                report.metadata[:jacobian_expected_mode_persistence_category] =
+                    string(typed_reason.category)
+                report.metadata[:jacobian_expected_mode_persistence_stage] =
+                    string(typed_reason.stage)
                 push!(report, Finding(:persistent_jacobian_expected_mode_unaligned;
                     severity = SeverityInfo, domain = RepresentationalIssue,
                     basis = StructuralProof, confidence = ConfidenceCertain,
@@ -7713,6 +7753,9 @@ function analyze_jacobian_rank_persistence(
                                     ["Retain the declaration and compare it with component and physical metadata."] :
                                     ["Inspect the supplied points and declaration before treating the mode as expected."],
             ))
+        end
+        if expected_mode_alignment_available
+            report.metadata[:jacobian_expected_mode_persistence_available] = "true"
         end
         _append_persistent_jacobian_expected_mode_span_findings!(
             report,

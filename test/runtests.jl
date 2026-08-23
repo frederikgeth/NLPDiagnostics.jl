@@ -8441,6 +8441,41 @@ end
             persistent_expected_report,
             :persistent_jacobian_expected_mode_span_observed,
         )) == 1
+        misaligned_expected_mode = NLPDiagnostics.ExpectedNullspaceMode(
+            :misaligned_persistence_mode,
+            [x, MOI.VariableIndex(999)],
+            [1.0, 1.0],
+        )
+        misaligned_expected_report = NLPDiagnostics.analyze_jacobian_rank_persistence(
+            [
+                NLPDiagnostics.evaluate_numerical(
+                    underdetermined,
+                    NLPDiagnostics.evaluation_point(underdetermined, [0.0, 0.0]; label = "first"),
+                ),
+                NLPDiagnostics.evaluate_numerical(
+                    underdetermined,
+                    NLPDiagnostics.evaluation_point(underdetermined, [2.0, 2.0]; label = "second"),
+                ),
+            ];
+            expected_modes = [misaligned_expected_mode],
+        )
+        misaligned_expected_reasons = NLPDiagnostics.report_data(
+            misaligned_expected_report,
+        )["unavailable_reasons"]
+        @test any(
+            item -> item["code"] ==
+                "jacobian_expected_mode_persistence_unavailable" &&
+                item["category"] == "input" &&
+                item["stage"] == "jacobian_expected_mode_persistence",
+            misaligned_expected_reasons,
+        )
+        @test any(
+            item -> item["code"] ==
+                "jacobian_expected_mode_span_persistence_unavailable" &&
+                item["category"] == "input" &&
+                item["stage"] == "jacobian_expected_mode_span_persistence",
+            misaligned_expected_reasons,
+        )
         persistent_unexpected_report = NLPDiagnostics.analyze_jacobian_rank_persistence(
             [
                 NLPDiagnostics.evaluate_numerical(

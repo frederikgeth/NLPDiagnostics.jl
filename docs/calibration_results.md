@@ -1763,6 +1763,11 @@ typed input unavailability when retained snapshots use different constraint-row
 source orderings. The existing alignment findings remain available for human
 diagnosis without implying a rank or active-set conclusion.
 
+Jacobian expected-mode and expected-mode-span persistence now serialize typed
+input unavailability when declared variables fall outside the common
+persistence coordinate scope. Existing alignment and observed/not-observed
+findings remain unchanged.
+
 ## 2026-08-23: calibration release report
 
 The release-gate ledger now has a generated Markdown handoff report at

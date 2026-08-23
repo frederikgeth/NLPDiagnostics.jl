@@ -4707,3 +4707,8 @@ The next reduced-Hessian alignment increment types active-row and active-
 Jacobian persistence as input-unavailable when retained snapshots disagree on
 constraint-row source ordering. Existing representational alignment findings
 and finite persistence findings remain unchanged.
+
+The next Jacobian expectation increment types expected-mode and expected-mode-
+span persistence as input-unavailable when declarations cannot be aligned with
+the common persistence coordinates. Existing representational findings and
+finite observed/not-observed comparisons remain unchanged.
