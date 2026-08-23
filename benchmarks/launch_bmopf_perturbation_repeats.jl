@@ -7,7 +7,8 @@ The child matrix launcher remains responsible for solver/case isolation; this
 layer adds repeat provenance and preserves timeout/process evidence.
 """
 
-using JSON
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: write_json
 
 function _int_env(name, default)
     value = try parse(Int, get(ENV, name, string(default)))
@@ -103,7 +104,7 @@ function main()
         push!(entries, entry)
         println("$run_id: $status")
     end
-    write(joinpath(output_root, "repeat_index.json"), JSON.json(Dict(
+    write_json(joinpath(output_root, "repeat_index.json"), Dict(
         "runner_version" => "bmopf-perturbation-repeats-v1",
         "benchmark_root" => abspath(root),
         "replicate_count" => replicates,
@@ -116,7 +117,7 @@ function main()
                                "julia_executable" => string(Base.julia_cmd()),
                                "project" => project),
         "entries" => entries,
-    )))
+    ))
     println("wrote repeated BMOPF perturbation manifest to $(joinpath(output_root, "repeat_index.json"))")
 end
 

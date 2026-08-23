@@ -1068,6 +1068,17 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: Perturbation-repeat launcher helper migration
+
+The repeated BMOPF perturbation launcher now uses the shared
+`benchmarks/common.jl` JSON writer for its repeat manifest. A bounded
+single-replicate run completed the parent orchestration and summary steps for
+one 30-bus LN matrix launch with status `ok`; the child matrix retained an
+explicit `process_exit` record from the sandboxed Julia precompile-lock
+permission boundary. This validates repeat-level provenance and failure
+preservation, but it is process-environment evidence rather than solver-matrix
+qualification.
+
 ## 2026-08-23: Solver-option sweep helper migration
 
 The solver-option sweep now uses the shared `benchmarks/common.jl` JSON writer
@@ -1580,7 +1591,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-ninety-six core release, rank, runtime, and audit runners; the BMOPF campaign and
+ninety-seven core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
