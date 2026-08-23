@@ -16,7 +16,8 @@ Additional calibration summaries can be supplied with the comma-separated
 Set `NLPDIAGNOSTICS_BMOPF_TRIANGULATION_OUTPUT` to choose the output path.
 """
 
-using JSON
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
 _dict(value) = value isa AbstractDict ?
     Dict{String,Any}(String(k) => v for (k, v) in value) : Dict{String,Any}()
@@ -70,7 +71,7 @@ function _calibration_points(calibration)
             codes = Dict{String,Any}()
             if record_path isa AbstractString && isfile(record_path)
                 try
-                    codes = _finding_codes(JSON.parsefile(record_path))
+                    codes = _finding_codes(read_summary(record_path; root = "/"))
                 catch
                     codes = Dict{String,Any}()
                 end
@@ -121,7 +122,7 @@ function _solver_case(raw_case, source, configuration = nothing)
 end
 
 function _solver_cases(path)
-    summary = JSON.parsefile(path)
+    summary = read_summary(path; root = "/")
     cases = Dict{String,Any}[]
     if haskey(summary, "configurations")
         for configuration in get(summary, "configurations", Any[])
@@ -195,7 +196,7 @@ function main()
             "NLPDIAGNOSTICS_BMOPF_TRIANGULATION_CALIBRATIONS", ""), ','))),
     )))
     all(isfile, calibration_paths) || error("missing calibration summary in $(calibration_paths)")
-    calibrations = [JSON.parsefile(path) for path in calibration_paths]
+    calibrations = [read_summary(path; root = "/") for path in calibration_paths]
     calibration = first(calibrations)
     calibration_points = Dict{String,Dict{String,Any}}()
     for item in calibrations
@@ -240,7 +241,7 @@ function main()
     )
     output = abspath(get(ENV, "NLPDIAGNOSTICS_BMOPF_TRIANGULATION_OUTPUT",
         joinpath(dirname(first(calibration_paths)), "endpoint_triangulation_summary.json")))
-    write(output, JSON.json(payload))
+    write_json(output, payload)
     println("wrote BMOPF endpoint-triangulation summary to $output")
 end
 
