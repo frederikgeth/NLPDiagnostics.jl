@@ -4,9 +4,11 @@
 
 using JSON
 
+include(joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon
+
 function _load(path)
-    isfile(path) || error("missing multiconductor summary: $path")
-    value = JSON.parsefile(path)
+    value = read_summary(abspath(path); root = "/")
     value isa AbstractDict || error("summary is not a JSON object: $path")
     value
 end
@@ -116,7 +118,7 @@ function main()
         "findings" => findings,
         "interpretation" => "Iterative-probe comparison only; convergence and residual changes are numerical observations, not rank or physical-gauge certificates.",
     )
-    write(output_path, JSON.json(payload))
+    write_json(output_path, payload)
     println("wrote multiconductor probe comparison to $output_path")
 end
 
