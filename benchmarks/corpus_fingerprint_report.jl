@@ -7,11 +7,13 @@
 # julia --project=. benchmarks/corpus_fingerprint_report.jl \
 #     campaign-a/summary.json campaign-b/summary.json [fingerprints.json]
 
+Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
+using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 using JSON
 
 function _load(path)
     isfile(path) || error("summary file is missing: $path")
-    data = JSON.parsefile(path)
+    data = read_summary(path; root = "/")
     data isa AbstractDict || error("summary must be a JSON object: $path")
     return data
 end
@@ -159,11 +161,10 @@ function main()
         "campaigns" => campaigns,
         "cross_campaign" => _cross_campaign(campaigns),
     )
-    serialized = JSON.json(report)
     if isnothing(output)
-        println(serialized)
+        println(JSON.json(report))
     else
-        write(output, serialized)
+        write_json(output, report)
         println("wrote ", output)
     end
 end
