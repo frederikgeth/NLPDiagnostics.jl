@@ -1068,6 +1068,15 @@ fixture does not establish global policy superiority, wall-time portability,
 or full network semantics. The compact result is tracked at
 `docs/phase_only_feeder_ipopt_campaign_summary.json`.
 
+## 2026-08-23: controller-rich phase-only Ipopt campaign helper migration
+
+The matched two-policy, two-replicate controller-rich phase-only Ipopt
+campaign now uses the shared `benchmarks/common.jl` JSON writer. Its local
+smoke run classified the intervention as `phase_only`, passed endpoint-
+covariance and geometry gates, and reported all four endpoints as
+`LOCALLY_SOLVED`. The campaign remains a bounded smooth controller fixture,
+not a claim about full BMOPF droop-controller semantics or policy superiority.
+
 ## 2026-08-23: nonlinear phase-only Ipopt campaign helper migration
 
 The matched two-policy, two-replicate nonlinear phase-only Ipopt campaign now
@@ -1229,7 +1238,7 @@ fields.
 
 The shared `benchmarks/common.jl` helper now centralizes repository discovery,
 summary loading, JSON writing, Git provenance, and recursive file inventory for
-fifty-four core release, rank, runtime, and audit runners; the BMOPF campaign and
+fifty-five core release, rank, runtime, and audit runners; the BMOPF campaign and
 evidence-ledger summarizers and comparisons, formulation-intervention,
 multiconductor-point, probe, crosscheck, saved-result-unit/profile, IBR
 cross-fixture, source-solver-matrix, solver-trace and solver-matrix summaries,
