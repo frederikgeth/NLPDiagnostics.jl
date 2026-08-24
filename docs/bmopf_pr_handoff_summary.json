@@ -1,13 +1,10 @@
 {
   "active_contract": {
     "artifact": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/bmopf_api_contract_summary.json",
-    "branch": "codex/source-schema-fidelity",
-    "missing_symbols": [
-      "OpfDiagnosticSchema",
-      "opf_diagnostic_schema"
-    ],
-    "revision": "5c4f1e7713b0a8021a30b97ec9e54afa6d4281f7",
-    "status": "fail"
+    "branch": "codex/source-schema-fidelity-main",
+    "missing_symbols": [],
+    "revision": "74f907638016c69c3e926d47d437a627443aee20",
+    "status": "pass"
   },
   "handoff_passed": false,
   "qualification": {
@@ -18,7 +15,7 @@
       "remote branch publication or pull-request review"
     ]
   },
-  "reason": "the active BMOPFTools checkout does not satisfy the consumed API contract",
+  "reason": "the active BMOPFTools revision differs from the validated clean-main revision",
   "revision_match": false,
   "schema_version": "nlpdiagnostics-bmopf-pr-handoff-v1",
   "status": "blocked",

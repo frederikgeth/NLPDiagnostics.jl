@@ -4794,3 +4794,9 @@ scope findings remain unchanged.
 The next component-port increment types port variable scopes that reference
 absent model coordinates as input unavailability. Existing detailed stale-port
 findings remain unchanged.
+
+The BMOPFTools handoff increment is now implemented on branch
+`codex/source-schema-fidelity-main`, based on main commit `8f121216` and carrying
+commit `74f90763`. The active contract audit passes all required symbols and
+schema runtime checks; the PR handoff comparison remains intentionally blocked
+until this branch is merged and becomes the validated BMOPFTools main revision.

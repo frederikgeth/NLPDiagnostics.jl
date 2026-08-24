@@ -1765,6 +1765,12 @@ Component-port metadata scope validation now serializes typed input
 unavailability when port declarations reference variables absent from the
 analyzed model. Existing detailed stale-port findings remain unchanged.
 
+The BMOPFTools PR branch `codex/source-schema-fidelity-main` is now based on
+main commit `8f121216` at `74f90763`. Its contract audit passes all required
+symbols and schema runtime checks, and the local BMOPFTools suite reports 5,162
+passed tests with 33 conditional/broken tests and no failures. The handoff gate
+remains revision-blocked until the branch is merged into BMOPFTools main.
+
 The reduced-Hessian persistence slice now also serializes typed numerical
 unavailability for Jacobian scaling and spectral-scale comparisons when
 non-finite derivative or eigenvalue evidence prevents a safe change-factor
