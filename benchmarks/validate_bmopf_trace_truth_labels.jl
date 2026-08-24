@@ -39,6 +39,18 @@ const EXPECTED_CASES = Dict{String,Dict{String,Any}}(
         "expected_physical_kkt_acceptance_passed" => true,
         "expected_strict_complementarity_failure" => false,
     ),
+    case_key("ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json") => Dict(
+        "truth_role" => "positive_control",
+        "regime" => "zero_bound",
+        "expected_physical_kkt_acceptance_passed" => false,
+        "expected_strict_complementarity_failure" => true,
+    ),
+    case_key("ENWLsnapshots/30bus_LG/30bus_LG_t13_1400.bmopf.json") => Dict(
+        "truth_role" => "negative_control",
+        "regime" => "positive_bound",
+        "expected_physical_kkt_acceptance_passed" => true,
+        "expected_strict_complementarity_failure" => false,
+    ),
 )
 
 function _ledger_cases(payload)
