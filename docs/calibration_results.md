@@ -1789,6 +1789,16 @@ counts, rank, row/variable scope, and typed unavailable evidence. The result
 is explicitly limited to the aligned equality view at one point; it is not a
 global feasible-set dimension or physical-gauge classification.
 
+## 2026-08-24: nonsmoothness and weak-activity screens
+
+The numerical layer now provides opt-in `analyze_nonsmoothness` and
+`analyze_weak_activity` paths. The nonsmoothness screen aggregates bounded
+central-difference directional checks and reports possible nonsmoothness only
+as a competing explanation for derivative disagreement. The weak-activity
+screen reports supported scalar inequalities in an explicit margin band above
+the active tolerance. Neither path makes a global differentiability, active-
+set, multiplier, or KKT claim.
+
 ## 2026-08-24: finding-family and terminal-renderer consolidation
 
 Renderer-neutral report data now retains every finding record while adding

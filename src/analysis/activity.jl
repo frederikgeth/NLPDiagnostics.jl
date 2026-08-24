@@ -16,6 +16,139 @@ function _activity_evidence(summary::ConstraintFeasibilitySummary, activity::Con
     )
 end
 
+"""
+    analyze_weak_activity(model, evaluation; ...)
+
+Find supported inequality rows whose smallest positive bound margin lies above
+the explicit active tolerance but within a larger weak-activity tolerance.
+This is a point-local proximity screen, not an active-set or multiplier
+claim; equality rows, violated rows, opaque sets, and unbounded sides are not
+called weakly active.
+"""
+function analyze_weak_activity(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T};
+    feasibility_tolerance::Real = sqrt(eps(T)),
+    active_tolerance::Real = sqrt(eps(T)),
+    weak_activity_tolerance::Real = 10 * sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    feasibility = convert(T, feasibility_tolerance)
+    active = convert(T, active_tolerance)
+    weak = convert(T, weak_activity_tolerance)
+    feasibility >= zero(T) || throw(ArgumentError("feasibility_tolerance must be nonnegative"))
+    active >= zero(T) || throw(ArgumentError("active_tolerance must be nonnegative"))
+    weak > active || throw(ArgumentError("weak_activity_tolerance must be greater than active_tolerance"))
+    summary = constraint_feasibility_summary(
+        model,
+        evaluation;
+        feasibility_tolerance = feasibility,
+        active_tolerance = active,
+    )
+    report = DiagnosticReport()
+    report.metadata[:stage] = "weak_activity"
+    report.metadata[:weak_activity_available] = string(summary.complete)
+    report.metadata[:weak_activity_feasibility_tolerance] = string(feasibility)
+    report.metadata[:weak_activity_active_tolerance] = string(active)
+    report.metadata[:weak_activity_tolerance] = string(weak)
+    if !summary.complete
+        reason = something(summary.reason, "constraint activity bounds are unavailable")
+        typed_reason = unavailable_reason(
+            (available = false, reason = reason);
+            code = :weak_activity_unavailable,
+            category = :capability,
+            stage = :weak_activity,
+        )
+        report.metadata[:weak_activity_reason] = typed_reason.message
+        report.metadata[:weak_activity_unavailable_reason] = typed_reason.message
+        report.metadata[:weak_activity_category] = string(typed_reason.category)
+        report.metadata[:weak_activity_stage] = string(typed_reason.stage)
+        push!(report, Finding(:weak_activity_unavailable;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceCertain,
+            observation = "Weak-activity screening is unavailable at point \"$(evaluation.point.label)\".",
+            why_it_matters = "A proximity-to-bound screen requires complete public scalar-set alignment and finite constraint values.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Weak-activity availability"; details = ["reason" => reason]),
+            ],
+            suggested_actions = ["Supply supported scalar bounds or retain the opaque-set limitation explicitly."],
+        ))
+        return report
+    end
+    weak_rows = ConstraintActivity[]
+    weak_margins = Dict{Int,T}()
+    for activity in summary.activities
+        activity.classification in (:interior, :free) || continue
+        margins = T[
+            margin for margin in (activity.lower_margin, activity.upper_margin)
+            if !isnothing(margin) && isfinite(margin) && margin > active && margin <= weak
+        ]
+        isempty(margins) && continue
+        weak_margins[activity.row] = minimum(margins)
+        push!(weak_rows, activity)
+    end
+    report.metadata[:weak_activity_row_count] = string(length(weak_rows))
+    report.metadata[:weak_activity_rows] = join((activity.row for activity in weak_rows), ",")
+    report.metadata[:weak_activity_minimum_margin] = isempty(weak_rows) ? "" :
+        string(minimum(values(weak_margins)))
+    affected = EntityRef[activity.source for activity in weak_rows]
+    evidence = [
+        _point_evidence(evaluation.point),
+        Evidence("Weak-activity rows"; details = [
+            "row_count" => length(weak_rows),
+            "rows" => join((activity.row for activity in weak_rows), ","),
+            "margins" => join(("$(row)=$(weak_margins[row])" for row in sort(collect(keys(weak_margins)))), ","),
+            "active_tolerance" => active,
+            "weak_activity_tolerance" => weak,
+        ]),
+    ]
+    if !isempty(weak_rows)
+        push!(report, Finding(:weak_activity_detected;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "$(length(weak_rows)) supported inequality row(s) lie within the weak-activity margin band ($(active), $(weak)].",
+            why_it_matters = "Small positive bound margins can make activity classification sensitive to tolerances, scaling, and solver perturbations.",
+            evidence,
+            affected,
+            suggested_actions = [
+                "Repeat under scaled and nearby points, and report the explicit activity tolerance with any active-set conclusion.",
+                "Do not infer a multiplier or KKT status from proximity alone.",
+            ],
+        ))
+    else
+        push!(report, Finding(:no_weak_activity_detected;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceHigh,
+            observation = "No supported inequality row lies in the configured weak-activity margin band.",
+            why_it_matters = "This point-local screen found no nearby non-active bound within the declared tolerance band.",
+            evidence,
+            suggested_actions = ["Repeat at representative points because activity can change along a solver trajectory."],
+        ))
+    end
+    _apply_point_provenance_guard!(report, evaluation.point)
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return report
+end
+
+function analyze_weak_activity(
+    model::MOI.ModelLike,
+    point::EvaluationPoint{T};
+    cache::EvaluationCache = EvaluationCache(),
+    kwargs...,
+) where {T<:AbstractFloat}
+    return analyze_weak_activity(
+        model,
+        evaluate_numerical(model, point; cache = cache);
+        kwargs...,
+    )
+end
+
 function _active_derivative_provenance_findings(
     evaluation::NumericalEvaluation,
     selected_rows::Vector{Int},

@@ -325,6 +325,18 @@ geometry, and physical interpretation. Incomplete structural or derivative
 evidence is serialized as typed unavailability rather than treated as zero
 freedom.
 
+`analyze_nonsmoothness(model, evaluation)` runs bounded objective-gradient and
+Jacobian directional cross-checks. Disagreement is retained as competing
+evidence for a nonsmooth point, domain crossing, finite-difference error, or
+derivative implementation defect; agreement does not prove differentiability
+away from the tested directions.
+
+`analyze_weak_activity(model, evaluation)` classifies supported scalar
+inequality rows whose smallest positive bound margin lies between the explicit
+active tolerance and a larger weak-activity tolerance. Equality, violated,
+unbounded, and opaque rows are not called weakly active. This is proximity
+evidence, not an active-set or multiplier conclusion.
+
 ## Feasibility and active-set evidence
 
 `constraint_feasibility_summary(model, evaluation)` aligns evaluated scalar

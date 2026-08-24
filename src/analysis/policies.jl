@@ -79,6 +79,8 @@ struct CheckPolicy
     objective_jacobian_scaling::Bool
     convexity::Bool
     degrees_of_freedom::Bool
+    nonsmoothness::Bool
+    weak_activity::Bool
     hessian_vector_crosscheck::Bool
     initialization::Bool
     active_set::Bool
@@ -86,8 +88,8 @@ struct CheckPolicy
     degeneracy::Bool
 end
 
-# Preserve the pre-curvature positional constructor for callers that have not
-# migrated to the keyword form. The new check remains opt-in by default.
+# Preserve the pre-screen positional constructor for callers that have not
+# migrated to the keyword form. New checks remain opt-in by default.
 CheckPolicy(
     jacobian_directional_crosscheck::Bool,
     objective_gradient_directional_crosscheck::Bool,
@@ -101,6 +103,8 @@ CheckPolicy(
     jacobian_directional_crosscheck,
     objective_gradient_directional_crosscheck,
     objective_jacobian_scaling,
+    false,
+    false,
     false,
     false,
     hessian_vector_crosscheck,
@@ -123,6 +127,8 @@ function CheckPolicy(;
     objective_jacobian_scaling::Bool = false,
     convexity::Bool = false,
     degrees_of_freedom::Bool = false,
+    nonsmoothness::Bool = false,
+    weak_activity::Bool = false,
     hessian_vector_crosscheck::Bool = false,
     initialization::Bool = false,
     active_set::Bool = false,
@@ -135,6 +141,8 @@ function CheckPolicy(;
         objective_jacobian_scaling,
         convexity,
         degrees_of_freedom,
+        nonsmoothness,
+        weak_activity,
         hessian_vector_crosscheck,
         initialization,
         active_set,

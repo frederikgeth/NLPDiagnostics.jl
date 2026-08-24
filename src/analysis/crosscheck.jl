@@ -695,6 +695,156 @@ function analyze_objective_gradient_directional_crosscheck(
     )
 end
 
+"""
+    analyze_nonsmoothness(model, evaluation; ...)
+
+Run bounded directional derivative consistency checks and classify their
+evidence conservatively. A mismatch can indicate nonsmoothness, domain
+crossing, finite-difference error, or an implementation defect; a consistent
+screen does not prove differentiability away from the tested point.
+"""
+function analyze_nonsmoothness(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T};
+    direction_count::Integer = min(3, max(length(evaluation.point.variables), 1)),
+    relative_step::Real = cbrt(eps(T)),
+    absolute_tolerance::Real = zero(T),
+    relative_tolerance::Real = sqrt(eps(T)),
+    check_jacobian::Bool = true,
+    check_objective::Bool = true,
+    cache::EvaluationCache = EvaluationCache(),
+) where {T<:AbstractFloat}
+    check_jacobian || check_objective || throw(ArgumentError(
+        "at least one nonsmoothness derivative check must be enabled",
+    ))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "nonsmoothness"
+    report.metadata[:nonsmoothness_direction_count] = string(direction_count)
+    report.metadata[:nonsmoothness_relative_step] = string(relative_step)
+    report.metadata[:nonsmoothness_check_jacobian] = string(check_jacobian)
+    report.metadata[:nonsmoothness_check_objective] = string(check_objective)
+    jacobian_report = check_jacobian ? analyze_jacobian_directional_crosscheck(
+        model,
+        evaluation;
+        direction_count,
+        relative_step,
+        absolute_tolerance,
+        relative_tolerance,
+        cache,
+    ) : nothing
+    objective_report = check_objective ? analyze_objective_gradient_directional_crosscheck(
+        model,
+        evaluation;
+        direction_count,
+        relative_step,
+        absolute_tolerance,
+        relative_tolerance,
+        cache,
+    ) : nothing
+    mismatch_count = 0
+    domain_limited_count = 0
+    comparison_count = 0
+    if !isnothing(jacobian_report)
+        parsed = tryparse(Int, string(get(jacobian_report.metadata, :mismatch_count, "0")))
+        mismatch_count += isnothing(parsed) ? 0 : parsed
+        parsed = tryparse(Int, string(get(jacobian_report.metadata, :domain_limited_count, "0")))
+        domain_limited_count += isnothing(parsed) ? 0 : parsed
+        parsed = tryparse(Int, string(get(jacobian_report.metadata, :constraint_directional_comparisons, "0")))
+        comparison_count += isnothing(parsed) ? 0 : parsed
+    end
+    if !isnothing(objective_report)
+        parsed = tryparse(Int, string(get(objective_report.metadata, :mismatch_count, "0")))
+        mismatch_count += isnothing(parsed) ? 0 : parsed
+        parsed = tryparse(Int, string(get(objective_report.metadata, :domain_limited_count, "0")))
+        domain_limited_count += isnothing(parsed) ? 0 : parsed
+        parsed = tryparse(Int, string(get(objective_report.metadata, :objective_directional_comparisons, "0")))
+        comparison_count += isnothing(parsed) ? 0 : parsed
+    end
+    methods = vcat(
+        check_jacobian ? string.(evaluation.jacobian_row_methods) : String[],
+        check_objective ? [string(evaluation.objective_gradient_method)] : String[],
+    )
+    finite_difference_evidence = count(method -> method in
+        ("central_finite_difference", "partial_central_finite_difference"), methods)
+    report.metadata[:nonsmoothness_mismatch_count] = string(mismatch_count)
+    report.metadata[:nonsmoothness_domain_limited_count] = string(domain_limited_count)
+    report.metadata[:nonsmoothness_comparison_count] = string(comparison_count)
+    report.metadata[:nonsmoothness_finite_difference_evidence_count] = string(finite_difference_evidence)
+    status = mismatch_count > 0 ? :possible_nonsmoothness_or_derivative_inconsistency :
+             domain_limited_count > 0 ? :inconclusive_domain_limited :
+             :no_nonsmoothness_inconsistency_observed
+    report.metadata[:nonsmoothness_status] = string(status)
+    evidence = [
+        _point_evidence(evaluation.point),
+        Evidence("Nonsmoothness directional screen"; details = [
+            "status" => status,
+            "comparison_count" => comparison_count,
+            "mismatch_count" => mismatch_count,
+            "domain_limited_count" => domain_limited_count,
+            "finite_difference_evidence_count" => finite_difference_evidence,
+            "relative_step" => relative_step,
+            "relative_tolerance" => relative_tolerance,
+            "derivative_methods" => join(methods, ","),
+        ]),
+    ]
+    if status == :possible_nonsmoothness_or_derivative_inconsistency
+        push!(report, Finding(:possible_nonsmoothness;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceMedium,
+            observation = "$(mismatch_count) directional derivative comparison(s) disagree beyond tolerance at the supplied point.",
+            why_it_matters = "The mismatch is compatible with a nonsmooth point, domain crossing, finite-difference error, or derivative implementation defect; it is not a nonsmoothness proof.",
+            evidence,
+            suggested_actions = [
+                "Repeat at multiple perturbation scales and nearby valid points.",
+                "Inspect operator-domain findings and derivative provenance before attributing the mismatch to nonsmoothness.",
+            ],
+        ))
+    elseif status == :inconclusive_domain_limited
+        push!(report, Finding(:nonsmoothness_screen_inconclusive;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceCertain,
+            observation = "The nonsmoothness screen is inconclusive because $(domain_limited_count) perturbed derivative comparison(s) were domain-limited or unavailable.",
+            why_it_matters = "Missing perturbed values cannot distinguish smoothness from a domain boundary or unavailable derivative evidence.",
+            evidence,
+            suggested_actions = ["Repeat at a point with more domain margin or use a smaller perturbation step."],
+        ))
+    else
+        push!(report, Finding(:no_nonsmoothness_inconsistency_observed;
+            severity = SeverityInfo,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceMedium,
+            observation = "All $(comparison_count) tested directional derivative comparison(s) agree within tolerance at the supplied point.",
+            why_it_matters = "This is local consistency evidence only; it does not prove differentiability globally or away from the tested directions.",
+            evidence,
+            suggested_actions = ["Repeat across representative points and perturbation scales before relying on a smooth derivative model globally."],
+        ))
+    end
+    _apply_point_provenance_guard!(report, evaluation.point)
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return report
+end
+
+function analyze_nonsmoothness(
+    model::MOI.ModelLike,
+    point::EvaluationPoint{T};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Real = cbrt(eps(T)),
+    kwargs...,
+) where {T<:AbstractFloat}
+    return analyze_nonsmoothness(
+        model,
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step);
+        cache,
+        relative_step,
+        kwargs...,
+    )
+end
+
 function _crosscheck_lagrangian_gradient(
     evaluation::NumericalEvaluation{T},
     objective_weight::T,

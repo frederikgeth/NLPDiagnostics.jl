@@ -137,6 +137,8 @@ end
     ).objective_jacobian_scaling
     @test NLPDiagnostics.CheckPolicy(convexity = true).convexity
     @test NLPDiagnostics.CheckPolicy(degrees_of_freedom = true).degrees_of_freedom
+    @test NLPDiagnostics.CheckPolicy(nonsmoothness = true).nonsmoothness
+    @test NLPDiagnostics.CheckPolicy(weak_activity = true).weak_activity
     legacy_check_policy = NLPDiagnostics.CheckPolicy(
         false,
         false,
@@ -150,6 +152,8 @@ end
     @test legacy_check_policy.degeneracy
     @test !legacy_check_policy.convexity
     @test !legacy_check_policy.degrees_of_freedom
+    @test !legacy_check_policy.nonsmoothness
+    @test !legacy_check_policy.weak_activity
     @test_throws ArgumentError NLPDiagnostics.ProbePolicy(
         iterative_left_nullspace_probe_dimension = -1,
     )
@@ -7569,6 +7573,22 @@ end
         @test dof_checked.metadata[:degrees_of_freedom_numerical_right_nullity] ==
               "0"
         @test length(findings(dof_checked, :degrees_of_freedom_summary)) == 1
+        smoothness_checked = NLPDiagnostics.analyze(
+            model;
+            point = point,
+            cache = cache,
+            check_policy = NLPDiagnostics.CheckPolicy(nonsmoothness = true),
+        )
+        @test occursin(",nonsmoothness", smoothness_checked.metadata[:stages])
+        @test haskey(smoothness_checked.metadata, :nonsmoothness_status)
+        weak_checked = NLPDiagnostics.analyze(
+            model;
+            point = point,
+            cache = cache,
+            check_policy = NLPDiagnostics.CheckPolicy(weak_activity = true),
+        )
+        @test occursin(",weak_activity", weak_checked.metadata[:stages])
+        @test weak_checked.metadata[:weak_activity_row_count] == "0"
     end
 
     @testset "constructed MOI nonlinear evaluator supplies exact first derivatives" begin
@@ -9271,6 +9291,20 @@ end
         @test [activity.classification for activity in summary.activities] ==
               [:equality, :active_lower]
         @test NLPDiagnostics.active_constraint_rows(summary) == [1, 2]
+        weak_evaluation = NLPDiagnostics.evaluate_numerical(
+            model,
+            [0.0, 5.0e-7];
+            relative_step = 1.0e-6,
+        )
+        weak_report = NLPDiagnostics.analyze_weak_activity(
+            model,
+            weak_evaluation;
+            feasibility_tolerance = 1.0e-7,
+            active_tolerance = 1.0e-7,
+            weak_activity_tolerance = 1.0e-6,
+        )
+        @test weak_report.metadata[:weak_activity_row_count] == "1"
+        @test length(findings(weak_report, :weak_activity_detected)) == 1
         screen = NLPDiagnostics.mfcq_screen(
             evaluation,
             summary;

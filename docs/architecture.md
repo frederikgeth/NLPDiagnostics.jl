@@ -563,6 +563,17 @@ feasible set or assign physical meaning to a null direction; inequalities,
 bounds, nonlinear manifold geometry, and domain semantics require separate
 evidence.
 
+`check_nonsmoothness=true` adds bounded central-difference directional checks
+for the recorded objective gradient and/or Jacobian. A mismatch is classified
+as possible nonsmoothness or derivative inconsistency, because finite-
+difference error, domain crossings, and implementation defects remain viable
+explanations. A consistent result is local evidence only.
+
+`check_weak_activity=true` adds an explicit proximity band above the active
+tolerance for supported scalar inequality rows. It reports rows that are
+near, but not classified active, and does not infer multipliers, KKT status, or
+activity for opaque sets.
+
 ## Static-analysis scope
 
 The first implementation intentionally detects exact or canonical facts. It

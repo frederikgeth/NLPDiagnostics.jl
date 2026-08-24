@@ -118,6 +118,8 @@ export analyze_objective_gradient_directional_crosscheck
 export analyze_objective_jacobian_scaling
 export analyze_convexity
 export analyze_degrees_of_freedom
+export analyze_nonsmoothness
+export analyze_weak_activity
 export analyze_hessian_vector_crosscheck
 export analyze_derivative_crosscheck_scale_sweep
 export EvaluatorCapabilities
@@ -5399,6 +5401,17 @@ function analyze(
     check_degrees_of_freedom::Bool = false,
     degrees_of_freedom_relative_tolerance::Union{Nothing,Real} = nothing,
     degrees_of_freedom_max_dense_entries::Integer = 4_000_000,
+    check_nonsmoothness::Bool = false,
+    nonsmoothness_direction_count::Integer = 3,
+    nonsmoothness_relative_step::Real = cbrt(eps(Float64)),
+    nonsmoothness_absolute_tolerance::Real = 0.0,
+    nonsmoothness_relative_tolerance::Real = sqrt(eps(Float64)),
+    nonsmoothness_check_jacobian::Bool = true,
+    nonsmoothness_check_objective::Bool = true,
+    check_weak_activity::Bool = false,
+    weak_activity_feasibility_tolerance::Union{Nothing,Real} = nothing,
+    weak_activity_active_tolerance::Union{Nothing,Real} = nothing,
+    weak_activity_tolerance::Union{Nothing,Real} = nothing,
     objective_gradient_directional_crosscheck_direction_count::Integer = 3,
     objective_gradient_directional_crosscheck_relative_step::Real = cbrt(eps(Float64)),
     objective_gradient_directional_crosscheck_absolute_tolerance::Real = 0.0,
@@ -5556,6 +5569,8 @@ function analyze(
             check_policy.objective_jacobian_scaling
         check_convexity |= check_policy.convexity
         check_degrees_of_freedom |= check_policy.degrees_of_freedom
+        check_nonsmoothness |= check_policy.nonsmoothness
+        check_weak_activity |= check_policy.weak_activity
         check_hessian_vector_crosscheck |= check_policy.hessian_vector_crosscheck
         check_initialization |= check_policy.initialization
         check_active_set |= check_policy.active_set
@@ -5594,6 +5609,12 @@ function analyze(
     ))
     check_degrees_of_freedom && isnothing(point) && isnothing(evaluation) && throw(ArgumentError(
         "degrees-of-freedom screening requires an explicit point or supplied evaluation",
+    ))
+    check_nonsmoothness && isnothing(point) && isnothing(evaluation) && throw(ArgumentError(
+        "nonsmoothness screening requires an explicit point or supplied evaluation",
+    ))
+    check_weak_activity && isnothing(point) && isnothing(evaluation) && throw(ArgumentError(
+        "weak-activity screening requires an explicit point or supplied evaluation",
     ))
     !isnothing(solver_log) && isnothing(solver_name) && isnothing(postmortem) &&
         throw(ArgumentError(
@@ -5875,6 +5896,40 @@ function analyze(
             append!(report.findings, degrees_of_freedom_report.findings)
             merge!(report.metadata, degrees_of_freedom_report.metadata)
             stages *= ",degrees_of_freedom"
+        end
+        if check_nonsmoothness
+            nonsmoothness_report = analyze_nonsmoothness(
+                model,
+                numerical_evaluation;
+                direction_count = nonsmoothness_direction_count,
+                relative_step = nonsmoothness_relative_step,
+                absolute_tolerance = nonsmoothness_absolute_tolerance,
+                relative_tolerance = nonsmoothness_relative_tolerance,
+                check_jacobian = nonsmoothness_check_jacobian,
+                check_objective = nonsmoothness_check_objective,
+                cache = cache,
+            )
+            append!(report.findings, nonsmoothness_report.findings)
+            merge!(report.metadata, nonsmoothness_report.metadata)
+            stages *= ",nonsmoothness"
+        end
+        if check_weak_activity
+            weak_activity_report = analyze_weak_activity(
+                model,
+                numerical_evaluation;
+                feasibility_tolerance = isnothing(weak_activity_feasibility_tolerance) ?
+                    sqrt(eps(eltype(numerical_evaluation.point.values))) :
+                    weak_activity_feasibility_tolerance,
+                active_tolerance = isnothing(weak_activity_active_tolerance) ?
+                    sqrt(eps(eltype(numerical_evaluation.point.values))) :
+                    weak_activity_active_tolerance,
+                weak_activity_tolerance = isnothing(weak_activity_tolerance) ?
+                    10 * sqrt(eps(eltype(numerical_evaluation.point.values))) :
+                    weak_activity_tolerance,
+            )
+            append!(report.findings, weak_activity_report.findings)
+            merge!(report.metadata, weak_activity_report.metadata)
+            stages *= ",weak_activity"
         end
         if check_hessian_vector_crosscheck
             multipliers = isnothing(hessian_vector_crosscheck_constraint_multipliers) ?
