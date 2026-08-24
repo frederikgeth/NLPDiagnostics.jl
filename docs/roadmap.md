@@ -26,6 +26,15 @@ complete coverage and zero record, segment, binding, or final-iteration deltas
 under a matching environment fingerprint. This is API/coverage validation,
 not initialization-irrelevance or solver-equivalence evidence.
 
+The first distinct-solver trace attempt is recorded in
+`docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`. Ipopt and
+MadNLP produced complete two-case provenance pairing with both traces
+available, but their environment fingerprints differ. The new
+`trace_comparison_readiness` envelope makes that failed gate explicit; the
+iteration and binding-count differences remain observations only. The next
+trace gate is to regenerate both solver campaigns under one identical
+benchmark-environment fingerprint before interpreting solver differences.
+
 The latest bounded 30-bus IBR calibration sequence is complete through
 row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
 campaign now includes solver-budget, option, initialization, trajectory,
@@ -4864,6 +4873,10 @@ MPCC, homotopy, multistart, and symmetry remain out of scope. The next trace
 deliverable is now benchmark-facing: `benchmarks/compare_bmopf_solver_traces.jl`
 adds the `trace_coverage_comparison` envelope to its existing rich case
 comparison, exercising the API while retaining the same provenance and
-availability boundaries. The next trace work should extend held-out validation
-to a distinct solver only when the same provenance and environment gates are
-available; do not add another trace metric family before that evidence exists.
+availability boundaries. Its `trace_comparison_readiness` envelope now
+combines solver-pair, environment, provenance, and trace-availability gates.
+The first Ipopt-versus-MadNLP attempt paired both held-out cases and retained
+their observations, but failed the identical-environment gate; see
+`docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`. The next trace
+work is to rerun both solvers under one matching environment fingerprint; do
+not add another trace metric family before that evidence exists.

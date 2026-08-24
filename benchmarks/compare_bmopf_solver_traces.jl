@@ -290,6 +290,40 @@ function _compare_case(left, right)
     )
 end
 
+function _trace_comparison_readiness(trace_comparison, environment_match,
+                                     left_solver, right_solver, case_count)
+    comparisons = get(trace_comparison, "comparisons", Dict{String,Any}())
+    comparison_values = comparisons isa AbstractDict ? collect(values(comparisons)) : Any[]
+    pairing_complete = !isempty(comparison_values) && all(
+        get(_as_dict(get(comparison, "pairing", nothing)), "coverage_complete", false) === true
+        for comparison in comparison_values
+    )
+    paired_traces = Any[]
+    for comparison in comparison_values
+        append!(paired_traces, get(comparison, "paired_traces", Any[]))
+    end
+    availability_complete = !isempty(paired_traces) && all(
+        get(_as_dict(pair), "availability_relation", "") == "both_available"
+        for pair in paired_traces
+    )
+    solver_pair_is_distinct = left_solver != right_solver &&
+        !isnothing(left_solver) && !isnothing(right_solver)
+    comparison_ready = case_count > 0 && environment_match &&
+        solver_pair_is_distinct && pairing_complete && availability_complete
+    interpretation = comparison_ready ?
+        "Distinct-solver trace comparison passed environment, provenance, and availability gates; results remain descriptive." :
+        "Trace coverage was computed, but the comparison is not ready for solver-policy inference because one or more environment, solver-pair, provenance, or availability gates failed."
+    return Dict{String,Any}(
+        "environment_fingerprint_match" => environment_match,
+        "distinct_solver_pair" => solver_pair_is_distinct,
+        "case_pairing_complete" => pairing_complete,
+        "trace_availability_complete" => availability_complete,
+        "paired_trace_count" => length(paired_traces),
+        "comparison_ready" => comparison_ready,
+        "interpretation" => interpretation,
+    )
+end
+
 function main()
     length(ARGS) in (2, 3) || error(
         "usage: compare_bmopf_solver_traces.jl <left-summary.json> <right-summary.json> [comparison.json]",
@@ -317,20 +351,32 @@ function main()
         Dict("left" => left_trace_campaign, "right" => right_trace_campaign);
         reference_policy = "left",
     )
+    left_solver = get(left, "solver", nothing)
+    right_solver = get(right, "solver", nothing)
+    environment_match = get(left, "environment_fingerprint", nothing) ==
+        get(right, "environment_fingerprint", nothing)
+    trace_comparison_readiness = _trace_comparison_readiness(
+        trace_coverage_comparison,
+        environment_match,
+        left_solver,
+        right_solver,
+        length(comparisons),
+    )
     output_path = length(ARGS) == 3 ? abspath(ARGS[3]) : joinpath(dirname(left_path), "solver_trace_comparison.json")
     payload = Dict{String,Any}(
         "left_summary" => left_path,
         "right_summary" => right_path,
-        "left_solver" => get(left, "solver", nothing),
-        "right_solver" => get(right, "solver", nothing),
+        "left_solver" => left_solver,
+        "right_solver" => right_solver,
         "environment_fingerprint" => Dict(
             "left" => get(left, "environment_fingerprint", nothing),
             "right" => get(right, "environment_fingerprint", nothing),
-            "match" => get(left, "environment_fingerprint", nothing) == get(right, "environment_fingerprint", nothing),
+            "match" => environment_match,
         ),
         "case_count" => length(comparisons),
         "comparisons" => comparisons,
         "trace_coverage_comparison" => trace_coverage_comparison,
+        "trace_comparison_readiness" => trace_comparison_readiness,
     )
     write_json(output_path, payload)
     println("wrote solver-trace comparison to $output_path")

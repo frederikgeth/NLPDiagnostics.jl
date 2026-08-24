@@ -1,0 +1,56 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-trace-policy-comparison-v1",
+  "status": "distinct_solver_validation_blocked_environment_mismatch",
+  "source": {
+    "runner": "benchmarks/compare_bmopf_solver_traces.jl",
+    "reference_summary": "nlpdiag-30bus-trace-pair-native-summary-current.json",
+    "candidate_summary": "nlpdiag-madnlp-trace-summary.json",
+    "local_environment": "work/benchmark-environment",
+    "reference_solver": "ipopt",
+    "candidate_solver": "madnlp",
+    "reference_environment_fingerprint": "a092f28bc059689a967bed6fadc3751dd048ac508c3e3efaf814ba2ad026c3ec",
+    "candidate_environment_fingerprint": "f3f0558529b67e60ffa911539d4b8313cf66b3fc59b3ff9b84b51294e5aedfc8"
+  },
+  "readiness": {
+    "environment_fingerprint_match": false,
+    "distinct_solver_pair": true,
+    "case_pairing_complete": true,
+    "trace_availability_complete": true,
+    "paired_trace_count": 2,
+    "comparison_ready": false
+  },
+  "campaign": {
+    "paired_cases": 2,
+    "unmatched_reference_count": 0,
+    "unmatched_candidate_count": 0,
+    "availability_relations": {
+      "both_available": 2,
+      "reference_only": 0,
+      "candidate_only": 0,
+      "neither_available": 0
+    },
+    "paired_cases_detail": [
+      {
+        "case": "ENWLsnapshots__30bus_LN__30bus_LN_t01_0800",
+        "record_count": {"reference": 19, "candidate": 21, "delta": 2},
+        "segment_count": {"reference": 1, "candidate": 1, "delta": 0},
+        "binding_count": {"reference": 19, "candidate": 0, "delta": -19},
+        "final_iteration": {"reference": 18, "candidate": 20, "delta": 2}
+      },
+      {
+        "case": "ENWLsnapshots__30bus_LN__30bus_LN_t13_1400",
+        "record_count": {"reference": 18, "candidate": 19, "delta": 1},
+        "segment_count": {"reference": 1, "candidate": 1, "delta": 0},
+        "binding_count": {"reference": 18, "candidate": 0, "delta": -18},
+        "final_iteration": {"reference": 17, "candidate": 18, "delta": 1}
+      }
+    ]
+  },
+  "interpretation": "The distinct-solver experiment established complete two-case provenance and trace availability, but the environment fingerprints do not match. The iteration and binding-count differences are therefore retained as observations only and do not support a solver-policy inference.",
+  "next_gate": "Re-run the same two cases with both solvers produced under one identical benchmark-environment fingerprint before interpreting solver differences.",
+  "does_not_establish": [
+    "solver superiority or equivalence",
+    "binding-trace comparability across solver telemetry conventions",
+    "causal convergence or conditioning conclusions"
+  ]
+}
