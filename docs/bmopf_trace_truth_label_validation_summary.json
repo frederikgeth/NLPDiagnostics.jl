@@ -1,0 +1,58 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-trace-truth-label-validation-v1",
+  "status": "validated",
+  "source": {
+    "runner": "benchmarks/validate_bmopf_trace_truth_labels.jl",
+    "comparison_summary": "bmopf-trace-policy-comparison-ipopt-madnlp-crosswalk.json",
+    "truth_ledger": "bmopf_30bus_ibr_p_upper_bound_regime_ledger_summary.json"
+  },
+  "readiness": {
+    "comparison_ready": true,
+    "environment_fingerprint_match": true,
+    "distinct_solver_pair": true,
+    "case_pairing_complete": true,
+    "trace_availability_complete": true,
+    "paired_trace_count": 2
+  },
+  "case_count": 2,
+  "cases": [
+    {
+      "case": "ENWLsnapshots__30bus_LN__30bus_LN_t01_0800",
+      "truth_role": "positive_control",
+      "expected": {
+        "regime": "zero_bound",
+        "physical_kkt_acceptance_passed": false,
+        "strict_complementarity_failure": true
+      },
+      "observed": {
+        "regime": "zero_bound",
+        "physical_kkt_acceptance_passed": false,
+        "strict_complementarity_failure": true,
+        "strict_complementarity_passed_count": 0,
+        "row_count": 28
+      },
+      "trace_availability_relation": "both_available",
+      "validated": true
+    },
+    {
+      "case": "ENWLsnapshots__30bus_LN__30bus_LN_t13_1400",
+      "truth_role": "negative_control",
+      "expected": {
+        "regime": "positive_bound",
+        "physical_kkt_acceptance_passed": true,
+        "strict_complementarity_failure": false
+      },
+      "observed": {
+        "regime": "positive_bound",
+        "physical_kkt_acceptance_passed": true,
+        "strict_complementarity_failure": false,
+        "strict_complementarity_passed_count": 28,
+        "row_count": 28
+      },
+      "trace_availability_relation": "both_available",
+      "validated": true
+    }
+  ],
+  "validation_passed": true,
+  "interpretation": "Truth labels validate expected bound-regime outcomes and trace availability only; they do not rank solvers or establish causal convergence claims."
+}

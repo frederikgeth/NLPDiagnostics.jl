@@ -2028,6 +2028,14 @@ end
     @test occursin("trace_comparison_readiness", solver_trace_comparison)
     @test occursin("telemetry_crosswalk", solver_trace_comparison)
     @test occursin("_trace_summary_for_comparison", solver_trace_comparison)
+    truth_label_validation = read(
+        joinpath(benchmark_directory, "validate_bmopf_trace_truth_labels.jl"),
+        String,
+    )
+    @test occursin("EXPECTED_CASES", truth_label_validation)
+    @test occursin("positive_control", truth_label_validation)
+    @test occursin("negative_control", truth_label_validation)
+    @test occursin("trace_available_on_both_sides", truth_label_validation)
     magnitude_campaign = read(
         joinpath(
             benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",

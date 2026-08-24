@@ -42,6 +42,15 @@ as directly comparable, flags primal/dual coordinate mismatches, identifies
 point-binding capture gaps, and records solver-telemetry availability without
 ranking solver behavior.
 
+The first truth-labelled trace gate is now implemented by
+`benchmarks/validate_bmopf_trace_truth_labels.jl` and recorded in
+`docs/bmopf_trace_truth_label_validation_summary.json`. The zero-bound t01
+fixture is a positive control for the declared strict-complementarity failure;
+the positive-bound t13 fixture is a negative control. Both labels match the
+independent bound-regime ledger and both solver traces are available under the
+matched environment. This validates the case/trace join, not a solver score or
+causal explanation.
+
 The latest bounded 30-bus IBR calibration sequence is complete through
 row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
 campaign now includes solver-budget, option, initialization, trajectory,
@@ -4884,7 +4893,8 @@ availability boundaries. Its `trace_comparison_readiness` envelope now
 combines solver-pair, environment, provenance, and trace-availability gates.
 The held-out Ipopt-versus-MadNLP validation now passes all four gates on two
 cases; see `docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`.
-The telemetry crosswalk is now implemented and validated on the two-case
-campaign. The next trace work is a truth-labelled positive/negative case set
-that can exercise these gates against known outcomes; do not add another trace
+The telemetry crosswalk and first truth-labelled positive/negative case set are
+now implemented and validated on the two-case campaign. The next trace work is
+to expand the labelled matrix beyond the two LN snapshots (including the LG
+controls) and retain explicit unavailable labels; do not add another trace
 metric family before that evidence exists.
