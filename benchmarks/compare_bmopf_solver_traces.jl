@@ -38,6 +38,19 @@ function _case_map(summary)
     return result
 end
 
+function _trace_summary_for_comparison(trace)
+    normalized = _as_dict(trace)
+    haskey(normalized, "available") && return normalized
+    record_count = get(normalized, "record_count", nothing)
+    if record_count isa Integer
+        normalized["available"] = record_count > 0
+    elseif record_count isa AbstractString
+        parsed = tryparse(Int, strip(String(record_count)))
+        isnothing(parsed) || (normalized["available"] = parsed > 0)
+    end
+    return normalized
+end
+
 function _trace_campaign_summary(summary, policy)
     campaign = get(summary, "iteration_trace_campaign_summary", nothing)
     campaign isa AbstractDict && return Dict{String,Any}(
@@ -46,7 +59,7 @@ function _trace_campaign_summary(summary, policy)
     entries = Dict{String,Any}[]
     for case in get(summary, "cases", Any[])
         case isa AbstractDict || continue
-        trace = _as_dict(get(case, "trace", nothing))
+        trace = _trace_summary_for_comparison(get(case, "trace", nothing))
         isempty(trace) && (trace = Dict{String,Any}(
             "schema_version" => "unavailable",
             "available" => false,

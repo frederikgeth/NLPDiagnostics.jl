@@ -2024,6 +2024,7 @@ end
     )
     @test occursin("iteration_trace_policy_comparison", solver_trace_comparison)
     @test occursin("trace_coverage_comparison", solver_trace_comparison)
+    @test occursin("_trace_summary_for_comparison", solver_trace_comparison)
     magnitude_campaign = read(
         joinpath(
             benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",

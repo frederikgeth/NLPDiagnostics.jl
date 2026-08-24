@@ -19,7 +19,11 @@ traces explicit, and reports per-pair coverage deltas without ranking solver
 policies or collapsing policy-specific evidence. Index-based pairing is
 explicitly marked when a campaign supplies no usable provenance key. This
 closes the trace-envelope comparison increment; policy-specific solver quality
-claims remain out of scope.
+claims remain out of scope. A held-out two-case Ipopt validation is recorded in
+`docs/bmopf_trace_policy_comparison_summary.json`: both traces paired with
+complete coverage and zero record, segment, binding, or final-iteration deltas
+under a matching environment fingerprint. This is API/coverage validation,
+not solver-equivalence evidence.
 
 The latest bounded 30-bus IBR calibration sequence is complete through
 row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
@@ -4859,5 +4863,7 @@ MPCC, homotopy, multistart, and symmetry remain out of scope. The next trace
 deliverable is now benchmark-facing: `benchmarks/compare_bmopf_solver_traces.jl`
 adds the `trace_coverage_comparison` envelope to its existing rich case
 comparison, exercising the API while retaining the same provenance and
-availability boundaries. The next trace work should validate this artifact on
-held-out paired campaigns rather than add another trace metric family.
+availability boundaries. The next trace work should extend held-out validation
+across a distinct policy or solver only when the same provenance and environment
+gates are available; do not add another trace metric family before that evidence
+exists.

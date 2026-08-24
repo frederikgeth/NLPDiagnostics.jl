@@ -578,8 +578,8 @@
   },
   "benchmark_schema_inventory": {
     "benchmark_scripts_with_schema_version_count": 49,
-    "json_file_count": 50,
-    "json_schema_file_count": 50,
+    "json_file_count": 51,
+    "json_schema_file_count": 51,
     "json_without_schema_count": 0,
     "schema_errors": []
   },

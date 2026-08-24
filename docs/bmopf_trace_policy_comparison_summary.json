@@ -1,0 +1,51 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-trace-policy-comparison-v1",
+  "status": "held_out_local_validation",
+  "source": {
+    "runner": "benchmarks/compare_bmopf_solver_traces.jl",
+    "reference_summary": "bmopf-solver-trace-summary-test.json",
+    "candidate_summary": "nlpdiag-30bus-trace-pair-completed/summary.json",
+    "local_environment": "work/benchmark-environment",
+    "solver": "ipopt",
+    "environment_fingerprint": "a092f28bc059689a967bed6fadc3751dd048ac508c3e3efaf814ba2ad026c3ec"
+  },
+  "campaign": {
+    "reference_policy": "left",
+    "candidate_policy": "right",
+    "case_count": 2,
+    "paired_trace_count": 2,
+    "unmatched_reference_count": 0,
+    "unmatched_candidate_count": 0,
+    "duplicate_reference_key_count": 0,
+    "duplicate_candidate_key_count": 0,
+    "coverage_complete": true,
+    "availability_relations": {
+      "both_available": 2,
+      "reference_only": 0,
+      "candidate_only": 0,
+      "neither_available": 0
+    }
+  },
+  "paired_cases": [
+    {
+      "case": "ENWLsnapshots__30bus_LN__30bus_LN_t01_0800",
+      "record_count": {"reference": 19, "candidate": 19, "delta": 0},
+      "segment_count": {"reference": 1, "candidate": 1, "delta": 0},
+      "binding_count": {"reference": 19, "candidate": 19, "delta": 0},
+      "final_iteration": {"reference": 18, "candidate": 18, "delta": 0}
+    },
+    {
+      "case": "ENWLsnapshots__30bus_LN__30bus_LN_t13_1400",
+      "record_count": {"reference": 18, "candidate": 18, "delta": 0},
+      "segment_count": {"reference": 1, "candidate": 1, "delta": 0},
+      "binding_count": {"reference": 18, "candidate": 18, "delta": 0},
+      "final_iteration": {"reference": 17, "candidate": 17, "delta": 0}
+    }
+  ],
+  "interpretation": "The held-out pair exercised complete provenance alignment and equal trace coverage under one matching local environment fingerprint.",
+  "does_not_establish": [
+    "solver or policy superiority",
+    "trace equivalence outside these two snapshots",
+    "causal convergence or conditioning conclusions"
+  ]
+}
