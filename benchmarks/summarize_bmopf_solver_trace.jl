@@ -4,6 +4,7 @@
 
 include(joinpath(@__DIR__, "common.jl"))
 using .NLPDiagnosticsBenchmarkCommon
+using NLPDiagnostics
 
 _as_dict(value) = value isa AbstractDict ?
     Dict{String,Any}(string(k) => v for (k, v) in value) : Dict{String,Any}()
@@ -68,6 +69,12 @@ function _log_iteration_summary(report)
 end
 
 function _trace_summary(trace)
+    if get(trace, "schema_version", nothing) ==
+       "nlpdiagnostics-iteration-trace-summary-v1"
+        return Dict{String,Any}(
+            String(key) => value for (key, value) in trace
+        )
+    end
     embedded = get(trace, "summary", nothing)
     if embedded isa AbstractDict &&
        get(embedded, "schema_version", nothing) ==
@@ -93,6 +100,8 @@ function _trace_summary(trace)
     end
     final = isempty(records) ? nothing : last(records)
     return Dict{String,Any}(
+        "schema_version" => "nlpdiagnostics-iteration-trace-summary-legacy-v0",
+        "available" => !isempty(records),
         "record_count" => length(records),
         "segment_count" => get(trace, "segment_count", nothing),
         "binding_count" => get(trace, "binding_count", nothing),
@@ -106,6 +115,33 @@ function _trace_summary(trace)
         "minimum_primal_infeasibility" => isempty(primal) ? nothing : minimum(primal),
         "minimum_dual_infeasibility" => isempty(dual) ? nothing : minimum(dual),
     )
+end
+
+function _trace_campaign_summary(cases, solver)
+    entries = Dict{String,Any}[]
+    for case in cases
+        trace = get(case, "trace", nothing)
+        trace = trace isa AbstractDict ? trace : Dict{String,Any}(
+            "schema_version" => "unavailable",
+            "available" => false,
+        )
+        push!(entries, Dict{String,Any}(
+            "provenance" => Dict{String,Any}(
+                "solver" => solver,
+                "case" => get(case, "name", "unknown"),
+                "status" => get(case, "status", nothing),
+                "termination" => get(case, "termination", nothing),
+                "environment_fingerprint" =>
+                    get(case, "environment_fingerprint", nothing),
+                "sweep_label" => get(case, "sweep_label", nothing),
+                "run_id" => get(case, "run_id", nothing),
+                "replicate_index" => get(case, "replicate_index", nothing),
+                "profile_stage" => get(case, "profile_stage", nothing),
+            ),
+            "summary" => _trace_summary(trace),
+        ))
+    end
+    return NLPDiagnostics.iteration_trace_campaign_summary(entries)
 end
 
 """Summarize controller-curve persistence evidence retained beside a trace."""
@@ -1341,6 +1377,7 @@ function main()
             end
         end
     end
+    trace_campaign = _trace_campaign_summary(cases, get(index, "solver", nothing))
     payload = Dict{String,Any}(
         "runner_version" => get(index, "runner_version", nothing),
         "input_format" => get(index, "input_format", "bmopf"),
@@ -1372,6 +1409,7 @@ function main()
             get(status_counts, "ok_solver_trace_profile_skipped", 0) +
             get(status_counts, "ok_solver_trace_context_profile", 0) +
             get(status_counts, "ok_solver_trace_numerical_profile", 0),
+        "iteration_trace_campaign_summary" => trace_campaign,
         "iteration_count_total" => sum(iteration_counts; init = 0),
         "iteration_count_minimum" => isempty(iteration_counts) ? nothing : minimum(iteration_counts),
         "iteration_count_maximum" => isempty(iteration_counts) ? nothing : maximum(iteration_counts),

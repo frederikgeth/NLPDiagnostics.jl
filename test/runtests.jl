@@ -2014,6 +2014,8 @@ end
     @test occursin("profile_completeness", solver_trace_summary)
     @test occursin("checkpoint_phase", solver_trace_summary)
     @test occursin("solver_trace_case_count", solver_trace_summary)
+    @test occursin("iteration_trace_campaign_summary", solver_trace_summary)
+    @test occursin("_trace_summary", solver_trace_summary)
     @test occursin("profile_stage", solver_trace_summary)
     @test occursin("_solver_log_termination", solver_trace_summary)
     magnitude_campaign = read(
@@ -15079,6 +15081,39 @@ end
         @test event_summary["telemetry_coverage"]["regularization_size"][
             "available_count"
         ] == 6
+        campaign_summary = NLPDiagnostics.iteration_trace_campaign_summary([
+            Dict(
+                "provenance" => Dict("case" => "single"),
+                "summary" => trace_summary,
+            ),
+            Dict(
+                "provenance" => Dict("case" => "event"),
+                "summary" => event_summary,
+            ),
+        ])
+        @test campaign_summary["schema_version"] ==
+              "nlpdiagnostics-iteration-trace-campaign-summary-v1"
+        @test campaign_summary["trace_count"] == 2
+        @test campaign_summary["available_trace_count"] == 2
+        @test campaign_summary["provenance_available_trace_count"] == 2
+        @test campaign_summary["record_coverage"]["total"] == 7
+        @test campaign_summary["segment_coverage"]["restart_trace_count"] == 0
+        @test campaign_summary["phase_counts"]["regular"] == 7
+        @test campaign_summary["traces"][1]["provenance"]["case"] == "single"
+        unavailable_campaign = NLPDiagnostics.iteration_trace_campaign_summary([
+            Dict(
+                "provenance" => Dict("case" => "empty"),
+                "summary" => NLPDiagnostics.iteration_trace_summary(
+                    NLPDiagnostics.iteration_trace(
+                        NLPDiagnostics.SolverIterationRecord[],
+                    ),
+                ),
+            ),
+            Dict("provenance" => Dict("case" => "event"), "summary" => event_summary),
+        ])
+        @test unavailable_campaign["trace_count"] == 2
+        @test unavailable_campaign["available_trace_count"] == 1
+        @test !unavailable_campaign["available"]
         event_evaluation = NLPDiagnostics.evaluate_numerical(
             combined_model, combined_binding.point,
         )

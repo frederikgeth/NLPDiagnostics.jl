@@ -39,8 +39,8 @@
     "advanced_only_count": 0,
     "advanced_root_overlap_count": 14,
     "domain_extension_root_count": 102,
-    "root_export_count": 551,
-    "root_only_count": 537,
+    "root_export_count": 552,
+    "root_only_count": 538,
     "stable_export_count": 16,
     "stable_root_overlap_count": 15
   },
@@ -579,6 +579,7 @@
     "ipopt_profile_with_iteration_trace!",
     "is_coordinatewise_set",
     "iteration_trace",
+    "iteration_trace_campaign_summary",
     "iteration_trace_data",
     "iteration_trace_jacobian_family_geometry_data",
     "iteration_trace_summary",

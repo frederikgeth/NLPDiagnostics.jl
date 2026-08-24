@@ -5,14 +5,14 @@
       "module Advanced"
     ],
     "export_buckets": {
-      "core_or_unclassified": 411,
+      "core_or_unclassified": 412,
       "domain_extension": 96,
       "profiling": 15,
       "scaling": 3,
       "solver_extension": 16,
       "structural": 10
     },
-    "root_export_count": 551,
+    "root_export_count": 552,
     "root_export_names": [
       "AbstractSemanticConstraintSetContract",
       "ActiveSetStructuralDecomposition",
@@ -440,6 +440,7 @@
       "ipopt_profile_with_iteration_trace!",
       "is_coordinatewise_set",
       "iteration_trace",
+      "iteration_trace_campaign_summary",
       "iteration_trace_data",
       "iteration_trace_jacobian_family_geometry_data",
       "iteration_trace_summary",
@@ -571,7 +572,7 @@
     "advanced_root_overlap_count": 14,
     "artifact": "docs/api_tier_inventory_summary.json",
     "domain_extension_root_count": 102,
-    "root_export_count": 551,
+    "root_export_count": 552,
     "status": "inventory"
   },
   "benchmark_schema_inventory": {

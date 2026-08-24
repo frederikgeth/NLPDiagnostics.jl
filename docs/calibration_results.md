@@ -1773,6 +1773,14 @@ summary when present and retains its legacy fallback for older v3 records.
 These are coverage and provenance observations, not solver-quality scores or
 convergence certificates.
 
+The solver-trace campaign summarizer now emits an
+`iteration_trace_campaign_summary` envelope. It retains each case's trace
+summary with solver/case/status/termination/environment provenance and
+aggregates coverage without dropping cases that lack a trace. This makes
+campaign-level coverage inspectable while preserving the per-trace evidence
+needed to interpret restarts, incomplete point capture, and solver-specific
+metric semantics.
+
 ## 2026-08-24: composable analysis policies
 
 `analyze` now accepts additive `RankPolicy`, `ProbePolicy`, and `CheckPolicy`

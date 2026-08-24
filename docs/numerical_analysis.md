@@ -906,6 +906,14 @@ solver-scaled and its barrier quantity solver-defined. These labels describe
 provenance, not accuracy, and prevent a solver-scaled residual from being
 silently compared with a recomputed raw model residual.
 
+`iteration_trace_campaign_summary` aggregates these compact summaries across a
+caller-defined campaign. Each entry may carry a provenance envelope such as
+case, solver, policy, and environment fingerprints; the returned `traces`
+array retains those envelopes and the original per-trace summaries. Aggregate
+record, segment, binding, phase, format, coordinate, and telemetry counts are
+coverage views with explicit completeness fields, not rankings or convergence
+scores. Missing trace summaries remain unavailable campaign entries.
+
 Version 3 adds a `linear_telemetry` dictionary to each record. The generic
 `solver_linear_telemetry_data` summary reports coverage and within-segment
 monotonicity for genuinely exposed counters. Ipopt's public callback does not

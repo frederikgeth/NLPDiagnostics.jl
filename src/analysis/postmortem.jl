@@ -1507,6 +1507,237 @@ function iteration_trace_summary(trace::SolverIterationTrace)
     )
 end
 
+function _iteration_trace_campaign_count(value)
+    value isa Bool && return nothing
+    value isa Integer && return Int(value)
+    value isa AbstractString || return nothing
+    parsed = tryparse(Int, strip(String(value)))
+    return isnothing(parsed) ? nothing : Int(parsed)
+end
+
+function _iteration_trace_campaign_bool(value)
+    value === true && return true
+    value === false && return false
+    value isa AbstractString || return nothing
+    normalized = lowercase(strip(String(value)))
+    normalized in ("true", "1", "yes", "on") && return true
+    normalized in ("false", "0", "no", "off") && return false
+    return nothing
+end
+
+function _iteration_trace_campaign_add_counts!(target, source)
+    source isa AbstractDict || return target
+    for (raw_key, raw_value) in source
+        value = _iteration_trace_campaign_count(raw_value)
+        isnothing(value) && continue
+        key = String(raw_key)
+        target[key] = get(target, key, 0) + value
+    end
+    return target
+end
+
+function _iteration_trace_campaign_counter(records, summary_key)
+    available = 0
+    total = 0
+    for summary in records
+        value = _iteration_trace_campaign_count(get(summary, summary_key, nothing))
+        isnothing(value) && continue
+        available += 1
+        total += value
+    end
+    return Dict{String,Any}(
+        "available_trace_count" => available,
+        "total" => total,
+        "coverage_complete" => available == length(records),
+    )
+end
+
+function _iteration_trace_campaign_point_coverage(records)
+    complete = 0
+    incomplete = 0
+    available = 0
+    for summary in records
+        coverage = get(summary, "point_binding_coverage", nothing)
+        coverage isa AbstractDict || continue
+        complete_value = _iteration_trace_campaign_count(
+            get(coverage, "complete_point_count", nothing),
+        )
+        incomplete_value = _iteration_trace_campaign_count(
+            get(coverage, "incomplete_point_count", nothing),
+        )
+        isnothing(complete_value) || (complete += complete_value)
+        isnothing(incomplete_value) || (incomplete += incomplete_value)
+        available += 1
+    end
+    return Dict{String,Any}(
+        "complete_point_count" => complete,
+        "incomplete_point_count" => incomplete,
+        "available_trace_count" => available,
+        "coverage_complete" => available == length(records),
+    )
+end
+
+function _iteration_trace_campaign_telemetry_coverage(records)
+    fields = Dict{String,Dict{String,Int}}()
+    for summary in records
+        coverage = get(summary, "telemetry_coverage", nothing)
+        coverage isa AbstractDict || continue
+        for (raw_field, raw_data) in coverage
+            raw_data isa AbstractDict || continue
+            field = String(raw_field)
+            aggregate = get!(fields, field, Dict{String,Int}(
+                "available_trace_count" => 0,
+                "available_count_total" => 0,
+                "record_count_total" => 0,
+                "coverage_complete_trace_count" => 0,
+            ))
+            available_count = _iteration_trace_campaign_count(
+                get(raw_data, "available_count", nothing),
+            )
+            record_count = _iteration_trace_campaign_count(
+                get(raw_data, "record_count", nothing),
+            )
+            if !isnothing(available_count) && !isnothing(record_count)
+                aggregate["available_trace_count"] += 1
+                aggregate["available_count_total"] += available_count
+                aggregate["record_count_total"] += record_count
+                complete = _iteration_trace_campaign_bool(
+                    get(raw_data, "coverage_complete", nothing),
+                )
+                complete === true &&
+                    (aggregate["coverage_complete_trace_count"] += 1)
+            end
+        end
+    end
+    return Dict{String,Any}(
+        field => Dict{String,Any}(
+            key => value for (key, value) in aggregate
+        ) for (field, aggregate) in sort!(collect(fields); by = first)
+    )
+end
+
+"""
+    iteration_trace_campaign_summary(entries)
+
+Aggregate compact iteration-trace summaries across a caller-defined campaign.
+Each entry may be a bare summary dictionary or an envelope with `summary` and
+`provenance` dictionaries. The returned `traces` field retains every supplied
+summary and provenance envelope; aggregate counts are convenience coverage
+views, never scores or solver-quality rankings. Missing fields remain reflected
+in per-field coverage rather than being interpreted as zero evidence.
+"""
+function iteration_trace_campaign_summary(entries::AbstractVector)
+    normalized = Dict{String,Any}[]
+    summaries = Dict{String,Any}[]
+    for (index, raw_entry) in enumerate(entries)
+        raw_entry isa AbstractDict || throw(ArgumentError(
+            "iteration trace campaign entries must be dictionaries",
+        ))
+        raw_summary = haskey(raw_entry, "summary") ?
+                      raw_entry["summary"] : raw_entry
+        raw_summary isa AbstractDict || throw(ArgumentError(
+            "iteration trace campaign entries must contain a summary dictionary",
+        ))
+        raw_provenance = get(raw_entry, "provenance", Dict{String,Any}())
+        raw_provenance isa AbstractDict || throw(ArgumentError(
+            "iteration trace campaign provenance must be a dictionary",
+        ))
+        summary = Dict{String,Any}(
+            String(key) => value for (key, value) in raw_summary
+        )
+        provenance = Dict{String,Any}(
+            String(key) => value for (key, value) in raw_provenance
+        )
+        push!(summaries, summary)
+        push!(normalized, Dict{String,Any}(
+            "index" => index,
+            "provenance" => provenance,
+            "summary" => summary,
+        ))
+    end
+    phase_counts = Dict{String,Int}()
+    format_counts = Dict{String,Int}()
+    metric_coordinate_counts = Dict{String,Dict{String,Int}}()
+    schema_counts = Dict{String,Int}()
+    segment_distribution = Dict{String,Int}()
+    available_trace_count = 0
+    provenance_available_trace_count = 0
+    restart_trace_count = 0
+    for (entry, summary) in zip(normalized, summaries)
+        schema = String(get(summary, "schema_version", "unavailable"))
+        schema_counts[schema] = get(schema_counts, schema, 0) + 1
+        available = _iteration_trace_campaign_bool(get(summary, "available", nothing))
+        available === true && (available_trace_count += 1)
+        !isempty(entry["provenance"]) &&
+            (provenance_available_trace_count += 1)
+        segment_count = _iteration_trace_campaign_count(
+            get(summary, "segment_count", nothing),
+        )
+        if !isnothing(segment_count)
+            key = string(segment_count)
+            segment_distribution[key] = get(segment_distribution, key, 0) + 1
+            segment_count > 1 && (restart_trace_count += 1)
+        end
+        _iteration_trace_campaign_add_counts!(phase_counts,
+            get(summary, "phase_counts", nothing))
+        _iteration_trace_campaign_add_counts!(format_counts,
+            get(summary, "format_counts", nothing))
+        coordinates = get(summary, "metric_coordinate_counts", nothing)
+        coordinates isa AbstractDict || continue
+        for (raw_metric, raw_counts) in coordinates
+            metric = String(raw_metric)
+            aggregate = get!(metric_coordinate_counts, metric, Dict{String,Int}())
+            _iteration_trace_campaign_add_counts!(aggregate, raw_counts)
+        end
+    end
+    trace_count = length(summaries)
+    return Dict{String,Any}(
+        "schema_version" => "nlpdiagnostics-iteration-trace-campaign-summary-v1",
+        "available" => trace_count > 0 && available_trace_count == trace_count,
+        "trace_count" => trace_count,
+        "available_trace_count" => available_trace_count,
+        "provenance_available_trace_count" => provenance_available_trace_count,
+        "summary_schema_counts" => Dict{String,Int}(
+            key => schema_counts[key] for key in sort!(collect(keys(schema_counts)))
+        ),
+        "record_coverage" => _iteration_trace_campaign_counter(
+            summaries, "record_count",
+        ),
+        "segment_coverage" => Dict{String,Any}(
+            "summary" => _iteration_trace_campaign_counter(
+                summaries, "segment_count",
+            ),
+            "restart_trace_count" => restart_trace_count,
+            "segment_count_distribution" => Dict{String,Int}(
+                key => segment_distribution[key] for
+                key in sort!(collect(keys(segment_distribution)))
+            ),
+        ),
+        "binding_coverage" => Dict{String,Any}(
+            "summary" => _iteration_trace_campaign_counter(
+                summaries, "binding_count",
+            ),
+            "point_bindings" => _iteration_trace_campaign_point_coverage(summaries),
+        ),
+        "phase_counts" => Dict{String,Int}(
+            key => phase_counts[key] for key in sort!(collect(keys(phase_counts)))
+        ),
+        "format_counts" => Dict{String,Int}(
+            key => format_counts[key] for key in sort!(collect(keys(format_counts)))
+        ),
+        "metric_coordinate_counts" => Dict{String,Any}(
+            metric => Dict{String,Int}(
+                key => counts[key] for key in sort!(collect(keys(counts)))
+            ) for (metric, counts) in
+            sort!(collect(metric_coordinate_counts); by = first)
+        ),
+        "telemetry_coverage" => _iteration_trace_campaign_telemetry_coverage(summaries),
+        "traces" => normalized,
+        "interpretation" =>
+            "Aggregated trace coverage and provenance; no solver-quality score or ranking is inferred.",
+    )
+end
+
 """Serialize an iteration trace without retaining solver-internal objects."""
 function iteration_trace_data(trace::SolverIterationTrace)
     record_data = [Dict{String,Any}(
