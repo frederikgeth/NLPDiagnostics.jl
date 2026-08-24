@@ -2018,6 +2018,7 @@ end
     @test occursin("_trace_summary", solver_trace_summary)
     @test occursin("profile_stage", solver_trace_summary)
     @test occursin("_solver_log_termination", solver_trace_summary)
+    @test occursin("haskey(trace, \"record_count\")", solver_trace_summary)
     solver_trace_comparison = read(
         joinpath(benchmark_directory, "compare_bmopf_solver_traces.jl"),
         String,

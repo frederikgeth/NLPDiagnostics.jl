@@ -69,6 +69,12 @@ function _log_iteration_summary(report)
 end
 
 function _trace_summary(trace)
+    if trace isa AbstractDict && haskey(trace, "record_count") &&
+       !haskey(trace, "records")
+        return Dict{String,Any}(
+            String(key) => value for (key, value) in trace
+        )
+    end
     if get(trace, "schema_version", nothing) ==
        "nlpdiagnostics-iteration-trace-summary-v1"
         return Dict{String,Any}(
