@@ -2038,6 +2038,8 @@ end
     @test occursin("30bus_LG", truth_label_validation)
     @test occursin("EXPECTED_UNAVAILABLE_CASES", truth_label_validation)
     @test occursin("unavailable_control", truth_label_validation)
+    @test occursin("EXPECTED_SCOPE_CASES", truth_label_validation)
+    @test occursin("availability_only_control", truth_label_validation)
     @test occursin("trace_available_on_both_sides", truth_label_validation)
     magnitude_campaign = read(
         joinpath(

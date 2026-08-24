@@ -50,8 +50,10 @@ failure; the positive-bound t13 fixtures are negative controls. Both LN and LG
 labels match the independent bound-regime ledger, and all four solver-trace
 pairs are available under the matched environment. A 99-bus LN snapshot is
 explicitly retained as an unavailable control because it was not collected;
-it is not converted into a zero-record result. This validates the case/trace
-join, not a solver score or causal explanation.
+it is not converted into a zero-record result. A second 99-bus LN snapshot is
+now an availability-only scope control: both solver traces are present, but no
+bound-regime truth label is claimed yet. This validates the case/trace join,
+not a solver score or causal explanation.
 
 The latest bounded 30-bus IBR calibration sequence is complete through
 row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
@@ -4896,8 +4898,9 @@ combines solver-pair, environment, provenance, and trace-availability gates.
 The held-out Ipopt-versus-MadNLP validation now passes all four gates on four
 cases; see `docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`.
 The telemetry crosswalk and truth-labelled positive/negative case set are now
-implemented and validated on the four-case LN/LG campaign. Explicit
-unavailability is also represented for an uncollected 99-bus control. The next
-trace work is to extend the matrix beyond these controls while preserving this
-unavailable-vs-failed distinction; do not add another trace metric family
-before that evidence exists.
+implemented and validated on the four-case LN/LG campaign. The matrix now also
+contains one availability-only 99-bus scope control and one explicitly
+unavailable 99-bus control. The next trace work is to add a reviewed
+truth-labelled 99-bus outcome before treating that scope extension as a
+calibration control; preserve the unavailable-vs-failed distinction and do not
+add another trace metric family before that evidence exists.

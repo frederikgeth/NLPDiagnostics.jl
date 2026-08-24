@@ -12,13 +12,16 @@ using JSON
 Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
 using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
-length(ARGS) in (2, 3) || error(
-    "usage: validate_bmopf_trace_truth_labels.jl <comparison.json> <ledger.json> [output.json]",
+length(ARGS) in (2, 3, 4) || error(
+    "usage: validate_bmopf_trace_truth_labels.jl <comparison.json> <ledger.json> [output.json] or [scope-comparison.json] <output.json>",
 )
 
 comparison_path, ledger_path = abspath.(ARGS[1:2])
 comparison = read_summary(comparison_path; root = "/")
 ledger = read_summary(ledger_path; root = "/")
+scope_comparison_path = length(ARGS) == 4 ? abspath(ARGS[3]) : nothing
+scope_comparison = isnothing(scope_comparison_path) ? Dict{String,Any}() :
+    read_summary(scope_comparison_path; root = "/")
 
 function case_key(path)
     normalized = replace(String(path), '\\' => '/')
@@ -61,6 +64,14 @@ const EXPECTED_UNAVAILABLE_CASES = Dict{String,Dict{String,Any}}(
     ),
 )
 
+const EXPECTED_SCOPE_CASES = Dict{String,Dict{String,Any}}(
+    case_key("ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json") => Dict(
+        "truth_role" => "availability_only_control",
+        "expected_trace_availability" => "both_available",
+        "reason" => "99-bus scope extension has no bound-regime truth label yet",
+    ),
+)
+
 function _ledger_cases(payload)
     result = Dict{String,Any}()
     for entry in get(payload, "cases", Any[])
@@ -90,8 +101,24 @@ function _trace_pairs(payload)
 end
 
 ledger_cases = _ledger_cases(ledger)
-trace_pairs = _trace_pairs(comparison)
+trace_pairs = merge(_trace_pairs(comparison), _trace_pairs(scope_comparison))
 readiness = get(comparison, "trace_comparison_readiness", Dict())
+if !isnothing(scope_comparison_path)
+    scope_readiness = get(scope_comparison, "trace_comparison_readiness", Dict())
+    readiness = Dict{String,Any}(
+        "comparison_ready" => get(readiness, "comparison_ready", false) === true &&
+            get(scope_readiness, "comparison_ready", false) === true,
+        "environment_fingerprint_match" => get(readiness, "environment_fingerprint_match", false) === true &&
+            get(scope_readiness, "environment_fingerprint_match", false) === true,
+        "case_pairing_complete" => get(readiness, "case_pairing_complete", false) === true &&
+            get(scope_readiness, "case_pairing_complete", false) === true,
+        "trace_availability_complete" => get(readiness, "trace_availability_complete", false) === true &&
+            get(scope_readiness, "trace_availability_complete", false) === true,
+        "paired_trace_count" => get(readiness, "paired_trace_count", 0) +
+            get(scope_readiness, "paired_trace_count", 0),
+        "scope_comparison_included" => true,
+    )
+end
 validated = Dict{String,Any}[]
 for (name, expected) in EXPECTED_CASES
     ledger_case = get(ledger_cases, name, nothing)
@@ -144,9 +171,28 @@ for (name, expected) in EXPECTED_UNAVAILABLE_CASES
     ))
 end
 
+for (name, expected) in EXPECTED_SCOPE_CASES
+    pair = get(trace_pairs, name, nothing)
+    availability = pair isa AbstractDict ? get(pair, "availability_relation", nothing) : nothing
+    push!(validated, Dict{String,Any}(
+        "case" => name,
+        "truth_role" => expected["truth_role"],
+        "expected" => expected,
+        "observed" => Dict(
+            "trace_pair_present" => pair isa AbstractDict,
+            "trace_availability_relation" => availability,
+        ),
+        "trace_pair_present" => pair isa AbstractDict,
+        "trace_available_on_both_sides" => availability == "both_available",
+        "scope_reason" => expected["reason"],
+        "validated" => availability == expected["expected_trace_availability"],
+    ))
+end
+
 validation_passed = get(readiness, "comparison_ready", false) === true &&
     !isempty(validated) && all(get(entry, "validated", false) === true for entry in validated)
-output_path = length(ARGS) == 3 ? abspath(ARGS[3]) : joinpath(dirname(comparison_path), "bmopf_trace_truth_label_validation.json")
+output_path = length(ARGS) == 4 ? abspath(ARGS[4]) :
+    (length(ARGS) == 3 ? abspath(ARGS[3]) : joinpath(dirname(comparison_path), "bmopf_trace_truth_label_validation.json"))
 write_json(output_path, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-trace-truth-label-validation-v1",
     "status" => validation_passed ? "validated_with_explicit_unavailable" : "blocked",
@@ -154,6 +200,7 @@ write_json(output_path, Dict{String,Any}(
         "runner" => "benchmarks/validate_bmopf_trace_truth_labels.jl",
         "comparison_summary" => basename(comparison_path),
         "truth_ledger" => basename(ledger_path),
+        "scope_comparison_summary" => isnothing(scope_comparison_path) ? nothing : basename(scope_comparison_path),
     ),
     "readiness" => readiness,
     "case_count" => length(validated),
