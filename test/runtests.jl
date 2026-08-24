@@ -7589,6 +7589,14 @@ end
         )
         @test occursin(",weak_activity", weak_checked.metadata[:stages])
         @test weak_checked.metadata[:weak_activity_row_count] == "0"
+        nonsmoothness_persistence = NLPDiagnostics.analyze_nonsmoothness_persistence(
+            model,
+            [point, NLPDiagnostics.evaluation_point(model, [2.1, 3.1]; label = "nearby")],
+            ;
+            direction_count = 2,
+        )
+        @test nonsmoothness_persistence.metadata[:nonsmoothness_persistence_classification] ==
+              "no_nonsmoothness_inconsistency_observed_persistent"
     end
 
     @testset "constructed MOI nonlinear evaluator supplies exact first derivatives" begin
@@ -9305,6 +9313,22 @@ end
         )
         @test weak_report.metadata[:weak_activity_row_count] == "1"
         @test length(findings(weak_report, :weak_activity_detected)) == 1
+        weak_persistence = NLPDiagnostics.analyze_weak_activity_persistence(
+            model,
+            [
+                weak_evaluation,
+                NLPDiagnostics.evaluate_numerical(
+                    model,
+                    [0.0, 6.0e-7];
+                    relative_step = 1.0e-6,
+                ),
+            ];
+            feasibility_tolerance = 1.0e-7,
+            active_tolerance = 1.0e-7,
+            weak_activity_tolerance = 1.0e-6,
+        )
+        @test weak_persistence.metadata[:weak_activity_persistence_classification] ==
+              "weak_activity_persistent"
         screen = NLPDiagnostics.mfcq_screen(
             evaluation,
             summary;

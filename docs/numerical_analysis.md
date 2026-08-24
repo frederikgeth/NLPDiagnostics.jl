@@ -325,6 +325,12 @@ geometry, and physical interpretation. Incomplete structural or derivative
 evidence is serialized as typed unavailability rather than treated as zero
 freedom.
 
+The corresponding persistence APIs compare the screen statuses and row sets
+across multiple explicit evaluations. They reject coordinate-scope changes,
+retain domain-limited points as inconclusive, and distinguish persistent from
+point-specific evidence. Point persistence remains descriptive and does not
+replace solver-trace or domain-specific interpretation.
+
 `analyze_nonsmoothness(model, evaluation)` runs bounded objective-gradient and
 Jacobian directional cross-checks. Disagreement is retained as competing
 evidence for a nonsmooth point, domain crossing, finite-difference error, or

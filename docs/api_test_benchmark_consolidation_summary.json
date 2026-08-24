@@ -5,14 +5,14 @@
       "module Advanced"
     ],
     "export_buckets": {
-      "core_or_unclassified": 408,
+      "core_or_unclassified": 410,
       "domain_extension": 96,
       "profiling": 15,
       "scaling": 3,
       "solver_extension": 16,
       "structural": 10
     },
-    "root_export_count": 548,
+    "root_export_count": 550,
     "root_export_names": [
       "AbstractSemanticConstraintSetContract",
       "ActiveSetStructuralDecomposition",
@@ -258,6 +258,7 @@
       "analyze_minimum_elastic_relaxation_search",
       "analyze_multi_seed_golub_kahan_probe",
       "analyze_nonsmoothness",
+      "analyze_nonsmoothness_persistence",
       "analyze_numerical",
       "analyze_objective_gradient_directional_crosscheck",
       "analyze_objective_jacobian_scaling",
@@ -280,6 +281,7 @@
       "analyze_static",
       "analyze_structure",
       "analyze_weak_activity",
+      "analyze_weak_activity_persistence",
       "bind_iteration_points",
       "bmopf_acdc_scaling_contract_data",
       "bmopf_analyze_active_set",
@@ -568,7 +570,7 @@
     "advanced_root_overlap_count": 14,
     "artifact": "docs/api_tier_inventory_summary.json",
     "domain_extension_root_count": 102,
-    "root_export_count": 548,
+    "root_export_count": 550,
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
@@ -882,6 +884,6 @@
     "explicit_typed_unavailable_tokens": [
       "UnavailableReason"
     ],
-    "typed_adapter_call_count": 86
+    "typed_adapter_call_count": 90
   }
 }

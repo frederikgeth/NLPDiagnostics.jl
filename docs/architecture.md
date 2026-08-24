@@ -563,6 +563,13 @@ feasible set or assign physical meaning to a null direction; inequalities,
 bounds, nonlinear manifold geometry, and domain semantics require separate
 evidence.
 
+`analyze_nonsmoothness_persistence` and
+`analyze_weak_activity_persistence` compare these point-local screens across
+explicitly supplied evaluations or points. They require a stable ordered
+variable/row scope and preserve changing, persistent, and unavailable states;
+repeated evidence still does not become a global smoothness or active-set
+certificate.
+
 `check_nonsmoothness=true` adds bounded central-difference directional checks
 for the recorded objective gradient and/or Jacobian. A mismatch is classified
 as possible nonsmoothness or derivative inconsistency, because finite-

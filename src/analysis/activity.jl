@@ -149,6 +149,145 @@ function analyze_weak_activity(
     )
 end
 
+"""
+    analyze_weak_activity_persistence(model, evaluations; ...)
+
+Compare weak-activity row sets across explicitly supplied points. Persistent
+rows remain proximity evidence only; changing rows indicate activity-band
+sensitivity rather than a definitive active-set transition.
+"""
+function analyze_weak_activity_persistence(
+    model::MOI.ModelLike,
+    evaluations::AbstractVector{<:NumericalEvaluation};
+    minimum_evaluations::Integer = 2,
+    kwargs...,
+)
+    minimum_evaluations >= 2 || throw(ArgumentError("minimum_evaluations must be at least two"))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "weak_activity_persistence"
+    report.metadata[:evaluation_count] = string(length(evaluations))
+    report.metadata[:minimum_evaluations] = string(minimum_evaluations)
+    labels = join((evaluation.point.label for evaluation in evaluations), ",")
+    report.metadata[:weak_activity_persistence_point_labels] = labels
+    if length(evaluations) < minimum_evaluations
+        reason = "only $(length(evaluations)) evaluation(s) supplied; at least $(minimum_evaluations) required"
+        typed_reason = unavailable_reason(
+            (available = false, reason = reason);
+            code = :weak_activity_persistence_unavailable,
+            category = :numerical,
+            stage = :weak_activity_persistence,
+        )
+        report.metadata[:weak_activity_persistence_available] = "false"
+        report.metadata[:weak_activity_persistence_reason] = typed_reason.message
+        report.metadata[:weak_activity_persistence_unavailable_reason] = typed_reason.message
+        report.metadata[:weak_activity_persistence_category] = string(typed_reason.category)
+        report.metadata[:weak_activity_persistence_stage] = string(typed_reason.stage)
+        push!(report, Finding(:weak_activity_persistence_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "Weak-activity persistence is unavailable for $(length(evaluations)) supplied evaluation(s).",
+            why_it_matters = "Persistence requires multiple explicitly evaluated points.",
+            evidence = [Evidence("Weak-activity persistence availability"; details = [
+                "evaluation_count" => length(evaluations),
+                "minimum_evaluations" => minimum_evaluations,
+            ])],
+            suggested_actions = ["Supply nearby valid points or captured solver iterates."],
+        ))
+        return report
+    end
+    reference_variables = first(evaluations).point.variables
+    reference_rows = first(evaluations).constraint_sources
+    if any(evaluation.point.variables != reference_variables for evaluation in evaluations) ||
+       any(evaluation.constraint_sources != reference_rows for evaluation in evaluations)
+        reason = "supplied evaluations do not share one ordered variable and constraint-row scope"
+        typed_reason = unavailable_reason(
+            (available = false, reason = reason);
+            code = :weak_activity_persistence_unavailable,
+            category = :input,
+            stage = :weak_activity_persistence,
+        )
+        report.metadata[:weak_activity_persistence_available] = "false"
+        report.metadata[:weak_activity_persistence_reason] = typed_reason.message
+        report.metadata[:weak_activity_persistence_unavailable_reason] = typed_reason.message
+        report.metadata[:weak_activity_persistence_category] = string(typed_reason.category)
+        report.metadata[:weak_activity_persistence_stage] = string(typed_reason.stage)
+        push!(report, Finding(:weak_activity_persistence_coordinate_mismatch;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Weak-activity evaluations do not share one ordered variable and constraint-row scope.",
+            why_it_matters = "Cross-point margin comparisons require the same scalar rows and variables at every point.",
+            evidence = [Evidence("Weak-activity persistence alignment"; details = [
+                "evaluation_count" => length(evaluations),
+                "point_labels" => labels,
+            ])],
+            suggested_actions = ["Evaluate the same ordered variables and scalar rows at every point."],
+        ))
+        return report
+    end
+    screens = [analyze_weak_activity(model, evaluation; kwargs...) for evaluation in evaluations]
+    available = [string(screen.metadata[:weak_activity_available]) == "true" for screen in screens]
+    if !all(available)
+        push!(report, Finding(:weak_activity_persistence_inconclusive;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = NumericalObservation, confidence = ConfidenceCertain,
+            observation = "Weak-activity persistence is inconclusive because one or more point-local screens are unavailable.",
+            why_it_matters = "Opaque sets or unavailable values cannot support a cross-point margin comparison.",
+            evidence = [Evidence("Weak-activity point-local availability"; details = [
+                "point_labels" => labels,
+                "available" => join(string.(available), ","),
+            ])],
+            suggested_actions = ["Resolve scalar-bound alignment or derivative/value availability before comparing points."],
+        ))
+        report.metadata[:weak_activity_persistence_available] = "false"
+        return report
+    end
+    row_sets = [
+        Set(parse.(Int, filter(item -> !isempty(item), split(string(screen.metadata[:weak_activity_rows]), ","))))
+        for screen in screens
+    ]
+    row_strings = [string(screen.metadata[:weak_activity_rows]) for screen in screens]
+    report.metadata[:weak_activity_persistence_available] = "true"
+    report.metadata[:weak_activity_persistence_row_sets] = join(row_strings, ";")
+    persistent = all(==(first(row_sets)), row_sets)
+    any_weak = any(!isempty, row_sets)
+    status = !any_weak ? :no_weak_activity_observed_persistent :
+             persistent ? :weak_activity_persistent : :weak_activity_not_persistent
+    report.metadata[:weak_activity_persistence_classification] = string(status)
+    push!(report, Finding(
+        status == :weak_activity_persistent ? :weak_activity_persistent :
+        status == :weak_activity_not_persistent ? :weak_activity_not_persistent :
+        :no_weak_activity_observed_persistent;
+        severity = status == :weak_activity_not_persistent ? SeverityWarning : SeverityInfo,
+        domain = status == :weak_activity_not_persistent ? NumericalIssue : RepresentationalIssue,
+        basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = "Weak-activity row classification across $(length(evaluations)) points: $(status).",
+        why_it_matters = "Repeated margin-band evidence is still point-local proximity information, not an active-set or multiplier conclusion.",
+        evidence = [Evidence("Weak-activity persistence"; details = [
+            "point_labels" => labels,
+            "row_sets" => join(row_strings, ";"),
+        ])],
+        affected = persistent ? EntityRef[] : EntityRef[reference_rows[row] for row in union(row_sets...)],
+        suggested_actions = ["Review activity tolerance, scaling, and nearby-point margins before making active-set decisions."],
+    ))
+    return report
+end
+
+function analyze_weak_activity_persistence(
+    model::MOI.ModelLike,
+    points::AbstractVector{<:EvaluationPoint};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Union{Nothing,Real} = nothing,
+    kwargs...,
+)
+    evaluations = [
+        isnothing(relative_step) ? evaluate_numerical(model, point; cache = cache) :
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step)
+        for point in points
+    ]
+    return analyze_weak_activity_persistence(model, evaluations; kwargs...)
+end
+
 function _active_derivative_provenance_findings(
     evaluation::NumericalEvaluation,
     selected_rows::Vector{Int},

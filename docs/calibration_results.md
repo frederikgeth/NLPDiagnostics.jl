@@ -1799,6 +1799,15 @@ screen reports supported scalar inequalities in an explicit margin band above
 the active tolerance. Neither path makes a global differentiability, active-
 set, multiplier, or KKT claim.
 
+## 2026-08-24: nonsmoothness and weak-activity persistence
+
+The new persistence APIs compare the opt-in screens across explicitly supplied
+nearby points or captured iterates. They require stable variable/row ordering,
+preserve coordinate mismatches and unavailable point-local evidence, and
+distinguish persistent from point-specific classifications. Repeated local
+evidence remains descriptive rather than a global differentiability,
+active-set, multiplier, or KKT certificate.
+
 ## 2026-08-24: finding-family and terminal-renderer consolidation
 
 Renderer-neutral report data now retains every finding record while adding

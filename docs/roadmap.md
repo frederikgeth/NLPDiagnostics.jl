@@ -240,7 +240,7 @@ package installation, or artifact mutation; the known local run reports
 Stable facade: it snapshots a model, evaluates an explicit point, runs
 solver-neutral analysis, and serializes the report without optional solver
 extensions. The legacy-root tier is now explicit in the
-machine-readable inventory: all 534 root-only exports are listed for review
+machine-readable inventory: all 536 root-only exports are listed for review
 and are not implicitly Stable. The prior increment documents the
 Stable/Advanced/legacy-root
 API compatibility policy in `docs/api_stability.md` and the machine-readable
@@ -4828,6 +4828,8 @@ structural-versus-numerical right-nullity screen with explicit unavailable
 evidence. It does not claim a global feasible-set dimension or physical gauge.
 The nonsmoothness and weak-activity increments are now implemented as opt-in
 local screens with explicit tolerance and unavailable-evidence boundaries.
-The next feature increment should address persistence of these screens across
-solver iterates and nearby points; MPCC, homotopy, multistart, and symmetry
-remain out of scope.
+Their persistence increment is now implemented across explicitly supplied
+nearby evaluations or captured iterates, with stable-scope and unavailable
+evidence boundaries. The next feature increment should integrate these
+persistence summaries more directly with solver-trace/postmortem workflows;
+MPCC, homotopy, multistart, and symmetry remain out of scope.

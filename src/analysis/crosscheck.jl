@@ -845,6 +845,137 @@ function analyze_nonsmoothness(
     )
 end
 
+"""
+    analyze_nonsmoothness_persistence(evaluations; ...)
+
+Compare the bounded nonsmoothness screen across explicitly supplied points.
+Persistent disagreement remains a possible nonsmoothness/derivative issue,
+not a proof of a nonsmooth model.
+"""
+function analyze_nonsmoothness_persistence(
+    model::MOI.ModelLike,
+    evaluations::AbstractVector{<:NumericalEvaluation};
+    minimum_evaluations::Integer = 2,
+    kwargs...,
+)
+    minimum_evaluations >= 2 || throw(ArgumentError("minimum_evaluations must be at least two"))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "nonsmoothness_persistence"
+    report.metadata[:evaluation_count] = string(length(evaluations))
+    report.metadata[:minimum_evaluations] = string(minimum_evaluations)
+    labels = join((evaluation.point.label for evaluation in evaluations), ",")
+    report.metadata[:nonsmoothness_persistence_point_labels] = labels
+    if length(evaluations) < minimum_evaluations
+        reason = "only $(length(evaluations)) evaluation(s) supplied; at least $(minimum_evaluations) required"
+        typed_reason = unavailable_reason(
+            (available = false, reason = reason);
+            code = :nonsmoothness_persistence_unavailable,
+            category = :numerical,
+            stage = :nonsmoothness_persistence,
+        )
+        report.metadata[:nonsmoothness_persistence_available] = "false"
+        report.metadata[:nonsmoothness_persistence_reason] = typed_reason.message
+        report.metadata[:nonsmoothness_persistence_unavailable_reason] = typed_reason.message
+        report.metadata[:nonsmoothness_persistence_category] = string(typed_reason.category)
+        report.metadata[:nonsmoothness_persistence_stage] = string(typed_reason.stage)
+        push!(report, Finding(:nonsmoothness_persistence_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "Nonsmoothness persistence is unavailable for $(length(evaluations)) supplied evaluation(s).",
+            why_it_matters = "Persistence requires multiple explicitly evaluated points.",
+            evidence = [Evidence("Nonsmoothness persistence availability"; details = [
+                "evaluation_count" => length(evaluations),
+                "minimum_evaluations" => minimum_evaluations,
+            ])],
+            suggested_actions = ["Supply nearby valid points or captured solver iterates."],
+        ))
+        return report
+    end
+    reference_variables = first(evaluations).point.variables
+    reference_rows = first(evaluations).constraint_sources
+    if any(evaluation.point.variables != reference_variables for evaluation in evaluations) ||
+       any(evaluation.constraint_sources != reference_rows for evaluation in evaluations)
+        reason = "supplied evaluations do not share one ordered variable and constraint-row scope"
+        typed_reason = unavailable_reason(
+            (available = false, reason = reason);
+            code = :nonsmoothness_persistence_unavailable,
+            category = :input,
+            stage = :nonsmoothness_persistence,
+        )
+        report.metadata[:nonsmoothness_persistence_available] = "false"
+        report.metadata[:nonsmoothness_persistence_reason] = typed_reason.message
+        report.metadata[:nonsmoothness_persistence_unavailable_reason] = typed_reason.message
+        report.metadata[:nonsmoothness_persistence_category] = string(typed_reason.category)
+        report.metadata[:nonsmoothness_persistence_stage] = string(typed_reason.stage)
+        push!(report, Finding(:nonsmoothness_persistence_coordinate_mismatch;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "Nonsmoothness evaluations do not share one ordered variable and constraint-row scope.",
+            why_it_matters = "Cross-point directional evidence cannot be compared when coordinates or rows change.",
+            evidence = [Evidence("Nonsmoothness persistence alignment"; details = [
+                "evaluation_count" => length(evaluations),
+                "point_labels" => labels,
+            ])],
+            suggested_actions = ["Evaluate the same ordered variables and scalar rows at every point."],
+        ))
+        return report
+    end
+    screens = [analyze_nonsmoothness(model, evaluation; kwargs...) for evaluation in evaluations]
+    statuses = [string(screen.metadata[:nonsmoothness_status]) for screen in screens]
+    mismatches = [parse(Int, string(screen.metadata[:nonsmoothness_mismatch_count])) for screen in screens]
+    limited = [parse(Int, string(screen.metadata[:nonsmoothness_domain_limited_count])) for screen in screens]
+    report.metadata[:nonsmoothness_persistence_available] = "true"
+    report.metadata[:nonsmoothness_persistence_statuses] = join(statuses, ",")
+    report.metadata[:nonsmoothness_persistence_mismatch_counts] = join(mismatches, ",")
+    report.metadata[:nonsmoothness_persistence_domain_limited_counts] = join(limited, ",")
+    persistent_mismatch = all(==("possible_nonsmoothness_or_derivative_inconsistency"), statuses)
+    any_mismatch = any(>(0), mismatches)
+    any_limited = any(>(0), limited)
+    status = persistent_mismatch ? :possible_nonsmoothness_persistent :
+             any_mismatch ? :possible_nonsmoothness_not_persistent :
+             any_limited ? :inconclusive_domain_limited :
+             :no_nonsmoothness_inconsistency_observed_persistent
+    report.metadata[:nonsmoothness_persistence_classification] = string(status)
+    evidence = [Evidence("Nonsmoothness persistence"; details = [
+        "point_labels" => labels,
+        "statuses" => join(statuses, ","),
+        "mismatch_counts" => join(mismatches, ","),
+        "domain_limited_counts" => join(limited, ","),
+    ])]
+    code = status == :possible_nonsmoothness_persistent ? :possible_nonsmoothness_persistent :
+           status == :possible_nonsmoothness_not_persistent ? :possible_nonsmoothness_not_persistent :
+           status == :inconclusive_domain_limited ? :nonsmoothness_persistence_inconclusive :
+           :nonsmoothness_consistency_persistent
+    severity = status in (:possible_nonsmoothness_persistent, :possible_nonsmoothness_not_persistent) ?
+               SeverityWarning : SeverityInfo
+    push!(report, Finding(code;
+        severity,
+        domain = severity == SeverityWarning ? NumericalIssue : RepresentationalIssue,
+        basis = NumericalObservation,
+        confidence = status == :inconclusive_domain_limited ? ConfidenceCertain : ConfidenceMedium,
+        observation = "Nonsmoothness screen classification across $(length(evaluations)) points: $(status).",
+        why_it_matters = "Cross-point consistency helps distinguish point-specific derivative behavior from repeated evidence, but does not establish global smoothness or nonsmoothness.",
+        evidence,
+        suggested_actions = ["Inspect point-local cross-check evidence and repeat over the operating region before changing model or solver conclusions."],
+    ))
+    return report
+end
+
+function analyze_nonsmoothness_persistence(
+    model::MOI.ModelLike,
+    points::AbstractVector{<:EvaluationPoint};
+    cache::EvaluationCache = EvaluationCache(),
+    relative_step::Union{Nothing,Real} = nothing,
+    kwargs...,
+)
+    evaluations = [
+        isnothing(relative_step) ? evaluate_numerical(model, point; cache = cache) :
+        evaluate_numerical(model, point; cache = cache, relative_step = relative_step)
+        for point in points
+    ]
+    return analyze_nonsmoothness_persistence(model, evaluations; kwargs...)
+end
+
 function _crosscheck_lagrangian_gradient(
     evaluation::NumericalEvaluation{T},
     objective_weight::T,

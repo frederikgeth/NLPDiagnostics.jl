@@ -119,7 +119,9 @@ export analyze_objective_jacobian_scaling
 export analyze_convexity
 export analyze_degrees_of_freedom
 export analyze_nonsmoothness
+export analyze_nonsmoothness_persistence
 export analyze_weak_activity
+export analyze_weak_activity_persistence
 export analyze_hessian_vector_crosscheck
 export analyze_derivative_crosscheck_scale_sweep
 export EvaluatorCapabilities
