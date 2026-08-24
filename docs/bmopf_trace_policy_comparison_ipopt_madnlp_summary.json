@@ -1,23 +1,23 @@
 {
   "schema_version": "nlpdiagnostics-bmopf-trace-policy-comparison-v1",
-  "status": "distinct_solver_validation_blocked_environment_mismatch",
+  "status": "distinct_solver_validation_complete_descriptive_only",
   "source": {
     "runner": "benchmarks/compare_bmopf_solver_traces.jl",
-    "reference_summary": "nlpdiag-30bus-trace-pair-native-summary-current.json",
-    "candidate_summary": "nlpdiag-madnlp-trace-summary.json",
+    "reference_summary": "nlpdiag-ipopt-trace-current-summary.json",
+    "candidate_summary": "nlpdiag-madnlp-trace-current-summary.json",
     "local_environment": "work/benchmark-environment",
     "reference_solver": "ipopt",
     "candidate_solver": "madnlp",
-    "reference_environment_fingerprint": "a092f28bc059689a967bed6fadc3751dd048ac508c3e3efaf814ba2ad026c3ec",
-    "candidate_environment_fingerprint": "f3f0558529b67e60ffa911539d4b8313cf66b3fc59b3ff9b84b51294e5aedfc8"
+    "reference_environment_fingerprint": "fbf53a8e82b7a4c21cc30bfe35b7254cf7a007424f87777c23a0a441dc562a49",
+    "candidate_environment_fingerprint": "fbf53a8e82b7a4c21cc30bfe35b7254cf7a007424f87777c23a0a441dc562a49"
   },
   "readiness": {
-    "environment_fingerprint_match": false,
+    "environment_fingerprint_match": true,
     "distinct_solver_pair": true,
     "case_pairing_complete": true,
     "trace_availability_complete": true,
     "paired_trace_count": 2,
-    "comparison_ready": false
+    "comparison_ready": true
   },
   "campaign": {
     "paired_cases": 2,
@@ -46,8 +46,8 @@
       }
     ]
   },
-  "interpretation": "The distinct-solver experiment established complete two-case provenance and trace availability, but the environment fingerprints do not match. The iteration and binding-count differences are therefore retained as observations only and do not support a solver-policy inference.",
-  "next_gate": "Re-run the same two cases with both solvers produced under one identical benchmark-environment fingerprint before interpreting solver differences.",
+  "interpretation": "The distinct-solver experiment passed the shared environment, two-case provenance, and trace-availability gates. Iteration and binding-count differences are retained as descriptive observations only; they do not establish solver superiority or equivalence, and binding telemetry is not directly comparable across these solver adapters.",
+  "next_gate": "Extend the same gated comparison to a truth-labelled case set and solver telemetry crosswalk before making any convergence or conditioning claim.",
   "does_not_establish": [
     "solver superiority or equivalence",
     "binding-trace comparability across solver telemetry conventions",

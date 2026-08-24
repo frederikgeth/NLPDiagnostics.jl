@@ -26,14 +26,14 @@ complete coverage and zero record, segment, binding, or final-iteration deltas
 under a matching environment fingerprint. This is API/coverage validation,
 not initialization-irrelevance or solver-equivalence evidence.
 
-The first distinct-solver trace attempt is recorded in
+The distinct-solver trace validation is recorded in
 `docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`. Ipopt and
 MadNLP produced complete two-case provenance pairing with both traces
-available, but their environment fingerprints differ. The new
-`trace_comparison_readiness` envelope makes that failed gate explicit; the
-iteration and binding-count differences remain observations only. The next
-trace gate is to regenerate both solver campaigns under one identical
-benchmark-environment fingerprint before interpreting solver differences.
+available under a matching environment fingerprint. The new
+`trace_comparison_readiness` envelope passes the solver-pair, environment,
+provenance, and availability gates. Iteration and binding-count differences
+remain descriptive observations only; telemetry conventions still prevent
+solver-quality or causal claims.
 
 The latest bounded 30-bus IBR calibration sequence is complete through
 row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
@@ -4875,8 +4875,7 @@ adds the `trace_coverage_comparison` envelope to its existing rich case
 comparison, exercising the API while retaining the same provenance and
 availability boundaries. Its `trace_comparison_readiness` envelope now
 combines solver-pair, environment, provenance, and trace-availability gates.
-The first Ipopt-versus-MadNLP attempt paired both held-out cases and retained
-their observations, but failed the identical-environment gate; see
-`docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`. The next trace
-work is to rerun both solvers under one matching environment fingerprint; do
-not add another trace metric family before that evidence exists.
+The held-out Ipopt-versus-MadNLP validation now passes all four gates on two
+cases; see `docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`.
+The next trace work is a truth-labelled case set and solver-telemetry
+crosswalk; do not add another trace metric family before that evidence exists.
