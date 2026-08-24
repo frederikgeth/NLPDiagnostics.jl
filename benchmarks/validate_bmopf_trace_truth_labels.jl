@@ -54,22 +54,24 @@ const EXPECTED_CASES = Dict{String,Dict{String,Any}}(
         "expected_physical_kkt_acceptance_passed" => true,
         "expected_strict_complementarity_failure" => false,
     ),
+    case_key("ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json") => Dict(
+        "truth_role" => "negative_control",
+        "expected_physical_kkt_acceptance_passed" => true,
+        "expected_strict_complementarity_failure" => false,
+        "reviewed_source" => "docs/real_99bus_phase_only_kkt_failure_summary.json",
+    ),
 )
 
 const EXPECTED_UNAVAILABLE_CASES = Dict{String,Dict{String,Any}}(
     case_key("ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json") => Dict(
         "truth_role" => "unavailable_control",
         "expected_trace_availability" => "unavailable",
+        "reviewed_outcome" => "positive_control",
         "reason" => "99-bus trace collection is outside the four-case calibration campaign",
     ),
 )
 
 const EXPECTED_SCOPE_CASES = Dict{String,Dict{String,Any}}(
-    case_key("ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json") => Dict(
-        "truth_role" => "availability_only_control",
-        "expected_trace_availability" => "both_available",
-        "reason" => "99-bus scope extension has no bound-regime truth label yet",
-    ),
 )
 
 function _ledger_cases(payload)
@@ -100,7 +102,28 @@ function _trace_pairs(payload)
     return result
 end
 
+function _reviewed_truth_cases(payload)
+    result = Dict{String,Any}()
+    for entry in get(payload, "runs", Any[])
+        entry isa AbstractDict || continue
+        snapshot = get(entry, "snapshot", nothing)
+        snapshot === nothing && continue
+        failed_count = get(entry, "reference_failed_side_count", nothing)
+        failed_count isa Integer || continue
+        result[case_key(snapshot)] = Dict{String,Any}(
+            "physical_kkt_acceptance_passed" => failed_count == 0,
+            "strict_complementarity_failure" => failed_count > 0,
+            "failed_side_count" => failed_count,
+            "source" => "docs/real_99bus_phase_only_kkt_failure_summary.json",
+        )
+    end
+    return result
+end
+
 ledger_cases = _ledger_cases(ledger)
+reviewed_truth_cases = _reviewed_truth_cases(read_summary(
+    "docs/real_99bus_phase_only_kkt_failure_summary.json",
+))
 trace_pairs = merge(_trace_pairs(comparison), _trace_pairs(scope_comparison))
 readiness = get(comparison, "trace_comparison_readiness", Dict())
 if !isnothing(scope_comparison_path)
@@ -122,18 +145,25 @@ end
 validated = Dict{String,Any}[]
 for (name, expected) in EXPECTED_CASES
     ledger_case = get(ledger_cases, name, nothing)
+    reviewed_case = get(reviewed_truth_cases, name, nothing)
     pair = get(trace_pairs, name, nothing)
+    observed_case = ledger_case isa AbstractDict ? ledger_case : reviewed_case
     observed_regime = ledger_case isa AbstractDict ? get(ledger_case, "regime", nothing) : nothing
-    physical_acceptance = ledger_case isa AbstractDict ?
-        get(ledger_case, "physical_kkt_acceptance_passed", nothing) : nothing
+    physical_acceptance = observed_case isa AbstractDict ?
+        get(observed_case, "physical_kkt_acceptance_passed", nothing) : nothing
     strict_count = ledger_case isa AbstractDict ?
         get(ledger_case, "strict_complementarity_passed_count", nothing) : nothing
     row_count = ledger_case isa AbstractDict ? get(ledger_case, "row_count", nothing) : nothing
-    strict_failure = strict_count isa Integer && row_count isa Integer ? strict_count < row_count : nothing
+    strict_failure = reviewed_case isa AbstractDict ?
+        get(reviewed_case, "strict_complementarity_failure", nothing) :
+        (strict_count isa Integer && row_count isa Integer ? strict_count < row_count : nothing)
+    expected_regime = get(expected, "regime", nothing)
+    expected_physical = get(expected, "expected_physical_kkt_acceptance_passed", nothing)
+    expected_failure = get(expected, "expected_strict_complementarity_failure", nothing)
     availability = pair isa AbstractDict ? get(pair, "availability_relation", nothing) : nothing
-    label_match = observed_regime == expected["regime"] &&
-        physical_acceptance == expected["expected_physical_kkt_acceptance_passed"] &&
-        strict_failure == expected["expected_strict_complementarity_failure"]
+    label_match = (isnothing(expected_regime) || observed_regime == expected_regime) &&
+        (isnothing(expected_physical) || physical_acceptance == expected_physical) &&
+        (isnothing(expected_failure) || strict_failure == expected_failure)
     push!(validated, Dict{String,Any}(
         "case" => name,
         "truth_role" => expected["truth_role"],
@@ -167,6 +197,7 @@ for (name, expected) in EXPECTED_UNAVAILABLE_CASES
         "trace_pair_present" => pair isa AbstractDict,
         "trace_available_on_both_sides" => false,
         "unavailable_reason" => expected["reason"],
+        "reviewed_outcome" => expected["reviewed_outcome"],
         "validated" => pair === nothing,
     ))
 end

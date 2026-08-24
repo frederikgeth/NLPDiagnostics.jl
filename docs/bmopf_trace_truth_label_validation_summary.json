@@ -5,7 +5,8 @@
     "runner": "benchmarks/validate_bmopf_trace_truth_labels.jl",
     "comparison_summary": "bmopf-trace-policy-comparison-ipopt-madnlp-fourcase.json",
     "truth_ledger": "bmopf_30bus_ibr_p_upper_bound_regime_ledger_summary.json",
-    "scope_comparison_summary": "bmopf-trace-policy-comparison-ipopt-madnlp-99bus.json"
+    "scope_comparison_summary": "bmopf-trace-policy-comparison-ipopt-madnlp-99bus.json",
+    "reviewed_truth_summary": "real_99bus_phase_only_kkt_failure_summary.json"
   },
   "readiness": {
     "comparison_ready": true,
@@ -108,19 +109,21 @@
     },
     {
       "case": "ENWLsnapshots__99bus_LN__99bus_LN_t13_1400",
-      "truth_role": "availability_only_control",
+      "truth_role": "negative_control",
       "expected": {
-        "trace_availability": "both_available",
-        "reason": "99-bus scope extension has no bound-regime truth label yet"
+        "physical_kkt_acceptance_passed": true,
+        "strict_complementarity_failure": false,
+        "reviewed_source": "real_99bus_phase_only_kkt_failure_summary.json"
       },
       "observed": {
         "trace_pair_present": true,
-        "trace_availability_relation": "both_available"
+        "trace_availability_relation": "both_available",
+        "physical_kkt_acceptance_passed": true,
+        "strict_complementarity_failure": false
       },
-      "scope_reason": "99-bus scope extension has no bound-regime truth label yet",
       "validated": true
     }
   ],
   "validation_passed": true,
-  "interpretation": "Truth labels validate expected bound-regime outcomes and trace availability only. The 99-bus t13 scope control expands coverage without a bound-regime truth label; the 99-bus t01 control remains explicitly unavailable because it was not collected. Neither condition is converted into a solver score or causal convergence claim."
+  "interpretation": "Truth labels validate expected bound-regime outcomes and trace availability only. The 99-bus t13 negative control is reviewed against the existing KKT-failure summary; the 99-bus t01 positive outcome remains trace-unavailable. Neither condition is converted into a solver score or causal convergence claim."
 }
