@@ -1,0 +1,89 @@
+{
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "architecture": "aarch64",
+    "git_revision": "773dd142e51f9f5d1eb46d98fccf4076d0c1c9a2",
+    "git_status_entry_count": 2,
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6",
+    "os": "Darwin"
+  },
+  "interpretation": {
+    "claim": "Local runtime and allocation observations for the composed public analyze(model) entry point on a sparse affine chain.",
+    "does_not_establish": [
+      "a portable complexity law",
+      "OPF solver runtime or memory scaling",
+      "causal attribution of any observed superlinear trend"
+    ],
+    "follow_up": "Profile stage-level costs, then optimize only after the dominant stages and evidence-preserving behavior are identified."
+  },
+  "records": [
+    {
+      "allocated_bytes": 348640144,
+      "constraint_count": 298,
+      "dimension": 100,
+      "elapsed_seconds": 1.123292958,
+      "error_finding_count": 0,
+      "finding_code_counts": {
+        "affine_interval_propagated_variable_fixed": 5,
+        "affine_interval_propagation_limit_reached": 1,
+        "fixed_variable": 1,
+        "multiple_well_determined_blocks": 1
+      },
+      "finding_count": 8,
+      "info_finding_count": 8,
+      "limit_reached": true,
+      "variable_count": 100,
+      "warning_finding_count": 0
+    },
+    {
+      "allocated_bytes": 1332068112,
+      "constraint_count": 598,
+      "dimension": 200,
+      "elapsed_seconds": 4.388225583,
+      "error_finding_count": 0,
+      "finding_code_counts": {
+        "affine_interval_propagated_variable_fixed": 5,
+        "affine_interval_propagation_limit_reached": 1,
+        "fixed_variable": 1,
+        "multiple_well_determined_blocks": 1
+      },
+      "finding_count": 8,
+      "info_finding_count": 8,
+      "limit_reached": true,
+      "variable_count": 200,
+      "warning_finding_count": 0
+    },
+    {
+      "allocated_bytes": 5129902560,
+      "constraint_count": 1198,
+      "dimension": 400,
+      "elapsed_seconds": 17.262249917,
+      "error_finding_count": 0,
+      "finding_code_counts": {
+        "affine_interval_propagated_variable_fixed": 5,
+        "affine_interval_propagation_limit_reached": 1,
+        "fixed_variable": 1,
+        "multiple_well_determined_blocks": 1
+      },
+      "finding_count": 8,
+      "info_finding_count": 8,
+      "limit_reached": true,
+      "variable_count": 400,
+      "warning_finding_count": 0
+    }
+  ],
+  "schema_version": "nlpdiagnostics-analyze-runtime-scaling-v1",
+  "source": {
+    "dimensions": [
+      100,
+      200,
+      400
+    ],
+    "entry_point": "NLPDiagnostics.analyze(model)",
+    "model": "sparse affine chain with simple variable bounds",
+    "point_supplied": false,
+    "repetitions": 1,
+    "runner": "benchmarks/profile_analyze_scaling.jl"
+  }
+}

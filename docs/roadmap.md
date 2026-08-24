@@ -4800,3 +4800,19 @@ The BMOPFTools handoff increment is now implemented on branch
 commit `74f90763`. The active contract audit passes all required symbols and
 schema runtime checks; the PR handoff comparison remains intentionally blocked
 until this branch is merged and becomes the validated BMOPFTools main revision.
+
+The public `analyze(model)` scaling increment is now measured separately from
+the sparse-kernel ladder in `docs/analyze_runtime_scaling_summary.json`. The
+bounded affine-chain campaign records runtime, allocations, finding volume, and
+propagation-limit status; it is a new blocking partial gate until stage-level
+attribution and an evidence-preserving optimization are complete.
+
+The next consolidation increment should aggregate repetitive informational
+finding families while retaining full per-entity records in `report_data`, then
+add a default text-renderer severity filter and explicit truncation summary.
+The following API increment should introduce policy structs for rank, probes,
+and checks while preserving the current keyword interface as a compatibility
+layer. Convexity/curvature, objective-versus-Jacobian scaling, degrees of
+freedom, nonsmoothness, and weak-activity diagnostics are prioritized after
+these usability and cost-boundary deliverables; MPCC, homotopy, multistart, and
+symmetry remain out of scope.

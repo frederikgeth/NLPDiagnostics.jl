@@ -1771,6 +1771,11 @@ symbols and schema runtime checks, and the local BMOPFTools suite reports 5,162
 passed tests with 33 conditional/broken tests and no failures. The handoff gate
 remains revision-blocked until the branch is merged into BMOPFTools main.
 
+The public `analyze(model)` scaling campaign is now tracked separately from the
+synthetic sparse-kernel ladder. Its affine-chain records capture elapsed time,
+allocations, finding counts, and the five-pass propagation limit; this is
+measurement evidence only and leaves stage attribution and optimization open.
+
 The reduced-Hessian persistence slice now also serializes typed numerical
 unavailability for Jacobian scaling and spectral-scale comparisons when
 non-finite derivative or eigenvalue evidence prevents a safe change-factor

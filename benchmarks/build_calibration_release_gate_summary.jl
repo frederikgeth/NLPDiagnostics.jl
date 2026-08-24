@@ -14,6 +14,7 @@ ibr_tolerance = read_summary("docs/bmopf_30bus_ibr_p_upper_tolerance_margin_summ
 ibr_sparse = read_summary("docs/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit_summary.json")
 rank_oracles = read_summary("docs/randomized_rank_oracle_calibration_summary.json")
 runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
+analyze_runtime_scaling = read_summary("docs/analyze_runtime_scaling_summary.json")
 large_sparse_rank = read_summary("docs/large_sparse_rank_oracle_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_inventory = api_consolidation["api_inventory"]
@@ -87,6 +88,13 @@ gates = Dict{String,Any}[
         "partial",
         "The synthetic sparse ladder now provides 12 warm-up-aware runtime/allocation records across four dimensions; process high-water marks are retained descriptively, but OPF-solver scaling and isolated peak-memory measurements remain open.",
         ["docs/sparse_runtime_memory_scaling_summary.json"],
+        blocking=true,
+    ),
+    gate(
+        "analyze_runtime_scaling",
+        "partial",
+        "The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from $(round(analyze_runtime_scaling["records"][1]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][1]["dimension"]) to $(round(analyze_runtime_scaling["records"][end]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][end]["dimension"]), with affine propagation reaching its configured five-pass limit; stage attribution and evidence-preserving optimization remain open.",
+        ["docs/analyze_runtime_scaling_summary.json"],
         blocking=true,
     ),
     gate(
