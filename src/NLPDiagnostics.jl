@@ -5506,6 +5506,9 @@ function analyze(
     check_iterative_right_nullspace_persistence::Bool = false,
     check_iterative_left_nullspace_persistence::Bool = false,
     check_iteration_jacobian_condition_persistence::Bool = false,
+    check_iteration_nonsmoothness_persistence::Bool = false,
+    check_iteration_weak_activity_persistence::Bool = false,
+    iteration_screen_persistence_minimum_evaluations::Integer = 2,
     iterative_probe_persistence_minimum_evaluations::Integer = 2,
     iterative_probe_persistence_alignment_threshold::Real = 0.98,
     iteration_rank_persistence_left_nullspace_support_relative::Real = 0.1,
@@ -6371,6 +6374,12 @@ function analyze(
                 check_iterative_left_nullspace_persistence,
             check_jacobian_condition_persistence =
                 check_iteration_jacobian_condition_persistence,
+            check_nonsmoothness_persistence =
+                check_iteration_nonsmoothness_persistence,
+            check_weak_activity_persistence =
+                check_iteration_weak_activity_persistence,
+            screen_persistence_minimum_evaluations =
+                iteration_screen_persistence_minimum_evaluations,
             iterative_probe_persistence_minimum_evaluations =
                 iterative_probe_persistence_minimum_evaluations,
             iterative_probe_persistence_alignment_threshold =

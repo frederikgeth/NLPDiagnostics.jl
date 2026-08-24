@@ -570,6 +570,12 @@ variable/row scope and preserve changing, persistent, and unavailable states;
 repeated evidence still does not become a global smoothness or active-set
 certificate.
 
+`analyze_iteration_points` can opt into both persistence screens independently
+for each trace segment, and top-level `analyze(...; iteration_bindings=...)`
+forwards those selectors. Segment boundaries and point-to-iteration provenance
+are retained; segments with too few bound points simply do not claim
+persistence.
+
 `check_nonsmoothness=true` adds bounded central-difference directional checks
 for the recorded objective gradient and/or Jacobian. A mismatch is classified
 as possible nonsmoothness or derivative inconsistency, because finite-

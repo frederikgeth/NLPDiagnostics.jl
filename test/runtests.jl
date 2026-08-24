@@ -15472,6 +15472,30 @@ end
             stationary_iteration_persistence_report,
             :jacobian_condition_persistence_unavailable,
         )) == 1
+        stationary_screen_persistence_report = NLPDiagnostics.analyze_iteration_points(
+            stationary_iteration_model,
+            [stationary_iteration_binding, stationary_iteration_second_binding];
+            check_nonsmoothness_persistence = true,
+            check_weak_activity_persistence = true,
+        )
+        @test stationary_screen_persistence_report.metadata[
+            :bound_iteration_nonsmoothness_persistence_segment_count
+        ] == "1"
+        @test stationary_screen_persistence_report.metadata[
+            :bound_iteration_weak_activity_persistence_segment_count
+        ] == "1"
+        combined_screen_persistence_report = NLPDiagnostics.analyze(
+            stationary_iteration_model;
+            iteration_bindings = [
+                stationary_iteration_binding,
+                stationary_iteration_second_binding,
+            ],
+            check_iteration_nonsmoothness_persistence = true,
+            check_iteration_weak_activity_persistence = true,
+        )
+        @test combined_screen_persistence_report.metadata[
+            :iteration_points_bound_iteration_nonsmoothness_persistence_segment_count
+        ] == "1"
         combined_iteration_probe_report = NLPDiagnostics.analyze(
             stationary_iteration_model;
             iteration_bindings = [stationary_iteration_binding],

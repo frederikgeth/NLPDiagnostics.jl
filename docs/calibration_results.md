@@ -1753,6 +1753,15 @@ dense rank is disabled, and inequality-multiplier covariance remains outside
 the covariance report. The machine-readable release-gate ledger is
 `docs/calibration_release_gate_summary.json`.
 
+## 2026-08-24: solver-iterate persistence integration
+
+The postmortem path now forwards the nonsmoothness and weak-activity
+persistence selectors from `analyze` to `analyze_iteration_points`. The
+screens run independently within each captured trace segment, retain iteration
+provenance, and expose per-screen segment counters in metadata. Segments with
+fewer than the requested minimum number of evaluations are skipped without
+manufacturing a persistence claim.
+
 ## 2026-08-24: composable analysis policies
 
 `analyze` now accepts additive `RankPolicy`, `ProbePolicy`, and `CheckPolicy`

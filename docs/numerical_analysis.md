@@ -331,6 +331,11 @@ retain domain-limited points as inconclusive, and distinguish persistent from
 point-specific evidence. Point persistence remains descriptive and does not
 replace solver-trace or domain-specific interpretation.
 
+When caller-captured solver iterates are available, `analyze_iteration_points`
+can run both persistence screens independently within each trace segment.
+Metadata records which screens were requested and how many segments had enough
+points; restarted segments are never merged into one persistence claim.
+
 `analyze_nonsmoothness(model, evaluation)` runs bounded objective-gradient and
 Jacobian directional cross-checks. Disagreement is retained as competing
 evidence for a nonsmooth point, domain crossing, finite-difference error, or

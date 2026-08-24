@@ -4830,6 +4830,8 @@ The nonsmoothness and weak-activity increments are now implemented as opt-in
 local screens with explicit tolerance and unavailable-evidence boundaries.
 Their persistence increment is now implemented across explicitly supplied
 nearby evaluations or captured iterates, with stable-scope and unavailable
-evidence boundaries. The next feature increment should integrate these
-persistence summaries more directly with solver-trace/postmortem workflows;
-MPCC, homotopy, multistart, and symmetry remain out of scope.
+evidence boundaries. Solver-iterate integration is now implemented per trace
+segment through `analyze_iteration_points` and top-level `analyze` forwarding.
+The next feature increment should add compact release-facing trace coverage
+summaries without weakening the evidence boundaries; MPCC, homotopy,
+multistart, and symmetry remain out of scope.

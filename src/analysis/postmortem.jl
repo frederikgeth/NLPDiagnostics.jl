@@ -2001,6 +2001,9 @@ function analyze_iteration_points(
     iterative_spectrum_probe_spread_threshold::Real = 1.0e6,
     check_iterative_right_nullspace_persistence::Bool = false,
     check_iterative_left_nullspace_persistence::Bool = false,
+    check_nonsmoothness_persistence::Bool = false,
+    check_weak_activity_persistence::Bool = false,
+    screen_persistence_minimum_evaluations::Integer = 2,
     iterative_probe_persistence_minimum_evaluations::Integer = 2,
     iterative_probe_persistence_alignment_threshold::Real = 0.98,
     kwargs...,
@@ -2024,6 +2027,9 @@ function analyze_iteration_points(
         isnothing(iterative_left_nullspace_probe_dimension) && throw(ArgumentError(
             "left iterative candidate persistence requires iterative_left_nullspace_probe_dimension",
         ))
+    screen_persistence_minimum_evaluations >= 2 || throw(ArgumentError(
+        "screen_persistence_minimum_evaluations must be at least two",
+    ))
     report = DiagnosticReport()
     report.metadata[:stage] = "iteration_points"
     report.metadata[:bound_iteration_count] = string(length(bindings))
@@ -2071,6 +2077,12 @@ function analyze_iteration_points(
         string(check_iterative_right_nullspace_persistence)
     report.metadata[:bound_iteration_iterative_left_probe_persistence_checked] =
         string(check_iterative_left_nullspace_persistence)
+    report.metadata[:bound_iteration_nonsmoothness_persistence_checked] =
+        string(check_nonsmoothness_persistence)
+    report.metadata[:bound_iteration_weak_activity_persistence_checked] =
+        string(check_weak_activity_persistence)
+    report.metadata[:bound_iteration_screen_persistence_minimum_evaluations] =
+        string(screen_persistence_minimum_evaluations)
     report.metadata[:bound_iteration_segment_selector_count] = string(count(
         binding -> binding.selector == :segment_iteration, bindings,
     ))
@@ -2306,6 +2318,8 @@ function analyze_iteration_points(
     persistence_segment_count = 0
     component_persistence_segment_count = 0
     condition_persistence_segment_count = 0
+    nonsmoothness_persistence_segment_count = 0
+    weak_activity_persistence_segment_count = 0
     if check_rank_persistence || check_jacobian_condition_persistence ||
        (check_component_rank_persistence &&
                                   check_component_ranks && !isempty(components))
@@ -2416,6 +2430,29 @@ function analyze_iteration_points(
             end
         end
     end
+    if check_nonsmoothness_persistence || check_weak_activity_persistence
+        for (_, evaluations) in sort(collect(evaluations_by_segment); by = first)
+            length(evaluations) >= screen_persistence_minimum_evaluations || continue
+            if check_nonsmoothness_persistence
+                persistence_report = analyze_nonsmoothness_persistence(
+                    model,
+                    evaluations;
+                    minimum_evaluations = screen_persistence_minimum_evaluations,
+                )
+                append!(report.findings, persistence_report.findings)
+                nonsmoothness_persistence_segment_count += 1
+            end
+            if check_weak_activity_persistence
+                persistence_report = analyze_weak_activity_persistence(
+                    model,
+                    evaluations;
+                    minimum_evaluations = screen_persistence_minimum_evaluations,
+                )
+                append!(report.findings, persistence_report.findings)
+                weak_activity_persistence_segment_count += 1
+            end
+        end
+    end
     objective_trace_segments = sort(unique(item[1].segment for item in objective_trace))
     report.metadata[:bound_iteration_segment_count] = string(length(trace_segments))
     report.metadata[:bound_iteration_degeneracy_finding_count] =
@@ -2432,6 +2469,10 @@ function analyze_iteration_points(
         string(iterative_right_persistence_segment_count)
     report.metadata[:bound_iteration_iterative_left_probe_persistence_segment_count] =
         string(iterative_left_persistence_segment_count)
+    report.metadata[:bound_iteration_nonsmoothness_persistence_segment_count] =
+        string(nonsmoothness_persistence_segment_count)
+    report.metadata[:bound_iteration_weak_activity_persistence_segment_count] =
+        string(weak_activity_persistence_segment_count)
     report.metadata[:bound_iteration_rank_persistence_segment_count] =
         string(persistence_segment_count)
     report.metadata[:bound_iteration_jacobian_condition_persistence_segment_count] =
