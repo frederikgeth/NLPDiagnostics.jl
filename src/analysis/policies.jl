@@ -77,12 +77,36 @@ struct CheckPolicy
     jacobian_directional_crosscheck::Bool
     objective_gradient_directional_crosscheck::Bool
     objective_jacobian_scaling::Bool
+    convexity::Bool
     hessian_vector_crosscheck::Bool
     initialization::Bool
     active_set::Bool
     coupled_set_qualification::Bool
     degeneracy::Bool
 end
+
+# Preserve the pre-curvature positional constructor for callers that have not
+# migrated to the keyword form. The new check remains opt-in by default.
+CheckPolicy(
+    jacobian_directional_crosscheck::Bool,
+    objective_gradient_directional_crosscheck::Bool,
+    objective_jacobian_scaling::Bool,
+    hessian_vector_crosscheck::Bool,
+    initialization::Bool,
+    active_set::Bool,
+    coupled_set_qualification::Bool,
+    degeneracy::Bool,
+) = CheckPolicy(
+    jacobian_directional_crosscheck,
+    objective_gradient_directional_crosscheck,
+    objective_jacobian_scaling,
+    false,
+    hessian_vector_crosscheck,
+    initialization,
+    active_set,
+    coupled_set_qualification,
+    degeneracy,
+)
 
 """
     CheckPolicy(; kwargs...)
@@ -95,6 +119,7 @@ function CheckPolicy(;
     jacobian_directional_crosscheck::Bool = false,
     objective_gradient_directional_crosscheck::Bool = false,
     objective_jacobian_scaling::Bool = false,
+    convexity::Bool = false,
     hessian_vector_crosscheck::Bool = false,
     initialization::Bool = false,
     active_set::Bool = false,
@@ -105,6 +130,7 @@ function CheckPolicy(;
         jacobian_directional_crosscheck,
         objective_gradient_directional_crosscheck,
         objective_jacobian_scaling,
+        convexity,
         hessian_vector_crosscheck,
         initialization,
         active_set,

@@ -1769,6 +1769,17 @@ comparisons emit a summary or mismatch finding; incomplete objective or
 Jacobian derivatives emit explicit unavailable evidence. This is a
 normalization screen, not a global conditioning or solver-quality claim.
 
+## 2026-08-24: local convexity and curvature screen
+
+The numerical layer now provides `analyze_convexity` and the opt-in
+`analyze(...; check_convexity=true)` path. The screen classifies the complete
+local Hessian spectrum using positive, negative, and near-zero eigenvalue
+counts, while preserving typed unavailable evidence when finite curvature
+evidence cannot be formed. The convenience path uses the objective Hessian
+with zero constraint multipliers; this is deliberately a point-local
+curvature observation rather than a global convexity or second-order
+optimality certificate.
+
 ## 2026-08-24: finding-family and terminal-renderer consolidation
 
 Renderer-neutral report data now retains every finding record while adding

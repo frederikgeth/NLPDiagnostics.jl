@@ -307,6 +307,14 @@ representative, evaluates the corresponding Lagrangian Hessian, and reports
 the reduced spectrum. Its report preserves unavailable or non-unique
 multiplier evidence rather than claiming a KKT certificate.
 
+`analyze_convexity(evaluation, hessian)` classifies the full local Hessian
+spectrum as positive/negative definite or semidefinite, indefinite, or flat.
+The top-level `analyze(...; check_convexity=true)` convenience path supplies an
+objective-weighted Hessian with zero constraint multipliers, so its result is
+an objective-curvature screen at one point. It records eigenvalue counts and
+the threshold used, and reports typed unavailable evidence when the Hessian is
+incomplete or exceeds the dense-work guard. It makes no global convexity claim.
+
 ## Feasibility and active-set evidence
 
 `constraint_feasibility_summary(model, evaluation)` aligns evaluated scalar

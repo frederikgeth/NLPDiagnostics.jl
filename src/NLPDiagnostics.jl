@@ -116,6 +116,7 @@ export evaluation_source_fingerprint
 export analyze_jacobian_directional_crosscheck
 export analyze_objective_gradient_directional_crosscheck
 export analyze_objective_jacobian_scaling
+export analyze_convexity
 export analyze_hessian_vector_crosscheck
 export analyze_derivative_crosscheck_scale_sweep
 export EvaluatorCapabilities
@@ -5390,6 +5391,10 @@ function analyze(
     check_objective_gradient_directional_crosscheck::Bool = false,
     check_objective_jacobian_scaling::Bool = false,
     objective_jacobian_scale_mismatch_factor::Real = 1.0e3,
+    check_convexity::Bool = false,
+    convexity_hessian_relative_step::Real = eps(Float64)^(1 / 4),
+    convexity_hessian_max_finite_difference_variables::Integer = 100,
+    convexity_eigenvalue_relative_tolerance::Union{Nothing,Real} = nothing,
     objective_gradient_directional_crosscheck_direction_count::Integer = 3,
     objective_gradient_directional_crosscheck_relative_step::Real = cbrt(eps(Float64)),
     objective_gradient_directional_crosscheck_absolute_tolerance::Real = 0.0,
@@ -5545,6 +5550,7 @@ function analyze(
             check_policy.objective_gradient_directional_crosscheck
         check_objective_jacobian_scaling |=
             check_policy.objective_jacobian_scaling
+        check_convexity |= check_policy.convexity
         check_hessian_vector_crosscheck |= check_policy.hessian_vector_crosscheck
         check_initialization |= check_policy.initialization
         check_active_set |= check_policy.active_set
@@ -5578,6 +5584,9 @@ function analyze(
         isnothing(point) && isnothing(evaluation) && !check_initialization && throw(ArgumentError(
             "Hessian-vector cross-check requires an explicit point or supplied evaluation",
         ))
+    check_convexity && isnothing(point) && isnothing(evaluation) && throw(ArgumentError(
+        "convexity screening requires an explicit point or supplied evaluation",
+    ))
     !isnothing(solver_log) && isnothing(solver_name) && isnothing(postmortem) &&
         throw(ArgumentError(
             "solver_log requires solver_name or a supplied postmortem",
@@ -5814,6 +5823,35 @@ function analyze(
             append!(report.findings, objective_scaling_report.findings)
             merge!(report.metadata, objective_scaling_report.metadata)
             stages *= ",objective_jacobian_scaling"
+        end
+        if check_convexity
+            convexity_hessian = evaluate_lagrangian_hessian(
+                model,
+                numerical_evaluation.point;
+                objective_weight = 1.0,
+                constraint_multipliers = zeros(
+                    eltype(numerical_evaluation.point.values),
+                    length(numerical_evaluation.constraint_sources),
+                ),
+                relative_step = convexity_hessian_relative_step,
+                max_finite_difference_variables =
+                    convexity_hessian_max_finite_difference_variables,
+            )
+            convexity_report = analyze_convexity(
+                numerical_evaluation,
+                convexity_hessian;
+                eigenvalue_relative_tolerance =
+                    isnothing(convexity_eigenvalue_relative_tolerance) ?
+                    max(length(numerical_evaluation.point.variables), 1) *
+                    eps(eltype(numerical_evaluation.point.values)) :
+                    convexity_eigenvalue_relative_tolerance,
+            )
+            append!(report.findings, convexity_report.findings)
+            merge!(report.metadata, convexity_report.metadata)
+            report.metadata[:convexity_hessian_multiplier_policy] =
+                "objective_weight=1.0;constraint_multipliers=zeros"
+            report.metadata[:convexity_hessian_source] = "objective"
+            stages *= ",convexity"
         end
         if check_hessian_vector_crosscheck
             multipliers = isnothing(hessian_vector_crosscheck_constraint_multipliers) ?

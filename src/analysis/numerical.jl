@@ -8398,6 +8398,91 @@ function analyze_reduced_hessian_persistence(
 end
 
 """
+    analyze_convexity(evaluation, hessian; eigenvalue_relative_tolerance = ...)
+
+Classify the full local Hessian-of-the-Lagrangian spectrum without selecting an
+active set. This is a point-local curvature screen, not a global convexity
+certificate; use `analyze_reduced_hessian` when an explicit tangent space is
+available.
+"""
+function analyze_convexity(
+    evaluation::NumericalEvaluation{T},
+    hessian::HessianEvaluation{T};
+    eigenvalue_relative_tolerance::Real = max(length(evaluation.point.variables), 1) * eps(T),
+    max_dense_entries::Integer = 4_000_000,
+) where {T<:AbstractFloat}
+    analysis = reduced_hessian_analysis(
+        evaluation,
+        hessian;
+        active_rows = Int[],
+        eigenvalue_relative_tolerance,
+        max_dense_entries,
+    )
+    report = DiagnosticReport()
+    report.metadata[:stage] = "convexity"
+    report.metadata[:convexity_available] = string(analysis.available)
+    if !analysis.available
+        reason = something(analysis.reason, "full Hessian curvature is unavailable")
+        typed_reason = unavailable_reason(
+            (available = false, reason = reason);
+            code = :convexity_unavailable,
+            category = :numerical,
+            stage = :convexity,
+        )
+        report.metadata[:convexity_reason] = typed_reason.message
+        report.metadata[:convexity_unavailable_reason] = typed_reason.message
+        report.metadata[:convexity_category] = string(typed_reason.category)
+        report.metadata[:convexity_stage] = string(typed_reason.stage)
+        push!(report, Finding(:convexity_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "Local convexity screening is unavailable at point \"$(evaluation.point.label)\".",
+            why_it_matters = "A curvature classification requires a complete finite Hessian spectrum at the supplied point.",
+            evidence = [_point_evidence(evaluation.point), Evidence("Convexity availability"; details = ["reason" => reason])],
+            suggested_actions = ["Supply complete Hessian evidence or relax the dense work guard only for a bounded local screen."],
+        ))
+        return report
+    end
+    report.metadata[:convexity_positive_eigenvalues] = string(analysis.positive_eigenvalues)
+    report.metadata[:convexity_negative_eigenvalues] = string(analysis.negative_eigenvalues)
+    report.metadata[:convexity_zero_eigenvalues] = string(analysis.zero_eigenvalues)
+    report.metadata[:convexity_eigenvalue_threshold] = string(analysis.eigenvalue_threshold)
+    classification = if analysis.positive_eigenvalues > 0 && analysis.negative_eigenvalues > 0
+        :locally_indefinite
+    elseif analysis.negative_eigenvalues > 0
+        analysis.positive_eigenvalues == 0 && analysis.zero_eigenvalues > 0 ?
+            :locally_negative_semidefinite_with_flat_directions : :locally_negative_definite
+    elseif analysis.positive_eigenvalues > 0
+        analysis.zero_eigenvalues > 0 ?
+            :locally_positive_semidefinite_with_flat_directions : :locally_positive_definite
+    else
+        :locally_flat
+    end
+    report.metadata[:convexity_classification] = string(classification)
+    severity = classification == :locally_indefinite ||
+               startswith(string(classification), "locally_negative") ?
+               SeverityWarning : SeverityInfo
+    push!(report, Finding(:local_curvature_classification;
+        severity = severity,
+        domain = NumericalIssue,
+        basis = LocalInference,
+        confidence = ConfidenceMedium,
+        observation = "The full local Hessian spectrum is classified as $(classification).",
+        why_it_matters = "This classification describes curvature at one point and multiplier weighting; it is not a global convexity or second-order optimality certificate.",
+        evidence = [_point_evidence(evaluation.point), Evidence("Full Hessian inertia"; details = [
+            "classification" => classification,
+            "positive_eigenvalues" => analysis.positive_eigenvalues,
+            "negative_eigenvalues" => analysis.negative_eigenvalues,
+            "zero_eigenvalues" => analysis.zero_eigenvalues,
+            "eigenvalue_threshold" => analysis.eigenvalue_threshold,
+            "objective_weight" => hessian.objective_weight,
+        ])],
+        suggested_actions = ["Repeat across trusted points and review scaling, active geometry, and multiplier choices before assigning a global convexity interpretation."],
+    ))
+    return report
+end
+
+"""
     analyze_reduced_hessian(evaluation, hessian; active_rows, ...)
 
 Turn an explicit reduced-Hessian calculation into explainable local findings.

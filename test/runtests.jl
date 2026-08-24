@@ -135,6 +135,19 @@ end
     @test NLPDiagnostics.CheckPolicy(
         objective_jacobian_scaling = true,
     ).objective_jacobian_scaling
+    @test NLPDiagnostics.CheckPolicy(convexity = true).convexity
+    legacy_check_policy = NLPDiagnostics.CheckPolicy(
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+    )
+    @test legacy_check_policy.degeneracy
+    @test !legacy_check_policy.convexity
     @test_throws ArgumentError NLPDiagnostics.ProbePolicy(
         iterative_left_nullspace_probe_dimension = -1,
     )
@@ -7529,6 +7542,19 @@ end
         )
         @test occursin(",objective_jacobian_scaling", checked.metadata[:stages])
         @test length(findings(checked, :objective_jacobian_scale_summary)) == 1
+        convexity_checked = NLPDiagnostics.analyze(
+            model;
+            point = point,
+            cache = cache,
+            check_policy = NLPDiagnostics.CheckPolicy(convexity = true),
+        )
+        @test occursin(",convexity", convexity_checked.metadata[:stages])
+        @test haskey(convexity_checked.metadata, :convexity_classification)
+        @test convexity_checked.metadata[:convexity_hessian_source] == "objective"
+        @test occursin(
+            "constraint_multipliers=zeros",
+            convexity_checked.metadata[:convexity_hessian_multiplier_policy],
+        )
     end
 
     @testset "constructed MOI nonlinear evaluator supplies exact first derivatives" begin

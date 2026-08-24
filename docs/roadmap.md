@@ -240,7 +240,7 @@ package installation, or artifact mutation; the known local run reports
 Stable facade: it snapshots a model, evaluates an explicit point, runs
 solver-neutral analysis, and serializes the report without optional solver
 extensions. The legacy-root tier is now explicit in the
-machine-readable inventory: all 530 root-only exports are listed for review
+machine-readable inventory: all 531 root-only exports are listed for review
 and are not implicitly Stable. The prior increment documents the
 Stable/Advanced/legacy-root
 API compatibility policy in `docs/api_stability.md` and the machine-readable
@@ -4819,7 +4819,10 @@ The objective-versus-Jacobian scaling increment is now implemented as an
 opt-in point-local check and as a standalone report function. It compares the
 finite objective-gradient magnitude with the positive Jacobian column-scale
 range and preserves unavailable evidence explicitly. The next feature
-increment should address convexity/curvature, degrees of freedom, nonsmoothness,
-and weak-activity diagnostics after these usability and cost-boundary deliverables;
-MPCC, homotopy, multistart, and
-symmetry remain out of scope.
+increment, convexity/curvature, is now implemented as an opt-in point-local
+full-spectrum screen with explicit unavailable evidence. Its default top-level
+path evaluates objective curvature with zero constraint multipliers; it is not
+a global convexity or second-order optimality certificate. The next feature
+increment should address degrees of freedom, nonsmoothness, and weak-activity
+diagnostics after these usability and cost-boundary deliverables; MPCC,
+homotopy, multistart, and symmetry remain out of scope.

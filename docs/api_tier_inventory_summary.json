@@ -39,8 +39,8 @@
     "advanced_only_count": 0,
     "advanced_root_overlap_count": 14,
     "domain_extension_root_count": 102,
-    "root_export_count": 544,
-    "root_only_count": 530,
+    "root_export_count": 545,
+    "root_only_count": 531,
     "stable_export_count": 16,
     "stable_root_overlap_count": 15
   },
@@ -361,6 +361,7 @@
     "analyze_component_coordinate_scales",
     "analyze_component_rank_persistence",
     "analyze_component_ranks",
+    "analyze_convexity",
     "analyze_coupled_set_qualification",
     "analyze_degeneracy",
     "analyze_derivative_crosscheck_scale_sweep",

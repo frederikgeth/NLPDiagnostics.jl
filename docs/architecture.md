@@ -546,6 +546,15 @@ range. It reports unavailable evidence when either derivative side is
 incomplete and does not make a global conditioning or solver-performance
 claim.
 
+`check_convexity=true` adds a point-local full-Hessian inertia screen. The
+convenience path evaluates the objective Hessian with zero constraint
+multipliers, records the positive/negative/near-zero eigenvalue counts, and
+preserves unavailable evidence when a complete spectrum cannot be formed. The
+result is a curvature observation at the supplied point, not a global
+convexity or second-order optimality certificate; use
+`analyze_reduced_hessian` or `analyze_active_set_second_order` when an explicit
+tangent space and multiplier convention are part of the question.
+
 ## Static-analysis scope
 
 The first implementation intentionally detects exact or canonical facts. It
