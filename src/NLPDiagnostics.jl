@@ -1577,6 +1577,7 @@ function _component_port_metadata_findings(
         ))
     end
     known_variables = isnothing(model_variables) ? nothing : Set(model_variables)
+    unknown_variable_count = 0
     for item in items
         expected_size = (length(item.terminal_labels), length(item.mode_labels))
         if size(item.connection_matrix) != expected_size
@@ -1639,6 +1640,7 @@ function _component_port_metadata_findings(
         if !isnothing(known_variables)
             unknown_variables = [variable for variable in item.variables if !(variable in known_variables)]
             if !isempty(unknown_variables)
+                unknown_variable_count += length(unknown_variables)
                 push!(report, Finding(:component_port_metadata_unknown_variable;
                     severity = SeverityError, domain = RepresentationalIssue,
                     basis = StructuralProof, confidence = ConfidenceCertain,
@@ -1650,6 +1652,33 @@ function _component_port_metadata_findings(
                 ))
             end
         end
+    end
+    report.metadata[:component_port_metadata_scope_unavailable_count] = string(unknown_variable_count)
+    report.metadata[:component_port_metadata_unknown_variable_count] = string(unknown_variable_count)
+    if unknown_variable_count > 0
+        typed_reason = unavailable_reason(
+            (
+                available = false,
+                reason = "one or more component-port metadata scopes reference variables absent from the analyzed model",
+            );
+            code = :component_port_metadata_scope_unavailable,
+            category = :input,
+            stage = :component_port_metadata_scope_validation,
+        )
+        report.metadata[:component_port_metadata_scope_reason] = typed_reason.message
+        report.metadata[:component_port_metadata_scope_unavailable_reason] = typed_reason.message
+        report.metadata[:component_port_metadata_scope_category] = string(typed_reason.category)
+        report.metadata[:component_port_metadata_scope_stage] = string(typed_reason.stage)
+        push!(report, Finding(:component_port_metadata_scope_unavailable;
+            severity = SeverityInfo, domain = RepresentationalIssue,
+            basis = StructuralProof, confidence = ConfidenceCertain,
+            observation = "$(unknown_variable_count) component-port metadata coordinate reference(s) cannot be aligned with the analyzed model.",
+            why_it_matters = "Terminal-mode, topology, and scale interpretation is withheld for stale component-port coordinates.",
+            evidence = [Evidence("Component-port metadata scope validation"; details = [
+                "unknown_variable_count" => unknown_variable_count,
+            ])],
+            suggested_actions = ["Rebuild component-port metadata after model construction and use only current model variables."],
+        ))
     end
     return report
 end

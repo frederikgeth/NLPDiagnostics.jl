@@ -2757,6 +2757,18 @@ end
         malformed_port_report,
         :component_port_metadata_unknown_variable,
     )) == 1
+    @test malformed_port_report.metadata[
+        :component_port_metadata_scope_unavailable_count
+    ] == "2"
+    port_scope_reason = only(filter(
+        item -> item["code"] == "component_port_metadata_scope_unavailable",
+        NLPDiagnostics.report_data(malformed_port_report)["unavailable_reasons"],
+    ))
+    @test port_scope_reason["category"] == "input"
+    @test port_scope_reason["stage"] == "component_port_metadata_scope_validation"
+    @test length(findings(
+        malformed_port_report, :component_port_metadata_scope_unavailable,
+    )) == 1
     rank_deficient_port = NLPDiagnostics.ComponentPortMetadata(
         :transformer, "tx_1", "high";
         terminal_labels = ["a", "b"], mode_labels = ["a", "b"],

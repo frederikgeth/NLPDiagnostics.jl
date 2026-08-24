@@ -4790,3 +4790,7 @@ mismatch findings remain unchanged.
 The next metadata increment types component variable or constraint scopes that
 reference absent model coordinates as input unavailability. Existing detailed
 scope findings remain unchanged.
+
+The next component-port increment types port variable scopes that reference
+absent model coordinates as input unavailability. Existing detailed stale-port
+findings remain unchanged.

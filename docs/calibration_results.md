@@ -1761,6 +1761,10 @@ Component metadata scope validation now serializes typed input unavailability
 when plugin declarations reference variables or constraints absent from the
 analyzed model. Existing detailed stale-reference findings remain unchanged.
 
+Component-port metadata scope validation now serializes typed input
+unavailability when port declarations reference variables absent from the
+analyzed model. Existing detailed stale-port findings remain unchanged.
+
 The reduced-Hessian persistence slice now also serializes typed numerical
 unavailability for Jacobian scaling and spectral-scale comparisons when
 non-finite derivative or eigenvalue evidence prevents a safe change-factor
