@@ -240,7 +240,7 @@ package installation, or artifact mutation; the known local run reports
 Stable facade: it snapshots a model, evaluates an explicit point, runs
 solver-neutral analysis, and serializes the report without optional solver
 extensions. The legacy-root tier is now explicit in the
-machine-readable inventory: all 531 root-only exports are listed for review
+machine-readable inventory: all 532 root-only exports are listed for review
 and are not implicitly Stable. The prior increment documents the
 Stable/Advanced/legacy-root
 API compatibility policy in `docs/api_stability.md` and the machine-readable
@@ -4823,6 +4823,9 @@ increment, convexity/curvature, is now implemented as an opt-in point-local
 full-spectrum screen with explicit unavailable evidence. Its default top-level
 path evaluates objective curvature with zero constraint multipliers; it is not
 a global convexity or second-order optimality certificate. The next feature
-increment should address degrees of freedom, nonsmoothness, and weak-activity
+increment, degrees of freedom, is now implemented as an opt-in local
+structural-versus-numerical right-nullity screen with explicit unavailable
+evidence. It does not claim a global feasible-set dimension or physical gauge.
+The next feature increment should address nonsmoothness and weak-activity
 diagnostics after these usability and cost-boundary deliverables; MPCC,
 homotopy, multistart, and symmetry remain out of scope.

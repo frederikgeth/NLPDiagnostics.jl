@@ -555,6 +555,14 @@ convexity or second-order optimality certificate; use
 `analyze_reduced_hessian` or `analyze_active_set_second_order` when an explicit
 tangent space and multiplier convention are part of the question.
 
+`check_degrees_of_freedom=true` adds a bounded local first-order freedom
+screen. It compares structural equality matching with observed numerical
+Jacobian right-nullity in the aligned free-variable view. The result reports
+structural and local counts, but does not claim the dimension of a global
+feasible set or assign physical meaning to a null direction; inequalities,
+bounds, nonlinear manifold geometry, and domain semantics require separate
+evidence.
+
 ## Static-analysis scope
 
 The first implementation intentionally detects exact or canonical facts. It

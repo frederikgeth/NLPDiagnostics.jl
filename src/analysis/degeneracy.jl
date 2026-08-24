@@ -788,6 +788,183 @@ function structural_numerical_comparison(
     )
 end
 
+"""
+    analyze_degrees_of_freedom(model, evaluation; ...)
+
+Summarize structural and local numerical right-nullity in the aligned equality
+Jacobian view. The result is a bounded local freedom screen: it does not claim
+the dimension of a global feasible set, and it does not assign physical
+meaning to any remaining directions.
+"""
+function analyze_degrees_of_freedom(
+    model::MOI.ModelLike,
+    evaluation::NumericalEvaluation{T};
+    relative_tolerance::Real =
+        max(length(evaluation.point.variables), 1) * eps(T),
+    max_dense_entries::Integer = 4_000_000,
+    additional_variable_indices::AbstractVector{MOI.VariableIndex} =
+        MOI.VariableIndex[],
+) where {T<:AbstractFloat}
+    comparison = structural_numerical_comparison(
+        model,
+        evaluation;
+        relative_tolerance,
+        max_dense_entries,
+        additional_variable_indices,
+    )
+    report = DiagnosticReport()
+    report.metadata[:stage] = "degrees_of_freedom"
+    report.metadata[:degrees_of_freedom_available] = string(comparison.available)
+    if !comparison.available
+        reason = something(
+            comparison.reason,
+            "structural-to-numerical equality-Jacobian comparison is unavailable",
+        )
+        typed_reason = unavailable_reason(
+            (available = false, reason = reason);
+            code = :degrees_of_freedom_unavailable,
+            category = isnothing(comparison.estimate) ? :capability : :numerical,
+            stage = :degrees_of_freedom,
+        )
+        report.metadata[:degrees_of_freedom_reason] = typed_reason.message
+        report.metadata[:degrees_of_freedom_unavailable_reason] = typed_reason.message
+        report.metadata[:degrees_of_freedom_category] = string(typed_reason.category)
+        report.metadata[:degrees_of_freedom_stage] = string(typed_reason.stage)
+        push!(report, Finding(:degrees_of_freedom_unavailable;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = StructuralProof,
+            confidence = ConfidenceCertain,
+            observation = "Degrees-of-freedom screening is unavailable at point \"$(evaluation.point.label)\".",
+            why_it_matters = "A freedom count requires aligned structural equality incidence and complete finite local Jacobian evidence.",
+            evidence = [
+                _point_evidence(evaluation.point),
+                Evidence("Degrees-of-freedom availability"; details = ["reason" => reason]),
+            ],
+            suggested_actions = [
+                "Resolve structural-source or derivative-evidence gaps, then repeat the local freedom screen.",
+            ],
+        ))
+        return report
+    end
+
+    structural_right_nullity = comparison.structural_right_nullity
+    numerical_right_nullity = comparison.numerical_right_nullity
+    status = if numerical_right_nullity > structural_right_nullity
+        :unexpected_local_freedom
+    elseif numerical_right_nullity < structural_right_nullity
+        :rank_inconsistency
+    elseif structural_right_nullity > 0
+        :structurally_free
+    else
+        :locally_constrained
+    end
+    report.metadata[:degrees_of_freedom_status] = string(status)
+    report.metadata[:degrees_of_freedom_variable_count] =
+        string(length(comparison.free_variable_columns))
+    report.metadata[:degrees_of_freedom_equality_count] =
+        string(length(comparison.equality_rows))
+    report.metadata[:degrees_of_freedom_structural_rank] =
+        string(comparison.structural_matching_rank)
+    report.metadata[:degrees_of_freedom_numerical_rank] =
+        string(comparison.numerical_rank)
+    report.metadata[:degrees_of_freedom_structural_right_nullity] =
+        string(structural_right_nullity)
+    report.metadata[:degrees_of_freedom_numerical_right_nullity] =
+        string(numerical_right_nullity)
+    report.metadata[:degrees_of_freedom_structural_left_nullity] =
+        string(comparison.structural_left_nullity)
+    report.metadata[:degrees_of_freedom_numerical_left_nullity] =
+        string(comparison.numerical_left_nullity)
+    report.metadata[:degrees_of_freedom_relative_tolerance] = string(relative_tolerance)
+    summary_evidence = [
+        _point_evidence(evaluation.point),
+        Evidence("Aligned equality-Jacobian freedom"; details = [
+            "status" => status,
+            "variable_count" => length(comparison.free_variable_columns),
+            "equality_count" => length(comparison.equality_rows),
+            "structural_rank" => comparison.structural_matching_rank,
+            "numerical_rank" => comparison.numerical_rank,
+            "structural_right_nullity" => structural_right_nullity,
+            "numerical_right_nullity" => numerical_right_nullity,
+            "structural_left_nullity" => comparison.structural_left_nullity,
+            "numerical_left_nullity" => comparison.numerical_left_nullity,
+            "relative_tolerance" => relative_tolerance,
+        ]),
+    ]
+    push!(report, Finding(:degrees_of_freedom_summary;
+        severity = status == :unexpected_local_freedom || status == :rank_inconsistency ?
+                   SeverityWarning : SeverityInfo,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = "The aligned equality-Jacobian view has $(structural_right_nullity) structural and $(numerical_right_nullity) observed local right-null direction(s) ($(status)).",
+        why_it_matters = "This is a local first-order freedom count for the aligned equality view; bounds, inequalities, nonlinear feasible-set geometry, and physical semantics are not included.",
+        evidence = summary_evidence,
+        suggested_actions = [
+            "Inspect nullspace fingerprints, active-set evidence, and domain semantics before treating a direction as a physical degree of freedom.",
+        ],
+    ))
+    if status == :unexpected_local_freedom
+        push!(report, Finding(:unexpected_local_degrees_of_freedom;
+            severity = SeverityWarning,
+            domain = NumericalIssue,
+            basis = LocalInference,
+            confidence = ConfidenceHigh,
+            observation = "The local equality Jacobian exposes $(numerical_right_nullity - structural_right_nullity) more right-null direction(s) than structural matching predicts.",
+            why_it_matters = "The extra local freedom may reflect derivative cancellation, unsupported nonlinear semantics, or a missing/weak equation; it is not automatically a gauge or physical mode.",
+            evidence = summary_evidence,
+            suggested_actions = [
+                "Repeat at nearby valid points and compare derivative provenance and scale evidence.",
+                "Use explicit expected-mode declarations only when model or domain semantics justify them.",
+            ],
+        ))
+    end
+    if status == :rank_inconsistency
+        push!(report, Finding(:degrees_of_freedom_rank_inconsistency;
+            severity = SeverityWarning,
+            domain = RepresentationalIssue,
+            basis = NumericalObservation,
+            confidence = ConfidenceMedium,
+            observation = "The observed local right-nullity is smaller than the structural matching right-nullity.",
+            why_it_matters = "A fully aligned exact incidence pattern should not lose structural freedom numerically; this can indicate alignment or evaluator-provenance problems.",
+            evidence = summary_evidence,
+            suggested_actions = [
+                "Inspect structural alignment and derivative support before assigning a degrees-of-freedom interpretation.",
+            ],
+        ))
+    end
+    _apply_point_provenance_guard!(report, evaluation.point)
+    sort!(report.findings; by = finding -> (-Int(finding.severity), string(finding.code)))
+    return report
+end
+
+function analyze_degrees_of_freedom(
+    model::MOI.ModelLike,
+    point::EvaluationPoint;
+    cache::EvaluationCache = EvaluationCache(),
+    kwargs...,
+)
+    return analyze_degrees_of_freedom(
+        model,
+        evaluate_numerical(model, point; cache = cache);
+        kwargs...,
+    )
+end
+
+function analyze_degrees_of_freedom(
+    model::MOI.ModelLike,
+    values::Union{AbstractVector{<:Real},AbstractDict{MOI.VariableIndex,<:Real}};
+    label::AbstractString = "user",
+    kwargs...,
+)
+    return analyze_degrees_of_freedom(
+        model,
+        evaluation_point(model, values; label = label);
+        kwargs...,
+    )
+end
+
 function _structural_numerical_findings(
     comparison::StructuralNumericalComparison,
 )

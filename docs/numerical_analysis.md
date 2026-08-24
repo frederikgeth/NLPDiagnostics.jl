@@ -315,6 +315,16 @@ an objective-curvature screen at one point. It records eigenvalue counts and
 the threshold used, and reports typed unavailable evidence when the Hessian is
 incomplete or exceeds the dense-work guard. It makes no global convexity claim.
 
+`analyze_degrees_of_freedom(model, evaluation)` compares equality-incidence
+matching with local numerical Jacobian rank and reports structural versus
+observed right-nullity. The top-level `analyze(...;
+check_degrees_of_freedom=true)` path uses the same bounded comparison. The
+counts describe only the aligned free-variable/equality view at one point;
+they exclude inequality activity, variable bounds, nonlinear feasible-set
+geometry, and physical interpretation. Incomplete structural or derivative
+evidence is serialized as typed unavailability rather than treated as zero
+freedom.
+
 ## Feasibility and active-set evidence
 
 `constraint_feasibility_summary(model, evaluation)` aligns evaluated scalar

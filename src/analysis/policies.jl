@@ -78,6 +78,7 @@ struct CheckPolicy
     objective_gradient_directional_crosscheck::Bool
     objective_jacobian_scaling::Bool
     convexity::Bool
+    degrees_of_freedom::Bool
     hessian_vector_crosscheck::Bool
     initialization::Bool
     active_set::Bool
@@ -101,6 +102,7 @@ CheckPolicy(
     objective_gradient_directional_crosscheck,
     objective_jacobian_scaling,
     false,
+    false,
     hessian_vector_crosscheck,
     initialization,
     active_set,
@@ -120,6 +122,7 @@ function CheckPolicy(;
     objective_gradient_directional_crosscheck::Bool = false,
     objective_jacobian_scaling::Bool = false,
     convexity::Bool = false,
+    degrees_of_freedom::Bool = false,
     hessian_vector_crosscheck::Bool = false,
     initialization::Bool = false,
     active_set::Bool = false,
@@ -131,6 +134,7 @@ function CheckPolicy(;
         objective_gradient_directional_crosscheck,
         objective_jacobian_scaling,
         convexity,
+        degrees_of_freedom,
         hessian_vector_crosscheck,
         initialization,
         active_set,

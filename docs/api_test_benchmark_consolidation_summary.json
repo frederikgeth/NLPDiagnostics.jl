@@ -5,14 +5,14 @@
       "module Advanced"
     ],
     "export_buckets": {
-      "core_or_unclassified": 405,
+      "core_or_unclassified": 406,
       "domain_extension": 96,
       "profiling": 15,
       "scaling": 3,
       "solver_extension": 16,
       "structural": 10
     },
-    "root_export_count": 545,
+    "root_export_count": 546,
     "root_export_names": [
       "AbstractSemanticConstraintSetContract",
       "ActiveSetStructuralDecomposition",
@@ -225,6 +225,7 @@
       "analyze_convexity",
       "analyze_coupled_set_qualification",
       "analyze_degeneracy",
+      "analyze_degrees_of_freedom",
       "analyze_derivative_crosscheck_scale_sweep",
       "analyze_derivatives",
       "analyze_domains",
@@ -565,7 +566,7 @@
     "advanced_root_overlap_count": 14,
     "artifact": "docs/api_tier_inventory_summary.json",
     "domain_extension_root_count": 102,
-    "root_export_count": 545,
+    "root_export_count": 546,
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
@@ -879,6 +880,6 @@
     "explicit_typed_unavailable_tokens": [
       "UnavailableReason"
     ],
-    "typed_adapter_call_count": 84
+    "typed_adapter_call_count": 85
   }
 }

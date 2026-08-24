@@ -1780,6 +1780,15 @@ with zero constraint multipliers; this is deliberately a point-local
 curvature observation rather than a global convexity or second-order
 optimality certificate.
 
+## 2026-08-24: local degrees-of-freedom screen
+
+The numerical layer now provides `analyze_degrees_of_freedom` and the opt-in
+`analyze(...; check_degrees_of_freedom=true)` path. It compares structural
+equality matching with observed local Jacobian right-nullity and records both
+counts, rank, row/variable scope, and typed unavailable evidence. The result
+is explicitly limited to the aligned equality view at one point; it is not a
+global feasible-set dimension or physical-gauge classification.
+
 ## 2026-08-24: finding-family and terminal-renderer consolidation
 
 Renderer-neutral report data now retains every finding record while adding
