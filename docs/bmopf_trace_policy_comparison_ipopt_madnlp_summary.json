@@ -46,6 +46,33 @@
       }
     ]
   },
+  "telemetry_crosswalk": {
+    "schema_version": "nlpdiagnostics-trace-telemetry-crosswalk-v1",
+    "case_count": 2,
+    "directly_comparable": [
+      "record_count",
+      "segment_count",
+      "final_iteration",
+      "final_objective"
+    ],
+    "coordinate_mismatch": [
+      "final_primal_infeasibility",
+      "final_dual_infeasibility"
+    ],
+    "capture_capability_mismatch": [
+      "binding_count"
+    ],
+    "availability_mismatch": [
+      "line_search_trials",
+      "step_norm"
+    ],
+    "both_available_solver_telemetry": [
+      "barrier_parameter",
+      "dual_step",
+      "regularization_size"
+    ],
+    "solver_quality_inference_supported": false
+  },
   "interpretation": "The distinct-solver experiment passed the shared environment, two-case provenance, and trace-availability gates. Iteration and binding-count differences are retained as descriptive observations only; they do not establish solver superiority or equivalence, and binding telemetry is not directly comparable across these solver adapters.",
   "next_gate": "Extend the same gated comparison to a truth-labelled case set and solver telemetry crosswalk before making any convergence or conditioning claim.",
   "does_not_establish": [

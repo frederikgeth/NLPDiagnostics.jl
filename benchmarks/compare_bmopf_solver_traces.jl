@@ -152,6 +152,122 @@ function _controller_trace_compare(left, right)
     )
 end
 
+function _trace_telemetry_crosswalk(left_trace, right_trace)
+    left_coverage = _as_dict(get(left_trace, "telemetry_coverage", nothing))
+    right_coverage = _as_dict(get(right_trace, "telemetry_coverage", nothing))
+    left_coordinates = _as_dict(get(left_trace, "metric_coordinate_counts", nothing))
+    right_coordinates = _as_dict(get(right_trace, "metric_coordinate_counts", nothing))
+    function coordinate_summary(coordinates, metric)
+        entry = _as_dict(get(coordinates, metric, nothing))
+        return isempty(entry) ? nothing : sort!(String.(collect(keys(entry))))
+    end
+    function coverage_summary(coverage, metric)
+        entry = _as_dict(get(coverage, metric, nothing))
+        return Dict{String,Any}(
+            "available_count" => get(entry, "available_count", nothing),
+            "record_count" => get(entry, "record_count", nothing),
+            "coverage_complete" => get(entry, "coverage_complete", false),
+        )
+    end
+    function metric(name, category, status, left_value, right_value;
+                    left_coordinate = nothing, right_coordinate = nothing,
+                    reason = nothing)
+        Dict{String,Any}(
+            "category" => category,
+            "status" => status,
+            "left" => left_value,
+            "right" => right_value,
+            "left_coordinate" => left_coordinate,
+            "right_coordinate" => right_coordinate,
+            "reason" => reason,
+        )
+    end
+    metrics = Dict{String,Any}(
+        "record_count" => metric(
+            "record_count", "trace_structure", "directly_comparable",
+            get(left_trace, "record_count", nothing),
+            get(right_trace, "record_count", nothing);
+            reason = "retained trace-record counts share the same structural meaning",
+        ),
+        "segment_count" => metric(
+            "segment_count", "trace_structure", "directly_comparable",
+            get(left_trace, "segment_count", nothing),
+            get(right_trace, "segment_count", nothing);
+            reason = "restart-segment counts share the same structural meaning",
+        ),
+        "final_iteration" => metric(
+            "final_iteration", "trace_structure", "directly_comparable",
+            get(left_trace, "final_iteration", nothing),
+            get(right_trace, "final_iteration", nothing);
+            reason = "iteration indices are compared only as retained-record positions",
+        ),
+        "final_objective" => metric(
+            "final_objective", "solver_metric", "directly_comparable",
+            get(left_trace, "final_objective", nothing),
+            get(right_trace, "final_objective", nothing);
+            left_coordinate = coordinate_summary(left_coordinates, "objective"),
+            right_coordinate = coordinate_summary(right_coordinates, "objective"),
+            reason = "both adapters report objective values in original model coordinates",
+        ),
+        "final_primal_infeasibility" => metric(
+            "final_primal_infeasibility", "solver_metric", "coordinate_mismatch",
+            get(left_trace, "final_primal_infeasibility", nothing),
+            get(right_trace, "final_primal_infeasibility", nothing);
+            left_coordinate = coordinate_summary(left_coordinates, "primal_infeasibility"),
+            right_coordinate = coordinate_summary(right_coordinates, "primal_infeasibility"),
+            reason = "adapter coordinate declarations differ; retain values without direct magnitude comparison",
+        ),
+        "final_dual_infeasibility" => metric(
+            "final_dual_infeasibility", "solver_metric", "coordinate_mismatch",
+            get(left_trace, "final_dual_infeasibility", nothing),
+            get(right_trace, "final_dual_infeasibility", nothing);
+            left_coordinate = coordinate_summary(left_coordinates, "dual_infeasibility"),
+            right_coordinate = coordinate_summary(right_coordinates, "dual_infeasibility"),
+            reason = "adapter coordinate declarations differ; retain values without direct magnitude comparison",
+        ),
+        "binding_count" => metric(
+            "binding_count", "point_capture", "capture_capability_mismatch",
+            get(left_trace, "binding_count", nothing),
+            get(right_trace, "binding_count", nothing);
+            reason = "point-binding capture is available on the reference adapter but not the candidate adapter",
+        ),
+    )
+    for telemetry_name in ("barrier_parameter", "dual_step", "line_search_trials",
+                           "regularization_size", "step_norm")
+        left_entry = coverage_summary(left_coverage, telemetry_name)
+        right_entry = coverage_summary(right_coverage, telemetry_name)
+        left_complete = get(left_entry, "coverage_complete", false) === true
+        right_complete = get(right_entry, "coverage_complete", false) === true
+        status = left_complete && right_complete ?
+            "both_available_solver_telemetry" :
+            (left_complete || right_complete ? "availability_mismatch" : "both_unavailable")
+        metrics[telemetry_name] = Dict{String,Any}(
+            "category" => "solver_telemetry",
+            "status" => status,
+            "left" => left_entry,
+            "right" => right_entry,
+            "left_coordinate" => nothing,
+            "right_coordinate" => nothing,
+            "reason" => "availability is crosswalked; solver-specific telemetry semantics are not ranked",
+        )
+    end
+    status_counts = Dict{String,Int}()
+    for entry in values(metrics)
+        status = String(get(entry, "status", "unknown"))
+        status_counts[status] = get(status_counts, status, 0) + 1
+    end
+    return Dict{String,Any}(
+        "schema_version" => "nlpdiagnostics-trace-telemetry-crosswalk-v1",
+        "metrics" => metrics,
+        "summary" => Dict(
+            "metric_count" => length(metrics),
+            "status_counts" => status_counts,
+            "direct_comparison_supported" => get(status_counts, "directly_comparable", 0) > 0,
+            "solver_quality_inference_supported" => false,
+        ),
+    )
+end
+
 function _compare_case(left, right)
     left_trace = _as_dict(get(left, "trace", nothing))
     right_trace = _as_dict(get(right, "trace", nothing))
@@ -254,6 +370,7 @@ function _compare_case(left, right)
             "final_dual_infeasibility" => Dict("left" => get(left_trace, "final_dual_infeasibility", nothing), "right" => get(right_trace, "final_dual_infeasibility", nothing)),
             "phase_counts" => Dict("left" => get(left_trace, "phase_counts", Dict()), "right" => get(right_trace, "phase_counts", Dict())),
         ),
+        "telemetry_crosswalk" => _trace_telemetry_crosswalk(left_trace, right_trace),
         "controller_curve_trace" => _controller_trace_compare(left, right),
         "solver_log" => Dict(
             "available" => Dict(
@@ -324,6 +441,39 @@ function _trace_comparison_readiness(trace_comparison, environment_match,
     )
 end
 
+function _telemetry_crosswalk_campaign_summary(comparisons)
+    crosswalks = Dict{String,Any}[]
+    for comparison in comparisons
+        comparison_data = _as_dict(get(comparison, "comparison", nothing))
+        crosswalk = _as_dict(get(comparison_data, "telemetry_crosswalk", nothing))
+        isempty(crosswalk) || push!(crosswalks, crosswalk)
+    end
+    metric_names = Set{String}()
+    for crosswalk in crosswalks
+        metrics = _as_dict(get(crosswalk, "metrics", nothing))
+        union!(metric_names, String.(collect(keys(metrics))))
+    end
+    metrics_summary = Dict{String,Any}()
+    for metric_name in sort!(collect(metric_names))
+        status_counts = Dict{String,Int}()
+        for crosswalk in crosswalks
+            entry = _as_dict(get(_as_dict(get(crosswalk, "metrics", nothing)), metric_name, nothing))
+            status = String(get(entry, "status", "unavailable"))
+            status_counts[status] = get(status_counts, status, 0) + 1
+        end
+        metrics_summary[metric_name] = Dict{String,Any}(
+            "case_count" => length(crosswalks),
+            "status_counts" => status_counts,
+        )
+    end
+    return Dict{String,Any}(
+        "schema_version" => "nlpdiagnostics-trace-telemetry-crosswalk-v1",
+        "case_count" => length(crosswalks),
+        "metrics" => metrics_summary,
+        "solver_quality_inference_supported" => false,
+    )
+end
+
 function main()
     length(ARGS) in (2, 3) || error(
         "usage: compare_bmopf_solver_traces.jl <left-summary.json> <right-summary.json> [comparison.json]",
@@ -377,6 +527,7 @@ function main()
         "comparisons" => comparisons,
         "trace_coverage_comparison" => trace_coverage_comparison,
         "trace_comparison_readiness" => trace_comparison_readiness,
+        "telemetry_crosswalk" => _telemetry_crosswalk_campaign_summary(comparisons),
     )
     write_json(output_path, payload)
     println("wrote solver-trace comparison to $output_path")

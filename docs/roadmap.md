@@ -35,6 +35,13 @@ provenance, and availability gates. Iteration and binding-count differences
 remain descriptive observations only; telemetry conventions still prevent
 solver-quality or causal claims.
 
+The solver-telemetry crosswalk is now emitted by
+`benchmarks/compare_bmopf_solver_traces.jl` and summarized in the same
+artifact. It classifies structural counts and original-coordinate objectives
+as directly comparable, flags primal/dual coordinate mismatches, identifies
+point-binding capture gaps, and records solver-telemetry availability without
+ranking solver behavior.
+
 The latest bounded 30-bus IBR calibration sequence is complete through
 row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
 campaign now includes solver-budget, option, initialization, trajectory,
@@ -4877,5 +4884,7 @@ availability boundaries. Its `trace_comparison_readiness` envelope now
 combines solver-pair, environment, provenance, and trace-availability gates.
 The held-out Ipopt-versus-MadNLP validation now passes all four gates on two
 cases; see `docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`.
-The next trace work is a truth-labelled case set and solver-telemetry
-crosswalk; do not add another trace metric family before that evidence exists.
+The telemetry crosswalk is now implemented and validated on the two-case
+campaign. The next trace work is a truth-labelled positive/negative case set
+that can exercise these gates against known outcomes; do not add another trace
+metric family before that evidence exists.
