@@ -14,6 +14,7 @@ include("ir/expression_support.jl")
 include("ir/structural_roles.jl")
 include("ir/incidence_graph.jl")
 include("numerics/types.jl")
+include("analysis/policies.jl")
 include("numerics/evaluator.jl")
 include("numerics/fingerprints.jl")
 include("numerics/degeneracy.jl")
@@ -134,6 +135,8 @@ export IntervalEnclosure
 export JacobianEntry
 export JacobianRankEstimate
 export RankPolicy
+export ProbePolicy
+export CheckPolicy
 export SparseJacobianPatternEstimate
 export SparseQRRankEstimate
 export SparseQRNullspaceEstimate
@@ -5364,6 +5367,9 @@ function analyze(
     point::Union{Nothing,EvaluationPoint} = nothing,
     evaluation::Union{Nothing,NumericalEvaluation} = nothing,
     cache::EvaluationCache = EvaluationCache(),
+    rank_policy::Union{Nothing,RankPolicy} = nothing,
+    probe_policy::Union{Nothing,ProbePolicy} = nothing,
+    check_policy::Union{Nothing,CheckPolicy} = nothing,
     scale_ratio_threshold::Real = 1.0e6,
     component_scale_mismatch_factor::Real = 1.0e3,
     unit_circle_radius_tolerance::Real = 1.0e-6,
@@ -5502,6 +5508,44 @@ function analyze(
     iteration_bindings::Union{Nothing,AbstractVector{<:IterationPointBinding}} = nothing,
     iteration_point_relative_step::Union{Nothing,Real} = nothing,
 )
+    if !isnothing(rank_policy)
+        rank_policy.backend == :dense_svd || throw(ArgumentError(
+            "analyze rank_policy must use the :dense_svd backend; sparse probe backends have separate controls",
+        ))
+        rank_relative_tolerance = rank_policy.relative_tolerance
+        rank_absolute_tolerance = rank_policy.absolute_tolerance
+        rank_matrix_norm = rank_policy.matrix_norm
+        rank_max_dense_entries = rank_policy.max_dense_entries
+    end
+    if !isnothing(probe_policy)
+        iterative_right_nullspace_probe_dimension =
+            probe_policy.iterative_right_nullspace_probe_dimension
+        iterative_left_nullspace_probe_dimension =
+            probe_policy.iterative_left_nullspace_probe_dimension
+        iterative_spectrum_probe_dimension =
+            probe_policy.iterative_spectrum_probe_dimension
+        golub_kahan_probe_steps = probe_policy.golub_kahan_probe_steps
+        multi_seed_golub_kahan_probe_seed_count =
+            probe_policy.multi_seed_golub_kahan_probe_seed_count
+        restarted_smallest_singular_candidate_dimension =
+            probe_policy.restarted_smallest_singular_candidate_dimension
+        harmonic_golub_kahan_candidate_dimension =
+            probe_policy.harmonic_golub_kahan_candidate_dimension
+        smallest_singular_backend_crosscheck_dimension =
+            probe_policy.smallest_singular_backend_crosscheck_dimension
+        check_sparse_qr_nullspace = probe_policy.check_sparse_qr_nullspace
+    end
+    if !isnothing(check_policy)
+        check_jacobian_directional_crosscheck |=
+            check_policy.jacobian_directional_crosscheck
+        check_objective_gradient_directional_crosscheck |=
+            check_policy.objective_gradient_directional_crosscheck
+        check_hessian_vector_crosscheck |= check_policy.hessian_vector_crosscheck
+        check_initialization |= check_policy.initialization
+        check_active_set |= check_policy.active_set
+        check_coupled_set_qualification |= check_policy.coupled_set_qualification
+        check_degeneracy |= check_policy.degeneracy
+    end
     !isnothing(point) && !isnothing(evaluation) && throw(ArgumentError(
         "provide either point or evaluation, not both",
     ))
@@ -5565,6 +5609,12 @@ function analyze(
         graph = graph,
         unit_circle_radius_tolerance = unit_circle_radius_tolerance,
     )
+    report.metadata[:rank_policy] = isnothing(rank_policy) ?
+        "legacy_keywords" : "RankPolicy"
+    report.metadata[:probe_policy] = isnothing(probe_policy) ?
+        "legacy_keywords" : "ProbePolicy"
+    report.metadata[:check_policy] = isnothing(check_policy) ?
+        "legacy_keywords" : "CheckPolicy"
     constraint_scale_scope_report = _component_constraint_scale_semantics_findings(
         declared_component_constraint_scales,
         [_constraint_ref(record) for record in model_snapshot.constraints],

@@ -533,6 +533,13 @@ renderer show errors and warnings individually, summarize informational
 families, and report any explicit `maximum_findings` truncation. They do not
 alter the report or its renderer-neutral data.
 
+The top-level `analyze` entry point accepts additive `RankPolicy`,
+`ProbePolicy`, and `CheckPolicy` objects. `RankPolicy` groups dense numerical
+rank semantics, `ProbePolicy` groups opt-in probe selectors, and `CheckPolicy`
+groups top-level boolean checks. Existing keyword arguments remain supported;
+policy selectors are recorded in report metadata and provide the grouped
+selection layer, so migration can be incremental.
+
 ## Static-analysis scope
 
 The first implementation intentionally detects exact or canonical facts. It

@@ -5,20 +5,21 @@
       "module Advanced"
     ],
     "export_buckets": {
-      "core_or_unclassified": 401,
+      "core_or_unclassified": 403,
       "domain_extension": 96,
       "profiling": 15,
       "scaling": 3,
       "solver_extension": 16,
       "structural": 10
     },
-    "root_export_count": 541,
+    "root_export_count": 543,
     "root_export_names": [
       "AbstractSemanticConstraintSetContract",
       "ActiveSetStructuralDecomposition",
       "ActiveSetStructuralMatching",
       "Advanced",
       "BMOPFProfileResult",
+      "CheckPolicy",
       "CompletedInitializationPoint",
       "ComponentConstraintScaleSemantics",
       "ComponentCoordinateSemantics",
@@ -137,6 +138,7 @@
       "PortTerminalCoordinateSemantics",
       "PortTopologyCoordinateProjection",
       "PortTopologyNullspace",
+      "ProbePolicy",
       "ProfileAggregate",
       "ProfileAllocationSummary",
       "ProfileCase",
@@ -561,7 +563,7 @@
     "advanced_root_overlap_count": 14,
     "artifact": "docs/api_tier_inventory_summary.json",
     "domain_extension_root_count": 102,
-    "root_export_count": 541,
+    "root_export_count": 543,
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
@@ -801,8 +803,8 @@
       "benchmarks/validate_bmopf_checkout.jl",
       "benchmarks/validate_bmopf_residual_trends.jl"
     ],
-    "source_file_count": 31,
-    "source_include_count": 30,
+    "source_file_count": 32,
+    "source_include_count": 31,
     "source_includes": [
       "reports/types.jl",
       "reports/text.jl",
@@ -811,6 +813,7 @@
       "ir/structural_roles.jl",
       "ir/incidence_graph.jl",
       "numerics/types.jl",
+      "analysis/policies.jl",
       "numerics/evaluator.jl",
       "numerics/fingerprints.jl",
       "numerics/degeneracy.jl",
@@ -848,7 +851,7 @@
       "bmopf_scaling_covariance.jl",
       "bmopf_scaling_formulations.jl"
     ],
-    "testset_count_in_root": 113,
+    "testset_count_in_root": 114,
     "unclassified_non_helper_benchmark_paths": []
   },
   "quality_policy": {

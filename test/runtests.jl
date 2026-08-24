@@ -126,6 +126,39 @@ end
     @test haskey(NLPDiagnostics.Stable.report_data(stable_report), "findings")
 end
 
+@testset "composable analysis policy structs" begin
+    @test NLPDiagnostics.ProbePolicy(
+        iterative_right_nullspace_probe_dimension = 2,
+        check_sparse_qr_nullspace = true,
+    ).iterative_right_nullspace_probe_dimension == 2
+    @test NLPDiagnostics.CheckPolicy(initialization = true).initialization
+    @test_throws ArgumentError NLPDiagnostics.ProbePolicy(
+        iterative_left_nullspace_probe_dimension = -1,
+    )
+
+    policy_model = MOI.Utilities.Model{Float64}()
+    policy_variable = MOI.add_variable(policy_model)
+    MOI.add_constraint(policy_model, policy_variable, MOI.EqualTo(0.0))
+    rank_policy = NLPDiagnostics.RankPolicy(
+        Float64;
+        relative_tolerance = 1.0e-8,
+        max_dense_entries = 100,
+    )
+    report = NLPDiagnostics.analyze(
+        policy_model;
+        rank_policy,
+        probe_policy = NLPDiagnostics.ProbePolicy(),
+        check_policy = NLPDiagnostics.CheckPolicy(),
+    )
+    @test report.metadata[:rank_policy] == "RankPolicy"
+    @test report.metadata[:probe_policy] == "ProbePolicy"
+    @test report.metadata[:check_policy] == "CheckPolicy"
+    @test_throws ArgumentError NLPDiagnostics.analyze(
+        policy_model;
+        rank_policy = NLPDiagnostics.RankPolicy(Float64; backend = :sparse_qr),
+    )
+end
+
 if Base.find_package("Ipopt") !== nothing
     import Ipopt
 
