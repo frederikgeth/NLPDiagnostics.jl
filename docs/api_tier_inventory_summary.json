@@ -39,8 +39,8 @@
     "advanced_only_count": 0,
     "advanced_root_overlap_count": 14,
     "domain_extension_root_count": 102,
-    "root_export_count": 543,
-    "root_only_count": 529,
+    "root_export_count": 544,
+    "root_only_count": 530,
     "stable_export_count": 16,
     "stable_root_overlap_count": 15
   },
@@ -396,6 +396,7 @@
     "analyze_multi_seed_golub_kahan_probe",
     "analyze_numerical",
     "analyze_objective_gradient_directional_crosscheck",
+    "analyze_objective_jacobian_scaling",
     "analyze_postmortem",
     "analyze_postmortem_log_consistency",
     "analyze_reduced_hessian",

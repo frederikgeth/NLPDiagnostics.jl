@@ -76,6 +76,7 @@ end
 struct CheckPolicy
     jacobian_directional_crosscheck::Bool
     objective_gradient_directional_crosscheck::Bool
+    objective_jacobian_scaling::Bool
     hessian_vector_crosscheck::Bool
     initialization::Bool
     active_set::Bool
@@ -93,6 +94,7 @@ existing callers do not need to migrate in one step.
 function CheckPolicy(;
     jacobian_directional_crosscheck::Bool = false,
     objective_gradient_directional_crosscheck::Bool = false,
+    objective_jacobian_scaling::Bool = false,
     hessian_vector_crosscheck::Bool = false,
     initialization::Bool = false,
     active_set::Bool = false,
@@ -102,6 +104,7 @@ function CheckPolicy(;
     return CheckPolicy(
         jacobian_directional_crosscheck,
         objective_gradient_directional_crosscheck,
+        objective_jacobian_scaling,
         hessian_vector_crosscheck,
         initialization,
         active_set,

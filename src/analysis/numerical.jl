@@ -74,6 +74,101 @@ function jacobian_scale_summary(evaluation::NumericalEvaluation{T}) where {T}
     )
 end
 
+"""
+    analyze_objective_jacobian_scaling(evaluation; mismatch_factor = 1.0e3)
+
+Compare the local objective-gradient magnitude with the positive evaluated
+Jacobian column-norm range. This is a point-local screening diagnostic: it
+does not infer a global objective scale or a solver convergence consequence.
+"""
+function analyze_objective_jacobian_scaling(
+    evaluation::NumericalEvaluation{T};
+    mismatch_factor::Real = 1.0e3,
+) where {T<:AbstractFloat}
+    mismatch_factor > 1 || throw(ArgumentError(
+        "mismatch_factor must be greater than one",
+    ))
+    report = DiagnosticReport()
+    report.metadata[:stage] = "objective_jacobian_scaling"
+    report.metadata[:objective_gradient_method] =
+        string(evaluation.objective_gradient_method)
+    summary = jacobian_scale_summary(evaluation)
+    finite_gradient = T[
+        value for value in evaluation.objective_gradient
+        if !ismissing(value) && isfinite(value)
+    ]
+    positive_columns = T[
+        value for value in summary.column_norms
+        if isfinite(value) && value > zero(T)
+    ]
+    report.metadata[:objective_gradient_finite_component_count] =
+        string(length(finite_gradient))
+    report.metadata[:jacobian_positive_column_count] =
+        string(length(positive_columns))
+    report.metadata[:objective_jacobian_scale_mismatch_factor] =
+        string(mismatch_factor)
+    if isempty(finite_gradient) || length(finite_gradient) != length(evaluation.objective_gradient)
+        push!(report, Finding(:objective_jacobian_scale_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "Objective-versus-Jacobian scaling is unavailable because the objective gradient is incomplete or non-finite.",
+            why_it_matters = "A scale comparison must use a complete finite objective gradient at the same evaluation point.",
+            evidence = [Evidence("Objective/Jacobian scale availability"; details = [
+                "objective_gradient_method" => evaluation.objective_gradient_method,
+                "finite_gradient_components" => length(finite_gradient),
+                "gradient_components" => length(evaluation.objective_gradient),
+            ])],
+            suggested_actions = ["Supply an evaluation with a complete finite objective gradient before interpreting this scale comparison."],
+        ))
+        return report
+    end
+    if isempty(positive_columns)
+        push!(report, Finding(:objective_jacobian_scale_unavailable;
+            severity = SeverityInfo, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceHigh,
+            observation = "Objective-versus-Jacobian scaling is unavailable because no finite positive Jacobian column scale was observed.",
+            why_it_matters = "Zero, unavailable, or non-finite Jacobian columns do not define a meaningful local comparison range.",
+            evidence = [Evidence("Objective/Jacobian scale availability"; details = [
+                "jacobian_positive_column_count" => length(positive_columns),
+                "zero_columns" => length(summary.zero_columns),
+                "nonfinite_columns" => length(summary.nonfinite_columns),
+            ])],
+            suggested_actions = ["Inspect derivative availability and zero-column structure before applying objective scaling conclusions."],
+        ))
+        return report
+    end
+    objective_scale = maximum(abs, finite_gradient)
+    jacobian_min = minimum(positive_columns)
+    jacobian_max = maximum(positive_columns)
+    lower = jacobian_min / T(mismatch_factor)
+    upper = jacobian_max * T(mismatch_factor)
+    mismatch = objective_scale < lower || objective_scale > upper
+    report.metadata[:objective_gradient_scale] = string(objective_scale)
+    report.metadata[:jacobian_column_scale_min] = string(jacobian_min)
+    report.metadata[:jacobian_column_scale_max] = string(jacobian_max)
+    report.metadata[:objective_jacobian_scale_mismatch] = string(mismatch)
+    code = mismatch ? :objective_jacobian_scale_mismatch : :objective_jacobian_scale_summary
+    push!(report, Finding(code;
+        severity = mismatch ? SeverityWarning : SeverityInfo,
+        domain = NumericalIssue,
+        basis = NumericalObservation,
+        confidence = ConfidenceMedium,
+        observation = mismatch ?
+            "The objective-gradient scale $objective_scale lies outside the Jacobian column-scale range [$lower, $upper]." :
+            "The objective-gradient scale $objective_scale is compatible with the Jacobian column-scale range [$lower, $upper].",
+        why_it_matters = "Large objective-versus-Jacobian scale separation can make stationarity residuals and step heuristics sensitive to coordinate or objective normalization.",
+        evidence = [Evidence("Objective/Jacobian scale comparison"; details = [
+            "objective_gradient_scale" => objective_scale,
+            "jacobian_column_scale_min" => jacobian_min,
+            "jacobian_column_scale_max" => jacobian_max,
+            "mismatch_factor" => mismatch_factor,
+            "objective_gradient_method" => evaluation.objective_gradient_method,
+        ])],
+        suggested_actions = ["Review objective normalization and variable/constraint units before comparing solver residual magnitudes."],
+    ))
+    return report
+end
+
 function _jacobian_row_family_labels(row_labels, row_count::Integer)
     label_value(value) = begin
         if value isa AbstractDict

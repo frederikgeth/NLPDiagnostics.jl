@@ -235,6 +235,14 @@ derivative at one point does not prove structural disconnection or global
 redundancy. Zero columns are not reported when any row derivative is
 unavailable or partial.
 
+`analyze_objective_jacobian_scaling(evaluation)` provides an explicit local
+comparison between the finite objective-gradient magnitude and the positive
+Jacobian column-norm range. The comparison is a normalization-screening
+observation, not a global conditioning or solver-performance conclusion. Use
+`analyze(model; check_objective_jacobian_scaling = true)` or
+`CheckPolicy(objective_jacobian_scaling = true)` to append it to a combined
+report.
+
 ## Guarded rank and nullspace estimates
 
 `jacobian_rank_estimate(evaluation)` combines duplicate entries and uses a

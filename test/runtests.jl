@@ -132,6 +132,9 @@ end
         check_sparse_qr_nullspace = true,
     ).iterative_right_nullspace_probe_dimension == 2
     @test NLPDiagnostics.CheckPolicy(initialization = true).initialization
+    @test NLPDiagnostics.CheckPolicy(
+        objective_jacobian_scaling = true,
+    ).objective_jacobian_scaling
     @test_throws ArgumentError NLPDiagnostics.ProbePolicy(
         iterative_left_nullspace_probe_dimension = -1,
     )
@@ -7509,9 +7512,23 @@ end
               "exact_symbolic=2"
         @test report.metadata[:objective_gradient_method] ==
               "exact_constructed_nonlinear_ad"
+        scale_report = NLPDiagnostics.analyze_objective_jacobian_scaling(
+            evaluation;
+            mismatch_factor = 1.0e3,
+        )
+        @test length(findings(scale_report, :objective_jacobian_scale_summary)) == 1
+        @test scale_report.metadata[:objective_jacobian_scale_mismatch] == "false"
         combined = NLPDiagnostics.analyze(model; point = point, cache = cache)
         @test combined.metadata[:stages] ==
               "static,domains,derivatives,expressions,structural,numerical"
+        checked = NLPDiagnostics.analyze(
+            model;
+            point = point,
+            cache = cache,
+            check_policy = NLPDiagnostics.CheckPolicy(objective_jacobian_scaling = true),
+        )
+        @test occursin(",objective_jacobian_scaling", checked.metadata[:stages])
+        @test length(findings(checked, :objective_jacobian_scale_summary)) == 1
     end
 
     @testset "constructed MOI nonlinear evaluator supplies exact first derivatives" begin

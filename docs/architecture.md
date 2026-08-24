@@ -540,6 +540,12 @@ groups top-level boolean checks. Existing keyword arguments remain supported;
 policy selectors are recorded in report metadata and provide the grouped
 selection layer, so migration can be incremental.
 
+`check_objective_jacobian_scaling=true` adds a point-local comparison of the
+finite objective-gradient magnitude against the positive Jacobian column-scale
+range. It reports unavailable evidence when either derivative side is
+incomplete and does not make a global conditioning or solver-performance
+claim.
+
 ## Static-analysis scope
 
 The first implementation intentionally detects exact or canonical facts. It

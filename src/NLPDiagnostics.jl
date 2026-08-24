@@ -115,6 +115,7 @@ export evaluation_point_fingerprint
 export evaluation_source_fingerprint
 export analyze_jacobian_directional_crosscheck
 export analyze_objective_gradient_directional_crosscheck
+export analyze_objective_jacobian_scaling
 export analyze_hessian_vector_crosscheck
 export analyze_derivative_crosscheck_scale_sweep
 export EvaluatorCapabilities
@@ -5387,6 +5388,8 @@ function analyze(
     jacobian_directional_crosscheck_row_methods::Union{Nothing,AbstractVector{Symbol}} = nothing,
     jacobian_directional_crosscheck_direction_policy::Symbol = :coordinate_then_dense,
     check_objective_gradient_directional_crosscheck::Bool = false,
+    check_objective_jacobian_scaling::Bool = false,
+    objective_jacobian_scale_mismatch_factor::Real = 1.0e3,
     objective_gradient_directional_crosscheck_direction_count::Integer = 3,
     objective_gradient_directional_crosscheck_relative_step::Real = cbrt(eps(Float64)),
     objective_gradient_directional_crosscheck_absolute_tolerance::Real = 0.0,
@@ -5540,6 +5543,8 @@ function analyze(
             check_policy.jacobian_directional_crosscheck
         check_objective_gradient_directional_crosscheck |=
             check_policy.objective_gradient_directional_crosscheck
+        check_objective_jacobian_scaling |=
+            check_policy.objective_jacobian_scaling
         check_hessian_vector_crosscheck |= check_policy.hessian_vector_crosscheck
         check_initialization |= check_policy.initialization
         check_active_set |= check_policy.active_set
@@ -5800,6 +5805,15 @@ function analyze(
             append!(report.findings, objective_crosscheck_report.findings)
             merge!(report.metadata, objective_crosscheck_report.metadata)
             stages *= ",objective_gradient_directional_crosscheck"
+        end
+        if check_objective_jacobian_scaling
+            objective_scaling_report = analyze_objective_jacobian_scaling(
+                numerical_evaluation;
+                mismatch_factor = objective_jacobian_scale_mismatch_factor,
+            )
+            append!(report.findings, objective_scaling_report.findings)
+            merge!(report.metadata, objective_scaling_report.metadata)
+            stages *= ",objective_jacobian_scaling"
         end
         if check_hessian_vector_crosscheck
             multipliers = isnothing(hessian_vector_crosscheck_constraint_multipliers) ?
