@@ -5,14 +5,14 @@
       "module Advanced"
     ],
     "export_buckets": {
-      "core_or_unclassified": 399,
+      "core_or_unclassified": 401,
       "domain_extension": 96,
       "profiling": 15,
       "scaling": 3,
       "solver_extension": 16,
       "structural": 10
     },
-    "root_export_count": 539,
+    "root_export_count": 541,
     "root_export_names": [
       "AbstractSemanticConstraintSetContract",
       "ActiveSetStructuralDecomposition",
@@ -416,6 +416,7 @@
       "expression_numerical_risks",
       "finding_code_counts",
       "finding_data",
+      "finding_family_data",
       "findings",
       "fixed_operator_value",
       "fixed_variable_dual_completion_data",
@@ -545,6 +546,7 @@
       "synthetic_quadratic_geometry_profile_corpus",
       "synthetic_sparse_profile_corpus",
       "synthetic_stability_profile_corpus",
+      "text_report",
       "transport_scaling_point",
       "trusted_point_selection_data",
       "unavailable_reason",
@@ -559,7 +561,7 @@
     "advanced_root_overlap_count": 14,
     "artifact": "docs/api_tier_inventory_summary.json",
     "domain_extension_root_count": 102,
-    "root_export_count": 539,
+    "root_export_count": 541,
     "status": "inventory"
   },
   "benchmark_schema_inventory": {

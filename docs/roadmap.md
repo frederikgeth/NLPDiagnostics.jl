@@ -240,7 +240,7 @@ package installation, or artifact mutation; the known local run reports
 Stable facade: it snapshots a model, evaluates an explicit point, runs
 solver-neutral analysis, and serializes the report without optional solver
 extensions. The legacy-root tier is now explicit in the
-machine-readable inventory: all 525 root-only exports are listed for review
+machine-readable inventory: all 527 root-only exports are listed for review
 and are not implicitly Stable. The prior increment documents the
 Stable/Advanced/legacy-root
 API compatibility policy in `docs/api_stability.md` and the machine-readable
@@ -4807,12 +4807,14 @@ bounded affine-chain campaign records runtime, allocations, finding volume, and
 propagation-limit status; it is a new blocking partial gate until stage-level
 attribution and an evidence-preserving optimization are complete.
 
-The next consolidation increment should aggregate repetitive informational
-finding families while retaining full per-entity records in `report_data`, then
-add a default text-renderer severity filter and explicit truncation summary.
-The following API increment should introduce policy structs for rank, probes,
-and checks while preserving the current keyword interface as a compatibility
-layer. Convexity/curvature, objective-versus-Jacobian scaling, degrees of
-freedom, nonsmoothness, and weak-activity diagnostics are prioritized after
-these usability and cost-boundary deliverables; MPCC, homotopy, multistart, and
+The finding-family/text-renderer consolidation increment is now implemented.
+`report_data` retains every finding while adding deterministic family summaries;
+`text_report` and the default `text/plain` renderer show errors and warnings,
+summarize informational families, and make explicit truncation visible.
+
+The next API increment should introduce policy structs for rank, probes, and
+checks while preserving the current keyword interface as a compatibility layer.
+Convexity/curvature, objective-versus-Jacobian scaling, degrees of freedom,
+nonsmoothness, and weak-activity diagnostics are prioritized after these
+usability and cost-boundary deliverables; MPCC, homotopy, multistart, and
 symmetry remain out of scope.

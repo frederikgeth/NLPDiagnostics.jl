@@ -2697,6 +2697,43 @@ end
     @test occursin("### Evidence", markdown)
     @test occursin("`constraint[3/2] (balance)`", markdown)
     @test sprint(show, MIME"text/markdown"(), report) == markdown
+
+    info_one = NLPDiagnostics.Finding(
+        :repeated_info;
+        severity = NLPDiagnostics.SeverityInfo,
+        domain = NLPDiagnostics.RepresentationalIssue,
+        basis = NLPDiagnostics.StructuralProof,
+        confidence = NLPDiagnostics.ConfidenceCertain,
+        observation = "First informational record.",
+        why_it_matters = "Family aggregation should preserve detail.",
+    )
+    info_two = NLPDiagnostics.Finding(
+        :repeated_info;
+        severity = NLPDiagnostics.SeverityInfo,
+        domain = NLPDiagnostics.RepresentationalIssue,
+        basis = NLPDiagnostics.StructuralProof,
+        confidence = NLPDiagnostics.ConfidenceCertain,
+        observation = "Second informational record.",
+        why_it_matters = "Family aggregation should preserve detail.",
+    )
+    mixed = NLPDiagnostics.DiagnosticReport([finding, info_one, info_two], Dict{Symbol,String}())
+    mixed_data = NLPDiagnostics.report_data(mixed)
+    @test length(mixed_data["findings"]) == 3
+    repeated_family = only(filter(
+        family -> family["code"] == "repeated_info",
+        mixed_data["finding_families"],
+    ))
+    @test repeated_family["count"] == 2
+    @test repeated_family["distinct_observation_count"] == 2
+    text = NLPDiagnostics.text_report(mixed)
+    @test occursin("[WARNING] example", text)
+    @test occursin("INFO summary: `repeated_info` (2 occurrences)", text)
+    @test !occursin("First informational record", text)
+    @test occursin("First informational record", NLPDiagnostics.text_report(
+        mixed; minimum_severity = NLPDiagnostics.SeverityInfo,
+    ))
+    truncated_text = NLPDiagnostics.text_report(mixed; maximum_findings = 0)
+    @test occursin("1 finding omitted by maximum_findings=0", truncated_text)
 end
 
 @testset "component metadata plugin boundary" begin

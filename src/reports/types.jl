@@ -268,6 +268,54 @@ function finding_code_counts(report::DiagnosticReport)
     return Dict(code => counts[code] for code in sort!(collect(keys(counts)); by = string))
 end
 
+"""
+    finding_family_data(report; severity = nothing)
+
+Return deterministic renderer-neutral summaries for finding families. A family
+is identified by its stable code and classification axes; the complete
+per-finding records remain available in `report_data(report)["findings"]`.
+"""
+function finding_family_data(
+    report::DiagnosticReport;
+    severity::Union{Nothing,Severity} = nothing,
+)
+    groups = Dict{Tuple{Symbol,Severity,IssueDomain,EvidenceBasis,Confidence},Vector{Finding}}()
+    for finding in report.findings
+        isnothing(severity) || finding.severity == severity || continue
+        key = (
+            finding.code,
+            finding.severity,
+            finding.domain,
+            finding.basis,
+            finding.confidence,
+        )
+        push!(get!(groups, key, Finding[]), finding)
+    end
+    keys_sorted = sort!(collect(keys(groups)); by = key -> (
+        string(key[1]),
+        Int(key[2]),
+        Int(key[3]),
+        Int(key[4]),
+        Int(key[5]),
+    ))
+    return [begin
+        records = groups[key]
+        observations = unique(finding.observation for finding in records)
+        affected_count = sum(length(finding.affected) for finding in records)
+        Dict{String,Any}(
+            "code" => string(key[1]),
+            "severity" => _report_enum_label(key[2]),
+            "domain" => _report_enum_label(key[3]),
+            "basis" => _report_enum_label(key[4]),
+            "confidence" => _report_enum_label(key[5]),
+            "count" => length(records),
+            "affected_entity_count" => affected_count,
+            "distinct_observation_count" => length(observations),
+            "representative" => finding_data(first(records)),
+        )
+    end for key in keys_sorted]
+end
+
 _report_enum_label(value::Severity) = Dict(
     SeverityInfo => "info",
     SeverityWarning => "warning",
@@ -404,6 +452,7 @@ function report_data(report::DiagnosticReport)
         "finding_code_counts" => Dict(
             string(code) => count for (code, count) in finding_code_counts(report)
         ),
+        "finding_families" => finding_family_data(report),
         "metadata" => metadata,
         "unavailable_reasons" => _report_unavailable_reason_data(metadata),
     )

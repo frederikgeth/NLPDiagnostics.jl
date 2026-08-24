@@ -127,6 +127,7 @@ export Finding
 export finding_data
 export findings
 export finding_code_counts
+export finding_family_data
 export IncidenceGraph
 export IssueDomain
 export IntervalEnclosure
@@ -212,6 +213,7 @@ export UnavailableReason
 export unavailable_reason_data
 export unavailable_reason
 export markdown_report
+export text_report
 export LocalInference, HeuristicInterpretation, StructuralProof
 export Severity
 export report_data

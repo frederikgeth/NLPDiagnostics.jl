@@ -1200,7 +1200,7 @@ solver-quality claim.
 
 ## 2026-08-23: Legacy root-export inventory
 
-The API-tier artifact now includes the complete list of 525 root-only exports,
+The API-tier artifact now includes the complete list of 527 root-only exports,
 making the non-Stable legacy tier directly reviewable instead of count-only.
 This is compatibility-policy evidence and does not deprecate or remove any
 root export.
@@ -1243,7 +1243,7 @@ The new `NLPDiagnostics.Stable` facade defines a deliberately small
 16-export surface for model snapshots, numerical evaluations, solver-neutral
 analysis, findings, evidence, and report serialization. The focused facade
 contract test passes in the known local benchmark environment. The tier audit
-records 539 root exports, 16 Stable exports (15 root overlaps), and 14
+records 541 root exports, 16 Stable exports (15 root overlaps), and 14
 Advanced/root overlaps; this is an adoption boundary, not a claim that all
 legacy root exports are release-stable.
 
@@ -1752,6 +1752,17 @@ and semantic Jacobian comparison. Physical rank remains unavailable because
 dense rank is disabled, and inequality-multiplier covariance remains outside
 the covariance report. The machine-readable release-gate ledger is
 `docs/calibration_release_gate_summary.json`.
+
+## 2026-08-24: finding-family and terminal-renderer consolidation
+
+Renderer-neutral report data now retains every finding record while adding
+deterministic family summaries keyed by finding code and classification. The
+terminal `text_report` path and default `text/plain` display show errors and
+warnings individually, summarize informational families, and make explicit
+`maximum_findings` truncation visible. Markdown rendering remains an
+all-findings view. The local renderer regression and full suite remain the
+authoritative checks; this increment changes presentation only, not analysis
+semantics or finding provenance.
 
 Scalar constraint-scale alignment now serializes typed capability unavailability
 when a declared scale lacks an evaluated source row or residual. Existing scalar

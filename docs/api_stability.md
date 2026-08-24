@@ -38,7 +38,7 @@ julia --project=work/benchmark-environment --startup-file=no \
 ```
 
 The generated inventory includes the complete `legacy_root_exports` list, so
-each of the 525 root-only names is explicitly reviewable rather than hidden
+each of the 527 root-only names is explicitly reviewable rather than hidden
 behind an aggregate count.
 
 This policy does not claim semantic correctness, numerical qualification, or

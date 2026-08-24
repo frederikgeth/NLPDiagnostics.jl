@@ -519,10 +519,19 @@ findings retain their code, four classification axes, observation, rationale,
 evidence, suggested actions, and affected entities; report metadata is emitted
 with string keys. The core deliberately does not choose a JSON dependency, so
 applications may serialize this stable data with their own preferred package.
-`findings(report; ...)` and `finding_code_counts(report)` provide the matching
-typed query surface for interactive and programmatic consumers.
+`findings(report; ...)`, `finding_code_counts(report)`, and
+`finding_family_data(report)` provide the matching typed query surface for
+interactive and programmatic consumers. `report_data(report)["findings"]`
+continues to contain every per-entity record; the additive
+`report_data(report)["finding_families"]` collection is a compact summary keyed
+by finding code and classification for renderers that need to aggregate
+repetitive findings.
 `markdown_report(report)` provides a deterministic human-facing rendering that
 retains every finding's evidence, actions, and affected entities.
+The terminal-oriented `text_report(report)` and the default `text/plain`
+renderer show errors and warnings individually, summarize informational
+families, and report any explicit `maximum_findings` truncation. They do not
+alter the report or its renderer-neutral data.
 
 ## Static-analysis scope
 
