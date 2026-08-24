@@ -914,6 +914,15 @@ record, segment, binding, phase, format, coordinate, and telemetry counts are
 coverage views with explicit completeness fields, not rankings or convergence
 scores. Missing trace summaries remain unavailable campaign entries.
 
+`iteration_trace_policy_comparison` compares one reference campaign with one
+or more candidate-policy campaigns. It pairs traces using retained `case`,
+`run_id`, `sweep_label`, `replicate_index`, and `profile_stage` provenance,
+retains each original campaign and paired trace envelope, and reports coverage
+deltas plus unmatched or duplicate keys. A trace with no usable provenance is
+paired only by its explicit index key and marked as index-based. The result is
+coverage evidence—not a solver-quality score, policy ranking, or superiority
+claim.
+
 Version 3 adds a `linear_telemetry` dictionary to each record. The generic
 `solver_linear_telemetry_data` summary reports coverage and within-segment
 monotonicity for genuinely exposed counters. Ipopt's public callback does not

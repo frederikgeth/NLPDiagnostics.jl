@@ -1738,6 +1738,247 @@ function iteration_trace_campaign_summary(entries::AbstractVector)
     )
 end
 
+function _iteration_trace_policy_provenance_key(provenance, index)
+    provenance isa AbstractDict || return ("index:$index", "index")
+    fields = (
+        "case",
+        "run_id",
+        "sweep_label",
+        "replicate_index",
+        "profile_stage",
+    )
+    parts = String[]
+    for field in fields
+        value = get(provenance, field, nothing)
+        value === nothing && continue
+        push!(parts, string(field, "=", repr(value)))
+    end
+    isempty(parts) && return ("index:$index", "index")
+    return (join(parts, "|"), "provenance")
+end
+
+function _iteration_trace_policy_entry_map(campaign, policy)
+    campaign isa AbstractDict || throw(ArgumentError(
+        "iteration trace policy campaigns must be dictionaries",
+    ))
+    raw_traces = get(campaign, "traces", nothing)
+    raw_traces isa AbstractVector || throw(ArgumentError(
+        "iteration trace policy campaign $(repr(policy)) must contain a traces vector",
+    ))
+    entries = Dict{String,Any}[]
+    keys = String[]
+    key_sources = String[]
+    for (index, raw_entry) in enumerate(raw_traces)
+        raw_entry isa AbstractDict || throw(ArgumentError(
+            "iteration trace policy campaign traces must be dictionaries",
+        ))
+        raw_summary = get(raw_entry, "summary", raw_entry)
+        raw_summary isa AbstractDict || throw(ArgumentError(
+            "iteration trace policy campaign trace entries must contain a summary dictionary",
+        ))
+        raw_provenance = get(raw_entry, "provenance", Dict{String,Any}())
+        raw_provenance isa AbstractDict || throw(ArgumentError(
+            "iteration trace policy campaign provenance must be a dictionary",
+        ))
+        provenance = Dict{String,Any}(
+            String(key) => value for (key, value) in raw_provenance
+        )
+        summary = Dict{String,Any}(
+            String(key) => value for (key, value) in raw_summary
+        )
+        key, key_source = _iteration_trace_policy_provenance_key(
+            provenance, index,
+        )
+        push!(keys, key)
+        push!(key_sources, key_source)
+        push!(entries, Dict{String,Any}(
+            "index" => index,
+            "pair_key" => key,
+            "pair_key_source" => key_source,
+            "provenance" => provenance,
+            "summary" => summary,
+        ))
+    end
+    counts = Dict{String,Int}()
+    for key in keys
+        counts[key] = get(counts, key, 0) + 1
+    end
+    return (
+        entries = entries,
+        counts = counts,
+        duplicate_key_count = count(value -> value > 1, values(counts)),
+        index_key_count = count(==( "index"), key_sources),
+    )
+end
+
+function _iteration_trace_policy_metric(summary, key)
+    value = _iteration_trace_campaign_count(get(summary, key, nothing))
+    return isnothing(value) ? nothing : value
+end
+
+function _iteration_trace_policy_pair(reference, candidate)
+    reference_summary = reference["summary"]
+    candidate_summary = candidate["summary"]
+    metrics = (
+        "record_count",
+        "segment_count",
+        "binding_count",
+        "first_iteration",
+        "final_iteration",
+    )
+    metric_comparison = Dict{String,Any}()
+    for metric in metrics
+        reference_value = _iteration_trace_policy_metric(reference_summary, metric)
+        candidate_value = _iteration_trace_policy_metric(candidate_summary, metric)
+        metric_comparison[metric] = Dict{String,Any}(
+            "reference" => reference_value,
+            "candidate" => candidate_value,
+            "delta" => isnothing(reference_value) || isnothing(candidate_value) ?
+                nothing : candidate_value - reference_value,
+            "available" => !isnothing(reference_value) && !isnothing(candidate_value),
+        )
+    end
+    reference_available = _iteration_trace_campaign_bool(
+        get(reference_summary, "available", nothing),
+    )
+    candidate_available = _iteration_trace_campaign_bool(
+        get(candidate_summary, "available", nothing),
+    )
+    availability_relation = if reference_available === true && candidate_available === true
+        "both_available"
+    elseif reference_available === true
+        "reference_only"
+    elseif candidate_available === true
+        "candidate_only"
+    else
+        "neither_available"
+    end
+    return Dict{String,Any}(
+        "pair_key" => reference["pair_key"],
+        "reference" => reference,
+        "candidate" => candidate,
+        "availability_relation" => availability_relation,
+        "metric_comparison" => metric_comparison,
+    )
+end
+
+"""
+    iteration_trace_policy_comparison(campaigns; reference_policy)
+
+Compare iteration-trace campaign coverage envelopes between a reference policy
+and one or more candidate policies. `campaigns` maps policy names to the
+`iteration_trace_campaign_summary` dictionaries returned for that policy.
+Traces are paired by provenance fields (`case`, `run_id`, `sweep_label`,
+`replicate_index`, and `profile_stage`); entries without those fields use an
+explicit index key and are marked as such. Every original campaign and paired
+trace envelope is retained. The result reports availability and coverage
+deltas, but never ranks policies or infers solver quality.
+"""
+function iteration_trace_policy_comparison(
+    campaigns::AbstractDict;
+    reference_policy::AbstractString,
+)
+    reference_name = String(reference_policy)
+    isempty(strip(reference_name)) && throw(ArgumentError(
+        "reference_policy must not be empty",
+    ))
+    isempty(campaigns) && throw(ArgumentError(
+        "campaigns must contain at least one policy",
+    ))
+    normalized_campaigns = Dict{String,Any}()
+    entry_maps = Dict{String,Any}()
+    for (raw_policy, raw_campaign) in campaigns
+        policy = String(raw_policy)
+        isempty(strip(policy)) && throw(ArgumentError(
+            "campaign names must not be empty",
+        ))
+        haskey(normalized_campaigns, policy) && throw(ArgumentError(
+            "campaign names must be unique after string conversion",
+        ))
+        normalized_campaigns[policy] = Dict{String,Any}(
+            String(key) => value for (key, value) in raw_campaign
+        )
+        entry_maps[policy] = _iteration_trace_policy_entry_map(
+            normalized_campaigns[policy], policy,
+        )
+    end
+    haskey(normalized_campaigns, reference_name) || throw(ArgumentError(
+        "reference_policy $(repr(reference_name)) has no campaign",
+    ))
+    reference_map = entry_maps[reference_name]
+    comparisons = Dict{String,Any}()
+    for candidate_name in sort!(collect(keys(normalized_campaigns)))
+        candidate_name == reference_name && continue
+        candidate_map = entry_maps[candidate_name]
+        reference_by_key = Dict{String,Any}()
+        candidate_by_key = Dict{String,Any}()
+        for entry in reference_map.entries
+            haskey(reference_by_key, entry["pair_key"]) ||
+                (reference_by_key[entry["pair_key"]] = entry)
+        end
+        for entry in candidate_map.entries
+            haskey(candidate_by_key, entry["pair_key"]) ||
+                (candidate_by_key[entry["pair_key"]] = entry)
+        end
+        paired_keys = sort!(collect(intersect(
+            Set(keys(reference_by_key)), Set(keys(candidate_by_key)),
+        )))
+        paired = [
+            _iteration_trace_policy_pair(
+                reference_by_key[key], candidate_by_key[key],
+            ) for key in paired_keys
+        ]
+        unmatched_reference = sort!(collect(setdiff(
+            Set(keys(reference_by_key)), Set(keys(candidate_by_key)),
+        )))
+        unmatched_candidate = sort!(collect(setdiff(
+            Set(keys(candidate_by_key)), Set(keys(reference_by_key)),
+        )))
+        comparisons[candidate_name] = Dict{String,Any}(
+            "reference_policy" => reference_name,
+            "candidate_policy" => candidate_name,
+            "pairing" => Dict{String,Any}(
+                "reference_trace_count" => length(reference_map.entries),
+                "candidate_trace_count" => length(candidate_map.entries),
+                "paired_trace_count" => length(paired),
+                "unmatched_reference_count" => length(unmatched_reference),
+                "unmatched_candidate_count" => length(unmatched_candidate),
+                "duplicate_reference_key_count" => reference_map.duplicate_key_count,
+                "duplicate_candidate_key_count" => candidate_map.duplicate_key_count,
+                "index_key_count" => reference_map.index_key_count +
+                    candidate_map.index_key_count,
+                "coverage_complete" =>
+                    !isempty(reference_map.entries) &&
+                    isempty(unmatched_reference) && isempty(unmatched_candidate) &&
+                    reference_map.duplicate_key_count == 0 &&
+                    candidate_map.duplicate_key_count == 0,
+            ),
+            "unmatched_reference_keys" => unmatched_reference,
+            "unmatched_candidate_keys" => unmatched_candidate,
+            "paired_traces" => paired,
+            "interpretation" =>
+                "Paired trace coverage and provenance only; no solver-quality ranking or policy superiority is inferred.",
+        )
+    end
+    return Dict{String,Any}(
+        "schema_version" => "nlpdiagnostics-iteration-trace-policy-comparison-v1",
+        "available" => any(
+            !isempty(entry_maps[policy].entries)
+            for policy in keys(entry_maps)
+        ),
+        "reference_policy" => reference_name,
+        "policy_count" => length(normalized_campaigns),
+        "candidate_policy_count" => length(comparisons),
+        "campaigns" => Dict{String,Any}(
+            policy => normalized_campaigns[policy]
+            for policy in sort!(collect(keys(normalized_campaigns)))
+        ),
+        "comparisons" => comparisons,
+        "interpretation" =>
+            "Compared policy-specific trace coverage envelopes while retaining campaign and per-trace provenance; no solver-quality score or ranking is inferred.",
+    )
+end
+
 """Serialize an iteration trace without retaining solver-internal objects."""
 function iteration_trace_data(trace::SolverIterationTrace)
     record_data = [Dict{String,Any}(

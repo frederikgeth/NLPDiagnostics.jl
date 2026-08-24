@@ -10,7 +10,16 @@ living scientific ledger for flexible physical bases, residual-block scaling,
 and complex transformations. It retains hypotheses, invariants, rejected ideas,
 experiment protocols, and the current publication boundary as results evolve.
 
-### Current status snapshot (2026-08-23)
+### Current status snapshot (2026-08-25)
+
+The iteration-trace coverage deliverable now includes paired-policy
+comparison through `iteration_trace_policy_comparison`. It aligns policy
+campaigns by retained case/run provenance, keeps duplicate and unmatched
+traces explicit, and reports per-pair coverage deltas without ranking solver
+policies or collapsing policy-specific evidence. Index-based pairing is
+explicitly marked when a campaign supplies no usable provenance key. This
+closes the trace-envelope comparison increment; policy-specific solver quality
+claims remain out of scope.
 
 The latest bounded 30-bus IBR calibration sequence is complete through
 row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
@@ -4840,6 +4849,15 @@ campaign-level aggregation of these summaries while retaining per-trace
 provenance. That aggregation is now available through
 `iteration_trace_campaign_summary` and the BMOPF solver-trace summarizer; it
 retains unavailable cases instead of treating missing traces as zero records.
-The next feature increment should add paired-policy comparison of these
-coverage envelopes without collapsing policy-specific provenance; MPCC,
-homotopy, multistart, and symmetry remain out of scope.
+The paired-policy comparison increment is now implemented through
+`iteration_trace_policy_comparison`. It compares one reference campaign with
+each candidate campaign, aligns traces by case/run provenance, preserves the
+full policy-specific campaign and pair envelopes, and reports unmatched or
+duplicate keys as incomplete coverage. It remains descriptive evidence: no
+solver-quality score, policy ranking, or superiority claim is inferred.
+MPCC, homotopy, multistart, and symmetry remain out of scope. The next trace
+deliverable is now benchmark-facing: `benchmarks/compare_bmopf_solver_traces.jl`
+adds the `trace_coverage_comparison` envelope to its existing rich case
+comparison, exercising the API while retaining the same provenance and
+availability boundaries. The next trace work should validate this artifact on
+held-out paired campaigns rather than add another trace metric family.

@@ -3,6 +3,7 @@
 """Compare two `summarize_bmopf_solver_trace.jl` outputs without a score."""
 
 using JSON
+using NLPDiagnostics
 
 include(joinpath(@__DIR__, "common.jl"))
 using .NLPDiagnosticsBenchmarkCommon
@@ -35,6 +36,34 @@ function _case_map(summary)
         result[String(key)] = case
     end
     return result
+end
+
+function _trace_campaign_summary(summary, policy)
+    campaign = get(summary, "iteration_trace_campaign_summary", nothing)
+    campaign isa AbstractDict && return Dict{String,Any}(
+        String(key) => value for (key, value) in campaign
+    )
+    entries = Dict{String,Any}[]
+    for case in get(summary, "cases", Any[])
+        case isa AbstractDict || continue
+        trace = _as_dict(get(case, "trace", nothing))
+        isempty(trace) && (trace = Dict{String,Any}(
+            "schema_version" => "unavailable",
+            "available" => false,
+        ))
+        push!(entries, Dict{String,Any}(
+            "provenance" => Dict{String,Any}(
+                "policy" => policy,
+                "solver" => get(summary, "solver", nothing),
+                "case" => get(case, "name", "unknown"),
+                "status" => get(case, "status", nothing),
+                "environment_fingerprint" =>
+                    get(summary, "environment_fingerprint", nothing),
+            ),
+            "summary" => trace,
+        ))
+    end
+    return NLPDiagnostics.iteration_trace_campaign_summary(entries)
 end
 
 function _controller_trace_compare(left, right)
@@ -269,6 +298,12 @@ function main()
                                     "comparison" => _compare_case(left_cases[name], right_cases[name])))
         end
     end
+    left_trace_campaign = _trace_campaign_summary(left, "left")
+    right_trace_campaign = _trace_campaign_summary(right, "right")
+    trace_coverage_comparison = NLPDiagnostics.iteration_trace_policy_comparison(
+        Dict("left" => left_trace_campaign, "right" => right_trace_campaign);
+        reference_policy = "left",
+    )
     output_path = length(ARGS) == 3 ? abspath(ARGS[3]) : joinpath(dirname(left_path), "solver_trace_comparison.json")
     payload = Dict{String,Any}(
         "left_summary" => left_path,
@@ -282,6 +317,7 @@ function main()
         ),
         "case_count" => length(comparisons),
         "comparisons" => comparisons,
+        "trace_coverage_comparison" => trace_coverage_comparison,
     )
     write_json(output_path, payload)
     println("wrote solver-trace comparison to $output_path")

@@ -2018,6 +2018,12 @@ end
     @test occursin("_trace_summary", solver_trace_summary)
     @test occursin("profile_stage", solver_trace_summary)
     @test occursin("_solver_log_termination", solver_trace_summary)
+    solver_trace_comparison = read(
+        joinpath(benchmark_directory, "compare_bmopf_solver_traces.jl"),
+        String,
+    )
+    @test occursin("iteration_trace_policy_comparison", solver_trace_comparison)
+    @test occursin("trace_coverage_comparison", solver_trace_comparison)
     magnitude_campaign = read(
         joinpath(
             benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",
@@ -15114,6 +15120,81 @@ end
         @test unavailable_campaign["trace_count"] == 2
         @test unavailable_campaign["available_trace_count"] == 1
         @test !unavailable_campaign["available"]
+        candidate_trace_summary = deepcopy(trace_summary)
+        candidate_trace_summary["record_count"] = 2
+        candidate_campaign = NLPDiagnostics.iteration_trace_campaign_summary([
+            Dict(
+                "provenance" => Dict("case" => "single"),
+                "summary" => candidate_trace_summary,
+            ),
+            Dict(
+                "provenance" => Dict("case" => "event"),
+                "summary" => event_summary,
+            ),
+        ])
+        policy_comparison = NLPDiagnostics.iteration_trace_policy_comparison(
+            Dict("baseline" => campaign_summary, "candidate" => candidate_campaign);
+            reference_policy = "baseline",
+        )
+        @test policy_comparison["schema_version"] ==
+              "nlpdiagnostics-iteration-trace-policy-comparison-v1"
+        @test policy_comparison["policy_count"] == 2
+        @test policy_comparison["candidate_policy_count"] == 1
+        candidate_comparison = policy_comparison["comparisons"]["candidate"]
+        @test candidate_comparison["pairing"]["paired_trace_count"] == 2
+        @test candidate_comparison["pairing"]["coverage_complete"]
+        @test candidate_comparison["paired_traces"][1]["pair_key"] ==
+              "case=\"event\""
+        @test candidate_comparison["paired_traces"][2]["metric_comparison"][
+            "record_count"]["delta"] == 1
+        partial_candidate = NLPDiagnostics.iteration_trace_campaign_summary([
+            Dict("provenance" => Dict("case" => "event"), "summary" => event_summary),
+        ])
+        partial_comparison = NLPDiagnostics.iteration_trace_policy_comparison(
+            Dict("baseline" => campaign_summary, "partial" => partial_candidate);
+            reference_policy = "baseline",
+        )["comparisons"]["partial"]
+        @test partial_comparison["pairing"]["paired_trace_count"] == 1
+        @test partial_comparison["pairing"]["unmatched_reference_count"] == 1
+        @test !partial_comparison["pairing"]["coverage_complete"]
+        index_campaign = NLPDiagnostics.iteration_trace_campaign_summary([
+            Dict("summary" => trace_summary),
+        ])
+        index_comparison = NLPDiagnostics.iteration_trace_policy_comparison(
+            Dict("baseline" => index_campaign, "candidate" => index_campaign);
+            reference_policy = "baseline",
+        )["comparisons"]["candidate"]
+        @test index_comparison["pairing"]["index_key_count"] == 2
+        @test index_comparison["paired_traces"][1]["reference"][
+            "pair_key_source"] == "index"
+        duplicate_campaign = NLPDiagnostics.iteration_trace_campaign_summary([
+            Dict(
+                "provenance" => Dict("case" => "event"),
+                "summary" => event_summary,
+            ),
+            Dict(
+                "provenance" => Dict("case" => "event"),
+                "summary" => event_summary,
+            ),
+        ])
+        duplicate_comparison = NLPDiagnostics.iteration_trace_policy_comparison(
+            Dict("baseline" => campaign_summary, "duplicate" => duplicate_campaign);
+            reference_policy = "baseline",
+        )["comparisons"]["duplicate"]
+        @test duplicate_comparison["pairing"]["duplicate_candidate_key_count"] == 1
+        @test !duplicate_comparison["pairing"]["coverage_complete"]
+        empty_campaign = NLPDiagnostics.iteration_trace_campaign_summary(Dict[])
+        empty_comparison = NLPDiagnostics.iteration_trace_policy_comparison(
+            Dict("baseline" => empty_campaign, "candidate" => empty_campaign);
+            reference_policy = "baseline",
+        )
+        @test !empty_comparison["available"]
+        @test !empty_comparison["comparisons"]["candidate"]["pairing"][
+            "coverage_complete"]
+        @test_throws ArgumentError NLPDiagnostics.iteration_trace_policy_comparison(
+            Dict("candidate" => candidate_campaign);
+            reference_policy = "baseline",
+        )
         event_evaluation = NLPDiagnostics.evaluate_numerical(
             combined_model, combined_binding.point,
         )
