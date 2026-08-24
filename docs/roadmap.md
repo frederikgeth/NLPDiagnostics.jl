@@ -28,7 +28,7 @@ not initialization-irrelevance or solver-equivalence evidence.
 
 The distinct-solver trace validation is recorded in
 `docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`. Ipopt and
-MadNLP produced complete two-case provenance pairing with both traces
+MadNLP produced complete four-case provenance pairing with both traces
 available under a matching environment fingerprint. The new
 `trace_comparison_readiness` envelope passes the solver-pair, environment,
 provenance, and availability gates. Iteration and binding-count differences
@@ -48,8 +48,10 @@ The truth-labelled trace gate is now implemented by
 fixtures are positive controls for the declared strict-complementarity
 failure; the positive-bound t13 fixtures are negative controls. Both LN and LG
 labels match the independent bound-regime ledger, and all four solver-trace
-pairs are available under the matched environment. This validates the
-case/trace join, not a solver score or causal explanation.
+pairs are available under the matched environment. A 99-bus LN snapshot is
+explicitly retained as an unavailable control because it was not collected;
+it is not converted into a zero-record result. This validates the case/trace
+join, not a solver score or causal explanation.
 
 The latest bounded 30-bus IBR calibration sequence is complete through
 row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
@@ -4891,10 +4893,11 @@ adds the `trace_coverage_comparison` envelope to its existing rich case
 comparison, exercising the API while retaining the same provenance and
 availability boundaries. Its `trace_comparison_readiness` envelope now
 combines solver-pair, environment, provenance, and trace-availability gates.
-The held-out Ipopt-versus-MadNLP validation now passes all four gates on two
+The held-out Ipopt-versus-MadNLP validation now passes all four gates on four
 cases; see `docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`.
 The telemetry crosswalk and truth-labelled positive/negative case set are now
-implemented and validated on the four-case LN/LG campaign. The next trace work
-is to retain explicit unavailable labels while extending the matrix beyond
-these four controls; do not add another trace metric family before that
-evidence exists.
+implemented and validated on the four-case LN/LG campaign. Explicit
+unavailability is also represented for an uncollected 99-bus control. The next
+trace work is to extend the matrix beyond these controls while preserving this
+unavailable-vs-failed distinction; do not add another trace metric family
+before that evidence exists.

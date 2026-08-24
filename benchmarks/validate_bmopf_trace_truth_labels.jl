@@ -53,6 +53,14 @@ const EXPECTED_CASES = Dict{String,Dict{String,Any}}(
     ),
 )
 
+const EXPECTED_UNAVAILABLE_CASES = Dict{String,Dict{String,Any}}(
+    case_key("ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json") => Dict(
+        "truth_role" => "unavailable_control",
+        "expected_trace_availability" => "unavailable",
+        "reason" => "99-bus trace collection is outside the four-case calibration campaign",
+    ),
+)
+
 function _ledger_cases(payload)
     result = Dict{String,Any}()
     for entry in get(payload, "cases", Any[])
@@ -118,12 +126,30 @@ for (name, expected) in EXPECTED_CASES
     ))
 end
 
+for (name, expected) in EXPECTED_UNAVAILABLE_CASES
+    pair = get(trace_pairs, name, nothing)
+    push!(validated, Dict{String,Any}(
+        "case" => name,
+        "truth_role" => expected["truth_role"],
+        "expected" => expected,
+        "observed" => Dict(
+            "trace_pair_present" => pair isa AbstractDict,
+            "trace_availability_relation" => pair isa AbstractDict ?
+                get(pair, "availability_relation", nothing) : "unavailable",
+        ),
+        "trace_pair_present" => pair isa AbstractDict,
+        "trace_available_on_both_sides" => false,
+        "unavailable_reason" => expected["reason"],
+        "validated" => pair === nothing,
+    ))
+end
+
 validation_passed = get(readiness, "comparison_ready", false) === true &&
     !isempty(validated) && all(get(entry, "validated", false) === true for entry in validated)
 output_path = length(ARGS) == 3 ? abspath(ARGS[3]) : joinpath(dirname(comparison_path), "bmopf_trace_truth_label_validation.json")
 write_json(output_path, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-trace-truth-label-validation-v1",
-    "status" => validation_passed ? "validated" : "blocked",
+    "status" => validation_passed ? "validated_with_explicit_unavailable" : "blocked",
     "source" => Dict(
         "runner" => "benchmarks/validate_bmopf_trace_truth_labels.jl",
         "comparison_summary" => basename(comparison_path),
@@ -131,6 +157,8 @@ write_json(output_path, Dict{String,Any}(
     ),
     "readiness" => readiness,
     "case_count" => length(validated),
+    "available_case_count" => count(entry -> get(entry, "trace_available_on_both_sides", false), validated),
+    "unavailable_case_count" => count(entry -> get(entry, "truth_role", nothing) == "unavailable_control", validated),
     "cases" => validated,
     "validation_passed" => validation_passed,
     "interpretation" => "Truth labels validate expected bound-regime outcomes and trace availability only; they do not rank solvers or establish causal convergence claims.",
