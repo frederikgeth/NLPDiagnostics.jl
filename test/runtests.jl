@@ -202,7 +202,9 @@ if Base.find_package("Ipopt") !== nothing
         @test all(binding.point.label isa String for binding in trace.bindings)
         trace_data = NLPDiagnostics.iteration_trace_data(trace)
         @test trace_data["record_count"] == length(trace.records)
-        @test trace_data["schema_version"] == "nlpdiagnostics-iteration-trace-v3"
+        @test trace_data["schema_version"] == "nlpdiagnostics-iteration-trace-v4"
+        @test trace_data["summary"]["record_count"] == length(trace.records)
+        @test trace_data["summary"]["binding_count"] == length(trace.bindings)
         @test trace_data["telemetry_coverage"]["barrier_parameter"] == length(trace.records)
         @test trace_data["telemetry_coverage"]["step_norm"] == length(trace.records)
         @test trace_data["telemetry_coverage"]["regularization_size"] == length(trace.records)
@@ -15028,9 +15030,19 @@ end
         @test length(trace.segments) == 1
         @test length(trace.bindings) == 1
         trace_data = NLPDiagnostics.iteration_trace_data(trace)
-        @test trace_data["schema_version"] == "nlpdiagnostics-iteration-trace-v3"
+        @test trace_data["schema_version"] == "nlpdiagnostics-iteration-trace-v4"
         @test trace_data["record_count"] == 1
         @test trace_data["binding_count"] == 1
+        trace_summary = NLPDiagnostics.iteration_trace_summary(trace)
+        @test trace_data["summary"] == trace_summary
+        @test trace_summary["schema_version"] ==
+              "nlpdiagnostics-iteration-trace-summary-v1"
+        @test trace_summary["point_binding_coverage"]["complete_point_count"] == 1
+        @test trace_summary["point_binding_coverage"]["selector_counts"]["captured"] == 1
+        @test trace_summary["segments"][1]["bound_point_count"] == 1
+        @test trace_summary["telemetry_coverage"]["barrier_parameter"][
+            "available_count"
+        ] == 0
         @test trace_data["bindings"][1]["point_fingerprint"] ==
               NLPDiagnostics.evaluation_point_fingerprint(combined_binding.point)
         @test trace_data["telemetry_coverage"]["barrier_parameter"] == 0
@@ -15058,6 +15070,15 @@ end
             )
         end
         event_trace = NLPDiagnostics.iteration_trace(event_capture)
+        event_summary = NLPDiagnostics.iteration_trace_summary(event_trace)
+        @test event_summary["record_count"] == 6
+        @test event_summary["phase_counts"]["regular"] == 6
+        @test event_summary["format_counts"]["synthetic_callback"] == 6
+        @test event_summary["minimum_primal_infeasibility"] == 1.0
+        @test event_summary["minimum_dual_infeasibility"] == 0.0
+        @test event_summary["telemetry_coverage"]["regularization_size"][
+            "available_count"
+        ] == 6
         event_evaluation = NLPDiagnostics.evaluate_numerical(
             combined_model, combined_binding.point,
         )

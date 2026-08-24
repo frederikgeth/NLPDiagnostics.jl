@@ -315,6 +315,7 @@ export bind_iteration_points
 export capture_iteration!
 export iteration_trace
 export iteration_trace_data
+export iteration_trace_summary
 export current_law_operating_point_trace_data
 export controller_curve_operating_point_observation_data
 export analyze_iteration_trace

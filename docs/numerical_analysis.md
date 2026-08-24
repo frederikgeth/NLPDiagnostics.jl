@@ -894,13 +894,17 @@ profiles the final public MOI result with that trace and returns a
 as separate evidence sections.
 
 Serialized iteration traces use schema
-`nlpdiagnostics-iteration-trace-v3`. Every row contains the optional telemetry
+`nlpdiagnostics-iteration-trace-v4`. Every row contains the optional telemetry
 columns plus typed `metric_semantics`; the top-level `telemetry_coverage`
-counts how many records actually supplied each column. Ipopt's objective is
-labelled in original model coordinates, while its callback infeasibility
-columns are labelled solver-scaled and its barrier quantity solver-defined.
-These labels describe provenance, not accuracy, and prevent a solver-scaled
-residual from being silently compared with a recomputed raw model residual.
+counts how many records actually supplied each column. The embedded `summary`
+is the compact release-facing view: it reports restart-segment coverage,
+complete versus incomplete point bindings, phase/format counts, metric
+coordinate semantics, and telemetry availability without copying raw log text
+or point coordinates. Ipopt's objective is labelled in original model
+coordinates, while its callback infeasibility columns are labelled
+solver-scaled and its barrier quantity solver-defined. These labels describe
+provenance, not accuracy, and prevent a solver-scaled residual from being
+silently compared with a recomputed raw model residual.
 
 Version 3 adds a `linear_telemetry` dictionary to each record. The generic
 `solver_linear_telemetry_data` summary reports coverage and within-segment

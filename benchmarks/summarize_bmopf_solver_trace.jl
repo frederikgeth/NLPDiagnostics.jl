@@ -68,6 +68,14 @@ function _log_iteration_summary(report)
 end
 
 function _trace_summary(trace)
+    embedded = get(trace, "summary", nothing)
+    if embedded isa AbstractDict &&
+       get(embedded, "schema_version", nothing) ==
+       "nlpdiagnostics-iteration-trace-summary-v1"
+        return Dict{String,Any}(
+            String(key) => value for (key, value) in embedded
+        )
+    end
     records = get(trace, "records", Any[])
     phases = Dict{String,Int}()
     formats = Dict{String,Int}()

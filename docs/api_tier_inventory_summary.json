@@ -39,8 +39,8 @@
     "advanced_only_count": 0,
     "advanced_root_overlap_count": 14,
     "domain_extension_root_count": 102,
-    "root_export_count": 550,
-    "root_only_count": 536,
+    "root_export_count": 551,
+    "root_only_count": 537,
     "stable_export_count": 16,
     "stable_root_overlap_count": 15
   },
@@ -581,6 +581,7 @@
     "iteration_trace",
     "iteration_trace_data",
     "iteration_trace_jacobian_family_geometry_data",
+    "iteration_trace_summary",
     "iterative_jacobian_spectrum_estimate",
     "iterative_left_nullspace_subspace_estimate",
     "iterative_right_nullspace_estimate",

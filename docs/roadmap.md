@@ -240,7 +240,7 @@ package installation, or artifact mutation; the known local run reports
 Stable facade: it snapshots a model, evaluates an explicit point, runs
 solver-neutral analysis, and serializes the report without optional solver
 extensions. The legacy-root tier is now explicit in the
-machine-readable inventory: all 536 root-only exports are listed for review
+machine-readable inventory: all 537 root-only exports are listed for review
 and are not implicitly Stable. The prior increment documents the
 Stable/Advanced/legacy-root
 API compatibility policy in `docs/api_stability.md` and the machine-readable
@@ -4832,6 +4832,9 @@ Their persistence increment is now implemented across explicitly supplied
 nearby evaluations or captured iterates, with stable-scope and unavailable
 evidence boundaries. Solver-iterate integration is now implemented per trace
 segment through `analyze_iteration_points` and top-level `analyze` forwarding.
-The next feature increment should add compact release-facing trace coverage
-summaries without weakening the evidence boundaries; MPCC, homotopy,
-multistart, and symmetry remain out of scope.
+Compact release-facing trace coverage is now available through
+`iteration_trace_summary` and the embedded v4 trace summary. It reports
+restart-segment, point-binding, metric-coordinate, and telemetry coverage
+without reducing evidence to a score. The next feature increment should add
+campaign-level aggregation of these summaries while retaining per-trace
+provenance; MPCC, homotopy, multistart, and symmetry remain out of scope.

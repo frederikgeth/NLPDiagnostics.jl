@@ -1762,6 +1762,17 @@ provenance, and expose per-screen segment counters in metadata. Segments with
 fewer than the requested minimum number of evaluations are skipped without
 manufacturing a persistence claim.
 
+## 2026-08-24: release-facing trace coverage summary
+
+Iteration-trace serialization now embeds the compact
+`nlpdiagnostics-iteration-trace-summary-v1` view under the v4 trace envelope.
+It reports record and restart-segment counts, complete versus incomplete
+captured-point bindings, phase/format counts, metric-coordinate semantics, and
+optional telemetry coverage. The benchmark trace summarizer consumes this
+summary when present and retains its legacy fallback for older v3 records.
+These are coverage and provenance observations, not solver-quality scores or
+convergence certificates.
+
 ## 2026-08-24: composable analysis policies
 
 `analyze` now accepts additive `RankPolicy`, `ProbePolicy`, and `CheckPolicy`

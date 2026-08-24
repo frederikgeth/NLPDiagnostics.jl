@@ -1358,6 +1358,155 @@ function iteration_trace(
     return SolverIterationTrace(records, bindings)
 end
 
+function _iteration_trace_finite_values(
+    records::AbstractVector{SolverIterationRecord},
+    field::Symbol,
+)
+    return Float64[
+        value for value in (
+            getfield(record, field) for record in records
+        ) if value isa Real && isfinite(value)
+    ]
+end
+
+function _iteration_trace_coordinate_counts(
+    records::AbstractVector{SolverIterationRecord},
+    field::Symbol,
+)
+    counts = Dict{String,Int}()
+    for record in records
+        coordinate = string(getfield(record.semantics, field))
+        counts[coordinate] = get(counts, coordinate, 0) + 1
+    end
+    return Dict{String,Int}(
+        key => counts[key] for key in sort!(collect(keys(counts)))
+    )
+end
+
+function _iteration_trace_telemetry_coverage(
+    records::AbstractVector{SolverIterationRecord},
+)
+    return Dict{String,Any}(
+        string(field) => begin
+            available_count = count(
+                record -> begin
+                    value = getfield(record, field)
+                    value isa Real && isfinite(value)
+                end,
+                records,
+            )
+            Dict{String,Any}(
+                "available_count" => available_count,
+                "record_count" => length(records),
+                "coverage_complete" => !isempty(records) &&
+                    available_count == length(records),
+            )
+        end for field in (
+            :barrier_parameter,
+            :step_norm,
+            :regularization_size,
+            :dual_step,
+            :line_search_trials,
+        )
+    )
+end
+
+"""
+    iteration_trace_summary(trace)
+
+Return a compact, release-facing coverage summary for a solver iteration
+trace. The summary preserves restart segments, point-binding completeness,
+metric-coordinate semantics, and optional telemetry coverage without copying
+raw log text or point coordinates. It is descriptive evidence, not a solver
+quality score or convergence certificate.
+"""
+function iteration_trace_summary(trace::SolverIterationTrace)
+    records = trace.records
+    final_record = isempty(records) ? nothing : last(records)
+    primal_values = _iteration_trace_finite_values(records, :primal_infeasibility)
+    dual_values = _iteration_trace_finite_values(records, :dual_infeasibility)
+    objective_values = _iteration_trace_finite_values(records, :objective)
+    selector_counts = Dict{String,Int}()
+    complete_binding_count = 0
+    for binding in trace.bindings
+        selector = string(binding.selector)
+        selector_counts[selector] = get(selector_counts, selector, 0) + 1
+        complete_binding_count += binding.point.provenance.complete ? 1 : 0
+    end
+    segment_data = Dict{String,Any}[]
+    for (segment_index, segment) in enumerate(trace.segments)
+        segment_bindings = filter(
+            binding -> binding.segment == segment_index,
+            trace.bindings,
+        )
+        push!(segment_data, Dict{String,Any}(
+            "segment" => segment_index,
+            "start_line" => segment.start_line,
+            "end_line" => segment.end_line,
+            "record_count" => segment.record_count,
+            "first_iteration" => segment.first_iteration,
+            "final_iteration" => segment.final_iteration,
+            "bound_point_count" => length(segment_bindings),
+            "complete_point_count" => count(
+                binding -> binding.point.provenance.complete,
+                segment_bindings,
+            ),
+            "captured_point_count" => count(
+                binding -> binding.selector == :captured,
+                segment_bindings,
+            ),
+        ))
+    end
+    return Dict{String,Any}(
+        "schema_version" => "nlpdiagnostics-iteration-trace-summary-v1",
+        "available" => !isempty(records),
+        "record_count" => length(records),
+        "segment_count" => length(trace.segments),
+        "binding_count" => length(trace.bindings),
+        "point_binding_coverage" => Dict{String,Any}(
+            "complete_point_count" => complete_binding_count,
+            "incomplete_point_count" => length(trace.bindings) - complete_binding_count,
+            "selector_counts" => Dict{String,Int}(
+                key => selector_counts[key] for key in sort!(collect(keys(selector_counts)))
+            ),
+        ),
+        "phase_counts" => Dict{String,Int}(
+            phase => count(record -> string(record.phase) == phase, records)
+            for phase in sort!(unique(string.(getfield.(records, :phase))))
+        ),
+        "format_counts" => Dict{String,Int}(
+            format => count(record -> string(record.format) == format, records)
+            for format in sort!(unique(string.(getfield.(records, :format))))
+        ),
+        "first_iteration" => isempty(records) ? nothing : first(records).iteration,
+        "final_iteration" => isnothing(final_record) ? nothing : final_record.iteration,
+        "final_objective" => isnothing(final_record) ||
+            !(final_record.objective isa Real && isfinite(final_record.objective)) ?
+            nothing : final_record.objective,
+        "final_primal_infeasibility" => isnothing(final_record) ||
+            !(final_record.primal_infeasibility isa Real && isfinite(final_record.primal_infeasibility)) ?
+            nothing : final_record.primal_infeasibility,
+        "final_dual_infeasibility" => isnothing(final_record) ||
+            !(final_record.dual_infeasibility isa Real && isfinite(final_record.dual_infeasibility)) ?
+            nothing : final_record.dual_infeasibility,
+        "minimum_objective" => isempty(objective_values) ? nothing : minimum(objective_values),
+        "minimum_primal_infeasibility" => isempty(primal_values) ? nothing : minimum(primal_values),
+        "minimum_dual_infeasibility" => isempty(dual_values) ? nothing : minimum(dual_values),
+        "metric_coordinate_counts" => Dict{String,Any}(
+            string(field) => _iteration_trace_coordinate_counts(records, field)
+            for field in (
+                :objective,
+                :primal_infeasibility,
+                :dual_infeasibility,
+                :complementarity,
+                :barrier_parameter,
+            )
+        ),
+        "telemetry_coverage" => _iteration_trace_telemetry_coverage(records),
+        "segments" => segment_data,
+    )
+end
+
 """Serialize an iteration trace without retaining solver-internal objects."""
 function iteration_trace_data(trace::SolverIterationTrace)
     record_data = [Dict{String,Any}(
@@ -1419,10 +1568,11 @@ function iteration_trace_data(trace::SolverIterationTrace)
         ) for field in telemetry_fields
     )
     return Dict{String,Any}(
-        "schema_version" => "nlpdiagnostics-iteration-trace-v3",
+        "schema_version" => "nlpdiagnostics-iteration-trace-v4",
         "record_count" => length(trace.records),
         "segment_count" => length(trace.segments),
         "binding_count" => length(trace.bindings),
+        "summary" => iteration_trace_summary(trace),
         "telemetry_coverage" => telemetry_coverage,
         "records" => record_data,
         "segments" => segment_data,
