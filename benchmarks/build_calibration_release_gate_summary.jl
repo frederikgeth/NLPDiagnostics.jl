@@ -37,6 +37,11 @@ api_script_count = api_modules["benchmark_script_count"]
 api_schema_count = api_schemas["json_schema_file_count"]
 api_helper_user_count = api_modules["shared_benchmark_helper_user_count"]
 analyze_stage_records = get(analyze_runtime_scaling["records"][end], "stage_attribution", Any[])
+analyze_repetitions = get(analyze_runtime_scaling["source"], "repetitions", 1)
+analyze_evidence_stable = all(
+    get(record, "evidence_stable_across_repetitions", false)
+    for record in analyze_runtime_scaling["records"]
+)
 analyze_optimization = get(analyze_runtime_scaling, "optimization", Dict{String,Any}())
 analyze_optimization_note = get(
     analyze_optimization,
@@ -116,7 +121,7 @@ gates = Dict{String,Any}[
     gate(
         "analyze_runtime_scaling",
         "partial",
-        "The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from $(round(analyze_runtime_scaling["records"][1]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][1]["dimension"]) to $(round(analyze_runtime_scaling["records"][end]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][end]["dimension"]), with affine propagation reaching its configured five-pass limit. Stage attribution is now recorded; the largest measured stage at the largest dimension is $analyze_stage_dominant. The current evidence-preserving optimization is: $analyze_optimization_note. Portable scaling and further optimization remain open.",
+        "The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from $(round(analyze_runtime_scaling["records"][1]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][1]["dimension"]) to $(round(analyze_runtime_scaling["records"][end]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][end]["dimension"]) across $analyze_repetitions repetition(s), with affine propagation reaching its configured five-pass limit. Finding evidence is stable across repetitions: $analyze_evidence_stable. Stage attribution is now recorded; the largest measured stage at the largest dimension is $analyze_stage_dominant. The current evidence-preserving optimization is: $analyze_optimization_note. Portable scaling and further optimization remain open.",
         ["docs/analyze_runtime_scaling_summary.json"],
         blocking=true,
     ),

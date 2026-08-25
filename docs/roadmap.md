@@ -80,7 +80,9 @@ and allocation records are unchanged, while snapshot, incidence, static,
 domain, derivative, expression, and structural stages are measured separately
 on the same sparse affine-chain fixtures. This identifies where optimization
 work should begin without changing the public API or promoting a portable
-complexity law; evidence-preserving optimization remains the next step.
+complexity law. The benchmark now retains repeated per-dimension runs with
+mean/minimum/maximum timing and allocation summaries plus finding-stability
+checks, so subsequent optimization decisions are not based on one noisy sample.
 
 The first evidence-preserving optimization is now implemented: `analyze_domains`
 reuses one propagated variable-interval state for issue detection and interval

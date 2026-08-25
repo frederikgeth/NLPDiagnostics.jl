@@ -2140,9 +2140,10 @@ end
         joinpath(repository_root, "docs", "analyze_runtime_scaling_summary.json"),
         String,
     )
-    @test occursin("nlpdiagnostics-analyze-runtime-scaling-v2", analyze_scaling_summary)
+    @test occursin("nlpdiagnostics-analyze-runtime-scaling-v3", analyze_scaling_summary)
     @test occursin("\"stage_attribution\"", analyze_scaling_summary)
     @test occursin("reuse_domain_interval_state", analyze_scaling_summary)
+    @test occursin("evidence_stable_across_repetitions", analyze_scaling_summary)
     @test occursin("\"static\"", analyze_scaling_summary)
     @test occursin("\"expressions\"", analyze_scaling_summary)
     @test occursin("Stage attribution is now recorded", read(
