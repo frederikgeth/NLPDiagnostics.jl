@@ -69,6 +69,33 @@
     "solve_seconds_range": [37.997712708, 59.114029292],
     "interpretation": "The original Ipopt discrepancy disappears under a tighter tolerance and larger iteration budget on the same matched-start snapshot. This identifies termination tolerance/budget sensitivity as the current explanation to test, not a policy or solver superiority result."
   },
+  "second_feeder_campaign": {
+    "feeder": "LV13_58bus",
+    "solver": "Ipopt",
+    "repeats": 2,
+    "max_iter": 10,
+    "solver_tolerance": 1e-10,
+    "max_variables": 5000,
+    "snapshot_shape": {
+      "bus_count": 386,
+      "line_count": 290,
+      "load_count": 11,
+      "transformer_count": 1,
+      "switch_count": 94,
+      "model_variable_count": 4902
+    },
+    "source_warning_count": 46,
+    "run_count": 6,
+    "comparison_count": 5,
+    "termination_statuses_observed": ["LOCALLY_SOLVED"],
+    "all_physical_endpoints_accepted": true,
+    "all_comparisons_qualified": true,
+    "comparison_coverage_complete": true,
+    "terminations_stable_within_policy": true,
+    "maximum_physical_covariance_absolute_difference": 1.915395841933787e-9,
+    "maximum_physical_covariance_relative_difference": 1.9153958419337866e-4,
+    "interpretation": "The qualified Ipopt protocol transfers to a second BMOPFTools LV feeder snapshot. This supports repeatability of the endpoint-gated procedure, but remains descriptive evidence rather than a universal scaling-policy claim."
+  },
   "interpretation": "Both solvers reached locally solved endpoints and passed individual physical endpoint acceptance. The initial five-iteration Ipopt run at tolerance 1e-8 failed the cross-policy covariance gate (maximum residual difference 0.0028511005), while MadNLP passed it. A repeat Ipopt run on the same snapshot with tolerance 1e-10 and max_iter 10 passed every endpoint and cross-policy gate, reducing the maximum residual difference to 3.30e-12. The evidence is therefore termination-tolerance/budget sensitive and remains descriptive; it does not rank classic, SI, local MV/LV, or either solver.",
-  "next_gate": "repeat the qualified Ipopt protocol on a second LV feeder or a predeclared perturbed-start matrix before interpreting scaling policy effects"
+  "next_gate": "run a predeclared perturbed-start matrix on at least one qualified feeder before interpreting scaling policy effects"
 }

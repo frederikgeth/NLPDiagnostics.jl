@@ -2096,6 +2096,8 @@ end
     @test occursin("campaign_qualified", combined_snapshot_summary)
     @test occursin("MadNLP", combined_snapshot_summary)
     @test occursin("0.0028511005", combined_snapshot_summary)
+    @test occursin("LV13_58bus", combined_snapshot_summary)
+    @test occursin("1.915395841933787e-9", combined_snapshot_summary)
     magnitude_campaign = read(
         joinpath(
             benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",

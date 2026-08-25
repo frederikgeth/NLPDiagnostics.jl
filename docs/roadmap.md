@@ -4975,5 +4975,11 @@ solver or policy preference. The evidence is recorded in
 
 The next gate is to repeat the qualified Ipopt protocol on a second LV feeder
 or a predeclared perturbed-start matrix before interpreting scaling policy
-effects. Any policy interpretation remains conditional on endpoint covariance,
-provenance, and solver-availability gates.
+effects. The second-feeder gate is now complete: the same two-repeat,
+`max_iter=10`, `1e-10` Ipopt protocol on BMOPFTools LV13_58bus produced a
+386-bus / 4,902-variable snapshot, six locally solved runs, and passing
+physical and cross-policy gates; its largest residual covariance was
+`1.92e-9`. This supports repeatability of the endpoint-gated procedure, not a
+universal scaling-policy claim. The next gate is a predeclared perturbed-start
+matrix on at least one qualified feeder. Any policy interpretation remains
+conditional on endpoint covariance, provenance, and solver-availability gates.
