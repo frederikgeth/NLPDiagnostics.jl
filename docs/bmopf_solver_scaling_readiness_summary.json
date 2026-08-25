@@ -1,0 +1,143 @@
+{
+  "dimensions": [
+    4180,
+    4902,
+    56142
+  ],
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "9eaaa5cfbd18fd948806f13466522a6d46b28ae5",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "guarded_count": 1,
+  "interpretation": {
+    "claim": "The selected BMOPFTools MV+LV campaigns provide bounded solver-workload records at 4,180 and 4,902 variables, while the 56,142-variable full case remains explicitly size-guarded.",
+    "does_not_establish": [
+      "a solver complexity law or production scalability guarantee",
+      "allocator-level peak memory",
+      "portable cross-machine performance",
+      "solver or scaling-policy superiority"
+    ]
+  },
+  "measured_count": 4,
+  "open_gaps": [
+    "extend the solver ladder beyond the two selected BMOPFTools snapshots",
+    "add allocator-level peak telemetry independent of Sys.maxrss",
+    "repeat the workload in a second reviewed environment"
+  ],
+  "record_count": 5,
+  "records": [
+    {
+      "fixture": "BMOPFTools/test/data/Master.dss",
+      "guarded": true,
+      "id": "combined_mv_lv_full_case",
+      "max_cpu_seconds": 5.0,
+      "max_iter": 1,
+      "max_variables": 5000,
+      "measured": false,
+      "model_variable_count": 56142,
+      "reason": "full combined MV/LV model exceeds the declared solver size guard",
+      "solver": "Ipopt/MadNLP",
+      "status": "skipped_size_guard",
+      "termination_statuses_observed": []
+    },
+    {
+      "campaign_qualified": false,
+      "comparison_qualified": false,
+      "endpoint_gates_passed": null,
+      "fixture": "MV21_328bus + LV1_14bus",
+      "guarded": false,
+      "id": "mv21_lv1_ipopt_baseline",
+      "max_iter": 5,
+      "measured": true,
+      "model_variable_count": 4180,
+      "run_count": 6,
+      "solve_seconds_range": [
+        36.593391209,
+        59.251376666
+      ],
+      "solver": "Ipopt",
+      "solver_tolerance": null,
+      "status": "measured",
+      "termination_statuses_observed": [
+        "LOCALLY_SOLVED"
+      ]
+    },
+    {
+      "campaign_qualified": true,
+      "comparison_qualified": true,
+      "endpoint_gates_passed": true,
+      "fixture": "MV21_328bus + LV1_14bus",
+      "guarded": false,
+      "id": "mv21_lv1_madnlp_baseline",
+      "max_iter": 5,
+      "measured": true,
+      "model_variable_count": 4180,
+      "run_count": 6,
+      "solve_seconds_range": [
+        37.718379458,
+        72.289491042
+      ],
+      "solver": "MadNLP",
+      "solver_tolerance": null,
+      "status": "measured",
+      "termination_statuses_observed": [
+        "LOCALLY_SOLVED"
+      ]
+    },
+    {
+      "campaign_qualified": null,
+      "comparison_qualified": null,
+      "endpoint_gates_passed": true,
+      "fixture": "MV21_328bus + LV1_14bus",
+      "guarded": false,
+      "id": "mv21_lv1_ipopt_tight_tolerance",
+      "max_iter": 10,
+      "measured": true,
+      "model_variable_count": 4180,
+      "run_count": 6,
+      "solve_seconds_range": [
+        37.997712708,
+        59.114029292
+      ],
+      "solver": "Ipopt",
+      "solver_tolerance": 1.0e-10,
+      "status": "measured",
+      "termination_statuses_observed": [
+        "LOCALLY_SOLVED"
+      ]
+    },
+    {
+      "campaign_qualified": null,
+      "comparison_qualified": true,
+      "endpoint_gates_passed": true,
+      "fixture": "LV13_58bus",
+      "guarded": false,
+      "id": "mv21_lv13_ipopt_perturbed_starts",
+      "max_iter": 10,
+      "measured": true,
+      "model_variable_count": 4902,
+      "run_count": 12,
+      "solve_seconds_range": [
+        58.671520958,
+        84.551825166
+      ],
+      "solver": "Ipopt",
+      "solver_tolerance": 1.0e-10,
+      "status": "measured",
+      "termination_statuses_observed": [
+        "LOCALLY_SOLVED"
+      ]
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-solver-scaling-readiness-v1",
+  "source": {
+    "artifacts": [
+      "docs/bmopf_combined_mv_lv_scaling_campaign_summary.json",
+      "docs/bmopf_combined_mv_lv_snapshot_campaign_summary.json"
+    ],
+    "policy": "Measured records require explicit solve-time ranges and locally-solved termination provenance; full-case size guards remain readiness evidence.",
+    "runner": "benchmarks/summarize_bmopf_solver_scaling_readiness.jl"
+  }
+}

@@ -32,6 +32,7 @@ analyze_runtime_trend = read_summary("docs/analyze_runtime_trend_summary.json")
 analyze_runtime_resources = read_summary("docs/analyze_runtime_resource_summary.json")
 bmopf_analyze_profile = read_summary("docs/bmopf_analyze_runtime_profile_summary.json")
 runtime_scaling_readiness = read_summary("docs/runtime_scaling_readiness_summary.json")
+runtime_solver_scaling = read_summary("docs/bmopf_solver_scaling_readiness_summary.json")
 analyze_scaling_readiness = read_summary("docs/analyze_scaling_readiness_summary.json")
 analyze_static_optimization_ab = read_summary("docs/analyze_static_optimization_ab_summary.json")
 analyze_static_optimization_generalization = read_summary("docs/analyze_static_optimization_generalization_summary.json")
@@ -167,6 +168,8 @@ bmopf_profile_guarded = count(
 )
 runtime_readiness_coverage_count = get(runtime_scaling_readiness, "coverage_count", 0)
 runtime_readiness_open_gap_count = get(runtime_scaling_readiness, "open_gap_count", 0)
+runtime_solver_measured_count = get(runtime_solver_scaling, "measured_count", 0)
+runtime_solver_guarded_count = get(runtime_solver_scaling, "guarded_count", 0)
 analyze_readiness_workloads = get(analyze_scaling_readiness, "workloads", Any[])
 analyze_readiness_workload_count = get(analyze_scaling_readiness, "workload_count", length(analyze_readiness_workloads))
 analyze_readiness_stable_count = count(workload -> get(workload, "evidence_stable", false), analyze_readiness_workloads)
@@ -338,8 +341,8 @@ gates = Dict{String,Any}[
     gate(
         "runtime_memory_scaling",
         "partial",
-        "The synthetic sparse ladder provides $(length(runtime_records)) warm-up-aware runtime/allocation records across $(length(runtime_dimensions)) dimensions, and an isolated child-process ladder adds $(length(isolated_runtime_records)) records across $(length(isolated_runtime_dimensions)) dimensions with per-dimension Sys.maxrss high-water observations. The companion trend ledger covers $isolated_runtime_workloads workloads; descriptive runtime log-log slopes range from $(isfinite(isolated_runtime_slope_minimum) ? round(isolated_runtime_slope_minimum; digits=3) : "unavailable") to $(isfinite(isolated_runtime_slope_maximum) ? round(isolated_runtime_slope_maximum; digits=3) : "unavailable"), with stage attribution retained per workload. Within-dimension stage timing repeatability is also retained; the largest observed stage coefficient of variation at the largest dimension is $(isnothing(isolated_runtime_timing_cv_maximum) ? "unavailable" : string(round(isolated_runtime_timing_cv_maximum; digits=3))). The runtime readiness matrix now joins $runtime_readiness_coverage_count bounded synthetic, public-API, isolated-process, and BMOPFTools adapter coverage rows while retaining $runtime_readiness_open_gap_count open release-evidence gaps. OPF-solver scaling and allocator-level peak-memory measurements remain open.",
-        ["docs/sparse_runtime_memory_scaling_summary.json", "docs/sparse_runtime_memory_isolated_summary.json", "docs/sparse_runtime_trend_summary.json", "docs/runtime_scaling_readiness_summary.json"],
+        "The synthetic sparse ladder provides $(length(runtime_records)) warm-up-aware runtime/allocation records across $(length(runtime_dimensions)) dimensions, and an isolated child-process ladder adds $(length(isolated_runtime_records)) records across $(length(isolated_runtime_dimensions)) dimensions with per-dimension Sys.maxrss high-water observations. The companion trend ledger covers $isolated_runtime_workloads workloads; descriptive runtime log-log slopes range from $(isfinite(isolated_runtime_slope_minimum) ? round(isolated_runtime_slope_minimum; digits=3) : "unavailable") to $(isfinite(isolated_runtime_slope_maximum) ? round(isolated_runtime_slope_maximum; digits=3) : "unavailable"), with stage attribution retained per workload. Within-dimension stage timing repeatability is also retained; the largest observed stage coefficient of variation at the largest dimension is $(isnothing(isolated_runtime_timing_cv_maximum) ? "unavailable" : string(round(isolated_runtime_timing_cv_maximum; digits=3))). The runtime readiness matrix now joins $runtime_readiness_coverage_count bounded synthetic, public-API, isolated-process, BMOPFTools adapter, and BMOPFTools solver-workload coverage rows while retaining $runtime_readiness_open_gap_count open release-evidence gaps. The new bounded solver-workload ledger contributes $runtime_solver_measured_count measured records and $runtime_solver_guarded_count explicit full-case size guards with solve-time and termination provenance; allocator-level peak-memory measurements and a larger solver ladder remain open.",
+        ["docs/sparse_runtime_memory_scaling_summary.json", "docs/sparse_runtime_memory_isolated_summary.json", "docs/sparse_runtime_trend_summary.json", "docs/runtime_scaling_readiness_summary.json", "docs/bmopf_solver_scaling_readiness_summary.json", "benchmarks/summarize_bmopf_solver_scaling_readiness.jl"],
         blocking=true,
     ),
     gate(

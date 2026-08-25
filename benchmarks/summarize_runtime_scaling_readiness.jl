@@ -11,6 +11,7 @@ const ISOLATED_INPUT = "docs/sparse_runtime_memory_isolated_summary.json"
 const TREND_INPUT = "docs/sparse_runtime_trend_summary.json"
 const ANALYZE_INPUT = "docs/analyze_runtime_scaling_summary.json"
 const BMOPF_INPUT = "docs/bmopf_analyze_runtime_profile_summary.json"
+const SOLVER_INPUT = "docs/bmopf_solver_scaling_readiness_summary.json"
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "runtime_scaling_readiness_summary.json") : ARGS[1])
 
@@ -19,6 +20,7 @@ isolated = read_summary(ISOLATED_INPUT)
 trend = read_summary(TREND_INPUT)
 analyze = read_summary(ANALYZE_INPUT)
 bmopf = read_summary(BMOPF_INPUT)
+solver = read_summary(SOLVER_INPUT)
 
 sparse_records = get(sparse, "records", Any[])
 isolated_records = get(isolated, "records", Any[])
@@ -61,10 +63,20 @@ coverage = Dict{String,Any}[
         "memory_observation" => "descriptive process high-water mark with explicit size guard",
         "claim_level" => "small-fixture adapter coverage only",
     ),
+    Dict(
+        "id" => "bmopf_solver_workload_ladder",
+        "record_count" => get(solver, "record_count", 0),
+        "measured_count" => get(solver, "measured_count", 0),
+        "guarded_count" => get(solver, "guarded_count", 0),
+        "dimensions" => get(solver, "dimensions", Any[]),
+        "isolated_process" => false,
+        "memory_observation" => "solve-time and termination provenance only; allocator-level peak is unavailable",
+        "claim_level" => "bounded BMOPFTools solver-workload evidence",
+    ),
 ]
 
 open_gaps = [
-    Dict("id" => "opf_solver_scaling", "next_evidence" => "guarded solver-workload ladder with explicit iteration and termination provenance"),
+    Dict("id" => "opf_solver_scaling", "next_evidence" => "extend the two-snapshot BMOPFTools solver ladder with additional reviewed dimensions and preserve explicit iteration/termination provenance"),
     Dict("id" => "allocator_peak_memory", "next_evidence" => "allocator-level peak measurement independent of cumulative Sys.maxrss"),
     Dict("id" => "portable_reproducibility", "next_evidence" => "reviewed cross-environment repeatability campaign"),
 ]
@@ -73,7 +85,7 @@ write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-runtime-scaling-readiness-v1",
     "source" => Dict(
         "runner" => "benchmarks/summarize_runtime_scaling_readiness.jl",
-        "artifacts" => [SPARSE_INPUT, ISOLATED_INPUT, TREND_INPUT, ANALYZE_INPUT, BMOPF_INPUT],
+        "artifacts" => [SPARSE_INPUT, ISOLATED_INPUT, TREND_INPUT, ANALYZE_INPUT, BMOPF_INPUT, SOLVER_INPUT],
         "policy" => "Coverage rows preserve the distinction between synthetic, public-API, adapter, isolated-process, and open solver-memory evidence.",
     ),
     "environment" => Dict(
@@ -87,7 +99,7 @@ write_json(OUTPUT, Dict{String,Any}(
     "open_gap_count" => length(open_gaps),
     "open_gaps" => open_gaps,
     "interpretation" => Dict(
-        "claim" => "Current runtime evidence is organized into four bounded coverage rows with three explicit gaps for release-grade scaling claims.",
+        "claim" => "Current runtime evidence is organized into five bounded coverage rows with three explicit gaps for release-grade scaling claims.",
         "does_not_establish" => [
             "OPF-solver complexity or scalability",
             "allocator-level peak memory",

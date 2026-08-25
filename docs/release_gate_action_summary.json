@@ -48,7 +48,9 @@
         "docs/sparse_runtime_memory_scaling_summary.json",
         "docs/sparse_runtime_memory_isolated_summary.json",
         "docs/sparse_runtime_trend_summary.json",
-        "docs/runtime_scaling_readiness_summary.json"
+        "docs/runtime_scaling_readiness_summary.json",
+        "docs/bmopf_solver_scaling_readiness_summary.json",
+        "benchmarks/summarize_bmopf_solver_scaling_readiness.jl"
       ],
       "id": "runtime_memory_scaling",
       "next_deliverable": "Add guarded OPF-solver scaling and allocator-level peak-memory evidence beyond the synthetic sparse ladder.",
@@ -103,7 +105,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "0797041743e16198adfd84f222c4a0c340eb06a1",
+    "git_revision": "9eaaa5cfbd18fd948806f13466522a6d46b28ae5",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

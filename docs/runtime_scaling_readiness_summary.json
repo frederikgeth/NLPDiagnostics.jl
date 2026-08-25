@@ -48,17 +48,31 @@
       "measured_count": 3,
       "memory_observation": "descriptive process high-water mark with explicit size guard",
       "record_count": 5
+    },
+    {
+      "claim_level": "bounded BMOPFTools solver-workload evidence",
+      "dimensions": [
+        4180,
+        4902,
+        56142
+      ],
+      "guarded_count": 1,
+      "id": "bmopf_solver_workload_ladder",
+      "isolated_process": false,
+      "measured_count": 4,
+      "memory_observation": "solve-time and termination provenance only; allocator-level peak is unavailable",
+      "record_count": 5
     }
   ],
-  "coverage_count": 4,
+  "coverage_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "5d483990e2f78db0f6ee16abbf8b01c67edde26d",
+    "git_revision": "9eaaa5cfbd18fd948806f13466522a6d46b28ae5",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {
-    "claim": "Current runtime evidence is organized into four bounded coverage rows with three explicit gaps for release-grade scaling claims.",
+    "claim": "Current runtime evidence is organized into five bounded coverage rows with three explicit gaps for release-grade scaling claims.",
     "does_not_establish": [
       "OPF-solver complexity or scalability",
       "allocator-level peak memory",
@@ -69,7 +83,7 @@
   "open_gaps": [
     {
       "id": "opf_solver_scaling",
-      "next_evidence": "guarded solver-workload ladder with explicit iteration and termination provenance"
+      "next_evidence": "extend the two-snapshot BMOPFTools solver ladder with additional reviewed dimensions and preserve explicit iteration/termination provenance"
     },
     {
       "id": "allocator_peak_memory",
@@ -87,7 +101,8 @@
       "docs/sparse_runtime_memory_isolated_summary.json",
       "docs/sparse_runtime_trend_summary.json",
       "docs/analyze_runtime_scaling_summary.json",
-      "docs/bmopf_analyze_runtime_profile_summary.json"
+      "docs/bmopf_analyze_runtime_profile_summary.json",
+      "docs/bmopf_solver_scaling_readiness_summary.json"
     ],
     "policy": "Coverage rows preserve the distinction between synthetic, public-API, adapter, isolated-process, and open solver-memory evidence.",
     "runner": "benchmarks/summarize_runtime_scaling_readiness.jl"

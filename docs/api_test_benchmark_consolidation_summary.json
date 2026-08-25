@@ -577,9 +577,9 @@
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 84,
-    "json_file_count": 86,
-    "json_schema_file_count": 86,
+    "benchmark_scripts_with_schema_version_count": 85,
+    "json_file_count": 87,
+    "json_schema_file_count": 87,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -686,7 +686,7 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 145,
+    "benchmark_script_count": 146,
     "shared_benchmark_helper": "benchmarks/common.jl",
     "shared_benchmark_helper_exemption_count": 3,
     "shared_benchmark_helper_exemptions": [
@@ -703,7 +703,7 @@
         "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
       }
     ],
-    "shared_benchmark_helper_user_count": 142,
+    "shared_benchmark_helper_user_count": 143,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_advanced_api_surface.jl",
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
@@ -822,6 +822,7 @@
       "benchmarks/summarize_bmopf_solver_matrix.jl",
       "benchmarks/summarize_bmopf_solver_option_perturbations.jl",
       "benchmarks/summarize_bmopf_solver_repeats.jl",
+      "benchmarks/summarize_bmopf_solver_scaling_readiness.jl",
       "benchmarks/summarize_bmopf_solver_sweep.jl",
       "benchmarks/summarize_bmopf_solver_trace.jl",
       "benchmarks/summarize_bmopf_sparse_corpus.jl",

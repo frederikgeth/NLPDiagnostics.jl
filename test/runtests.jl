@@ -2475,10 +2475,30 @@ end
         String,
     ))
     @test runtime_readiness_summary["schema_version"] == "nlpdiagnostics-runtime-scaling-readiness-v1"
-    @test runtime_readiness_summary["coverage_count"] == 4
+    @test runtime_readiness_summary["coverage_count"] == 5
     @test runtime_readiness_summary["open_gap_count"] == 3
     @test runtime_readiness_summary["coverage"][4]["measured_count"] == 3
     @test runtime_readiness_summary["coverage"][4]["guarded_count"] == 2
+    solver_scaling_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_solver_scaling_readiness.jl"),
+        String,
+    )
+    @test Meta.parseall(solver_scaling_script) isa Expr
+    @test occursin("full combined MV/LV model exceeds", solver_scaling_script)
+    solver_scaling_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_solver_scaling_readiness_summary.json"),
+        String,
+    ))
+    @test solver_scaling_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-solver-scaling-readiness-v1"
+    @test solver_scaling_summary["record_count"] == 5
+    @test solver_scaling_summary["measured_count"] == 4
+    @test solver_scaling_summary["guarded_count"] == 1
+    @test solver_scaling_summary["dimensions"] == [4180, 4902, 56142]
+    @test occursin("bmopf_solver_scaling_readiness_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     @test occursin("runtime_scaling_readiness_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
@@ -2734,9 +2754,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 145", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 142", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 86", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 146", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 143", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 87", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),
