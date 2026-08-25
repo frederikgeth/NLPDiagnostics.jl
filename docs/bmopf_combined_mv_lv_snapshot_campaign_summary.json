@@ -143,6 +143,59 @@
     },
     "interpretation": "Both predeclared global affine start perturbations reached locally solved endpoints and passed all cross-policy covariance gates on LV1_14bus. This supports numerical-start robustness of the endpoint-gated procedure on this snapshot, not solver-quality, causality, or universal policy claims."
   },
+  "perturbed_start_lv13_matrix": {
+    "runner": "benchmarks/bmopf_combined_mv_lv_perturbed_start_campaign.jl",
+    "feeder": "LV13_58bus",
+    "solver": "Ipopt",
+    "repeats_per_variant": 2,
+    "max_iter": 10,
+    "solver_tolerance": 1e-10,
+    "snapshot_shape": {
+      "bus_count": 386,
+      "line_count": 290,
+      "load_count": 11,
+      "transformer_count": 1,
+      "switch_count": 94,
+      "model_variable_count": 4902
+    },
+    "variants": [
+      {
+        "name": "plus_1pct",
+        "delta": 0.01,
+        "changed_variable_count": 4902,
+        "clipped_variable_count": 0,
+        "point_fingerprint": "a4da6c4fcbf0f981d3a104b82ed485e699484868107ff5df132882b01e6f4e74",
+        "run_count": 6,
+        "comparison_count": 5,
+        "termination_statuses_observed": ["LOCALLY_SOLVED"],
+        "all_physical_endpoints_accepted": true,
+        "all_comparisons_qualified": true,
+        "maximum_physical_covariance_absolute_difference": 5.091351340524852e-9,
+        "solve_seconds_range": [58.671520958, 84.551825166]
+      },
+      {
+        "name": "minus_1pct",
+        "delta": -0.01,
+        "changed_variable_count": 4902,
+        "clipped_variable_count": 0,
+        "point_fingerprint": "9b6683ef31c60cb5447459b96fd87ee6dab9cdfa92070deabd0f367469256f10",
+        "run_count": 6,
+        "comparison_count": 5,
+        "termination_statuses_observed": ["LOCALLY_SOLVED"],
+        "all_physical_endpoints_accepted": true,
+        "all_comparisons_qualified": true,
+        "maximum_physical_covariance_absolute_difference": 7.784467015881091e-6,
+        "solve_seconds_range": [59.886079667, 60.661504208]
+      }
+    ],
+    "matrix_gates": {
+      "variant_count": 2,
+      "all_variants_qualified": true,
+      "all_physical_endpoints_accepted": true,
+      "all_comparisons_qualified": true
+    },
+    "interpretation": "The start-perturbation protocol transfers to LV13_58bus with all gates passing. Covariance magnitudes are not identical across variants—the minus-one-percent local-policy comparison reaches 7.78e-6—so this is endpoint-gated robustness evidence, not exact numerical identity or a policy ranking."
+  },
   "interpretation": "Both solvers reached locally solved endpoints and passed individual physical endpoint acceptance. The initial five-iteration Ipopt run at tolerance 1e-8 failed the cross-policy covariance gate (maximum residual difference 0.0028511005), while MadNLP passed it. A repeat Ipopt run on the same snapshot with tolerance 1e-10 and max_iter 10 passed every endpoint and cross-policy gate, reducing the maximum residual difference to 3.30e-12. The evidence is therefore termination-tolerance/budget sensitive and remains descriptive; it does not rank classic, SI, local MV/LV, or either solver.",
-  "next_gate": "repeat the predeclared perturbed-start matrix on LV13_58bus or a declared voltage-only perturbation before interpreting scaling policy effects"
+  "next_gate": "run one predeclared perturbed-start matrix with MadNLP, or a declared voltage-only perturbation, before interpreting scaling policy effects"
 }

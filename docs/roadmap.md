@@ -4986,6 +4986,11 @@ LV1_14bus: predeclared global affine `+1%` and `-1%` starts each produced six
 locally solved runs with all physical and cross-policy gates passing; the
 maximum residual covariance was `3.64e-12`. This supports numerical-start
 robustness of the endpoint-gated procedure on one snapshot, not solver-quality
-or universal policy claims. The next gate is to repeat the matrix on LV13_58bus
-or use a declared voltage-only perturbation. Any policy interpretation remains
-conditional on endpoint covariance, provenance, and solver-availability gates.
+or universal policy claims. The same matrix now transfers to LV13_58bus: both
+variants again pass all gates, although the minus-one-percent local-policy
+comparison reaches `7.78e-6`, so covariance magnitudes are not invariant across
+start variants. This supports endpoint-gated robustness across two snapshots,
+not exact numerical identity. The next gate is one predeclared perturbed-start
+matrix with MadNLP, or a declared voltage-only perturbation. Any policy
+interpretation remains conditional on endpoint covariance, provenance, and
+solver-availability gates.
