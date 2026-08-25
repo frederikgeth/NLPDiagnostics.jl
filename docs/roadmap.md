@@ -4997,4 +4997,10 @@ start-robustness evidence, not a solver superiority claim. The next gate is a
 declared voltage-only perturbation or consolidation of the qualified
 solver/start matrix into the release-gate report. Any policy interpretation
 remains conditional on endpoint covariance, provenance, and solver-availability
-gates.
+gates. A final voltage-only matrix on LV1_14bus also qualifies: only 2,082 of
+4,180 coordinates (the `vr_`/`vi_` starts) were perturbed, all non-voltage
+coordinates were held fixed, and both variants passed every gate with maximum
+covariance `2.16e-12`. This isolates voltage-start sensitivity without adding a
+policy or solver ranking. The next deliverable is to consolidate the qualified
+solver/start matrix into the release-gate report before interpreting scaling
+policy effects.

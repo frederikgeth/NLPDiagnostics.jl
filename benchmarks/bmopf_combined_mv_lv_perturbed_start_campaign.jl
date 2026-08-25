@@ -16,6 +16,7 @@ Environment controls:
   * `NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_REPEATS` (default `2`, minimum `2`)
   * `NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_MAX_ITER` (default `10`)
   * `NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_TOL` (default `1e-10`)
+  * `NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_MODE` (default `global_affine`; `voltage_only` supported)
   * `NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_MAX_VARIABLES` (default `5000`)
   * `NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_SOLVER` (default `ipopt`)
   * `NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_OUTPUT` (default under `work/`)
@@ -50,7 +51,7 @@ function _bounded_start_value(backend, variable, value)
     return clamp(value, lower, upper)
 end
 
-function _perturb_anchor_evaluation(anchor_context, base_evaluation, label, delta)
+function _perturb_anchor_evaluation(anchor_context, base_evaluation, label, delta, mode)
     backend = JuMP.backend(BMOPFTools.opf_model(anchor_context))
     values = Float64[]
     changed = 0
@@ -58,8 +59,16 @@ function _perturb_anchor_evaluation(anchor_context, base_evaluation, label, delt
     for (variable, value) in zip(
         base_evaluation.point.variables, base_evaluation.point.values,
     )
-        candidate = abs(Float64(value)) > 1.0e-12 ?
-            Float64(value) * (1.0 + delta) : delta * 1.0e-3
+        variable_name = try
+            lowercase(String(MOI.get(backend, MOI.VariableName(), variable)))
+        catch
+            ""
+        end
+        voltage_variable = startswith(variable_name, "vr_") || startswith(variable_name, "vi_")
+        perturb = mode == "global_affine" || voltage_variable
+        candidate = !perturb ? Float64(value) :
+            (abs(Float64(value)) > 1.0e-12 ?
+                Float64(value) * (1.0 + delta) : delta * 1.0e-3)
         bounded = _bounded_start_value(backend, variable, candidate)
         changed += bounded != Float64(value)
         clipped += bounded != candidate
@@ -129,6 +138,13 @@ function main()
     solver_tolerance = _snapshot_env_float(
         "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_TOL", 1.0e-10,
     )
+    mode = lowercase(strip(get(
+        ENV,
+        "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_MODE",
+        "global_affine",
+    )))
+    mode in ("global_affine", "voltage_only") ||
+        error("perturbed-start mode must be global_affine or voltage_only")
     max_variables = _snapshot_env_int(
         "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_MAX_VARIABLES", 5000; minimum=1,
     )
@@ -160,6 +176,7 @@ function main()
             anchor_evaluation, perturbation = _perturb_anchor_evaluation(
                 anchor_context, base_evaluation,
                 "combined-mv-lv-$feeder-$variant-anchor", delta,
+                mode,
             )
             records = Dict{String,Any}[]
             comparisons = Dict{String,Any}[]
@@ -205,6 +222,7 @@ function main()
                     "case" => "combined-mv-lv-$feeder",
                     "solver" => uppercasefirst(solver_name),
                     "start_variant" => variant,
+                    "start_mode" => mode,
                     "start_delta" => delta,
                     "max_iter" => max_iter,
                     "solver_tolerance" => solver_tolerance,
@@ -250,6 +268,7 @@ function main()
             "repeats" => repeats,
             "max_iter" => max_iter,
             "solver_tolerance" => solver_tolerance,
+            "mode" => mode,
             "max_variables" => max_variables,
         ),
         "variants" => variant_payloads,
