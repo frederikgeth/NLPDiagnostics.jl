@@ -84,11 +84,11 @@ complexity law. The benchmark now retains repeated per-dimension runs with
 mean/minimum/maximum timing and allocation summaries plus finding-stability
 checks, so subsequent optimization decisions are not based on one noisy sample.
 The latest three-repeat campaign is stable at every dimension; its dimension-
-400 mean is 13.762s with a 13.657--13.963s observed range.
+400 affine-chain mean is 14.027s with a 13.985--14.071s observed range.
 The same harness now retains a second sparse nonlinear-chain workload, so the
 affine-chain result is no longer the only public-API scaling fixture. The
-nonlinear workload remains descriptive coverage rather than a portable
-complexity claim.
+nonlinear workload reaches 0.167s at dimension 400 with stable findings, and
+remains descriptive coverage rather than a portable complexity claim.
 
 The first evidence-preserving optimization is now implemented: `analyze_domains`
 reuses one propagated variable-interval state for issue detection and interval

@@ -64,7 +64,7 @@
         "docs/analyze_runtime_scaling_summary.json"
       ],
       "id": "analyze_runtime_scaling",
-      "rationale": "The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from 0.912s at dimension 100 to 13.762s at dimension 400 across 3 repetition(s), with affine propagation reaching its configured five-pass limit. Finding evidence is stable across repetitions: true. Stage attribution is now recorded; the largest measured stage at the largest dimension is static (3.641s). The current evidence-preserving optimization is: analyze_domains reuses one propagated variable-interval state for both issue detection and interval-origin provenance. Portable scaling and further optimization remain open.",
+      "rationale": "The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from 0.947s at dimension 100 to 14.027s at dimension 400 across 3 repetition(s), with affine propagation reaching its configured five-pass limit. Finding evidence is stable across repetitions: true. Stage attribution is now recorded; the largest measured stage at the largest dimension is static (3.643s). A second sparse nonlinear workload is also measured, reaching 0.167s at dimension 400 with stable evidence true. The current evidence-preserving optimization is: analyze_domains reuses one propagated variable-interval state for both issue detection and interval-origin provenance. Portable scaling and further optimization remain open.",
       "status": "partial"
     },
     {
