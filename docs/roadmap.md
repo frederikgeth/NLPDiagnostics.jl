@@ -141,6 +141,11 @@ full-side and failed-side quantiles plus paired reference/phase-only maxima;
 the maximum-residual ratio stays within approximately 0.9999999--1.0000001
 across the six saved endpoints. This is distributional evidence, not a causal
 diagnosis or physical acceptance claim.
+The new `benchmarks/summarize_real_99bus_kkt_endpoint_matrix.jl` joins these
+ledgers into six endpoint rows: two strict paired passes and four strict
+failures, all retaining the localized `ibr_p_upper` family and paired residual
+ratio. This makes the remaining physical-KKT work endpoint-specific without
+relaxing the strict threshold.
 The companion `benchmarks/summarize_real_99bus_kkt_tolerance_policies.jl`
 now summarizes the five saved complementarity policies: strict 1e-5 accepts
 2/6 paired endpoints, 1.1e-5 accepts 4/6, and the first recorded full paired

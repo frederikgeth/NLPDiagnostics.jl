@@ -1,0 +1,140 @@
+{
+  "all_failures_localized": true,
+  "endpoint_count": 6,
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "8d6f1c4e6c76b335a7677c0f235f328cec132375",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "The six saved real-99-bus endpoints have a joined strict-KKT decision row with tolerance margin and paired residual provenance.",
+    "does_not_establish": [
+      "a relaxed release threshold",
+      "causal attribution beyond the localized failed family",
+      "global optimality or physical correctness outside the saved endpoints"
+    ]
+  },
+  "rows": [
+    {
+      "classification": "strict_fail_localized_family",
+      "failure_families": [
+        "ibr_p_upper"
+      ],
+      "paired_maximum_residual_ratio": 0.9999998824400804,
+      "paired_required_tolerance": 1.0895071596523652e-5,
+      "paired_strict_acceptance": false,
+      "paired_strict_tolerance_gap": 8.95071596523651e-7,
+      "paired_strict_tolerance_ratio": 1.089507159652365,
+      "phase_only_failed_side_count": 36,
+      "phase_only_required_tolerance": 1.0895070315699911e-5,
+      "phase_only_strict_acceptance": false,
+      "reference_failed_side_count": 36,
+      "reference_required_tolerance": 1.0895071596523652e-5,
+      "reference_strict_acceptance": false,
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json"
+    },
+    {
+      "classification": "strict_pass",
+      "failure_families": [
+        "ibr_p_upper"
+      ],
+      "paired_maximum_residual_ratio": 1.0000001437911095,
+      "paired_required_tolerance": 8.718943337731055e-6,
+      "paired_strict_acceptance": true,
+      "paired_strict_tolerance_gap": -1.2810566622689457e-6,
+      "paired_strict_tolerance_ratio": 0.8718943337731054,
+      "phase_only_failed_side_count": 0,
+      "phase_only_required_tolerance": 8.718943337731055e-6,
+      "phase_only_strict_acceptance": true,
+      "reference_failed_side_count": 0,
+      "reference_required_tolerance": 8.7189420840247e-6,
+      "reference_strict_acceptance": true,
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json"
+    },
+    {
+      "classification": "strict_fail_localized_family",
+      "failure_families": [
+        "ibr_p_upper"
+      ],
+      "paired_maximum_residual_ratio": 1.0000000551578505,
+      "paired_required_tolerance": 1.141720164003029e-5,
+      "paired_strict_acceptance": false,
+      "paired_strict_tolerance_gap": 1.4172016400302888e-6,
+      "paired_strict_tolerance_ratio": 1.1417201640030288,
+      "phase_only_failed_side_count": 36,
+      "phase_only_required_tolerance": 1.141720164003029e-5,
+      "phase_only_strict_acceptance": false,
+      "reference_failed_side_count": 36,
+      "reference_required_tolerance": 1.1417201010282022e-5,
+      "reference_strict_acceptance": false,
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json"
+    },
+    {
+      "classification": "strict_fail_localized_family",
+      "failure_families": [
+        "ibr_p_upper"
+      ],
+      "paired_maximum_residual_ratio": 1.000000057834885,
+      "paired_required_tolerance": 1.0751474716458325e-5,
+      "paired_strict_acceptance": false,
+      "paired_strict_tolerance_gap": 7.514747164583241e-7,
+      "paired_strict_tolerance_ratio": 1.0751474716458325,
+      "phase_only_failed_side_count": 36,
+      "phase_only_required_tolerance": 1.0751474716458325e-5,
+      "phase_only_strict_acceptance": false,
+      "reference_failed_side_count": 36,
+      "reference_required_tolerance": 1.0751474094648055e-5,
+      "reference_strict_acceptance": false,
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json"
+    },
+    {
+      "classification": "strict_pass",
+      "failure_families": [
+        "ibr_p_upper"
+      ],
+      "paired_maximum_residual_ratio": 1.0000001279256145,
+      "paired_required_tolerance": 9.79589685652193e-6,
+      "paired_strict_acceptance": true,
+      "paired_strict_tolerance_gap": -2.0410314347807085e-7,
+      "paired_strict_tolerance_ratio": 0.979589685652193,
+      "phase_only_failed_side_count": 0,
+      "phase_only_required_tolerance": 9.79589685652193e-6,
+      "phase_only_strict_acceptance": true,
+      "reference_failed_side_count": 0,
+      "reference_required_tolerance": 9.795895603375965e-6,
+      "reference_strict_acceptance": true,
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json"
+    },
+    {
+      "classification": "strict_fail_localized_family",
+      "failure_families": [
+        "ibr_p_upper"
+      ],
+      "paired_maximum_residual_ratio": 1.0000000548151917,
+      "paired_required_tolerance": 1.1360108615700496e-5,
+      "paired_strict_acceptance": false,
+      "paired_strict_tolerance_gap": 1.360108615700495e-6,
+      "paired_strict_tolerance_ratio": 1.1360108615700495,
+      "phase_only_failed_side_count": 48,
+      "phase_only_required_tolerance": 1.1360108615700496e-5,
+      "phase_only_strict_acceptance": false,
+      "reference_failed_side_count": 48,
+      "reference_required_tolerance": 1.1360107992994e-5,
+      "reference_strict_acceptance": false,
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json"
+    }
+  ],
+  "schema_version": "nlpdiagnostics-real-99bus-kkt-endpoint-matrix-v1",
+  "source": {
+    "margin_artifact": "docs/real_99bus_kkt_margin_summary.json",
+    "policy": "Endpoint rows join strict acceptance, required tolerance, failure family, and paired residual ratios without relaxing the strict gate.",
+    "residual_artifact": "docs/real_99bus_kkt_residual_distribution_summary.json",
+    "runner": "benchmarks/summarize_real_99bus_kkt_endpoint_matrix.jl",
+    "stability_artifact": "docs/real_99bus_kkt_stability_summary.json"
+  },
+  "stable_profile_count": 14,
+  "stable_strict_acceptance_count": 2,
+  "strict_paired_acceptance_count": 2,
+  "strict_paired_failure_count": 4
+}

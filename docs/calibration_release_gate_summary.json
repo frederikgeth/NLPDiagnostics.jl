@@ -28,10 +28,11 @@
         "docs/real_99bus_kkt_stability_summary.json",
         "docs/real_99bus_kkt_margin_summary.json",
         "docs/real_99bus_kkt_residual_distribution_summary.json",
-        "docs/real_99bus_kkt_tolerance_policy_summary.json"
+        "docs/real_99bus_kkt_tolerance_policy_summary.json",
+        "docs/real_99bus_kkt_endpoint_matrix_summary.json"
       ],
       "id": "real_99bus_physical_kkt",
-      "rationale": "Physical KKT is available on all six runs but only 2/6 reference and 2/6 phase-only endpoints pass the strict 1e-5 gate. The joined stability ledger has 14 complete solver-floor-qualified profiles (excluding 6 incomplete profiles), and strict acceptance remains stable at 2/6 across those profiles; failure localization is complete. The per-snapshot margin ledger records 4 strict-failing snapshots, a paired-endpoint maximum required tolerance of 1.141720164003029e-5, and a paired-endpoint p95 of 1.1402928383947842e-5; its distribution quantifies the boundary without relaxing the gate. The paired residual-distribution ledger shows reference/phase-only maximum-residual ratios of [0.9999998824400804, 1.0000001437911095], so the observed strict failures are not explained by a material phase-only residual inflation in this saved campaign. The saved policy matrix reaches full paired acceptance first at the recorded 1.2e-5 policy; this is sensitivity evidence, not a recommended release threshold.",
+      "rationale": "Physical KKT is available on all six runs but only 2/6 reference and 2/6 phase-only endpoints pass the strict 1e-5 gate. The joined stability ledger has 14 complete solver-floor-qualified profiles (excluding 6 incomplete profiles), and strict acceptance remains stable at 2/6 across those profiles; failure localization is complete. The per-snapshot margin ledger records 4 strict-failing snapshots, a paired-endpoint maximum required tolerance of 1.141720164003029e-5, and a paired-endpoint p95 of 1.1402928383947842e-5; its distribution quantifies the boundary without relaxing the gate. The paired residual-distribution ledger shows reference/phase-only maximum-residual ratios of [0.9999998824400804, 1.0000001437911095], so the observed strict failures are not explained by a material phase-only residual inflation in this saved campaign. The joined endpoint matrix retains 6 rows with 2 strict paired passes and 4 localized failures (all failures localized=true). The saved policy matrix reaches full paired acceptance first at the recorded 1.2e-5 policy; this is sensitivity evidence, not a recommended release threshold.",
       "status": "partial"
     },
     {

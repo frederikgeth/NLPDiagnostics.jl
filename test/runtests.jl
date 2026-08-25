@@ -2501,6 +2501,25 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
+    kkt_endpoint_script = read(
+        joinpath(benchmark_directory, "summarize_real_99bus_kkt_endpoint_matrix.jl"),
+        String,
+    )
+    @test Meta.parseall(kkt_endpoint_script) isa Expr
+    @test occursin("paired_strict_tolerance_ratio", kkt_endpoint_script)
+    kkt_endpoint_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "real_99bus_kkt_endpoint_matrix_summary.json"),
+        String,
+    ))
+    @test kkt_endpoint_summary["schema_version"] == "nlpdiagnostics-real-99bus-kkt-endpoint-matrix-v1"
+    @test kkt_endpoint_summary["endpoint_count"] == 6
+    @test kkt_endpoint_summary["strict_paired_acceptance_count"] == 2
+    @test kkt_endpoint_summary["strict_paired_failure_count"] == 4
+    @test kkt_endpoint_summary["all_failures_localized"] == true
+    @test occursin("real_99bus_kkt_endpoint_matrix_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     bmopf_analyze_profile_script = read(
         joinpath(benchmark_directory, "profile_bmopf_analyze_runtime.jl"),
         String,

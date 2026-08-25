@@ -13,6 +13,7 @@ real_kkt_stability = read_summary("docs/real_99bus_kkt_stability_summary.json")
 real_kkt_margin = read_summary("docs/real_99bus_kkt_margin_summary.json")
 real_kkt_distribution = read_summary("docs/real_99bus_kkt_residual_distribution_summary.json")
 real_kkt_policy = read_summary("docs/real_99bus_kkt_tolerance_policy_summary.json")
+real_kkt_endpoint_matrix = read_summary("docs/real_99bus_kkt_endpoint_matrix_summary.json")
 real_covariance = read_summary("docs/real_99bus_phase_only_covariance_summary.json")
 ibr_tolerance = read_summary("docs/bmopf_30bus_ibr_p_upper_tolerance_margin_summary.json")
 ibr_sparse = read_summary("docs/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit_summary.json")
@@ -84,6 +85,10 @@ real_kkt_distribution_ratio_range = get(real_kkt_distribution, "paired_maximum_r
 real_kkt_distribution_ratio_text = isnothing(real_kkt_distribution_ratio_range) ?
     "unavailable" : "[" * join(string.(real_kkt_distribution_ratio_range), ", ") * "]"
 real_kkt_policy_full_acceptance = get(real_kkt_policy, "first_observed_full_paired_acceptance_policy", nothing)
+real_kkt_endpoint_count = get(real_kkt_endpoint_matrix, "endpoint_count", 0)
+real_kkt_endpoint_pass_count = get(real_kkt_endpoint_matrix, "strict_paired_acceptance_count", 0)
+real_kkt_endpoint_failure_count = get(real_kkt_endpoint_matrix, "strict_paired_failure_count", 0)
+real_kkt_endpoint_localized = get(real_kkt_endpoint_matrix, "all_failures_localized", false)
 analyze_stage_records = get(analyze_runtime_scaling["records"][end], "stage_attribution", Any[])
 analyze_repetitions = get(analyze_runtime_scaling["source"], "repetitions", 1)
 analyze_memory_note = get(
@@ -262,8 +267,8 @@ gates = Dict{String,Any}[
     gate(
         "real_99bus_physical_kkt",
         "partial",
-        "Physical KKT is available on all six runs but only 2/6 reference and 2/6 phase-only endpoints pass the strict 1e-5 gate. The joined stability ledger has $real_kkt_qualified_profiles complete solver-floor-qualified profiles (excluding $real_kkt_excluded_profiles incomplete profiles), and strict acceptance remains stable at $(isnothing(real_kkt_stable_count) ? "unavailable" : "$(real_kkt_stable_count)/6") across those profiles; failure localization is complete. The per-snapshot margin ledger records $real_kkt_margin_failed_snapshots strict-failing snapshots, a paired-endpoint maximum required tolerance of $(isnothing(real_kkt_margin_maximum) ? "unavailable" : string(real_kkt_margin_maximum)), and a paired-endpoint p95 of $(isnothing(real_kkt_margin_p95) ? "unavailable" : string(real_kkt_margin_p95)); its distribution quantifies the boundary without relaxing the gate. The paired residual-distribution ledger shows reference/phase-only maximum-residual ratios of $real_kkt_distribution_ratio_text, so the observed strict failures are not explained by a material phase-only residual inflation in this saved campaign. The saved policy matrix reaches full paired acceptance first at the recorded $(isnothing(real_kkt_policy_full_acceptance) ? "unavailable" : real_kkt_policy_full_acceptance) policy; this is sensitivity evidence, not a recommended release threshold.",
-        ["docs/real_99bus_phase_only_campaign_summary.json", "docs/real_99bus_phase_only_kkt_failure_summary.json", "docs/real_99bus_kkt_stability_summary.json", "docs/real_99bus_kkt_margin_summary.json", "docs/real_99bus_kkt_residual_distribution_summary.json", "docs/real_99bus_kkt_tolerance_policy_summary.json"],
+        "Physical KKT is available on all six runs but only 2/6 reference and 2/6 phase-only endpoints pass the strict 1e-5 gate. The joined stability ledger has $real_kkt_qualified_profiles complete solver-floor-qualified profiles (excluding $real_kkt_excluded_profiles incomplete profiles), and strict acceptance remains stable at $(isnothing(real_kkt_stable_count) ? "unavailable" : "$(real_kkt_stable_count)/6") across those profiles; failure localization is complete. The per-snapshot margin ledger records $real_kkt_margin_failed_snapshots strict-failing snapshots, a paired-endpoint maximum required tolerance of $(isnothing(real_kkt_margin_maximum) ? "unavailable" : string(real_kkt_margin_maximum)), and a paired-endpoint p95 of $(isnothing(real_kkt_margin_p95) ? "unavailable" : string(real_kkt_margin_p95)); its distribution quantifies the boundary without relaxing the gate. The paired residual-distribution ledger shows reference/phase-only maximum-residual ratios of $real_kkt_distribution_ratio_text, so the observed strict failures are not explained by a material phase-only residual inflation in this saved campaign. The joined endpoint matrix retains $real_kkt_endpoint_count rows with $real_kkt_endpoint_pass_count strict paired passes and $real_kkt_endpoint_failure_count localized failures (all failures localized=$real_kkt_endpoint_localized). The saved policy matrix reaches full paired acceptance first at the recorded $(isnothing(real_kkt_policy_full_acceptance) ? "unavailable" : real_kkt_policy_full_acceptance) policy; this is sensitivity evidence, not a recommended release threshold.",
+        ["docs/real_99bus_phase_only_campaign_summary.json", "docs/real_99bus_phase_only_kkt_failure_summary.json", "docs/real_99bus_kkt_stability_summary.json", "docs/real_99bus_kkt_margin_summary.json", "docs/real_99bus_kkt_residual_distribution_summary.json", "docs/real_99bus_kkt_tolerance_policy_summary.json", "docs/real_99bus_kkt_endpoint_matrix_summary.json"],
         blocking=true,
     ),
     gate(
