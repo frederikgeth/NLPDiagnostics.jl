@@ -1,0 +1,122 @@
+{
+  "affine_chain": {
+    "adjacent_ratios": [
+      {
+        "dimension_ratio": 2.0,
+        "elapsed_ratio": 3.888454329563097,
+        "from_dimension": 100,
+        "log_log_slope": 1.959196794230213,
+        "to_dimension": 200
+      },
+      {
+        "dimension_ratio": 2.0,
+        "elapsed_ratio": 3.9311021131296062,
+        "from_dimension": 200,
+        "log_log_slope": 1.974933839262473,
+        "to_dimension": 400
+      }
+    ],
+    "dimensions": [
+      100,
+      200,
+      400
+    ],
+    "dominant_stage_at_largest_dimension": "static",
+    "dominant_stages": [
+      {
+        "dimension": 100,
+        "elapsed_seconds": 0.2615495833333333,
+        "stage": "static"
+      },
+      {
+        "dimension": 200,
+        "elapsed_seconds": 0.9289297363333334,
+        "stage": "static"
+      },
+      {
+        "dimension": 400,
+        "elapsed_seconds": 3.506598944666667,
+        "stage": "static"
+      }
+    ],
+    "elapsed_seconds": [
+      0.884636917,
+      3.4398702500000002,
+      13.522481208666667
+    ],
+    "evidence_stable": true,
+    "log_log_slope_maximum": 1.974933839262473,
+    "log_log_slope_minimum": 1.959196794230213,
+    "point_count": 3
+  },
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
+    "git_revision": "d671200f995a1a971faf0248d812de7a58bfa42e",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "Repeated bounded analyze(model) measurements are summarized by adjacent growth ratios, descriptive log-log slopes, and dominant stages.",
+    "does_not_establish": [
+      "a portable asymptotic complexity law",
+      "solver runtime or memory scaling",
+      "fixture-independent production thresholds"
+    ]
+  },
+  "nonlinear_chain": {
+    "adjacent_ratios": [
+      {
+        "dimension_ratio": 2.0,
+        "elapsed_ratio": 2.0101510817545383,
+        "from_dimension": 100,
+        "log_log_slope": 1.0073039375767314,
+        "to_dimension": 200
+      },
+      {
+        "dimension_ratio": 2.0,
+        "elapsed_ratio": 1.9834237371857777,
+        "from_dimension": 200,
+        "log_log_slope": 0.9879929268005258,
+        "to_dimension": 400
+      }
+    ],
+    "dimensions": [
+      100,
+      200,
+      400
+    ],
+    "dominant_stage_at_largest_dimension": "static",
+    "dominant_stages": [
+      {
+        "dimension": 100,
+        "elapsed_seconds": 0.027492111,
+        "stage": "static"
+      },
+      {
+        "dimension": 200,
+        "elapsed_seconds": 0.055369944,
+        "stage": "static"
+      },
+      {
+        "dimension": 400,
+        "elapsed_seconds": 0.11017027800000001,
+        "stage": "static"
+      }
+    ],
+    "elapsed_seconds": [
+      0.04213833333333333,
+      0.08470441633333332,
+      0.16800475
+    ],
+    "evidence_stable": true,
+    "log_log_slope_maximum": 1.0073039375767314,
+    "log_log_slope_minimum": 0.9879929268005258,
+    "point_count": 3
+  },
+  "schema_version": "nlpdiagnostics-analyze-runtime-trend-v1",
+  "source": {
+    "claim_boundary": "descriptive bounded-fixture trend attribution",
+    "input": "docs/analyze_runtime_scaling_summary.json",
+    "runner": "benchmarks/summarize_analyze_runtime_trends.jl"
+  }
+}

@@ -2157,6 +2157,21 @@ end
     @test occursin("workload_comparisons", analyze_scaling_summary)
     @test occursin("process_maxrss_increment_bytes", analyze_scaling_summary)
     @test occursin("memory_measurement", analyze_scaling_summary)
+    analyze_trend_script = read(
+        joinpath(benchmark_directory, "summarize_analyze_runtime_trends.jl"),
+        String,
+    )
+    @test Meta.parseall(analyze_trend_script) isa Expr
+    @test occursin("log_log_slope", analyze_trend_script)
+    analyze_trend_summary = read(
+        joinpath(repository_root, "docs", "analyze_runtime_trend_summary.json"),
+        String,
+    )
+    analyze_trend_data = JSON.parse(analyze_trend_summary)
+    @test analyze_trend_data["schema_version"] == "nlpdiagnostics-analyze-runtime-trend-v1"
+    @test analyze_trend_data["affine_chain"]["point_count"] == 3
+    @test analyze_trend_data["affine_chain"]["evidence_stable"] == true
+    @test analyze_trend_data["affine_chain"]["dominant_stage_at_largest_dimension"] == "static"
     isolated_runtime_script = read(
         joinpath(benchmark_directory, "profile_sparse_runtime_memory_isolated.jl"),
         String,
@@ -2231,8 +2246,8 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 119", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 116", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 120", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 117", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

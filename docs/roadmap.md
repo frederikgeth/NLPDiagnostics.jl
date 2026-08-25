@@ -123,6 +123,12 @@ The same harness now retains a second sparse nonlinear-chain workload, so the
 affine-chain result is no longer the only public-API scaling fixture. The
 nonlinear workload reaches 0.167s at dimension 400 with stable findings, and
 remains descriptive coverage rather than a portable complexity claim.
+The companion `benchmarks/summarize_analyze_runtime_trends.jl` ledger now
+records adjacent growth ratios, descriptive log-log slopes, and dominant-stage
+attribution for both workloads. The affine observations are approximately
+3.89x and 3.93x for each 2x dimension increase (slopes 1.96--1.97), while the
+nonlinear observations are approximately linear (slopes 0.99--1.01). These
+are bounded-fixture trend measurements, not an asymptotic or production law.
 Each run now also records the process high-water-mark increment from
 `Sys.maxrss()` for descriptive memory attribution; isolated peak-memory and
 solver-memory claims remain out of scope.

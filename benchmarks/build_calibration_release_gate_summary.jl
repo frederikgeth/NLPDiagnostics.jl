@@ -18,6 +18,7 @@ rank_perturbation = read_summary("docs/rank_perturbation_sweep_summary.json")
 runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
 isolated_runtime_scaling = read_summary("docs/sparse_runtime_memory_isolated_summary.json")
 analyze_runtime_scaling = read_summary("docs/analyze_runtime_scaling_summary.json")
+analyze_runtime_trend = read_summary("docs/analyze_runtime_trend_summary.json")
 bmopf_analyze_profile = read_summary("docs/bmopf_analyze_runtime_profile_summary.json")
 large_sparse_rank = read_summary("docs/large_sparse_rank_oracle_summary.json")
 combined_mv_lv = read_summary("docs/bmopf_combined_mv_lv_snapshot_campaign_summary.json")
@@ -72,6 +73,8 @@ analyze_nonlinear_records = get(
 )
 analyze_nonlinear_end = isempty(analyze_nonlinear_records) ? nothing :
     analyze_nonlinear_records[end]
+analyze_trend_affine = get(analyze_runtime_trend, "affine_chain", Dict{String,Any}())
+analyze_trend_nonlinear = get(analyze_runtime_trend, "nonlinear_chain", Dict{String,Any}())
 bmopf_profile_records = get(bmopf_analyze_profile, "records", Any[])
 bmopf_profile_warmup = get(
     get(bmopf_analyze_profile, "source", Dict{String,Any}()),
@@ -175,8 +178,8 @@ gates = Dict{String,Any}[
     gate(
         "analyze_runtime_scaling",
         "partial",
-        "The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from $(round(analyze_runtime_scaling["records"][1]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][1]["dimension"]) to $(round(analyze_runtime_scaling["records"][end]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][end]["dimension"]) across $analyze_repetitions repetition(s), with affine propagation reaching its configured five-pass limit. Finding evidence is stable across repetitions: $analyze_evidence_stable. Stage attribution is now recorded; the largest measured stage at the largest dimension is $analyze_stage_dominant. A second sparse nonlinear workload is also measured, reaching $(isnothing(analyze_nonlinear_end) ? "unavailable" : "$(round(analyze_nonlinear_end["elapsed_seconds"]; digits=3))s at dimension $(analyze_nonlinear_end["dimension"]) with stable evidence $(get(analyze_nonlinear_end, "evidence_stable_across_repetitions", false))"). Process-memory telemetry is retained under this boundary: $analyze_memory_note. The bounded BMOPFTools adapter profile measured $bmopf_profile_measured case(s) and size-guarded $bmopf_profile_guarded case(s), retaining PowerIO warning provenance with per-case warmup=$bmopf_profile_warmup. The current evidence-preserving optimization is: $analyze_optimization_note. Portable scaling and further optimization remain open.",
-        ["docs/analyze_runtime_scaling_summary.json", "docs/bmopf_analyze_runtime_profile_summary.json"],
+        "The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from $(round(analyze_runtime_scaling["records"][1]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][1]["dimension"]) to $(round(analyze_runtime_scaling["records"][end]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][end]["dimension"]) across $analyze_repetitions repetition(s), with affine propagation reaching its configured five-pass limit. Finding evidence is stable across repetitions: $analyze_evidence_stable. The trend ledger records adjacent affine growth ratios $([round(get(item, "elapsed_ratio", 0.0); digits=3) for item in get(analyze_trend_affine, "adjacent_ratios", Any[])]) and descriptive log-log slopes $(round(get(analyze_trend_affine, "log_log_slope_minimum", 0.0); digits=3))--$(round(get(analyze_trend_affine, "log_log_slope_maximum", 0.0); digits=3)); these are bounded-fixture observations, not a complexity law. Stage attribution is now recorded; the largest measured stage at the largest dimension is $analyze_stage_dominant. A second sparse nonlinear workload is also measured, reaching $(isnothing(analyze_nonlinear_end) ? "unavailable" : "$(round(analyze_nonlinear_end["elapsed_seconds"]; digits=3))s at dimension $(analyze_nonlinear_end["dimension"]) with stable evidence $(get(analyze_nonlinear_end, "evidence_stable_across_repetitions", false))"), with trend slopes $(round(get(analyze_trend_nonlinear, "log_log_slope_minimum", 0.0); digits=3))--$(round(get(analyze_trend_nonlinear, "log_log_slope_maximum", 0.0); digits=3)). Process-memory telemetry is retained under this boundary: $analyze_memory_note. The bounded BMOPFTools adapter profile measured $bmopf_profile_measured case(s) and size-guarded $bmopf_profile_guarded case(s), retaining PowerIO warning provenance with per-case warmup=$bmopf_profile_warmup. The current evidence-preserving optimization is: $analyze_optimization_note. Portable scaling and further optimization remain open.",
+        ["docs/analyze_runtime_scaling_summary.json", "docs/analyze_runtime_trend_summary.json", "docs/bmopf_analyze_runtime_profile_summary.json"],
         blocking=true,
     ),
     gate(
