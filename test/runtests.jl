@@ -2159,8 +2159,9 @@ end
         joinpath(repository_root, "docs", "bmopf_analyze_runtime_profile_summary.json"),
         String,
     )
-    @test occursin("nlpdiagnostics-bmopf-analyze-runtime-profile-v1", bmopf_analyze_profile_summary)
+    @test occursin("nlpdiagnostics-bmopf-analyze-runtime-profile-v2", bmopf_analyze_profile_summary)
     @test occursin("pf_1ph_line.dss", bmopf_analyze_profile_summary)
+    @test occursin("warmup_analyze_seconds", bmopf_analyze_profile_summary)
     @test occursin("\"static\"", analyze_scaling_summary)
     @test occursin("\"expressions\"", analyze_scaling_summary)
     @test occursin("Stage attribution is now recorded", read(

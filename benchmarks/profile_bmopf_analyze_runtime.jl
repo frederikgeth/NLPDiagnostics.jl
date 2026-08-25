@@ -47,13 +47,25 @@ function positive_integer(name::AbstractString, default::Int)
     return value
 end
 
+function boolean_environment(name::AbstractString, default::Bool)
+    raw = lowercase(strip(get(ENV, name, string(default))))
+    raw in ("true", "1", "yes") && return true
+    raw in ("false", "0", "no") && return false
+    error("$name must be true or false")
+end
+
 function warning_count(network)
     metadata = get(network, "_meta", Dict{String,Any}())
     warnings = get(metadata, "powerio_warnings", Any[])
     return warnings isa AbstractVector ? length(warnings) : 0
 end
 
-function profile_case(root::AbstractString, filename::AbstractString, max_variables::Int)
+function profile_case(
+    root::AbstractString,
+    filename::AbstractString,
+    max_variables::Int,
+    warmup::Bool,
+)
     path = joinpath(root, filename)
     isfile(path) || return Dict{String,Any}(
         "case" => filename,
@@ -81,6 +93,7 @@ function profile_case(root::AbstractString, filename::AbstractString, max_variab
             "variable_count" => variable_count,
             "constraint_count" => constraint_count,
             "max_variables" => max_variables,
+            "warmup_requested" => warmup,
             "powerio_warning_count" => warning_count(network),
             "parse_seconds" => parse_timing.time,
             "parse_allocated_bytes" => parse_timing.bytes,
@@ -95,6 +108,10 @@ function profile_case(root::AbstractString, filename::AbstractString, max_variab
         variable_count <= max_variables || return merge(base, Dict(
             "skip_reason" => "model_variable_count_exceeds_guard",
         ))
+        warmup_timing = nothing
+        if warmup
+            warmup_timing = @timed NLPDiagnostics.analyze(model)
+        end
         GC.gc()
         rss_before = Int(Sys.maxrss())
         analyze_timing = @timed NLPDiagnostics.analyze(model)
@@ -104,6 +121,8 @@ function profile_case(root::AbstractString, filename::AbstractString, max_variab
         return merge(base, Dict(
             "analyze_seconds" => analyze_timing.time,
             "analyze_allocated_bytes" => analyze_timing.bytes,
+            "warmup_analyze_seconds" => isnothing(warmup_timing) ? nothing : warmup_timing.time,
+            "warmup_analyze_allocated_bytes" => isnothing(warmup_timing) ? nothing : warmup_timing.bytes,
             "analyze_finding_count" => length(report),
             "analyze_finding_code_counts" => Dict(
                 string(code) => count for (code, count) in counts
@@ -131,17 +150,21 @@ fixture_root = abspath(get(
 max_variables = positive_integer(
     "NLPDIAGNOSTICS_BMOPF_ANALYZE_PROFILE_MAX_VARIABLES", 24,
 )
+warmup = boolean_environment(
+    "NLPDIAGNOSTICS_BMOPF_ANALYZE_PROFILE_WARMUP", true,
+)
 cases = selected_cases()
-records = [profile_case(fixture_root, case, max_variables) for case in cases]
+records = [profile_case(fixture_root, case, max_variables, warmup) for case in cases]
 status_entries = git_status_entries()
 
 write_json(OUTPUT, Dict{String,Any}(
-    "schema_version" => "nlpdiagnostics-bmopf-analyze-runtime-profile-v1",
+    "schema_version" => "nlpdiagnostics-bmopf-analyze-runtime-profile-v2",
     "source" => Dict(
         "runner" => "benchmarks/profile_bmopf_analyze_runtime.jl",
         "fixture_root" => fixture_root,
         "cases" => cases,
         "max_variables" => max_variables,
+        "warmup" => warmup,
         "point_supplied" => false,
         "entry_point" => "NLPDiagnostics.analyze(model)",
     ),
