@@ -2841,6 +2841,20 @@ function _combined_affine_coefficients(function_value::MOI.ScalarAffineFunction)
     return filter(term -> !iszero(last(term)), coefficients)
 end
 
+function _affine_interval_rows(model::ModelSnapshot)
+    rows = Tuple{ConstraintRecord,Tuple{Any,Any},Dict{MOI.VariableIndex,Any}}[]
+    for constraint in model.constraints
+        function_value = constraint.function_value
+        function_value isa MOI.ScalarAffineFunction || continue
+        interval = _scalar_set_interval(constraint.set_value)
+        isnothing(interval) && continue
+        coefficients = _combined_affine_coefficients(function_value)
+        length(coefficients) >= 2 || continue
+        push!(rows, (constraint, interval, coefficients))
+    end
+    return rows
+end
+
 function _other_affine_interval(
     coefficients,
     target::MOI.VariableIndex,
@@ -2973,28 +2987,25 @@ function _analyze_affine_interval_fixed_point!(
     report::DiagnosticReport,
     model::ModelSnapshot,
     max_passes::Integer,
+    ; cache_affine_coefficients::Bool = true,
 )
     max_passes > 0 || throw(ArgumentError("max_affine_propagation_passes must be positive"))
     domains = Dict(domain.variable => domain for domain in variable_domains(model))
     initial = Dict(variable => (domain.lower, domain.upper) for (variable, domain) in domains)
     bounds = copy(initial)
     sources = Dict{MOI.VariableIndex,Vector{ConstraintRecord}}()
+    prepared_rows = cache_affine_coefficients ? _affine_interval_rows(model) : nothing
     passes = 0
     converged = false
     for pass in 1:max_passes
         passes = pass
         candidates = Dict{MOI.VariableIndex,Vector{Tuple{Any,Any,ConstraintRecord}}}()
-        for constraint in model.constraints
-            function_value = constraint.function_value
-            function_value isa MOI.ScalarAffineFunction || continue
-            interval = _scalar_set_interval(constraint.set_value)
-            isnothing(interval) && continue
-            coefficients = _combined_affine_coefficients(function_value)
-            length(coefficients) >= 2 || continue
+        rows = isnothing(prepared_rows) ? _affine_interval_rows(model) : prepared_rows
+        for (constraint, interval, coefficients) in rows
             row_lower, row_upper = interval
             for (variable, coefficient) in coefficients
                 others = _other_affine_interval(
-                    coefficients, variable, function_value.constant, bounds,
+                    coefficients, variable, constraint.function_value.constant, bounds,
                 )
                 isnothing(others) && continue
                 other_lower, other_upper = others
@@ -4099,6 +4110,7 @@ function analyze_static(
     graph::IncidenceGraph = incidence_graph(model),
     max_affine_propagation_passes::Integer = 5,
     unit_circle_radius_tolerance::Real = 1.0e-6,
+    cache_affine_coefficients::Bool = true,
 )
     report = DiagnosticReport()
     report.metadata[:stage] = "static"
@@ -4143,6 +4155,7 @@ function analyze_static(
         report,
         model,
         max_affine_propagation_passes,
+        cache_affine_coefficients = cache_affine_coefficients,
     )
     _analyze_circular_normalization!(
         report,

@@ -7,12 +7,12 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "2a47cbafafbbcc8f45a728af53472a1176f0d445",
+    "git_revision": "753b2f3a6f4d00458c272bbd75f122602ba8b797",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {
-    "claim": "Both bounded analyze workloads have stable, repeatable local evidence with static as the dominant largest-dimension stage; the BMOPFTools adapter profile is measured only on guarded small fixtures.",
+    "claim": "Both bounded analyze workloads have stable, repeatable local evidence with static as the dominant largest-dimension stage; the affine-row cache A/B preserves findings but has mixed local timing; the BMOPFTools adapter profile is measured only on guarded small fixtures.",
     "does_not_establish": [
       "a production or asymptotic complexity law",
       "allocator-level peak memory behavior",
@@ -26,8 +26,8 @@
       "next_evidence": "add a reviewed mixed-density and nonlinear fixture ladder beyond the two sparse chains"
     },
     {
-      "id": "static_stage_optimization_ab",
-      "next_evidence": "run a semantics-preserving analyze_static optimization A/B with unchanged findings and stage provenance"
+      "id": "static_stage_optimization_generalization",
+      "next_evidence": "repeat the cached affine-row A/B on mixed-density and nonlinear workloads before making a performance claim"
     },
     {
       "id": "portable_analyze_memory",
@@ -39,10 +39,25 @@
     "artifacts": [
       "docs/analyze_runtime_trend_summary.json",
       "docs/analyze_runtime_resource_summary.json",
-      "docs/bmopf_analyze_runtime_profile_summary.json"
+      "docs/bmopf_analyze_runtime_profile_summary.json",
+      "docs/analyze_static_optimization_ab_summary.json"
     ],
     "policy": "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",
     "runner": "benchmarks/summarize_analyze_scaling_readiness.jl"
+  },
+  "static_optimization_ab": {
+    "allocation_reduction_range": [
+      0.0016455089142201063,
+      0.23299652156113715
+    ],
+    "candidate_not_slower_at_every_dimension": false,
+    "decision": "Semantics are preserved, but the bounded timing result is mixed; retain the experiment as local evidence and do not promote a portable performance claim.",
+    "elapsed_speedup_range": [
+      0.9982183494924088,
+      1.5770560182135098
+    ],
+    "equivalence_passed": true,
+    "record_count": 3
   },
   "workload_count": 2,
   "workloads": [

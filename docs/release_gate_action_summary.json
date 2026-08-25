@@ -8,7 +8,9 @@
         "docs/randomized_rank_oracle_calibration_summary.json",
         "docs/large_sparse_rank_oracle_summary.json",
         "docs/rank_perturbation_sweep_summary.json",
-        "docs/rank_calibration_statistics_summary.json"
+        "docs/rank_calibration_statistics_summary.json",
+        "docs/smallest_singular_calibration_summary.json",
+        "benchmarks/calibrate_restarted_smallest_singular.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
       "next_deliverable": "Expand adversarial rank corpora and add a third vetted backend with reproducible disagreement records.",
@@ -25,7 +27,8 @@
         "docs/real_99bus_kkt_stability_summary.json",
         "docs/real_99bus_kkt_margin_summary.json",
         "docs/real_99bus_kkt_residual_distribution_summary.json",
-        "docs/real_99bus_kkt_tolerance_policy_summary.json"
+        "docs/real_99bus_kkt_tolerance_policy_summary.json",
+        "docs/real_99bus_kkt_endpoint_matrix_summary.json"
       ],
       "id": "real_99bus_physical_kkt",
       "next_deliverable": "Extend trusted real-99-bus endpoint coverage and localize the remaining ibr_p_upper strict-KKT boundary.",
@@ -39,7 +42,8 @@
       "evidence": [
         "docs/sparse_runtime_memory_scaling_summary.json",
         "docs/sparse_runtime_memory_isolated_summary.json",
-        "docs/sparse_runtime_trend_summary.json"
+        "docs/sparse_runtime_trend_summary.json",
+        "docs/runtime_scaling_readiness_summary.json"
       ],
       "id": "runtime_memory_scaling",
       "next_deliverable": "Add guarded OPF-solver scaling and allocator-level peak-memory evidence beyond the synthetic sparse ladder.",
@@ -48,16 +52,18 @@
     },
     {
       "blocking": true,
-      "closure_condition": "Broader workloads have stable findings, stage/resource attribution, and documented portability limits for any optimization claim.",
+      "closure_condition": "Broader workloads have stable findings, stage/resource attribution, and documented portability limits; any optimization claim is supported by repeated A/B evidence or explicitly not promoted.",
       "dependency": "Keep the public API unchanged and preserve repeatability and memory provenance.",
       "evidence": [
         "docs/analyze_runtime_scaling_summary.json",
         "docs/analyze_runtime_trend_summary.json",
         "docs/analyze_runtime_resource_summary.json",
-        "docs/bmopf_analyze_runtime_profile_summary.json"
+        "docs/bmopf_analyze_runtime_profile_summary.json",
+        "docs/analyze_scaling_readiness_summary.json",
+        "docs/analyze_static_optimization_ab_summary.json"
       ],
       "id": "analyze_runtime_scaling",
-      "next_deliverable": "Broaden point-free analyze scaling fixtures and profile the dominant static stage under evidence-preserving optimization.",
+      "next_deliverable": "Repeat the cached affine-row A/B on broader point-free analyze workload families and retain explicit portability limits.",
       "priority": 4,
       "status": "partial"
     },
@@ -87,7 +93,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "ecd89c5d318829a7e31356c0788194bb990cc73e",
+    "git_revision": "753b2f3a6f4d00458c272bbd75f122602ba8b797",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

@@ -1,0 +1,387 @@
+{
+  "candidate_not_slower_at_every_dimension": false,
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "architecture": "aarch64",
+    "git_revision": "753b2f3a6f4d00458c272bbd75f122602ba8b797",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6",
+    "os": "Darwin"
+  },
+  "equivalence_passed": true,
+  "interpretation": {
+    "claim": "The cached affine-row candidate preserves static finding identities and propagation metadata on the bounded sparse chain while recording local timing and allocation deltas.",
+    "does_not_establish": [
+      "a portable performance guarantee",
+      "equivalence for unsupported function families not represented by this fixture",
+      "allocator-level peak-memory behavior"
+    ]
+  },
+  "record_count": 3,
+  "records": [
+    {
+      "allocation_reduction_ratio": 0.23299652156113715,
+      "baseline": {
+        "allocated_bytes": {
+          "maximum": 175557248,
+          "mean": 1.2037584e8,
+          "minimum": 92785136
+        },
+        "elapsed_seconds": {
+          "maximum": 0.675619125,
+          "mean": 0.38848770833333335,
+          "minimum": 0.244504375
+        }
+      },
+      "candidate": {
+        "allocated_bytes": {
+          "maximum": 92328688,
+          "mean": 9.2328688e7,
+          "minimum": 92328688
+        },
+        "elapsed_seconds": {
+          "maximum": 0.2485335,
+          "mean": 0.24633729166666665,
+          "minimum": 0.244354583
+        }
+      },
+      "dimension": 100,
+      "elapsed_speedup": 1.5770560182135098,
+      "equivalent_across_repetitions": true,
+      "repetitions": 3,
+      "runs": [
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 175557248,
+            "elapsed_seconds": 0.675619125,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 92328688,
+            "elapsed_seconds": 0.2485335,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 1
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 92785136,
+            "elapsed_seconds": 0.244504375,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 92328688,
+            "elapsed_seconds": 0.246123792,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 2
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 92785136,
+            "elapsed_seconds": 0.245339625,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 92328688,
+            "elapsed_seconds": 0.244354583,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 3
+        }
+      ]
+    },
+    {
+      "allocation_reduction_ratio": 0.0029786727826947024,
+      "baseline": {
+        "allocated_bytes": {
+          "maximum": 312708400,
+          "mean": 3.127084e8,
+          "minimum": 312708400
+        },
+        "elapsed_seconds": {
+          "maximum": 0.890372667,
+          "mean": 0.886088125,
+          "minimum": 0.88141525
+        }
+      },
+      "candidate": {
+        "allocated_bytes": {
+          "maximum": 311776944,
+          "mean": 3.11776944e8,
+          "minimum": 311776944
+        },
+        "elapsed_seconds": {
+          "maximum": 0.885918583,
+          "mean": 0.881423264,
+          "minimum": 0.877546
+        }
+      },
+      "dimension": 200,
+      "elapsed_speedup": 1.0052924187396988,
+      "equivalent_across_repetitions": true,
+      "repetitions": 3,
+      "runs": [
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 312708400,
+            "elapsed_seconds": 0.886476458,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 311776944,
+            "elapsed_seconds": 0.885918583,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 1
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 312708400,
+            "elapsed_seconds": 0.890372667,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 311776944,
+            "elapsed_seconds": 0.877546,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 2
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 312708400,
+            "elapsed_seconds": 0.88141525,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 311776944,
+            "elapsed_seconds": 0.880805209,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 3
+        }
+      ]
+    },
+    {
+      "allocation_reduction_ratio": 0.0016455089142201063,
+      "baseline": {
+        "allocated_bytes": {
+          "maximum": 1118350672,
+          "mean": 1.118350672e9,
+          "minimum": 1118350672
+        },
+        "elapsed_seconds": {
+          "maximum": 3.359586083,
+          "mean": 3.355664583,
+          "minimum": 3.348942583
+        }
+      },
+      "candidate": {
+        "allocated_bytes": {
+          "maximum": 1116510416,
+          "mean": 1.116510416e9,
+          "minimum": 1116510416
+        },
+        "elapsed_seconds": {
+          "maximum": 3.387401875,
+          "mean": 3.3616538753333334,
+          "minimum": 3.338909417
+        }
+      },
+      "dimension": 400,
+      "elapsed_speedup": 0.9982183494924088,
+      "equivalent_across_repetitions": true,
+      "repetitions": 3,
+      "runs": [
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 1118350672,
+            "elapsed_seconds": 3.348942583,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 1116510416,
+            "elapsed_seconds": 3.338909417,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 1
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 1118350672,
+            "elapsed_seconds": 3.359586083,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 1116510416,
+            "elapsed_seconds": 3.358650334,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 2
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 1118350672,
+            "elapsed_seconds": 3.358465083,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 1116510416,
+            "elapsed_seconds": 3.387401875,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 3
+        }
+      ]
+    }
+  ],
+  "schema_version": "nlpdiagnostics-analyze-static-optimization-ab-v1",
+  "source": {
+    "baseline": "rebuild affine coefficient maps inside every propagation pass",
+    "candidate": "cache supported affine rows and coefficient maps once per analyze_static call",
+    "dimensions": [
+      100,
+      200,
+      400
+    ],
+    "model": "sparse affine chain with simple variable bounds",
+    "repetitions": 3,
+    "runner": "benchmarks/profile_analyze_static_optimization_ab.jl"
+  }
+}

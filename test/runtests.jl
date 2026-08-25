@@ -2303,7 +2303,7 @@ end
         String,
     )
     @test Meta.parseall(analyze_readiness_script) isa Expr
-    @test occursin("static_stage_optimization_ab", analyze_readiness_script)
+    @test occursin("static_stage_optimization_generalization", analyze_readiness_script)
     analyze_readiness_summary = read(
         joinpath(repository_root, "docs", "analyze_scaling_readiness_summary.json"),
         String,
@@ -2317,6 +2317,22 @@ end
     @test all(workload["dominant_elapsed_stage_at_largest_dimension"] == "static" for workload in analyze_readiness_data["workloads"])
     @test analyze_readiness_data["adapter_profile"]["measured_count"] == 3
     @test analyze_readiness_data["adapter_profile"]["guarded_count"] == 2
+    @test analyze_readiness_data["static_optimization_ab"]["record_count"] == 3
+    @test analyze_readiness_data["static_optimization_ab"]["equivalence_passed"] == true
+    @test analyze_readiness_data["static_optimization_ab"]["candidate_not_slower_at_every_dimension"] == false
+    analyze_ab_script = read(
+        joinpath(benchmark_directory, "profile_analyze_static_optimization_ab.jl"),
+        String,
+    )
+    @test Meta.parseall(analyze_ab_script) isa Expr
+    @test occursin("cache_affine_coefficients", analyze_ab_script)
+    @test occursin("analyze_static_optimization_ab_summary.json", read(
+        joinpath(benchmark_directory, "summarize_analyze_scaling_readiness.jl"),
+        String,
+    ))
+    static_source = read(joinpath(repository_root, "src", "analysis", "static.jl"), String)
+    @test occursin("_affine_interval_rows", static_source)
+    @test occursin("cache_affine_coefficients::Bool", static_source)
     @test occursin("analyze_scaling_readiness_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,

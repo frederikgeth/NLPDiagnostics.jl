@@ -229,10 +229,14 @@ nonlinear trend/resource rows with the BMOPFTools adapter profile: both bounded
 workloads have three dimensions, stable findings, sub-0.1 runtime repeatability
 coefficients of variation, and `static` as the dominant largest-dimension stage;
 the adapter profile retains three measured and two size-guarded fixtures. The
-next work is explicitly scoped to broader workload families, a semantics-
-preserving `analyze_static` A/B experiment, and cross-environment allocator-
-level memory evidence. This is readiness evidence, not a portable complexity
-or production-memory claim.
+companion `docs/analyze_static_optimization_ab_summary.json` now compares the
+cached affine-row path against the uncached baseline. All three dimensions
+preserve finding identities and propagation metadata; elapsed speedup is mixed
+(approximately 1.00--1.58x) and therefore does not support a portable
+performance claim. The next work is explicitly scoped to repeating the A/B on
+broader workload families and collecting cross-environment allocator-level
+memory evidence. This remains readiness evidence, not a portable complexity or
+production-memory claim.
 
 The isolated sparse ladder now extends through dimension 256, giving 15
 child-process records across dimensions 16, 32, 64, 128, and 256. The larger
