@@ -93,7 +93,9 @@
         "docs/stable_api_surface_summary.json",
         "docs/advanced_api_surface_summary.json",
         "docs/api_migration_queue_summary.json",
-        "docs/api_advanced_candidate_summary.json"
+        "docs/api_advanced_candidate_summary.json",
+        "docs/api_ownership_decision_summary.json",
+        "benchmarks/review_api_ownership_decisions.jl"
       ],
       "id": "api_test_benchmark_consolidation",
       "next_deliverable": "Review root-only legacy ownership and migrate only explicitly approved Stable/Advanced symbols.",
@@ -105,7 +107,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "9eaaa5cfbd18fd948806f13466522a6d46b28ae5",
+    "git_revision": "6bbf6f22eb99b557d85b6f65937302804f6e10a1",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

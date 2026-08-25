@@ -5304,3 +5304,17 @@ allocator-level peak telemetry independent of `Sys.maxrss`, and repeat in a
 second reviewed environment. This is bounded solver-workload evidence only; it
 does not establish a complexity law, portable memory scaling, or solver/policy
 superiority.
+
+## 2026-08-26 API ownership review checkpoint
+
+The API consolidation track now has a bounded manual ownership ledger from
+`benchmarks/review_api_ownership_decisions.jl`, recorded in
+`docs/api_ownership_decision_summary.json`. Twelve high-impact root-only names
+were reviewed from the usage queue: eleven retain root compatibility and one
+BMOPF-specific helper remains an Advanced candidate. No export is moved,
+deprecated, or removed by this ledger.
+
+This converts the highest-impact portion of the migration queue from an
+implicit count into explicit decisions while preserving the pre-1.0 API. The
+remaining queue still requires similarly bounded review batches and an
+approved compatibility/type-identity plan before any namespace migration.

@@ -1,0 +1,178 @@
+{
+  "advanced_candidate_count": 1,
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "6bbf6f22eb99b557d85b6f65937302804f6e10a1",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "Twelve high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except one Advanced candidate review.",
+    "does_not_establish": [
+      "a complete review of all root-only exports",
+      "permission to remove or deprecate root symbols",
+      "Stable or Advanced namespace compatibility for future releases"
+    ]
+  },
+  "migration_allowed_count": 0,
+  "next_actions": [
+    "Review the remaining root-only queue in similarly bounded batches.",
+    "Approve any namespace move only with an explicit compatibility and type-identity plan.",
+    "Keep Stable and Advanced facades unchanged until ownership review is complete."
+  ],
+  "reviewed_count": 12,
+  "root_compatibility_retained_count": 11,
+  "rows": [
+    {
+      "code_file_count": 19,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "DiagnosticReport",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Top-level report container used by all analysis entry points; root identity is part of the current compatibility contract.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 29,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "EntityRef",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Shared report identity type used by multiple subsystems; preserve root identity while the API is pre-1.0.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 44,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "EvaluationPoint",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Public point type appears in model, numerical, and test contracts; no safe namespace-only migration is established.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 18,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "Evidence",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Evidence record is shared by renderer-neutral reports and tests; do not split ownership without a report-schema review.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 24,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "Finding",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Primary diagnostic record type with broad downstream construction and inspection; compatibility takes precedence over tier cleanup.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 22,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "NumericalEvaluation",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Central evaluator contract used by rank, activity, and adapter paths; no migration without a coordinated type-identity plan.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 18,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_start_completion_point",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "BMOPFTools-specific lifecycle helper is a plausible Advanced candidate, but adapter ownership and compatibility still require explicit review.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 47,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "evaluate_numerical",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Core numerical evaluation entry point used across tests and adapters; moving it would create a broad compatibility break.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 19,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "evaluation_point_fingerprint",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Provenance helper is used by reproducibility and cross-check ledgers; retain while artifact schemas remain v1-compatible.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 46,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "findings",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Report inspection helper used throughout regression assertions; retain as a compatibility surface.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 73,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "snapshot",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Core model-boundary constructor with broad test and benchmark usage; retain until a versioned compatibility plan exists.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 28,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "solver_result_point",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Solver-result provenance boundary is consumed by adapters and tests; retain until solver extension ownership is reviewed.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    }
+  ],
+  "schema_version": "nlpdiagnostics-api-ownership-decisions-v1",
+  "source": {
+    "input": "docs/api_tier_usage_summary.json",
+    "migration_policy": "No export is moved, deprecated, or removed by this ledger.",
+    "runner": "benchmarks/review_api_ownership_decisions.jl",
+    "selection_policy": "Highest repository-usage root-only names plus one BMOPF Advanced candidate; this bounded review does not represent the full queue."
+  }
+}

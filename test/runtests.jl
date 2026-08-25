@@ -2754,9 +2754,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 146", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 143", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 87", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 147", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 144", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 88", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),
@@ -2779,6 +2779,26 @@ end
     @test occursin("\"handoff_passed\": true", handoff_summary)
     @test occursin("\"status\": \"pass\"", checkout_validation_summary)
     @test occursin("\"suite_passed\": 1801", checkout_validation_summary)
+    ownership_review_script = read(
+        joinpath(benchmark_directory, "review_api_ownership_decisions.jl"),
+        String,
+    )
+    @test Meta.parseall(ownership_review_script) isa Expr
+    @test occursin("retain_root_compatibility", ownership_review_script)
+    ownership_review_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "api_ownership_decision_summary.json"),
+        String,
+    ))
+    @test ownership_review_summary["schema_version"] ==
+          "nlpdiagnostics-api-ownership-decisions-v1"
+    @test ownership_review_summary["reviewed_count"] == 12
+    @test ownership_review_summary["root_compatibility_retained_count"] == 11
+    @test ownership_review_summary["advanced_candidate_count"] == 1
+    @test ownership_review_summary["migration_allowed_count"] == 0
+    @test occursin("api_ownership_decision_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     checkout_validator = read(
         joinpath(benchmark_directory, "validate_bmopf_checkout.jl"),
         String,
