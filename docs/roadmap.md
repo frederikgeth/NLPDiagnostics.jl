@@ -199,8 +199,8 @@ library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
 that no unclassified non-helper runner exists. It now follows local include
 chains, so compositional BMOPF runners that inherit the helper transitively are
-counted correctly; the refreshed inventory records 119 helper users across
-122 benchmark scripts with zero unclassified runners.
+counted correctly; the refreshed inventory records 120 helper users across
+123 benchmark scripts with zero unclassified runners.
 
 The latest consolidation increment adds the reviewed local quality policy in
 `docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are

@@ -110,6 +110,21 @@ end
     @test occursin("\"queue_count\": 539", tier_inventory)
     @test occursin("\"advanced_candidate_count\": 102", tier_inventory)
     @test occursin("\"legacy_manual_review_count\": 437", tier_inventory)
+    tier_usage_script = read(
+        joinpath(normpath(joinpath(@__DIR__, "..")), "benchmarks", "audit_api_tier_usage.jl"),
+        String,
+    )
+    @test Meta.parseall(tier_usage_script) isa Expr
+    @test occursin("has_runtime_usage_evidence", tier_usage_script)
+    tier_usage_summary = JSON.parse(read(
+        joinpath(normpath(joinpath(@__DIR__, "..")), "docs", "api_tier_usage_summary.json"),
+        String,
+    ))
+    @test tier_usage_summary["schema_version"] == "nlpdiagnostics-api-tier-usage-v1"
+    @test tier_usage_summary["queue_count"] == 539
+    @test tier_usage_summary["runtime_usage_evidence_count"] == 423
+    @test tier_usage_summary["unreferenced_in_code_count"] == 4
+    @test tier_usage_summary["usage_priority_counts"]["test_and_benchmark_usage"] == 133
 
     stable_model = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
     stable_variable = MOI.add_variable(stable_model)
@@ -2291,8 +2306,8 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 122", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 119", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 123", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 120", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),
