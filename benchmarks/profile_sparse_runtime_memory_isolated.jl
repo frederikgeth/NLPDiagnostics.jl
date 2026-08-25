@@ -32,7 +32,7 @@ function positive_list(raw::AbstractString)
 end
 
 dimensions = positive_list(get(
-    ENV, "NLPDIAGNOSTICS_ISOLATED_PROFILE_DIMENSIONS", "16,32,64,128",
+    ENV, "NLPDIAGNOSTICS_ISOLATED_PROFILE_DIMENSIONS", "16,32,64,128,256",
 ))
 repetitions = try
     parse(Int, get(ENV, "NLPDIAGNOSTICS_ISOLATED_PROFILE_REPETITIONS", "3"))
@@ -84,6 +84,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "git_worktree_dirty" => !isempty(status_entries),
         "git_status_entry_count" => length(status_entries),
     ),
+    "record_count" => length(records),
     "records" => records,
     "interpretation" => Dict(
         "claim" =>

@@ -2170,6 +2170,9 @@ end
     )
     @test occursin("nlpdiagnostics-sparse-runtime-memory-isolated-v1", isolated_runtime_summary)
     @test occursin("\"isolated_process\": true", isolated_runtime_summary)
+    isolated_runtime_data = JSON.parse(isolated_runtime_summary)
+    @test isolated_runtime_data["record_count"] == 15
+    @test isolated_runtime_data["source"]["dimensions"] == [16, 32, 64, 128, 256]
     @test occursin("sparse_runtime_memory_isolated_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,

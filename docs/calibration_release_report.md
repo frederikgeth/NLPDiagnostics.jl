@@ -66,7 +66,7 @@ Evidence:
 
 ### `PARTIAL` — `runtime_memory_scaling`
 
-The synthetic sparse ladder provides 12 warm-up-aware runtime/allocation records, and an isolated child-process ladder adds 12 records across 4 dimensions with per-dimension Sys.maxrss high-water observations. OPF-solver scaling and allocator-level peak-memory measurements remain open.
+The synthetic sparse ladder provides 12 warm-up-aware runtime/allocation records across 4 dimensions, and an isolated child-process ladder adds 15 records across 5 dimensions with per-dimension Sys.maxrss high-water observations. OPF-solver scaling and allocator-level peak-memory measurements remain open.
 
 Evidence:
 - [`docs/sparse_runtime_memory_scaling_summary.json`](docs/sparse_runtime_memory_scaling_summary.json)

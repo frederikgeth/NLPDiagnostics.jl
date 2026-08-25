@@ -2,8 +2,8 @@
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
     "architecture": "aarch64",
-    "git_revision": "0223f48d86b4ab2e7ca9e74a79f0834e08d86eb9",
-    "git_status_entry_count": 5,
+    "git_revision": "019917d03367dcca29292d1adf3d23b27d37e4d5",
+    "git_status_entry_count": 7,
     "git_worktree_dirty": true,
     "julia_version": "1.12.6",
     "os": "Darwin"
@@ -17,6 +17,7 @@
     ],
     "memory_note": "Each dimension runs in a fresh child process; Sys.maxrss is therefore isolated to that child but remains a high-water mark."
   },
+  "record_count": 15,
   "records": [
     {
       "case": "sparse_banded_full_rank",
@@ -25,9 +26,9 @@
       "expected_evidence": {},
       "isolated_process": true,
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1913061376,
-      "process_maxrss_before_bytes": 772784128,
-      "process_maxrss_increment_bytes": 1140277248,
+      "process_maxrss_after_bytes": 1923399680,
+      "process_maxrss_before_bytes": 703135744,
+      "process_maxrss_increment_bytes": 1220263936,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -110,85 +111,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.002534584,
-          "mean_seconds": 0.0023830696666666666,
-          "minimum_seconds": 0.00223175,
+          "maximum_seconds": 0.00248975,
+          "mean_seconds": 0.002406888666666667,
+          "minimum_seconds": 0.002309791,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0001236315394234911
+          "standard_deviation_seconds": 7.41544123674079e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.000349208,
-          "mean_seconds": 0.00032787533333333336,
-          "minimum_seconds": 0.000310209,
+          "maximum_seconds": 0.000351875,
+          "mean_seconds": 0.00033325,
+          "minimum_seconds": 0.000319875,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.6130964020238294e-5
+          "standard_deviation_seconds": 1.3581160357887917e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.000749125,
-          "mean_seconds": 0.0007452496666666667,
-          "minimum_seconds": 0.000741041,
+          "maximum_seconds": 0.000818708,
+          "mean_seconds": 0.0007894303333333333,
+          "minimum_seconds": 0.000758208,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.3086852709531335e-6
+          "standard_deviation_seconds": 2.4737270077534607e-5
         },
         "expressions": {
-          "maximum_seconds": 0.003381083,
-          "mean_seconds": 0.003327110666666666,
-          "minimum_seconds": 0.003285208,
+          "maximum_seconds": 0.003569042,
+          "mean_seconds": 0.0034825416666666668,
+          "minimum_seconds": 0.003403833,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.006046718260898e-5
+          "standard_deviation_seconds": 6.767094882509692e-5
         },
         "numerical": {
-          "maximum_seconds": 0.002656417,
-          "mean_seconds": 0.0024888889999999998,
-          "minimum_seconds": 0.002361,
+          "maximum_seconds": 0.002775625,
+          "mean_seconds": 0.0026824583333333336,
+          "minimum_seconds": 0.002569167,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00012381771201515018
+          "standard_deviation_seconds": 8.547895685423926e-5
         },
         "reformulation": {
-          "maximum_seconds": 0.003357959,
-          "mean_seconds": 0.0033047086666666667,
-          "minimum_seconds": 0.003262292,
+          "maximum_seconds": 0.003571417,
+          "mean_seconds": 0.0034083473333333335,
+          "minimum_seconds": 0.003291167,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.9800083520292155e-5
+          "standard_deviation_seconds": 0.0001189240340450809
         },
         "snapshot": {
-          "maximum_seconds": 0.000210875,
-          "mean_seconds": 0.00015343033333333335,
-          "minimum_seconds": 0.000122833,
+          "maximum_seconds": 0.00022825,
+          "mean_seconds": 0.00015123600000000001,
+          "minimum_seconds": 0.000112083,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.064835315510607e-5
+          "standard_deviation_seconds": 5.445967598752921e-5
         },
         "static": {
-          "maximum_seconds": 0.007889625,
-          "mean_seconds": 0.007670250333333334,
-          "minimum_seconds": 0.007500959,
+          "maximum_seconds": 0.008150875,
+          "mean_seconds": 0.007982819666666667,
+          "minimum_seconds": 0.007892334,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00016257627973217899
+          "standard_deviation_seconds": 0.00011894999526505025
         },
         "structural_dm": {
-          "maximum_seconds": 3.708e-6,
-          "mean_seconds": 1.8053333333333335e-6,
-          "minimum_seconds": 7.5e-7,
+          "maximum_seconds": 4.041e-6,
+          "mean_seconds": 2.013666666666667e-6,
+          "minimum_seconds": 8.33e-7,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.3480656100089822e-6
+          "standard_deviation_seconds": 1.4400114197078053e-6
         },
         "structural_graph": {
-          "maximum_seconds": 4.3458e-5,
-          "mean_seconds": 2.687466666666667e-5,
-          "minimum_seconds": 1.8458e-5,
+          "maximum_seconds": 4.4084e-5,
+          "mean_seconds": 2.7166999999999996e-5,
+          "minimum_seconds": 1.8625e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.1726631608816273e-5
+          "standard_deviation_seconds": 1.1962319702577202e-5
         },
         "structural_matching": {
-          "maximum_seconds": 4.917e-6,
-          "mean_seconds": 2.9723333333333333e-6,
-          "minimum_seconds": 1.875e-6,
+          "maximum_seconds": 4.834e-6,
+          "mean_seconds": 3.0420000000000003e-6,
+          "minimum_seconds": 2.125e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.3788694241620157e-6
+          "standard_deviation_seconds": 1.2672513562825648e-6
         }
       },
       "total_stage_mean_allocated_bytes": 8.781968e6,
-      "total_stage_mean_seconds": 0.020432236,
+      "total_stage_mean_seconds": 0.021269194666666665,
       "variable_count": 16,
       "warmup_performed": true
     },
@@ -205,9 +206,9 @@
       },
       "isolated_process": true,
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1913061376,
-      "process_maxrss_before_bytes": 772784128,
-      "process_maxrss_increment_bytes": 1140277248,
+      "process_maxrss_after_bytes": 1923399680,
+      "process_maxrss_before_bytes": 703135744,
+      "process_maxrss_increment_bytes": 1220263936,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -260,11 +261,11 @@
           "standard_deviation_bytes": 0.0
         },
         "static": {
-          "maximum_bytes": 4318080,
-          "mean_bytes": 4.317568e6,
+          "maximum_bytes": 4317312,
+          "mean_bytes": 4.317312e6,
           "minimum_bytes": 4317312,
           "sample_count": 3,
-          "standard_deviation_bytes": 362.03867196751236
+          "standard_deviation_bytes": 0.0
         },
         "structural_dm": {
           "maximum_bytes": 3888,
@@ -290,85 +291,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.002724584,
-          "mean_seconds": 0.002674236333333333,
-          "minimum_seconds": 0.002645166,
+          "maximum_seconds": 0.00286425,
+          "mean_seconds": 0.0027493333333333332,
+          "minimum_seconds": 0.00262725,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.5743049360058175e-5
+          "standard_deviation_seconds": 9.68874633559759e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.000335875,
-          "mean_seconds": 0.00032859733333333335,
-          "minimum_seconds": 0.000322959,
+          "maximum_seconds": 0.000358209,
+          "mean_seconds": 0.000343236,
+          "minimum_seconds": 0.000333583,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.398847057988922e-6
+          "standard_deviation_seconds": 1.073426814769721e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.000752042,
-          "mean_seconds": 0.000736875,
-          "minimum_seconds": 0.000709292,
+          "maximum_seconds": 0.000796208,
+          "mean_seconds": 0.0007890003333333334,
+          "minimum_seconds": 0.000780834,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.9536434628662393e-5
+          "standard_deviation_seconds": 6.312910070288932e-6
         },
         "expressions": {
-          "maximum_seconds": 0.0034475,
-          "mean_seconds": 0.003388389,
-          "minimum_seconds": 0.003353333,
+          "maximum_seconds": 0.0036915,
+          "mean_seconds": 0.0035855276666666666,
+          "minimum_seconds": 0.003472208,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.2038381200992985e-5
+          "standard_deviation_seconds": 8.967620567476197e-5
         },
         "numerical": {
-          "maximum_seconds": 0.002538667,
-          "mean_seconds": 0.002500819333333333,
-          "minimum_seconds": 0.00244775,
+          "maximum_seconds": 0.002866417,
+          "mean_seconds": 0.0026472363333333335,
+          "minimum_seconds": 0.002528542,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.864582404636019e-5
+          "standard_deviation_seconds": 0.00015516229416610497
         },
         "reformulation": {
-          "maximum_seconds": 0.003422083,
-          "mean_seconds": 0.0033690829999999997,
-          "minimum_seconds": 0.003312791,
+          "maximum_seconds": 0.003526833,
+          "mean_seconds": 0.0034668613333333335,
+          "minimum_seconds": 0.003390834,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.467895301667964e-5
+          "standard_deviation_seconds": 5.667021748286793e-5
         },
         "snapshot": {
-          "maximum_seconds": 0.000138209,
-          "mean_seconds": 0.00012400033333333333,
-          "minimum_seconds": 0.000105625,
+          "maximum_seconds": 0.000147667,
+          "mean_seconds": 0.00013406933333333335,
+          "minimum_seconds": 0.000126958,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.3624734794564706e-5
+          "standard_deviation_seconds": 9.618387263754544e-6
         },
         "static": {
-          "maximum_seconds": 0.024532208,
-          "mean_seconds": 0.013508041666666666,
-          "minimum_seconds": 0.007897042,
+          "maximum_seconds": 0.008503583,
+          "mean_seconds": 0.008424403000000002,
+          "minimum_seconds": 0.008377792,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.007795681154020361
+          "standard_deviation_seconds": 5.6281428203863655e-5
         },
         "structural_dm": {
-          "maximum_seconds": 2.459e-6,
-          "mean_seconds": 1.916666666666667e-6,
-          "minimum_seconds": 9.16e-7,
+          "maximum_seconds": 6.25e-6,
+          "mean_seconds": 2.986e-6,
+          "minimum_seconds": 1.333e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.084087018726471e-7
+          "standard_deviation_seconds": 2.3080602245175495e-6
         },
         "structural_graph": {
-          "maximum_seconds": 1.9166e-5,
-          "mean_seconds": 1.8791666666666668e-5,
-          "minimum_seconds": 1.8209e-5,
+          "maximum_seconds": 1.9709e-5,
+          "mean_seconds": 1.9125333333333335e-5,
+          "minimum_seconds": 1.8667e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.1754387660327184e-7
+          "standard_deviation_seconds": 4.345283522267439e-7
         },
         "structural_matching": {
-          "maximum_seconds": 2.125e-6,
-          "mean_seconds": 1.986e-6,
-          "minimum_seconds": 1.792e-6,
+          "maximum_seconds": 2.166e-6,
+          "mean_seconds": 2.083e-6,
+          "minimum_seconds": 2.0e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.4140014144264498e-7
+          "standard_deviation_seconds": 6.776921621700134e-8
         }
       },
-      "total_stage_mean_allocated_bytes": 9.087632e6,
-      "total_stage_mean_seconds": 0.026652736333333333,
+      "total_stage_mean_allocated_bytes": 9.087376e6,
+      "total_stage_mean_seconds": 0.022163861666666673,
       "variable_count": 16,
       "warmup_performed": true
     },
@@ -379,9 +380,9 @@
       "expected_evidence": {},
       "isolated_process": true,
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1913061376,
-      "process_maxrss_before_bytes": 772784128,
-      "process_maxrss_increment_bytes": 1140277248,
+      "process_maxrss_after_bytes": 1923399680,
+      "process_maxrss_before_bytes": 703135744,
+      "process_maxrss_increment_bytes": 1220263936,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -464,85 +465,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.002248792,
-          "mean_seconds": 0.002221528,
-          "minimum_seconds": 0.002198459,
+          "maximum_seconds": 0.002523583,
+          "mean_seconds": 0.002474694333333333,
+          "minimum_seconds": 0.002403625,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.0761362206432094e-5
+          "standard_deviation_seconds": 5.142286729548329e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.000311292,
-          "mean_seconds": 0.000306278,
-          "minimum_seconds": 0.000301375,
+          "maximum_seconds": 0.00035825,
+          "mean_seconds": 0.0003407083333333333,
+          "minimum_seconds": 0.00033125,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.049359043931117e-6
+          "standard_deviation_seconds": 1.241652684485033e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.00068975,
-          "mean_seconds": 0.0006846666666666668,
-          "minimum_seconds": 0.00067825,
+          "maximum_seconds": 0.000823875,
+          "mean_seconds": 0.0008129306666666667,
+          "minimum_seconds": 0.000806667,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.788585966186212e-6
+          "standard_deviation_seconds": 7.765749430816187e-6
         },
         "expressions": {
-          "maximum_seconds": 0.003294625,
-          "mean_seconds": 0.003221653,
-          "minimum_seconds": 0.003177834,
+          "maximum_seconds": 0.00360875,
+          "mean_seconds": 0.003547680333333333,
+          "minimum_seconds": 0.003460791,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.194521137377974e-5
+          "standard_deviation_seconds": 6.310286739567034e-5
         },
         "numerical": {
-          "maximum_seconds": 0.002541667,
-          "mean_seconds": 0.002394778,
-          "minimum_seconds": 0.002312125,
+          "maximum_seconds": 0.002906083,
+          "mean_seconds": 0.0027613470000000004,
+          "minimum_seconds": 0.002650833,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0001041379860665646
+          "standard_deviation_seconds": 0.0001069781896400694
         },
         "reformulation": {
-          "maximum_seconds": 0.003195792,
-          "mean_seconds": 0.003172847333333333,
-          "minimum_seconds": 0.00312925,
+          "maximum_seconds": 0.003492208,
+          "mean_seconds": 0.003438708,
+          "minimum_seconds": 0.003382541,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.084216725343545e-5
+          "standard_deviation_seconds": 4.4811065515859626e-5
         },
         "snapshot": {
-          "maximum_seconds": 0.00011475,
-          "mean_seconds": 0.00011172266666666667,
-          "minimum_seconds": 0.000107709,
+          "maximum_seconds": 0.000143875,
+          "mean_seconds": 0.000131236,
+          "minimum_seconds": 0.000123833,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.9578776550463048e-6
+          "standard_deviation_seconds": 8.980802228457464e-6
         },
         "static": {
-          "maximum_seconds": 0.007536625,
-          "mean_seconds": 0.007408194333333333,
-          "minimum_seconds": 0.007313375,
+          "maximum_seconds": 0.007939542,
+          "mean_seconds": 0.007860513666666668,
+          "minimum_seconds": 0.007726083,
           "sample_count": 3,
-          "standard_deviation_seconds": 9.418928432092932e-5
+          "standard_deviation_seconds": 9.55449286089479e-5
         },
         "structural_dm": {
-          "maximum_seconds": 8.33e-7,
-          "mean_seconds": 7.360000000000001e-7,
-          "minimum_seconds": 6.67e-7,
+          "maximum_seconds": 2.0e-6,
+          "mean_seconds": 1.3193333333333334e-6,
+          "minimum_seconds": 8.33e-7,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.060217182684018e-8
+          "standard_deviation_seconds": 4.95846974602268e-7
         },
         "structural_graph": {
-          "maximum_seconds": 1.8333e-5,
-          "mean_seconds": 1.8138666666666666e-5,
-          "minimum_seconds": 1.7916e-5,
+          "maximum_seconds": 1.925e-5,
+          "mean_seconds": 1.875e-5,
+          "minimum_seconds": 1.8375e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.7141437771928253e-7
+          "standard_deviation_seconds": 3.6799003609699414e-7
         },
         "structural_matching": {
-          "maximum_seconds": 2.125e-6,
-          "mean_seconds": 1.9996666666666667e-6,
-          "minimum_seconds": 1.916e-6,
+          "maximum_seconds": 2.375e-6,
+          "mean_seconds": 2.166666666666667e-6,
+          "minimum_seconds": 2.0e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 9.026750368888141e-8
+          "standard_deviation_seconds": 1.5590239111558099e-7
         }
       },
       "total_stage_mean_allocated_bytes": 8.83848e6,
-      "total_stage_mean_seconds": 0.019542542333333333,
+      "total_stage_mean_seconds": 0.021390054333333332,
       "variable_count": 16,
       "warmup_performed": true
     },
@@ -553,17 +554,17 @@
       "expected_evidence": {},
       "isolated_process": true,
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1935654912,
-      "process_maxrss_before_bytes": 696385536,
-      "process_maxrss_increment_bytes": 1239269376,
+      "process_maxrss_after_bytes": 1997111296,
+      "process_maxrss_before_bytes": 698925056,
+      "process_maxrss_increment_bytes": 1298186240,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
-          "maximum_bytes": 2193728,
-          "mean_bytes": 2.193728e6,
+          "maximum_bytes": 2194112,
+          "mean_bytes": 2.193856e6,
           "minimum_bytes": 2193728,
           "sample_count": 3,
-          "standard_deviation_bytes": 0.0
+          "standard_deviation_bytes": 181.01933598375618
         },
         "degeneracy": {
           "maximum_bytes": 233472,
@@ -608,11 +609,11 @@
           "standard_deviation_bytes": 0.0
         },
         "static": {
-          "maximum_bytes": 10210368,
-          "mean_bytes": 1.021024e7,
+          "maximum_bytes": 10210176,
+          "mean_bytes": 1.0210176e7,
           "minimum_bytes": 10210176,
           "sample_count": 3,
-          "standard_deviation_bytes": 90.50966799187809
+          "standard_deviation_bytes": 0.0
         },
         "structural_dm": {
           "maximum_bytes": 3520,
@@ -638,85 +639,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.003232667,
-          "mean_seconds": 0.0031909026666666666,
-          "minimum_seconds": 0.003169041,
+          "maximum_seconds": 0.02338975,
+          "mean_seconds": 0.010217472333333333,
+          "minimum_seconds": 0.003527625,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.9542670544297123e-5
+          "standard_deviation_seconds": 0.009314591765926418
         },
         "degeneracy": {
-          "maximum_seconds": 0.000505167,
-          "mean_seconds": 0.0004964166666666667,
-          "minimum_seconds": 0.000491583,
+          "maximum_seconds": 0.000663583,
+          "mean_seconds": 0.0005822083333333333,
+          "minimum_seconds": 0.000530042,
           "sample_count": 3,
-          "standard_deviation_seconds": 6.19873494262251e-6
+          "standard_deviation_seconds": 5.8298912067226645e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.000934791,
-          "mean_seconds": 0.0009137773333333333,
-          "minimum_seconds": 0.000880541,
+          "maximum_seconds": 0.001091042,
+          "mean_seconds": 0.0010832499999999998,
+          "minimum_seconds": 0.001075916,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.377408687813034e-5
+          "standard_deviation_seconds": 6.1836500547815896e-6
         },
         "expressions": {
-          "maximum_seconds": 0.011673167,
-          "mean_seconds": 0.011655458333333332,
-          "minimum_seconds": 0.011630208,
+          "maximum_seconds": 0.012826334,
+          "mean_seconds": 0.012797444666666666,
+          "minimum_seconds": 0.012781292,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.8330784168229905e-5
+          "standard_deviation_seconds": 2.0475390909305935e-5
         },
         "numerical": {
-          "maximum_seconds": 0.004040042,
-          "mean_seconds": 0.0039324446666666665,
-          "minimum_seconds": 0.0038735,
+          "maximum_seconds": 0.004418,
+          "mean_seconds": 0.004259402666666666,
+          "minimum_seconds": 0.004144666,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.619873542841025e-5
+          "standard_deviation_seconds": 0.00011581792448878065
         },
         "reformulation": {
-          "maximum_seconds": 0.011739292,
-          "mean_seconds": 0.011706083666666667,
-          "minimum_seconds": 0.011645542,
+          "maximum_seconds": 0.012479,
+          "mean_seconds": 0.012446444333333334,
+          "minimum_seconds": 0.012408666,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.287655892857479e-5
+          "standard_deviation_seconds": 2.89502455295671e-5
         },
         "snapshot": {
-          "maximum_seconds": 0.000212834,
-          "mean_seconds": 0.000149056,
-          "minimum_seconds": 0.000116292,
+          "maximum_seconds": 0.000254041,
+          "mean_seconds": 0.00017266633333333332,
+          "minimum_seconds": 0.000131625,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.510351492585324e-5
+          "standard_deviation_seconds": 5.7541304569461716e-5
         },
         "static": {
-          "maximum_seconds": 0.036544166,
-          "mean_seconds": 0.02560879166666667,
-          "minimum_seconds": 0.019967625,
+          "maximum_seconds": 0.021563417,
+          "mean_seconds": 0.02149606933333333,
+          "minimum_seconds": 0.021458041,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.007733774584876148
+          "standard_deviation_seconds": 4.775453084496041e-5
         },
         "structural_dm": {
-          "maximum_seconds": 4.125e-6,
-          "mean_seconds": 2.0e-6,
-          "minimum_seconds": 8.75e-7,
+          "maximum_seconds": 4.084e-6,
+          "mean_seconds": 2.153e-6,
+          "minimum_seconds": 1.125e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.503468212722393e-6
+          "standard_deviation_seconds": 1.3663764732556935e-6
         },
         "structural_graph": {
-          "maximum_seconds": 5.9292e-5,
-          "mean_seconds": 4.2903e-5,
-          "minimum_seconds": 3.2959e-5,
+          "maximum_seconds": 6.4334e-5,
+          "mean_seconds": 4.865266666666666e-5,
+          "minimum_seconds": 3.5958e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.1676478949866122e-5
+          "standard_deviation_seconds": 1.1775383286991365e-5
         },
         "structural_matching": {
-          "maximum_seconds": 8.125e-6,
-          "mean_seconds": 6.555666666666666e-6,
-          "minimum_seconds": 5.75e-6,
+          "maximum_seconds": 8.333e-6,
+          "mean_seconds": 7.0416666666666664e-6,
+          "minimum_seconds": 6.042e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.1098187039131908e-6
+          "standard_deviation_seconds": 9.577655709456718e-7
         }
       },
-      "total_stage_mean_allocated_bytes": 2.3164592e7,
-      "total_stage_mean_seconds": 0.05770438966666667,
+      "total_stage_mean_allocated_bytes": 2.3164656e7,
+      "total_stage_mean_seconds": 0.06311280533333333,
       "variable_count": 32,
       "warmup_performed": true
     },
@@ -733,9 +734,9 @@
       },
       "isolated_process": true,
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1935654912,
-      "process_maxrss_before_bytes": 696385536,
-      "process_maxrss_increment_bytes": 1239269376,
+      "process_maxrss_after_bytes": 1997111296,
+      "process_maxrss_before_bytes": 698925056,
+      "process_maxrss_increment_bytes": 1298186240,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -818,85 +819,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.003851584,
-          "mean_seconds": 0.0038187923333333333,
-          "minimum_seconds": 0.003787334,
+          "maximum_seconds": 0.004266708,
+          "mean_seconds": 0.0041930556666666665,
+          "minimum_seconds": 0.00405575,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.624689135032103e-5
+          "standard_deviation_seconds": 9.717554416049783e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.000500083,
-          "mean_seconds": 0.0004954303333333333,
-          "minimum_seconds": 0.0004885,
+          "maximum_seconds": 0.0005485,
+          "mean_seconds": 0.0005316946666666666,
+          "minimum_seconds": 0.000520125,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.9954843831426705e-6
+          "standard_deviation_seconds": 1.2161258441826234e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.000928583,
-          "mean_seconds": 0.0009190413333333334,
-          "minimum_seconds": 0.0009045,
+          "maximum_seconds": 0.001061084,
+          "mean_seconds": 0.0010429306666666666,
+          "minimum_seconds": 0.001031875,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.0448132921989225e-5
+          "standard_deviation_seconds": 1.293764724446533e-5
         },
         "expressions": {
-          "maximum_seconds": 0.012017208,
-          "mean_seconds": 0.011936597,
-          "minimum_seconds": 0.011892708,
+          "maximum_seconds": 0.012822125,
+          "mean_seconds": 0.012692958333333332,
+          "minimum_seconds": 0.012627834,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.70756308944541e-5
+          "standard_deviation_seconds": 9.133569406073173e-5
         },
         "numerical": {
-          "maximum_seconds": 0.003989292,
-          "mean_seconds": 0.003918069666666667,
-          "minimum_seconds": 0.0038605,
+          "maximum_seconds": 0.004315458,
+          "mean_seconds": 0.004211680333333333,
+          "minimum_seconds": 0.004137875,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.345802899679546e-5
+          "standard_deviation_seconds": 7.553227145325967e-5
         },
         "reformulation": {
-          "maximum_seconds": 0.012159375,
-          "mean_seconds": 0.011980611333333334,
-          "minimum_seconds": 0.011884959,
+          "maximum_seconds": 0.012996542,
+          "mean_seconds": 0.012785736333333334,
+          "minimum_seconds": 0.012541125,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00012650864413241568
+          "standard_deviation_seconds": 0.00018745360011895076
         },
         "snapshot": {
-          "maximum_seconds": 0.000129959,
-          "mean_seconds": 0.00012850033333333333,
-          "minimum_seconds": 0.000125959,
+          "maximum_seconds": 0.000139,
+          "mean_seconds": 0.00013488866666666667,
+          "minimum_seconds": 0.000130333,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.8035382508342358e-6
+          "standard_deviation_seconds": 3.5522102352697995e-6
         },
         "static": {
-          "maximum_seconds": 0.020873417,
-          "mean_seconds": 0.020640208333333333,
-          "minimum_seconds": 0.02048275,
+          "maximum_seconds": 0.022272375,
+          "mean_seconds": 0.022067374666666667,
+          "minimum_seconds": 0.021785958,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00016824339704196958
+          "standard_deviation_seconds": 0.00020579920063390768
         },
         "structural_dm": {
-          "maximum_seconds": 2.625e-6,
-          "mean_seconds": 1.6386666666666667e-6,
-          "minimum_seconds": 1.083e-6,
+          "maximum_seconds": 5.166e-6,
+          "mean_seconds": 2.7636666666666665e-6,
+          "minimum_seconds": 1.292e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 6.993074351734642e-7
+          "standard_deviation_seconds": 1.7130040539616036e-6
         },
         "structural_graph": {
-          "maximum_seconds": 3.55e-5,
-          "mean_seconds": 3.384733333333333e-5,
-          "minimum_seconds": 3.3e-5,
+          "maximum_seconds": 3.725e-5,
+          "mean_seconds": 3.6777666666666665e-5,
+          "minimum_seconds": 3.625e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.168737590546123e-6
+          "standard_deviation_seconds": 4.1011895293384645e-7
         },
         "structural_matching": {
-          "maximum_seconds": 5.625e-6,
-          "mean_seconds": 5.528000000000001e-6,
-          "minimum_seconds": 5.459e-6,
+          "maximum_seconds": 6.167e-6,
+          "mean_seconds": 5.819333333333334e-6,
+          "minimum_seconds": 5.583e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.060217182684046e-8
+          "standard_deviation_seconds": 2.5107811976001085e-7
         }
       },
       "total_stage_mean_allocated_bytes": 2.3624992e7,
-      "total_stage_mean_seconds": 0.053878264666666675,
+      "total_stage_mean_seconds": 0.057705679999999995,
       "variable_count": 32,
       "warmup_performed": true
     },
@@ -907,9 +908,9 @@
       "expected_evidence": {},
       "isolated_process": true,
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1935654912,
-      "process_maxrss_before_bytes": 696385536,
-      "process_maxrss_increment_bytes": 1239269376,
+      "process_maxrss_after_bytes": 1997111296,
+      "process_maxrss_before_bytes": 698925056,
+      "process_maxrss_increment_bytes": 1298186240,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -934,11 +935,11 @@
           "standard_deviation_bytes": 0.0
         },
         "expressions": {
-          "maximum_bytes": 4225552,
-          "mean_bytes": 4.224784e6,
+          "maximum_bytes": 4224400,
+          "mean_bytes": 4.2244e6,
           "minimum_bytes": 4224400,
           "sample_count": 3,
-          "standard_deviation_bytes": 543.0580079512685
+          "standard_deviation_bytes": 0.0
         },
         "numerical": {
           "maximum_bytes": 1834352,
@@ -992,85 +993,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.003271,
-          "mean_seconds": 0.003263305666666667,
-          "minimum_seconds": 0.003247917,
+          "maximum_seconds": 0.003841083,
+          "mean_seconds": 0.003700722,
+          "minimum_seconds": 0.003629791,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.0881430553419446e-5
+          "standard_deviation_seconds": 9.925210658049868e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.000516209,
-          "mean_seconds": 0.0005020696666666667,
-          "minimum_seconds": 0.000494625,
+          "maximum_seconds": 0.000556792,
+          "mean_seconds": 0.000543514,
+          "minimum_seconds": 0.000531416,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.0002705811706932e-5
+          "standard_deviation_seconds": 1.0393255633662915e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.000941541,
-          "mean_seconds": 0.0009332913333333333,
-          "minimum_seconds": 0.000924458,
+          "maximum_seconds": 0.001157,
+          "mean_seconds": 0.0010989303333333335,
+          "minimum_seconds": 0.001068291,
           "sample_count": 3,
-          "standard_deviation_seconds": 6.986306717827059e-6
+          "standard_deviation_seconds": 4.1082348685969215e-5
         },
         "expressions": {
-          "maximum_seconds": 0.022265083,
-          "mean_seconds": 0.015239555333333335,
-          "minimum_seconds": 0.011725875,
+          "maximum_seconds": 0.013019792,
+          "mean_seconds": 0.012788611,
+          "minimum_seconds": 0.012665,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.004967798310874838
+          "standard_deviation_seconds": 0.00016360077320721962
         },
         "numerical": {
-          "maximum_seconds": 0.004018917,
-          "mean_seconds": 0.003988444666666667,
-          "minimum_seconds": 0.00392875,
+          "maximum_seconds": 0.00475725,
+          "mean_seconds": 0.004484778000000001,
+          "minimum_seconds": 0.004322459,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.221358822569927e-5
+          "standard_deviation_seconds": 0.00019384025377786399
         },
         "reformulation": {
-          "maximum_seconds": 0.011897875,
-          "mean_seconds": 0.011762458333333335,
-          "minimum_seconds": 0.011573208,
+          "maximum_seconds": 0.012723625,
+          "mean_seconds": 0.012520958666666667,
+          "minimum_seconds": 0.012413292,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00013790265400475676
+          "standard_deviation_seconds": 0.0001434000121393149
         },
         "snapshot": {
-          "maximum_seconds": 0.000127792,
-          "mean_seconds": 0.00012731933333333333,
-          "minimum_seconds": 0.000126875,
+          "maximum_seconds": 0.000135458,
+          "mean_seconds": 0.00012658333333333334,
+          "minimum_seconds": 0.000120334,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.748993939119574e-7
+          "standard_deviation_seconds": 6.4473832073347585e-6
         },
         "static": {
-          "maximum_seconds": 0.02019175,
-          "mean_seconds": 0.020157333333333333,
-          "minimum_seconds": 0.020114625,
+          "maximum_seconds": 0.022087125,
+          "mean_seconds": 0.021727361333333334,
+          "minimum_seconds": 0.021366542,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.2027386284588304e-5
+          "standard_deviation_seconds": 0.000294177724962687
         },
         "structural_dm": {
-          "maximum_seconds": 1.042e-6,
-          "mean_seconds": 9.860000000000002e-7,
-          "minimum_seconds": 8.75e-7,
+          "maximum_seconds": 1.541e-6,
+          "mean_seconds": 1.3193333333333334e-6,
+          "minimum_seconds": 1.125e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.848991442641958e-8
+          "standard_deviation_seconds": 1.7092753500305974e-7
         },
         "structural_graph": {
-          "maximum_seconds": 3.45e-5,
-          "mean_seconds": 3.375e-5,
-          "minimum_seconds": 3.2875e-5,
+          "maximum_seconds": 3.7e-5,
+          "mean_seconds": 3.594466666666667e-5,
+          "minimum_seconds": 3.4917e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 6.692657668420415e-7
+          "standard_deviation_seconds": 8.506061890727629e-7
         },
         "structural_matching": {
-          "maximum_seconds": 5.625e-6,
-          "mean_seconds": 5.555333333333333e-6,
-          "minimum_seconds": 5.458e-6,
+          "maximum_seconds": 6.458e-6,
+          "mean_seconds": 6.194666666666667e-6,
+          "minimum_seconds": 5.917e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.092875925101816e-8
+          "standard_deviation_seconds": 2.2109475093020372e-7
         }
       },
-      "total_stage_mean_allocated_bytes": 2.324424e7,
-      "total_stage_mean_seconds": 0.05601406900000001,
+      "total_stage_mean_allocated_bytes": 2.3243856e7,
+      "total_stage_mean_seconds": 0.05703491733333334,
       "variable_count": 32,
       "warmup_performed": true
     },
@@ -1081,9 +1082,9 @@
       "expected_evidence": {},
       "isolated_process": true,
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1871609856,
-      "process_maxrss_before_bytes": 664207360,
-      "process_maxrss_increment_bytes": 1207402496,
+      "process_maxrss_after_bytes": 1865613312,
+      "process_maxrss_before_bytes": 743096320,
+      "process_maxrss_increment_bytes": 1122516992,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -1115,11 +1116,11 @@
           "standard_deviation_bytes": 0.0
         },
         "numerical": {
-          "maximum_bytes": 3571872,
-          "mean_bytes": 3.571872e6,
+          "maximum_bytes": 3572192,
+          "mean_bytes": 3.5719786666666665e6,
           "minimum_bytes": 3571872,
           "sample_count": 3,
-          "standard_deviation_bytes": 0.0
+          "standard_deviation_bytes": 150.84944665313012
         },
         "reformulation": {
           "maximum_bytes": 16362656,
@@ -1136,11 +1137,11 @@
           "standard_deviation_bytes": 0.0
         },
         "static": {
-          "maximum_bytes": 28329376,
-          "mean_bytes": 2.8329333333333332e7,
+          "maximum_bytes": 28329312,
+          "mean_bytes": 2.8329312e7,
           "minimum_bytes": 28329312,
           "sample_count": 3,
-          "standard_deviation_bytes": 30.169889330626027
+          "standard_deviation_bytes": 0.0
         },
         "structural_dm": {
           "maximum_bytes": 5856,
@@ -1166,85 +1167,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.00513875,
-          "mean_seconds": 0.005085319333333334,
-          "minimum_seconds": 0.00500975,
+          "maximum_seconds": 0.00592275,
+          "mean_seconds": 0.005705972666666667,
+          "minimum_seconds": 0.005544709,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.4941425908770066e-5
+          "standard_deviation_seconds": 0.00015924839048968612
         },
         "degeneracy": {
-          "maximum_seconds": 0.000852292,
-          "mean_seconds": 0.000849111,
-          "minimum_seconds": 0.000846083,
+          "maximum_seconds": 0.000910917,
+          "mean_seconds": 0.0008923749999999999,
+          "minimum_seconds": 0.000865958,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.537121334636328e-6
+          "standard_deviation_seconds": 1.91805394258521e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.001335083,
-          "mean_seconds": 0.0013024583333333332,
-          "minimum_seconds": 0.001278167,
+          "maximum_seconds": 0.001649292,
+          "mean_seconds": 0.0015325139999999998,
+          "minimum_seconds": 0.001472208,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.397138707338859e-5
+          "standard_deviation_seconds": 8.2589348998524e-5
         },
         "expressions": {
-          "maximum_seconds": 0.047407084,
-          "mean_seconds": 0.045547653,
-          "minimum_seconds": 0.044300625,
+          "maximum_seconds": 0.049483375,
+          "mean_seconds": 0.048767444666666666,
+          "minimum_seconds": 0.048199042,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0013400994877189774
+          "standard_deviation_seconds": 0.0005346033564218972
         },
         "numerical": {
-          "maximum_seconds": 0.007145166,
-          "mean_seconds": 0.007031805333333333,
-          "minimum_seconds": 0.006908833,
+          "maximum_seconds": 0.020536042,
+          "mean_seconds": 0.012086125000000001,
+          "minimum_seconds": 0.007739208,
           "sample_count": 3,
-          "standard_deviation_seconds": 9.672162744816813e-5
+          "standard_deviation_seconds": 0.005975823338301817
         },
         "reformulation": {
-          "maximum_seconds": 0.045609459,
-          "mean_seconds": 0.04522156966666666,
-          "minimum_seconds": 0.044609625,
+          "maximum_seconds": 0.0494335,
+          "mean_seconds": 0.04872595833333334,
+          "minimum_seconds": 0.047723541,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0004378489855230403
+          "standard_deviation_seconds": 0.0007285619120405763
         },
         "snapshot": {
-          "maximum_seconds": 0.000234,
-          "mean_seconds": 0.00016540266666666665,
-          "minimum_seconds": 0.000130917,
+          "maximum_seconds": 0.000251792,
+          "mean_seconds": 0.00019440266666666665,
+          "minimum_seconds": 0.00014575,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.8505879879545414e-5
+          "standard_deviation_seconds": 4.373003124728918e-5
         },
         "static": {
-          "maximum_seconds": 0.077666667,
-          "mean_seconds": 0.06697966666666666,
-          "minimum_seconds": 0.061433,
+          "maximum_seconds": 0.068560625,
+          "mean_seconds": 0.06668929166666666,
+          "minimum_seconds": 0.064773417,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.007558670902578144
+          "standard_deviation_seconds": 0.001546441949896026
         },
         "structural_dm": {
-          "maximum_seconds": 4.208e-6,
-          "mean_seconds": 2.3610000000000003e-6,
-          "minimum_seconds": 1.417e-6,
+          "maximum_seconds": 4.458e-6,
+          "mean_seconds": 2.9443333333333337e-6,
+          "minimum_seconds": 1.5e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.3061334796515503e-6
+          "standard_deviation_seconds": 1.20859321343269e-6
         },
         "structural_graph": {
-          "maximum_seconds": 8.975e-5,
-          "mean_seconds": 7.406933333333333e-5,
-          "minimum_seconds": 6.6125e-5,
+          "maximum_seconds": 0.00010175,
+          "mean_seconds": 8.6861e-5,
+          "minimum_seconds": 7.2417e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.1088230887847811e-5
+          "standard_deviation_seconds": 1.1979280473662297e-5
         },
         "structural_matching": {
-          "maximum_seconds": 2.425e-5,
-          "mean_seconds": 2.273633333333333e-5,
-          "minimum_seconds": 2.1792e-5,
+          "maximum_seconds": 2.4917e-5,
+          "mean_seconds": 2.4041666666666667e-5,
+          "minimum_seconds": 2.3291e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.0812173180674127e-6
+          "standard_deviation_seconds": 6.696393722660634e-7
         }
       },
-      "total_stage_mean_allocated_bytes": 7.020931733333333e7,
-      "total_stage_mean_seconds": 0.17228215266666666,
+      "total_stage_mean_allocated_bytes": 7.020940266666667e7,
+      "total_stage_mean_seconds": 0.18470793100000002,
       "variable_count": 64,
       "warmup_performed": true
     },
@@ -1261,9 +1262,9 @@
       },
       "isolated_process": true,
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1871609856,
-      "process_maxrss_before_bytes": 664207360,
-      "process_maxrss_increment_bytes": 1207402496,
+      "process_maxrss_after_bytes": 1865613312,
+      "process_maxrss_before_bytes": 743096320,
+      "process_maxrss_increment_bytes": 1122516992,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -1288,11 +1289,11 @@
           "standard_deviation_bytes": 0.0
         },
         "expressions": {
-          "maximum_bytes": 16445584,
-          "mean_bytes": 1.6445584e7,
+          "maximum_bytes": 16445904,
+          "mean_bytes": 1.6445690666666666e7,
           "minimum_bytes": 16445584,
           "sample_count": 3,
-          "standard_deviation_bytes": 0.0
+          "standard_deviation_bytes": 150.84944665313012
         },
         "numerical": {
           "maximum_bytes": 3638720,
@@ -1302,11 +1303,11 @@
           "standard_deviation_bytes": 0.0
         },
         "reformulation": {
-          "maximum_bytes": 16442192,
-          "mean_bytes": 1.6442021333333334e7,
+          "maximum_bytes": 16441936,
+          "mean_bytes": 1.6441936e7,
           "minimum_bytes": 16441936,
           "sample_count": 3,
-          "standard_deviation_bytes": 120.67955732250411
+          "standard_deviation_bytes": 0.0
         },
         "snapshot": {
           "maximum_bytes": 64256,
@@ -1346,85 +1347,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.00622775,
-          "mean_seconds": 0.006159125333333334,
-          "minimum_seconds": 0.006122834,
+          "maximum_seconds": 0.00738325,
+          "mean_seconds": 0.006959458333333332,
+          "minimum_seconds": 0.006648625,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.855186297375438e-5
+          "standard_deviation_seconds": 0.00031036340147031226
         },
         "degeneracy": {
-          "maximum_seconds": 0.00085425,
-          "mean_seconds": 0.0008378053333333333,
-          "minimum_seconds": 0.000812708,
+          "maximum_seconds": 0.000946958,
+          "mean_seconds": 0.0009260276666666667,
+          "minimum_seconds": 0.000894166,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.802934499334041e-5
+          "standard_deviation_seconds": 2.2896424063353e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.0014545,
-          "mean_seconds": 0.0013853753333333335,
-          "minimum_seconds": 0.001287792,
+          "maximum_seconds": 0.001433708,
+          "mean_seconds": 0.001421625,
+          "minimum_seconds": 0.001410709,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.097093817111966e-5
+          "standard_deviation_seconds": 9.425494399057576e-6
         },
         "expressions": {
-          "maximum_seconds": 0.046067167,
-          "mean_seconds": 0.04564455566666666,
-          "minimum_seconds": 0.04533125,
+          "maximum_seconds": 0.058749916,
+          "mean_seconds": 0.052490055333333334,
+          "minimum_seconds": 0.049290875,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.000310219550529765
+          "standard_deviation_seconds": 0.00442675104616319
         },
         "numerical": {
-          "maximum_seconds": 0.00715525,
-          "mean_seconds": 0.007098902666666666,
-          "minimum_seconds": 0.00699125,
+          "maximum_seconds": 0.007883416,
+          "mean_seconds": 0.0077164723333333326,
+          "minimum_seconds": 0.007618417,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.614975561936418e-5
+          "standard_deviation_seconds": 0.00011864602634821922
         },
         "reformulation": {
-          "maximum_seconds": 0.054460041,
-          "mean_seconds": 0.04856299966666666,
-          "minimum_seconds": 0.045282083,
+          "maximum_seconds": 0.0497025,
+          "mean_seconds": 0.04831529166666667,
+          "minimum_seconds": 0.047606792,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.004178660827434019
+          "standard_deviation_seconds": 0.0009809798149375366
         },
         "snapshot": {
-          "maximum_seconds": 0.000134458,
-          "mean_seconds": 0.0001297086666666667,
-          "minimum_seconds": 0.000122709,
+          "maximum_seconds": 0.000145708,
+          "mean_seconds": 0.00014415266666666668,
+          "minimum_seconds": 0.000141208,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.053563121424545e-6
+          "standard_deviation_seconds": 2.083296319671195e-6
         },
         "static": {
-          "maximum_seconds": 0.063562958,
-          "mean_seconds": 0.06287170833333333,
-          "minimum_seconds": 0.062151542,
+          "maximum_seconds": 0.067596167,
+          "mean_seconds": 0.06624658333333333,
+          "minimum_seconds": 0.065550666,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0005765708464547598
+          "standard_deviation_seconds": 0.0009544556360391458
         },
         "structural_dm": {
-          "maximum_seconds": 3.125e-6,
-          "mean_seconds": 2.2640000000000003e-6,
-          "minimum_seconds": 1.792e-6,
+          "maximum_seconds": 6.25e-6,
+          "mean_seconds": 4.597333333333333e-6,
+          "minimum_seconds": 2.292e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 6.097611554261773e-7
+          "standard_deviation_seconds": 1.6804605188922338e-6
         },
         "structural_graph": {
-          "maximum_seconds": 6.825e-5,
-          "mean_seconds": 6.431933333333334e-5,
-          "minimum_seconds": 5.8833e-5,
+          "maximum_seconds": 7.4333e-5,
+          "mean_seconds": 6.948599999999999e-5,
+          "minimum_seconds": 6.6583e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.9987536669428535e-6
+          "standard_deviation_seconds": 3.449635439675714e-6
         },
         "structural_matching": {
-          "maximum_seconds": 2.1375e-5,
-          "mean_seconds": 2.0347333333333334e-5,
-          "minimum_seconds": 1.875e-5,
+          "maximum_seconds": 2.2292e-5,
+          "mean_seconds": 2.1236333333333332e-5,
+          "minimum_seconds": 2.025e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.1448570022302165e-6
+          "standard_deviation_seconds": 8.350833624388773e-7
         }
       },
-      "total_stage_mean_allocated_bytes": 7.099917333333333e7,
-      "total_stage_mean_seconds": 0.17277711166666665,
+      "total_stage_mean_allocated_bytes": 7.099919466666666e7,
+      "total_stage_mean_seconds": 0.18431498600000001,
       "variable_count": 64,
       "warmup_performed": true
     },
@@ -1435,9 +1436,9 @@
       "expected_evidence": {},
       "isolated_process": true,
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1871609856,
-      "process_maxrss_before_bytes": 664207360,
-      "process_maxrss_increment_bytes": 1207402496,
+      "process_maxrss_after_bytes": 1865613312,
+      "process_maxrss_before_bytes": 743096320,
+      "process_maxrss_increment_bytes": 1122516992,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -1462,11 +1463,11 @@
           "standard_deviation_bytes": 0.0
         },
         "expressions": {
-          "maximum_bytes": 16366304,
-          "mean_bytes": 1.6366304e7,
+          "maximum_bytes": 16366560,
+          "mean_bytes": 1.6366389333333334e7,
           "minimum_bytes": 16366304,
           "sample_count": 3,
-          "standard_deviation_bytes": 0.0
+          "standard_deviation_bytes": 120.67955732250411
         },
         "numerical": {
           "maximum_bytes": 3675680,
@@ -1476,11 +1477,11 @@
           "standard_deviation_bytes": 0.0
         },
         "reformulation": {
-          "maximum_bytes": 16362912,
-          "mean_bytes": 1.6362741333333334e7,
+          "maximum_bytes": 16362656,
+          "mean_bytes": 1.6362656e7,
           "minimum_bytes": 16362656,
           "sample_count": 3,
-          "standard_deviation_bytes": 120.67955732250411
+          "standard_deviation_bytes": 0.0
         },
         "snapshot": {
           "maximum_bytes": 64288,
@@ -1520,85 +1521,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.005155084,
-          "mean_seconds": 0.005072152999999999,
-          "minimum_seconds": 0.004989458,
+          "maximum_seconds": 0.005412417,
+          "mean_seconds": 0.005340653,
+          "minimum_seconds": 0.005270125,
           "sample_count": 3,
-          "standard_deviation_seconds": 6.761673728202718e-5
+          "standard_deviation_seconds": 5.8097040016395745e-5
         },
         "degeneracy": {
-          "maximum_seconds": 0.00087875,
-          "mean_seconds": 0.0008653056666666667,
-          "minimum_seconds": 0.000848459,
+          "maximum_seconds": 0.00091875,
+          "mean_seconds": 0.0008835553333333334,
+          "minimum_seconds": 0.000863583,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.2598097060888034e-5
+          "standard_deviation_seconds": 2.4961824804199604e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.001427542,
-          "mean_seconds": 0.0013422086666666666,
-          "minimum_seconds": 0.001297459,
+          "maximum_seconds": 0.00142825,
+          "mean_seconds": 0.0014128889999999999,
+          "minimum_seconds": 0.001384917,
           "sample_count": 3,
-          "standard_deviation_seconds": 6.036374310424722e-5
+          "standard_deviation_seconds": 1.9811027451060316e-5
         },
         "expressions": {
-          "maximum_seconds": 0.045236209,
-          "mean_seconds": 0.045002903000000004,
-          "minimum_seconds": 0.044730542,
+          "maximum_seconds": 0.055182875,
+          "mean_seconds": 0.049693985999999996,
+          "minimum_seconds": 0.046761208,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0002082766565428467
+          "standard_deviation_seconds": 0.003884275680909977
         },
         "numerical": {
-          "maximum_seconds": 0.007299125,
-          "mean_seconds": 0.007208749666666667,
-          "minimum_seconds": 0.007120416,
+          "maximum_seconds": 0.007529542,
+          "mean_seconds": 0.007467013666666667,
+          "minimum_seconds": 0.007392916,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.297192598222657e-5
+          "standard_deviation_seconds": 5.637406658108745e-5
         },
         "reformulation": {
-          "maximum_seconds": 0.052669083,
-          "mean_seconds": 0.047854985999999995,
-          "minimum_seconds": 0.04515475,
+          "maximum_seconds": 0.046778167,
+          "mean_seconds": 0.04668623633333333,
+          "minimum_seconds": 0.046633042,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0034124874948941075
+          "standard_deviation_seconds": 6.52722199527156e-5
         },
         "snapshot": {
-          "maximum_seconds": 0.000132375,
-          "mean_seconds": 0.000131625,
-          "minimum_seconds": 0.000130625,
+          "maximum_seconds": 0.000148333,
+          "mean_seconds": 0.00014063833333333332,
+          "minimum_seconds": 0.000130291,
           "sample_count": 3,
-          "standard_deviation_seconds": 7.359800721939928e-7
+          "standard_deviation_seconds": 7.6006982720156926e-6
         },
         "static": {
-          "maximum_seconds": 0.069656583,
-          "mean_seconds": 0.06441993033333333,
-          "minimum_seconds": 0.061683708,
+          "maximum_seconds": 0.073305042,
+          "mean_seconds": 0.06696294433333334,
+          "minimum_seconds": 0.062956333,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.003704123632772562
+          "standard_deviation_seconds": 0.004536137622953426
         },
         "structural_dm": {
-          "maximum_seconds": 1.5e-6,
-          "mean_seconds": 1.4443333333333333e-6,
-          "minimum_seconds": 1.375e-6,
+          "maximum_seconds": 1.708e-6,
+          "mean_seconds": 1.6663333333333332e-6,
+          "minimum_seconds": 1.625e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.193799722318487e-8
+          "standard_deviation_seconds": 3.388542787426809e-8
         },
         "structural_graph": {
-          "maximum_seconds": 6.8375e-5,
-          "mean_seconds": 6.6361e-5,
-          "minimum_seconds": 6.5042e-5,
+          "maximum_seconds": 7.0958e-5,
+          "mean_seconds": 6.865266666666667e-5,
+          "minimum_seconds": 6.6917e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.4467183554513943e-6
+          "standard_deviation_seconds": 1.6981971486124772e-6
         },
         "structural_matching": {
-          "maximum_seconds": 2.2042e-5,
-          "mean_seconds": 2.1653e-5,
-          "minimum_seconds": 2.125e-5,
+          "maximum_seconds": 2.2417e-5,
+          "mean_seconds": 2.2125e-5,
+          "minimum_seconds": 2.1916e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.2348415726276246e-7
+          "standard_deviation_seconds": 2.1278627775305338e-7
         }
       },
-      "total_stage_mean_allocated_bytes": 7.031333333333333e7,
-      "total_stage_mean_seconds": 0.17198731966666667,
+      "total_stage_mean_allocated_bytes": 7.031333333333334e7,
+      "total_stage_mean_seconds": 0.17868036,
       "variable_count": 64,
       "warmup_performed": true
     },
@@ -1609,9 +1610,9 @@
       "expected_evidence": {},
       "isolated_process": true,
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1834844160,
-      "process_maxrss_before_bytes": 666370048,
-      "process_maxrss_increment_bytes": 1168474112,
+      "process_maxrss_after_bytes": 2000977920,
+      "process_maxrss_before_bytes": 706707456,
+      "process_maxrss_increment_bytes": 1294270464,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -1694,85 +1695,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.00936,
-          "mean_seconds": 0.009332277666666666,
-          "minimum_seconds": 0.009313083,
+          "maximum_seconds": 0.010308958,
+          "mean_seconds": 0.009702236000000001,
+          "minimum_seconds": 0.00894475,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.008053861052771e-5
+          "standard_deviation_seconds": 0.0005670468555525198
         },
         "degeneracy": {
-          "maximum_seconds": 0.001775875,
-          "mean_seconds": 0.0017282640000000002,
-          "minimum_seconds": 0.001703084,
+          "maximum_seconds": 0.001812417,
+          "mean_seconds": 0.0017269030000000001,
+          "minimum_seconds": 0.001648125,
           "sample_count": 3,
-          "standard_deviation_seconds": 3.3684761549796706e-5
+          "standard_deviation_seconds": 6.72408387217173e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.002325084,
-          "mean_seconds": 0.002296583333333333,
-          "minimum_seconds": 0.002280875,
+          "maximum_seconds": 0.002392917,
+          "mean_seconds": 0.002327236,
+          "minimum_seconds": 0.002238666,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.018814444722994e-5
+          "standard_deviation_seconds": 6.501934322953446e-5
         },
         "expressions": {
-          "maximum_seconds": 0.192957792,
-          "mean_seconds": 0.18507840266666664,
-          "minimum_seconds": 0.180948958,
+          "maximum_seconds": 0.194947583,
+          "mean_seconds": 0.19056604166666669,
+          "minimum_seconds": 0.188144458,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.005573723307460061
+          "standard_deviation_seconds": 0.003103944048330595
         },
         "numerical": {
-          "maximum_seconds": 0.015104417,
-          "mean_seconds": 0.014902722333333333,
-          "minimum_seconds": 0.014572,
+          "maximum_seconds": 0.015608917,
+          "mean_seconds": 0.015249513999999999,
+          "minimum_seconds": 0.014862875,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00023573016996322074
+          "standard_deviation_seconds": 0.00030517865392039925
         },
         "reformulation": {
-          "maximum_seconds": 0.185856,
-          "mean_seconds": 0.18250858333333334,
-          "minimum_seconds": 0.179986958,
+          "maximum_seconds": 0.194458916,
+          "mean_seconds": 0.188770833,
+          "minimum_seconds": 0.184029458,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.002466152468130238
+          "standard_deviation_seconds": 0.004310111411660493
         },
         "snapshot": {
-          "maximum_seconds": 0.000270083,
-          "mean_seconds": 0.000205764,
-          "minimum_seconds": 0.000173584,
+          "maximum_seconds": 0.000290291,
+          "mean_seconds": 0.0002199303333333333,
+          "minimum_seconds": 0.000179,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.548040413921875e-5
+          "standard_deviation_seconds": 4.9973526727213824e-5
         },
         "static": {
-          "maximum_seconds": 0.229002083,
-          "mean_seconds": 0.22498838900000004,
-          "minimum_seconds": 0.217485792,
+          "maximum_seconds": 0.260423458,
+          "mean_seconds": 0.244808861,
+          "minimum_seconds": 0.234071375,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.005309461536209166
+          "standard_deviation_seconds": 0.011297425322891436
         },
         "structural_dm": {
-          "maximum_seconds": 5.375e-6,
-          "mean_seconds": 4.0556666666666666e-6,
-          "minimum_seconds": 2.5e-6,
+          "maximum_seconds": 5.334e-6,
+          "mean_seconds": 4.625333333333333e-6,
+          "minimum_seconds": 3.584e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.1855508799241343e-6
+          "standard_deviation_seconds": 7.52163693767668e-7
         },
         "structural_graph": {
-          "maximum_seconds": 0.000162375,
-          "mean_seconds": 0.00014736100000000001,
-          "minimum_seconds": 0.000134833,
+          "maximum_seconds": 0.00016975,
+          "mean_seconds": 0.00015824966666666668,
+          "minimum_seconds": 0.000142083,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.1380556166842931e-5
+          "standard_deviation_seconds": 1.1767093165075043e-5
         },
         "structural_matching": {
-          "maximum_seconds": 0.000100083,
-          "mean_seconds": 9.991666666666666e-5,
-          "minimum_seconds": 9.9625e-5,
+          "maximum_seconds": 0.000100958,
+          "mean_seconds": 0.000100083,
+          "minimum_seconds": 9.9583e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.0691758960728683e-7
+          "standard_deviation_seconds": 6.208193510729748e-7
         }
       },
       "total_stage_mean_allocated_bytes": 2.346104693333333e8,
-      "total_stage_mean_seconds": 0.6212923196666666,
+      "total_stage_mean_seconds": 0.653634513,
       "variable_count": 128,
       "warmup_performed": true
     },
@@ -1789,17 +1790,17 @@
       },
       "isolated_process": true,
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1834844160,
-      "process_maxrss_before_bytes": 666370048,
-      "process_maxrss_increment_bytes": 1168474112,
+      "process_maxrss_after_bytes": 2000977920,
+      "process_maxrss_before_bytes": 706707456,
+      "process_maxrss_increment_bytes": 1294270464,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
-          "maximum_bytes": 9054528,
-          "mean_bytes": 9.054442666666666e6,
+          "maximum_bytes": 9054400,
+          "mean_bytes": 9.0544e6,
           "minimum_bytes": 9054400,
           "sample_count": 3,
-          "standard_deviation_bytes": 60.339778661252055
+          "standard_deviation_bytes": 0.0
         },
         "degeneracy": {
           "maximum_bytes": 855856,
@@ -1830,11 +1831,11 @@
           "standard_deviation_bytes": 0.0
         },
         "reformulation": {
-          "maximum_bytes": 64268592,
-          "mean_bytes": 6.4268592e7,
+          "maximum_bytes": 64268720,
+          "mean_bytes": 6.4268634666666664e7,
           "minimum_bytes": 64268592,
           "sample_count": 3,
-          "standard_deviation_bytes": 0.0
+          "standard_deviation_bytes": 60.339778661252055
         },
         "snapshot": {
           "maximum_bytes": 113952,
@@ -1874,85 +1875,85 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.017613166,
-          "mean_seconds": 0.013665596666666667,
-          "minimum_seconds": 0.011605958,
+          "maximum_seconds": 0.012390375,
+          "mean_seconds": 0.012080889,
+          "minimum_seconds": 0.011908542,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0027922331135277526
+          "standard_deviation_seconds": 0.00021931117764947638
         },
         "degeneracy": {
-          "maximum_seconds": 0.001713625,
-          "mean_seconds": 0.0017073886666666668,
-          "minimum_seconds": 0.001697875,
+          "maximum_seconds": 0.001807125,
+          "mean_seconds": 0.001741889,
+          "minimum_seconds": 0.001686667,
           "sample_count": 3,
-          "standard_deviation_seconds": 6.834779212885343e-6
+          "standard_deviation_seconds": 4.9683951721523366e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.002335875,
-          "mean_seconds": 0.00230475,
-          "minimum_seconds": 0.002286792,
+          "maximum_seconds": 0.002436166,
+          "mean_seconds": 0.0023678473333333333,
+          "minimum_seconds": 0.002315292,
           "sample_count": 3,
-          "standard_deviation_seconds": 2.209543903161909e-5
+          "standard_deviation_seconds": 5.058980778334264e-5
         },
         "expressions": {
-          "maximum_seconds": 0.189783375,
-          "mean_seconds": 0.18676056933333332,
-          "minimum_seconds": 0.181548958,
+          "maximum_seconds": 0.197710084,
+          "mean_seconds": 0.19056395866666667,
+          "minimum_seconds": 0.185643875,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0037008610274994387
+          "standard_deviation_seconds": 0.005171382538175669
         },
         "numerical": {
-          "maximum_seconds": 0.014793,
-          "mean_seconds": 0.014786819333333335,
-          "minimum_seconds": 0.014781333,
+          "maximum_seconds": 0.015280167,
+          "mean_seconds": 0.015110250333333334,
+          "minimum_seconds": 0.01492725,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.788270135329522e-6
+          "standard_deviation_seconds": 0.00014437448752540168
         },
         "reformulation": {
-          "maximum_seconds": 0.180348375,
-          "mean_seconds": 0.179053833,
-          "minimum_seconds": 0.178268958,
+          "maximum_seconds": 0.20005375,
+          "mean_seconds": 0.19258025,
+          "minimum_seconds": 0.183907083,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0009222487383705117
+          "standard_deviation_seconds": 0.006646207664795969
         },
         "snapshot": {
-          "maximum_seconds": 0.000175542,
-          "mean_seconds": 0.0001740833333333333,
-          "minimum_seconds": 0.000171708,
+          "maximum_seconds": 0.000219584,
+          "mean_seconds": 0.0001928753333333333,
+          "minimum_seconds": 0.000177917,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.6941265858515114e-6
+          "standard_deviation_seconds": 1.8931234725242355e-5
         },
         "static": {
-          "maximum_seconds": 0.228490167,
-          "mean_seconds": 0.222284,
-          "minimum_seconds": 0.217919208,
+          "maximum_seconds": 0.233715375,
+          "mean_seconds": 0.22610934733333332,
+          "minimum_seconds": 0.222079958,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.004507718562857042
+          "standard_deviation_seconds": 0.005381448907532518
         },
         "structural_dm": {
-          "maximum_seconds": 5.333e-6,
-          "mean_seconds": 3.7219999999999997e-6,
-          "minimum_seconds": 2.833e-6,
+          "maximum_seconds": 5.792e-6,
+          "mean_seconds": 4.874999999999999e-6,
+          "minimum_seconds": 3.25e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.1411873933174456e-6
+          "standard_deviation_seconds": 1.1522120753865871e-6
         },
         "structural_graph": {
-          "maximum_seconds": 0.000137958,
-          "mean_seconds": 0.000135486,
-          "minimum_seconds": 0.000133959,
+          "maximum_seconds": 0.000159875,
+          "mean_seconds": 0.00014343066666666667,
+          "minimum_seconds": 0.000133459,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.7640425164944293e-6
+          "standard_deviation_seconds": 1.1715312610236036e-5
         },
         "structural_matching": {
-          "maximum_seconds": 9.85e-5,
-          "mean_seconds": 9.8347e-5,
-          "minimum_seconds": 9.8208e-5,
+          "maximum_seconds": 0.000127292,
+          "mean_seconds": 0.00010801399999999999,
+          "minimum_seconds": 9.825e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 1.196188390959623e-7
+          "standard_deviation_seconds": 1.3631986600149902e-5
         }
       },
-      "total_stage_mean_allocated_bytes": 2.3599408e8,
-      "total_stage_mean_seconds": 0.6209745953333333,
+      "total_stage_mean_allocated_bytes": 2.3599407999999997e8,
+      "total_stage_mean_seconds": 0.6410036266666667,
       "variable_count": 128,
       "warmup_performed": true
     },
@@ -1963,9 +1964,9 @@
       "expected_evidence": {},
       "isolated_process": true,
       "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
-      "process_maxrss_after_bytes": 1834844160,
-      "process_maxrss_before_bytes": 666370048,
-      "process_maxrss_increment_bytes": 1168474112,
+      "process_maxrss_after_bytes": 2000977920,
+      "process_maxrss_before_bytes": 706707456,
+      "process_maxrss_increment_bytes": 1294270464,
       "repetitions": 3,
       "stage_allocations": {
         "active_set": {
@@ -2048,86 +2049,614 @@
       },
       "stage_timing": {
         "active_set": {
-          "maximum_seconds": 0.009541458,
-          "mean_seconds": 0.009387069333333333,
-          "minimum_seconds": 0.009120959,
+          "maximum_seconds": 0.009621083,
+          "mean_seconds": 0.009338472,
+          "minimum_seconds": 0.009033458,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00018897292637188928
+          "standard_deviation_seconds": 0.00024041936411612158
         },
         "degeneracy": {
-          "maximum_seconds": 0.001702166,
-          "mean_seconds": 0.0016885693333333334,
-          "minimum_seconds": 0.001679625,
+          "maximum_seconds": 0.0016975,
+          "mean_seconds": 0.001669139,
+          "minimum_seconds": 0.001615167,
           "sample_count": 3,
-          "standard_deviation_seconds": 9.772659969982019e-6
+          "standard_deviation_seconds": 3.818047679988644e-5
         },
         "evaluation": {
-          "maximum_seconds": 0.002365292,
-          "mean_seconds": 0.0023050696666666666,
-          "minimum_seconds": 0.002265584,
+          "maximum_seconds": 0.002365583,
+          "mean_seconds": 0.002260472333333333,
+          "minimum_seconds": 0.002204917,
           "sample_count": 3,
-          "standard_deviation_seconds": 4.326606310056677e-5
+          "standard_deviation_seconds": 7.436481778069225e-5
         },
         "expressions": {
-          "maximum_seconds": 0.19178825,
-          "mean_seconds": 0.184783514,
-          "minimum_seconds": 0.1793075,
+          "maximum_seconds": 0.194585792,
+          "mean_seconds": 0.18671583366666666,
+          "minimum_seconds": 0.180729167,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.005208648151909662
+          "standard_deviation_seconds": 0.005811574928477273
         },
         "numerical": {
-          "maximum_seconds": 0.01543575,
-          "mean_seconds": 0.015220416666666667,
-          "minimum_seconds": 0.014876458,
+          "maximum_seconds": 0.015420334,
+          "mean_seconds": 0.015149916666666667,
+          "minimum_seconds": 0.01486325,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00024577800633543705
+          "standard_deviation_seconds": 0.00022771865154079003
         },
         "reformulation": {
-          "maximum_seconds": 0.189352708,
-          "mean_seconds": 0.18678245833333332,
-          "minimum_seconds": 0.184689917,
+          "maximum_seconds": 0.189104166,
+          "mean_seconds": 0.184963472,
+          "minimum_seconds": 0.18274475,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.00193331475558126
+          "standard_deviation_seconds": 0.00293041808642293
         },
         "snapshot": {
-          "maximum_seconds": 0.000182291,
-          "mean_seconds": 0.00017201366666666666,
-          "minimum_seconds": 0.000162458,
+          "maximum_seconds": 0.000177375,
+          "mean_seconds": 0.00017044433333333333,
+          "minimum_seconds": 0.000161583,
           "sample_count": 3,
-          "standard_deviation_seconds": 8.112852943871771e-6
+          "standard_deviation_seconds": 6.590013724484102e-6
         },
         "static": {
-          "maximum_seconds": 0.2328515,
-          "mean_seconds": 0.230376778,
-          "minimum_seconds": 0.228356334,
+          "maximum_seconds": 0.228265625,
+          "mean_seconds": 0.22521368066666667,
+          "minimum_seconds": 0.219868667,
           "sample_count": 3,
-          "standard_deviation_seconds": 0.0018630451269989825
+          "standard_deviation_seconds": 0.003792171861352138
         },
         "structural_dm": {
-          "maximum_seconds": 3.583e-6,
-          "mean_seconds": 2.861e-6,
-          "minimum_seconds": 2.416e-6,
+          "maximum_seconds": 2.791e-6,
+          "mean_seconds": 2.597333333333333e-6,
+          "minimum_seconds": 2.334e-6,
           "sample_count": 3,
-          "standard_deviation_seconds": 5.151174623326217e-7
+          "standard_deviation_seconds": 1.9296343925440614e-7
         },
         "structural_graph": {
-          "maximum_seconds": 0.000151833,
-          "mean_seconds": 0.00014062466666666667,
-          "minimum_seconds": 0.000133625,
+          "maximum_seconds": 0.000144917,
+          "mean_seconds": 0.00013849999999999998,
+          "minimum_seconds": 0.000133416,
           "sample_count": 3,
-          "standard_deviation_seconds": 8.006974973248153e-6
+          "standard_deviation_seconds": 4.788939827004163e-6
         },
         "structural_matching": {
-          "maximum_seconds": 0.000100334,
-          "mean_seconds": 9.947233333333333e-5,
-          "minimum_seconds": 9.8333e-5,
+          "maximum_seconds": 9.9917e-5,
+          "mean_seconds": 9.9347e-5,
+          "minimum_seconds": 9.8416e-5,
           "sample_count": 3,
-          "standard_deviation_seconds": 8.401683693694351e-7
+          "standard_deviation_seconds": 6.638227675115294e-7
         }
       },
       "total_stage_mean_allocated_bytes": 2.34774896e8,
-      "total_stage_mean_seconds": 0.6309588469999999,
+      "total_stage_mean_seconds": 0.625721875,
       "variable_count": 128,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_full_rank",
+      "constraint_count": 256,
+      "dimension": 256,
+      "expected_evidence": {},
+      "isolated_process": true,
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 2009776128,
+      "process_maxrss_before_bytes": 686440448,
+      "process_maxrss_increment_bytes": 1323335680,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 17738000,
+          "mean_bytes": 1.7738e7,
+          "minimum_bytes": 17738000,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 1771888,
+          "mean_bytes": 1.771888e6,
+          "minimum_bytes": 1771888,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 2561104,
+          "mean_bytes": 2.561104e6,
+          "minimum_bytes": 2561104,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 254815584,
+          "mean_bytes": 2.54815584e8,
+          "minimum_bytes": 254815584,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 17937216,
+          "mean_bytes": 1.7937216e7,
+          "minimum_bytes": 17937216,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 254802368,
+          "mean_bytes": 2.54802368e8,
+          "minimum_bytes": 254802368,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 249216,
+          "mean_bytes": 249216.0,
+          "minimum_bytes": 249216,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 302591072,
+          "mean_bytes": 3.025910293333333e8,
+          "minimum_bytes": 302590944,
+          "sample_count": 3,
+          "standard_deviation_bytes": 60.339778661252055
+        },
+        "structural_dm": {
+          "maximum_bytes": 16416,
+          "mean_bytes": 16416.0,
+          "minimum_bytes": 16416,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 695488,
+          "mean_bytes": 695488.0,
+          "minimum_bytes": 695488,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 41920,
+          "mean_bytes": 41920.0,
+          "minimum_bytes": 41920,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.020671083,
+          "mean_seconds": 0.018913111,
+          "minimum_seconds": 0.017422041,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0013397751024317478
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.003618833,
+          "mean_seconds": 0.003530389,
+          "minimum_seconds": 0.003455459,
+          "sample_count": 3,
+          "standard_deviation_seconds": 6.737822158531642e-5
+        },
+        "evaluation": {
+          "maximum_seconds": 0.004400917,
+          "mean_seconds": 0.0043084026666666666,
+          "minimum_seconds": 0.004238916,
+          "sample_count": 3,
+          "standard_deviation_seconds": 6.811160485719174e-5
+        },
+        "expressions": {
+          "maximum_seconds": 0.729706875,
+          "mean_seconds": 0.7249760276666667,
+          "minimum_seconds": 0.721461125,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0034743814163983237
+        },
+        "numerical": {
+          "maximum_seconds": 0.037458125,
+          "mean_seconds": 0.03553616666666667,
+          "minimum_seconds": 0.034191,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.001394762324187252
+        },
+        "reformulation": {
+          "maximum_seconds": 0.716349125,
+          "mean_seconds": 0.7156866946666667,
+          "minimum_seconds": 0.714740292,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0006868120170014287
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000316625,
+          "mean_seconds": 0.00026611100000000003,
+          "minimum_seconds": 0.000240583,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.571947730114016e-5
+        },
+        "static": {
+          "maximum_seconds": 0.820054125,
+          "mean_seconds": 0.8029435833333333,
+          "minimum_seconds": 0.790508292,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.012506865745807312
+        },
+        "structural_dm": {
+          "maximum_seconds": 7.792e-6,
+          "mean_seconds": 6.055666666666666e-6,
+          "minimum_seconds": 5.042e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.2335072850300567e-6
+        },
+        "structural_graph": {
+          "maximum_seconds": 0.000298459,
+          "mean_seconds": 0.00027594466666666667,
+          "minimum_seconds": 0.000264375,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.5922082366602956e-5
+        },
+        "structural_matching": {
+          "maximum_seconds": 0.00042825,
+          "mean_seconds": 0.00042401399999999996,
+          "minimum_seconds": 0.000418209,
+          "sample_count": 3,
+          "standard_deviation_seconds": 4.2467038983192474e-6
+        }
+      },
+      "total_stage_mean_allocated_bytes": 8.532202293333333e8,
+      "total_stage_mean_seconds": 2.3068665003333333,
+      "variable_count": 256,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_rank_deficient",
+      "constraint_count": 256,
+      "dimension": 256,
+      "expected_evidence": {
+        "sparse_qr_jacobian_rank_deficiency": {
+          "fraction": 1.0,
+          "occurrence_count": 3,
+          "run_count": 3
+        }
+      },
+      "isolated_process": true,
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 2009776128,
+      "process_maxrss_before_bytes": 686440448,
+      "process_maxrss_increment_bytes": 1323335680,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 19003200,
+          "mean_bytes": 1.90032e7,
+          "minimum_bytes": 19003200,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 1771392,
+          "mean_bytes": 1.771392e6,
+          "minimum_bytes": 1771392,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 2560912,
+          "mean_bytes": 2.560912e6,
+          "minimum_bytes": 2560912,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 255152912,
+          "mean_bytes": 2.55152912e8,
+          "minimum_bytes": 255152912,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 18099936,
+          "mean_bytes": 1.8099936e7,
+          "minimum_bytes": 18099936,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "reformulation": {
+          "maximum_bytes": 255139696,
+          "mean_bytes": 2.55139696e8,
+          "minimum_bytes": 255139696,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 249184,
+          "mean_bytes": 249184.0,
+          "minimum_bytes": 249184,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 303089632,
+          "mean_bytes": 3.030895893333333e8,
+          "minimum_bytes": 303089504,
+          "sample_count": 3,
+          "standard_deviation_bytes": 60.339778661252055
+        },
+        "structural_dm": {
+          "maximum_bytes": 16784,
+          "mean_bytes": 16784.0,
+          "minimum_bytes": 16784,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 695024,
+          "mean_bytes": 695024.0,
+          "minimum_bytes": 695024,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 41920,
+          "mean_bytes": 41920.0,
+          "minimum_bytes": 41920,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.02475775,
+          "mean_seconds": 0.023248194666666666,
+          "minimum_seconds": 0.022013125,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0011371743881394005
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.00350725,
+          "mean_seconds": 0.0034578746666666664,
+          "minimum_seconds": 0.003426833,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.529698733445805e-5
+        },
+        "evaluation": {
+          "maximum_seconds": 0.004327084,
+          "mean_seconds": 0.004315528333333333,
+          "minimum_seconds": 0.004308209,
+          "sample_count": 3,
+          "standard_deviation_seconds": 8.26745814759412e-6
+        },
+        "expressions": {
+          "maximum_seconds": 0.735094375,
+          "mean_seconds": 0.7308147916666666,
+          "minimum_seconds": 0.72461375,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0044892372546427445
+        },
+        "numerical": {
+          "maximum_seconds": 0.0402965,
+          "mean_seconds": 0.03769019466666667,
+          "minimum_seconds": 0.03428525,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.0025182203013484634
+        },
+        "reformulation": {
+          "maximum_seconds": 0.7262615,
+          "mean_seconds": 0.7203835416666667,
+          "minimum_seconds": 0.716394292,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.004243886877967106
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000241333,
+          "mean_seconds": 0.00023024999999999999,
+          "minimum_seconds": 0.000222959,
+          "sample_count": 3,
+          "standard_deviation_seconds": 7.965986735280607e-6
+        },
+        "static": {
+          "maximum_seconds": 0.825156417,
+          "mean_seconds": 0.8084873473333333,
+          "minimum_seconds": 0.799620042,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.01179483664066073
+        },
+        "structural_dm": {
+          "maximum_seconds": 2.7666e-5,
+          "mean_seconds": 1.893033333333333e-5,
+          "minimum_seconds": 8.25e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 8.044938795430467e-6
+        },
+        "structural_graph": {
+          "maximum_seconds": 0.000266959,
+          "mean_seconds": 0.0002654723333333333,
+          "minimum_seconds": 0.000263875,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.2614672233377854e-6
+        },
+        "structural_matching": {
+          "maximum_seconds": 0.000475792,
+          "mean_seconds": 0.00045895833333333335,
+          "minimum_seconds": 0.000430833,
+          "sample_count": 3,
+          "standard_deviation_seconds": 2.0015897387382425e-5
+        }
+      },
+      "total_stage_mean_allocated_bytes": 8.558205493333333e8,
+      "total_stage_mean_seconds": 2.329371084,
+      "variable_count": 256,
+      "warmup_performed": true
+    },
+    {
+      "case": "sparse_banded_scaled",
+      "constraint_count": 256,
+      "dimension": 256,
+      "expected_evidence": {},
+      "isolated_process": true,
+      "memory_observation": "Sys.maxrss process high-water mark; increment is not an isolated per-case peak",
+      "process_maxrss_after_bytes": 2009776128,
+      "process_maxrss_before_bytes": 686440448,
+      "process_maxrss_increment_bytes": 1323335680,
+      "repetitions": 3,
+      "stage_allocations": {
+        "active_set": {
+          "maximum_bytes": 17738000,
+          "mean_bytes": 1.7738e7,
+          "minimum_bytes": 17738000,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "degeneracy": {
+          "maximum_bytes": 1771888,
+          "mean_bytes": 1.771888e6,
+          "minimum_bytes": 1771888,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "evaluation": {
+          "maximum_bytes": 2561104,
+          "mean_bytes": 2.561104e6,
+          "minimum_bytes": 2561104,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "expressions": {
+          "maximum_bytes": 254815584,
+          "mean_bytes": 2.54815584e8,
+          "minimum_bytes": 254815584,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "numerical": {
+          "maximum_bytes": 18234944,
+          "mean_bytes": 1.8234901333333332e7,
+          "minimum_bytes": 18234880,
+          "sample_count": 3,
+          "standard_deviation_bytes": 30.169889330626027
+        },
+        "reformulation": {
+          "maximum_bytes": 254802368,
+          "mean_bytes": 2.54802368e8,
+          "minimum_bytes": 254802368,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "snapshot": {
+          "maximum_bytes": 249216,
+          "mean_bytes": 249216.0,
+          "minimum_bytes": 249216,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "static": {
+          "maximum_bytes": 302592336,
+          "mean_bytes": 3.025923146666667e8,
+          "minimum_bytes": 302592272,
+          "sample_count": 3,
+          "standard_deviation_bytes": 30.169889330626027
+        },
+        "structural_dm": {
+          "maximum_bytes": 16416,
+          "mean_bytes": 16416.0,
+          "minimum_bytes": 16416,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_graph": {
+          "maximum_bytes": 695488,
+          "mean_bytes": 695488.0,
+          "minimum_bytes": 695488,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        },
+        "structural_matching": {
+          "maximum_bytes": 41920,
+          "mean_bytes": 41920.0,
+          "minimum_bytes": 41920,
+          "sample_count": 3,
+          "standard_deviation_bytes": 0.0
+        }
+      },
+      "stage_timing": {
+        "active_set": {
+          "maximum_seconds": 0.0196335,
+          "mean_seconds": 0.018035750000000003,
+          "minimum_seconds": 0.017135833,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.001132788089226166
+        },
+        "degeneracy": {
+          "maximum_seconds": 0.003460417,
+          "mean_seconds": 0.0034400556666666668,
+          "minimum_seconds": 0.003429625,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.4399083798013727e-5
+        },
+        "evaluation": {
+          "maximum_seconds": 0.004405792,
+          "mean_seconds": 0.004313333333333333,
+          "minimum_seconds": 0.004250625,
+          "sample_count": 3,
+          "standard_deviation_seconds": 6.674833941671445e-5
+        },
+        "expressions": {
+          "maximum_seconds": 0.760748458,
+          "mean_seconds": 0.7426107776666667,
+          "minimum_seconds": 0.721259416,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.016280702693753795
+        },
+        "numerical": {
+          "maximum_seconds": 0.043069792,
+          "mean_seconds": 0.037565764333333335,
+          "minimum_seconds": 0.034642167,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.003894456000868101
+        },
+        "reformulation": {
+          "maximum_seconds": 0.733874042,
+          "mean_seconds": 0.7276727776666666,
+          "minimum_seconds": 0.716079166,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.008204570282727551
+        },
+        "snapshot": {
+          "maximum_seconds": 0.000227416,
+          "mean_seconds": 0.00022405533333333332,
+          "minimum_seconds": 0.000219125,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.562121122153049e-6
+        },
+        "static": {
+          "maximum_seconds": 0.818373125,
+          "mean_seconds": 0.8061304026666667,
+          "minimum_seconds": 0.792182083,
+          "sample_count": 3,
+          "standard_deviation_seconds": 0.010760249902892474
+        },
+        "structural_dm": {
+          "maximum_seconds": 5.0e-6,
+          "mean_seconds": 4.736333333333333e-6,
+          "minimum_seconds": 4.584e-6,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.8719033688260285e-7
+        },
+        "structural_graph": {
+          "maximum_seconds": 0.000268041,
+          "mean_seconds": 0.00026406933333333334,
+          "minimum_seconds": 0.000259834,
+          "sample_count": 3,
+          "standard_deviation_seconds": 3.3556770139901987e-6
+        },
+        "structural_matching": {
+          "maximum_seconds": 0.000428333,
+          "mean_seconds": 0.0004265,
+          "minimum_seconds": 0.000425375,
+          "sample_count": 3,
+          "standard_deviation_seconds": 1.3072589643983958e-6
+        }
+      },
+      "total_stage_mean_allocated_bytes": 8.535192e8,
+      "total_stage_mean_seconds": 2.3406882223333336,
+      "variable_count": 256,
       "warmup_performed": true
     }
   ],
@@ -2138,7 +2667,8 @@
       16,
       32,
       64,
-      128
+      128,
+      256
     ],
     "isolated_process_per_dimension": true,
     "repetitions": 3,

@@ -85,6 +85,12 @@ bmopf_profile_guarded = count(
     record -> get(record, "status", "") == "skipped_size_guard", bmopf_profile_records,
 )
 isolated_runtime_records = get(isolated_runtime_scaling, "records", Any[])
+runtime_records = get(runtime_scaling, "records", Any[])
+runtime_dimensions = get(
+    get(runtime_scaling, "source", Dict{String,Any}()),
+    "dimensions",
+    Any[],
+)
 isolated_runtime_dimensions = get(
     get(isolated_runtime_scaling, "source", Dict{String,Any}()),
     "dimensions",
@@ -162,7 +168,7 @@ gates = Dict{String,Any}[
     gate(
         "runtime_memory_scaling",
         "partial",
-        "The synthetic sparse ladder provides $(length(get(runtime_scaling, "records", Any[]))) warm-up-aware runtime/allocation records, and an isolated child-process ladder adds $(length(isolated_runtime_records)) records across $(length(isolated_runtime_dimensions)) dimensions with per-dimension Sys.maxrss high-water observations. OPF-solver scaling and allocator-level peak-memory measurements remain open.",
+        "The synthetic sparse ladder provides $(length(runtime_records)) warm-up-aware runtime/allocation records across $(length(runtime_dimensions)) dimensions, and an isolated child-process ladder adds $(length(isolated_runtime_records)) records across $(length(isolated_runtime_dimensions)) dimensions with per-dimension Sys.maxrss high-water observations. OPF-solver scaling and allocator-level peak-memory measurements remain open.",
         ["docs/sparse_runtime_memory_scaling_summary.json", "docs/sparse_runtime_memory_isolated_summary.json"],
         blocking=true,
     ),

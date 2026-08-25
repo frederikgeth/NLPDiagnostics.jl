@@ -136,6 +136,11 @@ warm-up-aware timing/allocation records while making each dimension's
 improves local memory attribution but still does not establish allocator-level
 peaks, OPF-solver scaling, or a portable complexity law.
 
+The isolated sparse ladder now extends through dimension 256, giving 15
+child-process records across dimensions 16, 32, 64, 128, and 256. The larger
+point is retained as descriptive local evidence only; OPF solver scaling and
+allocator-level peak claims remain outside the gate.
+
 A separate bounded BMOPFTools adapter profile is now recorded in
 `docs/bmopf_analyze_runtime_profile_summary.json`. It measures parse, model
 build, KCL finalization, and point-free `analyze(model)` costs on three small
