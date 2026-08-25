@@ -83,6 +83,8 @@ work should begin without changing the public API or promoting a portable
 complexity law. The benchmark now retains repeated per-dimension runs with
 mean/minimum/maximum timing and allocation summaries plus finding-stability
 checks, so subsequent optimization decisions are not based on one noisy sample.
+The latest three-repeat campaign is stable at every dimension; its dimension-
+400 mean is 13.762s with a 13.657--13.963s observed range.
 
 The first evidence-preserving optimization is now implemented: `analyze_domains`
 reuses one propagated variable-interval state for issue detection and interval
