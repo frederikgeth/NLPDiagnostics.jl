@@ -97,7 +97,10 @@ false positives, false negatives, mismatches, or unavailable backends; 24
 threshold-sensitive controls retain nine backend disagreements; and 20
 sparse-only large-model records all match their sparse expectations while
 dense SVD remains intentionally guarded. This makes the current statistics
-auditable without presenting them as universal rank guarantees.
+auditable without presenting them as universal rank guarantees. The ledger now
+also records a one-sided 95% finite-sample zero-event upper bound of about 6.7%
+for any single error rate across those 43 hard controls; this quantifies corpus
+uncertainty and is not a universal error guarantee or tolerance recommendation.
 
 The real 99-bus physical-KKT increment now joins the saved tolerance, option,
 initialization, and perturbation matrices through

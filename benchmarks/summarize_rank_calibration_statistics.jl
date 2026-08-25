@@ -49,6 +49,21 @@ large_sparse_records = get(large_sparse, "record_count", 0)
 large_sparse_unavailable = get(large_sparse, "sparse_unavailable_count", 0)
 large_sparse_mismatches = get(large_sparse, "sparse_mismatch_count", 0)
 
+const FINITE_SAMPLE_CONFIDENCE_LEVEL = 0.95
+
+"""One-sided exact binomial upper bound when zero events are observed."""
+function zero_event_upper_bound(sample_count::Integer, confidence_level::Real)
+    sample_count > 0 || return 1.0
+    alpha = 1 - confidence_level
+    return 1 - alpha^(1 / sample_count)
+end
+
+hard_control_count = sum(hard_control_records)
+finite_sample_zero_event_upper_bound = zero_event_upper_bound(
+    hard_control_count,
+    FINITE_SAMPLE_CONFIDENCE_LEVEL,
+)
+
 write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-rank-calibration-statistics-v1",
     "source" => Dict(
@@ -65,7 +80,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "git_worktree_dirty" => !isempty(git_status_entries()),
     ),
     "hard_controls" => Dict(
-        "record_count" => sum(hard_control_records),
+        "record_count" => hard_control_count,
         "false_positive_count" => get(seeded_hard, "false_positive_count", 0),
         "false_negative_count" => get(seeded_hard, "false_negative_count", 0),
         "mismatch_count" => sum(hard_control_mismatches),
@@ -76,6 +91,33 @@ write_json(OUTPUT, Dict{String,Any}(
             "seeded_randomized" => hard_control_records[1],
             "controlled_perturbation" => hard_control_records[2],
         ),
+    ),
+    "finite_sample_uncertainty" => Dict(
+        "confidence_level" => FINITE_SAMPLE_CONFIDENCE_LEVEL,
+        "sample_count" => hard_control_count,
+        "observed_mismatch_count" => sum(hard_control_mismatches),
+        "observed_unavailable_count" => sum(hard_control_unavailable),
+        "zero_event_upper_bound" => finite_sample_zero_event_upper_bound,
+        "method" => "one-sided exact zero-event binomial upper bound: 1 - alpha^(1/n)",
+        "rates" => Dict(
+            "false_positive_rate" => Dict(
+                "observed_count" => get(seeded_hard, "false_positive_count", 0),
+                "upper_bound_if_zero_observed" => finite_sample_zero_event_upper_bound,
+            ),
+            "false_negative_rate" => Dict(
+                "observed_count" => get(seeded_hard, "false_negative_count", 0),
+                "upper_bound_if_zero_observed" => finite_sample_zero_event_upper_bound,
+            ),
+            "mismatch_rate" => Dict(
+                "observed_count" => sum(hard_control_mismatches),
+                "upper_bound_if_zero_observed" => finite_sample_zero_event_upper_bound,
+            ),
+            "unavailable_rate" => Dict(
+                "observed_count" => sum(hard_control_unavailable),
+                "upper_bound_if_zero_observed" => finite_sample_zero_event_upper_bound,
+            ),
+        ),
+        "qualification" => "Finite-sample uncertainty context for this corpus, not a universal error guarantee or tolerance recommendation.",
     ),
     "threshold_sensitive_controls" => Dict(
         "record_count" => sum(threshold_records),
@@ -101,6 +143,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "claim" => "Saved numerical-rank calibration corpora have explicit aggregate hard-control and threshold-sensitivity statistics.",
         "does_not_establish" => [
             "a universal tolerance choice",
+            "a zero-error guarantee outside this finite calibration corpus",
             "algebraic rank for threshold-sensitive cases",
             "OPF physical interpretation or solver KKT conditioning",
         ],

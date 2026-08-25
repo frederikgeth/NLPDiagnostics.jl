@@ -1,9 +1,36 @@
 {
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
-    "git_revision": "eb2428bcb84c2a5662467c7fd6add64512873770",
+    "git_revision": "587c7e0fb6a2ee68eefa0b47a72b8468c3c0b786",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
+  },
+  "finite_sample_uncertainty": {
+    "confidence_level": 0.95,
+    "method": "one-sided exact zero-event binomial upper bound: 1 - alpha^(1/n)",
+    "observed_mismatch_count": 0,
+    "observed_unavailable_count": 0,
+    "qualification": "Finite-sample uncertainty context for this corpus, not a universal error guarantee or tolerance recommendation.",
+    "rates": {
+      "false_negative_rate": {
+        "observed_count": 0,
+        "upper_bound_if_zero_observed": 0.06729675341386787
+      },
+      "false_positive_rate": {
+        "observed_count": 0,
+        "upper_bound_if_zero_observed": 0.06729675341386787
+      },
+      "mismatch_rate": {
+        "observed_count": 0,
+        "upper_bound_if_zero_observed": 0.06729675341386787
+      },
+      "unavailable_rate": {
+        "observed_count": 0,
+        "upper_bound_if_zero_observed": 0.06729675341386787
+      }
+    },
+    "sample_count": 43,
+    "zero_event_upper_bound": 0.06729675341386787
   },
   "hard_controls": {
     "all_match_and_available": true,
@@ -22,6 +49,7 @@
     "claim": "Saved numerical-rank calibration corpora have explicit aggregate hard-control and threshold-sensitivity statistics.",
     "does_not_establish": [
       "a universal tolerance choice",
+      "a zero-error guarantee outside this finite calibration corpus",
       "algebraic rank for threshold-sensitive cases",
       "OPF physical interpretation or solver KKT conditioning"
     ]

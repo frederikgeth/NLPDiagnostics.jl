@@ -153,6 +153,11 @@ rank_threshold_records = get(get(rank_statistics, "threshold_sensitive_controls"
 rank_threshold_disagreements = get(get(rank_statistics, "threshold_sensitive_controls", Dict{String,Any}()), "backend_disagreement_count", 0)
 rank_sparse_only_records = get(get(rank_statistics, "large_sparse_sparse_only", Dict{String,Any}()), "record_count", 0)
 rank_sparse_only_mismatches = get(get(rank_statistics, "large_sparse_sparse_only", Dict{String,Any}()), "sparse_mismatch_count", 0)
+rank_finite_sample = get(rank_statistics, "finite_sample_uncertainty", Dict{String,Any}())
+rank_finite_sample_confidence = get(rank_finite_sample, "confidence_level", "unknown")
+rank_zero_event_upper_bound = get(rank_finite_sample, "zero_event_upper_bound", nothing)
+rank_zero_event_upper_bound_label = rank_zero_event_upper_bound === nothing ?
+    "unavailable" : string(round(rank_zero_event_upper_bound; digits=4))
 analyze_stage_dominant = isempty(analyze_stage_records) ?
     "unavailable" :
     begin
@@ -212,7 +217,7 @@ gates = Dict{String,Any}[
     gate(
         "numerical_rank_false_positive_negative_statistics",
         "partial",
-        "The aggregate rank-statistics ledger now joins $rank_hard_controls complete hard controls with $rank_hard_mismatches mismatches and $rank_hard_unavailable unavailable results, plus $rank_threshold_records threshold-sensitive controls with $rank_threshold_disagreements backend disagreements. This includes the seeded randomized and controlled perturbation corpora; disagreements remain tolerance evidence. A guarded sparse-only extension contributes $rank_sparse_only_records records with $rank_sparse_only_mismatches sparse mismatches while intentionally disabling dense SVD. Broader adversarial and cross-backend statistics remain open.",
+        "The aggregate rank-statistics ledger now joins $rank_hard_controls complete hard controls with $rank_hard_mismatches mismatches and $rank_hard_unavailable unavailable results, plus $rank_threshold_records threshold-sensitive controls with $rank_threshold_disagreements backend disagreements. The zero-event hard-control result is accompanied by a one-sided $(rank_finite_sample_confidence)-level finite-sample upper bound of $rank_zero_event_upper_bound_label for any single zero-observed error rate; this is uncertainty context, not a universal guarantee. This includes the seeded randomized and controlled perturbation corpora; disagreements remain tolerance evidence. A guarded sparse-only extension contributes $rank_sparse_only_records records with $rank_sparse_only_mismatches sparse mismatches while intentionally disabling dense SVD. Broader adversarial and cross-backend statistics remain open.",
         ["docs/randomized_rank_oracle_calibration_summary.json", "docs/large_sparse_rank_oracle_summary.json", "docs/rank_perturbation_sweep_summary.json", "docs/rank_calibration_statistics_summary.json"],
         blocking=true,
     ),

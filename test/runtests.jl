@@ -2276,11 +2276,19 @@ end
     @test rank_statistics_data["hard_controls"]["record_count"] == 43
     @test rank_statistics_data["hard_controls"]["mismatch_count"] == 0
     @test rank_statistics_data["hard_controls"]["unavailable_count"] == 0
+    @test rank_statistics_data["finite_sample_uncertainty"]["sample_count"] == 43
+    @test rank_statistics_data["finite_sample_uncertainty"]["confidence_level"] == 0.95
+    @test rank_statistics_data["finite_sample_uncertainty"]["zero_event_upper_bound"] > 0.06
+    @test rank_statistics_data["finite_sample_uncertainty"]["zero_event_upper_bound"] < 0.08
     @test rank_statistics_data["threshold_sensitive_controls"]["record_count"] == 24
     @test rank_statistics_data["threshold_sensitive_controls"]["backend_disagreement_count"] == 9
     @test rank_statistics_data["large_sparse_sparse_only"]["record_count"] == 20
     @test rank_statistics_data["large_sparse_sparse_only"]["sparse_mismatch_count"] == 0
     @test occursin("rank_calibration_statistics_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
+    @test occursin("finite-sample", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
