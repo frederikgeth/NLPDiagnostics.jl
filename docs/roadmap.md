@@ -50,10 +50,10 @@ failure; the positive-bound t13 fixtures are negative controls. Both LN and LG
 labels match the independent bound-regime ledger, and all four solver-trace
 pairs are available under the matched environment. A 99-bus LN snapshot is
 explicitly retained as an unavailable control because it was not collected;
-it is not converted into a zero-record result. A second 99-bus LN snapshot now
-has both solver traces and a reviewed negative-control outcome from the
-existing KKT-failure summary. This validates the case/trace join, not a solver
-score or causal explanation.
+it is not converted into a zero-record result. The 99-bus LN t01 positive and
+t13 negative controls now both have paired traces and reviewed outcomes from
+the existing KKT-failure summary; t25 remains explicitly unavailable. This
+validates the case/trace join, not a solver score or causal explanation.
 
 The latest bounded 30-bus IBR calibration sequence is complete through
 row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
@@ -4898,9 +4898,9 @@ combines solver-pair, environment, provenance, and trace-availability gates.
 The held-out Ipopt-versus-MadNLP validation now passes all four gates on four
 cases; see `docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`.
 The telemetry crosswalk and truth-labelled positive/negative case set are now
-implemented and validated on the four-case LN/LG campaign plus a reviewed
-99-bus t13 negative control. The 99-bus t01 positive outcome remains explicitly
-unavailable because its trace was not collected. The next trace work is to
-collect and pair that positive 99-bus control while preserving the
-unavailable-vs-failed distinction; do not add another trace metric family
-before that evidence exists.
+implemented and validated on the four-case LN/LG campaign plus reviewed
+99-bus t01 positive and t13 negative controls. The 99-bus t25 control remains
+explicitly unavailable. The next trace work is to expand reviewed truth labels
+to additional 99-bus LG/t25 cases while preserving the unavailable-vs-failed
+distinction; do not add another trace metric family before that evidence
+exists.

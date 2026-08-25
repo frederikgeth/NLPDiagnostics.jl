@@ -5,7 +5,10 @@
     "runner": "benchmarks/validate_bmopf_trace_truth_labels.jl",
     "comparison_summary": "bmopf-trace-policy-comparison-ipopt-madnlp-fourcase.json",
     "truth_ledger": "bmopf_30bus_ibr_p_upper_bound_regime_ledger_summary.json",
-    "scope_comparison_summary": "bmopf-trace-policy-comparison-ipopt-madnlp-99bus.json",
+    "scope_comparison_summaries": [
+      "bmopf-trace-policy-comparison-ipopt-madnlp-99bus.json",
+      "bmopf-trace-policy-comparison-ipopt-madnlp-99bus-t01.json"
+    ],
     "reviewed_truth_summary": "real_99bus_phase_only_kkt_failure_summary.json"
   },
   "readiness": {
@@ -14,11 +17,11 @@
     "distinct_solver_pair": true,
     "case_pairing_complete": true,
     "trace_availability_complete": true,
-    "paired_trace_count": 5,
-    "scope_comparison_included": true
+    "paired_trace_count": 6,
+    "scope_comparison_count": 2
   },
-  "case_count": 6,
-  "available_case_count": 5,
+  "case_count": 7,
+  "available_case_count": 6,
   "unavailable_case_count": 1,
   "cases": [
     {
@@ -94,7 +97,7 @@
       "validated": true
     },
     {
-      "case": "ENWLsnapshots__99bus_LN__99bus_LN_t01_0800",
+      "case": "ENWLsnapshots__99bus_LN__99bus_LN_t25_2000",
       "truth_role": "unavailable_control",
       "expected": {
         "trace_availability": "unavailable",
@@ -105,6 +108,22 @@
         "trace_availability_relation": "unavailable"
       },
       "unavailable_reason": "99-bus trace collection is outside the four-case calibration campaign",
+      "validated": true
+    },
+    {
+      "case": "ENWLsnapshots__99bus_LN__99bus_LN_t01_0800",
+      "truth_role": "positive_control",
+      "expected": {
+        "physical_kkt_acceptance_passed": false,
+        "strict_complementarity_failure": true,
+        "reviewed_source": "real_99bus_phase_only_kkt_failure_summary.json"
+      },
+      "observed": {
+        "trace_pair_present": true,
+        "trace_availability_relation": "both_available",
+        "physical_kkt_acceptance_passed": false,
+        "strict_complementarity_failure": true
+      },
       "validated": true
     },
     {
@@ -125,5 +144,5 @@
     }
   ],
   "validation_passed": true,
-  "interpretation": "Truth labels validate expected bound-regime outcomes and trace availability only. The 99-bus t13 negative control is reviewed against the existing KKT-failure summary; the 99-bus t01 positive outcome remains trace-unavailable. Neither condition is converted into a solver score or causal convergence claim."
+  "interpretation": "Truth labels validate expected bound-regime outcomes and trace availability only. The 99-bus t01 positive and t13 negative controls are reviewed against the existing KKT-failure summary and now have paired traces; t25 remains explicitly unavailable. None of these labels is converted into a solver score or causal convergence claim."
 }

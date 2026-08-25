@@ -12,16 +12,16 @@ using JSON
 Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
 using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
-length(ARGS) in (2, 3, 4) || error(
-    "usage: validate_bmopf_trace_truth_labels.jl <comparison.json> <ledger.json> [output.json] or [scope-comparison.json] <output.json>",
+length(ARGS) in (2, 3, 4, 5) || error(
+    "usage: validate_bmopf_trace_truth_labels.jl <comparison.json> <ledger.json> [scope-comparison.json ...] <output.json>",
 )
 
 comparison_path, ledger_path = abspath.(ARGS[1:2])
 comparison = read_summary(comparison_path; root = "/")
 ledger = read_summary(ledger_path; root = "/")
-scope_comparison_path = length(ARGS) == 4 ? abspath(ARGS[3]) : nothing
-scope_comparison = isnothing(scope_comparison_path) ? Dict{String,Any}() :
-    read_summary(scope_comparison_path; root = "/")
+scope_comparison_paths = length(ARGS) == 4 ? [abspath(ARGS[3])] :
+    (length(ARGS) == 5 ? abspath.(ARGS[3:4]) : String[])
+scope_comparisons = [read_summary(path; root = "/") for path in scope_comparison_paths]
 
 function case_key(path)
     normalized = replace(String(path), '\\' => '/')
@@ -60,10 +60,16 @@ const EXPECTED_CASES = Dict{String,Dict{String,Any}}(
         "expected_strict_complementarity_failure" => false,
         "reviewed_source" => "docs/real_99bus_phase_only_kkt_failure_summary.json",
     ),
+    case_key("ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json") => Dict(
+        "truth_role" => "positive_control",
+        "expected_physical_kkt_acceptance_passed" => false,
+        "expected_strict_complementarity_failure" => true,
+        "reviewed_source" => "docs/real_99bus_phase_only_kkt_failure_summary.json",
+    ),
 )
 
 const EXPECTED_UNAVAILABLE_CASES = Dict{String,Dict{String,Any}}(
-    case_key("ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json") => Dict(
+    case_key("ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json") => Dict(
         "truth_role" => "unavailable_control",
         "expected_trace_availability" => "unavailable",
         "reviewed_outcome" => "positive_control",
@@ -124,22 +130,25 @@ ledger_cases = _ledger_cases(ledger)
 reviewed_truth_cases = _reviewed_truth_cases(read_summary(
     "docs/real_99bus_phase_only_kkt_failure_summary.json",
 ))
-trace_pairs = merge(_trace_pairs(comparison), _trace_pairs(scope_comparison))
+trace_pairs = _trace_pairs(comparison)
+for scope_comparison in scope_comparisons
+    merge!(trace_pairs, _trace_pairs(scope_comparison))
+end
 readiness = get(comparison, "trace_comparison_readiness", Dict())
-if !isnothing(scope_comparison_path)
-    scope_readiness = get(scope_comparison, "trace_comparison_readiness", Dict())
+if !isempty(scope_comparisons)
+    scope_readinesses = [get(scope, "trace_comparison_readiness", Dict()) for scope in scope_comparisons]
     readiness = Dict{String,Any}(
-        "comparison_ready" => get(readiness, "comparison_ready", false) === true &&
-            get(scope_readiness, "comparison_ready", false) === true,
-        "environment_fingerprint_match" => get(readiness, "environment_fingerprint_match", false) === true &&
-            get(scope_readiness, "environment_fingerprint_match", false) === true,
-        "case_pairing_complete" => get(readiness, "case_pairing_complete", false) === true &&
-            get(scope_readiness, "case_pairing_complete", false) === true,
-        "trace_availability_complete" => get(readiness, "trace_availability_complete", false) === true &&
-            get(scope_readiness, "trace_availability_complete", false) === true,
-        "paired_trace_count" => get(readiness, "paired_trace_count", 0) +
-            get(scope_readiness, "paired_trace_count", 0),
-        "scope_comparison_included" => true,
+        "comparison_ready" => all(get(candidate, "comparison_ready", false) === true
+            for candidate in [readiness; scope_readinesses]),
+        "environment_fingerprint_match" => all(get(candidate, "environment_fingerprint_match", false) === true
+            for candidate in [readiness; scope_readinesses]),
+        "case_pairing_complete" => all(get(candidate, "case_pairing_complete", false) === true
+            for candidate in [readiness; scope_readinesses]),
+        "trace_availability_complete" => all(get(candidate, "trace_availability_complete", false) === true
+            for candidate in [readiness; scope_readinesses]),
+        "paired_trace_count" => sum(get(candidate, "paired_trace_count", 0)
+            for candidate in [readiness; scope_readinesses]),
+        "scope_comparison_count" => length(scope_comparisons),
     )
 end
 validated = Dict{String,Any}[]
@@ -222,8 +231,9 @@ end
 
 validation_passed = get(readiness, "comparison_ready", false) === true &&
     !isempty(validated) && all(get(entry, "validated", false) === true for entry in validated)
-output_path = length(ARGS) == 4 ? abspath(ARGS[4]) :
-    (length(ARGS) == 3 ? abspath(ARGS[3]) : joinpath(dirname(comparison_path), "bmopf_trace_truth_label_validation.json"))
+output_path = length(ARGS) == 5 ? abspath(ARGS[5]) :
+    (length(ARGS) == 4 ? abspath(ARGS[4]) :
+        (length(ARGS) == 3 ? abspath(ARGS[3]) : joinpath(dirname(comparison_path), "bmopf_trace_truth_label_validation.json")))
 write_json(output_path, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-trace-truth-label-validation-v1",
     "status" => validation_passed ? "validated_with_explicit_unavailable" : "blocked",
@@ -231,7 +241,7 @@ write_json(output_path, Dict{String,Any}(
         "runner" => "benchmarks/validate_bmopf_trace_truth_labels.jl",
         "comparison_summary" => basename(comparison_path),
         "truth_ledger" => basename(ledger_path),
-        "scope_comparison_summary" => isnothing(scope_comparison_path) ? nothing : basename(scope_comparison_path),
+        "scope_comparison_summaries" => basename.(scope_comparison_paths),
     ),
     "readiness" => readiness,
     "case_count" => length(validated),
