@@ -60,7 +60,7 @@ Evidence:
 
 ### `PARTIAL` — `numerical_rank_false_positive_negative_statistics`
 
-The aggregate rank-statistics ledger now joins 43 complete hard controls with 0 mismatches and 0 unavailable results, plus 24 threshold-sensitive controls with 9 backend disagreements. The zero-event hard-control result is accompanied by a one-sided 0.95-level finite-sample upper bound of 0.0673 for any single zero-observed error rate; this is uncertainty context, not a universal guarantee. This includes the seeded randomized and controlled perturbation corpora; disagreements remain tolerance evidence. A guarded sparse-only extension contributes 20 records with 0 sparse mismatches while intentionally disabling dense SVD. Broader adversarial and cross-backend statistics remain open.
+The aggregate rank-statistics ledger now joins 43 complete hard controls with 0 mismatches and 0 unavailable results, plus 24 threshold-sensitive controls with 9 backend disagreements. The zero-event hard-control result is accompanied by a one-sided 0.95-level finite-sample upper bound of 0.0673 for any single zero-observed error rate; this is uncertainty context, not a universal guarantee. This includes the seeded randomized and controlled perturbation corpora; disagreements remain tolerance evidence. A guarded sparse-only extension contributes 20 records with 0 sparse mismatches while intentionally disabling dense SVD. The cross-backend calibration matrix now retains 3 corpus rows separating dense/sparse hard-control agreement, threshold-sensitive disagreement, and sparse-only coverage. Broader adversarial statistics and a third vetted backend remain open.
 
 Evidence:
 - [`docs/randomized_rank_oracle_calibration_summary.json`](docs/randomized_rank_oracle_calibration_summary.json)

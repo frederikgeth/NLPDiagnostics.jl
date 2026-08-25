@@ -64,6 +64,46 @@ finite_sample_zero_event_upper_bound = zero_event_upper_bound(
     FINITE_SAMPLE_CONFIDENCE_LEVEL,
 )
 
+rate(count::Integer, total::Integer) = total == 0 ? nothing : count / total
+corpus_rows = [
+    Dict{String,Any}(
+        "corpus" => "seeded_randomized",
+        "hard_control_count" => hard_control_records[1],
+        "hard_mismatch_count" => hard_control_mismatches[1],
+        "hard_unavailable_count" => hard_control_unavailable[1],
+        "hard_mismatch_rate" => rate(hard_control_mismatches[1], hard_control_records[1]),
+        "threshold_sensitive_count" => threshold_records[1],
+        "threshold_backend_disagreement_count" => threshold_disagreements[1],
+        "threshold_disagreement_rate" => rate(threshold_disagreements[1], threshold_records[1]),
+        "coverage_class" => "dense_and_sparse",
+    ),
+    Dict{String,Any}(
+        "corpus" => "controlled_perturbation",
+        "hard_control_count" => hard_control_records[2],
+        "hard_mismatch_count" => hard_control_mismatches[2],
+        "hard_unavailable_count" => hard_control_unavailable[2],
+        "hard_mismatch_rate" => rate(hard_control_mismatches[2], hard_control_records[2]),
+        "threshold_sensitive_count" => threshold_records[2],
+        "threshold_backend_disagreement_count" => threshold_disagreements[2],
+        "threshold_disagreement_rate" => rate(threshold_disagreements[2], threshold_records[2]),
+        "coverage_class" => "dense_and_sparse",
+    ),
+    Dict{String,Any}(
+        "corpus" => "large_sparse",
+        "hard_control_count" => 0,
+        "hard_mismatch_count" => large_sparse_mismatches,
+        "hard_unavailable_count" => large_sparse_unavailable,
+        "hard_mismatch_rate" => nothing,
+        "threshold_sensitive_count" => 0,
+        "threshold_backend_disagreement_count" => 0,
+        "threshold_disagreement_rate" => nothing,
+        "sparse_only_record_count" => large_sparse_records,
+        "sparse_only_match_count" => large_sparse_records - large_sparse_unavailable - large_sparse_mismatches,
+        "dense_unavailable_count" => get(large_sparse, "dense_unavailable_count", 0),
+        "coverage_class" => "sparse_only",
+    ),
+]
+
 write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-rank-calibration-statistics-v1",
     "source" => Dict(
@@ -128,6 +168,28 @@ write_json(OUTPUT, Dict{String,Any}(
             "seeded_randomized" => threshold_records[1],
             "controlled_perturbation" => threshold_records[2],
         ),
+    ),
+    "cross_backend_calibration_matrix" => Dict(
+        "corpus_rows" => corpus_rows,
+        "hard_control_relation" => Dict(
+            "dense_sparse_complete_count" => hard_control_count,
+            "agreement_count" => hard_control_count - sum(hard_control_mismatches) - sum(hard_control_unavailable),
+            "mismatch_count" => sum(hard_control_mismatches),
+            "unavailable_count" => sum(hard_control_unavailable),
+        ),
+        "threshold_relation" => Dict(
+            "record_count" => sum(threshold_records),
+            "agreement_count" => sum(threshold_records) - sum(threshold_disagreements),
+            "disagreement_count" => sum(threshold_disagreements),
+        ),
+        "sparse_only_relation" => Dict(
+            "record_count" => large_sparse_records,
+            "match_count" => large_sparse_records - large_sparse_unavailable - large_sparse_mismatches,
+            "mismatch_count" => large_sparse_mismatches,
+            "unavailable_count" => large_sparse_unavailable,
+            "dense_unavailable_count" => get(large_sparse, "dense_unavailable_count", 0),
+        ),
+        "interpretation" => "Rows preserve corpus provenance and distinguish hard-control agreement, threshold-sensitive disagreement, and sparse-only coverage; no row is a universal rank certificate.",
     ),
     "large_sparse_sparse_only" => Dict(
         "record_count" => large_sparse_records,

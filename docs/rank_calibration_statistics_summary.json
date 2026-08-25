@@ -1,7 +1,66 @@
 {
+  "cross_backend_calibration_matrix": {
+    "corpus_rows": [
+      {
+        "corpus": "seeded_randomized",
+        "coverage_class": "dense_and_sparse",
+        "hard_control_count": 18,
+        "hard_mismatch_count": 0,
+        "hard_mismatch_rate": 0.0,
+        "hard_unavailable_count": 0,
+        "threshold_backend_disagreement_count": 4,
+        "threshold_disagreement_rate": 0.4444444444444444,
+        "threshold_sensitive_count": 9
+      },
+      {
+        "corpus": "controlled_perturbation",
+        "coverage_class": "dense_and_sparse",
+        "hard_control_count": 25,
+        "hard_mismatch_count": 0,
+        "hard_mismatch_rate": 0.0,
+        "hard_unavailable_count": 0,
+        "threshold_backend_disagreement_count": 5,
+        "threshold_disagreement_rate": 0.3333333333333333,
+        "threshold_sensitive_count": 15
+      },
+      {
+        "corpus": "large_sparse",
+        "coverage_class": "sparse_only",
+        "dense_unavailable_count": 20,
+        "hard_control_count": 0,
+        "hard_mismatch_count": 0,
+        "hard_mismatch_rate": null,
+        "hard_unavailable_count": 0,
+        "sparse_only_match_count": 20,
+        "sparse_only_record_count": 20,
+        "threshold_backend_disagreement_count": 0,
+        "threshold_disagreement_rate": null,
+        "threshold_sensitive_count": 0
+      }
+    ],
+    "hard_control_relation": {
+      "agreement_count": 43,
+      "dense_sparse_complete_count": 43,
+      "mismatch_count": 0,
+      "unavailable_count": 0
+    },
+    "interpretation": "Rows preserve corpus provenance and distinguish hard-control agreement, threshold-sensitive disagreement, and sparse-only coverage; no row is a universal rank certificate.",
+    "sparse_only_relation": {
+      "dense_unavailable_count": 20,
+      "match_count": 20,
+      "mismatch_count": 0,
+      "record_count": 20,
+      "unavailable_count": 0
+    },
+    "threshold_relation": {
+      "agreement_count": 15,
+      "disagreement_count": 9,
+      "record_count": 24
+    }
+  },
   "environment": {
-    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
-    "git_revision": "587c7e0fb6a2ee68eefa0b47a72b8468c3c0b786",
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "3e178dc87133ad305decc51780f7a96aa93d44cf",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

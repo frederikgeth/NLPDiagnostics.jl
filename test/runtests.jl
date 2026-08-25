@@ -2366,6 +2366,12 @@ end
     @test rank_statistics_data["threshold_sensitive_controls"]["backend_disagreement_count"] == 9
     @test rank_statistics_data["large_sparse_sparse_only"]["record_count"] == 20
     @test rank_statistics_data["large_sparse_sparse_only"]["sparse_mismatch_count"] == 0
+    @test occursin("cross_backend_calibration_matrix", rank_statistics_script)
+    cross_backend_matrix = rank_statistics_data["cross_backend_calibration_matrix"]
+    @test length(cross_backend_matrix["corpus_rows"]) == 3
+    @test cross_backend_matrix["hard_control_relation"]["agreement_count"] == 43
+    @test cross_backend_matrix["threshold_relation"]["disagreement_count"] == 9
+    @test cross_backend_matrix["sparse_only_relation"]["match_count"] == 20
     @test occursin("rank_calibration_statistics_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,

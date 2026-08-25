@@ -101,6 +101,12 @@ auditable without presenting them as universal rank guarantees. The ledger now
 also records a one-sided 95% finite-sample zero-event upper bound of about 6.7%
 for any single error rate across those 43 hard controls; this quantifies corpus
 uncertainty and is not a universal error guarantee or tolerance recommendation.
+The same ledger now emits a cross-backend calibration matrix with separate rows
+for the seeded randomized, controlled perturbation, and large-sparse corpora.
+It keeps the 43 dense/sparse hard-control agreements, 24 threshold-sensitive
+records with 9 disagreements, and 20 sparse-only matches distinct, so the
+remaining rank work is clearly the broader adversarial corpus and a third
+vetted backend rather than an aggregate-count ambiguity.
 
 The real 99-bus physical-KKT increment now joins the saved tolerance, option,
 initialization, and perturbation matrices through
