@@ -2206,6 +2206,29 @@ end
     @test occursin("\"record_count\": 40", rank_perturbation_summary)
     @test occursin("\"hard_control_mismatch_count\": 0", rank_perturbation_summary)
     @test occursin("\"unavailable_count\": 0", rank_perturbation_summary)
+    rank_statistics_script = read(
+        joinpath(benchmark_directory, "summarize_rank_calibration_statistics.jl"),
+        String,
+    )
+    @test Meta.parseall(rank_statistics_script) isa Expr
+    @test occursin("threshold_sensitive_controls", rank_statistics_script)
+    rank_statistics_summary = read(
+        joinpath(repository_root, "docs", "rank_calibration_statistics_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-rank-calibration-statistics-v1", rank_statistics_summary)
+    rank_statistics_data = JSON.parse(rank_statistics_summary)
+    @test rank_statistics_data["hard_controls"]["record_count"] == 43
+    @test rank_statistics_data["hard_controls"]["mismatch_count"] == 0
+    @test rank_statistics_data["hard_controls"]["unavailable_count"] == 0
+    @test rank_statistics_data["threshold_sensitive_controls"]["record_count"] == 24
+    @test rank_statistics_data["threshold_sensitive_controls"]["backend_disagreement_count"] == 9
+    @test rank_statistics_data["large_sparse_sparse_only"]["record_count"] == 20
+    @test rank_statistics_data["large_sparse_sparse_only"]["sparse_mismatch_count"] == 0
+    @test occursin("rank_calibration_statistics_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     kkt_stability_script = read(
         joinpath(benchmark_directory, "summarize_real_99bus_kkt_stability.jl"),
         String,
@@ -2268,8 +2291,8 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 121", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 118", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 122", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 119", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

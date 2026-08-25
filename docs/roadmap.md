@@ -90,7 +90,14 @@ records across five seeds and eight matrix families. All 25 hard controls
 match the declared numerical rank policy with zero unavailable backend results;
 15 threshold-sensitive controls retain five dense/SuiteSparseQR disagreements
 as explicit tolerance evidence. This broadens the statistics without turning
-near-threshold perturbations into algebraic-rank claims.
+near-threshold perturbations into algebraic-rank claims. The companion
+`benchmarks/summarize_rank_calibration_statistics.jl` now joins the seeded,
+large-sparse, and perturbation artifacts: 43 complete hard controls have zero
+false positives, false negatives, mismatches, or unavailable backends; 24
+threshold-sensitive controls retain nine backend disagreements; and 20
+sparse-only large-model records all match their sparse expectations while
+dense SVD remains intentionally guarded. This makes the current statistics
+auditable without presenting them as universal rank guarantees.
 
 The real 99-bus physical-KKT increment now joins the saved tolerance, option,
 initialization, and perturbation matrices through
@@ -192,8 +199,8 @@ library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
 that no unclassified non-helper runner exists. It now follows local include
 chains, so compositional BMOPF runners that inherit the helper transitively are
-counted correctly; the refreshed inventory records 118 helper users across
-121 benchmark scripts with zero unclassified runners.
+counted correctly; the refreshed inventory records 119 helper users across
+122 benchmark scripts with zero unclassified runners.
 
 The latest consolidation increment adds the reviewed local quality policy in
 `docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are

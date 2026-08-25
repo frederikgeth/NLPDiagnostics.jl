@@ -1,0 +1,57 @@
+{
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
+    "git_revision": "eb2428bcb84c2a5662467c7fd6add64512873770",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "hard_controls": {
+    "all_match_and_available": true,
+    "dense_sparse_complete_count": 43,
+    "false_negative_count": 0,
+    "false_positive_count": 0,
+    "mismatch_count": 0,
+    "record_count": 43,
+    "source_record_counts": {
+      "controlled_perturbation": 25,
+      "seeded_randomized": 18
+    },
+    "unavailable_count": 0
+  },
+  "interpretation": {
+    "claim": "Saved numerical-rank calibration corpora have explicit aggregate hard-control and threshold-sensitivity statistics.",
+    "does_not_establish": [
+      "a universal tolerance choice",
+      "algebraic rank for threshold-sensitive cases",
+      "OPF physical interpretation or solver KKT conditioning"
+    ]
+  },
+  "large_sparse_sparse_only": {
+    "all_sparse_expectations_matched": true,
+    "case_count": 5,
+    "dense_unavailable_count": 20,
+    "interpretation": "Sparse-only records extend dimensions and constructions while dense SVD is intentionally disabled by guard.",
+    "record_count": 20,
+    "sparse_match_count": 20,
+    "sparse_mismatch_count": 0,
+    "sparse_unavailable_count": 0
+  },
+  "schema_version": "nlpdiagnostics-rank-calibration-statistics-v1",
+  "source": {
+    "large_sparse_artifact": "docs/large_sparse_rank_oracle_summary.json",
+    "perturbation_artifact": "docs/rank_perturbation_sweep_summary.json",
+    "policy": "Declared hard controls are counted for false-positive/false-negative statistics; threshold-sensitive controls remain disagreement evidence; dense-unavailable large sparse records are sparse-only coverage.",
+    "runner": "benchmarks/summarize_rank_calibration_statistics.jl",
+    "seeded_artifact": "docs/randomized_rank_oracle_calibration_summary.json"
+  },
+  "threshold_sensitive_controls": {
+    "backend_agreement_count": 15,
+    "backend_disagreement_count": 9,
+    "interpretation": "Disagreements are retained as tolerance-sensitive numerical policy evidence, not algebraic-rank failures.",
+    "record_count": 24,
+    "source_record_counts": {
+      "controlled_perturbation": 15,
+      "seeded_randomized": 9
+    }
+  }
+}
