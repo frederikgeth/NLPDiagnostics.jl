@@ -2311,7 +2311,7 @@ end
     analyze_readiness_data = JSON.parse(analyze_readiness_summary)
     @test analyze_readiness_data["schema_version"] == "nlpdiagnostics-analyze-scaling-readiness-v1"
     @test analyze_readiness_data["workload_count"] == 2
-    @test analyze_readiness_data["open_gap_count"] == 3
+    @test analyze_readiness_data["open_gap_count"] == 2
     @test all(workload["point_count"] == 3 for workload in analyze_readiness_data["workloads"])
     @test all(workload["evidence_stable"] for workload in analyze_readiness_data["workloads"])
     @test all(workload["dominant_elapsed_stage_at_largest_dimension"] == "static" for workload in analyze_readiness_data["workloads"])
@@ -2323,10 +2323,10 @@ end
     @test analyze_readiness_data["static_optimization_generalization"]["workload_count"] == 2
     @test analyze_readiness_data["static_optimization_generalization"]["record_count"] == 6
     @test analyze_readiness_data["static_optimization_generalization"]["equivalence_passed"] == true
-    @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["feeder_count"] == 2
-    @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["record_count"] == 6
-    @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["measured_count"] == 6
-    @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["stable_measured_count"] == 6
+    @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["feeder_count"] == 4
+    @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["record_count"] == 12
+    @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["measured_count"] == 9
+    @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["stable_measured_count"] == 9
     analyze_combined_script = read(
         joinpath(benchmark_directory, "profile_bmopf_combined_mv_lv_analyze_scaling.jl"),
         String,

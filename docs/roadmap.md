@@ -237,13 +237,15 @@ performance claim. The follow-on
 `docs/analyze_static_optimization_generalization_summary.json` repeats the A/B
 on mixed-density affine and sparse nonlinear ladders (six rows); equivalence
 passes everywhere, while local speedup is neutral to slightly slower
-(approximately 0.992--1.000x). The next work is now explicitly scoped to a
-reviewed BMOPFTools combined MV+LV workload family, a different static-stage
-candidate, and cross-environment allocator-level memory evidence. The new
-`docs/bmopf_combined_mv_lv_analyze_scaling_summary.json` measures six stable
-point-free analyze records across LV1_14bus and LV13_58bus snapshots under
+(approximately 0.992--1.000x). The combined MV+LV workload-family increment is
+now complete for the reviewed guarded snapshots; the next work is explicitly
+scoped to a different static-stage candidate and cross-environment
+allocator-level memory evidence. The new
+`docs/bmopf_combined_mv_lv_analyze_scaling_summary.json` measures nine stable
+point-free analyze records across LV1_14bus, LV13_58bus, and LV3_55bus under
 classic, SI, and combined local policies (4,180--4,902 variables), while
-retaining 46 PowerIO source warnings and the 5,000-variable guard. These are
+retaining 46 PowerIO source warnings; LV32_100bus is represented by three
+explicit skips at 5,596 variables against the 5,000-variable guard. These are
 adapter observations, not solver-scaling or portability claims.
 
 The isolated sparse ladder now extends through dimension 256, giving 15

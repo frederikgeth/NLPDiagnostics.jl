@@ -76,11 +76,20 @@ profile_records = get(profile, "records", Any[])
 measured_count = count(record -> get(record, "status", "") == "measured", profile_records)
 guarded_count = count(record -> get(record, "status", "") == "skipped_size_guard", profile_records)
 
-open_gaps = [
-    Dict("id" => "larger_combined_mv_lv_analyze", "next_evidence" => "extend the guarded combined MV+LV analyze profile to additional feeders or a reviewed larger snapshot without forcing the full-case memory path"),
+combined_records = get(bmopf_combined, "records", Any[])
+combined_measured = filter(record -> get(record, "status", "") == "measured", combined_records)
+combined_feeders = unique(string(get(record, "feeder", "unknown")) for record in combined_records)
+
+combined_snapshot_covered = length(combined_feeders) >= 4 &&
+    any(get(record, "status", "") == "skipped_size_guard" for record in combined_records)
+
+open_gaps = Dict[
     Dict("id" => "static_stage_candidate_selection", "next_evidence" => "profile a different semantics-preserving static-stage candidate because the affine-row cache A/B is neutral to slightly slower locally"),
     Dict("id" => "portable_analyze_memory", "next_evidence" => "repeat the workload and adapter profiles in a second reviewed environment with allocator-level peak telemetry"),
 ]
+if !combined_snapshot_covered
+    pushfirst!(open_gaps, Dict("id" => "larger_combined_mv_lv_analyze", "next_evidence" => "extend the guarded combined MV+LV analyze profile to additional feeders or a reviewed larger snapshot without forcing the full-case memory path"))
+end
 
 ab_records = get(optimization_ab, "records", Any[])
 ab_speedups = Float64[
@@ -104,10 +113,6 @@ generalization_allocation_reductions = Float64[
     for record in generalization_records
     if get(record, "allocation_reduction_ratio", nothing) isa Real
 ]
-combined_records = get(bmopf_combined, "records", Any[])
-combined_measured = filter(record -> get(record, "status", "") == "measured", combined_records)
-combined_feeders = unique(string(get(record, "feeder", "unknown")) for record in combined_records)
-
 write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-analyze-scaling-readiness-v1",
     "source" => Dict(
@@ -154,7 +159,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "guarded_count" => count(record -> get(record, "status", "") == "skipped_size_guard", combined_records),
         "policy_count" => length(unique(string(get(record, "policy", "unknown")) for record in combined_records)),
         "variable_count_range" => isempty(combined_measured) ? Any[] : [minimum(Int[get(record, "variable_count", 0) for record in combined_measured]), maximum(Int[get(record, "variable_count", 0) for record in combined_measured])],
-        "claim" => "Two reviewed combined MV+LV feeder snapshots are measured through the public point-free analyze entry point under classic, SI, and local policies; findings are stable under the guard.",
+        "claim" => "$(length(combined_feeders)) reviewed combined MV+LV feeder snapshots are profiled through the public point-free analyze entry point under classic, SI, and local policies; measured findings are stable under the guard and larger cases remain explicit skips.",
     ),
     "open_gap_count" => length(open_gaps),
     "open_gaps" => open_gaps,

@@ -6,17 +6,19 @@
     "warmup": true
   },
   "bmopf_combined_mv_lv_analyze": {
-    "claim": "Two reviewed combined MV+LV feeder snapshots are measured through the public point-free analyze entry point under classic, SI, and local policies; findings are stable under the guard.",
-    "feeder_count": 2,
+    "claim": "4 reviewed combined MV+LV feeder snapshots are profiled through the public point-free analyze entry point under classic, SI, and local policies; measured findings are stable under the guard and larger cases remain explicit skips.",
+    "feeder_count": 4,
     "feeders": [
       "LV1_14bus",
-      "LV13_58bus"
+      "LV13_58bus",
+      "LV3_55bus",
+      "LV32_100bus"
     ],
-    "guarded_count": 0,
-    "measured_count": 6,
+    "guarded_count": 3,
+    "measured_count": 9,
     "policy_count": 3,
-    "record_count": 6,
-    "stable_measured_count": 6,
+    "record_count": 12,
+    "stable_measured_count": 9,
     "variable_count_range": [
       4180,
       4902
@@ -24,7 +26,7 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "768ffa22158428c38834cb7b08204f652c7db1bc",
+    "git_revision": "d9b2d37787ff5e9777942f280948ab41050db0e6",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -36,12 +38,8 @@
       "cross-machine reproducibility or OPF-solver scalability"
     ]
   },
-  "open_gap_count": 3,
+  "open_gap_count": 2,
   "open_gaps": [
-    {
-      "id": "larger_combined_mv_lv_analyze",
-      "next_evidence": "extend the guarded combined MV+LV analyze profile to additional feeders or a reviewed larger snapshot without forcing the full-case memory path"
-    },
     {
       "id": "static_stage_candidate_selection",
       "next_evidence": "profile a different semantics-preserving static-stage candidate because the affine-row cache A/B is neutral to slightly slower locally"

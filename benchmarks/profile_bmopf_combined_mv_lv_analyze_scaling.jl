@@ -22,7 +22,7 @@ function selected_feeders()
     raw = strip(get(
         ENV,
         "NLPDIAGNOSTICS_BMOPF_COMBINED_MV_LV_ANALYZE_FEEDERS",
-        "LV1_14bus,LV13_58bus",
+        "LV1_14bus,LV13_58bus,LV3_55bus,LV32_100bus",
     ))
     feeders = unique(filter(!isempty, strip.(split(raw, ','))))
     isempty(feeders) && error("combined MV+LV feeder list must not be empty")
