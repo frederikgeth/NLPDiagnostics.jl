@@ -2083,14 +2083,17 @@ end
     @test occursin("LV1_14bus", combined_snapshot_campaign)
     @test occursin("_run_policy", combined_snapshot_campaign)
     @test occursin("matched-start", combined_snapshot_campaign)
+    @test occursin("baseline_repeat", combined_snapshot_campaign)
+    @test occursin("endpoint_gates", combined_snapshot_campaign)
     combined_snapshot_summary = read(
         joinpath(repository_root, "docs", "bmopf_combined_mv_lv_snapshot_campaign_summary.json"),
         String,
     )
-    @test occursin("matched_ipopt_and_madnlp_campaigns_bounded", combined_snapshot_summary)
+    @test occursin("endpoint_gated_ipopt_madnlp_campaigns_complete", combined_snapshot_summary)
     @test occursin("4180", combined_snapshot_summary)
     @test occursin("campaign_qualified", combined_snapshot_summary)
     @test occursin("MadNLP", combined_snapshot_summary)
+    @test occursin("0.0028511005", combined_snapshot_summary)
     magnitude_campaign = read(
         joinpath(
             benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",

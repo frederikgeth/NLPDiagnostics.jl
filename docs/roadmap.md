@@ -4958,13 +4958,16 @@ The first selected snapshot is now implemented and exercised by
 `benchmarks/bmopf_combined_mv_lv_snapshot_campaign.jl`. It flattens the
 BMOPFTools MV21_328bus source components with the LV1_14bus source components,
 retains component hashes and the 46-entry warning ledger, and produces a
-342-bus / 4,180-variable MV+LV model. Two-repeat bounded Ipopt and MadNLP
-campaigns completed all six policy runs per solver with common-start covariance
-passing. Every run intentionally terminated at its iteration bound, so the
-campaigns are not convergence-qualified and do not rank classic, SI, or local
-MV/LV. The evidence is recorded in
+342-bus / 4,180-variable MV+LV model. Two-repeat, five-iteration Ipopt and
+MadNLP campaigns completed all six policy runs per solver, with locally solved
+endpoints and individual physical endpoint acceptance. MadNLP passed the
+cross-policy physical covariance gate and its campaign qualified. Ipopt's
+individual endpoints were accepted but its largest cross-policy residual
+difference was 0.0028511005, so its scaling comparison remains unqualified.
+Neither result ranks classic, SI, or local MV/LV. The evidence is recorded in
 `docs/bmopf_combined_mv_lv_snapshot_campaign_summary.json`.
 
-The next gate is a larger predeclared iteration budget for both solvers on this
-same snapshot, with endpoint and physical acceptance gates enabled. Any policy
-interpretation remains conditional on those gates and on solver availability.
+The next gate is to diagnose the Ipopt endpoint discrepancy, then repeat a
+second LV feeder or perturbed-start matrix before interpreting scaling policy
+effects. Any policy interpretation remains conditional on endpoint covariance,
+provenance, and solver-availability gates.

@@ -186,6 +186,12 @@ function main()
             end
         end
         reference = first(policies)[1]
+        push!(comparisons, _matched_comparison(
+            reference, 1, private_runs[(reference, 1)],
+            reference, 2, private_runs[(reference, 2)];
+            baseline_repeat = true,
+            max_dense_entries = 0,
+        ))
         for (policy_name, _) in policies[2:end]
             for replicate in 1:repeats
                 push!(comparisons, _matched_comparison(
@@ -230,6 +236,15 @@ function main()
         "records" => records,
         "comparisons" => comparisons,
         "campaign" => campaign,
+        "endpoint_gates" => campaign === nothing ? Dict{String,Any}(
+            "status" => "unavailable",
+            "reason" => "snapshot_size_guarded",
+        ) : Dict{String,Any}(
+            "all_physical_endpoints_accepted" => get(campaign["gates"], "all_physical_endpoints_accepted", false),
+            "all_comparisons_qualified" => get(campaign["gates"], "all_comparisons_qualified", false),
+            "comparison_coverage_complete" => get(campaign["gates"], "comparison_coverage_complete", false),
+            "terminations_stable_within_policy" => get(campaign["gates"], "terminations_stable_within_policy", false),
+        ),
         "qualification" => Dict(
             "interpretation" => "matched-start $(uppercasefirst(solver_name)) evidence is descriptive; no policy score or universal rule",
             "madnlp_campaign_pending" => solver_name == "ipopt",
