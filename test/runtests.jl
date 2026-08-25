@@ -2098,6 +2098,15 @@ end
     @test occursin("0.0028511005", combined_snapshot_summary)
     @test occursin("LV13_58bus", combined_snapshot_summary)
     @test occursin("1.915395841933787e-9", combined_snapshot_summary)
+    perturbed_start_campaign = read(
+        joinpath(benchmark_directory, "bmopf_combined_mv_lv_perturbed_start_campaign.jl"),
+        String,
+    )
+    @test occursin("plus_1pct", perturbed_start_campaign)
+    @test occursin("minus_1pct", perturbed_start_campaign)
+    @test occursin("matrix_gates", perturbed_start_campaign)
+    @test occursin("perturbed_start_matrix", combined_snapshot_summary)
+    @test occursin("3.637978807091713e-12", combined_snapshot_summary)
     magnitude_campaign = read(
         joinpath(
             benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",

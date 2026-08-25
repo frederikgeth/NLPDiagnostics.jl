@@ -4981,5 +4981,11 @@ effects. The second-feeder gate is now complete: the same two-repeat,
 physical and cross-policy gates; its largest residual covariance was
 `1.92e-9`. This supports repeatability of the endpoint-gated procedure, not a
 universal scaling-policy claim. The next gate is a predeclared perturbed-start
-matrix on at least one qualified feeder. Any policy interpretation remains
+matrix on at least one qualified feeder. That matrix is now complete on
+LV1_14bus: predeclared global affine `+1%` and `-1%` starts each produced six
+locally solved runs with all physical and cross-policy gates passing; the
+maximum residual covariance was `3.64e-12`. This supports numerical-start
+robustness of the endpoint-gated procedure on one snapshot, not solver-quality
+or universal policy claims. The next gate is to repeat the matrix on LV13_58bus
+or use a declared voltage-only perturbation. Any policy interpretation remains
 conditional on endpoint covariance, provenance, and solver-availability gates.
