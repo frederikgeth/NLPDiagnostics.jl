@@ -112,6 +112,17 @@
   ],
   "generated_by": "build_calibration_release_gate_summary.jl",
   "interpretation": "This ledger separates completed evidence from release blockers. It does not promote local research observations into causal or physical claims.",
+  "next_actions": {
+    "artifact": "docs/release_gate_action_summary.json",
+    "blocking_gate_count": 5,
+    "recommended_order": [
+      "numerical_rank_false_positive_negative_statistics",
+      "real_99bus_physical_kkt",
+      "runtime_memory_scaling",
+      "analyze_runtime_scaling",
+      "api_test_benchmark_consolidation"
+    ]
+  },
   "project_phase": "consolidate_and_calibrate",
   "release_ready": false,
   "schema_version": "nlpdiagnostics-calibration-release-gate-summary-v1"

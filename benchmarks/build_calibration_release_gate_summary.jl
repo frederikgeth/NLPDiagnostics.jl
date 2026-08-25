@@ -35,6 +35,7 @@ stable_api_surface = read_summary("docs/stable_api_surface_summary.json")
 advanced_api_surface = read_summary("docs/advanced_api_surface_summary.json")
 api_migration_queue = read_summary("docs/api_migration_queue_summary.json")
 api_advanced_candidates = read_summary("docs/api_advanced_candidate_summary.json")
+release_gate_actions = read_summary("docs/release_gate_action_summary.json")
 api_inventory = api_consolidation["api_inventory"]
 api_modules = api_consolidation["module_boundaries"]
 api_schemas = api_consolidation["benchmark_schema_inventory"]
@@ -327,6 +328,11 @@ write_json(output, Dict(
     "release_ready" => all(gate -> gate["status"] == "pass", gates),
     "blocking_gate_count" => count(gate -> gate["blocking"] === true, gates),
     "gates" => gates,
+    "next_actions" => Dict(
+        "artifact" => "docs/release_gate_action_summary.json",
+        "blocking_gate_count" => get(release_gate_actions, "blocking_gate_count", 0),
+        "recommended_order" => get(release_gate_actions, "recommended_order", Any[]),
+    ),
     "interpretation" => "This ledger separates completed evidence from release blockers. It does not promote local research observations into causal or physical claims.",
 ))
 println("wrote calibration release-gate summary to $output")

@@ -1,0 +1,115 @@
+{
+  "actions": [
+    {
+      "blocking": true,
+      "closure_condition": "Hard-control false-positive/false-negative and unavailable statistics are complete across the declared corpus, and backend disagreements are classified rather than silently resolved.",
+      "dependency": "None; this is the highest-priority numerical-algebra track.",
+      "evidence": [
+        "docs/randomized_rank_oracle_calibration_summary.json",
+        "docs/large_sparse_rank_oracle_summary.json",
+        "docs/rank_perturbation_sweep_summary.json",
+        "docs/rank_calibration_statistics_summary.json"
+      ],
+      "id": "numerical_rank_false_positive_negative_statistics",
+      "next_deliverable": "Expand adversarial rank corpora and add a third vetted backend with reproducible disagreement records.",
+      "priority": 1,
+      "status": "partial"
+    },
+    {
+      "blocking": true,
+      "closure_condition": "The strict 1e-5 physical-KKT gate is accepted on the declared paired endpoint corpus, or a reviewed release decision explicitly records why the gate changes.",
+      "dependency": "Preserve solver-point provenance, covariance evidence, and strict tolerance semantics while extending the corpus.",
+      "evidence": [
+        "docs/real_99bus_phase_only_campaign_summary.json",
+        "docs/real_99bus_phase_only_kkt_failure_summary.json",
+        "docs/real_99bus_kkt_stability_summary.json",
+        "docs/real_99bus_kkt_margin_summary.json",
+        "docs/real_99bus_kkt_residual_distribution_summary.json",
+        "docs/real_99bus_kkt_tolerance_policy_summary.json"
+      ],
+      "id": "real_99bus_physical_kkt",
+      "next_deliverable": "Extend trusted real-99-bus endpoint coverage and localize the remaining ibr_p_upper strict-KKT boundary.",
+      "priority": 2,
+      "status": "partial"
+    },
+    {
+      "blocking": true,
+      "closure_condition": "Solver-workload scaling and peak-memory measurements are repeatable under explicit size and process guards, or remain explicitly unavailable with a reviewed release boundary.",
+      "dependency": "Use isolated child processes and retain resource skips; do not extrapolate synthetic sparse behavior.",
+      "evidence": [
+        "docs/sparse_runtime_memory_scaling_summary.json",
+        "docs/sparse_runtime_memory_isolated_summary.json",
+        "docs/sparse_runtime_trend_summary.json"
+      ],
+      "id": "runtime_memory_scaling",
+      "next_deliverable": "Add guarded OPF-solver scaling and allocator-level peak-memory evidence beyond the synthetic sparse ladder.",
+      "priority": 3,
+      "status": "partial"
+    },
+    {
+      "blocking": true,
+      "closure_condition": "Broader workloads have stable findings, stage/resource attribution, and documented portability limits for any optimization claim.",
+      "dependency": "Keep the public API unchanged and preserve repeatability and memory provenance.",
+      "evidence": [
+        "docs/analyze_runtime_scaling_summary.json",
+        "docs/analyze_runtime_trend_summary.json",
+        "docs/analyze_runtime_resource_summary.json",
+        "docs/bmopf_analyze_runtime_profile_summary.json"
+      ],
+      "id": "analyze_runtime_scaling",
+      "next_deliverable": "Broaden point-free analyze scaling fixtures and profile the dominant static stage under evidence-preserving optimization.",
+      "priority": 4,
+      "status": "partial"
+    },
+    {
+      "blocking": true,
+      "closure_condition": "Every root-only export has a reviewed ownership or migration decision, and helper/schema/test consolidation remains reproducible in the known environment.",
+      "dependency": "Usage and candidate batches are triage evidence only; no automatic promotion or removal is allowed.",
+      "evidence": [
+        "docs/api_test_benchmark_consolidation_summary.json",
+        "docs/bmopf_api_contract_summary.json",
+        "docs/bmopf_api_contract_clean_main_summary.json",
+        "docs/bmopf_pr_handoff_summary.json",
+        "docs/bmopf_checkout_validation_summary.json",
+        "docs/api_tier_usage_summary.json",
+        "docs/stable_api_surface_summary.json",
+        "docs/advanced_api_surface_summary.json",
+        "docs/api_migration_queue_summary.json",
+        "docs/api_advanced_candidate_summary.json"
+      ],
+      "id": "api_test_benchmark_consolidation",
+      "next_deliverable": "Review root-only legacy ownership and migrate only explicitly approved Stable/Advanced symbols.",
+      "priority": 5,
+      "status": "partial"
+    }
+  ],
+  "all_blocking_gates_mapped": true,
+  "blocking_gate_count": 5,
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "ecd89c5d318829a7e31356c0788194bb990cc73e",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "Each current blocking gate has an explicit next deliverable and closure condition ordered by roadmap priority.",
+    "does_not_establish": [
+      "release readiness",
+      "that a closure condition has been satisfied",
+      "permission to relax a numerical or physical gate"
+    ]
+  },
+  "recommended_order": [
+    "numerical_rank_false_positive_negative_statistics",
+    "real_99bus_physical_kkt",
+    "runtime_memory_scaling",
+    "analyze_runtime_scaling",
+    "api_test_benchmark_consolidation"
+  ],
+  "schema_version": "nlpdiagnostics-release-gate-actions-v1",
+  "source": {
+    "gate_summary": "docs/calibration_release_gate_summary.json",
+    "policy": "Actions sequence work only; this artifact never changes gate status or release readiness.",
+    "runner": "benchmarks/summarize_release_gate_actions.jl"
+  }
+}

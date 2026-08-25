@@ -19,7 +19,7 @@ function _status_label(status)
     return uppercase(string(status))
 end
 
-function _report_lines(summary)
+function _report_lines(summary, actions)
     gates = get(summary, "gates", Any[])
     lines = String[
         "# Calibration release report",
@@ -42,6 +42,13 @@ function _report_lines(summary)
     for gate in gates
         push!(lines, "| `$(gate["id"])` | $(_status_label(gate["status"])) | `$(gate["blocking"])` |")
     end
+    push!(lines, "", "## Recommended blocker order", "")
+    push!(lines, "The action ledger sequences work without changing gate thresholds or release status.", "")
+    for (index, id) in enumerate(get(actions, "recommended_order", Any[]))
+        action = only(filter(row -> row["id"] == id, get(actions, "actions", Any[])))
+        push!(lines, "$(index). **`$(id)`** — $(action["next_deliverable"])")
+    end
+    push!(lines, "", "Action evidence: [`docs/release_gate_action_summary.json`](release_gate_action_summary.json)", "")
     push!(lines, "", "## Evidence and blockers", "")
     for gate in gates
         push!(lines, "### `$(_status_label(gate["status"]))` — `$(gate["id"])`")
@@ -67,8 +74,9 @@ end
 
 function main()
     summary = read_summary("docs/calibration_release_gate_summary.json")
+    actions = read_summary("docs/release_gate_action_summary.json")
     mkpath(dirname(OUTPUT))
-    write(OUTPUT, join(_report_lines(summary), '\n') * '\n')
+    write(OUTPUT, join(_report_lines(summary, actions), '\n') * '\n')
     println("wrote calibration release report to $OUTPUT")
 end
 

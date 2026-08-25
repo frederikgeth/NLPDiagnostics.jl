@@ -2222,6 +2222,22 @@ end
     @test occursin("combined_mv_lv_scaling_start_robustness", release_gate_builder)
     @test occursin("api_migration_queue_summary.json", release_gate_builder)
     @test occursin("api_advanced_candidate_summary.json", release_gate_builder)
+    release_action_script = read(
+        joinpath(benchmark_directory, "summarize_release_gate_actions.jl"),
+        String,
+    )
+    @test Meta.parseall(release_action_script) isa Expr
+    @test occursin("closure_condition", release_action_script)
+    release_action_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "release_gate_action_summary.json"),
+        String,
+    ))
+    @test release_action_summary["schema_version"] == "nlpdiagnostics-release-gate-actions-v1"
+    @test release_action_summary["blocking_gate_count"] == 5
+    @test release_action_summary["all_blocking_gates_mapped"] == true
+    @test release_action_summary["recommended_order"][1] == "numerical_rank_false_positive_negative_statistics"
+    @test occursin("Recommended blocker order", release_report)
+    @test occursin("release_gate_action_summary.json", release_gate_summary)
     analyze_scaling_script = read(
         joinpath(benchmark_directory, "profile_analyze_scaling.jl"),
         String,

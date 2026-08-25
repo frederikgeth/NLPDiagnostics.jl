@@ -22,6 +22,19 @@ This report is generated from `docs/calibration_release_gate_summary.json`. It s
 | `combined_mv_lv_scaling_start_robustness` | PASS | `false` |
 | `api_test_benchmark_consolidation` | PARTIAL | `true` |
 
+## Recommended blocker order
+
+The action ledger sequences work without changing gate thresholds or release status.
+
+1. **`numerical_rank_false_positive_negative_statistics`** — Expand adversarial rank corpora and add a third vetted backend with reproducible disagreement records.
+2. **`real_99bus_physical_kkt`** — Extend trusted real-99-bus endpoint coverage and localize the remaining ibr_p_upper strict-KKT boundary.
+3. **`runtime_memory_scaling`** — Add guarded OPF-solver scaling and allocator-level peak-memory evidence beyond the synthetic sparse ladder.
+4. **`analyze_runtime_scaling`** — Broaden point-free analyze scaling fixtures and profile the dominant static stage under evidence-preserving optimization.
+5. **`api_test_benchmark_consolidation`** — Review root-only legacy ownership and migrate only explicitly approved Stable/Advanced symbols.
+
+Action evidence: [`docs/release_gate_action_summary.json`](release_gate_action_summary.json)
+
+
 ## Evidence and blockers
 
 ### `PASS` — `30bus_ibr_bounded_calibration`
