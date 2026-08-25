@@ -34,6 +34,7 @@ api_tier_usage = read_summary("docs/api_tier_usage_summary.json")
 stable_api_surface = read_summary("docs/stable_api_surface_summary.json")
 advanced_api_surface = read_summary("docs/advanced_api_surface_summary.json")
 api_migration_queue = read_summary("docs/api_migration_queue_summary.json")
+api_advanced_candidates = read_summary("docs/api_advanced_candidate_summary.json")
 api_inventory = api_consolidation["api_inventory"]
 api_modules = api_consolidation["module_boundaries"]
 api_schemas = api_consolidation["benchmark_schema_inventory"]
@@ -67,6 +68,8 @@ advanced_api_surface_export_count = get(advanced_api_surface, "runtime_export_co
 advanced_api_surface_smoke_status = get(get(advanced_api_surface, "smoke", Dict{String,Any}()), "status", "missing")
 api_migration_queue_count = get(api_migration_queue, "queue_count", 0)
 api_migration_unreferenced_count = get(api_migration_queue, "unreferenced_in_code_count", 0)
+api_advanced_candidate_count = get(api_advanced_candidates, "candidate_count", 0)
+api_advanced_family_counts = get(api_advanced_candidates, "family_counts", Dict{String,Any}())
 real_kkt_qualified_profiles = get(real_kkt_stability, "qualified_profile_count", 0)
 real_kkt_stable_count = get(real_kkt_stability, "stable_strict_acceptance_count", nothing)
 real_kkt_excluded_profiles = get(real_kkt_stability, "excluded_incomplete_profile_count", 0)
@@ -214,6 +217,7 @@ api_contract_rationale =
 api_contract_rationale = api_contract_rationale * " The executable Stable facade surface audit is $stable_api_surface_status for $stable_api_surface_export_count runtime exports, with the one-variable smoke path $stable_api_surface_smoke_status; this verifies the declared boundary without promoting legacy root exports."
 api_contract_rationale = api_contract_rationale * " The complementary Advanced facade surface audit is $advanced_api_surface_status for $advanced_api_surface_export_count runtime exports, with the typed rank-policy/unavailable-reason smoke path $advanced_api_surface_smoke_status; this verifies the research namespace without promoting it into Stable."
 api_contract_rationale = api_contract_rationale * " The API migration queue summary preserves $api_migration_queue_count root-only entries and $api_migration_unreferenced_count unreferenced names in a disposition-by-usage matrix; this is deterministic triage evidence, not automatic migration."
+api_contract_rationale = api_contract_rationale * " The Advanced-candidate summary retains $api_advanced_candidate_count candidates in $(get(api_advanced_family_counts, "bmopf_extension", 0)) BMOPF-extension and $(get(api_advanced_family_counts, "port_extension", 0)) port-extension review batches; family and usage buckets order ownership review without automatic promotion."
 
 combined_mv_lv_gate = all([
     get(combined_mv_lv, "ipopt_tolerance_diagnostic", Dict{String,Any}())["all_comparisons_qualified"],
@@ -307,6 +311,7 @@ gates = Dict{String,Any}[
             "docs/stable_api_surface_summary.json",
             "docs/advanced_api_surface_summary.json",
             "docs/api_migration_queue_summary.json",
+            "docs/api_advanced_candidate_summary.json",
         ],
         blocking=true,
     ),

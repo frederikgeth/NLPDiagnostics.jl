@@ -148,6 +148,10 @@ The companion `benchmarks/summarize_api_migration_queue.jl` preserves that
 with test/benchmark runtime evidence and four unreferenced names, grouped by
 proposed disposition and usage priority. The ordering is review triage only;
 it does not make ownership, compatibility, or removal decisions automatically.
+The follow-on `benchmarks/summarize_api_advanced_candidates.jl` groups the 102
+Advanced candidates into 96 BMOPF-extension and 6 port-extension review
+batches, with usage priority retained inside each batch. This makes the next
+ownership decisions concrete without promoting any root-only export.
 
 The `analyze(model)` scaling gate now includes bounded stage attribution in
 `docs/analyze_runtime_scaling_summary.json`. The existing end-to-end runtime

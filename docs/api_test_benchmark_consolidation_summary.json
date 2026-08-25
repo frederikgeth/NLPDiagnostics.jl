@@ -577,9 +577,9 @@
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 69,
-    "json_file_count": 71,
-    "json_schema_file_count": 71,
+    "benchmark_scripts_with_schema_version_count": 70,
+    "json_file_count": 72,
+    "json_schema_file_count": 72,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -686,7 +686,7 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 130,
+    "benchmark_script_count": 131,
     "shared_benchmark_helper": "benchmarks/common.jl",
     "shared_benchmark_helper_exemption_count": 3,
     "shared_benchmark_helper_exemptions": [
@@ -703,7 +703,7 @@
         "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
       }
     ],
-    "shared_benchmark_helper_user_count": 127,
+    "shared_benchmark_helper_user_count": 128,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_advanced_api_surface.jl",
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
@@ -796,6 +796,7 @@
       "benchmarks/solver_failure_cases.jl",
       "benchmarks/summarize_analyze_runtime_resources.jl",
       "benchmarks/summarize_analyze_runtime_trends.jl",
+      "benchmarks/summarize_api_advanced_candidates.jl",
       "benchmarks/summarize_api_migration_queue.jl",
       "benchmarks/summarize_bmopf_campaign.jl",
       "benchmarks/summarize_bmopf_controller_campaign.jl",

@@ -1,0 +1,705 @@
+{
+  "candidate_count": 102,
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "2d362f29376bfb990441f8ac54ee03b7753241f1",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "family_buckets": {
+    "bmopf_extension": [
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_acdc_scaling_contract_data",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_active_set",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_component_rank_persistence",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_degeneracy",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_initialization",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_jacobian_rank_persistence",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_jacobian_row_family_perturbations",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_opf",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "bmopf_analyze_reduced_hessian_persistence",
+        "usage_priority": "source_only"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_sparse_qr_nullspace_persistence",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_block_scaling_coordinate_geometry_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_block_scaling_covariance_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_build_and_analyze_opf",
+        "usage_priority": "benchmark_usage"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_build_and_profile",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_component_coordinate_semantics",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_component_metadata",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_component_rank_capability_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_component_report",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_constraint_feasibility_field_attribution",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_constraint_registry_coverage_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 13,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_constraint_semantic_row_map",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_context_profile_report",
+        "usage_priority": "benchmark_usage"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_controller_curve_operating_point_observations",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_coordinate_probe_point",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_current_law_fingerprints",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_current_law_operating_point_persistence",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_current_law_operating_point_probes",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_current_law_operating_point_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_current_law_operating_point_trace",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_current_law_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 13,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_diagonal_scaling_map",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_expected_mode_tangent_policy",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_floating_neutral_candidate_modes",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_floating_neutral_candidate_report",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 7,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_initialization_point",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_initialization_scaling_covariance_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_iteration_trace_jacobian_family_geometry_data",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 9,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_jacobian_row_family_scale_attribution",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 7,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_jacobian_row_family_scaling_experiment",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_opf_differentiability_report",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_opf_lifecycle_report",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_opf_registry_report",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_passive_network_current_map_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_passive_network_current_maps",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_covariance_report",
+        "usage_priority": "benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_endpoint",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_model_rebuild_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_physical_solver_kkt_report",
+        "usage_priority": "benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_rebuild_model",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_solve_model",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_transform_plan",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_physical_feasibility_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 11,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_physical_solver_kkt_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_profile_case",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_profile_saved_result",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_result_field_catalog",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_result_mapping_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_result_voltage_point",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_saved_result_profile_case",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_scaling_coordinate_geometry_report",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_scaling_covariance_report",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_scaling_intervention_classification",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_scaling_solver_experiment_comparison",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_semantic_block_scaling_map",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_set_start_values!",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_solver_trace_physical_endpoint_data",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_source_behavior_auxiliary_model",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_source_behavior_auxiliary_solve",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_source_behavior_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_source_behavior_solver_comparison",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_source_schema_report",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 18,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_start_completion_point",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_complex_constitutive_map_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_complex_constitutive_maps",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_constitutive_map_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_constitutive_maps",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_current_port_coordinate_maps",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_current_port_coordinate_semantics",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_current_port_metadata",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_current_port_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_assembly",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_assembly_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_connections",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_coordinate_maps",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_coordinate_scale_report",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_coordinate_semantics",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_metadata",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_nullspace_mode_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_nullspace_mode_semantics",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_nullspace_modes",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_report",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_report",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_transformer_scaling_contract_data",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_transport_scaling_point",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 7,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_variable_semantic_column_map",
+        "usage_priority": "test_and_benchmark_usage"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "bmopf_voltage_initialization_invariants_data",
+        "usage_priority": "source_only"
+      }
+    ],
+    "port_extension": [
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "port_component_expected_nullspace_modes",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "port_expected_nullspace_modes",
+        "usage_priority": "source_only"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "port_expected_nullspace_summary",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 0,
+        "has_runtime_usage_evidence": false,
+        "name": "port_network_assembly_summary",
+        "usage_priority": "unreferenced_in_code"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "port_topology_expected_nullspace_modes",
+        "usage_priority": "test_usage"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "port_topology_nullspace",
+        "usage_priority": "test_usage"
+      }
+    ]
+  },
+  "family_counts": {
+    "bmopf_extension": 96,
+    "port_extension": 6
+  },
+  "family_priority_matrix": {
+    "bmopf_extension": {
+      "benchmark_usage": 4,
+      "source_only": 2,
+      "test_and_benchmark_usage": 68,
+      "test_usage": 22,
+      "unreferenced_in_code": 0
+    },
+    "port_extension": {
+      "benchmark_usage": 0,
+      "source_only": 1,
+      "test_and_benchmark_usage": 0,
+      "test_usage": 4,
+      "unreferenced_in_code": 1
+    }
+  },
+  "interpretation": {
+    "claim": "The 102 Advanced candidates are grouped into deterministic BMOPF and port-extension review batches.",
+    "does_not_establish": [
+      "Stable or Advanced namespace ownership",
+      "semantic compatibility or deprecation safety",
+      "that repository usage justifies automatic promotion"
+    ]
+  },
+  "review_batches": [
+    {
+      "candidate_count": 68,
+      "family": "bmopf_extension",
+      "reason": "Highest repository evidence; review ownership before any facade promotion.",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "candidate_count": 22,
+      "family": "bmopf_extension",
+      "reason": "Retain as a later manual review batch; usage evidence alone does not establish compatibility.",
+      "usage_priority": "test_usage"
+    },
+    {
+      "candidate_count": 4,
+      "family": "bmopf_extension",
+      "reason": "Retain as a later manual review batch; usage evidence alone does not establish compatibility.",
+      "usage_priority": "benchmark_usage"
+    },
+    {
+      "candidate_count": 2,
+      "family": "bmopf_extension",
+      "reason": "Retain as a later manual review batch; usage evidence alone does not establish compatibility.",
+      "usage_priority": "source_only"
+    },
+    {
+      "candidate_count": 4,
+      "family": "port_extension",
+      "reason": "Retain as a later manual review batch; usage evidence alone does not establish compatibility.",
+      "usage_priority": "test_usage"
+    },
+    {
+      "candidate_count": 1,
+      "family": "port_extension",
+      "reason": "Retain as a later manual review batch; usage evidence alone does not establish compatibility.",
+      "usage_priority": "source_only"
+    },
+    {
+      "candidate_count": 1,
+      "family": "port_extension",
+      "reason": "Retain as a later manual review batch; usage evidence alone does not establish compatibility.",
+      "usage_priority": "unreferenced_in_code"
+    }
+  ],
+  "schema_version": "nlpdiagnostics-api-advanced-candidates-v1",
+  "source": {
+    "policy": "Family and usage buckets order review only; no candidate is promoted, deprecated, or removed automatically.",
+    "runner": "benchmarks/summarize_api_advanced_candidates.jl",
+    "usage_artifact": "docs/api_tier_usage_summary.json"
+  }
+}
