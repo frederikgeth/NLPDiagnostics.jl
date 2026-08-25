@@ -2298,6 +2298,29 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
+    analyze_readiness_script = read(
+        joinpath(benchmark_directory, "summarize_analyze_scaling_readiness.jl"),
+        String,
+    )
+    @test Meta.parseall(analyze_readiness_script) isa Expr
+    @test occursin("static_stage_optimization_ab", analyze_readiness_script)
+    analyze_readiness_summary = read(
+        joinpath(repository_root, "docs", "analyze_scaling_readiness_summary.json"),
+        String,
+    )
+    analyze_readiness_data = JSON.parse(analyze_readiness_summary)
+    @test analyze_readiness_data["schema_version"] == "nlpdiagnostics-analyze-scaling-readiness-v1"
+    @test analyze_readiness_data["workload_count"] == 2
+    @test analyze_readiness_data["open_gap_count"] == 3
+    @test all(workload["point_count"] == 3 for workload in analyze_readiness_data["workloads"])
+    @test all(workload["evidence_stable"] for workload in analyze_readiness_data["workloads"])
+    @test all(workload["dominant_elapsed_stage_at_largest_dimension"] == "static" for workload in analyze_readiness_data["workloads"])
+    @test analyze_readiness_data["adapter_profile"]["measured_count"] == 3
+    @test analyze_readiness_data["adapter_profile"]["guarded_count"] == 2
+    @test occursin("analyze_scaling_readiness_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     isolated_runtime_script = read(
         joinpath(benchmark_directory, "profile_sparse_runtime_memory_isolated.jl"),
         String,

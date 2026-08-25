@@ -1,0 +1,94 @@
+{
+  "adapter_profile": {
+    "guarded_count": 2,
+    "measured_count": 3,
+    "record_count": 5,
+    "warmup": true
+  },
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "2a47cbafafbbcc8f45a728af53472a1176f0d445",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "Both bounded analyze workloads have stable, repeatable local evidence with static as the dominant largest-dimension stage; the BMOPFTools adapter profile is measured only on guarded small fixtures.",
+    "does_not_establish": [
+      "a production or asymptotic complexity law",
+      "allocator-level peak memory behavior",
+      "cross-machine reproducibility or OPF-solver scalability"
+    ]
+  },
+  "open_gap_count": 3,
+  "open_gaps": [
+    {
+      "id": "broader_analyze_workload_families",
+      "next_evidence": "add a reviewed mixed-density and nonlinear fixture ladder beyond the two sparse chains"
+    },
+    {
+      "id": "static_stage_optimization_ab",
+      "next_evidence": "run a semantics-preserving analyze_static optimization A/B with unchanged findings and stage provenance"
+    },
+    {
+      "id": "portable_analyze_memory",
+      "next_evidence": "repeat the workload and adapter profiles in a second reviewed environment with allocator-level peak telemetry"
+    }
+  ],
+  "schema_version": "nlpdiagnostics-analyze-scaling-readiness-v1",
+  "source": {
+    "artifacts": [
+      "docs/analyze_runtime_trend_summary.json",
+      "docs/analyze_runtime_resource_summary.json",
+      "docs/bmopf_analyze_runtime_profile_summary.json"
+    ],
+    "policy": "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",
+    "runner": "benchmarks/summarize_analyze_scaling_readiness.jl"
+  },
+  "workload_count": 2,
+  "workloads": [
+    {
+      "allocation_log_log_slope_range": [
+        1.9171758806103363,
+        1.9362044609376048
+      ],
+      "dimensions": [
+        100,
+        200,
+        400
+      ],
+      "dominant_allocation_stage_at_largest_dimension": "static",
+      "dominant_elapsed_stage_at_largest_dimension": "static",
+      "evidence_stable": true,
+      "point_count": 3,
+      "runtime_log_log_slope_range": [
+        1.959196794230213,
+        1.974933839262473
+      ],
+      "runtime_repeatability_cv_at_largest_dimension": 0.027877970077082034,
+      "trend_dominant_stage_at_largest_dimension": "static",
+      "workload": "sparse_affine_chain"
+    },
+    {
+      "allocation_log_log_slope_range": [
+        0.9901511497618882,
+        1.0078097394243712
+      ],
+      "dimensions": [
+        100,
+        200,
+        400
+      ],
+      "dominant_allocation_stage_at_largest_dimension": "static",
+      "dominant_elapsed_stage_at_largest_dimension": "static",
+      "evidence_stable": true,
+      "point_count": 3,
+      "runtime_log_log_slope_range": [
+        0.9879929268005258,
+        1.0073039375767314
+      ],
+      "runtime_repeatability_cv_at_largest_dimension": 0.008896946652481788,
+      "trend_dominant_stage_at_largest_dimension": "static",
+      "workload": "sparse_nonlinear_chain"
+    }
+  ]
+}
