@@ -1,0 +1,386 @@
+{
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
+    "git_revision": "a551bdadefe73a8ceae48198bbba5a5406209cd9",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "Descriptive growth and stage-attribution trends for the saved isolated synthetic sparse profiling ladder.",
+    "does_not_establish": [
+      "OPF solver runtime or memory scaling",
+      "allocator-level peak memory",
+      "a portable asymptotic complexity law or production threshold"
+    ]
+  },
+  "schema_version": "nlpdiagnostics-sparse-runtime-trend-v1",
+  "source": {
+    "dimensions": [
+      16,
+      32,
+      64,
+      128,
+      256
+    ],
+    "input_artifact": "docs/sparse_runtime_memory_isolated_summary.json",
+    "repetitions": 3,
+    "runner": "benchmarks/summarize_sparse_runtime_trends.jl"
+  },
+  "workload_count": 3,
+  "workloads": [
+    {
+      "allocation": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 16,
+            "ratio": 2.637752266917848,
+            "to_dimension": 32
+          },
+          {
+            "from_dimension": 32,
+            "ratio": 3.0308847524723297,
+            "to_dimension": 64
+          },
+          {
+            "from_dimension": 64,
+            "ratio": 3.3415819024581928,
+            "to_dimension": 128
+          },
+          {
+            "from_dimension": 128,
+            "ratio": 3.6367525786800354,
+            "to_dimension": 256
+          }
+        ],
+        "log_log_slope_maximum": 1.8626507774147942,
+        "log_log_slope_minimum": 1.3993090755553768,
+        "log_log_slopes": [
+          1.3993090755553768,
+          1.5997389955740053,
+          1.7405312351992546,
+          1.8626507774147942
+        ],
+        "point_count": 5,
+        "value_key": "total_stage_mean_allocated_bytes"
+      },
+      "case": "sparse_banded_full_rank",
+      "dimensions": [
+        16,
+        32,
+        64,
+        128,
+        256
+      ],
+      "dominant_stage_at_largest_dimension": {
+        "mean_seconds": 0.8029435833333333,
+        "stage": "static"
+      },
+      "point_count": 5,
+      "process_maxrss_increment": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 16,
+            "ratio": 1.063856926113401,
+            "to_dimension": 32
+          },
+          {
+            "from_dimension": 32,
+            "ratio": 0.8646810121789613,
+            "to_dimension": 64
+          },
+          {
+            "from_dimension": 64,
+            "ratio": 1.1530074584385446,
+            "to_dimension": 128
+          },
+          {
+            "from_dimension": 128,
+            "ratio": 1.02245683325738,
+            "to_dimension": 256
+          }
+        ],
+        "log_log_slope_maximum": 0.20540184535525172,
+        "log_log_slope_minimum": -0.20976008586427491,
+        "log_log_slopes": [
+          0.08930414156671676,
+          -0.20976008586427491,
+          0.20540184535525172,
+          0.03203993582217887
+        ],
+        "point_count": 5,
+        "value_key": "process_maxrss_increment_bytes"
+      },
+      "repetitions_complete": true,
+      "runtime": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 16,
+            "ratio": 2.9673340397906305,
+            "to_dimension": 32
+          },
+          {
+            "from_dimension": 32,
+            "ratio": 2.92663160866414,
+            "to_dimension": 64
+          },
+          {
+            "from_dimension": 64,
+            "ratio": 3.5387463302807496,
+            "to_dimension": 128
+          },
+          {
+            "from_dimension": 128,
+            "ratio": 3.5292911473500075,
+            "to_dimension": 256
+          }
+        ],
+        "log_log_slope_maximum": 1.8232383480410164,
+        "log_log_slope_minimum": 1.5492411571570206,
+        "log_log_slopes": [
+          1.569167343543184,
+          1.5492411571570206,
+          1.8232383480410164,
+          1.8193784495316834
+        ],
+        "point_count": 5,
+        "value_key": "total_stage_mean_seconds"
+      }
+    },
+    {
+      "allocation": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 16,
+            "ratio": 2.599759490528399,
+            "to_dimension": 32
+          },
+          {
+            "from_dimension": 32,
+            "ratio": 3.005257934761064,
+            "to_dimension": 64
+          },
+          {
+            "from_dimension": 64,
+            "ratio": 3.323897983744266,
+            "to_dimension": 128
+          },
+          {
+            "from_dimension": 128,
+            "ratio": 3.6264492284439225,
+            "to_dimension": 256
+          }
+        ],
+        "log_log_slope_maximum": 1.8585576508142168,
+        "log_log_slope_minimum": 1.3783781625339235,
+        "log_log_slopes": [
+          1.3783781625339235,
+          1.5874888196323096,
+          1.73287610394797,
+          1.8585576508142168
+        ],
+        "point_count": 5,
+        "value_key": "total_stage_mean_allocated_bytes"
+      },
+      "case": "sparse_banded_rank_deficient",
+      "dimensions": [
+        16,
+        32,
+        64,
+        128,
+        256
+      ],
+      "dominant_stage_at_largest_dimension": {
+        "mean_seconds": 0.8084873473333333,
+        "stage": "static"
+      },
+      "point_count": 5,
+      "process_maxrss_increment": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 16,
+            "ratio": 1.063856926113401,
+            "to_dimension": 32
+          },
+          {
+            "from_dimension": 32,
+            "ratio": 0.8646810121789613,
+            "to_dimension": 64
+          },
+          {
+            "from_dimension": 64,
+            "ratio": 1.1530074584385446,
+            "to_dimension": 128
+          },
+          {
+            "from_dimension": 128,
+            "ratio": 1.02245683325738,
+            "to_dimension": 256
+          }
+        ],
+        "log_log_slope_maximum": 0.20540184535525172,
+        "log_log_slope_minimum": -0.20976008586427491,
+        "log_log_slopes": [
+          0.08930414156671676,
+          -0.20976008586427491,
+          0.20540184535525172,
+          0.03203993582217887
+        ],
+        "point_count": 5,
+        "value_key": "process_maxrss_increment_bytes"
+      },
+      "repetitions_complete": true,
+      "runtime": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 16,
+            "ratio": 2.6035932216084174,
+            "to_dimension": 32
+          },
+          {
+            "from_dimension": 32,
+            "ratio": 3.194052751826164,
+            "to_dimension": 64
+          },
+          {
+            "from_dimension": 64,
+            "ratio": 3.4777618498512464,
+            "to_dimension": 128
+          },
+          {
+            "from_dimension": 128,
+            "ratio": 3.6339436893877584,
+            "to_dimension": 256
+          }
+        ],
+        "log_log_slope_maximum": 1.8615360641316172,
+        "log_log_slope_minimum": 1.3805040633229106,
+        "log_log_slopes": [
+          1.3805040633229106,
+          1.6753881399781818,
+          1.798159143167188,
+          1.8615360641316172
+        ],
+        "point_count": 5,
+        "value_key": "total_stage_mean_seconds"
+      }
+    },
+    {
+      "allocation": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 16,
+            "ratio": 2.6298476661145354,
+            "to_dimension": 32
+          },
+          {
+            "from_dimension": 32,
+            "ratio": 3.02502877893123,
+            "to_dimension": 64
+          },
+          {
+            "from_dimension": 64,
+            "ratio": 3.3389811700009475,
+            "to_dimension": 128
+          },
+          {
+            "from_dimension": 128,
+            "ratio": 3.6354789823866005,
+            "to_dimension": 256
+          }
+        ],
+        "log_log_slope_maximum": 1.8621454549260947,
+        "log_log_slope_minimum": 1.3949792338498508,
+        "log_log_slopes": [
+          1.3949792338498508,
+          1.5969488676843788,
+          1.7394079574253314,
+          1.8621454549260947
+        ],
+        "point_count": 5,
+        "value_key": "total_stage_mean_allocated_bytes"
+      },
+      "case": "sparse_banded_scaled",
+      "dimensions": [
+        16,
+        32,
+        64,
+        128,
+        256
+      ],
+      "dominant_stage_at_largest_dimension": {
+        "mean_seconds": 0.8061304026666667,
+        "stage": "static"
+      },
+      "point_count": 5,
+      "process_maxrss_increment": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 16,
+            "ratio": 1.063856926113401,
+            "to_dimension": 32
+          },
+          {
+            "from_dimension": 32,
+            "ratio": 0.8646810121789613,
+            "to_dimension": 64
+          },
+          {
+            "from_dimension": 64,
+            "ratio": 1.1530074584385446,
+            "to_dimension": 128
+          },
+          {
+            "from_dimension": 128,
+            "ratio": 1.02245683325738,
+            "to_dimension": 256
+          }
+        ],
+        "log_log_slope_maximum": 0.20540184535525172,
+        "log_log_slope_minimum": -0.20976008586427491,
+        "log_log_slopes": [
+          0.08930414156671676,
+          -0.20976008586427491,
+          0.20540184535525172,
+          0.03203993582217887
+        ],
+        "point_count": 5,
+        "value_key": "process_maxrss_increment_bytes"
+      },
+      "repetitions_complete": true,
+      "runtime": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 16,
+            "ratio": 2.6664222747883626,
+            "to_dimension": 32
+          },
+          {
+            "from_dimension": 32,
+            "ratio": 3.132824037522932,
+            "to_dimension": 64
+          },
+          {
+            "from_dimension": 64,
+            "ratio": 3.501906281138005,
+            "to_dimension": 128
+          },
+          {
+            "from_dimension": 128,
+            "ratio": 3.7407805541932406,
+            "to_dimension": 256
+          }
+        ],
+        "log_log_slope_maximum": 1.9033393353987231,
+        "log_log_slope_minimum": 1.4149052746131838,
+        "log_log_slopes": [
+          1.4149052746131838,
+          1.64746373960292,
+          1.808140474534848,
+          1.9033393353987231
+        ],
+        "point_count": 5,
+        "value_key": "total_stage_mean_seconds"
+      }
+    }
+  ]
+}

@@ -158,6 +158,12 @@ The isolated sparse ladder now extends through dimension 256, giving 15
 child-process records across dimensions 16, 32, 64, 128, and 256. The larger
 point is retained as descriptive local evidence only; OPF solver scaling and
 allocator-level peak claims remain outside the gate.
+The companion `benchmarks/summarize_sparse_runtime_trends.jl` now records
+per-workload adjacent ratios, descriptive log-log slopes, allocation trends,
+and dominant-stage attribution across the same five dimensions. The three
+workloads show slopes roughly 1.38--1.90, with `static` the dominant stage at
+the largest dimension; these remain local profiling observations rather than
+portable complexity or solver-memory claims.
 
 A separate bounded BMOPFTools adapter profile is now recorded in
 `docs/bmopf_analyze_runtime_profile_summary.json`. It measures parse, model
@@ -199,8 +205,8 @@ library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
 that no unclassified non-helper runner exists. It now follows local include
 chains, so compositional BMOPF runners that inherit the helper transitively are
-counted correctly; the refreshed inventory records 120 helper users across
-123 benchmark scripts with zero unclassified runners.
+counted correctly; the refreshed inventory records 121 helper users across
+124 benchmark scripts with zero unclassified runners.
 
 The latest consolidation increment adds the reviewed local quality policy in
 `docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are

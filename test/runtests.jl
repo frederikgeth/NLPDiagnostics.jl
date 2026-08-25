@@ -2207,6 +2207,26 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
+    sparse_runtime_trend_script = read(
+        joinpath(benchmark_directory, "summarize_sparse_runtime_trends.jl"),
+        String,
+    )
+    @test Meta.parseall(sparse_runtime_trend_script) isa Expr
+    @test occursin("log_log_slopes", sparse_runtime_trend_script)
+    sparse_runtime_trend_summary = read(
+        joinpath(repository_root, "docs", "sparse_runtime_trend_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-sparse-runtime-trend-v1", sparse_runtime_trend_summary)
+    sparse_runtime_trend_data = JSON.parse(sparse_runtime_trend_summary)
+    @test sparse_runtime_trend_data["workload_count"] == 3
+    @test all(workload["point_count"] == 5 for workload in sparse_runtime_trend_data["workloads"])
+    @test all(workload["repetitions_complete"] for workload in sparse_runtime_trend_data["workloads"])
+    @test all(workload["dominant_stage_at_largest_dimension"]["stage"] == "static" for workload in sparse_runtime_trend_data["workloads"])
+    @test occursin("sparse_runtime_trend_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     rank_perturbation_script = read(
         joinpath(benchmark_directory, "calibrate_rank_perturbation_sweep.jl"),
         String,
@@ -2306,8 +2326,8 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 123", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 120", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 124", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 121", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

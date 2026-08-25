@@ -19,6 +19,7 @@ rank_perturbation = read_summary("docs/rank_perturbation_sweep_summary.json")
 rank_statistics = read_summary("docs/rank_calibration_statistics_summary.json")
 runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
 isolated_runtime_scaling = read_summary("docs/sparse_runtime_memory_isolated_summary.json")
+isolated_runtime_trend = read_summary("docs/sparse_runtime_trend_summary.json")
 analyze_runtime_scaling = read_summary("docs/analyze_runtime_scaling_summary.json")
 analyze_runtime_trend = read_summary("docs/analyze_runtime_trend_summary.json")
 bmopf_analyze_profile = read_summary("docs/bmopf_analyze_runtime_profile_summary.json")
@@ -108,6 +109,17 @@ isolated_runtime_dimensions = get(
     "dimensions",
     Any[],
 )
+isolated_runtime_workloads = get(isolated_runtime_trend, "workload_count", 0)
+isolated_runtime_slope_minimum = minimum(Float64[
+    get(get(workload, "runtime", Dict{String,Any}()), "log_log_slope_minimum", NaN)
+    for workload in get(isolated_runtime_trend, "workloads", Any[])
+    if get(get(workload, "runtime", Dict{String,Any}()), "log_log_slope_minimum", nothing) isa Real
+])
+isolated_runtime_slope_maximum = maximum(Float64[
+    get(get(workload, "runtime", Dict{String,Any}()), "log_log_slope_maximum", NaN)
+    for workload in get(isolated_runtime_trend, "workloads", Any[])
+    if get(get(workload, "runtime", Dict{String,Any}()), "log_log_slope_maximum", nothing) isa Real
+])
 rank_perturbation_records = get(rank_perturbation, "record_count", 0)
 rank_perturbation_hard_mismatches = get(rank_perturbation, "hard_control_mismatch_count", 0)
 rank_perturbation_unavailable = get(rank_perturbation, "unavailable_count", 0)
@@ -187,8 +199,8 @@ gates = Dict{String,Any}[
     gate(
         "runtime_memory_scaling",
         "partial",
-        "The synthetic sparse ladder provides $(length(runtime_records)) warm-up-aware runtime/allocation records across $(length(runtime_dimensions)) dimensions, and an isolated child-process ladder adds $(length(isolated_runtime_records)) records across $(length(isolated_runtime_dimensions)) dimensions with per-dimension Sys.maxrss high-water observations. OPF-solver scaling and allocator-level peak-memory measurements remain open.",
-        ["docs/sparse_runtime_memory_scaling_summary.json", "docs/sparse_runtime_memory_isolated_summary.json"],
+        "The synthetic sparse ladder provides $(length(runtime_records)) warm-up-aware runtime/allocation records across $(length(runtime_dimensions)) dimensions, and an isolated child-process ladder adds $(length(isolated_runtime_records)) records across $(length(isolated_runtime_dimensions)) dimensions with per-dimension Sys.maxrss high-water observations. The companion trend ledger covers $isolated_runtime_workloads workloads; descriptive runtime log-log slopes range from $(isfinite(isolated_runtime_slope_minimum) ? round(isolated_runtime_slope_minimum; digits=3) : "unavailable") to $(isfinite(isolated_runtime_slope_maximum) ? round(isolated_runtime_slope_maximum; digits=3) : "unavailable"), with stage attribution retained per workload. OPF-solver scaling and allocator-level peak-memory measurements remain open.",
+        ["docs/sparse_runtime_memory_scaling_summary.json", "docs/sparse_runtime_memory_isolated_summary.json", "docs/sparse_runtime_trend_summary.json"],
         blocking=true,
     ),
     gate(
