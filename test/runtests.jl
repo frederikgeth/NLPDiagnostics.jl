@@ -2507,7 +2507,7 @@ end
         joinpath(repository_root, "docs", "rank_calibration_statistics_summary.json"),
         String,
     )
-    @test occursin("nlpdiagnostics-rank-calibration-statistics-v1", rank_statistics_summary)
+    @test occursin("nlpdiagnostics-rank-calibration-statistics-v2", rank_statistics_summary)
     rank_statistics_data = JSON.parse(rank_statistics_summary)
     @test rank_statistics_data["hard_controls"]["record_count"] == 49
     @test rank_statistics_data["hard_controls"]["mismatch_count"] == 0
@@ -2540,6 +2540,22 @@ end
     @test cross_backend_matrix["hard_control_relation"]["agreement_count"] == 49
     @test cross_backend_matrix["threshold_relation"]["disagreement_count"] == 9
     @test cross_backend_matrix["sparse_only_relation"]["match_count"] == 20
+    rank_third_backend_script = read(
+        joinpath(benchmark_directory, "validate_rank_third_backend.jl"),
+        String,
+    )
+    @test Meta.parseall(rank_third_backend_script) isa Expr
+    @test occursin("adapter_registered", rank_third_backend_script)
+    rank_third_backend_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "rank_third_backend_capability_summary.json"),
+        String,
+    ))
+    @test rank_third_backend_summary["schema_version"] ==
+          "nlpdiagnostics-rank-third-backend-capability-v1"
+    @test rank_third_backend_summary["status"] == "unavailable"
+    @test rank_third_backend_summary["adapter_status"] == "not_registered"
+    @test rank_third_backend_summary["vetted_backend_count"] == 0
+    @test rank_statistics_data["third_backend_capability"]["status"] == "unavailable"
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
         String,
@@ -2698,9 +2714,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 131", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 128", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 72", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 144", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 141", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 85", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

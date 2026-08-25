@@ -1,0 +1,71 @@
+{
+  "adapter_status": "not_registered",
+  "candidate_packages": [
+    {
+      "adapter_registered": false,
+      "available_in_active_project": false,
+      "package": "Arpack",
+      "resolved_path": null
+    },
+    {
+      "adapter_registered": false,
+      "available_in_active_project": false,
+      "package": "ArnoldiMethod",
+      "resolved_path": null
+    },
+    {
+      "adapter_registered": false,
+      "available_in_active_project": false,
+      "package": "IterativeSolvers",
+      "resolved_path": null
+    },
+    {
+      "adapter_registered": false,
+      "available_in_active_project": false,
+      "package": "Krylov",
+      "resolved_path": null
+    },
+    {
+      "adapter_registered": false,
+      "available_in_active_project": false,
+      "package": "TSVD",
+      "resolved_path": null
+    }
+  ],
+  "closure_requirements": [
+    "Register a third backend adapter with explicit rank-policy semantics.",
+    "Run a reproducible cross-backend calibration campaign including hard and threshold-sensitive controls.",
+    "Record disagreements and unavailable results without converting them to pass/fail claims."
+  ],
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "2b81f78c41caa29ab345e6cede88c0e2844d0851",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "The known environment has an explicit capability result for the third rank backend; no third-backend evidence is currently available.",
+    "does_not_establish": [
+      "that candidate packages are unsuitable in every environment",
+      "a universal rank error bound",
+      "release readiness"
+    ]
+  },
+  "reason": "No reviewed third-backend adapter is registered in the known environment.",
+  "registered_backend": null,
+  "schema_version": "nlpdiagnostics-rank-third-backend-capability-v1",
+  "source": {
+    "candidate_packages": [
+      "Arpack",
+      "ArnoldiMethod",
+      "IterativeSolvers",
+      "Krylov",
+      "TSVD"
+    ],
+    "policy": "A package is not promoted to a numerical backend without a reviewed adapter, semantics, and reproducible calibration campaign.",
+    "registration_environment_variable": "NLPDIAGNOSTICS_RANK_THIRD_BACKEND",
+    "runner": "benchmarks/validate_rank_third_backend.jl"
+  },
+  "status": "unavailable",
+  "vetted_backend_count": 0
+}

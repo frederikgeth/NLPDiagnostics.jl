@@ -5250,3 +5250,23 @@ include a non-blocking PASS entry for this combined MV/LV start-robustness
 evidence, while the five existing release blockers remain unchanged. The next
 deliverable is to keep the report synchronized while addressing those blockers;
 no scaling-policy interpretation is promoted yet.
+
+## 2026-08-26 third-rank-backend capability checkpoint
+
+The next numerical-rank deliverable is now explicit rather than inferred from
+package availability. `benchmarks/validate_rank_third_backend.jl` probes the
+known local environment and records
+`docs/rank_third_backend_capability_summary.json`. No reviewed third-backend
+adapter is registered, so the capability status is `unavailable`; candidate
+package discovery is retained as provenance but does not count as numerical
+evidence. This prevents a transitive or unreviewed dependency from being
+silently promoted into the rank policy.
+
+The aggregate rank ledger now carries this capability result in its
+`third_backend_capability` envelope and the release-gate rationale links the
+validator directly. The rank gate remains open with its closure condition:
+register a reviewed backend with explicit semantics, run a reproducible
+hard-control and threshold-sensitive campaign, and retain disagreements and
+unavailable outcomes. The current finite dense-SVD/SuiteSparse-QR evidence is
+unchanged; no release threshold or universal rank claim is inferred from the
+capability result.

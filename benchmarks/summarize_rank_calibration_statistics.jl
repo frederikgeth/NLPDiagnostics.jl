@@ -18,11 +18,13 @@ const SEEDED_ARTIFACT = "docs/randomized_rank_oracle_calibration_summary.json"
 const LARGE_SPARSE_ARTIFACT = "docs/large_sparse_rank_oracle_summary.json"
 const PERTURBATION_ARTIFACT = "docs/rank_perturbation_sweep_summary.json"
 const ADVERSARIAL_EXTENSION_ARTIFACT = "docs/rank_adversarial_extension_summary.json"
+const THIRD_BACKEND_ARTIFACT = "docs/rank_third_backend_capability_summary.json"
 
 seeded = read_summary(SEEDED_ARTIFACT)
 large_sparse = read_summary(LARGE_SPARSE_ARTIFACT)
 perturbation = read_summary(PERTURBATION_ARTIFACT)
 adversarial_extension = read_summary(ADVERSARIAL_EXTENSION_ARTIFACT)
+third_backend = read_summary(THIRD_BACKEND_ARTIFACT)
 seeded_hard = get(seeded, "hard_controls", Dict{String,Any}())
 seeded_threshold = get(seeded, "threshold_controls", Dict{String,Any}())
 large_by_case = get(large_sparse, "by_case", Dict{String,Any}())
@@ -123,13 +125,14 @@ corpus_rows = [
 ]
 
 write_json(OUTPUT, Dict{String,Any}(
-    "schema_version" => "nlpdiagnostics-rank-calibration-statistics-v1",
+    "schema_version" => "nlpdiagnostics-rank-calibration-statistics-v2",
     "source" => Dict(
         "runner" => "benchmarks/summarize_rank_calibration_statistics.jl",
         "seeded_artifact" => SEEDED_ARTIFACT,
         "large_sparse_artifact" => LARGE_SPARSE_ARTIFACT,
         "perturbation_artifact" => PERTURBATION_ARTIFACT,
         "adversarial_extension_artifact" => ADVERSARIAL_EXTENSION_ARTIFACT,
+        "third_backend_artifact" => THIRD_BACKEND_ARTIFACT,
         "policy" => "Declared hard controls are counted for false-positive/false-negative statistics; threshold-sensitive controls remain disagreement evidence; dense-unavailable large sparse records are sparse-only coverage.",
     ),
     "environment" => Dict(
@@ -211,6 +214,14 @@ write_json(OUTPUT, Dict{String,Any}(
             "dense_unavailable_count" => get(large_sparse, "dense_unavailable_count", 0),
         ),
         "interpretation" => "Rows preserve corpus provenance and distinguish hard-control agreement, threshold-sensitive disagreement, and sparse-only coverage; no row is a universal rank certificate.",
+    ),
+    "third_backend_capability" => Dict(
+        "status" => get(third_backend, "status", "missing"),
+        "adapter_status" => get(third_backend, "adapter_status", "missing"),
+        "vetted_backend_count" => get(third_backend, "vetted_backend_count", 0),
+        "reason" => get(third_backend, "reason", "capability artifact missing"),
+        "artifact" => THIRD_BACKEND_ARTIFACT,
+        "interpretation" => "Capability evidence is kept separate from dense/sparse calibration results; package discovery does not count as vetted backend evidence.",
     ),
     "large_sparse_sparse_only" => Dict(
         "record_count" => large_sparse_records,

@@ -577,9 +577,9 @@
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 70,
-    "json_file_count": 72,
-    "json_schema_file_count": 72,
+    "benchmark_scripts_with_schema_version_count": 83,
+    "json_file_count": 85,
+    "json_schema_file_count": 85,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -686,7 +686,7 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 131,
+    "benchmark_script_count": 144,
     "shared_benchmark_helper": "benchmarks/common.jl",
     "shared_benchmark_helper_exemption_count": 3,
     "shared_benchmark_helper_exemptions": [
@@ -703,7 +703,7 @@
         "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
       }
     ],
-    "shared_benchmark_helper_user_count": 128,
+    "shared_benchmark_helper_user_count": 141,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_advanced_api_surface.jl",
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
@@ -744,6 +744,7 @@
       "benchmarks/build_calibration_release_report.jl",
       "benchmarks/calibrate_large_sparse_rank_oracles.jl",
       "benchmarks/calibrate_randomized_rank_oracles.jl",
+      "benchmarks/calibrate_rank_adversarial_extensions.jl",
       "benchmarks/calibrate_rank_perturbation_sweep.jl",
       "benchmarks/calibrate_restarted_smallest_singular.jl",
       "benchmarks/check_benchmark_environment.jl",
@@ -783,7 +784,12 @@
       "benchmarks/phase_only_orthogonal_control.jl",
       "benchmarks/phase_only_transformer_ipopt_campaign.jl",
       "benchmarks/profile_analyze_scaling.jl",
+      "benchmarks/profile_analyze_static_optimization_ab.jl",
+      "benchmarks/profile_analyze_static_optimization_generalization.jl",
+      "benchmarks/profile_analyze_static_target_terms.jl",
       "benchmarks/profile_bmopf_analyze_runtime.jl",
+      "benchmarks/profile_bmopf_analyze_runtime_isolated.jl",
+      "benchmarks/profile_bmopf_combined_mv_lv_analyze_scaling.jl",
       "benchmarks/profile_sparse_runtime_memory_isolated.jl",
       "benchmarks/profile_sparse_runtime_memory_scaling.jl",
       "benchmarks/real_99bus_phase_only_campaign.jl",
@@ -796,6 +802,7 @@
       "benchmarks/solver_failure_cases.jl",
       "benchmarks/summarize_analyze_runtime_resources.jl",
       "benchmarks/summarize_analyze_runtime_trends.jl",
+      "benchmarks/summarize_analyze_scaling_readiness.jl",
       "benchmarks/summarize_api_advanced_candidates.jl",
       "benchmarks/summarize_api_migration_queue.jl",
       "benchmarks/summarize_bmopf_campaign.jl",
@@ -820,19 +827,25 @@
       "benchmarks/summarize_bmopf_sparse_corpus.jl",
       "benchmarks/summarize_operator_fingerprint.jl",
       "benchmarks/summarize_rank_calibration_statistics.jl",
+      "benchmarks/summarize_real_99bus_kkt_endpoint_matrix.jl",
       "benchmarks/summarize_real_99bus_kkt_margin.jl",
       "benchmarks/summarize_real_99bus_kkt_residual_distributions.jl",
       "benchmarks/summarize_real_99bus_kkt_stability.jl",
       "benchmarks/summarize_real_99bus_kkt_tolerance_policies.jl",
       "benchmarks/summarize_real_99bus_phase_only_covariance.jl",
       "benchmarks/summarize_real_99bus_phase_only_kkt_failures.jl",
+      "benchmarks/summarize_release_gate_actions.jl",
+      "benchmarks/summarize_runtime_scaling_readiness.jl",
+      "benchmarks/summarize_smallest_singular_calibration.jl",
       "benchmarks/summarize_solver_failure_cases.jl",
       "benchmarks/summarize_sparse_runtime_trends.jl",
       "benchmarks/sweep_bmopf_solver_options.jl",
+      "benchmarks/validate_bmopf_analyze_portability.jl",
       "benchmarks/validate_bmopf_campaign.jl",
       "benchmarks/validate_bmopf_checkout.jl",
       "benchmarks/validate_bmopf_residual_trends.jl",
-      "benchmarks/validate_bmopf_trace_truth_labels.jl"
+      "benchmarks/validate_bmopf_trace_truth_labels.jl",
+      "benchmarks/validate_rank_third_backend.jl"
     ],
     "source_file_count": 32,
     "source_include_count": 31,

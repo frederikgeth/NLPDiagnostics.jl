@@ -14,7 +14,7 @@
         "benchmarks/calibrate_restarted_smallest_singular.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Expand adversarial rank corpora and add a third vetted backend with reproducible disagreement records.",
+      "next_deliverable": "Register a reviewed third rank backend and run a reproducible cross-backend campaign with disagreement records.",
       "priority": 1,
       "status": "partial"
     },
@@ -99,7 +99,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "68fb41cef374a7c9453175784a2aa406061f7ced",
+    "git_revision": "2b81f78c41caa29ab345e6cede88c0e2844d0851",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
