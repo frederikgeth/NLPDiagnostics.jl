@@ -5345,6 +5345,12 @@ largest ladder's initialization/model formulation, and repeat it with MadNLP
 when available before comparing the synthetic ladder with selected combined
 MV+LV snapshots.
 
+A demand-sensitivity sweep on the largest ladder adds a practical feasibility
+boundary: multipliers 1.0, 0.75, and 0.5 remain locally infeasible across all
+policies, while 0.25 reaches locally solved endpoints with physical endpoint
+acceptance. Coordinate-comparison qualification is still open, so this is a
+fixture-specific feasibility result rather than a physical demand threshold.
+
 ## 2026-08-26 practical application success checkpoint
 
 The practical BMOPFTools workflow is now protected by

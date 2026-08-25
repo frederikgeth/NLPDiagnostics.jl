@@ -34,6 +34,7 @@
       },
       "campaign_qualified": true,
       "label": "series_4level_115kV_480V",
+      "load_multiplier": 1.0,
       "loads_per_level": 2,
       "model_variable_count": 56,
       "records": [
@@ -42,7 +43,7 @@
           "physical_endpoint_accepted": true,
           "policy": "classic_1mva",
           "replicate": 1,
-          "solve_seconds": 23.322524334,
+          "solve_seconds": 24.745634792,
           "termination_status": "LOCALLY_SOLVED"
         },
         {
@@ -50,7 +51,7 @@
           "physical_endpoint_accepted": true,
           "policy": "classic_1mva",
           "replicate": 2,
-          "solve_seconds": 0.041458208,
+          "solve_seconds": 0.048759708,
           "termination_status": "LOCALLY_SOLVED"
         },
         {
@@ -58,7 +59,7 @@
           "physical_endpoint_accepted": true,
           "policy": "si_units",
           "replicate": 1,
-          "solve_seconds": 0.098546,
+          "solve_seconds": 0.111172041,
           "termination_status": "LOCALLY_SOLVED"
         },
         {
@@ -66,7 +67,7 @@
           "physical_endpoint_accepted": true,
           "policy": "si_units",
           "replicate": 2,
-          "solve_seconds": 0.040147667,
+          "solve_seconds": 0.040318708,
           "termination_status": "LOCALLY_SOLVED"
         },
         {
@@ -74,7 +75,7 @@
           "physical_endpoint_accepted": true,
           "policy": "series_voltage_local",
           "replicate": 1,
-          "solve_seconds": 0.043416167,
+          "solve_seconds": 0.040340417,
           "termination_status": "LOCALLY_SOLVED"
         },
         {
@@ -82,7 +83,7 @@
           "physical_endpoint_accepted": true,
           "policy": "series_voltage_local",
           "replicate": 2,
-          "solve_seconds": 0.040908834,
+          "solve_seconds": 0.039885416,
           "termination_status": "LOCALLY_SOLVED"
         }
       ],
@@ -112,6 +113,7 @@
       },
       "campaign_qualified": true,
       "label": "series_6level_115kV_240V",
+      "load_multiplier": 1.0,
       "loads_per_level": 2,
       "model_variable_count": 88,
       "records": [
@@ -120,7 +122,7 @@
           "physical_endpoint_accepted": true,
           "policy": "classic_1mva",
           "replicate": 1,
-          "solve_seconds": 0.076317333,
+          "solve_seconds": 0.0746465,
           "termination_status": "LOCALLY_SOLVED"
         },
         {
@@ -128,7 +130,7 @@
           "physical_endpoint_accepted": true,
           "policy": "classic_1mva",
           "replicate": 2,
-          "solve_seconds": 0.080477333,
+          "solve_seconds": 0.1116375,
           "termination_status": "LOCALLY_SOLVED"
         },
         {
@@ -136,7 +138,7 @@
           "physical_endpoint_accepted": true,
           "policy": "si_units",
           "replicate": 1,
-          "solve_seconds": 0.093360542,
+          "solve_seconds": 0.068617959,
           "termination_status": "LOCALLY_SOLVED"
         },
         {
@@ -144,7 +146,7 @@
           "physical_endpoint_accepted": true,
           "policy": "si_units",
           "replicate": 2,
-          "solve_seconds": 0.0708715,
+          "solve_seconds": 0.083664041,
           "termination_status": "LOCALLY_SOLVED"
         },
         {
@@ -152,7 +154,7 @@
           "physical_endpoint_accepted": true,
           "policy": "series_voltage_local",
           "replicate": 1,
-          "solve_seconds": 0.066494375,
+          "solve_seconds": 0.104874417,
           "termination_status": "LOCALLY_SOLVED"
         },
         {
@@ -160,7 +162,7 @@
           "physical_endpoint_accepted": true,
           "policy": "series_voltage_local",
           "replicate": 2,
-          "solve_seconds": 0.086256459,
+          "solve_seconds": 0.068759334,
           "termination_status": "LOCALLY_SOLVED"
         }
       ],
@@ -192,6 +194,7 @@
       },
       "campaign_qualified": false,
       "label": "series_8level_230kV_208V",
+      "load_multiplier": 1.0,
       "loads_per_level": 3,
       "model_variable_count": 134,
       "records": [
@@ -200,7 +203,7 @@
           "physical_endpoint_accepted": false,
           "policy": "classic_1mva",
           "replicate": 1,
-          "solve_seconds": 0.198600584,
+          "solve_seconds": 0.188950625,
           "termination_status": "ITERATION_LIMIT"
         },
         {
@@ -208,7 +211,7 @@
           "physical_endpoint_accepted": false,
           "policy": "classic_1mva",
           "replicate": 2,
-          "solve_seconds": 0.1142155,
+          "solve_seconds": 0.140309,
           "termination_status": "ITERATION_LIMIT"
         },
         {
@@ -216,7 +219,7 @@
           "physical_endpoint_accepted": false,
           "policy": "si_units",
           "replicate": 1,
-          "solve_seconds": 0.116629416,
+          "solve_seconds": 0.116454375,
           "termination_status": "LOCALLY_INFEASIBLE"
         },
         {
@@ -224,7 +227,7 @@
           "physical_endpoint_accepted": false,
           "policy": "si_units",
           "replicate": 2,
-          "solve_seconds": 0.130014375,
+          "solve_seconds": 0.1375495,
           "termination_status": "LOCALLY_INFEASIBLE"
         },
         {
@@ -232,7 +235,7 @@
           "physical_endpoint_accepted": false,
           "policy": "series_voltage_local",
           "replicate": 1,
-          "solve_seconds": 0.115332416,
+          "solve_seconds": 0.128487958,
           "termination_status": "ITERATION_LIMIT"
         },
         {
@@ -240,7 +243,7 @@
           "physical_endpoint_accepted": false,
           "policy": "series_voltage_local",
           "replicate": 2,
-          "solve_seconds": 0.115204667,
+          "solve_seconds": 0.111588875,
           "termination_status": "ITERATION_LIMIT"
         }
       ],

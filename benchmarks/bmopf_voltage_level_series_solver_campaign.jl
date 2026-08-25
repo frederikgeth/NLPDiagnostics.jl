@@ -18,7 +18,7 @@ include(joinpath(@__DIR__, "bmopf_magnitude_scaling_campaign.jl"))
 
 const _SERIES_SOLVER_RUNNER_VERSION = "bmopf-voltage-level-series-solver-campaign-v1"
 
-function _series_case(label, voltage_levels; loads_per_level)
+function _series_case(label, voltage_levels; loads_per_level, load_multiplier = 1.0)
     bus = Dict{String,Any}()
     for index in eachindex(voltage_levels)
         bus["$(label)_bus_$(index)"] = Dict{String,Any}(
@@ -53,8 +53,8 @@ function _series_case(label, voltage_levels; loads_per_level)
         network["load"]["$(label)_load_$(index)_$(load_index)"] = Dict(
             "bus" => "$(label)_bus_$(index)", "terminal_map" => ["1", "n"],
             "configuration" => "WYE",
-            "p_nom" => [2.0e3 * scale * max(voltage / 240.0, 1.0)],
-            "q_nom" => [0.7e3 * scale * max(voltage / 240.0, 1.0)],
+            "p_nom" => [load_multiplier * 2.0e3 * scale * max(voltage / 240.0, 1.0)],
+            "q_nom" => [load_multiplier * 0.7e3 * scale * max(voltage / 240.0, 1.0)],
         )
     end
     return network
@@ -88,8 +88,8 @@ function _compact_record(record)
     )
 end
 
-function _run_case(label, voltage_levels, loads_per_level; repeats, max_iter, solver_tolerance)
-    network = _series_case(label, voltage_levels; loads_per_level)
+function _run_case(label, voltage_levels, loads_per_level; repeats, max_iter, solver_tolerance, load_multiplier = 1.0)
+    network = _series_case(label, voltage_levels; loads_per_level, load_multiplier)
     policies, anchor_context = _series_policies(network)
     anchor_evaluation = _schema_evaluation(anchor_context, "$label-anchor")
     backend = JuMP.backend(BMOPFTools.opf_model(anchor_context))
@@ -135,6 +135,7 @@ function _run_case(label, voltage_levels, loads_per_level; repeats, max_iter, so
         "label" => label,
         "voltage_levels" => voltage_levels,
         "loads_per_level" => loads_per_level,
+        "load_multiplier" => load_multiplier,
         "bus_count" => length(network["bus"]),
         "transformer_count" => length(network["transformer"]["single_phase"]),
         "model_variable_count" => variable_count,

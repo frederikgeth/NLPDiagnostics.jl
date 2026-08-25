@@ -2187,6 +2187,23 @@ end
     @test series_voltage_solver_budget_summary["budgets"]["max_iter"] == 60
     @test series_voltage_solver_budget_summary["records"][end]["campaign_qualified"] == false
     @test occursin("LOCALLY_INFEASIBLE", string(series_voltage_solver_budget_summary["records"][end]))
+    series_feasibility_sweep_script = read(
+        joinpath(benchmark_directory, "bmopf_voltage_level_series_feasibility_sweep.jl"),
+        String,
+    )
+    @test Meta.parseall(series_feasibility_sweep_script) isa Expr
+    @test occursin("load_multiplier", series_feasibility_sweep_script)
+    @test occursin("0.25", series_feasibility_sweep_script)
+    series_feasibility_sweep_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_voltage_level_series_feasibility_sweep_summary.json"),
+        String,
+    ))
+    @test series_feasibility_sweep_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-voltage-level-series-feasibility-sweep-v1"
+    @test series_feasibility_sweep_summary["load_multiplier_count"] == 4
+    @test series_feasibility_sweep_summary["campaign_qualified_count"] == 0
+    @test series_feasibility_sweep_summary["records"][end]["load_multiplier"] == 0.25
+    @test occursin("LOCALLY_SOLVED", string(series_feasibility_sweep_summary["records"][end]))
     practical_application_script = read(
         joinpath(benchmark_directory, "summarize_bmopf_practical_application_success.jl"),
         String,
@@ -2272,6 +2289,7 @@ end
     @test occursin("bmopf_voltage_level_series_scaling_readiness", release_gate_summary)
     @test occursin("bmopf_practical_application_success", release_gate_summary)
     @test occursin("bmopf_voltage_level_series_solver_campaign", release_gate_summary)
+    @test occursin("bmopf_voltage_level_series_feasibility_sweep", release_gate_summary)
     @test occursin("\"blocking\": false", release_gate_summary)
     release_report = read(
         joinpath(repository_root, "docs", "calibration_release_report.md"),
@@ -2281,6 +2299,7 @@ end
     @test occursin("bmopf_voltage_level_series_scaling_readiness", release_report)
     @test occursin("bmopf_practical_application_success", release_report)
     @test occursin("bmopf_voltage_level_series_solver_campaign", release_report)
+    @test occursin("bmopf_voltage_level_series_feasibility_sweep", release_report)
     release_gate_builder = read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
@@ -2289,6 +2308,7 @@ end
     @test occursin("bmopf_voltage_level_series_scaling_readiness", release_gate_builder)
     @test occursin("bmopf_practical_application_success", release_gate_builder)
     @test occursin("bmopf_voltage_level_series_solver_campaign", release_gate_builder)
+    @test occursin("bmopf_voltage_level_series_feasibility_sweep", release_gate_builder)
     @test occursin("api_migration_queue_summary.json", release_gate_builder)
     @test occursin("api_advanced_candidate_summary.json", release_gate_builder)
     release_action_script = read(
@@ -2823,9 +2843,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 150", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 147", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 92", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 151", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 148", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 93", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

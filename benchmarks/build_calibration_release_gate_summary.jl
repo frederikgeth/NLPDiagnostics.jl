@@ -44,6 +44,7 @@ series_voltage_scaling = read_summary("docs/bmopf_voltage_level_series_case_matr
 practical_application_success = read_summary("docs/bmopf_practical_application_success_summary.json")
 series_solver_campaign = read_summary("docs/bmopf_voltage_level_series_solver_campaign_summary.json")
 series_solver_budget60 = read_summary("docs/bmopf_voltage_level_series_solver_campaign_maxiter60_summary.json")
+series_feasibility_sweep = read_summary("docs/bmopf_voltage_level_series_feasibility_sweep_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
 api_tier_usage = read_summary("docs/api_tier_usage_summary.json")
@@ -318,6 +319,18 @@ series_solver_budget60_statuses = sort!(unique(
     get(record, "termination_status", "unknown")
     for record in get(series_solver_budget60_largest, "records", Any[])
 ))
+series_feasibility_records = get(series_feasibility_sweep, "records", Any[])
+series_feasibility_endpoint_pass_count = count(
+    record -> get(get(record, "campaign_gates", Dict{String,Any}()), "all_physical_endpoints_accepted", false),
+    series_feasibility_records,
+)
+series_feasibility_solved_count = count(
+    record -> all(
+        get(row, "termination_status", "") == "LOCALLY_SOLVED"
+        for row in get(record, "records", Any[])
+    ),
+    series_feasibility_records,
+)
 
 function gate(id, status, rationale, evidence; blocking=false)
     Dict{String,Any}(
@@ -414,6 +427,15 @@ gates = Dict{String,Any}[
             "docs/bmopf_voltage_level_series_solver_campaign_summary.json",
             "docs/bmopf_voltage_level_series_solver_campaign_maxiter60_summary.json",
             "benchmarks/bmopf_voltage_level_series_solver_campaign.jl",
+        ],
+    ),
+    gate(
+        "bmopf_voltage_level_series_feasibility_sweep",
+        series_feasibility_records isa AbstractVector && !isempty(series_feasibility_records) ? "partial" : "missing",
+        "The largest-ladder demand sweep records $series_feasibility_solved_count/$((length(series_feasibility_records))) load multipliers with all policies locally solved and $series_feasibility_endpoint_pass_count/$((length(series_feasibility_records))) with physical endpoints accepted. The observed transition toward the 0.25 multiplier is fixture-specific feasibility evidence; coordinate-comparison qualification remains open.",
+        [
+            "docs/bmopf_voltage_level_series_feasibility_sweep_summary.json",
+            "benchmarks/bmopf_voltage_level_series_feasibility_sweep.jl",
         ],
     ),
     gate(
