@@ -2326,6 +2326,11 @@ end
     @test analyze_readiness_data["static_optimization_target_terms"]["record_count"] == 6
     @test analyze_readiness_data["static_optimization_target_terms"]["equivalence_passed"] == true
     @test analyze_readiness_data["static_optimization_target_terms"]["candidate_not_slower_at_every_workload"] == false
+    @test analyze_readiness_data["isolated_adapter_memory"]["record_count"] == 10
+    @test analyze_readiness_data["isolated_adapter_memory"]["measured_count"] == 6
+    @test analyze_readiness_data["isolated_adapter_memory"]["guarded_count"] == 4
+    @test analyze_readiness_data["isolated_adapter_memory"]["stable_case_count"] == 3
+    @test analyze_readiness_data["isolated_adapter_memory"]["all_measured_cases_stable"] == true
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["feeder_count"] == 4
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["record_count"] == 12
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["measured_count"] == 9
@@ -2367,6 +2372,18 @@ end
         joinpath(benchmark_directory, "summarize_analyze_scaling_readiness.jl"),
         String,
     ))
+    analyze_isolated_script = read(
+        joinpath(benchmark_directory, "profile_bmopf_analyze_runtime_isolated.jl"),
+        String,
+    )
+    @test Meta.parseall(analyze_isolated_script) isa Expr
+    @test occursin("isolated_process_per_case_and_repetition", analyze_isolated_script)
+    @test occursin("bmopf_analyze_runtime_isolated_summary.json", analyze_isolated_script)
+    analyze_isolated_summary = read(
+        joinpath(repository_root, "docs", "bmopf_analyze_runtime_isolated_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-bmopf-analyze-runtime-isolated-v1", analyze_isolated_summary)
     analyze_ab_script = read(
         joinpath(benchmark_directory, "profile_analyze_static_optimization_ab.jl"),
         String,

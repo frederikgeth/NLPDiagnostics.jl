@@ -26,7 +26,7 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "4e47ea494bf198bf39ac6c8271db464ebfbb8831",
+    "git_revision": "20a0f624912ec0051d6cfc3877c2347008e64b8a",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -38,11 +38,21 @@
       "cross-machine reproducibility or OPF-solver scalability"
     ]
   },
+  "isolated_adapter_memory": {
+    "all_measured_cases_stable": true,
+    "case_count": 5,
+    "claim": "Fresh-child local process allocation and Sys.maxrss observations are retained for guarded adapter analyze cases; portable and allocator-level claims remain open.",
+    "guarded_count": 4,
+    "isolated_process_per_case_and_repetition": true,
+    "measured_count": 6,
+    "record_count": 10,
+    "stable_case_count": 3
+  },
   "open_gap_count": 1,
   "open_gaps": [
     {
       "id": "portable_analyze_memory",
-      "next_evidence": "repeat the workload and adapter profiles in a second reviewed environment with allocator-level peak telemetry"
+      "next_evidence": "repeat the isolated analyze profile in a second reviewed environment with allocator-level peak telemetry"
     }
   ],
   "schema_version": "nlpdiagnostics-analyze-scaling-readiness-v1",
@@ -54,6 +64,7 @@
       "docs/analyze_static_optimization_ab_summary.json",
       "docs/analyze_static_optimization_generalization_summary.json",
       "docs/analyze_static_target_terms_summary.json",
+      "docs/bmopf_analyze_runtime_isolated_summary.json",
       "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
     ],
     "policy": "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",

@@ -253,8 +253,13 @@ terms. Findings and propagation metadata are equivalent on six dense and
 sparse records; local speedup ranges from about 0.962--1.008x and the dense
 fixtures allocate more, so the candidate is explicitly not promoted as a
 performance win. This closes static-stage candidate selection while preserving
-the evidence boundary; portable allocator-level memory and reproducibility
-remain open.
+the evidence boundary. The new
+`docs/bmopf_analyze_runtime_isolated_summary.json` repeats the bounded adapter
+analyze cases in fresh child processes: 6 measured records across 3 fixtures
+are stable, while 4 larger-case records remain explicit size-guard skips. The
+profile retains per-child allocation and `Sys.maxrss` high-water telemetry;
+portable allocator-level memory and cross-environment reproducibility remain
+open.
 
 The isolated sparse ladder now extends through dimension 256, giving 15
 child-process records across dimensions 16, 32, 64, 128, and 256. The larger

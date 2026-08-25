@@ -59,6 +59,7 @@
         "docs/analyze_runtime_trend_summary.json",
         "docs/analyze_runtime_resource_summary.json",
         "docs/bmopf_analyze_runtime_profile_summary.json",
+        "docs/bmopf_analyze_runtime_isolated_summary.json",
         "docs/analyze_scaling_readiness_summary.json",
         "docs/analyze_static_optimization_ab_summary.json",
         "docs/analyze_static_optimization_generalization_summary.json",
@@ -66,7 +67,7 @@
         "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
       ],
       "id": "analyze_runtime_scaling",
-      "next_deliverable": "Extend cross-environment allocator-level memory and reproducibility evidence for the reviewed analyze workloads.",
+      "next_deliverable": "Repeat the isolated analyze profile in a second reviewed environment with allocator-level peak telemetry.",
       "priority": 4,
       "status": "partial"
     },
@@ -96,7 +97,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "4e47ea494bf198bf39ac6c8271db464ebfbb8831",
+    "git_revision": "20a0f624912ec0051d6cfc3877c2347008e64b8a",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

@@ -35,7 +35,7 @@ const ACTIONS = Dict{String,Dict{String,Any}}(
     ),
     "analyze_runtime_scaling" => Dict(
         "priority" => 4,
-        "next_deliverable" => "Extend cross-environment allocator-level memory and reproducibility evidence for the reviewed analyze workloads.",
+        "next_deliverable" => "Repeat the isolated analyze profile in a second reviewed environment with allocator-level peak telemetry.",
         "closure_condition" => "The broader workload campaign has stable findings, stage/resource attribution, and documented portability limits; optimization candidates are either supported by repeated A/B evidence or explicitly not promoted.",
         "dependency" => "Keep the public API unchanged and preserve repeatability and memory provenance.",
     ),
