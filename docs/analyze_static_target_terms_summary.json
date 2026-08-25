@@ -1,0 +1,730 @@
+{
+  "candidate_not_slower_at_every_workload": false,
+  "decision": "The target-term cache is semantics-preserving; retain its bounded timing result as local evidence and do not promote a portable performance claim.",
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "architecture": "aarch64",
+    "git_revision": "4e47ea494bf198bf39ac6c8271db464ebfbb8831",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6",
+    "os": "Darwin"
+  },
+  "equivalence_passed": true,
+  "interpretation": {
+    "claim": "The target-term cache compares an opt-in static-stage implementation on dense and sparse affine fixtures while retaining finding and propagation equivalence checks.",
+    "does_not_establish": [
+      "a portable performance guarantee",
+      "equivalence for unsupported function families not represented by these fixtures",
+      "allocator-level peak-memory behavior"
+    ]
+  },
+  "record_count": 6,
+  "records": [
+    {
+      "allocation_reduction_ratio": -0.046653167972138254,
+      "baseline": {
+        "allocated_bytes": {
+          "maximum": 12192784,
+          "mean": 1.2192784e7,
+          "minimum": 12192784
+        },
+        "elapsed_seconds": {
+          "maximum": 0.020766709,
+          "mean": 0.020460195,
+          "minimum": 0.020018167
+        }
+      },
+      "candidate": {
+        "allocated_bytes": {
+          "maximum": 12761616,
+          "mean": 1.2761616e7,
+          "minimum": 12761616
+        },
+        "elapsed_seconds": {
+          "maximum": 0.021153833,
+          "mean": 0.020573194333333333,
+          "minimum": 0.019992208
+        }
+      },
+      "dimension": 16,
+      "elapsed_speedup": 0.9945074483085863,
+      "equivalent_across_repetitions": true,
+      "repetitions": 3,
+      "runs": [
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 12192784,
+            "elapsed_seconds": 0.020018167,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 12761616,
+            "elapsed_seconds": 0.019992208,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "equivalent": true,
+          "repetition": 1
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 12192784,
+            "elapsed_seconds": 0.020595709,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 12761616,
+            "elapsed_seconds": 0.021153833,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "equivalent": true,
+          "repetition": 2
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 12192784,
+            "elapsed_seconds": 0.020766709,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 12761616,
+            "elapsed_seconds": 0.020573542,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "equivalent": true,
+          "repetition": 3
+        }
+      ],
+      "workload": "dense_affine_rows"
+    },
+    {
+      "allocation_reduction_ratio": -0.08603127884533279,
+      "baseline": {
+        "allocated_bytes": {
+          "maximum": 47598688,
+          "mean": 4.7598688e7,
+          "minimum": 47598688
+        },
+        "elapsed_seconds": {
+          "maximum": 0.07119175,
+          "mean": 0.07070831966666667,
+          "minimum": 0.070070167
+        }
+      },
+      "candidate": {
+        "allocated_bytes": {
+          "maximum": 51693664,
+          "mean": 5.1693664e7,
+          "minimum": 51693664
+        },
+        "elapsed_seconds": {
+          "maximum": 0.07192025,
+          "mean": 0.071686264,
+          "minimum": 0.071485292
+        }
+      },
+      "dimension": 32,
+      "elapsed_speedup": 0.986357995538262,
+      "equivalent_across_repetitions": true,
+      "repetitions": 3,
+      "runs": [
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 47598688,
+            "elapsed_seconds": 0.070863042,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 51693664,
+            "elapsed_seconds": 0.071485292,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "equivalent": true,
+          "repetition": 1
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 47598688,
+            "elapsed_seconds": 0.07119175,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 51693664,
+            "elapsed_seconds": 0.07192025,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "equivalent": true,
+          "repetition": 2
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 47598688,
+            "elapsed_seconds": 0.070070167,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 51693664,
+            "elapsed_seconds": 0.07165325,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "equivalent": true,
+          "repetition": 3
+        }
+      ],
+      "workload": "dense_affine_rows"
+    },
+    {
+      "allocation_reduction_ratio": -0.13811015856011766,
+      "baseline": {
+        "allocated_bytes": {
+          "maximum": 259851472,
+          "mean": 2.59851472e8,
+          "minimum": 259851472
+        },
+        "elapsed_seconds": {
+          "maximum": 0.322020667,
+          "mean": 0.32052288866666667,
+          "minimum": 0.318069833
+        }
+      },
+      "candidate": {
+        "allocated_bytes": {
+          "maximum": 295739600,
+          "mean": 2.957396e8,
+          "minimum": 295739600
+        },
+        "elapsed_seconds": {
+          "maximum": 0.334042792,
+          "mean": 0.33314816666666663,
+          "minimum": 0.331967875
+        }
+      },
+      "dimension": 64,
+      "elapsed_speedup": 0.9621031142799826,
+      "equivalent_across_repetitions": true,
+      "repetitions": 3,
+      "runs": [
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 259851472,
+            "elapsed_seconds": 0.322020667,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 295739600,
+            "elapsed_seconds": 0.333433833,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "equivalent": true,
+          "repetition": 1
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 259851472,
+            "elapsed_seconds": 0.321478166,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 295739600,
+            "elapsed_seconds": 0.334042792,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "equivalent": true,
+          "repetition": 2
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 259851472,
+            "elapsed_seconds": 0.318069833,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "true",
+            "affine_interval_propagation_passes": "1",
+            "allocated_bytes": 295739600,
+            "elapsed_seconds": 0.331967875,
+            "finding_code_counts": {
+              "duplicate_constraint": 2,
+              "proportional_affine_equality_constraints": 1
+            },
+            "finding_count": 3
+          },
+          "equivalent": true,
+          "repetition": 3
+        }
+      ],
+      "workload": "dense_affine_rows"
+    },
+    {
+      "allocation_reduction_ratio": -0.001564590891282469,
+      "baseline": {
+        "allocated_bytes": {
+          "maximum": 6289184,
+          "mean": 6.289184e6,
+          "minimum": 6289184
+        },
+        "elapsed_seconds": {
+          "maximum": 0.013070958,
+          "mean": 0.013046124999999999,
+          "minimum": 0.013013459
+        }
+      },
+      "candidate": {
+        "allocated_bytes": {
+          "maximum": 6299024,
+          "mean": 6.299024e6,
+          "minimum": 6299024
+        },
+        "elapsed_seconds": {
+          "maximum": 0.013026042,
+          "mean": 0.012948986000000001,
+          "minimum": 0.012811666
+        }
+      },
+      "dimension": 16,
+      "elapsed_speedup": 1.0075016684704112,
+      "equivalent_across_repetitions": true,
+      "repetitions": 3,
+      "runs": [
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 6289184,
+            "elapsed_seconds": 0.013013459,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 6299024,
+            "elapsed_seconds": 0.01300925,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 1
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 6289184,
+            "elapsed_seconds": 0.013070958,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 6299024,
+            "elapsed_seconds": 0.013026042,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 2
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 6289184,
+            "elapsed_seconds": 0.013053958,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 6299024,
+            "elapsed_seconds": 0.012811666,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 3
+        }
+      ],
+      "workload": "sparse_affine_chain"
+    },
+    {
+      "allocation_reduction_ratio": -0.001283161807612565,
+      "baseline": {
+        "allocated_bytes": {
+          "maximum": 15848352,
+          "mean": 1.5848352e7,
+          "minimum": 15848352
+        },
+        "elapsed_seconds": {
+          "maximum": 0.0362155,
+          "mean": 0.03576943033333333,
+          "minimum": 0.03549225
+        }
+      },
+      "candidate": {
+        "allocated_bytes": {
+          "maximum": 15868688,
+          "mean": 1.5868688e7,
+          "minimum": 15868688
+        },
+        "elapsed_seconds": {
+          "maximum": 0.036940375,
+          "mean": 0.035844125,
+          "minimum": 0.03515775
+        }
+      },
+      "dimension": 32,
+      "elapsed_speedup": 0.9979161252599508,
+      "equivalent_across_repetitions": true,
+      "repetitions": 3,
+      "runs": [
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 15848352,
+            "elapsed_seconds": 0.035600541,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 15868688,
+            "elapsed_seconds": 0.03543425,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 1
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 15848352,
+            "elapsed_seconds": 0.0362155,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 15868688,
+            "elapsed_seconds": 0.036940375,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 2
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 15848352,
+            "elapsed_seconds": 0.03549225,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 15868688,
+            "elapsed_seconds": 0.03515775,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 3
+        }
+      ],
+      "workload": "sparse_affine_chain"
+    },
+    {
+      "allocation_reduction_ratio": -0.0009233656553018221,
+      "baseline": {
+        "allocated_bytes": {
+          "maximum": 44758000,
+          "mean": 4.4758e7,
+          "minimum": 44758000
+        },
+        "elapsed_seconds": {
+          "maximum": 0.112863208,
+          "mean": 0.112050361,
+          "minimum": 0.111352542
+        }
+      },
+      "candidate": {
+        "allocated_bytes": {
+          "maximum": 44799328,
+          "mean": 4.4799328e7,
+          "minimum": 44799328
+        },
+        "elapsed_seconds": {
+          "maximum": 0.112177667,
+          "mean": 0.11173569433333334,
+          "minimum": 0.111275541
+        }
+      },
+      "dimension": 64,
+      "elapsed_speedup": 1.0028161696093993,
+      "equivalent_across_repetitions": true,
+      "repetitions": 3,
+      "runs": [
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 44758000,
+            "elapsed_seconds": 0.111352542,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 44799328,
+            "elapsed_seconds": 0.111753875,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 1
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 44758000,
+            "elapsed_seconds": 0.111935333,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 44799328,
+            "elapsed_seconds": 0.112177667,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 2
+        },
+        {
+          "baseline": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 44758000,
+            "elapsed_seconds": 0.112863208,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "candidate": {
+            "affine_interval_propagation_converged": "false",
+            "affine_interval_propagation_passes": "5",
+            "allocated_bytes": 44799328,
+            "elapsed_seconds": 0.111275541,
+            "finding_code_counts": {
+              "affine_interval_propagated_variable_fixed": 5,
+              "affine_interval_propagation_limit_reached": 1,
+              "fixed_variable": 1
+            },
+            "finding_count": 7
+          },
+          "equivalent": true,
+          "repetition": 3
+        }
+      ],
+      "workload": "sparse_affine_chain"
+    }
+  ],
+  "schema_version": "nlpdiagnostics-analyze-static-target-terms-v1",
+  "source": {
+    "baseline": "cache affine coefficient maps once per analyze_static call and filter target terms during every propagation pass",
+    "candidate": "cache each affine row's other-variable terms once per analyze_static call",
+    "dimensions": [
+      16,
+      32,
+      64
+    ],
+    "repetitions": 3,
+    "runner": "benchmarks/profile_analyze_static_target_terms.jl",
+    "workloads": [
+      "dense_affine_rows",
+      "sparse_affine_chain"
+    ]
+  }
+}

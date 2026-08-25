@@ -2311,7 +2311,7 @@ end
     analyze_readiness_data = JSON.parse(analyze_readiness_summary)
     @test analyze_readiness_data["schema_version"] == "nlpdiagnostics-analyze-scaling-readiness-v1"
     @test analyze_readiness_data["workload_count"] == 2
-    @test analyze_readiness_data["open_gap_count"] == 2
+    @test analyze_readiness_data["open_gap_count"] == 1
     @test all(workload["point_count"] == 3 for workload in analyze_readiness_data["workloads"])
     @test all(workload["evidence_stable"] for workload in analyze_readiness_data["workloads"])
     @test all(workload["dominant_elapsed_stage_at_largest_dimension"] == "static" for workload in analyze_readiness_data["workloads"])
@@ -2323,6 +2323,9 @@ end
     @test analyze_readiness_data["static_optimization_generalization"]["workload_count"] == 2
     @test analyze_readiness_data["static_optimization_generalization"]["record_count"] == 6
     @test analyze_readiness_data["static_optimization_generalization"]["equivalence_passed"] == true
+    @test analyze_readiness_data["static_optimization_target_terms"]["record_count"] == 6
+    @test analyze_readiness_data["static_optimization_target_terms"]["equivalence_passed"] == true
+    @test analyze_readiness_data["static_optimization_target_terms"]["candidate_not_slower_at_every_workload"] == false
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["feeder_count"] == 4
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["record_count"] == 12
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["measured_count"] == 9
@@ -2354,6 +2357,16 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
+    analyze_target_terms_script = read(
+        joinpath(benchmark_directory, "profile_analyze_static_target_terms.jl"),
+        String,
+    )
+    @test Meta.parseall(analyze_target_terms_script) isa Expr
+    @test occursin("cache_affine_target_terms", analyze_target_terms_script)
+    @test occursin("analyze_static_target_terms_summary.json", read(
+        joinpath(benchmark_directory, "summarize_analyze_scaling_readiness.jl"),
+        String,
+    ))
     analyze_ab_script = read(
         joinpath(benchmark_directory, "profile_analyze_static_optimization_ab.jl"),
         String,
@@ -2366,7 +2379,9 @@ end
     ))
     static_source = read(joinpath(repository_root, "src", "analysis", "static.jl"), String)
     @test occursin("_affine_interval_rows", static_source)
+    @test occursin("_affine_interval_target_rows", static_source)
     @test occursin("cache_affine_coefficients::Bool", static_source)
+    @test occursin("cache_affine_target_terms::Bool", static_source)
     @test occursin("analyze_scaling_readiness_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,

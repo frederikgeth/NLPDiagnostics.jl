@@ -11,6 +11,7 @@ const RESOURCE_INPUT = "docs/analyze_runtime_resource_summary.json"
 const PROFILE_INPUT = "docs/bmopf_analyze_runtime_profile_summary.json"
 const AB_INPUT = "docs/analyze_static_optimization_ab_summary.json"
 const GENERALIZATION_INPUT = "docs/analyze_static_optimization_generalization_summary.json"
+const TARGET_TERMS_INPUT = "docs/analyze_static_target_terms_summary.json"
 const BMOPF_COMBINED_INPUT = "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "analyze_scaling_readiness_summary.json") : ARGS[1])
@@ -20,6 +21,7 @@ resources = read_summary(RESOURCE_INPUT)
 profile = read_summary(PROFILE_INPUT)
 optimization_ab = read_summary(AB_INPUT)
 optimization_generalization = read_summary(GENERALIZATION_INPUT)
+optimization_target_terms = read_summary(TARGET_TERMS_INPUT)
 bmopf_combined = read_summary(BMOPF_COMBINED_INPUT)
 
 trend_by_workload = Dict{String,Any}(
@@ -83,6 +85,8 @@ combined_feeders = unique(string(get(record, "feeder", "unknown")) for record in
 combined_snapshot_covered = length(combined_feeders) >= 4 &&
     any(get(record, "status", "") == "skipped_size_guard" for record in combined_records)
 
+target_terms_equivalence = get(optimization_target_terms, "equivalence_passed", false)
+
 open_gaps = Dict[
     Dict("id" => "static_stage_candidate_selection", "next_evidence" => "profile a different semantics-preserving static-stage candidate because the affine-row cache A/B is neutral to slightly slower locally"),
     Dict("id" => "portable_analyze_memory", "next_evidence" => "repeat the workload and adapter profiles in a second reviewed environment with allocator-level peak telemetry"),
@@ -90,6 +94,7 @@ open_gaps = Dict[
 if !combined_snapshot_covered
     pushfirst!(open_gaps, Dict("id" => "larger_combined_mv_lv_analyze", "next_evidence" => "extend the guarded combined MV+LV analyze profile to additional feeders or a reviewed larger snapshot without forcing the full-case memory path"))
 end
+target_terms_equivalence && deleteat!(open_gaps, findall(gap -> gap["id"] == "static_stage_candidate_selection", open_gaps))
 
 ab_records = get(optimization_ab, "records", Any[])
 ab_speedups = Float64[
@@ -117,7 +122,7 @@ write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-analyze-scaling-readiness-v1",
     "source" => Dict(
         "runner" => "benchmarks/summarize_analyze_scaling_readiness.jl",
-        "artifacts" => [TREND_INPUT, RESOURCE_INPUT, PROFILE_INPUT, AB_INPUT, GENERALIZATION_INPUT, BMOPF_COMBINED_INPUT],
+        "artifacts" => [TREND_INPUT, RESOURCE_INPUT, PROFILE_INPUT, AB_INPUT, GENERALIZATION_INPUT, TARGET_TERMS_INPUT, BMOPF_COMBINED_INPUT],
         "policy" => "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",
     ),
     "environment" => Dict(
@@ -149,6 +154,20 @@ write_json(OUTPUT, Dict{String,Any}(
         "elapsed_speedup_range" => isempty(generalization_speedups) ? Any[] : [minimum(generalization_speedups), maximum(generalization_speedups)],
         "allocation_reduction_range" => isempty(generalization_allocation_reductions) ? Any[] : [minimum(generalization_allocation_reductions), maximum(generalization_allocation_reductions)],
         "decision" => "Mixed-density affine and sparse nonlinear evidence preserves semantics; local timing is neutral to slightly slower, so the candidate is not promoted as a performance win.",
+    ),
+    "static_optimization_target_terms" => Dict(
+        "record_count" => length(get(optimization_target_terms, "records", Any[])),
+        "equivalence_passed" => target_terms_equivalence,
+        "candidate_not_slower_at_every_workload" => get(optimization_target_terms, "candidate_not_slower_at_every_workload", false),
+        "elapsed_speedup_range" => begin
+            values = Float64[Float64(get(record, "elapsed_speedup", NaN)) for record in get(optimization_target_terms, "records", Any[]) if get(record, "elapsed_speedup", nothing) isa Real]
+            isempty(values) ? Any[] : [minimum(values), maximum(values)]
+        end,
+        "allocation_reduction_range" => begin
+            values = Float64[Float64(get(record, "allocation_reduction_ratio", NaN)) for record in get(optimization_target_terms, "records", Any[]) if get(record, "allocation_reduction_ratio", nothing) isa Real]
+            isempty(values) ? Any[] : [minimum(values), maximum(values)]
+        end,
+        "decision" => get(optimization_target_terms, "decision", "unavailable"),
     ),
     "bmopf_combined_mv_lv_analyze" => Dict(
         "feeder_count" => length(combined_feeders),

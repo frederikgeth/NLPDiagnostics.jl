@@ -239,14 +239,22 @@ on mixed-density affine and sparse nonlinear ladders (six rows); equivalence
 passes everywhere, while local speedup is neutral to slightly slower
 (approximately 0.992--1.000x). The combined MV+LV workload-family increment is
 now complete for the reviewed guarded snapshots; the next work is explicitly
-scoped to a different static-stage candidate and cross-environment
-allocator-level memory evidence. The new
+scoped to cross-environment allocator-level memory evidence. The new
 `docs/bmopf_combined_mv_lv_analyze_scaling_summary.json` measures nine stable
 point-free analyze records across LV1_14bus, LV13_58bus, and LV3_55bus under
 classic, SI, and combined local policies (4,180--4,902 variables), while
 retaining 46 PowerIO source warnings; LV32_100bus is represented by three
 explicit skips at 5,596 variables against the 5,000-variable guard. These are
 adapter observations, not solver-scaling or portability claims.
+
+The follow-on `docs/analyze_static_target_terms_summary.json` evaluates a
+different static-stage candidate that caches each affine row's other-variable
+terms. Findings and propagation metadata are equivalent on six dense and
+sparse records; local speedup ranges from about 0.962--1.008x and the dense
+fixtures allocate more, so the candidate is explicitly not promoted as a
+performance win. This closes static-stage candidate selection while preserving
+the evidence boundary; portable allocator-level memory and reproducibility
+remain open.
 
 The isolated sparse ladder now extends through dimension 256, giving 15
 child-process records across dimensions 16, 32, 64, 128, and 256. The larger

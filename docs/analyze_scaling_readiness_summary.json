@@ -26,7 +26,7 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "d9b2d37787ff5e9777942f280948ab41050db0e6",
+    "git_revision": "4e47ea494bf198bf39ac6c8271db464ebfbb8831",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -38,12 +38,8 @@
       "cross-machine reproducibility or OPF-solver scalability"
     ]
   },
-  "open_gap_count": 2,
+  "open_gap_count": 1,
   "open_gaps": [
-    {
-      "id": "static_stage_candidate_selection",
-      "next_evidence": "profile a different semantics-preserving static-stage candidate because the affine-row cache A/B is neutral to slightly slower locally"
-    },
     {
       "id": "portable_analyze_memory",
       "next_evidence": "repeat the workload and adapter profiles in a second reviewed environment with allocator-level peak telemetry"
@@ -57,6 +53,7 @@
       "docs/bmopf_analyze_runtime_profile_summary.json",
       "docs/analyze_static_optimization_ab_summary.json",
       "docs/analyze_static_optimization_generalization_summary.json",
+      "docs/analyze_static_target_terms_summary.json",
       "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
     ],
     "policy": "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",
@@ -89,6 +86,20 @@
     "equivalence_passed": true,
     "record_count": 6,
     "workload_count": 2
+  },
+  "static_optimization_target_terms": {
+    "allocation_reduction_range": [
+      -0.13811015856011766,
+      -0.0009233656553018221
+    ],
+    "candidate_not_slower_at_every_workload": false,
+    "decision": "The target-term cache is semantics-preserving; retain its bounded timing result as local evidence and do not promote a portable performance claim.",
+    "elapsed_speedup_range": [
+      0.9621031142799826,
+      1.0075016684704112
+    ],
+    "equivalence_passed": true,
+    "record_count": 6
   },
   "workload_count": 2,
   "workloads": [

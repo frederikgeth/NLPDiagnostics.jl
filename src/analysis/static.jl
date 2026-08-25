@@ -2855,6 +2855,29 @@ function _affine_interval_rows(model::ModelSnapshot)
     return rows
 end
 
+function _affine_interval_target_rows(model::ModelSnapshot)
+    rows = Tuple{ConstraintRecord,Tuple{Any,Any},Vector{Tuple{MOI.VariableIndex,Any,Vector{Tuple{MOI.VariableIndex,Any}}}}}[]
+    for constraint in model.constraints
+        function_value = constraint.function_value
+        function_value isa MOI.ScalarAffineFunction || continue
+        interval = _scalar_set_interval(constraint.set_value)
+        isnothing(interval) && continue
+        coefficients = _combined_affine_coefficients(function_value)
+        length(coefficients) >= 2 || continue
+        targets = Tuple{MOI.VariableIndex,Any,Vector{Tuple{MOI.VariableIndex,Any}}}[]
+        for (target, coefficient) in coefficients
+            others = Tuple{MOI.VariableIndex,Any}[
+                (variable, value)
+                for (variable, value) in coefficients
+                if variable != target
+            ]
+            push!(targets, (target, coefficient, others))
+        end
+        push!(rows, (constraint, interval, targets))
+    end
+    return rows
+end
+
 function _other_affine_interval(
     coefficients,
     target::MOI.VariableIndex,
@@ -2864,6 +2887,27 @@ function _other_affine_interval(
     lower, upper = constant, constant
     for (variable, coefficient) in coefficients
         variable == target && continue
+        domain = get(domains, variable, nothing)
+        isnothing(domain) && return nothing
+        domain_lower = domain isa Tuple ? domain[1] : domain.lower
+        domain_upper = domain isa Tuple ? domain[2] : domain.upper
+        isnothing(domain_lower) && return nothing
+        isnothing(domain_upper) && return nothing
+        isfinite(domain_lower) && isfinite(domain_upper) || return nothing
+        if coefficient > 0
+            lower += coefficient * domain_lower
+            upper += coefficient * domain_upper
+        else
+            lower += coefficient * domain_upper
+            upper += coefficient * domain_lower
+        end
+    end
+    return lower, upper
+end
+
+function _other_affine_interval_terms(terms, constant, domains)
+    lower, upper = constant, constant
+    for (variable, coefficient) in terms
         domain = get(domains, variable, nothing)
         isnothing(domain) && return nothing
         domain_lower = domain isa Tuple ? domain[1] : domain.lower
@@ -2988,13 +3032,15 @@ function _analyze_affine_interval_fixed_point!(
     model::ModelSnapshot,
     max_passes::Integer,
     ; cache_affine_coefficients::Bool = true,
+    cache_affine_target_terms::Bool = false,
 )
     max_passes > 0 || throw(ArgumentError("max_affine_propagation_passes must be positive"))
     domains = Dict(domain.variable => domain for domain in variable_domains(model))
     initial = Dict(variable => (domain.lower, domain.upper) for (variable, domain) in domains)
     bounds = copy(initial)
     sources = Dict{MOI.VariableIndex,Vector{ConstraintRecord}}()
-    prepared_rows = cache_affine_coefficients ? _affine_interval_rows(model) : nothing
+    prepared_rows = cache_affine_target_terms ? _affine_interval_target_rows(model) :
+                    cache_affine_coefficients ? _affine_interval_rows(model) : nothing
     passes = 0
     converged = false
     for pass in 1:max_passes
@@ -3003,19 +3049,36 @@ function _analyze_affine_interval_fixed_point!(
         rows = isnothing(prepared_rows) ? _affine_interval_rows(model) : prepared_rows
         for (constraint, interval, coefficients) in rows
             row_lower, row_upper = interval
-            for (variable, coefficient) in coefficients
-                others = _other_affine_interval(
-                    coefficients, variable, constraint.function_value.constant, bounds,
-                )
-                isnothing(others) && continue
-                other_lower, other_upper = others
-                lower = isnothing(row_lower) ? nothing :
-                        (row_lower - other_upper) / coefficient
-                upper = isnothing(row_upper) ? nothing :
-                        (row_upper - other_lower) / coefficient
-                coefficient < 0 && ((lower, upper) = (upper, lower))
-                push!(get!(candidates, variable, Tuple{Any,Any,ConstraintRecord}[]),
-                      (lower, upper, constraint))
+            if cache_affine_target_terms
+                for (variable, coefficient, other_terms) in coefficients
+                    others = _other_affine_interval_terms(
+                        other_terms, constraint.function_value.constant, bounds,
+                    )
+                    isnothing(others) && continue
+                    other_lower, other_upper = others
+                    lower = isnothing(row_lower) ? nothing :
+                            (row_lower - other_upper) / coefficient
+                    upper = isnothing(row_upper) ? nothing :
+                            (row_upper - other_lower) / coefficient
+                    coefficient < 0 && ((lower, upper) = (upper, lower))
+                    push!(get!(candidates, variable, Tuple{Any,Any,ConstraintRecord}[]),
+                          (lower, upper, constraint))
+                end
+            else
+                for (variable, coefficient) in coefficients
+                    others = _other_affine_interval(
+                        coefficients, variable, constraint.function_value.constant, bounds,
+                    )
+                    isnothing(others) && continue
+                    other_lower, other_upper = others
+                    lower = isnothing(row_lower) ? nothing :
+                            (row_lower - other_upper) / coefficient
+                    upper = isnothing(row_upper) ? nothing :
+                            (row_upper - other_lower) / coefficient
+                    coefficient < 0 && ((lower, upper) = (upper, lower))
+                    push!(get!(candidates, variable, Tuple{Any,Any,ConstraintRecord}[]),
+                          (lower, upper, constraint))
+                end
             end
         end
         changed = false
@@ -4111,6 +4174,7 @@ function analyze_static(
     max_affine_propagation_passes::Integer = 5,
     unit_circle_radius_tolerance::Real = 1.0e-6,
     cache_affine_coefficients::Bool = true,
+    cache_affine_target_terms::Bool = false,
 )
     report = DiagnosticReport()
     report.metadata[:stage] = "static"
@@ -4156,6 +4220,7 @@ function analyze_static(
         model,
         max_affine_propagation_passes,
         cache_affine_coefficients = cache_affine_coefficients,
+        cache_affine_target_terms = cache_affine_target_terms,
     )
     _analyze_circular_normalization!(
         report,
