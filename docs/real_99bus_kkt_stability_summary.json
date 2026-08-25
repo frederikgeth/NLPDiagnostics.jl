@@ -1,0 +1,777 @@
+{
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
+    "git_revision": "bd4650313284a37a592f02bcfcb47eb55f0b419c",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "excluded_incomplete_profile_count": 6,
+  "failure_localization": {
+    "all_failed_sides_are_ibr_p_upper": true,
+    "failed_run_count": 4,
+    "failed_side_key_sets_equal_count": 6
+  },
+  "interpretation": {
+    "claim": "Among complete solver-floor-qualified saved profiles, strict physical KKT acceptance is summarized without treating incomplete solves as failures or passes.",
+    "does_not_establish": [
+      "absolute physical KKT acceptance for every 99-bus endpoint",
+      "a causal explanation for the ibr_p_upper residual floor",
+      "solver equivalence or a universal tolerance policy"
+    ]
+  },
+  "profile_count": 20,
+  "profiles": [
+    {
+      "all_phase_only_locally_solved": true,
+      "all_phase_only_runs_locally_solved": true,
+      "all_phase_only_solver_floor_calibrated_accepted": true,
+      "label": "baseline_1e8_max40",
+      "max_iter": 40,
+      "model_feasibility_tolerance": 1.0e-8,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_covariance_acceptance_count": 6,
+      "phase_only_covariance_available_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
+        "1.0e-5": 2,
+        "1.1e-5": 4,
+        "1.2e-5": 6,
+        "2.0e-5": 6,
+        "0.0001": 6
+      },
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_physical_solver_kkt_available_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_solver_floor_compound_kkt_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "reference_complementarity_scaling_audit_pass_count": 6,
+      "reference_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
+        "1.0e-5": 2,
+        "1.1e-5": 4,
+        "1.2e-5": 6,
+        "2.0e-5": 6,
+        "0.0001": 6
+      },
+      "reference_solver_floor_compound_kkt_acceptance_count": 6,
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_tolerance_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "all_phase_only_runs_locally_solved": true,
+      "all_phase_only_solver_floor_calibrated_accepted": false,
+      "label": "tight_1e9_max40",
+      "max_iter": 40,
+      "model_feasibility_tolerance": 1.0e-9,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_covariance_acceptance_count": 6,
+      "phase_only_covariance_available_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
+        "1.0e-5": 0,
+        "1.1e-5": 0,
+        "1.2e-5": 0,
+        "2.0e-5": 0,
+        "0.0001": 0
+      },
+      "phase_only_physical_solver_kkt_acceptance_count": 0,
+      "phase_only_physical_solver_kkt_available_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 0,
+      "phase_only_solver_floor_compound_kkt_acceptance_count": 0,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "reference_complementarity_scaling_audit_pass_count": 6,
+      "reference_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
+        "1.0e-5": 0,
+        "1.1e-5": 0,
+        "1.2e-5": 0,
+        "2.0e-5": 0,
+        "0.0001": 0
+      },
+      "reference_solver_floor_compound_kkt_acceptance_count": 0,
+      "solver_floor_complete": false,
+      "source_artifact": "docs/real_99bus_phase_only_tolerance_matrix_summary.json",
+      "strict_kkt_acceptance_count": 0,
+      "strict_kkt_qualified": false
+    },
+    {
+      "all_phase_only_locally_solved": false,
+      "all_phase_only_runs_locally_solved": false,
+      "all_phase_only_solver_floor_calibrated_accepted": true,
+      "label": "budget_1e8_max20",
+      "max_iter": 20,
+      "model_feasibility_tolerance": 1.0e-8,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_covariance_acceptance_count": 6,
+      "phase_only_covariance_available_count": 6,
+      "phase_only_locally_solved_count": 5,
+      "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
+        "1.0e-5": 2,
+        "1.1e-5": 4,
+        "1.2e-5": 6,
+        "2.0e-5": 6,
+        "0.0001": 6
+      },
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_physical_solver_kkt_available_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_solver_floor_compound_kkt_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "ITERATION_LIMIT",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "reference_complementarity_scaling_audit_pass_count": 6,
+      "reference_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
+        "1.0e-5": 2,
+        "1.1e-5": 4,
+        "1.2e-5": 6,
+        "2.0e-5": 6,
+        "0.0001": 6
+      },
+      "reference_solver_floor_compound_kkt_acceptance_count": 6,
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_tolerance_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": false
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "all_phase_only_runs_locally_solved": true,
+      "all_phase_only_solver_floor_calibrated_accepted": true,
+      "label": "budget_1e8_max60",
+      "max_iter": 60,
+      "model_feasibility_tolerance": 1.0e-8,
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_covariance_acceptance_count": 6,
+      "phase_only_covariance_available_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
+        "1.0e-5": 2,
+        "1.1e-5": 4,
+        "1.2e-5": 6,
+        "2.0e-5": 6,
+        "0.0001": 6
+      },
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_physical_solver_kkt_available_count": 6,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_solver_floor_compound_kkt_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "reference_complementarity_scaling_audit_pass_count": 6,
+      "reference_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
+        "1.0e-5": 2,
+        "1.1e-5": 4,
+        "1.2e-5": 6,
+        "2.0e-5": 6,
+        "0.0001": 6
+      },
+      "reference_solver_floor_compound_kkt_acceptance_count": 6,
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_tolerance_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "ipopt_options": {},
+      "label": "baseline_max40",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_maximum_complementarity_residual": 1.141720164003029e-5,
+      "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
+        "1.0e-5": 2,
+        "1.1e-5": 4,
+        "1.2e-5": 6,
+        "2.0e-5": 6,
+        "0.0001": 6
+      },
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_option_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "ipopt_options": {
+        "tol": 1.0e-10,
+        "acceptable_tol": 1.0e-10
+      },
+      "label": "tight_tol_max60",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_maximum_complementarity_residual": 1.142962858849188e-5,
+      "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
+        "1.0e-5": 2,
+        "1.1e-5": 4,
+        "1.2e-5": 6,
+        "2.0e-5": 6,
+        "0.0001": 6
+      },
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_option_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "ipopt_options": {
+        "mu_strategy": "monotone"
+      },
+      "label": "monotone_mu_max60",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_maximum_complementarity_residual": 1.141720164003029e-5,
+      "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
+        "1.0e-5": 2,
+        "1.1e-5": 4,
+        "1.2e-5": 6,
+        "2.0e-5": 6,
+        "0.0001": 6
+      },
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_option_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "ipopt_options": {
+        "nlp_scaling_method": "none"
+      },
+      "label": "scaling_none_max60",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_maximum_complementarity_residual": 1.1428434380299394e-5,
+      "phase_only_physical_solver_kkt_acceptance_by_complementarity_tolerance": {
+        "1.0e-5": 2,
+        "1.1e-5": 4,
+        "1.2e-5": 6,
+        "2.0e-5": 6,
+        "0.0001": 6
+      },
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_option_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "bmopf_generated_initialization_applied": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "bmopf_generated_initialization_maximum_normalized_physics_residual": [
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16
+      ],
+      "initialization_missing_coordinate_counts": [
+        986,
+        986,
+        986,
+        986,
+        986,
+        986
+      ],
+      "initialization_policy": "completed",
+      "initialization_provenance_kinds": [
+        "CompletedInitializationPoint",
+        "CompletedInitializationPoint",
+        "CompletedInitializationPoint",
+        "CompletedInitializationPoint",
+        "CompletedInitializationPoint",
+        "CompletedInitializationPoint"
+      ],
+      "label": "completed_start_max40",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_maximum_complementarity_residual": 1.141720164003029e-5,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_initialization_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": false,
+      "bmopf_generated_initialization_applied": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "bmopf_generated_initialization_maximum_normalized_physics_residual": [
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16
+      ],
+      "initialization_missing_coordinate_counts": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "initialization_policy": "bmopf",
+      "initialization_provenance_kinds": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "label": "bmopf_native_start_max40",
+      "phase_only_complementarity_scaling_audit_pass_count": 0,
+      "phase_only_locally_solved_count": 0,
+      "phase_only_maximum_complementarity_residual": null,
+      "phase_only_physical_solver_kkt_acceptance_count": 0,
+      "phase_only_solver_floor_calibrated_acceptance_count": 0,
+      "phase_only_termination_statuses": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "qualification": "BMOPFTools native initialization point was unavailable for these staged contexts; this is an unavailable-start result, not a solver failure.",
+      "solver_floor_complete": false,
+      "source_artifact": "docs/real_99bus_phase_only_initialization_matrix_summary.json",
+      "strict_kkt_acceptance_count": 0,
+      "strict_kkt_qualified": false
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "bmopf_generated_initialization_applied": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "bmopf_generated_initialization_maximum_normalized_physics_residual": [
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16
+      ],
+      "initialization_missing_coordinate_counts": [
+        986,
+        986,
+        986,
+        986,
+        986,
+        986
+      ],
+      "initialization_policy": "bmopf_generated",
+      "initialization_provenance_kinds": [
+        "CompletedInitializationPoint",
+        "CompletedInitializationPoint",
+        "CompletedInitializationPoint",
+        "CompletedInitializationPoint",
+        "CompletedInitializationPoint",
+        "CompletedInitializationPoint"
+      ],
+      "label": "bmopf_generated_start_max40",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_maximum_complementarity_residual": 1.141720164003029e-5,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "qualification": "The standard BMOPFTools build has partial generated starts; this policy explicitly completes those starts with zero for missing coordinates. It is a reproducible mixed-start control, not an independently complete native point.",
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_initialization_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": false,
+      "bmopf_generated_initialization_applied": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "bmopf_generated_initialization_maximum_normalized_physics_residual": [
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16,
+        8.950904182623536e-16
+      ],
+      "initialization_missing_coordinate_counts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "initialization_policy": "zero",
+      "initialization_provenance_kinds": [
+        "InitializationPoint",
+        "InitializationPoint",
+        "InitializationPoint",
+        "InitializationPoint",
+        "InitializationPoint",
+        "InitializationPoint"
+      ],
+      "label": "zero_start_max40",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 0,
+      "phase_only_maximum_complementarity_residual": 2.464834111024331e11,
+      "phase_only_physical_solver_kkt_acceptance_count": 0,
+      "phase_only_solver_floor_calibrated_acceptance_count": 0,
+      "phase_only_termination_statuses": [
+        "ITERATION_LIMIT",
+        "ITERATION_LIMIT",
+        "ITERATION_LIMIT",
+        "ITERATION_LIMIT",
+        "ITERATION_LIMIT",
+        "ITERATION_LIMIT"
+      ],
+      "qualification": "Zero starts are a deliberately adversarial initialization control; the resulting KKT records are diagnostic and not endpoint evidence.",
+      "solver_floor_complete": false,
+      "source_artifact": "docs/real_99bus_phase_only_initialization_matrix_summary.json",
+      "strict_kkt_acceptance_count": 0,
+      "strict_kkt_qualified": false
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "initialization_policy": "completed",
+      "label": "completed_baseline_max40",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_maximum_complementarity_residual": 1.141720164003029e-5,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "relative_size": 0.0,
+      "seed": 11,
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_perturbation_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "initialization_policy": "perturbed",
+      "label": "perturbed_seed11_1e5_max60",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_maximum_complementarity_residual": 1.1417199769445483e-5,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "relative_size": 1.0e-5,
+      "seed": 11,
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_perturbation_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": false,
+      "initialization_policy": "perturbed",
+      "label": "perturbed_seed11_1e4_max60",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 2,
+      "phase_only_maximum_complementarity_residual": 6.950228447490811e9,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 2,
+      "phase_only_termination_statuses": [
+        "ITERATION_LIMIT",
+        "LOCALLY_SOLVED",
+        "ITERATION_LIMIT",
+        "ITERATION_LIMIT",
+        "LOCALLY_SOLVED",
+        "ITERATION_LIMIT"
+      ],
+      "qualification": "KKT counts are not solver-completion counts; four endpoints remained at ITERATION_LIMIT.",
+      "relative_size": 0.0001,
+      "seed": 11,
+      "solver_floor_complete": false,
+      "source_artifact": "docs/real_99bus_phase_only_perturbation_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": false
+    },
+    {
+      "all_phase_only_locally_solved": false,
+      "initialization_policy": "perturbed",
+      "label": "perturbed_seed29_1e4_max60",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 2,
+      "phase_only_maximum_complementarity_residual": 2.2794128779562088e11,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 4,
+      "phase_only_termination_statuses": [
+        "ITERATION_LIMIT",
+        "LOCALLY_SOLVED",
+        "ITERATION_LIMIT",
+        "ITERATION_LIMIT",
+        "LOCALLY_SOLVED",
+        "ITERATION_LIMIT"
+      ],
+      "qualification": "KKT counts are not solver-completion counts; four endpoints remained at ITERATION_LIMIT.",
+      "relative_size": 0.0001,
+      "seed": 29,
+      "solver_floor_complete": false,
+      "source_artifact": "docs/real_99bus_phase_only_perturbation_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": false
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "family": "all",
+      "initialization_policy": "completed",
+      "label": "completed_baseline_max40",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_maximum_complementarity_residual": 1.141720164003029e-5,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "relative_size": 0.0,
+      "seed": 11,
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_structured_perturbation_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "family": "voltage",
+      "initialization_policy": "perturbed",
+      "label": "voltage_seed11_1e5_max60",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_maximum_complementarity_residual": 1.1417201640073703e-5,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "relative_size": 1.0e-5,
+      "seed": 11,
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_structured_perturbation_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "family": "voltage",
+      "initialization_policy": "perturbed",
+      "label": "voltage_seed11_1e4_max60",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_maximum_complementarity_residual": 1.1417201638409302e-5,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "relative_size": 0.0001,
+      "seed": 11,
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_structured_perturbation_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    },
+    {
+      "all_phase_only_locally_solved": true,
+      "family": "current",
+      "initialization_policy": "perturbed",
+      "label": "current_seed11_1e4_max60",
+      "phase_only_complementarity_scaling_audit_pass_count": 6,
+      "phase_only_locally_solved_count": 6,
+      "phase_only_maximum_complementarity_residual": 1.1417201640035297e-5,
+      "phase_only_physical_solver_kkt_acceptance_count": 2,
+      "phase_only_solver_floor_calibrated_acceptance_count": 6,
+      "phase_only_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "relative_size": 0.0001,
+      "seed": 11,
+      "solver_floor_complete": true,
+      "source_artifact": "docs/real_99bus_phase_only_structured_perturbation_matrix_summary.json",
+      "strict_kkt_acceptance_count": 2,
+      "strict_kkt_qualified": true
+    }
+  ],
+  "qualified_maximum_complementarity_residual": 1.142962858849188e-5,
+  "qualified_profile_count": 14,
+  "qualified_strict_acceptance_count_histogram": {
+    "2": 14
+  },
+  "qualified_strict_acceptance_counts": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2
+  ],
+  "schema_version": "nlpdiagnostics-real-99bus-kkt-stability-v1",
+  "source": {
+    "failure_artifact": "docs/real_99bus_phase_only_kkt_failure_summary.json",
+    "matrix_artifacts": [
+      "docs/real_99bus_phase_only_tolerance_matrix_summary.json",
+      "docs/real_99bus_phase_only_option_matrix_summary.json",
+      "docs/real_99bus_phase_only_initialization_matrix_summary.json",
+      "docs/real_99bus_phase_only_perturbation_matrix_summary.json",
+      "docs/real_99bus_phase_only_structured_perturbation_matrix_summary.json"
+    ],
+    "runner": "benchmarks/summarize_real_99bus_kkt_stability.jl",
+    "strict_kkt_tolerance": 1.0e-5
+  },
+  "stable_strict_acceptance_count": 2,
+  "strict_acceptance_count_is_stable": true
+}

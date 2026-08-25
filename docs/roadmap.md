@@ -92,6 +92,15 @@ match the declared numerical rank policy with zero unavailable backend results;
 as explicit tolerance evidence. This broadens the statistics without turning
 near-threshold perturbations into algebraic-rank claims.
 
+The real 99-bus physical-KKT increment now joins the saved tolerance, option,
+initialization, and perturbation matrices through
+`benchmarks/summarize_real_99bus_kkt_stability.jl`. It retains 20 profiles,
+qualifies 14 complete solver-floor runs, and finds strict 1e-5 physical KKT
+acceptance stable at 2/6 across every qualified profile. Six incomplete
+profiles remain excluded rather than interpreted, and the four baseline
+failures remain localized to `ibr_p_upper`; this strengthens stability and
+failure provenance without closing the absolute physical gate.
+
 The `analyze(model)` scaling gate now includes bounded stage attribution in
 `docs/analyze_runtime_scaling_summary.json`. The existing end-to-end runtime
 and allocation records are unchanged, while snapshot, incidence, static,

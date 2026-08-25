@@ -9,6 +9,7 @@ const ROOT = repo_root()
 
 real_campaign = read_summary("docs/real_99bus_phase_only_campaign_summary.json")
 real_kkt = read_summary("docs/real_99bus_phase_only_kkt_failure_summary.json")
+real_kkt_stability = read_summary("docs/real_99bus_kkt_stability_summary.json")
 real_covariance = read_summary("docs/real_99bus_phase_only_covariance_summary.json")
 ibr_tolerance = read_summary("docs/bmopf_30bus_ibr_p_upper_tolerance_margin_summary.json")
 ibr_sparse = read_summary("docs/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit_summary.json")
@@ -39,6 +40,9 @@ api_testset_count = api_modules["testset_count_in_root"]
 api_script_count = api_modules["benchmark_script_count"]
 api_schema_count = api_schemas["json_schema_file_count"]
 api_helper_user_count = api_modules["shared_benchmark_helper_user_count"]
+real_kkt_qualified_profiles = get(real_kkt_stability, "qualified_profile_count", 0)
+real_kkt_stable_count = get(real_kkt_stability, "stable_strict_acceptance_count", nothing)
+real_kkt_excluded_profiles = get(real_kkt_stability, "excluded_incomplete_profile_count", 0)
 analyze_stage_records = get(analyze_runtime_scaling["records"][end], "stage_attribution", Any[])
 analyze_repetitions = get(analyze_runtime_scaling["source"], "repetitions", 1)
 analyze_memory_note = get(
@@ -133,8 +137,8 @@ gates = Dict{String,Any}[
     gate(
         "real_99bus_physical_kkt",
         "partial",
-        "Physical KKT is available on all six runs but only 2/6 reference and 2/6 phase-only endpoints pass the strict 1e-5 gate; failure localization is complete.",
-        ["docs/real_99bus_phase_only_campaign_summary.json", "docs/real_99bus_phase_only_kkt_failure_summary.json"],
+        "Physical KKT is available on all six runs but only 2/6 reference and 2/6 phase-only endpoints pass the strict 1e-5 gate. The joined stability ledger has $real_kkt_qualified_profiles complete solver-floor-qualified profiles (excluding $real_kkt_excluded_profiles incomplete profiles), and strict acceptance remains stable at $(isnothing(real_kkt_stable_count) ? "unavailable" : "$(real_kkt_stable_count)/6") across those profiles; failure localization is complete.",
+        ["docs/real_99bus_phase_only_campaign_summary.json", "docs/real_99bus_phase_only_kkt_failure_summary.json", "docs/real_99bus_kkt_stability_summary.json"],
         blocking=true,
     ),
     gate(
