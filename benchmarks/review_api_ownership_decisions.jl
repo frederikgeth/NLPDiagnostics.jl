@@ -277,6 +277,86 @@ const REVIEW_DECISIONS = Dict{String,Dict{String,Any}}(
         "namespace_target" => "Advanced",
         "rationale" => "Operating-point current-law persistence is an extension-specific reproducibility artifact; keep it Advanced pending stable persistence semantics.",
     ),
+    "bmopf_current_law_operating_point_probes" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Current-law operating-point probes are BMOPFTools experiment inputs; retain Advanced ownership while probe semantics and persistence evolve.",
+    ),
+    "bmopf_current_law_operating_point_report" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Operating-point current-law reports are adapter-specific evidence artifacts; defer promotion until report schemas are versioned.",
+    ),
+    "bmopf_current_law_operating_point_trace" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Current-law operating-point traces belong to the BMOPFTools research surface; keep them Advanced pending stable trace ownership.",
+    ),
+    "bmopf_current_law_report" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Current-law reports are domain-specific BMOPFTools outputs rather than core evaluator contracts; retain Advanced ownership while schemas mature.",
+    ),
+    "bmopf_expected_mode_tangent_policy" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Expected-mode tangent policy is an experiment-specific structural-analysis policy; keep it Advanced until backend semantics stabilize.",
+    ),
+    "bmopf_initialization_scaling_covariance_report" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Initialization scaling covariance is BMOPFTools campaign evidence; defer any root migration until its cross-case report contract is stable.",
+    ),
+    "bmopf_iteration_trace_jacobian_family_geometry_data" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Iteration-trace Jacobian-family geometry data is adapter-specific research output; retain Advanced ownership pending a stable schema.",
+    ),
+    "bmopf_passive_network_current_map_report" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Passive-network current-map reports depend on BMOPFTools network semantics; keep them Advanced while adapter ownership is finalized.",
+    ),
+    "bmopf_passive_network_current_maps" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Passive-network current maps are BMOPFTools domain artifacts and not core evaluator primitives; defer promotion until their contract is versioned.",
+    ),
+    "bmopf_phase_only_endpoint" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Phase-only endpoints are campaign-specific solver records; retain Advanced ownership while intervention and endpoint schemas evolve.",
+    ),
+    "bmopf_phase_only_model_rebuild_report" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Phase-only model-rebuild reports are adapter-specific provenance artifacts; keep them Advanced pending stable rebuild semantics.",
+    ),
+    "bmopf_phase_only_rebuild_model" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Phase-only model rebuilding is BMOPFTools campaign orchestration rather than a core API; defer namespace migration until its facade is explicit.",
+    ),
+    "bmopf_phase_only_solve_model" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Phase-only solve orchestration is extension-specific and solver-facing; retain Advanced ownership while solve-result contracts mature.",
+    ),
+    "bmopf_physical_feasibility_report" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Physical-feasibility reports are BMOPFTools domain evidence; keep them Advanced until endpoint semantics and schemas are stable.",
+    ),
+    "bmopf_profile_case" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "BMOPFTools profile cases are workload-specific reproducibility records; defer promotion pending stable persistence and ownership contracts.",
+    ),
+    "bmopf_result_mapping_report" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Result-mapping reports are adapter-owned integration artifacts; retain Advanced ownership while solver-result mappings evolve.",
+    ),
 )
 
 queue = read_summary(INPUT)["queue"]
@@ -325,7 +405,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "Keep Stable and Advanced facades unchanged until ownership review is complete.",
     ],
     "interpretation" => Dict{String,Any}(
-        "claim" => "Fifty-two high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except thirty-two Advanced candidate reviews.",
+        "claim" => "Sixty-eight high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except forty-eight Advanced candidate reviews.",
         "does_not_establish" => [
             "a complete review of all root-only exports",
             "permission to remove or deprecate root symbols",

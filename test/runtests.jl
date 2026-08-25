@@ -2791,9 +2791,9 @@ end
     ))
     @test ownership_review_summary["schema_version"] ==
           "nlpdiagnostics-api-ownership-decisions-v1"
-    @test ownership_review_summary["reviewed_count"] == 52
+    @test ownership_review_summary["reviewed_count"] == 68
     @test ownership_review_summary["root_compatibility_retained_count"] == 20
-    @test ownership_review_summary["advanced_candidate_count"] == 32
+    @test ownership_review_summary["advanced_candidate_count"] == 48
     @test ownership_review_summary["migration_allowed_count"] == 0
     @test occursin("api_ownership_decision_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
