@@ -35,8 +35,8 @@ const ACTIONS = Dict{String,Dict{String,Any}}(
     ),
     "analyze_runtime_scaling" => Dict(
         "priority" => 4,
-        "next_deliverable" => "Repeat the cached affine-row A/B on broader point-free analyze workload families and retain explicit portability limits.",
-        "closure_condition" => "Broader workloads have stable findings, stage/resource attribution, and documented portability limits; any optimization claim is supported by repeated A/B evidence or explicitly not promoted.",
+        "next_deliverable" => "Extend point-free analyze scaling to reviewed BMOPFTools combined MV+LV workload families and select the next static-stage optimization candidate.",
+        "closure_condition" => "The broader workload campaign has stable findings, stage/resource attribution, and documented portability limits; optimization candidates are either supported by repeated A/B evidence or explicitly not promoted.",
         "dependency" => "Keep the public API unchanged and preserve repeatability and memory provenance.",
     ),
     "api_test_benchmark_consolidation" => Dict(

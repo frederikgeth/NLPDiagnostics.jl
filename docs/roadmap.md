@@ -233,10 +233,14 @@ companion `docs/analyze_static_optimization_ab_summary.json` now compares the
 cached affine-row path against the uncached baseline. All three dimensions
 preserve finding identities and propagation metadata; elapsed speedup is mixed
 (approximately 1.00--1.58x) and therefore does not support a portable
-performance claim. The next work is explicitly scoped to repeating the A/B on
-broader workload families and collecting cross-environment allocator-level
-memory evidence. This remains readiness evidence, not a portable complexity or
-production-memory claim.
+performance claim. The follow-on
+`docs/analyze_static_optimization_generalization_summary.json` repeats the A/B
+on mixed-density affine and sparse nonlinear ladders (six rows); equivalence
+passes everywhere, while local speedup is neutral to slightly slower
+(approximately 0.992--1.000x). The next work is now explicitly scoped to a
+reviewed BMOPFTools combined MV+LV workload family, a different static-stage
+candidate, and cross-environment allocator-level memory evidence. This remains
+readiness evidence, not a portable complexity or production-memory claim.
 
 The isolated sparse ladder now extends through dimension 256, giving 15
 child-process records across dimensions 16, 32, 64, 128, and 256. The larger

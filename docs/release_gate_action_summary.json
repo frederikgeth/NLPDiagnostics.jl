@@ -52,7 +52,7 @@
     },
     {
       "blocking": true,
-      "closure_condition": "Broader workloads have stable findings, stage/resource attribution, and documented portability limits; any optimization claim is supported by repeated A/B evidence or explicitly not promoted.",
+      "closure_condition": "The broader workload campaign has stable findings, stage/resource attribution, and documented portability limits; optimization candidates are either supported by repeated A/B evidence or explicitly not promoted.",
       "dependency": "Keep the public API unchanged and preserve repeatability and memory provenance.",
       "evidence": [
         "docs/analyze_runtime_scaling_summary.json",
@@ -60,10 +60,11 @@
         "docs/analyze_runtime_resource_summary.json",
         "docs/bmopf_analyze_runtime_profile_summary.json",
         "docs/analyze_scaling_readiness_summary.json",
-        "docs/analyze_static_optimization_ab_summary.json"
+        "docs/analyze_static_optimization_ab_summary.json",
+        "docs/analyze_static_optimization_generalization_summary.json"
       ],
       "id": "analyze_runtime_scaling",
-      "next_deliverable": "Repeat the cached affine-row A/B on broader point-free analyze workload families and retain explicit portability limits.",
+      "next_deliverable": "Extend point-free analyze scaling to reviewed BMOPFTools combined MV+LV workload families and select the next static-stage optimization candidate.",
       "priority": 4,
       "status": "partial"
     },
@@ -93,7 +94,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "753b2f3a6f4d00458c272bbd75f122602ba8b797",
+    "git_revision": "8f6b9f8e71ab1ce6a2606c05d9ed8adbaf188ef4",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

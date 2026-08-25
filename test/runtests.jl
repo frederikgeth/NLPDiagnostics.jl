@@ -2303,7 +2303,7 @@ end
         String,
     )
     @test Meta.parseall(analyze_readiness_script) isa Expr
-    @test occursin("static_stage_optimization_generalization", analyze_readiness_script)
+    @test occursin("static_stage_candidate_selection", analyze_readiness_script)
     analyze_readiness_summary = read(
         joinpath(repository_root, "docs", "analyze_scaling_readiness_summary.json"),
         String,
@@ -2320,6 +2320,20 @@ end
     @test analyze_readiness_data["static_optimization_ab"]["record_count"] == 3
     @test analyze_readiness_data["static_optimization_ab"]["equivalence_passed"] == true
     @test analyze_readiness_data["static_optimization_ab"]["candidate_not_slower_at_every_dimension"] == false
+    @test analyze_readiness_data["static_optimization_generalization"]["workload_count"] == 2
+    @test analyze_readiness_data["static_optimization_generalization"]["record_count"] == 6
+    @test analyze_readiness_data["static_optimization_generalization"]["equivalence_passed"] == true
+    analyze_generalization_script = read(
+        joinpath(benchmark_directory, "profile_analyze_static_optimization_generalization.jl"),
+        String,
+    )
+    @test Meta.parseall(analyze_generalization_script) isa Expr
+    @test occursin("mixed_density_affine_chain", analyze_generalization_script)
+    @test occursin("sparse_nonlinear_chain", analyze_generalization_script)
+    @test occursin("analyze_static_optimization_generalization_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     analyze_ab_script = read(
         joinpath(benchmark_directory, "profile_analyze_static_optimization_ab.jl"),
         String,

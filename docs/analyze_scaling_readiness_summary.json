@@ -7,12 +7,12 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "753b2f3a6f4d00458c272bbd75f122602ba8b797",
+    "git_revision": "8f6b9f8e71ab1ce6a2606c05d9ed8adbaf188ef4",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {
-    "claim": "Both bounded analyze workloads have stable, repeatable local evidence with static as the dominant largest-dimension stage; the affine-row cache A/B preserves findings but has mixed local timing; the BMOPFTools adapter profile is measured only on guarded small fixtures.",
+    "claim": "Bounded analyze workloads now include sparse, mixed-density affine, and nonlinear fixtures with stable static findings; the affine-row cache A/B preserves semantics but is neutral to slightly slower locally; the BMOPFTools adapter profile is measured only on guarded small fixtures.",
     "does_not_establish": [
       "a production or asymptotic complexity law",
       "allocator-level peak memory behavior",
@@ -22,12 +22,12 @@
   "open_gap_count": 3,
   "open_gaps": [
     {
-      "id": "broader_analyze_workload_families",
-      "next_evidence": "add a reviewed mixed-density and nonlinear fixture ladder beyond the two sparse chains"
+      "id": "production_workload_representativeness",
+      "next_evidence": "repeat point-free analyze scaling on reviewed BMOPFTools combined MV+LV cases with bounded guards"
     },
     {
-      "id": "static_stage_optimization_generalization",
-      "next_evidence": "repeat the cached affine-row A/B on mixed-density and nonlinear workloads before making a performance claim"
+      "id": "static_stage_candidate_selection",
+      "next_evidence": "profile a different semantics-preserving static-stage candidate because the affine-row cache A/B is neutral to slightly slower locally"
     },
     {
       "id": "portable_analyze_memory",
@@ -40,7 +40,8 @@
       "docs/analyze_runtime_trend_summary.json",
       "docs/analyze_runtime_resource_summary.json",
       "docs/bmopf_analyze_runtime_profile_summary.json",
-      "docs/analyze_static_optimization_ab_summary.json"
+      "docs/analyze_static_optimization_ab_summary.json",
+      "docs/analyze_static_optimization_generalization_summary.json"
     ],
     "policy": "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",
     "runner": "benchmarks/summarize_analyze_scaling_readiness.jl"
@@ -58,6 +59,20 @@
     ],
     "equivalence_passed": true,
     "record_count": 3
+  },
+  "static_optimization_generalization": {
+    "allocation_reduction_range": [
+      0.0,
+      0.0030601038709917594
+    ],
+    "decision": "Mixed-density affine and sparse nonlinear evidence preserves semantics; local timing is neutral to slightly slower, so the candidate is not promoted as a performance win.",
+    "elapsed_speedup_range": [
+      0.9916270927747423,
+      1.0002145326054301
+    ],
+    "equivalence_passed": true,
+    "record_count": 6,
+    "workload_count": 2
   },
   "workload_count": 2,
   "workloads": [

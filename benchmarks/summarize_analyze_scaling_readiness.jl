@@ -10,6 +10,7 @@ const TREND_INPUT = "docs/analyze_runtime_trend_summary.json"
 const RESOURCE_INPUT = "docs/analyze_runtime_resource_summary.json"
 const PROFILE_INPUT = "docs/bmopf_analyze_runtime_profile_summary.json"
 const AB_INPUT = "docs/analyze_static_optimization_ab_summary.json"
+const GENERALIZATION_INPUT = "docs/analyze_static_optimization_generalization_summary.json"
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "analyze_scaling_readiness_summary.json") : ARGS[1])
 
@@ -17,6 +18,7 @@ trend = read_summary(TREND_INPUT)
 resources = read_summary(RESOURCE_INPUT)
 profile = read_summary(PROFILE_INPUT)
 optimization_ab = read_summary(AB_INPUT)
+optimization_generalization = read_summary(GENERALIZATION_INPUT)
 
 trend_by_workload = Dict{String,Any}(
     "sparse_affine_chain" => get(trend, "affine_chain", Dict{String,Any}()),
@@ -73,8 +75,8 @@ measured_count = count(record -> get(record, "status", "") == "measured", profil
 guarded_count = count(record -> get(record, "status", "") == "skipped_size_guard", profile_records)
 
 open_gaps = [
-    Dict("id" => "broader_analyze_workload_families", "next_evidence" => "add a reviewed mixed-density and nonlinear fixture ladder beyond the two sparse chains"),
-    Dict("id" => "static_stage_optimization_generalization", "next_evidence" => "repeat the cached affine-row A/B on mixed-density and nonlinear workloads before making a performance claim"),
+    Dict("id" => "production_workload_representativeness", "next_evidence" => "repeat point-free analyze scaling on reviewed BMOPFTools combined MV+LV cases with bounded guards"),
+    Dict("id" => "static_stage_candidate_selection", "next_evidence" => "profile a different semantics-preserving static-stage candidate because the affine-row cache A/B is neutral to slightly slower locally"),
     Dict("id" => "portable_analyze_memory", "next_evidence" => "repeat the workload and adapter profiles in a second reviewed environment with allocator-level peak telemetry"),
 ]
 
@@ -89,12 +91,23 @@ ab_allocation_reductions = Float64[
     for record in ab_records
     if get(record, "allocation_reduction_ratio", nothing) isa Real
 ]
+generalization_records = get(optimization_generalization, "records", Any[])
+generalization_speedups = Float64[
+    Float64(get(record, "elapsed_speedup", NaN))
+    for record in generalization_records
+    if get(record, "elapsed_speedup", nothing) isa Real
+]
+generalization_allocation_reductions = Float64[
+    Float64(get(record, "allocation_reduction_ratio", NaN))
+    for record in generalization_records
+    if get(record, "allocation_reduction_ratio", nothing) isa Real
+]
 
 write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-analyze-scaling-readiness-v1",
     "source" => Dict(
         "runner" => "benchmarks/summarize_analyze_scaling_readiness.jl",
-        "artifacts" => [TREND_INPUT, RESOURCE_INPUT, PROFILE_INPUT, AB_INPUT],
+        "artifacts" => [TREND_INPUT, RESOURCE_INPUT, PROFILE_INPUT, AB_INPUT, GENERALIZATION_INPUT],
         "policy" => "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",
     ),
     "environment" => Dict(
@@ -119,10 +132,18 @@ write_json(OUTPUT, Dict{String,Any}(
         "allocation_reduction_range" => isempty(ab_allocation_reductions) ? Any[] : [minimum(ab_allocation_reductions), maximum(ab_allocation_reductions)],
         "decision" => "Semantics are preserved, but the bounded timing result is mixed; retain the experiment as local evidence and do not promote a portable performance claim.",
     ),
+    "static_optimization_generalization" => Dict(
+        "workload_count" => get(optimization_generalization, "workload_count", 0),
+        "record_count" => length(generalization_records),
+        "equivalence_passed" => get(optimization_generalization, "equivalence_passed", false),
+        "elapsed_speedup_range" => isempty(generalization_speedups) ? Any[] : [minimum(generalization_speedups), maximum(generalization_speedups)],
+        "allocation_reduction_range" => isempty(generalization_allocation_reductions) ? Any[] : [minimum(generalization_allocation_reductions), maximum(generalization_allocation_reductions)],
+        "decision" => "Mixed-density affine and sparse nonlinear evidence preserves semantics; local timing is neutral to slightly slower, so the candidate is not promoted as a performance win.",
+    ),
     "open_gap_count" => length(open_gaps),
     "open_gaps" => open_gaps,
     "interpretation" => Dict(
-        "claim" => "Both bounded analyze workloads have stable, repeatable local evidence with static as the dominant largest-dimension stage; the affine-row cache A/B preserves findings but has mixed local timing; the BMOPFTools adapter profile is measured only on guarded small fixtures.",
+        "claim" => "Bounded analyze workloads now include sparse, mixed-density affine, and nonlinear fixtures with stable static findings; the affine-row cache A/B preserves semantics but is neutral to slightly slower locally; the BMOPFTools adapter profile is measured only on guarded small fixtures.",
         "does_not_establish" => [
             "a production or asymptotic complexity law",
             "allocator-level peak memory behavior",
