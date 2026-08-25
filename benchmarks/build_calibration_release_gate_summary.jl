@@ -13,6 +13,7 @@ real_covariance = read_summary("docs/real_99bus_phase_only_covariance_summary.js
 ibr_tolerance = read_summary("docs/bmopf_30bus_ibr_p_upper_tolerance_margin_summary.json")
 ibr_sparse = read_summary("docs/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit_summary.json")
 rank_oracles = read_summary("docs/randomized_rank_oracle_calibration_summary.json")
+rank_perturbation = read_summary("docs/rank_perturbation_sweep_summary.json")
 runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
 isolated_runtime_scaling = read_summary("docs/sparse_runtime_memory_isolated_summary.json")
 analyze_runtime_scaling = read_summary("docs/analyze_runtime_scaling_summary.json")
@@ -80,6 +81,12 @@ isolated_runtime_dimensions = get(
     "dimensions",
     Any[],
 )
+rank_perturbation_records = get(rank_perturbation, "record_count", 0)
+rank_perturbation_hard_mismatches = get(rank_perturbation, "hard_control_mismatch_count", 0)
+rank_perturbation_unavailable = get(rank_perturbation, "unavailable_count", 0)
+rank_perturbation_threshold_disagreements = get(
+    rank_perturbation, "threshold_backend_disagreement_count", 0,
+)
 analyze_stage_dominant = isempty(analyze_stage_records) ?
     "unavailable" :
     begin
@@ -139,8 +146,8 @@ gates = Dict{String,Any}[
     gate(
         "numerical_rank_false_positive_negative_statistics",
         "partial",
-        "The seeded 27-record corpus has zero hard-control false positives, false negatives, or unavailable backend results, with four expected threshold-cluster disagreements. A guarded 20-record sparse corpus at dimensions 128--1024 adds zero sparse mismatches or unavailable results while intentionally disabling dense SVD; broader adversarial and cross-backend statistics remain open.",
-        ["docs/randomized_rank_oracle_calibration_summary.json", "docs/large_sparse_rank_oracle_summary.json"],
+        "The seeded 27-record corpus has zero hard-control false positives, false negatives, or unavailable backend results, with four expected threshold-cluster disagreements. A guarded 20-record sparse corpus at dimensions 128--1024 adds zero sparse mismatches or unavailable results while intentionally disabling dense SVD. The new controlled perturbation sweep adds $rank_perturbation_records records across five seeds, with $rank_perturbation_hard_mismatches hard-control mismatches, $rank_perturbation_unavailable unavailable results, and $rank_perturbation_threshold_disagreements expected threshold-sensitive backend disagreements. Broader adversarial and cross-backend statistics remain open.",
+        ["docs/randomized_rank_oracle_calibration_summary.json", "docs/large_sparse_rank_oracle_summary.json", "docs/rank_perturbation_sweep_summary.json"],
         blocking=true,
     ),
     gate(

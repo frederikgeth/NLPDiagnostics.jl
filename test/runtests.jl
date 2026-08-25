@@ -2165,6 +2165,20 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
+    rank_perturbation_script = read(
+        joinpath(benchmark_directory, "calibrate_rank_perturbation_sweep.jl"),
+        String,
+    )
+    @test Meta.parseall(rank_perturbation_script) isa Expr
+    @test occursin("threshold_sensitive", rank_perturbation_script)
+    rank_perturbation_summary = read(
+        joinpath(repository_root, "docs", "rank_perturbation_sweep_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-rank-perturbation-sweep-v1", rank_perturbation_summary)
+    @test occursin("\"record_count\": 40", rank_perturbation_summary)
+    @test occursin("\"hard_control_mismatch_count\": 0", rank_perturbation_summary)
+    @test occursin("\"unavailable_count\": 0", rank_perturbation_summary)
     bmopf_analyze_profile_script = read(
         joinpath(benchmark_directory, "profile_bmopf_analyze_runtime.jl"),
         String,
@@ -2189,8 +2203,8 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 117", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 114", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 118", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 115", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

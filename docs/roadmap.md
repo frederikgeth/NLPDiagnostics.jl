@@ -83,6 +83,15 @@ child processes so the managed environment's shared Julia cache permissions do
 not turn a valid checkout into a false blocker. This closes the revision-sync
 deliverable, but not the broader API-tier review or scientific release gates.
 
+The numerical-rank gate now includes
+`benchmarks/calibrate_rank_perturbation_sweep.jl` and
+`docs/rank_perturbation_sweep_summary.json`: 40 controlled perturbation
+records across five seeds and eight matrix families. All 25 hard controls
+match the declared numerical rank policy with zero unavailable backend results;
+15 threshold-sensitive controls retain five dense/SuiteSparseQR disagreements
+as explicit tolerance evidence. This broadens the statistics without turning
+near-threshold perturbations into algebraic-rank claims.
+
 The `analyze(model)` scaling gate now includes bounded stage attribution in
 `docs/analyze_runtime_scaling_summary.json`. The existing end-to-end runtime
 and allocation records are unchanged, while snapshot, incidence, static,
