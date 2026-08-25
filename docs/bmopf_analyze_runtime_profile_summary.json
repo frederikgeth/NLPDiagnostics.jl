@@ -1,0 +1,120 @@
+{
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "architecture": "aarch64",
+    "bmopftools_version": "0.1.0",
+    "git_revision": "ed10942ad0f955c7617c1a55e55169aa8b42a611",
+    "git_status_entry_count": 1,
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6",
+    "os": "Darwin"
+  },
+  "interpretation": {
+    "claim": "Local bounded adapter and point-free analysis observations on selected BMOPFTools OpenDSS fixtures.",
+    "does_not_establish": [
+      "OPF solver runtime or convergence scaling",
+      "isolated peak-memory measurements",
+      "portable complexity laws or fixture-independent adapter performance"
+    ],
+    "warning_boundary": "PowerIO conversion warnings are retained as counts and are not silently treated as failures."
+  },
+  "records": [
+    {
+      "analyze_allocated_bytes": 1636291872,
+      "analyze_finding_code_counts": {
+        "constant_objective": 1,
+        "disconnected_variable": 2,
+        "fixed_variable": 6,
+        "multiple_well_determined_blocks": 1
+      },
+      "analyze_finding_count": 10,
+      "analyze_seconds": 10.95313175,
+      "build_allocated_bytes": 1550637488,
+      "build_seconds": 9.509124125,
+      "case": "pf_1ph_line.dss",
+      "constraint_count": 20,
+      "kcl_allocated_bytes": 6613632,
+      "kcl_seconds": 0.066971708,
+      "max_variables": 24,
+      "memory_observation": "Sys.maxrss process high-water mark; increments are descriptive",
+      "parse_allocated_bytes": 173709920,
+      "parse_seconds": 1.090741042,
+      "powerio_warning_count": 8,
+      "process_maxrss_after_bytes": 2224308224,
+      "process_maxrss_before_bytes": 2089566208,
+      "process_maxrss_increment_bytes": 134742016,
+      "status": "measured",
+      "variable_count": 18,
+      "wall_seconds": 22.59877586364746
+    },
+    {
+      "analyze_allocated_bytes": 4771776,
+      "analyze_finding_code_counts": {
+        "constant_objective": 1,
+        "disconnected_variable": 2,
+        "fixed_variable": 6,
+        "multiple_well_determined_blocks": 1
+      },
+      "analyze_finding_count": 10,
+      "analyze_seconds": 0.009520167,
+      "build_allocated_bytes": 520176,
+      "build_seconds": 0.001838416,
+      "case": "pf_exp_1ph.dss",
+      "constraint_count": 20,
+      "kcl_allocated_bytes": 24464,
+      "kcl_seconds": 4.8208e-5,
+      "max_variables": 24,
+      "memory_observation": "Sys.maxrss process high-water mark; increments are descriptive",
+      "parse_allocated_bytes": 1756016,
+      "parse_seconds": 0.016888625,
+      "powerio_warning_count": 11,
+      "process_maxrss_after_bytes": 2224488448,
+      "process_maxrss_before_bytes": 2224488448,
+      "process_maxrss_increment_bytes": 0,
+      "status": "measured",
+      "variable_count": 18,
+      "wall_seconds": 0.2542431354522705
+    },
+    {
+      "analyze_allocated_bytes": 16681488,
+      "analyze_finding_code_counts": {
+        "constant_objective": 1,
+        "diagonal_quadratic_implied_variable_bound": 2,
+        "fixed_variable": 4,
+        "multiple_well_determined_blocks": 1
+      },
+      "analyze_finding_count": 8,
+      "analyze_seconds": 0.086260583,
+      "build_allocated_bytes": 220613904,
+      "build_seconds": 0.899541667,
+      "case": "pf_1ph_xfmr.dss",
+      "constraint_count": 21,
+      "kcl_allocated_bytes": 26800,
+      "kcl_seconds": 0.000106708,
+      "max_variables": 24,
+      "memory_observation": "Sys.maxrss process high-water mark; increments are descriptive",
+      "parse_allocated_bytes": 6559984,
+      "parse_seconds": 0.085481208,
+      "powerio_warning_count": 9,
+      "process_maxrss_after_bytes": 2229731328,
+      "process_maxrss_before_bytes": 2229354496,
+      "process_maxrss_increment_bytes": 376832,
+      "status": "measured",
+      "variable_count": 20,
+      "wall_seconds": 1.2967488765716553
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-analyze-runtime-profile-v1",
+  "source": {
+    "cases": [
+      "pf_1ph_line.dss",
+      "pf_exp_1ph.dss",
+      "pf_1ph_xfmr.dss"
+    ],
+    "entry_point": "NLPDiagnostics.analyze(model)",
+    "fixture_root": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/test/data/pf_comparison",
+    "max_variables": 24,
+    "point_supplied": false,
+    "runner": "benchmarks/profile_bmopf_analyze_runtime.jl"
+  }
+}
