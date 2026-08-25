@@ -143,6 +143,11 @@ The complementary `benchmarks/audit_advanced_api_surface.jl` ledger also
 confirms all 14 Advanced exports and root aliases, with typed rank-policy and
 unavailable-reason smoke coverage. Both explicit facades are now executable
 surface contracts; the root-only migration queue remains separate.
+The companion `benchmarks/summarize_api_migration_queue.jl` preserves that
+539-entry queue in `docs/api_migration_queue_summary.json`, including 423 names
+with test/benchmark runtime evidence and four unreferenced names, grouped by
+proposed disposition and usage priority. The ordering is review triage only;
+it does not make ownership, compatibility, or removal decisions automatically.
 
 The `analyze(model)` scaling gate now includes bounded stage attribution in
 `docs/analyze_runtime_scaling_summary.json`. The existing end-to-end runtime
@@ -245,10 +250,10 @@ library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
 that no unclassified non-helper runner exists. It now follows local include
 chains, so compositional BMOPF runners that inherit the helper transitively are
-counted correctly; the refreshed inventory records 126 helper users across
-129 benchmark scripts with zero unclassified runners. The Stable- and
-Advanced-facade surface audits are included in that inventory and both smoke
-paths pass.
+counted correctly; the refreshed inventory records 127 helper users across
+130 benchmark scripts with zero unclassified runners. The Stable- and
+Advanced-facade smoke paths pass, and the migration-queue audit is included in
+the same inventory.
 
 The latest consolidation increment adds the reviewed local quality policy in
 `docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are

@@ -1,0 +1,3307 @@
+{
+  "disposition_usage_matrix": {
+    "advanced_candidate": {
+      "benchmark_usage": 4,
+      "source_only": 3,
+      "test_and_benchmark_usage": 68,
+      "test_usage": 26,
+      "unreferenced_in_code": 1
+    },
+    "legacy_manual_review": {
+      "benchmark_usage": 6,
+      "source_only": 109,
+      "test_and_benchmark_usage": 65,
+      "test_usage": 254,
+      "unreferenced_in_code": 3
+    }
+  },
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "ebb1dcf182612cefccb5f3d780fefe8fb1f12377",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "The 539 root-only exports are grouped by proposed disposition and repository-usage priority for deterministic review triage.",
+    "does_not_establish": [
+      "Stable or Advanced namespace ownership",
+      "semantic compatibility or deprecation safety",
+      "that an unreferenced export is safe to remove"
+    ]
+  },
+  "priority_buckets": {
+    "benchmark_usage": [
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "ControllerCurveOperatingPointObservation",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "CurrentLawOperatingPointProbe",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 9,
+        "has_runtime_usage_evidence": true,
+        "name": "PerturbedPoint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_structure",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_build_and_analyze_opf",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_context_profile_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_covariance_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_physical_solver_kkt_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "ipopt_optimize_with_iteration_trace!",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "madnlp_optimize_with_iteration_trace!",
+        "proposed_disposition": "legacy_manual_review"
+      }
+    ],
+    "source_only": [
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "AbstractSemanticConstraintSetContract",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "ActiveSetStructuralDecomposition",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "Confidence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": false,
+        "name": "ConstraintRole",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "CoupledSetMappedTangent",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "CoupledSetQualificationScreen",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "CurrentLawFingerprint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "CurrentLawOperatingPointTrace",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "DomainAssessment",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "ElasticDomainGuard",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "ElasticDomainGuardPlan",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "ElasticFeasibilityModel",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "ElasticFeasibilityPlan",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "ElasticFeasibilitySolve",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "ElasticRelaxation",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "ElasticRelaxationValue",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "EvaluationPointKind",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "EvidenceBasis",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "ExpressionDerivativeIssue",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "ExpressionDomainIssue",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "ExpressionNodePath",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "ExpressionNumericalRisk",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "FixedVariableDualCompletion",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "FreeConstraint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "GolubKahanDenseCalibration",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "GolubKahanRitzEstimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "HarmonicGolubKahanCandidateEstimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "HarmonicGolubKahanDenseCalibration",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "IssueDomain",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "IterativeJacobianSpectrumEstimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "IterativeNullspaceEstimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "IterativeNullspaceSubspaceEstimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "JacobianLinearOperator",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": false,
+        "name": "JacobianRankEstimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "JacobianScaleSummary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "MFCQScreen",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "MultiSeedGolubKahanEstimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "MultiplierRecovery",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "NullspaceFingerprint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "OpaqueConstraint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "PortAssemblySummary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "PortExpectedNullspaceSummary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "PortTopologyCoordinateProjection",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "PortTopologyNullspace",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "ProfileAllocationSummary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "ProfileComparison",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "ProfileExpectedEvidenceSummary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "ProfileFindingComparison",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "ProfileFindingStability",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "ProfileNumericalComparison",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "ProfileNumericalSummary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "ProfileStageComparison",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "ProfileTimingSummary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "RestartedSmallestSingularCandidateEstimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "RestartedSmallestSingularDenseCalibration",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "ScalingPointTransport",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "Severity",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "SmallestSingularBackendCrosscheck",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "SolverConflictResult",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "SolverDefinedCoordinates",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "SolverIterationMetricSemantics",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "SolverIterationSegment",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "SolverIterationSummary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "SolverIterationTrace",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "SolverLogObservation",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "SolverMetricCoordinates",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "SparseJacobianPatternEstimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "SparseQRNullspaceDenseCalibration",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "SparseQRNullspaceEstimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "SparseQRNullspacePersistenceEstimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "SparseQRRankEstimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "StableReformulationCandidate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "StableReformulationPlan",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "StructuralComponent",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "StructuralConstraintNode",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "StructuralGraphEdge",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "StructuralNumericalComparison",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "StructuralVariableNode",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "TrustedPointSelection",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "UnsupportedSetContract",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "VariableDomain",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": false,
+        "name": "VariableRole",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "VariableSupport",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "analyze_convexity",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "analyze_degrees_of_freedom",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "analyze_nonsmoothness",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "bmopf_analyze_reduced_hessian_persistence",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "bmopf_voltage_initialization_invariants_data",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "component_constraint_scale_semantics",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "component_coordinate_semantics",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "component_port_connections",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "component_port_coordinate_maps",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "component_port_nullspace_modes",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "constraint_role",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "coupled_set_tangent_evidence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "entity_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "evidence_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": false,
+        "name": "expected_nullspace_modes",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "expression_numerical_risks",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "finding_family_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "ipopt_iteration_trace_capture",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": false,
+        "name": "is_coordinatewise_set",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "madnlp_iteration_trace_callback",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "nullspace_fingerprints",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": false,
+        "name": "port_expected_nullspace_modes",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "powermodels_analyze_active_set",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "powermodels_analyze_degeneracy",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "powermodels_analyze_reduced_hessian_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "powermodels_angle_gauge_modes",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "powermodels_reference_bus_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "powermodels_variable_indices",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": false,
+        "name": "profile_solver_with_iteration_trace!",
+        "proposed_disposition": "legacy_manual_review"
+      }
+    ],
+    "test_and_benchmark_usage": [
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "Advanced",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "CompletedInitializationPoint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 19,
+        "has_runtime_usage_evidence": true,
+        "name": "DiagnosticReport",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 29,
+        "has_runtime_usage_evidence": true,
+        "name": "EntityRef",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 13,
+        "has_runtime_usage_evidence": true,
+        "name": "EvaluationCache",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 13,
+        "has_runtime_usage_evidence": true,
+        "name": "EvaluationFailure",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 44,
+        "has_runtime_usage_evidence": true,
+        "name": "EvaluationPoint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 14,
+        "has_runtime_usage_evidence": true,
+        "name": "EvaluationPointProvenance",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 9,
+        "has_runtime_usage_evidence": true,
+        "name": "EvaluatorCapabilities",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 18,
+        "has_runtime_usage_evidence": true,
+        "name": "Evidence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 24,
+        "has_runtime_usage_evidence": true,
+        "name": "Finding",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "InitializationPoint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 15,
+        "has_runtime_usage_evidence": true,
+        "name": "JacobianEntry",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 22,
+        "has_runtime_usage_evidence": true,
+        "name": "NumericalEvaluation",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 11,
+        "has_runtime_usage_evidence": true,
+        "name": "SemanticBlockScalingMap",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 10,
+        "has_runtime_usage_evidence": true,
+        "name": "SemanticConstraintBlock",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 10,
+        "has_runtime_usage_evidence": true,
+        "name": "SemanticLinearBlock",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "SolverIteratePoint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "SolverResultPoint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 8,
+        "has_runtime_usage_evidence": true,
+        "name": "Stable",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 9,
+        "has_runtime_usage_evidence": true,
+        "name": "ZeroEqualitySetContract",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "active_constraint_rows",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 9,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_derivatives",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_domains",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_expressions",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_initialization",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 8,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_numerical",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_postmortem_log_consistency",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_solver_iterations",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_solver_log",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_static",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_acdc_scaling_contract_data",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_active_set",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_component_rank_persistence",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_jacobian_rank_persistence",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_jacobian_row_family_perturbations",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_opf",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_sparse_qr_nullspace_persistence",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_block_scaling_coordinate_geometry_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_block_scaling_covariance_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_build_and_profile",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_component_rank_capability_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_constraint_feasibility_field_attribution",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_constraint_registry_coverage_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 13,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_constraint_semantic_row_map",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_controller_curve_operating_point_observations",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_coordinate_probe_point",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_current_law_fingerprints",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_current_law_operating_point_persistence",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_current_law_operating_point_probes",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_current_law_operating_point_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_current_law_operating_point_trace",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_current_law_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 13,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_diagonal_scaling_map",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_expected_mode_tangent_policy",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 7,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_initialization_point",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_initialization_scaling_covariance_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_iteration_trace_jacobian_family_geometry_data",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 9,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_jacobian_row_family_scale_attribution",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 7,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_jacobian_row_family_scaling_experiment",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_passive_network_current_map_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_passive_network_current_maps",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_endpoint",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_model_rebuild_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_rebuild_model",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_solve_model",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_phase_only_transform_plan",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_physical_feasibility_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 11,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_physical_solver_kkt_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_profile_case",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_result_field_catalog",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_result_mapping_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_saved_result_profile_case",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_scaling_intervention_classification",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_scaling_solver_experiment_comparison",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_solver_trace_physical_endpoint_data",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_source_behavior_auxiliary_model",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_source_behavior_auxiliary_solve",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_source_behavior_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_source_behavior_solver_comparison",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 18,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_start_completion_point",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_complex_constitutive_map_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_complex_constitutive_maps",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_constitutive_map_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_constitutive_maps",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_current_port_coordinate_maps",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_current_port_metadata",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_current_port_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_assembly",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_assembly_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_connections",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_coordinate_maps",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_metadata",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_nullspace_mode_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_nullspace_mode_semantics",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_nullspace_modes",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_transport_scaling_point",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 7,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_variable_semantic_column_map",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 7,
+        "has_runtime_usage_evidence": true,
+        "name": "complete_fixed_variable_duals",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 8,
+        "has_runtime_usage_evidence": true,
+        "name": "constraint_feasibility_summary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "controller_curve_operating_point_observation_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "current_law_operating_point_trace_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 47,
+        "has_runtime_usage_evidence": true,
+        "name": "evaluate_numerical",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 19,
+        "has_runtime_usage_evidence": true,
+        "name": "evaluation_point_fingerprint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "evaluation_source_fingerprint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 14,
+        "has_runtime_usage_evidence": true,
+        "name": "finding_code_counts",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 46,
+        "has_runtime_usage_evidence": true,
+        "name": "findings",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "harmonic_golub_kahan_dense_calibration",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 11,
+        "has_runtime_usage_evidence": true,
+        "name": "incidence_graph",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 12,
+        "has_runtime_usage_evidence": true,
+        "name": "ipopt_profile_with_iteration_trace!",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 11,
+        "has_runtime_usage_evidence": true,
+        "name": "iteration_trace",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "iteration_trace_campaign_summary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "iteration_trace_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "iteration_trace_policy_comparison",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "madnlp_profile_with_iteration_trace!",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "physical_endpoint_equivalence_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 12,
+        "has_runtime_usage_evidence": true,
+        "name": "report_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "restarted_smallest_singular_dense_calibration",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 11,
+        "has_runtime_usage_evidence": true,
+        "name": "scaling_coordinate_geometry_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 11,
+        "has_runtime_usage_evidence": true,
+        "name": "scaling_covariance_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 11,
+        "has_runtime_usage_evidence": true,
+        "name": "scaling_intervention_classification",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 8,
+        "has_runtime_usage_evidence": true,
+        "name": "scaling_solver_experiment_campaign_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 9,
+        "has_runtime_usage_evidence": true,
+        "name": "scaling_solver_experiment_stratified_campaign_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 11,
+        "has_runtime_usage_evidence": true,
+        "name": "smallest_singular_backend_crosscheck",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 73,
+        "has_runtime_usage_evidence": true,
+        "name": "snapshot",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 7,
+        "has_runtime_usage_evidence": true,
+        "name": "solver_dual_snapshot",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "solver_postmortem",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 28,
+        "has_runtime_usage_evidence": true,
+        "name": "solver_result_point",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 10,
+        "has_runtime_usage_evidence": true,
+        "name": "sparse_qr_nullspace_dense_calibration",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 7,
+        "has_runtime_usage_evidence": true,
+        "name": "sparse_qr_nullspace_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "synthetic_sparse_profile_corpus",
+        "proposed_disposition": "legacy_manual_review"
+      }
+    ],
+    "test_usage": [
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "ActiveSetStructuralMatching",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "BMOPFProfileResult",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "CheckPolicy",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "ComponentConstraintScaleSemantics",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "ComponentCoordinateSemantics",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "ComponentMetadata",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "ComponentPortMetadata",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 13,
+        "has_runtime_usage_evidence": true,
+        "name": "ConfidenceCertain",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 13,
+        "has_runtime_usage_evidence": true,
+        "name": "ConfidenceHigh",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "ConfidenceLow",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 11,
+        "has_runtime_usage_evidence": true,
+        "name": "ConfidenceMedium",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "ConstraintActivity",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "ConstraintFeasibilitySummary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "CoupledConstraint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "CoupledSetActivity",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "CoupledSetFeasibilitySummary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "CoupledSetTangentEvidence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "DiagonalScalingMap",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "DiscreteVariable",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "DomainPossibleViolation",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "DomainProvenViolation",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "DomainSafe",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "DulmageMendelsohnBlock",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "DulmageMendelsohnPartition",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "ElasticMinimumRelaxationSearch",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "ElasticSubsetEnsemble",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "ElasticSubsetProbe",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "ElasticSubsetSearch",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "EqualityConstraint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "EuclideanBallSetContract",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 8,
+        "has_runtime_usage_evidence": true,
+        "name": "ExpectedNullspaceMode",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "ExpectedNullspaceTangentPolicy",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "FixedVariable",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "FreeVariable",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "HessianEntry",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 7,
+        "has_runtime_usage_evidence": true,
+        "name": "HessianEvaluation",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 11,
+        "has_runtime_usage_evidence": true,
+        "name": "HeuristicInterpretation",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "IncidenceGraph",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "InequalityConstraint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "InfeasibleVariableDomain",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "IntervalEnclosure",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "InvalidVariableDomain",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "IterationPointBinding",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "IterationTraceCapture",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 7,
+        "has_runtime_usage_evidence": true,
+        "name": "LocalInference",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 10,
+        "has_runtime_usage_evidence": true,
+        "name": "MathematicalIssue",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 9,
+        "has_runtime_usage_evidence": true,
+        "name": "MathematicalProof",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "MetricCoordinatesUnknown",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 10,
+        "has_runtime_usage_evidence": true,
+        "name": "NumericalIssue",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 9,
+        "has_runtime_usage_evidence": true,
+        "name": "NumericalObservation",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "OperatorDerivativeRequirement",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "OperatorDomainRequirement",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "OriginalModelCoordinates",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "ParameterVariable",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "PhysicalExpectation",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "PhysicalIssue",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "PortConnectionMetadata",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "PortConstitutiveMap",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "PortCoordinateMap",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "PortCoordinateSemantics",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "PortNullspaceMode",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "PortNullspaceModeSemantics",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "PortTerminalCoordinateSemantics",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "ProbePolicy",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "ReducedHessianAnalysis",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "ReducedHessianSnapshot",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 10,
+        "has_runtime_usage_evidence": true,
+        "name": "RepresentationalIssue",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "ScalarBoundsSetContract",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "ScalarConstraintBounds",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 10,
+        "has_runtime_usage_evidence": true,
+        "name": "SeverityError",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 12,
+        "has_runtime_usage_evidence": true,
+        "name": "SeverityInfo",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 15,
+        "has_runtime_usage_evidence": true,
+        "name": "SeverityWarning",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "SolverConstraintSideDual",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "SolverDualSnapshot",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "SolverIterationRecord",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "SolverPostmortem",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "SolverProfileResult",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "SolverResultAnalysis",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "SolverScaledCoordinates",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "SolverTraceProfileRun",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "StructuralGraphData",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "StructuralMatching",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 10,
+        "has_runtime_usage_evidence": true,
+        "name": "StructuralProof",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "SyntheticSmokePoint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "TransportedPoint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "UserPoint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "active_set_matching",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "active_set_structural_decomposition",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_active_set",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_active_set_second_order",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_component_constraint_scales",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_component_coordinate_scales",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_component_rank_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_component_ranks",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_coupled_set_qualification",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_degeneracy",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_derivative_crosscheck_scale_sweep",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_elastic_domain_guard_plan",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_elastic_feasibility_plan",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_elastic_relaxations",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_golub_kahan_dense_calibration",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_golub_kahan_probe",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_harmonic_golub_kahan_candidates",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_harmonic_golub_kahan_dense_calibration",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_hessian_vector_crosscheck",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_iteration_points",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_iteration_trace",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_iterative_jacobian_spectrum_probe",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_iterative_left_nullspace_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_iterative_left_nullspace_probe",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_iterative_right_nullspace_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 7,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_iterative_right_nullspace_probe",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_jacobian_condition_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_jacobian_derivative_provenance_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_jacobian_directional_crosscheck",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_jacobian_rank_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_jacobian_rank_tolerance_sweep",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_jacobian_row_family_perturbations",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_jacobian_scaling_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_local_elastic_subset_ensemble",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_local_elastic_subset_search",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_minimum_elastic_relaxation_search",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_multi_seed_golub_kahan_probe",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_nonsmoothness_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_objective_gradient_directional_crosscheck",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_objective_jacobian_scaling",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_postmortem",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_reduced_hessian",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_reduced_hessian_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_restarted_smallest_singular_candidates",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_restarted_smallest_singular_dense_calibration",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_smallest_singular_backend_crosscheck",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_solver_conflict",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_solver_conflict_crosscheck",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_solver_result",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_sparse_qr_nullspace",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_sparse_qr_nullspace_dense_calibration",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_sparse_qr_nullspace_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_stable_reformulation_plan",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_weak_activity",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "analyze_weak_activity_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bind_iteration_points",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_degeneracy",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_analyze_initialization",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_component_coordinate_semantics",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_component_metadata",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_component_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_floating_neutral_candidate_modes",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_floating_neutral_candidate_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_opf_differentiability_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_opf_lifecycle_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_opf_registry_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_profile_saved_result",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_result_voltage_point",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_scaling_coordinate_geometry_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_scaling_covariance_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_semantic_block_scaling_map",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_set_start_values!",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_source_schema_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_current_port_coordinate_semantics",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_coordinate_scale_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_port_coordinate_semantics",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_terminal_report",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "bmopf_transformer_scaling_contract_data",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "build_elastic_feasibility_model",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "capture_iteration!",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "compare_profiles",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "component_metadata",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "component_port_coordinate_semantics",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "component_port_metadata",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "component_port_nullspace_mode_semantics",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "component_rank_capability_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "compute_solver_conflict!",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "connected_components",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "coupled_set_activity",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "coupled_set_feasibility_summary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "coupled_set_mapped_tangents",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "coupled_set_qualification_screen",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "derivative_issues",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "domain_interval_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "domain_issues",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "dulmage_mendelsohn",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "elastic_domain_guard_plan",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "elastic_feasibility_plan",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "elastic_objective_value",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "elastic_relaxation_values",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "evaluate_lagrangian_hessian",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "evaluation_call_statistics",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 11,
+        "has_runtime_usage_evidence": true,
+        "name": "evaluation_point",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "evaluator_capabilities",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "finding_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "fixed_operator_value",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "fixed_variable_dual_completion_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "golub_kahan_dense_calibration",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "golub_kahan_ritz_estimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "harmonic_golub_kahan_candidates",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "initialization_point",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "iteration_trace_jacobian_family_geometry_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "iteration_trace_summary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "iterative_jacobian_spectrum_estimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "iterative_left_nullspace_subspace_estimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "iterative_right_nullspace_estimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "iterative_right_nullspace_subspace_estimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "jacobian_column_family_scale_attribution",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "jacobian_family_geometry_comparison",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "jacobian_linear_operator",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "jacobian_product",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "jacobian_row_family_scale_attribution",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "jacobian_row_family_scaling_experiment",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "jacobian_scale_summary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "jacobian_transpose_product",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "local_elastic_subset_search",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "madnlp_primal_capture_capability",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "markdown_profile_aggregate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "markdown_profile_comparison",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "markdown_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "matching_cardinality",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "maximum_matching",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "mfcq_screen",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "model_fingerprint",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "multi_seed_golub_kahan_estimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "operator_derivative_requirements",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "operator_domain_requirements",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "operator_interval",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "physical_complementarity_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "physical_feasibility_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "physical_kkt_acceptance_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "physical_stationarity_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "port_component_expected_nullspace_modes",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "port_expected_nullspace_summary",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "port_topology_expected_nullspace_modes",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 1,
+        "has_runtime_usage_evidence": true,
+        "name": "port_topology_nullspace",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "powermodels_analyze_component_rank_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "powermodels_analyze_jacobian_rank_persistence",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "powermodels_capability_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "powermodels_component_metadata",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "powermodels_component_rank_capability_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "powermodels_jump_model",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "profile_comparison_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "profile_solver_result",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "profile_synthetic_coupled_cone_corpus",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "profile_synthetic_derivative_boundary_corpus",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "profile_synthetic_float32_derivative_overflow_corpus",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "profile_synthetic_quadratic_geometry_corpus",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "profile_synthetic_sparse_ladder",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "profile_synthetic_stability_corpus",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "recover_stationarity_multipliers",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "reduced_hessian_analysis",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "restarted_smallest_singular_candidates",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "scaling_kkt_covariance_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "scaling_point_transport_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "scaling_solver_experiment_comparison",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 4,
+        "has_runtime_usage_evidence": true,
+        "name": "select_trusted_evaluation_points",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "solver_complementarity_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "solver_dual_snapshot_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "solver_iteration_records",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "solver_iteration_segments",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "solver_iteration_summary",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "solver_linear_telemetry_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "solver_log_observations",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "solver_trace_physical_endpoint_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "sparse_jacobian_pattern_estimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "sparse_qr_nullspace_estimate",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "stable_reformulation_plan",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "structural_graph_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "structural_graph_dot",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "structural_graph_text",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "structural_numerical_comparison",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "synthetic_coupled_cone_profile_corpus",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "synthetic_derivative_boundary_profile_corpus",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "synthetic_float32_derivative_overflow_profile_corpus",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "synthetic_quadratic_geometry_profile_corpus",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "synthetic_stability_profile_corpus",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "text_report",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 2,
+        "has_runtime_usage_evidence": true,
+        "name": "transport_scaling_point",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "trusted_point_selection_data",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 3,
+        "has_runtime_usage_evidence": true,
+        "name": "variable_domains",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 6,
+        "has_runtime_usage_evidence": true,
+        "name": "variable_roles",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 9,
+        "has_runtime_usage_evidence": true,
+        "name": "variable_support",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 5,
+        "has_runtime_usage_evidence": true,
+        "name": "well_determined_blocks",
+        "proposed_disposition": "legacy_manual_review"
+      }
+    ],
+    "unreferenced_in_code": [
+      {
+        "code_file_count": 0,
+        "has_runtime_usage_evidence": false,
+        "name": "local_elastic_subset_ensemble",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 0,
+        "has_runtime_usage_evidence": false,
+        "name": "minimum_elastic_relaxation_search",
+        "proposed_disposition": "legacy_manual_review"
+      },
+      {
+        "code_file_count": 0,
+        "has_runtime_usage_evidence": false,
+        "name": "port_network_assembly_summary",
+        "proposed_disposition": "advanced_candidate"
+      },
+      {
+        "code_file_count": 0,
+        "has_runtime_usage_evidence": false,
+        "name": "solve_elastic_feasibility!",
+        "proposed_disposition": "legacy_manual_review"
+      }
+    ]
+  },
+  "priority_counts": {
+    "benchmark_usage": 10,
+    "source_only": 112,
+    "test_and_benchmark_usage": 133,
+    "test_usage": 280,
+    "unreferenced_in_code": 4
+  },
+  "queue_count": 539,
+  "recommended_review_order": [
+    "test_and_benchmark_usage",
+    "test_usage",
+    "benchmark_usage",
+    "source_only",
+    "unreferenced_in_code"
+  ],
+  "runtime_usage_evidence_count": 423,
+  "schema_version": "nlpdiagnostics-api-migration-queue-v1",
+  "source": {
+    "policy": "Usage priority orders review effort only; no root-only export is promoted, deprecated, or removed automatically.",
+    "runner": "benchmarks/summarize_api_migration_queue.jl",
+    "usage_artifact": "docs/api_tier_usage_summary.json"
+  },
+  "unreferenced_in_code_count": 4,
+  "unreferenced_names": [
+    "local_elastic_subset_ensemble",
+    "minimum_elastic_relaxation_search",
+    "port_network_assembly_summary",
+    "solve_elastic_feasibility!"
+  ]
+}

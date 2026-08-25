@@ -160,6 +160,23 @@ end
     @test advanced_surface_summary["surface_matches"] == true
     @test advanced_surface_summary["smoke"]["status"] == "pass"
 
+    migration_queue_script = read(
+        joinpath(normpath(joinpath(@__DIR__, "..")), "benchmarks", "summarize_api_migration_queue.jl"),
+        String,
+    )
+    @test Meta.parseall(migration_queue_script) isa Expr
+    @test occursin("disposition_usage_matrix", migration_queue_script)
+    migration_queue_summary = JSON.parse(read(
+        joinpath(normpath(joinpath(@__DIR__, "..")), "docs", "api_migration_queue_summary.json"),
+        String,
+    ))
+    @test migration_queue_summary["schema_version"] == "nlpdiagnostics-api-migration-queue-v1"
+    @test migration_queue_summary["queue_count"] == 539
+    @test migration_queue_summary["runtime_usage_evidence_count"] == 423
+    @test migration_queue_summary["unreferenced_in_code_count"] == 4
+    @test sum(values(migration_queue_summary["priority_counts"])) == 539
+    @test migration_queue_summary["priority_counts"]["unreferenced_in_code"] == 4
+
     stable_model = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
     stable_variable = MOI.add_variable(stable_model)
     stable_constraint = MOI.ScalarAffineFunction(
@@ -2188,6 +2205,7 @@ end
         String,
     )
     @test occursin("combined_mv_lv_scaling_start_robustness", release_gate_builder)
+    @test occursin("api_migration_queue_summary.json", release_gate_builder)
     analyze_scaling_script = read(
         joinpath(benchmark_directory, "profile_analyze_scaling.jl"),
         String,
@@ -2452,9 +2470,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 129", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 126", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 70", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 130", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 127", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 71", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),
