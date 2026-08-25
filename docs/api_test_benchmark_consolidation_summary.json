@@ -577,9 +577,9 @@
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 63,
-    "json_file_count": 65,
-    "json_schema_file_count": 65,
+    "benchmark_scripts_with_schema_version_count": 64,
+    "json_file_count": 66,
+    "json_schema_file_count": 66,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -686,7 +686,7 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 124,
+    "benchmark_script_count": 125,
     "shared_benchmark_helper": "benchmarks/common.jl",
     "shared_benchmark_helper_exemption_count": 3,
     "shared_benchmark_helper_exemptions": [
@@ -703,7 +703,7 @@
         "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
       }
     ],
-    "shared_benchmark_helper_user_count": 121,
+    "shared_benchmark_helper_user_count": 122,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
       "benchmarks/audit_api_tier_usage.jl",
@@ -816,6 +816,7 @@
       "benchmarks/summarize_operator_fingerprint.jl",
       "benchmarks/summarize_rank_calibration_statistics.jl",
       "benchmarks/summarize_real_99bus_kkt_margin.jl",
+      "benchmarks/summarize_real_99bus_kkt_residual_distributions.jl",
       "benchmarks/summarize_real_99bus_kkt_stability.jl",
       "benchmarks/summarize_real_99bus_phase_only_covariance.jl",
       "benchmarks/summarize_real_99bus_phase_only_kkt_failures.jl",

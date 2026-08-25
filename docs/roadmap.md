@@ -111,7 +111,12 @@ failure provenance without closing the absolute physical gate. The companion
 required tolerance and strict-gap ledger: four snapshots fail 1e-5, while the
 largest saved endpoint requires approximately 1.14172e-5 (a 1.4172e-6 gap).
 This quantifies how close the boundary is without promoting a relaxed
-tolerance or changing the release gate.
+tolerance or changing the release gate. The companion
+`benchmarks/summarize_real_99bus_kkt_residual_distributions.jl` now records
+full-side and failed-side quantiles plus paired reference/phase-only maxima;
+the maximum-residual ratio stays within approximately 0.9999999--1.0000001
+across the six saved endpoints. This is distributional evidence, not a causal
+diagnosis or physical acceptance claim.
 
 The API-tier increment now upgrades `benchmarks/audit_api_tiers.jl` from a
 count-only inventory to a review ledger. All 539 root-only exports have an
@@ -205,8 +210,8 @@ library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
 that no unclassified non-helper runner exists. It now follows local include
 chains, so compositional BMOPF runners that inherit the helper transitively are
-counted correctly; the refreshed inventory records 121 helper users across
-124 benchmark scripts with zero unclassified runners.
+counted correctly; the refreshed inventory records 122 helper users across
+125 benchmark scripts with zero unclassified runners.
 
 The latest consolidation increment adds the reviewed local quality policy in
 `docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are

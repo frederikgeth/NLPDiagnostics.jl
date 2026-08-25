@@ -11,6 +11,7 @@ real_campaign = read_summary("docs/real_99bus_phase_only_campaign_summary.json")
 real_kkt = read_summary("docs/real_99bus_phase_only_kkt_failure_summary.json")
 real_kkt_stability = read_summary("docs/real_99bus_kkt_stability_summary.json")
 real_kkt_margin = read_summary("docs/real_99bus_kkt_margin_summary.json")
+real_kkt_distribution = read_summary("docs/real_99bus_kkt_residual_distribution_summary.json")
 real_covariance = read_summary("docs/real_99bus_phase_only_covariance_summary.json")
 ibr_tolerance = read_summary("docs/bmopf_30bus_ibr_p_upper_tolerance_margin_summary.json")
 ibr_sparse = read_summary("docs/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit_summary.json")
@@ -59,6 +60,9 @@ real_kkt_excluded_profiles = get(real_kkt_stability, "excluded_incomplete_profil
 real_kkt_margin_failed_snapshots = get(real_kkt_margin, "strict_failed_snapshot_count", 0)
 real_kkt_margin_maximum = get(real_kkt_margin, "maximum_required_tolerance", nothing)
 real_kkt_margin_maximum_gap = get(real_kkt_margin, "maximum_strict_tolerance_gap", nothing)
+real_kkt_distribution_ratio_range = get(real_kkt_distribution, "paired_maximum_residual_ratio_range", nothing)
+real_kkt_distribution_ratio_text = isnothing(real_kkt_distribution_ratio_range) ?
+    "unavailable" : "[" * join(string.(real_kkt_distribution_ratio_range), ", ") * "]"
 analyze_stage_records = get(analyze_runtime_scaling["records"][end], "stage_attribution", Any[])
 analyze_repetitions = get(analyze_runtime_scaling["source"], "repetitions", 1)
 analyze_memory_note = get(
@@ -179,8 +183,8 @@ gates = Dict{String,Any}[
     gate(
         "real_99bus_physical_kkt",
         "partial",
-        "Physical KKT is available on all six runs but only 2/6 reference and 2/6 phase-only endpoints pass the strict 1e-5 gate. The joined stability ledger has $real_kkt_qualified_profiles complete solver-floor-qualified profiles (excluding $real_kkt_excluded_profiles incomplete profiles), and strict acceptance remains stable at $(isnothing(real_kkt_stable_count) ? "unavailable" : "$(real_kkt_stable_count)/6") across those profiles; failure localization is complete. The per-snapshot margin ledger records $real_kkt_margin_failed_snapshots strict-failing snapshots and a maximum required tolerance of $(isnothing(real_kkt_margin_maximum) ? "unavailable" : string(real_kkt_margin_maximum)) (gap $(isnothing(real_kkt_margin_maximum_gap) ? "unavailable" : string(real_kkt_margin_maximum_gap))); it quantifies the boundary without relaxing the gate.",
-        ["docs/real_99bus_phase_only_campaign_summary.json", "docs/real_99bus_phase_only_kkt_failure_summary.json", "docs/real_99bus_kkt_stability_summary.json", "docs/real_99bus_kkt_margin_summary.json"],
+        "Physical KKT is available on all six runs but only 2/6 reference and 2/6 phase-only endpoints pass the strict 1e-5 gate. The joined stability ledger has $real_kkt_qualified_profiles complete solver-floor-qualified profiles (excluding $real_kkt_excluded_profiles incomplete profiles), and strict acceptance remains stable at $(isnothing(real_kkt_stable_count) ? "unavailable" : "$(real_kkt_stable_count)/6") across those profiles; failure localization is complete. The per-snapshot margin ledger records $real_kkt_margin_failed_snapshots strict-failing snapshots and a maximum required tolerance of $(isnothing(real_kkt_margin_maximum) ? "unavailable" : string(real_kkt_margin_maximum)) (gap $(isnothing(real_kkt_margin_maximum_gap) ? "unavailable" : string(real_kkt_margin_maximum_gap))); it quantifies the boundary without relaxing the gate. The paired residual-distribution ledger shows reference/phase-only maximum-residual ratios of $real_kkt_distribution_ratio_text, so the observed strict failures are not explained by a material phase-only residual inflation in this saved campaign.",
+        ["docs/real_99bus_phase_only_campaign_summary.json", "docs/real_99bus_phase_only_kkt_failure_summary.json", "docs/real_99bus_kkt_stability_summary.json", "docs/real_99bus_kkt_margin_summary.json", "docs/real_99bus_kkt_residual_distribution_summary.json"],
         blocking=true,
     ),
     gate(

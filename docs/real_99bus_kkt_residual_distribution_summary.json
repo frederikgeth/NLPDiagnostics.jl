@@ -1,0 +1,341 @@
+{
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
+    "git_revision": "c878a96cf296c3537b6659c1c6489f90833cfea6",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "Paired full-side and failed-side physical complementarity residual distributions for saved reference and phase-only 99-bus endpoints.",
+    "does_not_establish": [
+      "a causal explanation for the residual floor",
+      "absolute physical correctness",
+      "a relaxed or universal tolerance policy"
+    ]
+  },
+  "paired_maximum_residual_difference_range": [
+    -1.280823740796265e-12,
+    1.2537063553784812e-12
+  ],
+  "paired_maximum_residual_ratio_range": [
+    0.9999998824400804,
+    1.0000001437911095
+  ],
+  "phase_only_strict_acceptance_count": 2,
+  "profile_count": 6,
+  "profiles": [
+    {
+      "angle": 0.01,
+      "phase_only": {
+        "acceptance_passed": false,
+        "all_side_residuals": {
+          "count": 288,
+          "maximum": 1.0751474716458325e-5,
+          "minimum": 1.2514676818373367e-8,
+          "p50": 2.5057531842621088e-8,
+          "p90": 1.0180060469072015e-5,
+          "p95": 1.0522141854600546e-5,
+          "p99": 1.0677524133004176e-5,
+          "strict_tolerance_exceedance_count": 36
+        },
+        "available": true,
+        "failed_side_residuals": {
+          "count": 36,
+          "maximum": 1.0751474716458325e-5,
+          "minimum": 1.014972677973521e-5,
+          "p50": 1.047873491861446e-5,
+          "p90": 1.0650410552865516e-5,
+          "p95": 1.069306519407939e-5,
+          "p99": 1.0740541019974743e-5,
+          "strict_tolerance_exceedance_count": 36
+        },
+        "strict_tolerance": 1.0e-5
+      },
+      "phase_only_minus_reference_maximum_residual": 6.218102696289732e-13,
+      "phase_only_reference_maximum_residual_ratio": 1.000000057834885,
+      "reference": {
+        "acceptance_passed": false,
+        "all_side_residuals": {
+          "count": 288,
+          "maximum": 1.0751474094648055e-5,
+          "minimum": 1.2515301045519205e-8,
+          "p50": 2.5059006152594767e-8,
+          "p90": 1.0180060927056112e-5,
+          "p95": 1.0522141351794958e-5,
+          "p99": 1.0677523507603442e-5,
+          "strict_tolerance_exceedance_count": 36
+        },
+        "available": true,
+        "failed_side_residuals": {
+          "count": 36,
+          "maximum": 1.0751474094648055e-5,
+          "minimum": 1.0149727373002135e-5,
+          "p50": 1.047873475664454e-5,
+          "p90": 1.0650409952736035e-5,
+          "p95": 1.0693064565034465e-5,
+          "p99": 1.0740540396222191e-5,
+          "strict_tolerance_exceedance_count": 36
+        },
+        "strict_tolerance": 1.0e-5
+      },
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json"
+    },
+    {
+      "angle": 0.01,
+      "phase_only": {
+        "acceptance_passed": true,
+        "all_side_residuals": {
+          "count": 288,
+          "maximum": 9.79589685652193e-6,
+          "minimum": 2.179599042489552e-12,
+          "p50": 2.5057512861420545e-8,
+          "p90": 2.5057756273440662e-8,
+          "p95": 2.787457877804016e-6,
+          "p99": 9.733827321559884e-6,
+          "strict_tolerance_exceedance_count": 0
+        },
+        "available": true,
+        "failed_side_residuals": null,
+        "strict_tolerance": 1.0e-5
+      },
+      "phase_only_minus_reference_maximum_residual": 1.2531459651568414e-12,
+      "phase_only_reference_maximum_residual_ratio": 1.0000001279256145,
+      "reference": {
+        "acceptance_passed": true,
+        "all_side_residuals": {
+          "count": 288,
+          "maximum": 9.795895603375965e-6,
+          "minimum": 2.183124213392066e-12,
+          "p50": 2.5058985271798395e-8,
+          "p90": 2.5059035369709544e-8,
+          "p95": 2.7874566253698926e-6,
+          "p99": 9.733826068484812e-6,
+          "strict_tolerance_exceedance_count": 0
+        },
+        "available": true,
+        "failed_side_residuals": null,
+        "strict_tolerance": 1.0e-5
+      },
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json"
+    },
+    {
+      "angle": 0.01,
+      "phase_only": {
+        "acceptance_passed": false,
+        "all_side_residuals": {
+          "count": 288,
+          "maximum": 1.1360108615700496e-5,
+          "minimum": 1.2515538629739187e-8,
+          "p50": 2.5057526016458257e-8,
+          "p90": 1.0188354850445982e-5,
+          "p95": 1.0811465707551384e-5,
+          "p99": 1.1212077611776916e-5,
+          "strict_tolerance_exceedance_count": 48
+        },
+        "available": true,
+        "failed_side_residuals": {
+          "count": 48,
+          "maximum": 1.1360108615700496e-5,
+          "minimum": 1.0011172771507587e-5,
+          "p50": 1.0201392234370747e-5,
+          "p90": 1.1089197988524564e-5,
+          "p95": 1.1220832243497797e-5,
+          "p99": 1.1341014599890684e-5,
+          "strict_tolerance_exceedance_count": 48
+        },
+        "strict_tolerance": 1.0e-5
+      },
+      "phase_only_minus_reference_maximum_residual": 6.227064965557381e-13,
+      "phase_only_reference_maximum_residual_ratio": 1.0000000548151917,
+      "reference": {
+        "acceptance_passed": false,
+        "all_side_residuals": {
+          "count": 288,
+          "maximum": 1.1360107992994e-5,
+          "minimum": 1.0878237184812561e-8,
+          "p50": 2.5058978353129157e-8,
+          "p90": 1.0188366624938792e-5,
+          "p95": 1.0811466885654658e-5,
+          "p99": 1.1212077051885216e-5,
+          "strict_tolerance_exceedance_count": 48
+        },
+        "available": true,
+        "failed_side_residuals": {
+          "count": 48,
+          "maximum": 1.1360107992994e-5,
+          "minimum": 1.000489309394402e-5,
+          "p50": 1.0201409211735924e-5,
+          "p90": 1.1089197646488328e-5,
+          "p95": 1.122083167358295e-5,
+          "p99": 1.1341013975799966e-5,
+          "strict_tolerance_exceedance_count": 48
+        },
+        "strict_tolerance": 1.0e-5
+      },
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json"
+    },
+    {
+      "angle": 0.01,
+      "phase_only": {
+        "acceptance_passed": false,
+        "all_side_residuals": {
+          "count": 288,
+          "maximum": 1.0895070315699911e-5,
+          "minimum": 1.251452907595879e-8,
+          "p50": 2.50575318426815e-8,
+          "p90": 1.0181500444868933e-5,
+          "p95": 1.0587087273062712e-5,
+          "p99": 1.0810847250179162e-5,
+          "strict_tolerance_exceedance_count": 36
+        },
+        "available": true,
+        "failed_side_residuals": {
+          "count": 36,
+          "maximum": 1.0895070315699911e-5,
+          "minimum": 1.0151253801270432e-5,
+          "p50": 1.0543219069720633e-5,
+          "p90": 1.077547551607405e-5,
+          "p95": 1.0832858979600821e-5,
+          "p99": 1.0887390490368347e-5,
+          "strict_tolerance_exceedance_count": 36
+        },
+        "strict_tolerance": 1.0e-5
+      },
+      "phase_only_minus_reference_maximum_residual": -1.280823740796265e-12,
+      "phase_only_reference_maximum_residual_ratio": 0.9999998824400804,
+      "reference": {
+        "acceptance_passed": false,
+        "all_side_residuals": {
+          "count": 288,
+          "maximum": 1.0895071596523652e-5,
+          "minimum": 1.251559172671354e-8,
+          "p50": 2.5058994507026197e-8,
+          "p90": 1.0181508435368902e-5,
+          "p95": 1.0587091063929897e-5,
+          "p99": 1.0810847478357695e-5,
+          "strict_tolerance_exceedance_count": 36
+        },
+        "available": true,
+        "failed_side_residuals": {
+          "count": 36,
+          "maximum": 1.0895071596523652e-5,
+          "minimum": 1.0151261846979478e-5,
+          "p50": 1.054322343770201e-5,
+          "p90": 1.0775476446040308e-5,
+          "p95": 1.0832858713753158e-5,
+          "p99": 1.0887390928684565e-5,
+          "strict_tolerance_exceedance_count": 36
+        },
+        "strict_tolerance": 1.0e-5
+      },
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json"
+    },
+    {
+      "angle": 0.01,
+      "phase_only": {
+        "acceptance_passed": true,
+        "all_side_residuals": {
+          "count": 288,
+          "maximum": 8.718943337731055e-6,
+          "minimum": 3.697008595058022e-10,
+          "p50": 2.5057510226064823e-8,
+          "p90": 2.5057753414178897e-8,
+          "p95": 7.950703515900902e-6,
+          "p99": 8.627068606480081e-6,
+          "strict_tolerance_exceedance_count": 0
+        },
+        "available": true,
+        "failed_side_residuals": null,
+        "strict_tolerance": 1.0e-5
+      },
+      "phase_only_minus_reference_maximum_residual": 1.2537063553784812e-12,
+      "phase_only_reference_maximum_residual_ratio": 1.0000001437911095,
+      "reference": {
+        "acceptance_passed": true,
+        "all_side_residuals": {
+          "count": 288,
+          "maximum": 8.7189420840247e-6,
+          "minimum": 3.709539935225473e-10,
+          "p50": 2.505898545466421e-8,
+          "p90": 2.5059035376660233e-8,
+          "p95": 7.950702263492885e-6,
+          "p99": 8.627067352612136e-6,
+          "strict_tolerance_exceedance_count": 0
+        },
+        "available": true,
+        "failed_side_residuals": null,
+        "strict_tolerance": 1.0e-5
+      },
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json"
+    },
+    {
+      "angle": 0.01,
+      "phase_only": {
+        "acceptance_passed": false,
+        "all_side_residuals": {
+          "count": 288,
+          "maximum": 1.141720164003029e-5,
+          "minimum": 1.2515781473961581e-8,
+          "p50": 2.505753183926696e-8,
+          "p90": 1.0276143285910026e-5,
+          "p95": 1.088525754095803e-5,
+          "p99": 1.1269136605519002e-5,
+          "strict_tolerance_exceedance_count": 36
+        },
+        "available": true,
+        "failed_side_residuals": {
+          "count": 36,
+          "maximum": 1.141720164003029e-5,
+          "minimum": 1.0231682931916102e-5,
+          "p50": 1.0823274520834451e-5,
+          "p90": 1.1209521078683214e-5,
+          "p95": 1.1305327655040372e-5,
+          "p99": 1.1400963216064048e-5,
+          "strict_tolerance_exceedance_count": 36
+        },
+        "strict_tolerance": 1.0e-5
+      },
+      "phase_only_minus_reference_maximum_residual": 6.297482676932871e-13,
+      "phase_only_reference_maximum_residual_ratio": 1.0000000551578505,
+      "reference": {
+        "acceptance_passed": false,
+        "all_side_residuals": {
+          "count": 288,
+          "maximum": 1.1417201010282022e-5,
+          "minimum": 1.2516405017396364e-8,
+          "p50": 2.505896896966654e-8,
+          "p90": 1.027615263328042e-5,
+          "p95": 1.0885254310476472e-5,
+          "p99": 1.1269135818740576e-5,
+          "strict_tolerance_exceedance_count": 36
+        },
+        "available": true,
+        "failed_side_residuals": {
+          "count": 36,
+          "maximum": 1.1417201010282022e-5,
+          "minimum": 1.0231690511979422e-5,
+          "p50": 1.0823290040503257e-5,
+          "p90": 1.120952005100563e-5,
+          "p95": 1.1305326855437973e-5,
+          "p99": 1.1400962585920822e-5,
+          "strict_tolerance_exceedance_count": 36
+        },
+        "strict_tolerance": 1.0e-5
+      },
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json"
+    }
+  ],
+  "reference_strict_acceptance_count": 2,
+  "schema_version": "nlpdiagnostics-real-99bus-kkt-residual-distribution-v1",
+  "source": {
+    "campaign_artifact": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/real-99bus-phase-only-campaign.json",
+    "quantiles": [
+      "p50",
+      "p90",
+      "p95",
+      "p99"
+    ],
+    "runner": "benchmarks/summarize_real_99bus_kkt_residual_distributions.jl",
+    "strict_complementarity_tolerance": 1.0e-5
+  }
+}

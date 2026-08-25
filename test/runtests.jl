@@ -2300,6 +2300,28 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
+    kkt_distribution_script = read(
+        joinpath(benchmark_directory, "summarize_real_99bus_kkt_residual_distributions.jl"),
+        String,
+    )
+    @test Meta.parseall(kkt_distribution_script) isa Expr
+    @test occursin("failed_side_residuals", kkt_distribution_script)
+    kkt_distribution_summary = read(
+        joinpath(repository_root, "docs", "real_99bus_kkt_residual_distribution_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-real-99bus-kkt-residual-distribution-v1", kkt_distribution_summary)
+    kkt_distribution_data = JSON.parse(kkt_distribution_summary)
+    @test kkt_distribution_data["profile_count"] == 6
+    @test kkt_distribution_data["reference_strict_acceptance_count"] == 2
+    @test kkt_distribution_data["phase_only_strict_acceptance_count"] == 2
+    @test length(kkt_distribution_data["paired_maximum_residual_ratio_range"]) == 2
+    @test maximum(kkt_distribution_data["paired_maximum_residual_ratio_range"]) < 1.000001
+    @test minimum(kkt_distribution_data["paired_maximum_residual_ratio_range"]) > 0.999999
+    @test occursin("real_99bus_kkt_residual_distribution_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     bmopf_analyze_profile_script = read(
         joinpath(benchmark_directory, "profile_bmopf_analyze_runtime.jl"),
         String,
@@ -2326,8 +2348,8 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 124", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 121", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 125", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 122", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),
