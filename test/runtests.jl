@@ -2046,6 +2046,20 @@ end
     @test occursin("real_99bus_phase_only_kkt_failure_summary.json", truth_label_validation)
     @test occursin("scope_comparison_paths", truth_label_validation)
     @test occursin("trace_available_on_both_sides", truth_label_validation)
+    combined_scaling_probe = read(
+        joinpath(benchmark_directory, "bmopf_combined_mv_lv_scaling_probe.jl"),
+        String,
+    )
+    @test occursin("Master.dss", combined_scaling_probe)
+    @test occursin("combined_mv_lv_local", combined_scaling_probe)
+    @test occursin("max_dense_entries = 0", combined_scaling_probe)
+    combined_scaling_summary = read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_scaling_readiness_summary.json"),
+        String,
+    )
+    @test occursin("structural_readiness_complete_solver_campaign_pending", combined_scaling_summary)
+    @test occursin("transformer_interface_count", combined_scaling_summary)
+    @test occursin("solver_work_claim_supported", combined_scaling_summary)
     magnitude_campaign = read(
         joinpath(
             benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",

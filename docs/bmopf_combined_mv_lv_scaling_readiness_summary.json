@@ -1,0 +1,55 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-scaling-readiness-v1",
+  "status": "structural_readiness_complete_solver_campaign_pending",
+  "source": {
+    "runner": "benchmarks/bmopf_combined_mv_lv_scaling_probe.jl",
+    "case": "BMOPFTools/test/data/Master.dss",
+    "local_environment": "work/benchmark-environment",
+    "evidence_date": "2026-08-25",
+    "source_warning_count": 46,
+    "source_warning_codes_preserved": true,
+    "source_license": "CC BY-NC-SA 4.0"
+  },
+  "network_shape": {
+    "bus_count": 3409,
+    "line_count": 3096,
+    "load_count": 1255,
+    "transformer_interface_count": 33
+  },
+  "policies": {
+    "classic": {
+      "power_base": 1000000.0,
+      "voltage_base_values": [239.6004, 249.9927, 6350.853],
+      "power_base_values": [1000000.0]
+    },
+    "combined_mv_lv_local": {
+      "mv_power_base": 1000000.0,
+      "lv_power_base": 100000.0,
+      "proposal_admissible": true,
+      "applied_to_model": true,
+      "power_base_values": [100000.0, 1000000.0]
+    },
+    "si": {
+      "policy_available": true
+    }
+  },
+  "readiness_gates": {
+    "authoritative_bmopf_policy_path": true,
+    "transformer_contract_path": true,
+    "sparse_probe_runner_checked_in": true,
+    "solver_work_claim_supported": false
+  },
+  "next_experiment": {
+    "scope": "bounded Ipopt then MadNLP campaign on selected combined MV/LV snapshots",
+    "preconditions": [
+      "retain the 46 source-import warnings in every result",
+      "run sparse covariance and coordinate-geometry gates first",
+      "predeclare snapshot, start, iteration, and timeout budgets"
+    ],
+    "does_not_establish": [
+      "solver superiority or a universal base policy",
+      "causal convergence or conditioning mechanism",
+      "absolute physical KKT acceptance"
+    ]
+  }
+}

@@ -4907,3 +4907,29 @@ The next trace work is to pre-declare and review another matrix extension (or
 freeze this evidence for release-facing documentation) while preserving the
 unavailable-vs-failed distinction; do not add another trace metric family
 before that evidence exists.
+
+## 2026-08-25 combined MV/LV scaling checkpoint
+
+The next numerical-scaling fixture is now the authoritative combined
+MV+LV case in BMOPFTools (`test/data/Master.dss`), rather than the smaller
+overlay fixture. A local structural-readiness inspection and the checked-in
+runner `benchmarks/bmopf_combined_mv_lv_scaling_probe.jl` establish the
+BMOPFTools path for 3,409 buses, 3,096 lines, 1,255 loads, and 33 transformer
+interfaces. The source conversion emits 46 warnings; those warnings remain
+provenance, not silently discarded input, and the case's CC BY-NC-SA 4.0
+license boundary is recorded in
+`docs/bmopf_combined_mv_lv_scaling_readiness_summary.json`.
+
+Classic 1 MVA, SI, and an explicit two-level policy (1 MVA on MV buses and
+100 kVA on LV buses) can be constructed through BMOPFTools. The two-level
+proposal is admissible, applied to the model, and reaches the transformer
+scaling contract, so experiments should proceed through BMOPFTools rather than
+reimplementing policy or transport logic in NLPDiagnostics. The checked-in
+probe is intentionally sparse and non-solving; it does not yet claim solver
+work, convergence, or a preferred policy.
+
+The next deliverable is a bounded Ipopt/MadNLP campaign on selected combined
+MV/LV snapshots and starts. It must predeclare the snapshot/start/iteration
+budget, run sparse covariance and coordinate-geometry gates first, retain all
+source warnings, and compare policies descriptively. No universal scaling rule
+should be inferred from this case alone.
