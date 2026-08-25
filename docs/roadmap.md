@@ -86,7 +86,8 @@ The first evidence-preserving optimization is now implemented: `analyze_domains`
 reuses one propagated variable-interval state for issue detection and interval
 origin provenance instead of recomputing it. On the bounded 100/200/400 fixture,
 finding identities, counts, and affine-propagation-limit status are unchanged;
-the dimension-400 end-to-end observation decreased from 17.175s to 14.178s.
+the dimension-400 end-to-end observation decreased from 17.175s to about 14.1s
+across repeated local runs.
 This is a local measurement and not a production performance guarantee, so the
 scaling gate remains blocking while broader workloads and memory behavior are
 still open.

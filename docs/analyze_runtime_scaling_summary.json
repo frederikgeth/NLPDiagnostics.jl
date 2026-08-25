@@ -2,9 +2,9 @@
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
     "architecture": "aarch64",
-    "git_revision": "b3113cf4b2c63560a6934d6b916fd661eb454f99",
-    "git_status_entry_count": 0,
-    "git_worktree_dirty": false,
+    "git_revision": "540c15256e754718bb75f81a6615f519b9aec905",
+    "git_status_entry_count": 1,
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6",
     "os": "Darwin"
   },
@@ -17,12 +17,18 @@
     ],
     "follow_up": "Use stage attribution to identify a dominant cost, then optimize only after regression checks show evidence-preserving behavior."
   },
+  "optimization": {
+    "description": "analyze_domains reuses one propagated variable-interval state for both issue detection and interval-origin provenance",
+    "evidence_preservation": "finding identities, counts, and affine-propagation limit status remain unchanged on the bounded affine-chain campaign",
+    "id": "reuse_domain_interval_state",
+    "scope": "domains stage"
+  },
   "records": [
     {
-      "allocated_bytes": 348638528,
+      "allocated_bytes": 285882512,
       "constraint_count": 298,
       "dimension": 100,
-      "elapsed_seconds": 1.133835625,
+      "elapsed_seconds": 0.916427667,
       "error_finding_count": 0,
       "finding_code_counts": {
         "affine_interval_propagated_variable_fixed": 5,
@@ -36,37 +42,37 @@
       "stage_attribution": [
         {
           "allocated_bytes": 150464,
-          "elapsed_seconds": 0.000223167,
+          "elapsed_seconds": 0.0002045,
           "stage": "snapshot"
         },
         {
           "allocated_bytes": 731328,
-          "elapsed_seconds": 0.001343083,
+          "elapsed_seconds": 0.001298334,
           "stage": "incidence_graph"
         },
         {
           "allocated_bytes": 92697696,
-          "elapsed_seconds": 0.282314291,
+          "elapsed_seconds": 0.266966375,
           "stage": "static"
         },
         {
-          "allocated_bytes": 126248080,
-          "elapsed_seconds": 0.427190333,
+          "allocated_bytes": 63492064,
+          "elapsed_seconds": 0.2112375,
           "stage": "domains"
         },
         {
           "allocated_bytes": 63574720,
-          "elapsed_seconds": 0.2135225,
+          "elapsed_seconds": 0.211516583,
           "stage": "derivatives"
         },
         {
           "allocated_bytes": 63437536,
-          "elapsed_seconds": 0.218144958,
+          "elapsed_seconds": 0.212647667,
           "stage": "expressions"
         },
         {
           "allocated_bytes": 716416,
-          "elapsed_seconds": 0.001181541,
+          "elapsed_seconds": 0.001140875,
           "stage": "structural"
         }
       ],
@@ -74,10 +80,10 @@
       "warning_finding_count": 0
     },
     {
-      "allocated_bytes": 1332067568,
+      "allocated_bytes": 1079728384,
       "constraint_count": 598,
       "dimension": 200,
-      "elapsed_seconds": 4.46224775,
+      "elapsed_seconds": 3.543865541,
       "error_finding_count": 0,
       "finding_code_counts": {
         "affine_interval_propagated_variable_fixed": 5,
@@ -91,37 +97,37 @@
       "stage_attribution": [
         {
           "allocated_bytes": 338192,
-          "elapsed_seconds": 0.00028425,
+          "elapsed_seconds": 0.000278084,
           "stage": "snapshot"
         },
         {
           "allocated_bytes": 1508816,
-          "elapsed_seconds": 0.002533083,
+          "elapsed_seconds": 0.002589875,
           "stage": "incidence_graph"
         },
         {
           "allocated_bytes": 312515200,
-          "elapsed_seconds": 0.974452875,
+          "elapsed_seconds": 0.974515792,
           "stage": "static"
         },
         {
-          "allocated_bytes": 506155216,
-          "elapsed_seconds": 1.734293042,
+          "allocated_bytes": 253816032,
+          "elapsed_seconds": 0.871474708,
           "stage": "domains"
         },
         {
           "allocated_bytes": 253981888,
-          "elapsed_seconds": 0.861645833,
+          "elapsed_seconds": 0.883187292,
           "stage": "derivatives"
         },
         {
           "allocated_bytes": 253705504,
-          "elapsed_seconds": 0.858073125,
+          "elapsed_seconds": 0.873693292,
           "stage": "expressions"
         },
         {
           "allocated_bytes": 1684272,
-          "elapsed_seconds": 0.002317709,
+          "elapsed_seconds": 0.002352083,
           "stage": "structural"
         }
       ],
@@ -129,10 +135,10 @@
       "warning_finding_count": 0
     },
     {
-      "allocated_bytes": 5129902016,
+      "allocated_bytes": 4132092176,
       "constraint_count": 1198,
       "dimension": 400,
-      "elapsed_seconds": 17.1746955,
+      "elapsed_seconds": 14.114885958,
       "error_finding_count": 0,
       "finding_code_counts": {
         "affine_interval_propagated_variable_fixed": 5,
@@ -146,37 +152,37 @@
       "stage_attribution": [
         {
           "allocated_bytes": 564176,
-          "elapsed_seconds": 0.000502875,
+          "elapsed_seconds": 0.000416792,
           "stage": "snapshot"
         },
         {
           "allocated_bytes": 2936112,
-          "elapsed_seconds": 0.005164042,
+          "elapsed_seconds": 0.005023542,
           "stage": "incidence_graph"
         },
         {
           "allocated_bytes": 1117997472,
-          "elapsed_seconds": 3.537165167,
+          "elapsed_seconds": 3.624255167,
           "stage": "static"
         },
         {
-          "allocated_bytes": 1998578160,
-          "elapsed_seconds": 6.840393541,
+          "allocated_bytes": 1000768320,
+          "elapsed_seconds": 3.403537167,
           "stage": "domains"
         },
         {
           "allocated_bytes": 1001100576,
-          "elapsed_seconds": 3.472915083,
+          "elapsed_seconds": 3.377941084,
           "stage": "derivatives"
         },
         {
           "allocated_bytes": 1000545792,
-          "elapsed_seconds": 3.531789833,
+          "elapsed_seconds": 3.408563041,
           "stage": "expressions"
         },
         {
           "allocated_bytes": 3893216,
-          "elapsed_seconds": 0.005450708,
+          "elapsed_seconds": 0.005425417,
           "stage": "structural"
         }
       ],
