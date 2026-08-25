@@ -4990,7 +4990,11 @@ or universal policy claims. The same matrix now transfers to LV13_58bus: both
 variants again pass all gates, although the minus-one-percent local-policy
 comparison reaches `7.78e-6`, so covariance magnitudes are not invariant across
 start variants. This supports endpoint-gated robustness across two snapshots,
-not exact numerical identity. The next gate is one predeclared perturbed-start
-matrix with MadNLP, or a declared voltage-only perturbation. Any policy
-interpretation remains conditional on endpoint covariance, provenance, and
-solver-availability gates.
+not exact numerical identity. The same LV1_14bus matrix now also qualifies
+under MadNLP: both variants again pass all endpoint and cross-policy gates, with
+maximum covariance `3.64e-12`. This adds solver-diverse descriptive
+start-robustness evidence, not a solver superiority claim. The next gate is a
+declared voltage-only perturbation or consolidation of the qualified
+solver/start matrix into the release-gate report. Any policy interpretation
+remains conditional on endpoint covariance, provenance, and solver-availability
+gates.

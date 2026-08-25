@@ -2109,6 +2109,8 @@ end
     @test occursin("3.637978807091713e-12", combined_snapshot_summary)
     @test occursin("perturbed_start_lv13_matrix", combined_snapshot_summary)
     @test occursin("7.784467015881091e-6", combined_snapshot_summary)
+    @test occursin("perturbed_start_madnlp_matrix", combined_snapshot_summary)
+    @test occursin("solver-diverse descriptive", combined_snapshot_summary)
     magnitude_campaign = read(
         joinpath(
             benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",
