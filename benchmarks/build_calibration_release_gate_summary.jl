@@ -42,6 +42,7 @@ large_sparse_rank = read_summary("docs/large_sparse_rank_oracle_summary.json")
 combined_mv_lv = read_summary("docs/bmopf_combined_mv_lv_snapshot_campaign_summary.json")
 series_voltage_scaling = read_summary("docs/bmopf_voltage_level_series_case_matrix_summary.json")
 practical_application_success = read_summary("docs/bmopf_practical_application_success_summary.json")
+series_solver_campaign = read_summary("docs/bmopf_voltage_level_series_solver_campaign_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
 api_tier_usage = read_summary("docs/api_tier_usage_summary.json")
@@ -307,6 +308,8 @@ series_voltage_covariance_count = get(series_voltage_scaling, "covariance_gate_p
 series_voltage_geometry_count = get(series_voltage_scaling, "geometry_gate_passed_count", 0)
 practical_application_count = get(practical_application_success, "application_count", 0)
 practical_application_success_count = get(practical_application_success, "successful_application_count", 0)
+series_solver_case_count = get(series_solver_campaign, "case_count", 0)
+series_solver_qualified_count = get(series_solver_campaign, "campaign_qualified_count", 0)
 
 function gate(id, status, rationale, evidence; blocking=false)
     Dict{String,Any}(
@@ -393,6 +396,15 @@ gates = Dict{String,Any}[
         [
             "docs/bmopf_practical_application_success_summary.json",
             "benchmarks/summarize_bmopf_practical_application_success.jl",
+        ],
+    ),
+    gate(
+        "bmopf_voltage_level_series_solver_campaign",
+        series_solver_case_count > 0 && series_solver_qualified_count == series_solver_case_count ? "pass" : "partial",
+        "The bounded Ipopt campaign qualifies $series_solver_qualified_count/$series_solver_case_count synthetic voltage-level ladders across classic, SI, and local policies with matched starts and endpoint gates. The largest seven-transformer case remains an actionable boundary under the recorded iteration budget; this is solver-work evidence for the fixtures, not a universal policy or conditioning claim.",
+        [
+            "docs/bmopf_voltage_level_series_solver_campaign_summary.json",
+            "benchmarks/bmopf_voltage_level_series_solver_campaign.jl",
         ],
     ),
     gate(

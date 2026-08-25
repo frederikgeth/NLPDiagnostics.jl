@@ -5331,9 +5331,17 @@ on all three cases, while the coordinate-geometry gate is still open on all
 three. This is structural readiness evidence only: no solver performance,
 physical KKT, or universal voltage-base policy is claimed yet.
 
-The next experiment is to explain the geometry boundary and run matched-start
-Ipopt/MadNLP campaigns on the largest passing cases under explicit budgets,
-then compare the synthetic ladder with selected combined MV+LV snapshots.
+The first bounded Ipopt solver campaign now qualifies the 4-level/3-transformer
+and 6-level/5-transformer cases across classic, SI, and local policies with
+stable locally solved endpoints. The 8-level/7-transformer case is an explicit
+boundary: it reaches iteration-limit or locally-infeasible terminations under
+the recorded budget. This is useful practical evidence for budget and
+initialization work, not a policy ranking.
+
+The next experiment is to explain the coordinate-geometry boundary, tune the
+largest ladder's solver budget/initialization, and repeat it with MadNLP when
+available before comparing the synthetic ladder with selected combined MV+LV
+snapshots.
 
 ## 2026-08-26 practical application success checkpoint
 
@@ -5347,6 +5355,6 @@ their declared endpoint, comparison-coverage, and fragility checks.
 
 This is a concrete application success and a regression anchor for future
 changes. It summarizes known-environment campaign evidence rather than
-rerunning solvers or claiming a universal scaling policy; the next practical
-extension is to apply the same ledger to selected series-transformer ladder
-solver runs.
+rerunning solvers or claiming a universal scaling policy. The companion
+series-transformer solver campaign now qualifies two of three ladder cases;
+the largest case is retained as a concrete follow-up boundary.
