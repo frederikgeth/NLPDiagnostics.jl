@@ -10,6 +10,8 @@
         "docs/rank_perturbation_sweep_summary.json",
         "docs/rank_adversarial_extension_summary.json",
         "docs/rank_calibration_statistics_summary.json",
+        "docs/rank_third_backend_capability_summary.json",
+        "benchmarks/validate_rank_third_backend.jl",
         "docs/smallest_singular_calibration_summary.json",
         "benchmarks/calibrate_restarted_smallest_singular.jl"
       ],
@@ -29,7 +31,9 @@
         "docs/real_99bus_kkt_margin_summary.json",
         "docs/real_99bus_kkt_residual_distribution_summary.json",
         "docs/real_99bus_kkt_tolerance_policy_summary.json",
-        "docs/real_99bus_kkt_endpoint_matrix_summary.json"
+        "docs/real_99bus_kkt_endpoint_matrix_summary.json",
+        "docs/real_99bus_kkt_gate_validation_summary.json",
+        "benchmarks/validate_real_99bus_kkt_gate.jl"
       ],
       "id": "real_99bus_physical_kkt",
       "next_deliverable": "Extend trusted real-99-bus endpoint coverage and localize the remaining ibr_p_upper strict-KKT boundary.",
@@ -99,7 +103,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "2b81f78c41caa29ab345e6cede88c0e2844d0851",
+    "git_revision": "0797041743e16198adfd84f222c4a0c340eb06a1",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

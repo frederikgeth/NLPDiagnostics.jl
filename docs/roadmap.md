@@ -5270,3 +5270,20 @@ hard-control and threshold-sensitive campaign, and retain disagreements and
 unavailable outcomes. The current finite dense-SVD/SuiteSparse-QR evidence is
 unchanged; no release threshold or universal rank claim is inferred from the
 capability result.
+
+## 2026-08-26 real-99-bus KKT ledger validation checkpoint
+
+The saved real-99-bus KKT evidence now has a cross-artifact validator,
+`benchmarks/validate_real_99bus_kkt_gate.jl`, producing
+`docs/real_99bus_kkt_gate_validation_summary.json`. It checks the campaign,
+stability, margin, residual-distribution, tolerance-policy, and endpoint
+matrices against one another without rerunning solves. The validator passes:
+six locally solved paired endpoints, two strict `1e-5` passes, four localized
+`ibr_p_upper` failures, and paired residual ratios within `0.999999--1.000001`.
+
+This closes an evidence-consistency gap, not the physical-KKT gate. The maximum
+saved required tolerance remains approximately `1.14172e-5`, the paired p95 is
+approximately `1.14029e-5`, and full paired acceptance first appears at the
+recorded `1.2e-5` sensitivity policy. The strict release threshold remains
+`1e-5`; additional trusted endpoint coverage or an explicit reviewed release
+decision is still required before this blocker can close.

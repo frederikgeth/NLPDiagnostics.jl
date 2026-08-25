@@ -1,0 +1,59 @@
+{
+  "all_checks_passed": true,
+  "checks": {
+    "all_campaign_solves_locally_solved": true,
+    "all_failures_localized": true,
+    "campaign_snapshot_count_matches_endpoint_count": true,
+    "endpoint_rows_match_declared_count": true,
+    "full_acceptance_policy_is_sensitivity_only": true,
+    "residual_ratio_is_near_one": true,
+    "strict_acceptance_matches_distribution": true,
+    "strict_acceptance_matches_margin": true,
+    "strict_pass_failure_partition_matches": true,
+    "strict_tolerance_is_1e-5": true
+  },
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "0797041743e16198adfd84f222c4a0c340eb06a1",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "The saved real-99-bus KKT ledgers are internally consistent: six locally solved paired endpoints, two strict 1e-5 passes, four localized ibr_p_upper failures, and near-unity paired residual ratios.",
+    "does_not_establish": [
+      "strict physical-KKT acceptance beyond the six saved endpoints",
+      "a relaxed release threshold",
+      "a causal explanation for the ibr_p_upper residual floor"
+    ]
+  },
+  "margin": {
+    "maximum_required_tolerance": 1.141720164003029e-5,
+    "maximum_strict_tolerance_gap": 1.4172016400302888e-6,
+    "paired_endpoint_p95_required_tolerance": 1.1402928383947842e-5
+  },
+  "policy_sensitivity": {
+    "first_observed_full_paired_acceptance_policy": "1.2e-5",
+    "release_threshold_changed": false
+  },
+  "schema_version": "nlpdiagnostics-real-99bus-kkt-gate-validation-v1",
+  "source": {
+    "artifacts": [
+      "docs/real_99bus_phase_only_campaign_summary.json",
+      "docs/real_99bus_kkt_stability_summary.json",
+      "docs/real_99bus_kkt_margin_summary.json",
+      "docs/real_99bus_kkt_residual_distribution_summary.json",
+      "docs/real_99bus_kkt_tolerance_policy_summary.json",
+      "docs/real_99bus_kkt_endpoint_matrix_summary.json"
+    ],
+    "runner": "benchmarks/validate_real_99bus_kkt_gate.jl",
+    "strict_tolerance_policy": "1e-5 remains the release threshold; saved relaxed policies are sensitivity evidence only."
+  },
+  "status": "consistent_partial",
+  "strict_gate": {
+    "all_failures_localized": true,
+    "endpoint_count": 6,
+    "paired_failure_count": 4,
+    "paired_pass_count": 2,
+    "tolerance": 1.0e-5
+  }
+}
