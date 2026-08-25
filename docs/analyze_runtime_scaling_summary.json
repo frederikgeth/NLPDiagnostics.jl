@@ -2,7 +2,7 @@
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
     "architecture": "aarch64",
-    "git_revision": "bf347545c4570f9bccd5a4fb04459431ad407da5",
+    "git_revision": "9f04632278aad19bfbc91173057062339e5f2339",
     "git_status_entry_count": 0,
     "git_worktree_dirty": false,
     "julia_version": "1.12.6",
@@ -30,9 +30,9 @@
       "allocated_bytes_minimum": 285882048,
       "constraint_count": 298,
       "dimension": 100,
-      "elapsed_seconds": 0.9467844306666667,
-      "elapsed_seconds_maximum": 0.973732167,
-      "elapsed_seconds_minimum": 0.911763583,
+      "elapsed_seconds": 0.884636917,
+      "elapsed_seconds_maximum": 0.895703209,
+      "elapsed_seconds_minimum": 0.87883725,
       "evidence_stable_across_repetitions": true,
       "finding_code_counts": {
         "affine_interval_propagated_variable_fixed": 5,
@@ -42,11 +42,14 @@
       },
       "finding_count": 8,
       "limit_reached": true,
+      "process_maxrss_increment_bytes": 2583211,
+      "process_maxrss_increment_bytes_maximum": 7749632,
+      "process_maxrss_increment_bytes_minimum": 0,
       "repetitions": 3,
       "runs": [
         {
           "allocated_bytes": 285882048,
-          "elapsed_seconds": 0.954857542,
+          "elapsed_seconds": 0.895703209,
           "finding_code_counts": {
             "affine_interval_propagated_variable_fixed": 5,
             "affine_interval_propagation_limit_reached": 1,
@@ -55,48 +58,51 @@
           },
           "finding_count": 8,
           "limit_reached": true,
+          "process_maxrss_after_bytes": 1833140224,
+          "process_maxrss_before_bytes": 1825390592,
+          "process_maxrss_increment_bytes": 7749632,
           "repetition": 1,
           "stage_attribution": [
             {
               "allocated_bytes": 150464,
-              "elapsed_seconds": 0.000179,
+              "elapsed_seconds": 0.000191292,
               "stage": "snapshot"
             },
             {
               "allocated_bytes": 731328,
-              "elapsed_seconds": 0.001276375,
+              "elapsed_seconds": 0.001241125,
               "stage": "incidence_graph"
             },
             {
               "allocated_bytes": 92697696,
-              "elapsed_seconds": 0.269166625,
+              "elapsed_seconds": 0.265749625,
               "stage": "static"
             },
             {
               "allocated_bytes": 63492064,
-              "elapsed_seconds": 0.226953084,
+              "elapsed_seconds": 0.221046333,
               "stage": "domains"
             },
             {
               "allocated_bytes": 63574720,
-              "elapsed_seconds": 0.214275792,
+              "elapsed_seconds": 0.206088166,
               "stage": "derivatives"
             },
             {
               "allocated_bytes": 63437536,
-              "elapsed_seconds": 0.20939425,
+              "elapsed_seconds": 0.208264625,
               "stage": "expressions"
             },
             {
               "allocated_bytes": 716416,
-              "elapsed_seconds": 0.001141166,
+              "elapsed_seconds": 0.001125833,
               "stage": "structural"
             }
           ]
         },
         {
           "allocated_bytes": 285882048,
-          "elapsed_seconds": 0.911763583,
+          "elapsed_seconds": 0.87883725,
           "finding_code_counts": {
             "affine_interval_propagated_variable_fixed": 5,
             "affine_interval_propagation_limit_reached": 1,
@@ -105,48 +111,51 @@
           },
           "finding_count": 8,
           "limit_reached": true,
+          "process_maxrss_after_bytes": 1833910272,
+          "process_maxrss_before_bytes": 1833910272,
+          "process_maxrss_increment_bytes": 0,
           "repetition": 2,
           "stage_attribution": [
             {
               "allocated_bytes": 150464,
-              "elapsed_seconds": 0.000228083,
+              "elapsed_seconds": 0.000182084,
               "stage": "snapshot"
             },
             {
               "allocated_bytes": 731328,
-              "elapsed_seconds": 0.001324708,
+              "elapsed_seconds": 0.001262,
               "stage": "incidence_graph"
             },
             {
               "allocated_bytes": 92697696,
-              "elapsed_seconds": 0.267153125,
+              "elapsed_seconds": 0.259000583,
               "stage": "static"
             },
             {
               "allocated_bytes": 63492064,
-              "elapsed_seconds": 0.2120915,
+              "elapsed_seconds": 0.204698416,
               "stage": "domains"
             },
             {
               "allocated_bytes": 63574720,
-              "elapsed_seconds": 0.216379792,
+              "elapsed_seconds": 0.205585583,
               "stage": "derivatives"
             },
             {
               "allocated_bytes": 63437536,
-              "elapsed_seconds": 0.233107083,
+              "elapsed_seconds": 0.226331042,
               "stage": "expressions"
             },
             {
               "allocated_bytes": 716416,
-              "elapsed_seconds": 0.001102209,
+              "elapsed_seconds": 0.001112042,
               "stage": "structural"
             }
           ]
         },
         {
           "allocated_bytes": 285882048,
-          "elapsed_seconds": 0.973732167,
+          "elapsed_seconds": 0.879370292,
           "finding_code_counts": {
             "affine_interval_propagated_variable_fixed": 5,
             "affine_interval_propagation_limit_reached": 1,
@@ -155,41 +164,44 @@
           },
           "finding_count": 8,
           "limit_reached": true,
+          "process_maxrss_after_bytes": 1836122112,
+          "process_maxrss_before_bytes": 1836122112,
+          "process_maxrss_increment_bytes": 0,
           "repetition": 3,
           "stage_attribution": [
             {
               "allocated_bytes": 150464,
-              "elapsed_seconds": 0.000190125,
+              "elapsed_seconds": 0.000189709,
               "stage": "snapshot"
             },
             {
               "allocated_bytes": 731328,
-              "elapsed_seconds": 0.001343083,
+              "elapsed_seconds": 0.001259208,
               "stage": "incidence_graph"
             },
             {
               "allocated_bytes": 92697696,
-              "elapsed_seconds": 0.272320292,
+              "elapsed_seconds": 0.259898542,
               "stage": "static"
             },
             {
               "allocated_bytes": 63492064,
-              "elapsed_seconds": 0.217051792,
+              "elapsed_seconds": 0.211757625,
               "stage": "domains"
             },
             {
               "allocated_bytes": 63574720,
-              "elapsed_seconds": 0.222972375,
+              "elapsed_seconds": 0.207916542,
               "stage": "derivatives"
             },
             {
               "allocated_bytes": 63437536,
-              "elapsed_seconds": 0.236492792,
+              "elapsed_seconds": 0.230729167,
               "stage": "expressions"
             },
             {
               "allocated_bytes": 716416,
-              "elapsed_seconds": 0.0011555,
+              "elapsed_seconds": 0.001134875,
               "stage": "structural"
             }
           ]
@@ -200,63 +212,63 @@
           "allocated_bytes": 63574720,
           "allocated_bytes_maximum": 63574720,
           "allocated_bytes_minimum": 63574720,
-          "elapsed_seconds": 0.21787598633333335,
-          "elapsed_seconds_maximum": 0.222972375,
-          "elapsed_seconds_minimum": 0.214275792,
+          "elapsed_seconds": 0.206530097,
+          "elapsed_seconds_maximum": 0.207916542,
+          "elapsed_seconds_minimum": 0.205585583,
           "stage": "derivatives"
         },
         {
           "allocated_bytes": 63492064,
           "allocated_bytes_maximum": 63492064,
           "allocated_bytes_minimum": 63492064,
-          "elapsed_seconds": 0.218698792,
-          "elapsed_seconds_maximum": 0.226953084,
-          "elapsed_seconds_minimum": 0.2120915,
+          "elapsed_seconds": 0.21250079133333336,
+          "elapsed_seconds_maximum": 0.221046333,
+          "elapsed_seconds_minimum": 0.204698416,
           "stage": "domains"
         },
         {
           "allocated_bytes": 63437536,
           "allocated_bytes_maximum": 63437536,
           "allocated_bytes_minimum": 63437536,
-          "elapsed_seconds": 0.226331375,
-          "elapsed_seconds_maximum": 0.236492792,
-          "elapsed_seconds_minimum": 0.20939425,
+          "elapsed_seconds": 0.22177494466666667,
+          "elapsed_seconds_maximum": 0.230729167,
+          "elapsed_seconds_minimum": 0.208264625,
           "stage": "expressions"
         },
         {
           "allocated_bytes": 731328,
           "allocated_bytes_maximum": 731328,
           "allocated_bytes_minimum": 731328,
-          "elapsed_seconds": 0.001314722,
-          "elapsed_seconds_maximum": 0.001343083,
-          "elapsed_seconds_minimum": 0.001276375,
+          "elapsed_seconds": 0.001254111,
+          "elapsed_seconds_maximum": 0.001262,
+          "elapsed_seconds_minimum": 0.001241125,
           "stage": "incidence_graph"
         },
         {
           "allocated_bytes": 150464,
           "allocated_bytes_maximum": 150464,
           "allocated_bytes_minimum": 150464,
-          "elapsed_seconds": 0.00019906933333333334,
-          "elapsed_seconds_maximum": 0.000228083,
-          "elapsed_seconds_minimum": 0.000179,
+          "elapsed_seconds": 0.000187695,
+          "elapsed_seconds_maximum": 0.000191292,
+          "elapsed_seconds_minimum": 0.000182084,
           "stage": "snapshot"
         },
         {
           "allocated_bytes": 92697696,
           "allocated_bytes_maximum": 92697696,
           "allocated_bytes_minimum": 92697696,
-          "elapsed_seconds": 0.26954668066666665,
-          "elapsed_seconds_maximum": 0.272320292,
-          "elapsed_seconds_minimum": 0.267153125,
+          "elapsed_seconds": 0.2615495833333333,
+          "elapsed_seconds_maximum": 0.265749625,
+          "elapsed_seconds_minimum": 0.259000583,
           "stage": "static"
         },
         {
           "allocated_bytes": 716416,
           "allocated_bytes_maximum": 716416,
           "allocated_bytes_minimum": 716416,
-          "elapsed_seconds": 0.0011329583333333333,
-          "elapsed_seconds_maximum": 0.0011555,
-          "elapsed_seconds_minimum": 0.001102209,
+          "elapsed_seconds": 0.00112425,
+          "elapsed_seconds_maximum": 0.001134875,
+          "elapsed_seconds_minimum": 0.001112042,
           "stage": "structural"
         }
       ],
@@ -269,9 +281,9 @@
       "allocated_bytes_minimum": 1079727920,
       "constraint_count": 598,
       "dimension": 200,
-      "elapsed_seconds": 3.576168930666667,
-      "elapsed_seconds_maximum": 3.580193167,
-      "elapsed_seconds_minimum": 3.573731167,
+      "elapsed_seconds": 3.4398702500000002,
+      "elapsed_seconds_maximum": 3.481030667,
+      "elapsed_seconds_minimum": 3.403423708,
       "evidence_stable_across_repetitions": true,
       "finding_code_counts": {
         "affine_interval_propagated_variable_fixed": 5,
@@ -281,11 +293,14 @@
       },
       "finding_count": 8,
       "limit_reached": true,
+      "process_maxrss_increment_bytes": 4997120,
+      "process_maxrss_increment_bytes_maximum": 11583488,
+      "process_maxrss_increment_bytes_minimum": 0,
       "repetitions": 3,
       "runs": [
         {
           "allocated_bytes": 1079727920,
-          "elapsed_seconds": 3.573731167,
+          "elapsed_seconds": 3.435156375,
           "finding_code_counts": {
             "affine_interval_propagated_variable_fixed": 5,
             "affine_interval_propagation_limit_reached": 1,
@@ -294,48 +309,51 @@
           },
           "finding_count": 8,
           "limit_reached": true,
+          "process_maxrss_after_bytes": 1849868288,
+          "process_maxrss_before_bytes": 1838284800,
+          "process_maxrss_increment_bytes": 11583488,
           "repetition": 1,
           "stage_attribution": [
             {
               "allocated_bytes": 338192,
-              "elapsed_seconds": 0.000260875,
+              "elapsed_seconds": 0.0002635,
               "stage": "snapshot"
             },
             {
               "allocated_bytes": 1508816,
-              "elapsed_seconds": 0.002487417,
+              "elapsed_seconds": 0.002458209,
               "stage": "incidence_graph"
             },
             {
               "allocated_bytes": 312515200,
-              "elapsed_seconds": 0.963277625,
+              "elapsed_seconds": 0.936598875,
               "stage": "static"
             },
             {
               "allocated_bytes": 253816032,
-              "elapsed_seconds": 0.866266,
+              "elapsed_seconds": 0.817593334,
               "stage": "domains"
             },
             {
               "allocated_bytes": 253981888,
-              "elapsed_seconds": 0.856860416,
+              "elapsed_seconds": 0.821722708,
               "stage": "derivatives"
             },
             {
               "allocated_bytes": 253705504,
-              "elapsed_seconds": 0.853553959,
+              "elapsed_seconds": 0.835751458,
               "stage": "expressions"
             },
             {
               "allocated_bytes": 1684272,
-              "elapsed_seconds": 0.002354542,
+              "elapsed_seconds": 0.003575166,
               "stage": "structural"
             }
           ]
         },
         {
           "allocated_bytes": 1079727920,
-          "elapsed_seconds": 3.574582458,
+          "elapsed_seconds": 3.481030667,
           "finding_code_counts": {
             "affine_interval_propagated_variable_fixed": 5,
             "affine_interval_propagation_limit_reached": 1,
@@ -344,48 +362,51 @@
           },
           "finding_count": 8,
           "limit_reached": true,
+          "process_maxrss_after_bytes": 1853276160,
+          "process_maxrss_before_bytes": 1849868288,
+          "process_maxrss_increment_bytes": 3407872,
           "repetition": 2,
           "stage_attribution": [
             {
               "allocated_bytes": 338192,
-              "elapsed_seconds": 0.000275375,
+              "elapsed_seconds": 0.000278042,
               "stage": "snapshot"
             },
             {
               "allocated_bytes": 1508816,
-              "elapsed_seconds": 0.002455,
+              "elapsed_seconds": 0.002545459,
               "stage": "incidence_graph"
             },
             {
               "allocated_bytes": 312515200,
-              "elapsed_seconds": 0.974028458,
+              "elapsed_seconds": 0.930490375,
               "stage": "static"
             },
             {
               "allocated_bytes": 253816032,
-              "elapsed_seconds": 0.846367833,
+              "elapsed_seconds": 0.842424708,
               "stage": "domains"
             },
             {
               "allocated_bytes": 253981888,
-              "elapsed_seconds": 0.894702458,
+              "elapsed_seconds": 0.811965666,
               "stage": "derivatives"
             },
             {
               "allocated_bytes": 253705504,
-              "elapsed_seconds": 0.864252209,
+              "elapsed_seconds": 0.821394417,
               "stage": "expressions"
             },
             {
               "allocated_bytes": 1684272,
-              "elapsed_seconds": 0.002388875,
+              "elapsed_seconds": 0.002244209,
               "stage": "structural"
             }
           ]
         },
         {
           "allocated_bytes": 1079727920,
-          "elapsed_seconds": 3.580193167,
+          "elapsed_seconds": 3.403423708,
           "finding_code_counts": {
             "affine_interval_propagated_variable_fixed": 5,
             "affine_interval_propagation_limit_reached": 1,
@@ -394,41 +415,44 @@
           },
           "finding_count": 8,
           "limit_reached": true,
+          "process_maxrss_after_bytes": 1853276160,
+          "process_maxrss_before_bytes": 1853276160,
+          "process_maxrss_increment_bytes": 0,
           "repetition": 3,
           "stage_attribution": [
             {
               "allocated_bytes": 338192,
-              "elapsed_seconds": 0.000313542,
+              "elapsed_seconds": 0.00025525,
               "stage": "snapshot"
             },
             {
               "allocated_bytes": 1508816,
-              "elapsed_seconds": 0.002530708,
+              "elapsed_seconds": 0.002481041,
               "stage": "incidence_graph"
             },
             {
               "allocated_bytes": 312515200,
-              "elapsed_seconds": 0.965904459,
+              "elapsed_seconds": 0.919699959,
               "stage": "static"
             },
             {
               "allocated_bytes": 253816032,
-              "elapsed_seconds": 0.87938925,
+              "elapsed_seconds": 0.828797166,
               "stage": "domains"
             },
             {
               "allocated_bytes": 253981888,
-              "elapsed_seconds": 0.876848459,
+              "elapsed_seconds": 0.828791959,
               "stage": "derivatives"
             },
             {
               "allocated_bytes": 253705504,
-              "elapsed_seconds": 0.833043583,
+              "elapsed_seconds": 0.850501333,
               "stage": "expressions"
             },
             {
               "allocated_bytes": 1684272,
-              "elapsed_seconds": 0.002293833,
+              "elapsed_seconds": 0.002353375,
               "stage": "structural"
             }
           ]
@@ -439,63 +463,63 @@
           "allocated_bytes": 253981888,
           "allocated_bytes_maximum": 253981888,
           "allocated_bytes_minimum": 253981888,
-          "elapsed_seconds": 0.8761371109999999,
-          "elapsed_seconds_maximum": 0.894702458,
-          "elapsed_seconds_minimum": 0.856860416,
+          "elapsed_seconds": 0.8208267776666668,
+          "elapsed_seconds_maximum": 0.828791959,
+          "elapsed_seconds_minimum": 0.811965666,
           "stage": "derivatives"
         },
         {
           "allocated_bytes": 253816032,
           "allocated_bytes_maximum": 253816032,
           "allocated_bytes_minimum": 253816032,
-          "elapsed_seconds": 0.8640076943333334,
-          "elapsed_seconds_maximum": 0.87938925,
-          "elapsed_seconds_minimum": 0.846367833,
+          "elapsed_seconds": 0.8296050693333333,
+          "elapsed_seconds_maximum": 0.842424708,
+          "elapsed_seconds_minimum": 0.817593334,
           "stage": "domains"
         },
         {
           "allocated_bytes": 253705504,
           "allocated_bytes_maximum": 253705504,
           "allocated_bytes_minimum": 253705504,
-          "elapsed_seconds": 0.8502832503333334,
-          "elapsed_seconds_maximum": 0.864252209,
-          "elapsed_seconds_minimum": 0.833043583,
+          "elapsed_seconds": 0.8358824026666666,
+          "elapsed_seconds_maximum": 0.850501333,
+          "elapsed_seconds_minimum": 0.821394417,
           "stage": "expressions"
         },
         {
           "allocated_bytes": 1508816,
           "allocated_bytes_maximum": 1508816,
           "allocated_bytes_minimum": 1508816,
-          "elapsed_seconds": 0.002491041666666667,
-          "elapsed_seconds_maximum": 0.002530708,
-          "elapsed_seconds_minimum": 0.002455,
+          "elapsed_seconds": 0.0024949029999999997,
+          "elapsed_seconds_maximum": 0.002545459,
+          "elapsed_seconds_minimum": 0.002458209,
           "stage": "incidence_graph"
         },
         {
           "allocated_bytes": 338192,
           "allocated_bytes_maximum": 338192,
           "allocated_bytes_minimum": 338192,
-          "elapsed_seconds": 0.00028326400000000003,
-          "elapsed_seconds_maximum": 0.000313542,
-          "elapsed_seconds_minimum": 0.000260875,
+          "elapsed_seconds": 0.00026559733333333333,
+          "elapsed_seconds_maximum": 0.000278042,
+          "elapsed_seconds_minimum": 0.00025525,
           "stage": "snapshot"
         },
         {
           "allocated_bytes": 312515200,
           "allocated_bytes_maximum": 312515200,
           "allocated_bytes_minimum": 312515200,
-          "elapsed_seconds": 0.9677368473333333,
-          "elapsed_seconds_maximum": 0.974028458,
-          "elapsed_seconds_minimum": 0.963277625,
+          "elapsed_seconds": 0.9289297363333334,
+          "elapsed_seconds_maximum": 0.936598875,
+          "elapsed_seconds_minimum": 0.919699959,
           "stage": "static"
         },
         {
           "allocated_bytes": 1684272,
           "allocated_bytes_maximum": 1684272,
           "allocated_bytes_minimum": 1684272,
-          "elapsed_seconds": 0.00234575,
-          "elapsed_seconds_maximum": 0.002388875,
-          "elapsed_seconds_minimum": 0.002293833,
+          "elapsed_seconds": 0.0027242499999999997,
+          "elapsed_seconds_maximum": 0.003575166,
+          "elapsed_seconds_minimum": 0.002244209,
           "stage": "structural"
         }
       ],
@@ -508,9 +532,9 @@
       "allocated_bytes_minimum": 4132091712,
       "constraint_count": 1198,
       "dimension": 400,
-      "elapsed_seconds": 14.027310708333333,
-      "elapsed_seconds_maximum": 14.07117525,
-      "elapsed_seconds_minimum": 13.984643541,
+      "elapsed_seconds": 13.522481208666667,
+      "elapsed_seconds_maximum": 13.956785125,
+      "elapsed_seconds_minimum": 13.279863709,
       "evidence_stable_across_repetitions": true,
       "finding_code_counts": {
         "affine_interval_propagated_variable_fixed": 5,
@@ -520,11 +544,14 @@
       },
       "finding_count": 8,
       "limit_reached": true,
+      "process_maxrss_increment_bytes": 3254955,
+      "process_maxrss_increment_bytes_maximum": 9764864,
+      "process_maxrss_increment_bytes_minimum": 0,
       "repetitions": 3,
       "runs": [
         {
           "allocated_bytes": 4132091712,
-          "elapsed_seconds": 13.984643541,
+          "elapsed_seconds": 13.330794792,
           "finding_code_counts": {
             "affine_interval_propagated_variable_fixed": 5,
             "affine_interval_propagation_limit_reached": 1,
@@ -533,48 +560,51 @@
           },
           "finding_count": 8,
           "limit_reached": true,
+          "process_maxrss_after_bytes": 1863041024,
+          "process_maxrss_before_bytes": 1853276160,
+          "process_maxrss_increment_bytes": 9764864,
           "repetition": 1,
           "stage_attribution": [
             {
               "allocated_bytes": 564176,
-              "elapsed_seconds": 0.000448583,
+              "elapsed_seconds": 0.000403791,
               "stage": "snapshot"
             },
             {
               "allocated_bytes": 2936112,
-              "elapsed_seconds": 0.005047667,
+              "elapsed_seconds": 0.004874792,
               "stage": "incidence_graph"
             },
             {
               "allocated_bytes": 1117997472,
-              "elapsed_seconds": 3.670871041,
+              "elapsed_seconds": 3.454005292,
               "stage": "static"
             },
             {
               "allocated_bytes": 1000768320,
-              "elapsed_seconds": 3.378604417,
+              "elapsed_seconds": 3.24754475,
               "stage": "domains"
             },
             {
               "allocated_bytes": 1001100576,
-              "elapsed_seconds": 3.408425708,
+              "elapsed_seconds": 3.258298291,
               "stage": "derivatives"
             },
             {
               "allocated_bytes": 1000545792,
-              "elapsed_seconds": 3.320264458,
+              "elapsed_seconds": 3.295639709,
               "stage": "expressions"
             },
             {
               "allocated_bytes": 3893216,
-              "elapsed_seconds": 0.0053005,
+              "elapsed_seconds": 0.005153833,
               "stage": "structural"
             }
           ]
         },
         {
           "allocated_bytes": 4132091712,
-          "elapsed_seconds": 14.07117525,
+          "elapsed_seconds": 13.279863709,
           "finding_code_counts": {
             "affine_interval_propagated_variable_fixed": 5,
             "affine_interval_propagation_limit_reached": 1,
@@ -583,48 +613,51 @@
           },
           "finding_count": 8,
           "limit_reached": true,
+          "process_maxrss_after_bytes": 1863041024,
+          "process_maxrss_before_bytes": 1863041024,
+          "process_maxrss_increment_bytes": 0,
           "repetition": 2,
           "stage_attribution": [
             {
               "allocated_bytes": 564176,
-              "elapsed_seconds": 0.009562583,
+              "elapsed_seconds": 0.000408166,
               "stage": "snapshot"
             },
             {
               "allocated_bytes": 2936112,
-              "elapsed_seconds": 0.005079833,
+              "elapsed_seconds": 0.004888375,
               "stage": "incidence_graph"
             },
             {
               "allocated_bytes": 1117997472,
-              "elapsed_seconds": 3.681024708,
+              "elapsed_seconds": 3.497237,
               "stage": "static"
             },
             {
               "allocated_bytes": 1000768320,
-              "elapsed_seconds": 3.39019275,
+              "elapsed_seconds": 3.394602667,
               "stage": "domains"
             },
             {
               "allocated_bytes": 1001100576,
-              "elapsed_seconds": 3.468193875,
+              "elapsed_seconds": 3.614204458,
               "stage": "derivatives"
             },
             {
               "allocated_bytes": 1000545792,
-              "elapsed_seconds": 3.409072375,
+              "elapsed_seconds": 3.71566175,
               "stage": "expressions"
             },
             {
               "allocated_bytes": 3893216,
-              "elapsed_seconds": 0.005365,
+              "elapsed_seconds": 0.0059345,
               "stage": "structural"
             }
           ]
         },
         {
           "allocated_bytes": 4132091712,
-          "elapsed_seconds": 14.026113334,
+          "elapsed_seconds": 13.956785125,
           "finding_code_counts": {
             "affine_interval_propagated_variable_fixed": 5,
             "affine_interval_propagation_limit_reached": 1,
@@ -633,41 +666,44 @@
           },
           "finding_count": 8,
           "limit_reached": true,
+          "process_maxrss_after_bytes": 1863041024,
+          "process_maxrss_before_bytes": 1863041024,
+          "process_maxrss_increment_bytes": 0,
           "repetition": 3,
           "stage_attribution": [
             {
               "allocated_bytes": 564176,
-              "elapsed_seconds": 0.000427292,
+              "elapsed_seconds": 0.000471667,
               "stage": "snapshot"
             },
             {
               "allocated_bytes": 2936112,
-              "elapsed_seconds": 0.005071625,
+              "elapsed_seconds": 0.005027708,
               "stage": "incidence_graph"
             },
             {
               "allocated_bytes": 1117997472,
-              "elapsed_seconds": 3.57619075,
+              "elapsed_seconds": 3.568554542,
               "stage": "static"
             },
             {
               "allocated_bytes": 1000768320,
-              "elapsed_seconds": 3.363815667,
+              "elapsed_seconds": 3.444017875,
               "stage": "domains"
             },
             {
               "allocated_bytes": 1001100576,
-              "elapsed_seconds": 3.428156042,
+              "elapsed_seconds": 3.430991959,
               "stage": "derivatives"
             },
             {
               "allocated_bytes": 1000545792,
-              "elapsed_seconds": 3.435464167,
+              "elapsed_seconds": 3.448910542,
               "stage": "expressions"
             },
             {
               "allocated_bytes": 3893216,
-              "elapsed_seconds": 0.005443292,
+              "elapsed_seconds": 0.005472625,
               "stage": "structural"
             }
           ]
@@ -678,63 +714,63 @@
           "allocated_bytes": 1001100576,
           "allocated_bytes_maximum": 1001100576,
           "allocated_bytes_minimum": 1001100576,
-          "elapsed_seconds": 3.434925208333333,
-          "elapsed_seconds_maximum": 3.468193875,
-          "elapsed_seconds_minimum": 3.408425708,
+          "elapsed_seconds": 3.434498236,
+          "elapsed_seconds_maximum": 3.614204458,
+          "elapsed_seconds_minimum": 3.258298291,
           "stage": "derivatives"
         },
         {
           "allocated_bytes": 1000768320,
           "allocated_bytes_maximum": 1000768320,
           "allocated_bytes_minimum": 1000768320,
-          "elapsed_seconds": 3.377537611333333,
-          "elapsed_seconds_maximum": 3.39019275,
-          "elapsed_seconds_minimum": 3.363815667,
+          "elapsed_seconds": 3.3620550973333336,
+          "elapsed_seconds_maximum": 3.444017875,
+          "elapsed_seconds_minimum": 3.24754475,
           "stage": "domains"
         },
         {
           "allocated_bytes": 1000545792,
           "allocated_bytes_maximum": 1000545792,
           "allocated_bytes_minimum": 1000545792,
-          "elapsed_seconds": 3.3882670000000004,
-          "elapsed_seconds_maximum": 3.435464167,
-          "elapsed_seconds_minimum": 3.320264458,
+          "elapsed_seconds": 3.486737333666667,
+          "elapsed_seconds_maximum": 3.71566175,
+          "elapsed_seconds_minimum": 3.295639709,
           "stage": "expressions"
         },
         {
           "allocated_bytes": 2936112,
           "allocated_bytes_maximum": 2936112,
           "allocated_bytes_minimum": 2936112,
-          "elapsed_seconds": 0.005066375,
-          "elapsed_seconds_maximum": 0.005079833,
-          "elapsed_seconds_minimum": 0.005047667,
+          "elapsed_seconds": 0.004930291666666666,
+          "elapsed_seconds_maximum": 0.005027708,
+          "elapsed_seconds_minimum": 0.004874792,
           "stage": "incidence_graph"
         },
         {
           "allocated_bytes": 564176,
           "allocated_bytes_maximum": 564176,
           "allocated_bytes_minimum": 564176,
-          "elapsed_seconds": 0.003479486,
-          "elapsed_seconds_maximum": 0.009562583,
-          "elapsed_seconds_minimum": 0.000427292,
+          "elapsed_seconds": 0.0004278746666666667,
+          "elapsed_seconds_maximum": 0.000471667,
+          "elapsed_seconds_minimum": 0.000403791,
           "stage": "snapshot"
         },
         {
           "allocated_bytes": 1117997472,
           "allocated_bytes_maximum": 1117997472,
           "allocated_bytes_minimum": 1117997472,
-          "elapsed_seconds": 3.6426954996666665,
-          "elapsed_seconds_maximum": 3.681024708,
-          "elapsed_seconds_minimum": 3.57619075,
+          "elapsed_seconds": 3.506598944666667,
+          "elapsed_seconds_maximum": 3.568554542,
+          "elapsed_seconds_minimum": 3.454005292,
           "stage": "static"
         },
         {
           "allocated_bytes": 3893216,
           "allocated_bytes_maximum": 3893216,
           "allocated_bytes_minimum": 3893216,
-          "elapsed_seconds": 0.005369597333333333,
-          "elapsed_seconds_maximum": 0.005443292,
-          "elapsed_seconds_minimum": 0.0053005,
+          "elapsed_seconds": 0.005520319333333333,
+          "elapsed_seconds_maximum": 0.0059345,
+          "elapsed_seconds_minimum": 0.005153833,
           "stage": "structural"
         }
       ],
@@ -750,6 +786,7 @@
       400
     ],
     "entry_point": "NLPDiagnostics.analyze(model)",
+    "memory_measurement": "Sys.maxrss process high-water mark; per-run increments are descriptive and not isolated peak-memory certificates",
     "model": "sparse affine chain with simple variable bounds",
     "point_supplied": false,
     "repetitions": 3,
@@ -776,9 +813,9 @@
         "allocated_bytes_minimum": 18949232,
         "constraint_count": 299,
         "dimension": 100,
-        "elapsed_seconds": 0.04118308366666667,
-        "elapsed_seconds_maximum": 0.041455584,
-        "elapsed_seconds_minimum": 0.041003042,
+        "elapsed_seconds": 0.04213833333333333,
+        "elapsed_seconds_maximum": 0.04252625,
+        "elapsed_seconds_minimum": 0.041754625,
         "evidence_stable_across_repetitions": true,
         "finding_code_counts": {
           "underdetermined_equality_partition": 1,
@@ -786,148 +823,160 @@
         },
         "finding_count": 2,
         "limit_reached": false,
+        "process_maxrss_increment_bytes": 0,
+        "process_maxrss_increment_bytes_maximum": 0,
+        "process_maxrss_increment_bytes_minimum": 0,
         "repetitions": 3,
         "runs": [
           {
             "allocated_bytes": 18949232,
-            "elapsed_seconds": 0.041003042,
+            "elapsed_seconds": 0.04252625,
             "finding_code_counts": {
               "underdetermined_equality_partition": 1,
               "unmatched_structural_variables": 1
             },
             "finding_count": 2,
             "limit_reached": false,
+            "process_maxrss_after_bytes": 1863090176,
+            "process_maxrss_before_bytes": 1863090176,
+            "process_maxrss_increment_bytes": 0,
             "repetition": 1,
             "stage_attribution": [
               {
                 "allocated_bytes": 340624,
-                "elapsed_seconds": 0.000424083,
+                "elapsed_seconds": 0.000401833,
                 "stage": "snapshot"
               },
               {
                 "allocated_bytes": 826224,
-                "elapsed_seconds": 0.001308959,
+                "elapsed_seconds": 0.001370959,
                 "stage": "incidence_graph"
               },
               {
                 "allocated_bytes": 12534512,
-                "elapsed_seconds": 0.026786166,
+                "elapsed_seconds": 0.027038541,
                 "stage": "static"
               },
               {
                 "allocated_bytes": 1274032,
-                "elapsed_seconds": 0.002880917,
+                "elapsed_seconds": 0.002973333,
                 "stage": "domains"
               },
               {
                 "allocated_bytes": 1363312,
-                "elapsed_seconds": 0.0029805,
+                "elapsed_seconds": 0.0029455,
                 "stage": "derivatives"
               },
               {
                 "allocated_bytes": 1349568,
-                "elapsed_seconds": 0.002934417,
+                "elapsed_seconds": 0.003059333,
                 "stage": "expressions"
               },
               {
                 "allocated_bytes": 303456,
-                "elapsed_seconds": 0.000563042,
+                "elapsed_seconds": 0.000614209,
                 "stage": "structural"
               }
             ]
           },
           {
             "allocated_bytes": 18949232,
-            "elapsed_seconds": 0.041090625,
+            "elapsed_seconds": 0.041754625,
             "finding_code_counts": {
               "underdetermined_equality_partition": 1,
               "unmatched_structural_variables": 1
             },
             "finding_count": 2,
             "limit_reached": false,
+            "process_maxrss_after_bytes": 1863090176,
+            "process_maxrss_before_bytes": 1863090176,
+            "process_maxrss_increment_bytes": 0,
             "repetition": 2,
             "stage_attribution": [
               {
                 "allocated_bytes": 340624,
-                "elapsed_seconds": 0.000400292,
+                "elapsed_seconds": 0.000415959,
                 "stage": "snapshot"
               },
               {
                 "allocated_bytes": 826224,
-                "elapsed_seconds": 0.001307959,
+                "elapsed_seconds": 0.001337375,
                 "stage": "incidence_graph"
               },
               {
                 "allocated_bytes": 12534512,
-                "elapsed_seconds": 0.026524334,
+                "elapsed_seconds": 0.027717583,
                 "stage": "static"
               },
               {
                 "allocated_bytes": 1274032,
-                "elapsed_seconds": 0.002849417,
+                "elapsed_seconds": 0.002990875,
                 "stage": "domains"
               },
               {
                 "allocated_bytes": 1363312,
-                "elapsed_seconds": 0.002916917,
+                "elapsed_seconds": 0.00312325,
                 "stage": "derivatives"
               },
               {
                 "allocated_bytes": 1349568,
-                "elapsed_seconds": 0.002964375,
+                "elapsed_seconds": 0.003106667,
                 "stage": "expressions"
               },
               {
                 "allocated_bytes": 303456,
-                "elapsed_seconds": 0.000575375,
+                "elapsed_seconds": 0.000625417,
                 "stage": "structural"
               }
             ]
           },
           {
             "allocated_bytes": 18949232,
-            "elapsed_seconds": 0.041455584,
+            "elapsed_seconds": 0.042134125,
             "finding_code_counts": {
               "underdetermined_equality_partition": 1,
               "unmatched_structural_variables": 1
             },
             "finding_count": 2,
             "limit_reached": false,
+            "process_maxrss_after_bytes": 1863090176,
+            "process_maxrss_before_bytes": 1863090176,
+            "process_maxrss_increment_bytes": 0,
             "repetition": 3,
             "stage_attribution": [
               {
                 "allocated_bytes": 340624,
-                "elapsed_seconds": 0.000475584,
+                "elapsed_seconds": 0.000425792,
                 "stage": "snapshot"
               },
               {
                 "allocated_bytes": 826224,
-                "elapsed_seconds": 0.001352167,
+                "elapsed_seconds": 0.001359333,
                 "stage": "incidence_graph"
               },
               {
                 "allocated_bytes": 12534512,
-                "elapsed_seconds": 0.026993041,
+                "elapsed_seconds": 0.027720209,
                 "stage": "static"
               },
               {
                 "allocated_bytes": 1274032,
-                "elapsed_seconds": 0.002956083,
+                "elapsed_seconds": 0.00289525,
                 "stage": "domains"
               },
               {
                 "allocated_bytes": 1363312,
-                "elapsed_seconds": 0.002951667,
+                "elapsed_seconds": 0.002957541,
                 "stage": "derivatives"
               },
               {
                 "allocated_bytes": 1349568,
-                "elapsed_seconds": 0.002959292,
+                "elapsed_seconds": 0.002957959,
                 "stage": "expressions"
               },
               {
                 "allocated_bytes": 303456,
-                "elapsed_seconds": 0.000618917,
+                "elapsed_seconds": 0.000594125,
                 "stage": "structural"
               }
             ]
@@ -938,63 +987,63 @@
             "allocated_bytes": 1363312,
             "allocated_bytes_maximum": 1363312,
             "allocated_bytes_minimum": 1363312,
-            "elapsed_seconds": 0.002949694666666667,
-            "elapsed_seconds_maximum": 0.0029805,
-            "elapsed_seconds_minimum": 0.002916917,
+            "elapsed_seconds": 0.003008763666666667,
+            "elapsed_seconds_maximum": 0.00312325,
+            "elapsed_seconds_minimum": 0.0029455,
             "stage": "derivatives"
           },
           {
             "allocated_bytes": 1274032,
             "allocated_bytes_maximum": 1274032,
             "allocated_bytes_minimum": 1274032,
-            "elapsed_seconds": 0.0028954723333333332,
-            "elapsed_seconds_maximum": 0.002956083,
-            "elapsed_seconds_minimum": 0.002849417,
+            "elapsed_seconds": 0.002953152666666667,
+            "elapsed_seconds_maximum": 0.002990875,
+            "elapsed_seconds_minimum": 0.00289525,
             "stage": "domains"
           },
           {
             "allocated_bytes": 1349568,
             "allocated_bytes_maximum": 1349568,
             "allocated_bytes_minimum": 1349568,
-            "elapsed_seconds": 0.002952694666666667,
-            "elapsed_seconds_maximum": 0.002964375,
-            "elapsed_seconds_minimum": 0.002934417,
+            "elapsed_seconds": 0.0030413196666666665,
+            "elapsed_seconds_maximum": 0.003106667,
+            "elapsed_seconds_minimum": 0.002957959,
             "stage": "expressions"
           },
           {
             "allocated_bytes": 826224,
             "allocated_bytes_maximum": 826224,
             "allocated_bytes_minimum": 826224,
-            "elapsed_seconds": 0.0013230283333333336,
-            "elapsed_seconds_maximum": 0.001352167,
-            "elapsed_seconds_minimum": 0.001307959,
+            "elapsed_seconds": 0.0013558889999999999,
+            "elapsed_seconds_maximum": 0.001370959,
+            "elapsed_seconds_minimum": 0.001337375,
             "stage": "incidence_graph"
           },
           {
             "allocated_bytes": 340624,
             "allocated_bytes_maximum": 340624,
             "allocated_bytes_minimum": 340624,
-            "elapsed_seconds": 0.0004333196666666667,
-            "elapsed_seconds_maximum": 0.000475584,
-            "elapsed_seconds_minimum": 0.000400292,
+            "elapsed_seconds": 0.00041452799999999995,
+            "elapsed_seconds_maximum": 0.000425792,
+            "elapsed_seconds_minimum": 0.000401833,
             "stage": "snapshot"
           },
           {
             "allocated_bytes": 12534512,
             "allocated_bytes_maximum": 12534512,
             "allocated_bytes_minimum": 12534512,
-            "elapsed_seconds": 0.026767846999999997,
-            "elapsed_seconds_maximum": 0.026993041,
-            "elapsed_seconds_minimum": 0.026524334,
+            "elapsed_seconds": 0.027492111,
+            "elapsed_seconds_maximum": 0.027720209,
+            "elapsed_seconds_minimum": 0.027038541,
             "stage": "static"
           },
           {
             "allocated_bytes": 303456,
             "allocated_bytes_maximum": 303456,
             "allocated_bytes_minimum": 303456,
-            "elapsed_seconds": 0.000585778,
-            "elapsed_seconds_maximum": 0.000618917,
-            "elapsed_seconds_minimum": 0.000563042,
+            "elapsed_seconds": 0.0006112503333333333,
+            "elapsed_seconds_maximum": 0.000625417,
+            "elapsed_seconds_minimum": 0.000594125,
             "stage": "structural"
           }
         ],
@@ -1007,9 +1056,9 @@
         "allocated_bytes_minimum": 38104176,
         "constraint_count": 599,
         "dimension": 200,
-        "elapsed_seconds": 0.08236208333333332,
-        "elapsed_seconds_maximum": 0.083346333,
-        "elapsed_seconds_minimum": 0.081297125,
+        "elapsed_seconds": 0.08470441633333332,
+        "elapsed_seconds_maximum": 0.08579025,
+        "elapsed_seconds_minimum": 0.083803958,
         "evidence_stable_across_repetitions": true,
         "finding_code_counts": {
           "underdetermined_equality_partition": 1,
@@ -1017,148 +1066,160 @@
         },
         "finding_count": 2,
         "limit_reached": false,
+        "process_maxrss_increment_bytes": 0,
+        "process_maxrss_increment_bytes_maximum": 0,
+        "process_maxrss_increment_bytes_minimum": 0,
         "repetitions": 3,
         "runs": [
           {
             "allocated_bytes": 38104176,
-            "elapsed_seconds": 0.083346333,
+            "elapsed_seconds": 0.08579025,
             "finding_code_counts": {
               "underdetermined_equality_partition": 1,
               "unmatched_structural_variables": 1
             },
             "finding_count": 2,
             "limit_reached": false,
+            "process_maxrss_after_bytes": 1863090176,
+            "process_maxrss_before_bytes": 1863090176,
+            "process_maxrss_increment_bytes": 0,
             "repetition": 1,
             "stage_attribution": [
               {
                 "allocated_bytes": 720352,
-                "elapsed_seconds": 0.000795375,
+                "elapsed_seconds": 0.000835458,
                 "stage": "snapshot"
               },
               {
                 "allocated_bytes": 1699712,
-                "elapsed_seconds": 0.00271525,
+                "elapsed_seconds": 0.002816292,
                 "stage": "incidence_graph"
               },
               {
                 "allocated_bytes": 25137040,
-                "elapsed_seconds": 0.054214083,
+                "elapsed_seconds": 0.056209208,
                 "stage": "static"
               },
               {
                 "allocated_bytes": 2563312,
-                "elapsed_seconds": 0.005895333,
+                "elapsed_seconds": 0.006208333,
                 "stage": "domains"
               },
               {
                 "allocated_bytes": 2742192,
-                "elapsed_seconds": 0.005967459,
+                "elapsed_seconds": 0.006169292,
                 "stage": "derivatives"
               },
               {
                 "allocated_bytes": 2714048,
-                "elapsed_seconds": 0.006040584,
+                "elapsed_seconds": 0.006243667,
                 "stage": "expressions"
               },
               {
                 "allocated_bytes": 601824,
-                "elapsed_seconds": 0.001110375,
+                "elapsed_seconds": 0.001174417,
                 "stage": "structural"
               }
             ]
           },
           {
             "allocated_bytes": 38104176,
-            "elapsed_seconds": 0.082442792,
+            "elapsed_seconds": 0.083803958,
             "finding_code_counts": {
               "underdetermined_equality_partition": 1,
               "unmatched_structural_variables": 1
             },
             "finding_count": 2,
             "limit_reached": false,
+            "process_maxrss_after_bytes": 1863090176,
+            "process_maxrss_before_bytes": 1863090176,
+            "process_maxrss_increment_bytes": 0,
             "repetition": 2,
             "stage_attribution": [
               {
                 "allocated_bytes": 720352,
-                "elapsed_seconds": 0.000734166,
+                "elapsed_seconds": 0.000764167,
                 "stage": "snapshot"
               },
               {
                 "allocated_bytes": 1699712,
-                "elapsed_seconds": 0.002649333,
+                "elapsed_seconds": 0.0027145,
                 "stage": "incidence_graph"
               },
               {
                 "allocated_bytes": 25137040,
-                "elapsed_seconds": 0.053946959,
+                "elapsed_seconds": 0.054298583,
                 "stage": "static"
               },
               {
                 "allocated_bytes": 2563312,
-                "elapsed_seconds": 0.005844834,
+                "elapsed_seconds": 0.005943875,
                 "stage": "domains"
               },
               {
                 "allocated_bytes": 2742192,
-                "elapsed_seconds": 0.006081667,
+                "elapsed_seconds": 0.006024333,
                 "stage": "derivatives"
               },
               {
                 "allocated_bytes": 2714048,
-                "elapsed_seconds": 0.00598225,
+                "elapsed_seconds": 0.006173125,
                 "stage": "expressions"
               },
               {
                 "allocated_bytes": 601824,
-                "elapsed_seconds": 0.001136708,
+                "elapsed_seconds": 0.001251084,
                 "stage": "structural"
               }
             ]
           },
           {
             "allocated_bytes": 38104176,
-            "elapsed_seconds": 0.081297125,
+            "elapsed_seconds": 0.084519041,
             "finding_code_counts": {
               "underdetermined_equality_partition": 1,
               "unmatched_structural_variables": 1
             },
             "finding_count": 2,
             "limit_reached": false,
+            "process_maxrss_after_bytes": 1863090176,
+            "process_maxrss_before_bytes": 1863090176,
+            "process_maxrss_increment_bytes": 0,
             "repetition": 3,
             "stage_attribution": [
               {
                 "allocated_bytes": 720352,
-                "elapsed_seconds": 0.000720833,
+                "elapsed_seconds": 0.000846417,
                 "stage": "snapshot"
               },
               {
                 "allocated_bytes": 1699712,
-                "elapsed_seconds": 0.002625084,
+                "elapsed_seconds": 0.002743666,
                 "stage": "incidence_graph"
               },
               {
                 "allocated_bytes": 25137040,
-                "elapsed_seconds": 0.053337917,
+                "elapsed_seconds": 0.055602041,
                 "stage": "static"
               },
               {
                 "allocated_bytes": 2563312,
-                "elapsed_seconds": 0.005677458,
+                "elapsed_seconds": 0.005955958,
                 "stage": "domains"
               },
               {
                 "allocated_bytes": 2742192,
-                "elapsed_seconds": 0.005896416,
+                "elapsed_seconds": 0.00611875,
                 "stage": "derivatives"
               },
               {
                 "allocated_bytes": 2714048,
-                "elapsed_seconds": 0.005973084,
+                "elapsed_seconds": 0.006199292,
                 "stage": "expressions"
               },
               {
                 "allocated_bytes": 601824,
-                "elapsed_seconds": 0.001118333,
+                "elapsed_seconds": 0.001115542,
                 "stage": "structural"
               }
             ]
@@ -1169,63 +1230,63 @@
             "allocated_bytes": 2742192,
             "allocated_bytes_maximum": 2742192,
             "allocated_bytes_minimum": 2742192,
-            "elapsed_seconds": 0.005981847333333334,
-            "elapsed_seconds_maximum": 0.006081667,
-            "elapsed_seconds_minimum": 0.005896416,
+            "elapsed_seconds": 0.006104124999999999,
+            "elapsed_seconds_maximum": 0.006169292,
+            "elapsed_seconds_minimum": 0.006024333,
             "stage": "derivatives"
           },
           {
             "allocated_bytes": 2563312,
             "allocated_bytes_maximum": 2563312,
             "allocated_bytes_minimum": 2563312,
-            "elapsed_seconds": 0.005805874999999999,
-            "elapsed_seconds_maximum": 0.005895333,
-            "elapsed_seconds_minimum": 0.005677458,
+            "elapsed_seconds": 0.006036055333333334,
+            "elapsed_seconds_maximum": 0.006208333,
+            "elapsed_seconds_minimum": 0.005943875,
             "stage": "domains"
           },
           {
             "allocated_bytes": 2714048,
             "allocated_bytes_maximum": 2714048,
             "allocated_bytes_minimum": 2714048,
-            "elapsed_seconds": 0.005998639333333333,
-            "elapsed_seconds_maximum": 0.006040584,
-            "elapsed_seconds_minimum": 0.005973084,
+            "elapsed_seconds": 0.006205361333333333,
+            "elapsed_seconds_maximum": 0.006243667,
+            "elapsed_seconds_minimum": 0.006173125,
             "stage": "expressions"
           },
           {
             "allocated_bytes": 1699712,
             "allocated_bytes_maximum": 1699712,
             "allocated_bytes_minimum": 1699712,
-            "elapsed_seconds": 0.0026632223333333334,
-            "elapsed_seconds_maximum": 0.00271525,
-            "elapsed_seconds_minimum": 0.002625084,
+            "elapsed_seconds": 0.0027581526666666666,
+            "elapsed_seconds_maximum": 0.002816292,
+            "elapsed_seconds_minimum": 0.0027145,
             "stage": "incidence_graph"
           },
           {
             "allocated_bytes": 720352,
             "allocated_bytes_maximum": 720352,
             "allocated_bytes_minimum": 720352,
-            "elapsed_seconds": 0.0007501246666666667,
-            "elapsed_seconds_maximum": 0.000795375,
-            "elapsed_seconds_minimum": 0.000720833,
+            "elapsed_seconds": 0.0008153473333333333,
+            "elapsed_seconds_maximum": 0.000846417,
+            "elapsed_seconds_minimum": 0.000764167,
             "stage": "snapshot"
           },
           {
             "allocated_bytes": 25137040,
             "allocated_bytes_maximum": 25137040,
             "allocated_bytes_minimum": 25137040,
-            "elapsed_seconds": 0.05383298633333333,
-            "elapsed_seconds_maximum": 0.054214083,
-            "elapsed_seconds_minimum": 0.053337917,
+            "elapsed_seconds": 0.055369944,
+            "elapsed_seconds_maximum": 0.056209208,
+            "elapsed_seconds_minimum": 0.054298583,
             "stage": "static"
           },
           {
             "allocated_bytes": 601824,
             "allocated_bytes_maximum": 601824,
             "allocated_bytes_minimum": 601824,
-            "elapsed_seconds": 0.0011218053333333334,
-            "elapsed_seconds_maximum": 0.001136708,
-            "elapsed_seconds_minimum": 0.001110375,
+            "elapsed_seconds": 0.0011803476666666665,
+            "elapsed_seconds_maximum": 0.001251084,
+            "elapsed_seconds_minimum": 0.001115542,
             "stage": "structural"
           }
         ],
@@ -1238,9 +1299,9 @@
         "allocated_bytes_minimum": 75689872,
         "constraint_count": 1199,
         "dimension": 400,
-        "elapsed_seconds": 0.16731393100000003,
-        "elapsed_seconds_maximum": 0.172977459,
-        "elapsed_seconds_minimum": 0.162877834,
+        "elapsed_seconds": 0.16800475,
+        "elapsed_seconds_maximum": 0.169613875,
+        "elapsed_seconds_minimum": 0.166659583,
         "evidence_stable_across_repetitions": true,
         "finding_code_counts": {
           "underdetermined_equality_partition": 1,
@@ -1248,148 +1309,160 @@
         },
         "finding_count": 2,
         "limit_reached": false,
+        "process_maxrss_increment_bytes": 0,
+        "process_maxrss_increment_bytes_maximum": 0,
+        "process_maxrss_increment_bytes_minimum": 0,
         "repetitions": 3,
         "runs": [
           {
             "allocated_bytes": 75689872,
-            "elapsed_seconds": 0.1660865,
+            "elapsed_seconds": 0.167740792,
             "finding_code_counts": {
               "underdetermined_equality_partition": 1,
               "unmatched_structural_variables": 1
             },
             "finding_count": 2,
             "limit_reached": false,
+            "process_maxrss_after_bytes": 1863090176,
+            "process_maxrss_before_bytes": 1863090176,
+            "process_maxrss_increment_bytes": 0,
             "repetition": 1,
             "stage_attribution": [
               {
                 "allocated_bytes": 1330336,
-                "elapsed_seconds": 0.001441375,
+                "elapsed_seconds": 0.001400167,
                 "stage": "snapshot"
               },
               {
                 "allocated_bytes": 3319008,
-                "elapsed_seconds": 0.005430583,
+                "elapsed_seconds": 0.005540667,
                 "stage": "incidence_graph"
               },
               {
                 "allocated_bytes": 50130640,
-                "elapsed_seconds": 0.108762292,
+                "elapsed_seconds": 0.111387167,
                 "stage": "static"
               },
               {
                 "allocated_bytes": 5106928,
-                "elapsed_seconds": 0.011785459,
+                "elapsed_seconds": 0.011863334,
                 "stage": "domains"
               },
               {
                 "allocated_bytes": 5465008,
-                "elapsed_seconds": 0.012127833,
+                "elapsed_seconds": 0.012444209,
                 "stage": "derivatives"
               },
               {
                 "allocated_bytes": 5408064,
-                "elapsed_seconds": 0.011853834,
+                "elapsed_seconds": 0.012498,
                 "stage": "expressions"
               },
               {
                 "allocated_bytes": 1152160,
-                "elapsed_seconds": 0.00217975,
+                "elapsed_seconds": 0.002292792,
                 "stage": "structural"
               }
             ]
           },
           {
             "allocated_bytes": 75689872,
-            "elapsed_seconds": 0.162877834,
+            "elapsed_seconds": 0.169613875,
             "finding_code_counts": {
               "underdetermined_equality_partition": 1,
               "unmatched_structural_variables": 1
             },
             "finding_count": 2,
             "limit_reached": false,
+            "process_maxrss_after_bytes": 1863090176,
+            "process_maxrss_before_bytes": 1863090176,
+            "process_maxrss_increment_bytes": 0,
             "repetition": 2,
             "stage_attribution": [
               {
                 "allocated_bytes": 1330336,
-                "elapsed_seconds": 0.001398583,
+                "elapsed_seconds": 0.001433833,
                 "stage": "snapshot"
               },
               {
                 "allocated_bytes": 3319008,
-                "elapsed_seconds": 0.005356667,
+                "elapsed_seconds": 0.005545083,
                 "stage": "incidence_graph"
               },
               {
                 "allocated_bytes": 50130640,
-                "elapsed_seconds": 0.107750333,
+                "elapsed_seconds": 0.1109865,
                 "stage": "static"
               },
               {
                 "allocated_bytes": 5106928,
-                "elapsed_seconds": 0.01153575,
+                "elapsed_seconds": 0.011701584,
                 "stage": "domains"
               },
               {
                 "allocated_bytes": 5465008,
-                "elapsed_seconds": 0.011836708,
+                "elapsed_seconds": 0.01226325,
                 "stage": "derivatives"
               },
               {
                 "allocated_bytes": 5408064,
-                "elapsed_seconds": 0.011973417,
+                "elapsed_seconds": 0.012376792,
                 "stage": "expressions"
               },
               {
                 "allocated_bytes": 1152160,
-                "elapsed_seconds": 0.002224959,
+                "elapsed_seconds": 0.002380875,
                 "stage": "structural"
               }
             ]
           },
           {
             "allocated_bytes": 75689872,
-            "elapsed_seconds": 0.172977459,
+            "elapsed_seconds": 0.166659583,
             "finding_code_counts": {
               "underdetermined_equality_partition": 1,
               "unmatched_structural_variables": 1
             },
             "finding_count": 2,
             "limit_reached": false,
+            "process_maxrss_after_bytes": 1863090176,
+            "process_maxrss_before_bytes": 1863090176,
+            "process_maxrss_increment_bytes": 0,
             "repetition": 3,
             "stage_attribution": [
               {
                 "allocated_bytes": 1330336,
-                "elapsed_seconds": 0.001438291,
+                "elapsed_seconds": 0.001322125,
                 "stage": "snapshot"
               },
               {
                 "allocated_bytes": 3319008,
-                "elapsed_seconds": 0.005886458,
+                "elapsed_seconds": 0.005326833,
                 "stage": "incidence_graph"
               },
               {
                 "allocated_bytes": 50130640,
-                "elapsed_seconds": 0.113181125,
+                "elapsed_seconds": 0.108137167,
                 "stage": "static"
               },
               {
                 "allocated_bytes": 5106928,
-                "elapsed_seconds": 0.012159125,
+                "elapsed_seconds": 0.011855834,
                 "stage": "domains"
               },
               {
                 "allocated_bytes": 5465008,
-                "elapsed_seconds": 0.012519459,
+                "elapsed_seconds": 0.01206125,
                 "stage": "derivatives"
               },
               {
                 "allocated_bytes": 5408064,
-                "elapsed_seconds": 0.012773916,
+                "elapsed_seconds": 0.012175083,
                 "stage": "expressions"
               },
               {
                 "allocated_bytes": 1152160,
-                "elapsed_seconds": 0.002267375,
+                "elapsed_seconds": 0.002277833,
                 "stage": "structural"
               }
             ]
@@ -1400,63 +1473,63 @@
             "allocated_bytes": 5465008,
             "allocated_bytes_maximum": 5465008,
             "allocated_bytes_minimum": 5465008,
-            "elapsed_seconds": 0.012161333333333335,
-            "elapsed_seconds_maximum": 0.012519459,
-            "elapsed_seconds_minimum": 0.011836708,
+            "elapsed_seconds": 0.012256236333333335,
+            "elapsed_seconds_maximum": 0.012444209,
+            "elapsed_seconds_minimum": 0.01206125,
             "stage": "derivatives"
           },
           {
             "allocated_bytes": 5106928,
             "allocated_bytes_maximum": 5106928,
             "allocated_bytes_minimum": 5106928,
-            "elapsed_seconds": 0.011826778000000001,
-            "elapsed_seconds_maximum": 0.012159125,
-            "elapsed_seconds_minimum": 0.01153575,
+            "elapsed_seconds": 0.011806917333333333,
+            "elapsed_seconds_maximum": 0.011863334,
+            "elapsed_seconds_minimum": 0.011701584,
             "stage": "domains"
           },
           {
             "allocated_bytes": 5408064,
             "allocated_bytes_maximum": 5408064,
             "allocated_bytes_minimum": 5408064,
-            "elapsed_seconds": 0.012200389,
-            "elapsed_seconds_maximum": 0.012773916,
-            "elapsed_seconds_minimum": 0.011853834,
+            "elapsed_seconds": 0.012349958333333333,
+            "elapsed_seconds_maximum": 0.012498,
+            "elapsed_seconds_minimum": 0.012175083,
             "stage": "expressions"
           },
           {
             "allocated_bytes": 3319008,
             "allocated_bytes_maximum": 3319008,
             "allocated_bytes_minimum": 3319008,
-            "elapsed_seconds": 0.005557902666666666,
-            "elapsed_seconds_maximum": 0.005886458,
-            "elapsed_seconds_minimum": 0.005356667,
+            "elapsed_seconds": 0.0054708610000000005,
+            "elapsed_seconds_maximum": 0.005545083,
+            "elapsed_seconds_minimum": 0.005326833,
             "stage": "incidence_graph"
           },
           {
             "allocated_bytes": 1330336,
             "allocated_bytes_maximum": 1330336,
             "allocated_bytes_minimum": 1330336,
-            "elapsed_seconds": 0.0014260829999999999,
-            "elapsed_seconds_maximum": 0.001441375,
-            "elapsed_seconds_minimum": 0.001398583,
+            "elapsed_seconds": 0.001385375,
+            "elapsed_seconds_maximum": 0.001433833,
+            "elapsed_seconds_minimum": 0.001322125,
             "stage": "snapshot"
           },
           {
             "allocated_bytes": 50130640,
             "allocated_bytes_maximum": 50130640,
             "allocated_bytes_minimum": 50130640,
-            "elapsed_seconds": 0.10989791666666666,
-            "elapsed_seconds_maximum": 0.113181125,
-            "elapsed_seconds_minimum": 0.107750333,
+            "elapsed_seconds": 0.11017027800000001,
+            "elapsed_seconds_maximum": 0.111387167,
+            "elapsed_seconds_minimum": 0.108137167,
             "stage": "static"
           },
           {
             "allocated_bytes": 1152160,
             "allocated_bytes_maximum": 1152160,
             "allocated_bytes_minimum": 1152160,
-            "elapsed_seconds": 0.002224028,
-            "elapsed_seconds_maximum": 0.002267375,
-            "elapsed_seconds_minimum": 0.00217975,
+            "elapsed_seconds": 0.0023171666666666666,
+            "elapsed_seconds_maximum": 0.002380875,
+            "elapsed_seconds_minimum": 0.002277833,
             "stage": "structural"
           }
         ],
