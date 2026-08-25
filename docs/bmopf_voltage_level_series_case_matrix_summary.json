@@ -1,0 +1,123 @@
+{
+  "case_count": 3,
+  "covariance_gate_passed_count": 3,
+  "geometry_gate_passed_count": 0,
+  "qualification": {
+    "claim": "synthetic BMOPFTools scaling-coordinate readiness across voltage-level ladders with series transformers",
+    "does_not_establish": [
+      "solver superiority or a universal voltage-base policy",
+      "causal convergence or conditioning mechanism",
+      "physical KKT acceptance for these synthetic cases"
+    ],
+    "next_experiment": "explain the coordinate-geometry gate boundary, then run matched-start Ipopt/MadNLP campaigns on the largest structurally passing cases under explicit budgets",
+    "solver_work_claim_supported": false
+  },
+  "records": [
+    {
+      "bus_count": 4,
+      "covariance": {
+        "available": true,
+        "equivalence_gate_passed": true,
+        "semantic_alignment": true
+      },
+      "geometry": {
+        "available": true,
+        "geometry_gate_passed": false
+      },
+      "label": "series_4level_115kV_480V",
+      "load_count": 6,
+      "loads_per_level": 2,
+      "model_variable_count": 56,
+      "transformer_count": 3,
+      "transformer_interface_count": 3,
+      "voltage_base_values": [
+        480.0,
+        4160.0,
+        24900.0,
+        115000.0
+      ],
+      "voltage_levels": [
+        115000.0,
+        24900.0,
+        4160.0,
+        480.0
+      ]
+    },
+    {
+      "bus_count": 6,
+      "covariance": {
+        "available": true,
+        "equivalence_gate_passed": true,
+        "semantic_alignment": true
+      },
+      "geometry": {
+        "available": true,
+        "geometry_gate_passed": false
+      },
+      "label": "series_6level_115kV_240V",
+      "load_count": 10,
+      "loads_per_level": 2,
+      "model_variable_count": 88,
+      "transformer_count": 5,
+      "transformer_interface_count": 5,
+      "voltage_base_values": [
+        240.0,
+        4160.0,
+        12470.0,
+        24900.0,
+        34500.0,
+        115000.0
+      ],
+      "voltage_levels": [
+        115000.0,
+        34500.0,
+        24900.0,
+        12470.0,
+        4160.0,
+        240.0
+      ]
+    },
+    {
+      "bus_count": 8,
+      "covariance": {
+        "available": true,
+        "equivalence_gate_passed": true,
+        "semantic_alignment": true
+      },
+      "geometry": {
+        "available": true,
+        "geometry_gate_passed": false
+      },
+      "label": "series_8level_230kV_208V",
+      "load_count": 21,
+      "loads_per_level": 3,
+      "model_variable_count": 134,
+      "transformer_count": 7,
+      "transformer_interface_count": 7,
+      "voltage_base_values": [
+        208.0,
+        480.0,
+        4160.0,
+        12470.0,
+        24900.0,
+        34500.0,
+        69000.0,
+        230000.0
+      ],
+      "voltage_levels": [
+        230000.0,
+        69000.0,
+        34500.0,
+        24900.0,
+        12470.0,
+        4160.0,
+        480.0,
+        208.0
+      ]
+    }
+  ],
+  "runner": "benchmarks/bmopf_voltage_level_series_case_matrix.jl",
+  "runner_version": "bmopf-voltage-level-series-case-matrix-v1",
+  "schema_version": "nlpdiagnostics-bmopf-voltage-level-series-case-matrix-v1",
+  "status": "structural_scaling_matrix_complete"
+}

@@ -577,9 +577,9 @@
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 86,
-    "json_file_count": 88,
-    "json_schema_file_count": 88,
+    "benchmark_scripts_with_schema_version_count": 87,
+    "json_file_count": 89,
+    "json_schema_file_count": 89,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -686,7 +686,7 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 147,
+    "benchmark_script_count": 148,
     "shared_benchmark_helper": "benchmarks/common.jl",
     "shared_benchmark_helper_exemption_count": 3,
     "shared_benchmark_helper_exemptions": [
@@ -703,7 +703,7 @@
         "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
       }
     ],
-    "shared_benchmark_helper_user_count": 144,
+    "shared_benchmark_helper_user_count": 145,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_advanced_api_surface.jl",
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
@@ -740,6 +740,7 @@
       "benchmarks/bmopf_solver_trace.jl",
       "benchmarks/bmopf_stratified_madnlp_campaign.jl",
       "benchmarks/bmopf_stratified_scaling_campaign.jl",
+      "benchmarks/bmopf_voltage_level_series_case_matrix.jl",
       "benchmarks/build_calibration_release_gate_summary.jl",
       "benchmarks/build_calibration_release_report.jl",
       "benchmarks/calibrate_large_sparse_rank_oracles.jl",

@@ -40,6 +40,7 @@ analyze_static_target_terms = read_summary("docs/analyze_static_target_terms_sum
 bmopf_combined_analyze_scaling = read_summary("docs/bmopf_combined_mv_lv_analyze_scaling_summary.json")
 large_sparse_rank = read_summary("docs/large_sparse_rank_oracle_summary.json")
 combined_mv_lv = read_summary("docs/bmopf_combined_mv_lv_snapshot_campaign_summary.json")
+series_voltage_scaling = read_summary("docs/bmopf_voltage_level_series_case_matrix_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
 api_tier_usage = read_summary("docs/api_tier_usage_summary.json")
@@ -300,6 +301,9 @@ combined_mv_lv_gate = all([
     get(combined_mv_lv, "perturbed_start_madnlp_matrix", Dict{String,Any}())["matrix_gates"]["all_variants_qualified"],
     get(combined_mv_lv, "voltage_only_start_matrix", Dict{String,Any}())["matrix_gates"]["all_variants_qualified"],
 ])
+series_voltage_case_count = get(series_voltage_scaling, "case_count", 0)
+series_voltage_covariance_count = get(series_voltage_scaling, "covariance_gate_passed_count", 0)
+series_voltage_geometry_count = get(series_voltage_scaling, "geometry_gate_passed_count", 0)
 
 function gate(id, status, rationale, evidence; blocking=false)
     Dict{String,Any}(
@@ -368,6 +372,15 @@ gates = Dict{String,Any}[
             "docs/bmopf_combined_mv_lv_snapshot_campaign_summary.json",
             "benchmarks/bmopf_combined_mv_lv_snapshot_campaign.jl",
             "benchmarks/bmopf_combined_mv_lv_perturbed_start_campaign.jl",
+        ],
+    ),
+    gate(
+        "bmopf_voltage_level_series_scaling_readiness",
+        series_voltage_case_count > 0 && series_voltage_covariance_count == series_voltage_case_count ? "partial" : "missing",
+        "A synthetic BMOPFTools case matrix now covers $series_voltage_case_count voltage-level ladders with series transformers; covariance gates pass on $series_voltage_covariance_count cases. Coordinate-geometry gates pass on $series_voltage_geometry_count cases, so the matrix is readiness evidence rather than a solver-scaling or universal voltage-base claim. The next step is to explain the geometry boundary and run matched-start solver campaigns on selected larger cases.",
+        [
+            "docs/bmopf_voltage_level_series_case_matrix_summary.json",
+            "benchmarks/bmopf_voltage_level_series_case_matrix.jl",
         ],
     ),
     gate(

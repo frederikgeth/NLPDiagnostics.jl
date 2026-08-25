@@ -5318,3 +5318,19 @@ This converts the highest-impact portion of the migration queue from an
 implicit count into explicit decisions while preserving the pre-1.0 API. The
 remaining queue still requires similarly bounded review batches and an
 approved compatibility/type-identity plan before any namespace migration.
+
+## 2026-08-26 voltage-level and series-transformer scaling checkpoint
+
+The numerical-scaling track now has a reproducible BMOPFTools case matrix from
+`benchmarks/bmopf_voltage_level_series_case_matrix.jl`, recorded in
+`docs/bmopf_voltage_level_series_case_matrix_summary.json`. It builds three
+synthetic single-phase series-transformer ladders spanning 115/230 kV down to
+208/240/480 V, with 3, 5, and 7 transformer interfaces and 56, 88, and 134
+model variables. The classic-versus-local voltage-base covariance gate passes
+on all three cases, while the coordinate-geometry gate is still open on all
+three. This is structural readiness evidence only: no solver performance,
+physical KKT, or universal voltage-base policy is claimed yet.
+
+The next experiment is to explain the geometry boundary and run matched-start
+Ipopt/MadNLP campaigns on the largest passing cases under explicit budgets,
+then compare the synthetic ladder with selected combined MV+LV snapshots.
