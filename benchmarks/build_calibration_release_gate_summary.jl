@@ -14,6 +14,7 @@ ibr_tolerance = read_summary("docs/bmopf_30bus_ibr_p_upper_tolerance_margin_summ
 ibr_sparse = read_summary("docs/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit_summary.json")
 rank_oracles = read_summary("docs/randomized_rank_oracle_calibration_summary.json")
 runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
+isolated_runtime_scaling = read_summary("docs/sparse_runtime_memory_isolated_summary.json")
 analyze_runtime_scaling = read_summary("docs/analyze_runtime_scaling_summary.json")
 bmopf_analyze_profile = read_summary("docs/bmopf_analyze_runtime_profile_summary.json")
 large_sparse_rank = read_summary("docs/large_sparse_rank_oracle_summary.json")
@@ -72,6 +73,12 @@ bmopf_profile_measured = count(
 )
 bmopf_profile_guarded = count(
     record -> get(record, "status", "") == "skipped_size_guard", bmopf_profile_records,
+)
+isolated_runtime_records = get(isolated_runtime_scaling, "records", Any[])
+isolated_runtime_dimensions = get(
+    get(isolated_runtime_scaling, "source", Dict{String,Any}()),
+    "dimensions",
+    Any[],
 )
 analyze_stage_dominant = isempty(analyze_stage_records) ?
     "unavailable" :
@@ -139,8 +146,8 @@ gates = Dict{String,Any}[
     gate(
         "runtime_memory_scaling",
         "partial",
-        "The synthetic sparse ladder now provides 12 warm-up-aware runtime/allocation records across four dimensions; process high-water marks are retained descriptively, but OPF-solver scaling and isolated peak-memory measurements remain open.",
-        ["docs/sparse_runtime_memory_scaling_summary.json"],
+        "The synthetic sparse ladder provides $(length(get(runtime_scaling, "records", Any[]))) warm-up-aware runtime/allocation records, and an isolated child-process ladder adds $(length(isolated_runtime_records)) records across $(length(isolated_runtime_dimensions)) dimensions with per-dimension Sys.maxrss high-water observations. OPF-solver scaling and allocator-level peak-memory measurements remain open.",
+        ["docs/sparse_runtime_memory_scaling_summary.json", "docs/sparse_runtime_memory_isolated_summary.json"],
         blocking=true,
     ),
     gate(

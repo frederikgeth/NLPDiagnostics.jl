@@ -2148,6 +2148,23 @@ end
     @test occursin("workload_comparisons", analyze_scaling_summary)
     @test occursin("process_maxrss_increment_bytes", analyze_scaling_summary)
     @test occursin("memory_measurement", analyze_scaling_summary)
+    isolated_runtime_script = read(
+        joinpath(benchmark_directory, "profile_sparse_runtime_memory_isolated.jl"),
+        String,
+    )
+    @test Meta.parseall(isolated_runtime_script) isa Expr
+    @test occursin("isolated_process_per_dimension", isolated_runtime_script)
+    @test occursin("Sys.maxrss", isolated_runtime_script)
+    isolated_runtime_summary = read(
+        joinpath(repository_root, "docs", "sparse_runtime_memory_isolated_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-sparse-runtime-memory-isolated-v1", isolated_runtime_summary)
+    @test occursin("\"isolated_process\": true", isolated_runtime_summary)
+    @test occursin("sparse_runtime_memory_isolated_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     bmopf_analyze_profile_script = read(
         joinpath(benchmark_directory, "profile_bmopf_analyze_runtime.jl"),
         String,
@@ -2172,8 +2189,8 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 115", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 112", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 117", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 114", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     consolidation_audit = read(
         joinpath(benchmark_directory, "audit_api_test_benchmark_consolidation.jl"),

@@ -84,7 +84,7 @@ complexity law. The benchmark now retains repeated per-dimension runs with
 mean/minimum/maximum timing and allocation summaries plus finding-stability
 checks, so subsequent optimization decisions are not based on one noisy sample.
 The latest three-repeat campaign is stable at every dimension; its dimension-
-400 affine-chain mean is 14.027s with a 13.985--14.071s observed range.
+400 affine-chain mean is 13.522s with a 13.280--13.957s observed range.
 The same harness now retains a second sparse nonlinear-chain workload, so the
 affine-chain result is no longer the only public-API scaling fixture. The
 nonlinear workload reaches 0.167s at dimension 400 with stable findings, and
@@ -92,6 +92,15 @@ remains descriptive coverage rather than a portable complexity claim.
 Each run now also records the process high-water-mark increment from
 `Sys.maxrss()` for descriptive memory attribution; isolated peak-memory and
 solver-memory claims remain out of scope.
+
+The runtime/memory increment now also includes
+`benchmarks/profile_sparse_runtime_memory_isolated.jl`, which launches the
+existing sparse ladder in a fresh Julia child process for each dimension. Its
+`docs/sparse_runtime_memory_isolated_summary.json` artifact retains the same
+warm-up-aware timing/allocation records while making each dimension's
+`Sys.maxrss` high-water observation independent of earlier dimensions. This
+improves local memory attribution but still does not establish allocator-level
+peaks, OPF-solver scaling, or a portable complexity law.
 
 A separate bounded BMOPFTools adapter profile is now recorded in
 `docs/bmopf_analyze_runtime_profile_summary.json`. It measures parse, model
@@ -129,8 +138,8 @@ library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
 that no unclassified non-helper runner exists. It now follows local include
 chains, so compositional BMOPF runners that inherit the helper transitively are
-counted correctly; the refreshed inventory records 112 helper users across
-115 benchmark scripts with zero unclassified runners.
+counted correctly; the refreshed inventory records 114 helper users across
+117 benchmark scripts with zero unclassified runners.
 
 The latest consolidation increment adds the reviewed local quality policy in
 `docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are
