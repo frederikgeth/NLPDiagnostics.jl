@@ -86,12 +86,13 @@ Evidence:
 
 ### `PARTIAL` — `runtime_memory_scaling`
 
-The synthetic sparse ladder provides 12 warm-up-aware runtime/allocation records across 4 dimensions, and an isolated child-process ladder adds 15 records across 5 dimensions with per-dimension Sys.maxrss high-water observations. The companion trend ledger covers 3 workloads; descriptive runtime log-log slopes range from 1.381 to 1.903, with stage attribution retained per workload. Within-dimension stage timing repeatability is also retained; the largest observed stage coefficient of variation at the largest dimension is 0.425. OPF-solver scaling and allocator-level peak-memory measurements remain open.
+The synthetic sparse ladder provides 12 warm-up-aware runtime/allocation records across 4 dimensions, and an isolated child-process ladder adds 15 records across 5 dimensions with per-dimension Sys.maxrss high-water observations. The companion trend ledger covers 3 workloads; descriptive runtime log-log slopes range from 1.381 to 1.903, with stage attribution retained per workload. Within-dimension stage timing repeatability is also retained; the largest observed stage coefficient of variation at the largest dimension is 0.425. The runtime readiness matrix now joins 4 bounded synthetic, public-API, isolated-process, and BMOPFTools adapter coverage rows while retaining 3 open release-evidence gaps. OPF-solver scaling and allocator-level peak-memory measurements remain open.
 
 Evidence:
 - [`docs/sparse_runtime_memory_scaling_summary.json`](docs/sparse_runtime_memory_scaling_summary.json)
 - [`docs/sparse_runtime_memory_isolated_summary.json`](docs/sparse_runtime_memory_isolated_summary.json)
 - [`docs/sparse_runtime_trend_summary.json`](docs/sparse_runtime_trend_summary.json)
+- [`docs/runtime_scaling_readiness_summary.json`](docs/runtime_scaling_readiness_summary.json)
 
 ### `PARTIAL` — `analyze_runtime_scaling`
 

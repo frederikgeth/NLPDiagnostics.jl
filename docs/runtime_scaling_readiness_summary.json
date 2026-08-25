@@ -1,0 +1,95 @@
+{
+  "coverage": [
+    {
+      "claim_level": "bounded synthetic scaling only",
+      "dimensions": [
+        16,
+        32,
+        64,
+        128
+      ],
+      "id": "synthetic_sparse_end_to_end",
+      "isolated_process": false,
+      "memory_observation": "process high-water mark is descriptive and cumulative",
+      "record_count": 12
+    },
+    {
+      "claim_level": "bounded synthetic scaling with isolated process attribution",
+      "dimensions": [
+        16,
+        32,
+        64,
+        128,
+        256
+      ],
+      "id": "isolated_sparse_end_to_end",
+      "isolated_process": true,
+      "memory_observation": "per-dimension child-process high-water mark; not allocator-level peak",
+      "record_count": 15
+    },
+    {
+      "claim_level": "bounded public-API fixture scaling only",
+      "dimensions": [
+        100,
+        200,
+        400
+      ],
+      "id": "public_analyze_workloads",
+      "isolated_process": false,
+      "memory_observation": "allocation and process telemetry are descriptive",
+      "record_count": 3,
+      "workload_count": 3
+    },
+    {
+      "claim_level": "small-fixture adapter coverage only",
+      "guarded_count": 2,
+      "id": "bmopf_adapter_profile",
+      "isolated_process": false,
+      "measured_count": 3,
+      "memory_observation": "descriptive process high-water mark with explicit size guard",
+      "record_count": 5
+    }
+  ],
+  "coverage_count": 4,
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "5d483990e2f78db0f6ee16abbf8b01c67edde26d",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "Current runtime evidence is organized into four bounded coverage rows with three explicit gaps for release-grade scaling claims.",
+    "does_not_establish": [
+      "OPF-solver complexity or scalability",
+      "allocator-level peak memory",
+      "cross-machine performance reproducibility"
+    ]
+  },
+  "open_gap_count": 3,
+  "open_gaps": [
+    {
+      "id": "opf_solver_scaling",
+      "next_evidence": "guarded solver-workload ladder with explicit iteration and termination provenance"
+    },
+    {
+      "id": "allocator_peak_memory",
+      "next_evidence": "allocator-level peak measurement independent of cumulative Sys.maxrss"
+    },
+    {
+      "id": "portable_reproducibility",
+      "next_evidence": "reviewed cross-environment repeatability campaign"
+    }
+  ],
+  "schema_version": "nlpdiagnostics-runtime-scaling-readiness-v1",
+  "source": {
+    "artifacts": [
+      "docs/sparse_runtime_memory_scaling_summary.json",
+      "docs/sparse_runtime_memory_isolated_summary.json",
+      "docs/sparse_runtime_trend_summary.json",
+      "docs/analyze_runtime_scaling_summary.json",
+      "docs/bmopf_analyze_runtime_profile_summary.json"
+    ],
+    "policy": "Coverage rows preserve the distinction between synthetic, public-API, adapter, isolated-process, and open solver-memory evidence.",
+    "runner": "benchmarks/summarize_runtime_scaling_readiness.jl"
+  }
+}

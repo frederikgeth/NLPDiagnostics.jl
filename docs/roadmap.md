@@ -215,6 +215,12 @@ warm-up-aware timing/allocation records while making each dimension's
 `Sys.maxrss` high-water observation independent of earlier dimensions. This
 improves local memory attribution but still does not establish allocator-level
 peaks, OPF-solver scaling, or a portable complexity law.
+The new `benchmarks/summarize_runtime_scaling_readiness.jl` joins the sparse,
+isolated, public-API, and BMOPFTools adapter artifacts into four coverage rows
+and records three explicit open gaps: guarded OPF-solver scaling,
+allocator-level peak memory, and portable repeatability. This keeps the next
+runtime experiment scoped without presenting synthetic or adapter measurements
+as solver-scale claims.
 
 The isolated sparse ladder now extends through dimension 256, giving 15
 child-process records across dimensions 16, 32, 64, 128, and 256. The larger

@@ -2345,6 +2345,25 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
+    runtime_readiness_script = read(
+        joinpath(benchmark_directory, "summarize_runtime_scaling_readiness.jl"),
+        String,
+    )
+    @test Meta.parseall(runtime_readiness_script) isa Expr
+    @test occursin("open_gaps", runtime_readiness_script)
+    runtime_readiness_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "runtime_scaling_readiness_summary.json"),
+        String,
+    ))
+    @test runtime_readiness_summary["schema_version"] == "nlpdiagnostics-runtime-scaling-readiness-v1"
+    @test runtime_readiness_summary["coverage_count"] == 4
+    @test runtime_readiness_summary["open_gap_count"] == 3
+    @test runtime_readiness_summary["coverage"][4]["measured_count"] == 3
+    @test runtime_readiness_summary["coverage"][4]["guarded_count"] == 2
+    @test occursin("runtime_scaling_readiness_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     rank_perturbation_script = read(
         joinpath(benchmark_directory, "calibrate_rank_perturbation_sweep.jl"),
         String,
