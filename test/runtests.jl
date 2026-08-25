@@ -2509,21 +2509,35 @@ end
     )
     @test occursin("nlpdiagnostics-rank-calibration-statistics-v1", rank_statistics_summary)
     rank_statistics_data = JSON.parse(rank_statistics_summary)
-    @test rank_statistics_data["hard_controls"]["record_count"] == 43
+    @test rank_statistics_data["hard_controls"]["record_count"] == 49
     @test rank_statistics_data["hard_controls"]["mismatch_count"] == 0
     @test rank_statistics_data["hard_controls"]["unavailable_count"] == 0
-    @test rank_statistics_data["finite_sample_uncertainty"]["sample_count"] == 43
+    @test rank_statistics_data["finite_sample_uncertainty"]["sample_count"] == 49
     @test rank_statistics_data["finite_sample_uncertainty"]["confidence_level"] == 0.95
-    @test rank_statistics_data["finite_sample_uncertainty"]["zero_event_upper_bound"] > 0.06
-    @test rank_statistics_data["finite_sample_uncertainty"]["zero_event_upper_bound"] < 0.08
-    @test rank_statistics_data["threshold_sensitive_controls"]["record_count"] == 24
+    @test rank_statistics_data["finite_sample_uncertainty"]["zero_event_upper_bound"] > 0.05
+    @test rank_statistics_data["finite_sample_uncertainty"]["zero_event_upper_bound"] < 0.07
+    @test rank_statistics_data["threshold_sensitive_controls"]["record_count"] == 26
     @test rank_statistics_data["threshold_sensitive_controls"]["backend_disagreement_count"] == 9
     @test rank_statistics_data["large_sparse_sparse_only"]["record_count"] == 20
     @test rank_statistics_data["large_sparse_sparse_only"]["sparse_mismatch_count"] == 0
     @test occursin("cross_backend_calibration_matrix", rank_statistics_script)
     cross_backend_matrix = rank_statistics_data["cross_backend_calibration_matrix"]
-    @test length(cross_backend_matrix["corpus_rows"]) == 3
-    @test cross_backend_matrix["hard_control_relation"]["agreement_count"] == 43
+    rank_adversarial_script = read(
+        joinpath(benchmark_directory, "calibrate_rank_adversarial_extensions.jl"),
+        String,
+    )
+    @test Meta.parseall(rank_adversarial_script) isa Expr
+    @test occursin("duplicate_column_rank_deficient", rank_adversarial_script)
+    rank_adversarial_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "rank_adversarial_extension_summary.json"),
+        String,
+    ))
+    @test rank_adversarial_summary["record_count"] == 8
+    @test rank_adversarial_summary["hard_control_count"] == 6
+    @test rank_adversarial_summary["hard_control_mismatch_count"] == 0
+    @test rank_adversarial_summary["unavailable_count"] == 0
+    @test length(cross_backend_matrix["corpus_rows"]) == 4
+    @test cross_backend_matrix["hard_control_relation"]["agreement_count"] == 49
     @test cross_backend_matrix["threshold_relation"]["disagreement_count"] == 9
     @test cross_backend_matrix["sparse_only_relation"]["match_count"] == 20
     smallest_singular_script = read(

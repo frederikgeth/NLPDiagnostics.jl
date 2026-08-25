@@ -8,6 +8,7 @@
         "docs/randomized_rank_oracle_calibration_summary.json",
         "docs/large_sparse_rank_oracle_summary.json",
         "docs/rank_perturbation_sweep_summary.json",
+        "docs/rank_adversarial_extension_summary.json",
         "docs/rank_calibration_statistics_summary.json",
         "docs/smallest_singular_calibration_summary.json",
         "benchmarks/calibrate_restarted_smallest_singular.jl"
@@ -98,7 +99,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "5f38b0a85df070363e9120bb409072882a9723ca",
+    "git_revision": "68fb41cef374a7c9453175784a2aa406061f7ced",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

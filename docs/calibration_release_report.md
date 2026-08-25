@@ -74,12 +74,13 @@ Evidence:
 
 ### `PARTIAL` — `numerical_rank_false_positive_negative_statistics`
 
-The aggregate rank-statistics ledger now joins 43 complete hard controls with 0 mismatches and 0 unavailable results, plus 24 threshold-sensitive controls with 9 backend disagreements. The zero-event hard-control result is accompanied by a one-sided 0.95-level finite-sample upper bound of 0.0673 for any single zero-observed error rate; this is uncertainty context, not a universal guarantee. This includes the seeded randomized and controlled perturbation corpora; disagreements remain tolerance evidence. A guarded sparse-only extension contributes 20 records with 0 sparse mismatches while intentionally disabling dense SVD. The cross-backend calibration matrix now retains 3 corpus rows separating dense/sparse hard-control agreement, threshold-sensitive disagreement, and sparse-only coverage. The separate smallest-singular corpus adds 10 adversarial cases with 7 dense-free crosscheck agreements and 3 expected adverse relations. Broader adversarial statistics and a third vetted backend remain open.
+The aggregate rank-statistics ledger now joins 49 complete hard controls with 0 mismatches and 0 unavailable results, plus 26 threshold-sensitive controls with 9 backend disagreements. The zero-event hard-control result is accompanied by a one-sided 0.95-level finite-sample upper bound of 0.0593 for any single zero-observed error rate; this is uncertainty context, not a universal guarantee. This includes the seeded randomized and controlled perturbation corpora plus a deterministic adversarial extension of 8 records (6 hard controls, 0 mismatches, 0 unavailable). Disagreements remain tolerance evidence. A guarded sparse-only extension contributes 20 records with 0 sparse mismatches while intentionally disabling dense SVD. The cross-backend calibration matrix now retains 4 corpus rows separating dense/sparse hard-control agreement, threshold-sensitive disagreement, and sparse-only coverage. The separate smallest-singular corpus adds 10 adversarial cases with 7 dense-free crosscheck agreements and 3 expected adverse relations. A third vetted backend remains open.
 
 Evidence:
 - [`docs/randomized_rank_oracle_calibration_summary.json`](docs/randomized_rank_oracle_calibration_summary.json)
 - [`docs/large_sparse_rank_oracle_summary.json`](docs/large_sparse_rank_oracle_summary.json)
 - [`docs/rank_perturbation_sweep_summary.json`](docs/rank_perturbation_sweep_summary.json)
+- [`docs/rank_adversarial_extension_summary.json`](docs/rank_adversarial_extension_summary.json)
 - [`docs/rank_calibration_statistics_summary.json`](docs/rank_calibration_statistics_summary.json)
 - [`docs/smallest_singular_calibration_summary.json`](docs/smallest_singular_calibration_summary.json)
 - [`benchmarks/calibrate_restarted_smallest_singular.jl`](benchmarks/calibrate_restarted_smallest_singular.jl)

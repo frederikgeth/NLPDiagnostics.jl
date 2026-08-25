@@ -36,11 +36,22 @@
         "threshold_backend_disagreement_count": 0,
         "threshold_disagreement_rate": null,
         "threshold_sensitive_count": 0
+      },
+      {
+        "corpus": "deterministic_adversarial_extension",
+        "coverage_class": "dense_and_sparse",
+        "hard_control_count": 6,
+        "hard_mismatch_count": 0,
+        "hard_mismatch_rate": 0.0,
+        "hard_unavailable_count": 0,
+        "threshold_backend_disagreement_count": 0,
+        "threshold_disagreement_rate": 0.0,
+        "threshold_sensitive_count": 2
       }
     ],
     "hard_control_relation": {
-      "agreement_count": 43,
-      "dense_sparse_complete_count": 43,
+      "agreement_count": 49,
+      "dense_sparse_complete_count": 49,
       "mismatch_count": 0,
       "unavailable_count": 0
     },
@@ -53,14 +64,14 @@
       "unavailable_count": 0
     },
     "threshold_relation": {
-      "agreement_count": 15,
+      "agreement_count": 17,
       "disagreement_count": 9,
-      "record_count": 24
+      "record_count": 26
     }
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "3e178dc87133ad305decc51780f7a96aa93d44cf",
+    "git_revision": "68fb41cef374a7c9453175784a2aa406061f7ced",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -73,33 +84,34 @@
     "rates": {
       "false_negative_rate": {
         "observed_count": 0,
-        "upper_bound_if_zero_observed": 0.06729675341386787
+        "upper_bound_if_zero_observed": 0.059306014189697054
       },
       "false_positive_rate": {
         "observed_count": 0,
-        "upper_bound_if_zero_observed": 0.06729675341386787
+        "upper_bound_if_zero_observed": 0.059306014189697054
       },
       "mismatch_rate": {
         "observed_count": 0,
-        "upper_bound_if_zero_observed": 0.06729675341386787
+        "upper_bound_if_zero_observed": 0.059306014189697054
       },
       "unavailable_rate": {
         "observed_count": 0,
-        "upper_bound_if_zero_observed": 0.06729675341386787
+        "upper_bound_if_zero_observed": 0.059306014189697054
       }
     },
-    "sample_count": 43,
-    "zero_event_upper_bound": 0.06729675341386787
+    "sample_count": 49,
+    "zero_event_upper_bound": 0.059306014189697054
   },
   "hard_controls": {
     "all_match_and_available": true,
-    "dense_sparse_complete_count": 43,
+    "dense_sparse_complete_count": 49,
     "false_negative_count": 0,
     "false_positive_count": 0,
     "mismatch_count": 0,
-    "record_count": 43,
+    "record_count": 49,
     "source_record_counts": {
       "controlled_perturbation": 25,
+      "deterministic_adversarial_extension": 6,
       "seeded_randomized": 18
     },
     "unavailable_count": 0
@@ -125,6 +137,7 @@
   },
   "schema_version": "nlpdiagnostics-rank-calibration-statistics-v1",
   "source": {
+    "adversarial_extension_artifact": "docs/rank_adversarial_extension_summary.json",
     "large_sparse_artifact": "docs/large_sparse_rank_oracle_summary.json",
     "perturbation_artifact": "docs/rank_perturbation_sweep_summary.json",
     "policy": "Declared hard controls are counted for false-positive/false-negative statistics; threshold-sensitive controls remain disagreement evidence; dense-unavailable large sparse records are sparse-only coverage.",
@@ -132,12 +145,13 @@
     "seeded_artifact": "docs/randomized_rank_oracle_calibration_summary.json"
   },
   "threshold_sensitive_controls": {
-    "backend_agreement_count": 15,
+    "backend_agreement_count": 17,
     "backend_disagreement_count": 9,
     "interpretation": "Disagreements are retained as tolerance-sensitive numerical policy evidence, not algebraic-rank failures.",
-    "record_count": 24,
+    "record_count": 26,
     "source_record_counts": {
       "controlled_perturbation": 15,
+      "deterministic_adversarial_extension": 2,
       "seeded_randomized": 9
     }
   }

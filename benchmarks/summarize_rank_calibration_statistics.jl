@@ -17,10 +17,12 @@ const OUTPUT = abspath(isempty(ARGS) ?
 const SEEDED_ARTIFACT = "docs/randomized_rank_oracle_calibration_summary.json"
 const LARGE_SPARSE_ARTIFACT = "docs/large_sparse_rank_oracle_summary.json"
 const PERTURBATION_ARTIFACT = "docs/rank_perturbation_sweep_summary.json"
+const ADVERSARIAL_EXTENSION_ARTIFACT = "docs/rank_adversarial_extension_summary.json"
 
 seeded = read_summary(SEEDED_ARTIFACT)
 large_sparse = read_summary(LARGE_SPARSE_ARTIFACT)
 perturbation = read_summary(PERTURBATION_ARTIFACT)
+adversarial_extension = read_summary(ADVERSARIAL_EXTENSION_ARTIFACT)
 seeded_hard = get(seeded, "hard_controls", Dict{String,Any}())
 seeded_threshold = get(seeded, "threshold_controls", Dict{String,Any}())
 large_by_case = get(large_sparse, "by_case", Dict{String,Any}())
@@ -28,22 +30,27 @@ large_by_case = get(large_sparse, "by_case", Dict{String,Any}())
 hard_control_records = [
     get(seeded_hard, "record_count", 0),
     get(perturbation, "hard_control_count", 0),
+    get(adversarial_extension, "hard_control_count", 0),
 ]
 threshold_records = [
     get(seeded_threshold, "record_count", 0),
     get(perturbation, "threshold_sensitive_count", 0),
+    get(adversarial_extension, "threshold_sensitive_count", 0),
 ]
 hard_control_mismatches = [
     get(seeded_hard, "false_positive_count", 0) + get(seeded_hard, "false_negative_count", 0),
     get(perturbation, "hard_control_mismatch_count", 0),
+    get(adversarial_extension, "hard_control_mismatch_count", 0),
 ]
 hard_control_unavailable = [
     get(seeded_hard, "dense_unavailable_count", 0) + get(seeded_hard, "sparse_unavailable_count", 0),
     get(perturbation, "unavailable_count", 0),
+    get(adversarial_extension, "unavailable_count", 0),
 ]
 threshold_disagreements = [
     get(seeded_threshold, "backend_disagreement_count", 0),
     get(perturbation, "threshold_backend_disagreement_count", 0),
+    get(adversarial_extension, "threshold_backend_disagreement_count", 0),
 ]
 large_sparse_records = get(large_sparse, "record_count", 0)
 large_sparse_unavailable = get(large_sparse, "sparse_unavailable_count", 0)
@@ -102,6 +109,17 @@ corpus_rows = [
         "dense_unavailable_count" => get(large_sparse, "dense_unavailable_count", 0),
         "coverage_class" => "sparse_only",
     ),
+    Dict{String,Any}(
+        "corpus" => "deterministic_adversarial_extension",
+        "hard_control_count" => hard_control_records[3],
+        "hard_mismatch_count" => hard_control_mismatches[3],
+        "hard_unavailable_count" => hard_control_unavailable[3],
+        "hard_mismatch_rate" => rate(hard_control_mismatches[3], hard_control_records[3]),
+        "threshold_sensitive_count" => threshold_records[3],
+        "threshold_backend_disagreement_count" => threshold_disagreements[3],
+        "threshold_disagreement_rate" => rate(threshold_disagreements[3], threshold_records[3]),
+        "coverage_class" => "dense_and_sparse",
+    ),
 ]
 
 write_json(OUTPUT, Dict{String,Any}(
@@ -111,6 +129,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "seeded_artifact" => SEEDED_ARTIFACT,
         "large_sparse_artifact" => LARGE_SPARSE_ARTIFACT,
         "perturbation_artifact" => PERTURBATION_ARTIFACT,
+        "adversarial_extension_artifact" => ADVERSARIAL_EXTENSION_ARTIFACT,
         "policy" => "Declared hard controls are counted for false-positive/false-negative statistics; threshold-sensitive controls remain disagreement evidence; dense-unavailable large sparse records are sparse-only coverage.",
     ),
     "environment" => Dict(
@@ -130,6 +149,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "source_record_counts" => Dict(
             "seeded_randomized" => hard_control_records[1],
             "controlled_perturbation" => hard_control_records[2],
+            "deterministic_adversarial_extension" => hard_control_records[3],
         ),
     ),
     "finite_sample_uncertainty" => Dict(
@@ -167,6 +187,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "source_record_counts" => Dict(
             "seeded_randomized" => threshold_records[1],
             "controlled_perturbation" => threshold_records[2],
+            "deterministic_adversarial_extension" => threshold_records[3],
         ),
     ),
     "cross_backend_calibration_matrix" => Dict(
