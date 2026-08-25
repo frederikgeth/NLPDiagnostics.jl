@@ -1912,8 +1912,10 @@ end
 
 Inspect nonlinear expression domains without evaluating model functions.
 """
-function domain_issues(model::ModelSnapshot)
-    variable_intervals = _domain_variable_intervals(model)
+function _domain_issues(
+    model::ModelSnapshot,
+    variable_intervals,
+)
     issues = ExpressionDomainIssue[]
     if !isnothing(model.objective)
         objective = model.objective
@@ -1958,6 +1960,10 @@ function domain_issues(model::ModelSnapshot)
         end
     end
     return issues
+end
+
+function domain_issues(model::ModelSnapshot)
+    return _domain_issues(model, _domain_variable_intervals(model))
 end
 
 domain_issues(model::MOI.ModelLike) = domain_issues(snapshot(model))
@@ -2033,8 +2039,8 @@ end
 Create evidence-first findings from static expression-domain analysis.
 """
 function analyze_domains(model::ModelSnapshot)
-    issues = domain_issues(model)
-    _, interval_origins = _domain_variable_interval_state(model)
+    variable_intervals, interval_origins = _domain_variable_interval_state(model)
+    issues = _domain_issues(model, variable_intervals)
     report = DiagnosticReport()
     report.metadata[:domain_issue_count] = string(length(issues))
     report.metadata[:proven_domain_violation_count] = string(
