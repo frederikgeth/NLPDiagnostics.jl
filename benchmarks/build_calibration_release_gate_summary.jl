@@ -16,6 +16,7 @@ rank_oracles = read_summary("docs/randomized_rank_oracle_calibration_summary.jso
 runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
 analyze_runtime_scaling = read_summary("docs/analyze_runtime_scaling_summary.json")
 large_sparse_rank = read_summary("docs/large_sparse_rank_oracle_summary.json")
+combined_mv_lv = read_summary("docs/bmopf_combined_mv_lv_snapshot_campaign_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_inventory = api_consolidation["api_inventory"]
 api_modules = api_consolidation["module_boundaries"]
@@ -39,6 +40,15 @@ api_contract_missing_clause = isempty(api_contract_missing) ?
     "" : " (missing: $api_contract_missing)"
 api_contract_rationale =
     "The consolidation audit now inventories $api_root_export_count root exports, $api_testset_count root testsets across nine included test modules, $api_script_count benchmark scripts, and complete schema coverage for $api_schema_count JSON artifacts. A typed unavailable-reason schema now covers solver telemetry, dual/complementarity boundaries, profile reports, solver-result point and postmortem capability reports, active-set multiplier-recovery, MFCQ screen, dense/sparse Jacobian rank backends, sparse-QR nullspace extraction, dense calibration, persistence, Golub--Kahan and restarted smallest-singular probe/calibration boundaries, Jacobian tolerance-sweep and condition-persistence boundaries, Jacobian scaling, derivative-provenance, rank-persistence, row-family perturbation, iterative right/left candidate-persistence, persistence coordinate-alignment, top-level condition/rank/reduced-Hessian coordinate, reduced-Hessian Jacobian-scaling alignment, component-port coordinate-map, coordinate-semantics, mode-projection, connection, nullspace-mode alignment, nullspace-mode semantics, topology-projection, nominal-scale projection, coupled-constraint scale alignment, scalar-constraint scale alignment, component metadata scope, component-port metadata scope, constitutive-map validation, and topology-nullspace endpoints, Jacobian expected-mode and expected-mode-span persistence, reduced-Hessian flat-subspace, active-row and active-Jacobian persistence, multiplier-persistence, reduced-Hessian expected-mode persistence, Jacobian-scaling, spectral-scale, and persistent reduced-Hessian structural-scope boundaries, restarted and harmonic smallest-singular calibration/crosscheck boundaries, structural-matching, DM-partition, reduced-Hessian, structural-to-numerical rank-comparison, and iterative right/left/spectrum probe work/capability guards, coupled-set qualification capability boundaries, generic and BMOPFTools component-rank capability reports, BMOPFTools differentiability capability reports, PowerModels scalar-angle capability reports, MadNLP primal-capture capability reports, BMOPFTools terminal-current capability reports, BMOPFTools passive-network map capability reports, and BMOPFTools terminal-attachment capability reports; non-breaking Stable and Advanced facades, shared benchmark helper, and reviewed local quality policy are also available. $api_helper_user_count data-producing runners use the helper, with infrastructure-script exemptions explicitly inventoried. The active BMOPFTools API contract audit is $api_contract_status$api_contract_missing_clause, while the clean-main contract audit is $api_contract_clean_main_status at revision $api_contract_clean_main_revision and the full local suite passes 1634/1634 there. The PR handoff gate is $api_contract_handoff_status ($api_contract_handoff_reason). The isolated checkout validator is $api_checkout_validation_status at revision $api_checkout_validation_revision with suite coverage $api_checkout_validation_suite. Remaining work is review of Stable versus Advanced boundaries, broader adapter adoption, root-export tiering, keeping dependency evidence synchronized, and activation of deferred documentation-example, Aqua, and targeted JET checks when reviewed environments are available."
+
+combined_mv_lv_gate = all([
+    get(combined_mv_lv, "ipopt_tolerance_diagnostic", Dict{String,Any}())["all_comparisons_qualified"],
+    get(combined_mv_lv, "second_feeder_campaign", Dict{String,Any}())["all_comparisons_qualified"],
+    get(combined_mv_lv, "perturbed_start_matrix", Dict{String,Any}())["matrix_gates"]["all_variants_qualified"],
+    get(combined_mv_lv, "perturbed_start_lv13_matrix", Dict{String,Any}())["matrix_gates"]["all_variants_qualified"],
+    get(combined_mv_lv, "perturbed_start_madnlp_matrix", Dict{String,Any}())["matrix_gates"]["all_variants_qualified"],
+    get(combined_mv_lv, "voltage_only_start_matrix", Dict{String,Any}())["matrix_gates"]["all_variants_qualified"],
+])
 
 function gate(id, status, rationale, evidence; blocking=false)
     Dict{String,Any}(
@@ -96,6 +106,18 @@ gates = Dict{String,Any}[
         "The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from $(round(analyze_runtime_scaling["records"][1]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][1]["dimension"]) to $(round(analyze_runtime_scaling["records"][end]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][end]["dimension"]), with affine propagation reaching its configured five-pass limit; stage attribution and evidence-preserving optimization remain open.",
         ["docs/analyze_runtime_scaling_summary.json"],
         blocking=true,
+    ),
+    gate(
+        "combined_mv_lv_scaling_start_robustness",
+        combined_mv_lv_gate ? "pass" : "partial",
+        "The authoritative BMOPFTools combined MV+LV source now has bounded, endpoint-gated evidence across LV1_14bus and LV13_58bus. Ipopt and MadNLP matched-start campaigns pass the declared physical and cross-policy gates under tolerance 1e-10 and max_iter 10; global affine and voltage-only start matrices also pass. The evidence qualifies procedure repeatability and provenance coverage, not a universal scaling policy, solver superiority, or causal mechanism.",
+        [
+            "docs/bmopf_combined_mv_lv_scaling_readiness_summary.json",
+            "docs/bmopf_combined_mv_lv_scaling_campaign_summary.json",
+            "docs/bmopf_combined_mv_lv_snapshot_campaign_summary.json",
+            "benchmarks/bmopf_combined_mv_lv_snapshot_campaign.jl",
+            "benchmarks/bmopf_combined_mv_lv_perturbed_start_campaign.jl",
+        ],
     ),
     gate(
         "api_test_benchmark_consolidation",

@@ -78,8 +78,10 @@ The latest consolidation increment adds
 `benchmarks/build_calibration_release_report.jl`, which renders the
 machine-readable release-gate ledger into
 `docs/calibration_release_report.md` with gate status, blocker rationale, and
-evidence links. The generated report records `release_ready=false` with four
-blocking gates; it is a handoff and review artifact, not release qualification.
+evidence links. The generated report records `release_ready=false` with five
+blocking gates and now includes a non-blocking PASS gate for the combined
+MV/LV scaling start-robustness evidence; it is a handoff and review artifact,
+not release qualification.
 
 The latest consolidation increment formalizes the shared benchmark-helper
 boundary. The audit now records the 106 data-producing runners that use
@@ -4993,14 +4995,14 @@ start variants. This supports endpoint-gated robustness across two snapshots,
 not exact numerical identity. The same LV1_14bus matrix now also qualifies
 under MadNLP: both variants again pass all endpoint and cross-policy gates, with
 maximum covariance `3.64e-12`. This adds solver-diverse descriptive
-start-robustness evidence, not a solver superiority claim. The next gate is a
-declared voltage-only perturbation or consolidation of the qualified
-solver/start matrix into the release-gate report. Any policy interpretation
-remains conditional on endpoint covariance, provenance, and solver-availability
-gates. A final voltage-only matrix on LV1_14bus also qualifies: only 2,082 of
+start-robustness evidence, not a solver superiority claim. The consolidation
+gate is now complete: a final voltage-only matrix on LV1_14bus also qualifies,
+with only 2,082 of
 4,180 coordinates (the `vr_`/`vi_` starts) were perturbed, all non-voltage
 coordinates were held fixed, and both variants passed every gate with maximum
 covariance `2.16e-12`. This isolates voltage-start sensitivity without adding a
-policy or solver ranking. The next deliverable is to consolidate the qualified
-solver/start matrix into the release-gate report before interpreting scaling
-policy effects.
+policy or solver ranking. The release-gate ledger and generated report now
+include a non-blocking PASS entry for this combined MV/LV start-robustness
+evidence, while the five existing release blockers remain unchanged. The next
+deliverable is to keep the report synchronized while addressing those blockers;
+no scaling-policy interpretation is promoted yet.

@@ -2114,6 +2114,22 @@ end
     @test occursin("voltage_only_start_matrix", combined_snapshot_summary)
     @test occursin("2082", combined_snapshot_summary)
     @test occursin("voltage_only", perturbed_start_campaign)
+    release_gate_summary = read(
+        joinpath(repository_root, "docs", "calibration_release_gate_summary.json"),
+        String,
+    )
+    @test occursin("combined_mv_lv_scaling_start_robustness", release_gate_summary)
+    @test occursin("\"blocking\": false", release_gate_summary)
+    release_report = read(
+        joinpath(repository_root, "docs", "calibration_release_report.md"),
+        String,
+    )
+    @test occursin("combined_mv_lv_scaling_start_robustness", release_report)
+    release_gate_builder = read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    )
+    @test occursin("combined_mv_lv_scaling_start_robustness", release_gate_builder)
     magnitude_campaign = read(
         joinpath(
             benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",
