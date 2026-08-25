@@ -259,7 +259,12 @@ analyze cases in fresh child processes: 6 measured records across 3 fixtures
 are stable, while 4 larger-case records remain explicit size-guard skips. The
 profile retains per-child allocation and `Sys.maxrss` high-water telemetry;
 portable allocator-level memory and cross-environment reproducibility remain
-open.
+open. The companion `benchmarks/validate_bmopf_analyze_portability.jl` now
+validates the local artifact's schema, guard, warmup, isolated-process, and
+finding-stability provenance and emits
+`docs/bmopf_analyze_portability_summary.json`. Its current status is
+`open_comparison_not_supplied`: a second reviewed environment must provide a
+matching summary before any portability claim can be considered.
 
 The isolated sparse ladder now extends through dimension 256, giving 15
 child-process records across dimensions 16, 32, 64, 128, and 256. The larger

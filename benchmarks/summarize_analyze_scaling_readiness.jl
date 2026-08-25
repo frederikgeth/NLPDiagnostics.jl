@@ -13,6 +13,7 @@ const AB_INPUT = "docs/analyze_static_optimization_ab_summary.json"
 const GENERALIZATION_INPUT = "docs/analyze_static_optimization_generalization_summary.json"
 const TARGET_TERMS_INPUT = "docs/analyze_static_target_terms_summary.json"
 const ISOLATED_MEMORY_INPUT = "docs/bmopf_analyze_runtime_isolated_summary.json"
+const PORTABILITY_INPUT = "docs/bmopf_analyze_portability_summary.json"
 const BMOPF_COMBINED_INPUT = "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "analyze_scaling_readiness_summary.json") : ARGS[1])
@@ -24,6 +25,7 @@ optimization_ab = read_summary(AB_INPUT)
 optimization_generalization = read_summary(GENERALIZATION_INPUT)
 optimization_target_terms = read_summary(TARGET_TERMS_INPUT)
 isolated_memory = read_summary(ISOLATED_MEMORY_INPUT)
+portability = read_summary(PORTABILITY_INPUT)
 bmopf_combined = read_summary(BMOPF_COMBINED_INPUT)
 
 trend_by_workload = Dict{String,Any}(
@@ -92,6 +94,7 @@ isolated_memory_records = get(isolated_memory, "records", Any[])
 isolated_memory_measured = filter(record -> get(record, "status", "") == "measured", isolated_memory_records)
 isolated_memory_summaries = get(isolated_memory, "case_summaries", Any[])
 isolated_memory_stable_count = count(summary -> get(summary, "stable_across_repetitions", false), isolated_memory_summaries)
+portability_validation = get(portability, "baseline_validation", Dict{String,Any}())
 
 open_gaps = Dict[
     Dict("id" => "static_stage_candidate_selection", "next_evidence" => "profile a different semantics-preserving static-stage candidate because the affine-row cache A/B is neutral to slightly slower locally"),
@@ -128,7 +131,7 @@ write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-analyze-scaling-readiness-v1",
     "source" => Dict(
         "runner" => "benchmarks/summarize_analyze_scaling_readiness.jl",
-        "artifacts" => [TREND_INPUT, RESOURCE_INPUT, PROFILE_INPUT, AB_INPUT, GENERALIZATION_INPUT, TARGET_TERMS_INPUT, ISOLATED_MEMORY_INPUT, BMOPF_COMBINED_INPUT],
+        "artifacts" => [TREND_INPUT, RESOURCE_INPUT, PROFILE_INPUT, AB_INPUT, GENERALIZATION_INPUT, TARGET_TERMS_INPUT, ISOLATED_MEMORY_INPUT, PORTABILITY_INPUT, BMOPF_COMBINED_INPUT],
         "policy" => "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",
     ),
     "environment" => Dict(
@@ -184,6 +187,13 @@ write_json(OUTPUT, Dict{String,Any}(
         "all_measured_cases_stable" => get(isolated_memory, "all_measured_cases_stable", false),
         "isolated_process_per_case_and_repetition" => get(get(isolated_memory, "source", Dict{String,Any}()), "isolated_process_per_case_and_repetition", false),
         "claim" => "Fresh-child local process allocation and Sys.maxrss observations are retained for guarded adapter analyze cases; portable and allocator-level claims remain open.",
+    ),
+    "portability_contract" => Dict(
+        "baseline_status" => get(portability_validation, "status", "unavailable"),
+        "baseline_error_count" => length(get(portability_validation, "errors", Any[])),
+        "comparison_status" => get(portability, "portable_evidence_status", "unavailable"),
+        "comparison_required_for_portable_claim" => get(get(portability, "source", Dict{String,Any}()), "comparison_required_for_portable_claim", true),
+        "claim" => "The replay contract validates local provenance and guard compatibility; a second environment comparison is still required for portability.",
     ),
     "bmopf_combined_mv_lv_analyze" => Dict(
         "feeder_count" => length(combined_feeders),

@@ -2331,6 +2331,9 @@ end
     @test analyze_readiness_data["isolated_adapter_memory"]["guarded_count"] == 4
     @test analyze_readiness_data["isolated_adapter_memory"]["stable_case_count"] == 3
     @test analyze_readiness_data["isolated_adapter_memory"]["all_measured_cases_stable"] == true
+    @test analyze_readiness_data["portability_contract"]["baseline_status"] == "valid"
+    @test analyze_readiness_data["portability_contract"]["comparison_status"] == "open_comparison_not_supplied"
+    @test analyze_readiness_data["portability_contract"]["comparison_required_for_portable_claim"] == true
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["feeder_count"] == 4
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["record_count"] == 12
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["measured_count"] == 9
@@ -2384,6 +2387,17 @@ end
         String,
     )
     @test occursin("nlpdiagnostics-bmopf-analyze-runtime-isolated-v1", analyze_isolated_summary)
+    portability_script = read(
+        joinpath(benchmark_directory, "validate_bmopf_analyze_portability.jl"),
+        String,
+    )
+    @test Meta.parseall(portability_script) isa Expr
+    @test occursin("comparison_required_for_portable_claim", portability_script)
+    portability_summary = read(
+        joinpath(repository_root, "docs", "bmopf_analyze_portability_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-bmopf-analyze-portability-v1", portability_summary)
     analyze_ab_script = read(
         joinpath(benchmark_directory, "profile_analyze_static_optimization_ab.jl"),
         String,

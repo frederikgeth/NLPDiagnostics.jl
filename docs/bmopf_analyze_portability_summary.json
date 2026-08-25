@@ -1,0 +1,56 @@
+{
+  "baseline_validation": {
+    "case_count": 5,
+    "environment": {
+      "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+      "architecture": "aarch64",
+      "git_revision": "20a0f624912ec0051d6cfc3877c2347008e64b8a",
+      "git_status_entry_count": 1,
+      "git_worktree_dirty": true,
+      "julia_version": "1.12.6",
+      "os": "Darwin"
+    },
+    "errors": [],
+    "measured_count": 6,
+    "record_count": 10,
+    "source": {
+      "cases": [
+        "pf_1ph_line.dss",
+        "pf_exp_1ph.dss",
+        "pf_1ph_xfmr.dss",
+        "pf_cap_wye.dss",
+        "pf_dy_xfmr.dss"
+      ],
+      "child_runner": "benchmarks/profile_bmopf_analyze_runtime.jl",
+      "isolated_process_per_case_and_repetition": true,
+      "max_variables": 24,
+      "repetitions": 2,
+      "runner": "benchmarks/profile_bmopf_analyze_runtime_isolated.jl",
+      "warmup": true
+    },
+    "status": "valid",
+    "warnings": []
+  },
+  "comparison": null,
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "5f38b0a85df070363e9120bb409072882a9723ca",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "The validator makes isolated analyze portability prerequisites machine-checkable.",
+    "does_not_establish": [
+      "portable runtime or allocator-level memory behavior",
+      "cross-environment equivalence without a supplied comparison summary"
+    ]
+  },
+  "portable_evidence_status": "open_comparison_not_supplied",
+  "schema_version": "nlpdiagnostics-bmopf-analyze-portability-v1",
+  "source": {
+    "baseline_summary": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/bmopf_analyze_runtime_isolated_summary.json",
+    "comparison_required_for_portable_claim": true,
+    "comparison_summary": null,
+    "runner": "benchmarks/validate_bmopf_analyze_portability.jl"
+  }
+}

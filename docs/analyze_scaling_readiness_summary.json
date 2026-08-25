@@ -26,7 +26,7 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "20a0f624912ec0051d6cfc3877c2347008e64b8a",
+    "git_revision": "5f38b0a85df070363e9120bb409072882a9723ca",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -55,6 +55,13 @@
       "next_evidence": "repeat the isolated analyze profile in a second reviewed environment with allocator-level peak telemetry"
     }
   ],
+  "portability_contract": {
+    "baseline_error_count": 0,
+    "baseline_status": "valid",
+    "claim": "The replay contract validates local provenance and guard compatibility; a second environment comparison is still required for portability.",
+    "comparison_required_for_portable_claim": true,
+    "comparison_status": "open_comparison_not_supplied"
+  },
   "schema_version": "nlpdiagnostics-analyze-scaling-readiness-v1",
   "source": {
     "artifacts": [
@@ -65,6 +72,7 @@
       "docs/analyze_static_optimization_generalization_summary.json",
       "docs/analyze_static_target_terms_summary.json",
       "docs/bmopf_analyze_runtime_isolated_summary.json",
+      "docs/bmopf_analyze_portability_summary.json",
       "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
     ],
     "policy": "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",
