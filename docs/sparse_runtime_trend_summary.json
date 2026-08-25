@@ -1,7 +1,7 @@
 {
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
-    "git_revision": "a551bdadefe73a8ceae48198bbba5a5406209cd9",
+    "git_revision": "badcf68fc211327e9f277d100d920c71bd32ea41",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -11,7 +11,8 @@
       "OPF solver runtime or memory scaling",
       "allocator-level peak memory",
       "a portable asymptotic complexity law or production threshold"
-    ]
+    ],
+    "repeatability_note": "Per-stage coefficients of variation at the largest dimension summarize within-dimension repetition only; they do not quantify cross-machine or solver repeatability."
   },
   "schema_version": "nlpdiagnostics-sparse-runtime-trend-v1",
   "source": {
@@ -62,6 +63,79 @@
         ],
         "point_count": 5,
         "value_key": "total_stage_mean_allocated_bytes"
+      },
+      "allocation_repeatability_at_largest_dimension": {
+        "maximum_coefficient_of_variation": 1.9941033544250233e-7,
+        "mean_coefficient_of_variation": 1.812821231295476e-8,
+        "stage_count": 11,
+        "stages": {
+          "active_set": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.7738e7,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "degeneracy": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.771888e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "evaluation": {
+            "coefficient_of_variation": 0.0,
+            "mean": 2.561104e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "expressions": {
+            "coefficient_of_variation": 0.0,
+            "mean": 2.54815584e8,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "numerical": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.7937216e7,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "reformulation": {
+            "coefficient_of_variation": 0.0,
+            "mean": 2.54802368e8,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "snapshot": {
+            "coefficient_of_variation": 0.0,
+            "mean": 249216.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "static": {
+            "coefficient_of_variation": 1.9941033544250233e-7,
+            "mean": 3.025910293333333e8,
+            "sample_count": 3,
+            "standard_deviation": 60.339778661252055
+          },
+          "structural_dm": {
+            "coefficient_of_variation": 0.0,
+            "mean": 16416.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "structural_graph": {
+            "coefficient_of_variation": 0.0,
+            "mean": 695488.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "structural_matching": {
+            "coefficient_of_variation": 0.0,
+            "mean": 41920.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          }
+        }
       },
       "case": "sparse_banded_full_rank",
       "dimensions": [
@@ -144,6 +218,79 @@
         ],
         "point_count": 5,
         "value_key": "total_stage_mean_seconds"
+      },
+      "timing_repeatability_at_largest_dimension": {
+        "maximum_coefficient_of_variation": 0.2036947132212347,
+        "mean_coefficient_of_variation": 0.05199529881454177,
+        "stage_count": 11,
+        "stages": {
+          "active_set": {
+            "coefficient_of_variation": 0.07083843067551118,
+            "mean": 0.018913111,
+            "sample_count": 3,
+            "standard_deviation": 0.0013397751024317478
+          },
+          "degeneracy": {
+            "coefficient_of_variation": 0.019085211738796043,
+            "mean": 0.003530389,
+            "sample_count": 3,
+            "standard_deviation": 6.737822158531642e-5
+          },
+          "evaluation": {
+            "coefficient_of_variation": 0.015809015574184588,
+            "mean": 0.0043084026666666666,
+            "sample_count": 3,
+            "standard_deviation": 6.811160485719174e-5
+          },
+          "expressions": {
+            "coefficient_of_variation": 0.004792408691885455,
+            "mean": 0.7249760276666667,
+            "sample_count": 3,
+            "standard_deviation": 0.0034743814163983237
+          },
+          "numerical": {
+            "coefficient_of_variation": 0.03924909338900515,
+            "mean": 0.03553616666666667,
+            "sample_count": 3,
+            "standard_deviation": 0.001394762324187252
+          },
+          "reformulation": {
+            "coefficient_of_variation": 0.0009596545836601218,
+            "mean": 0.7156866946666667,
+            "sample_count": 3,
+            "standard_deviation": 0.0006868120170014287
+          },
+          "snapshot": {
+            "coefficient_of_variation": 0.13422773692609535,
+            "mean": 0.00026611100000000003,
+            "sample_count": 3,
+            "standard_deviation": 3.571947730114016e-5
+          },
+          "static": {
+            "coefficient_of_variation": 0.015576269622688078,
+            "mean": 0.8029435833333333,
+            "sample_count": 3,
+            "standard_deviation": 0.012506865745807312
+          },
+          "structural_dm": {
+            "coefficient_of_variation": 0.2036947132212347,
+            "mean": 6.055666666666666e-6,
+            "sample_count": 3,
+            "standard_deviation": 1.2335072850300567e-6
+          },
+          "structural_graph": {
+            "coefficient_of_variation": 0.05770027215578107,
+            "mean": 0.00027594466666666667,
+            "sample_count": 3,
+            "standard_deviation": 1.5922082366602956e-5
+          },
+          "structural_matching": {
+            "coefficient_of_variation": 0.010015480381117717,
+            "mean": 0.00042401399999999996,
+            "sample_count": 3,
+            "standard_deviation": 4.2467038983192474e-6
+          }
+        }
       }
     },
     {
@@ -180,6 +327,79 @@
         ],
         "point_count": 5,
         "value_key": "total_stage_mean_allocated_bytes"
+      },
+      "allocation_repeatability_at_largest_dimension": {
+        "maximum_coefficient_of_variation": 1.9908232016142026e-7,
+        "mean_coefficient_of_variation": 1.8098392741947297e-8,
+        "stage_count": 11,
+        "stages": {
+          "active_set": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.90032e7,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "degeneracy": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.771392e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "evaluation": {
+            "coefficient_of_variation": 0.0,
+            "mean": 2.560912e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "expressions": {
+            "coefficient_of_variation": 0.0,
+            "mean": 2.55152912e8,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "numerical": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.8099936e7,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "reformulation": {
+            "coefficient_of_variation": 0.0,
+            "mean": 2.55139696e8,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "snapshot": {
+            "coefficient_of_variation": 0.0,
+            "mean": 249184.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "static": {
+            "coefficient_of_variation": 1.9908232016142026e-7,
+            "mean": 3.030895893333333e8,
+            "sample_count": 3,
+            "standard_deviation": 60.339778661252055
+          },
+          "structural_dm": {
+            "coefficient_of_variation": 0.0,
+            "mean": 16784.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "structural_graph": {
+            "coefficient_of_variation": 0.0,
+            "mean": 695024.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "structural_matching": {
+            "coefficient_of_variation": 0.0,
+            "mean": 41920.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          }
+        }
       },
       "case": "sparse_banded_rank_deficient",
       "dimensions": [
@@ -262,6 +482,79 @@
         ],
         "point_count": 5,
         "value_key": "total_stage_mean_seconds"
+      },
+      "timing_repeatability_at_largest_dimension": {
+        "maximum_coefficient_of_variation": 0.4249760769539435,
+        "mean_coefficient_of_variation": 0.0602191742960065,
+        "stage_count": 11,
+        "stages": {
+          "active_set": {
+            "coefficient_of_variation": 0.04891452452305403,
+            "mean": 0.023248194666666666,
+            "sample_count": 3,
+            "standard_deviation": 0.0011371743881394005
+          },
+          "degeneracy": {
+            "coefficient_of_variation": 0.010207711596581306,
+            "mean": 0.0034578746666666664,
+            "sample_count": 3,
+            "standard_deviation": 3.529698733445805e-5
+          },
+          "evaluation": {
+            "coefficient_of_variation": 0.0019157464646300444,
+            "mean": 0.004315528333333333,
+            "sample_count": 3,
+            "standard_deviation": 8.26745814759412e-6
+          },
+          "expressions": {
+            "coefficient_of_variation": 0.006142783788495539,
+            "mean": 0.7308147916666666,
+            "sample_count": 3,
+            "standard_deviation": 0.0044892372546427445
+          },
+          "numerical": {
+            "coefficient_of_variation": 0.06681367192766413,
+            "mean": 0.03769019466666667,
+            "sample_count": 3,
+            "standard_deviation": 0.0025182203013484634
+          },
+          "reformulation": {
+            "coefficient_of_variation": 0.00589114913445763,
+            "mean": 0.7203835416666667,
+            "sample_count": 3,
+            "standard_deviation": 0.004243886877967106
+          },
+          "snapshot": {
+            "coefficient_of_variation": 0.034597119371468435,
+            "mean": 0.00023024999999999999,
+            "sample_count": 3,
+            "standard_deviation": 7.965986735280607e-6
+          },
+          "static": {
+            "coefficient_of_variation": 0.014588770844174767,
+            "mean": 0.8084873473333333,
+            "sample_count": 3,
+            "standard_deviation": 0.01179483664066073
+          },
+          "structural_dm": {
+            "coefficient_of_variation": 0.4249760769539435,
+            "mean": 1.893033333333333e-5,
+            "sample_count": 3,
+            "standard_deviation": 8.044938795430467e-6
+          },
+          "structural_graph": {
+            "coefficient_of_variation": 0.004751784140737021,
+            "mean": 0.0002654723333333333,
+            "sample_count": 3,
+            "standard_deviation": 1.2614672233377854e-6
+          },
+          "structural_matching": {
+            "coefficient_of_variation": 0.04361157851086502,
+            "mean": 0.00045895833333333335,
+            "sample_count": 3,
+            "standard_deviation": 2.0015897387382425e-5
+          }
+        }
       }
     },
     {
@@ -298,6 +591,79 @@
         ],
         "point_count": 5,
         "value_key": "total_stage_mean_allocated_bytes"
+      },
+      "allocation_repeatability_at_largest_dimension": {
+        "maximum_coefficient_of_variation": 1.654513439865758e-6,
+        "mean_coefficient_of_variation": 1.5947438036958437e-7,
+        "stage_count": 11,
+        "stages": {
+          "active_set": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.7738e7,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "degeneracy": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.771888e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "evaluation": {
+            "coefficient_of_variation": 0.0,
+            "mean": 2.561104e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "expressions": {
+            "coefficient_of_variation": 0.0,
+            "mean": 2.54815584e8,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "numerical": {
+            "coefficient_of_variation": 1.654513439865758e-6,
+            "mean": 1.8234901333333332e7,
+            "sample_count": 3,
+            "standard_deviation": 30.169889330626027
+          },
+          "reformulation": {
+            "coefficient_of_variation": 0.0,
+            "mean": 2.54802368e8,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "snapshot": {
+            "coefficient_of_variation": 0.0,
+            "mean": 249216.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "static": {
+            "coefficient_of_variation": 9.970474419966991e-8,
+            "mean": 3.025923146666667e8,
+            "sample_count": 3,
+            "standard_deviation": 30.169889330626027
+          },
+          "structural_dm": {
+            "coefficient_of_variation": 0.0,
+            "mean": 16416.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "structural_graph": {
+            "coefficient_of_variation": 0.0,
+            "mean": 695488.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "structural_matching": {
+            "coefficient_of_variation": 0.0,
+            "mean": 41920.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          }
+        }
       },
       "case": "sparse_banded_scaled",
       "dimensions": [
@@ -380,6 +746,79 @@
         ],
         "point_count": 5,
         "value_key": "total_stage_mean_seconds"
+      },
+      "timing_repeatability_at_largest_dimension": {
+        "maximum_coefficient_of_variation": 0.10367035171469738,
+        "mean_coefficient_of_variation": 0.027625348882396764,
+        "stage_count": 11,
+        "stages": {
+          "active_set": {
+            "coefficient_of_variation": 0.06280792809981098,
+            "mean": 0.018035750000000003,
+            "sample_count": 3,
+            "standard_deviation": 0.001132788089226166
+          },
+          "degeneracy": {
+            "coefficient_of_variation": 0.0041857124399286546,
+            "mean": 0.0034400556666666668,
+            "sample_count": 3,
+            "standard_deviation": 1.4399083798013727e-5
+          },
+          "evaluation": {
+            "coefficient_of_variation": 0.015474885490737509,
+            "mean": 0.004313333333333333,
+            "sample_count": 3,
+            "standard_deviation": 6.674833941671445e-5
+          },
+          "expressions": {
+            "coefficient_of_variation": 0.02192360141191172,
+            "mean": 0.7426107776666667,
+            "sample_count": 3,
+            "standard_deviation": 0.016280702693753795
+          },
+          "numerical": {
+            "coefficient_of_variation": 0.10367035171469738,
+            "mean": 0.037565764333333335,
+            "sample_count": 3,
+            "standard_deviation": 0.003894456000868101
+          },
+          "reformulation": {
+            "coefficient_of_variation": 0.011275082062346864,
+            "mean": 0.7276727776666666,
+            "sample_count": 3,
+            "standard_deviation": 0.008204570282727551
+          },
+          "snapshot": {
+            "coefficient_of_variation": 0.015898399155058644,
+            "mean": 0.00022405533333333332,
+            "sample_count": 3,
+            "standard_deviation": 3.562121122153049e-6
+          },
+          "static": {
+            "coefficient_of_variation": 0.013348026407759509,
+            "mean": 0.8061304026666667,
+            "sample_count": 3,
+            "standard_deviation": 0.010760249902892474
+          },
+          "structural_dm": {
+            "coefficient_of_variation": 0.03952220498612207,
+            "mean": 4.736333333333333e-6,
+            "sample_count": 3,
+            "standard_deviation": 1.8719033688260285e-7
+          },
+          "structural_graph": {
+            "coefficient_of_variation": 0.012707560441160145,
+            "mean": 0.00026406933333333334,
+            "sample_count": 3,
+            "standard_deviation": 3.3556770139901987e-6
+          },
+          "structural_matching": {
+            "coefficient_of_variation": 0.0030650854968309396,
+            "mean": 0.0004265,
+            "sample_count": 3,
+            "standard_deviation": 1.3072589643983958e-6
+          }
+        }
       }
     }
   ]

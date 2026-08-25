@@ -183,7 +183,11 @@ per-workload adjacent ratios, descriptive log-log slopes, allocation trends,
 and dominant-stage attribution across the same five dimensions. The three
 workloads show slopes roughly 1.38--1.90, with `static` the dominant stage at
 the largest dimension; these remain local profiling observations rather than
-portable complexity or solver-memory claims.
+portable complexity or solver-memory claims. The trend ledger now also retains
+within-dimension stage timing and allocation coefficients of variation at the
+largest dimension; the maximum timing coefficient is below 0.425 across the
+three workloads. This is repeatability context for the saved process, not a
+cross-machine or solver reproducibility claim.
 
 A separate bounded BMOPFTools adapter profile is now recorded in
 `docs/bmopf_analyze_runtime_profile_summary.json`. It measures parse, model

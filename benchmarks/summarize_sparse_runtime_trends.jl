@@ -61,6 +61,33 @@ function stage_dominant(record)
     Dict{String,Any}("stage" => dominant[1], "mean_seconds" => dominant[2])
 end
 
+function stage_repeatability(record, collection_key, mean_key, standard_deviation_key)
+    summaries = get(record, collection_key, Dict{String,Any}())
+    coefficients = Dict{String,Any}()
+    for stage in sort!(collect(keys(summaries)); by = string)
+        summary = summaries[stage]
+        mean = get(summary, mean_key, nothing)
+        standard_deviation = get(summary, standard_deviation_key, nothing)
+        mean isa Real && standard_deviation isa Real && mean > 0 || continue
+        coefficients[string(stage)] = Dict{String,Any}(
+            "mean" => mean,
+            "standard_deviation" => standard_deviation,
+            "coefficient_of_variation" => standard_deviation / mean,
+            "sample_count" => get(summary, "sample_count", nothing),
+        )
+    end
+    coefficient_values = Float64[
+        Float64(item["coefficient_of_variation"])
+        for item in values(coefficients)
+    ]
+    Dict{String,Any}(
+        "stage_count" => length(coefficients),
+        "maximum_coefficient_of_variation" => isempty(coefficient_values) ? nothing : maximum(coefficient_values),
+        "mean_coefficient_of_variation" => isempty(coefficient_values) ? nothing : sum(coefficient_values) / length(coefficient_values),
+        "stages" => coefficients,
+    )
+end
+
 workloads = Dict{String,Any}[]
 for case_name in sort!(unique(String[get(record, "case", "unknown") for record in records]))
     case_records = filter(record -> get(record, "case", "unknown") == case_name, records)
@@ -73,6 +100,12 @@ for case_name in sort!(unique(String[get(record, "case", "unknown") for record i
         "allocation" => trend(ordered, "total_stage_mean_allocated_bytes"),
         "process_maxrss_increment" => trend(ordered, "process_maxrss_increment_bytes"),
         "dominant_stage_at_largest_dimension" => stage_dominant(ordered[end]),
+        "timing_repeatability_at_largest_dimension" => stage_repeatability(
+            ordered[end], "stage_timing", "mean_seconds", "standard_deviation_seconds",
+        ),
+        "allocation_repeatability_at_largest_dimension" => stage_repeatability(
+            ordered[end], "stage_allocations", "mean_bytes", "standard_deviation_bytes",
+        ),
         "repetitions_complete" => all(get(record, "repetitions", 0) == get(get(summary, "source", Dict{String,Any}()), "repetitions", -1) for record in ordered),
     ))
 end
@@ -100,6 +133,7 @@ write_json(OUTPUT, Dict{String,Any}(
             "allocator-level peak memory",
             "a portable asymptotic complexity law or production threshold",
         ],
+        "repeatability_note" => "Per-stage coefficients of variation at the largest dimension summarize within-dimension repetition only; they do not quantify cross-machine or solver repeatability.",
     ),
 ))
 println("wrote sparse runtime trend summary to $OUTPUT")

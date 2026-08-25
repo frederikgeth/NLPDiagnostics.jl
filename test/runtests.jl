@@ -2243,7 +2243,14 @@ end
     @test all(workload["point_count"] == 5 for workload in sparse_runtime_trend_data["workloads"])
     @test all(workload["repetitions_complete"] for workload in sparse_runtime_trend_data["workloads"])
     @test all(workload["dominant_stage_at_largest_dimension"]["stage"] == "static" for workload in sparse_runtime_trend_data["workloads"])
+    @test all(workload["timing_repeatability_at_largest_dimension"]["stage_count"] > 0 for workload in sparse_runtime_trend_data["workloads"])
+    @test all(workload["allocation_repeatability_at_largest_dimension"]["stage_count"] > 0 for workload in sparse_runtime_trend_data["workloads"])
+    @test all(workload["timing_repeatability_at_largest_dimension"]["maximum_coefficient_of_variation"] < 0.5 for workload in sparse_runtime_trend_data["workloads"])
     @test occursin("sparse_runtime_trend_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
+    @test occursin("timing_repeatability_at_largest_dimension", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
