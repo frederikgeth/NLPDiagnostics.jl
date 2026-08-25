@@ -5309,9 +5309,9 @@ superiority.
 
 The API consolidation track now has a bounded manual ownership ledger from
 `benchmarks/review_api_ownership_decisions.jl`, recorded in
-`docs/api_ownership_decision_summary.json`. Twenty-four high-impact root-only
+`docs/api_ownership_decision_summary.json`. Thirty-six high-impact root-only
 names were reviewed from the usage queue: twenty retain root compatibility and
-four BMOPF-specific helpers remain Advanced candidates. No export is moved,
+sixteen BMOPF-specific helpers remain Advanced candidates. No export is moved,
 deprecated, or removed by this ledger.
 
 This converts the highest-impact portion of the migration queue from an

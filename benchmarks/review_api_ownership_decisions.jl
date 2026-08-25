@@ -4,7 +4,8 @@
 
 The ledger is intentionally decision-only: it does not edit exports, move
 symbols, or deprecate compatibility paths. The selected names are the most
-referenced runtime/test/benchmark surface and one BMOPF extension candidate.
+referenced runtime/test/benchmark surface plus a bounded batch of BMOPF
+extension candidates.
 """
 
 include(joinpath(@__DIR__, "common.jl"))
@@ -136,6 +137,66 @@ const REVIEW_DECISIONS = Dict{String,Dict{String,Any}}(
         "namespace_target" => "root",
         "rationale" => "Structural graph helper is used by analysis and tests; preserve root access while graph API ownership remains broad.",
     ),
+    "bmopf_jacobian_row_family_scale_attribution" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "BMOPFTools row-family attribution is an experiment-facing diagnostic; keep it as an Advanced candidate until scaling semantics are versioned.",
+    ),
+    "bmopf_initialization_point" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "BMOPFTools initialization record is solver-workload specific; defer any namespace move until adapter ownership and serialization are stable.",
+    ),
+    "bmopf_jacobian_row_family_scaling_experiment" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Scaling experiment orchestration belongs to the research-facing extension surface; retain compatibility while the experiment contract matures.",
+    ),
+    "bmopf_variable_semantic_column_map" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "BMOPFTools variable-semantic mapping is adapter-owned and not a core evaluator primitive; review it under the Advanced namespace boundary.",
+    ),
+    "bmopf_controller_curve_operating_point_observations" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Controller-curve observations are workload-specific evidence records; keep them Advanced until their schema is stable across solver cases.",
+    ),
+    "bmopf_block_scaling_covariance_report" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Block-scaling covariance is a research diagnostic derived from BMOPFTools experiments; do not promote it to the root compatibility surface.",
+    ),
+    "bmopf_constraint_feasibility_field_attribution" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Constraint-feasibility attribution depends on BMOPF semantic fields; retain it as an Advanced candidate pending a stable adapter contract.",
+    ),
+    "bmopf_acdc_scaling_contract_data" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "AC/DC scaling contract data is extension-specific and experimental; keep ownership in Advanced until cross-case compatibility is demonstrated.",
+    ),
+    "bmopf_block_scaling_coordinate_geometry_report" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Coordinate-geometry scaling reports are BMOPFTools research artifacts; defer namespace migration until report schemas and consumers settle.",
+    ),
+    "bmopf_build_and_profile" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "BMOPFTools build/profile orchestration is an integration workflow rather than a core evaluator API; keep it Advanced pending a stable facade.",
+    ),
+    "bmopf_constraint_registry_coverage_report" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Constraint-registry coverage is adapter-specific evidence and should remain Advanced until registry ownership is finalized.",
+    ),
+    "bmopf_coordinate_probe_point" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Coordinate probe points are experiment inputs tied to BMOPFTools scaling campaigns; retain Advanced ownership while the probe schema evolves.",
+    ),
 )
 
 queue = read_summary(INPUT)["queue"]
@@ -184,7 +245,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "Keep Stable and Advanced facades unchanged until ownership review is complete.",
     ],
     "interpretation" => Dict{String,Any}(
-        "claim" => "Twenty-four high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except four Advanced candidate reviews.",
+        "claim" => "Thirty-six high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except sixteen Advanced candidate reviews.",
         "does_not_establish" => [
             "a complete review of all root-only exports",
             "permission to remove or deprecate root symbols",

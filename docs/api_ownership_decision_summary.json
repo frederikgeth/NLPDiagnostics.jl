@@ -1,13 +1,13 @@
 {
-  "advanced_candidate_count": 4,
+  "advanced_candidate_count": 16,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "7511e12879eb44e6f95be9be3e601325ebffa41e",
+    "git_revision": "4a05f9847622cab5fd3cf4cf3066e88cb5f1ecec",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {
-    "claim": "Twenty-four high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except four Advanced candidate reviews.",
+    "claim": "Thirty-six high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except sixteen Advanced candidate reviews.",
     "does_not_establish": [
       "a complete review of all root-only exports",
       "permission to remove or deprecate root symbols",
@@ -20,7 +20,7 @@
     "Approve any namespace move only with an explicit compatibility and type-identity plan.",
     "Keep Stable and Advanced facades unchanged until ownership review is complete."
   ],
-  "reviewed_count": 24,
+  "reviewed_count": 36,
   "root_compatibility_retained_count": 20,
   "rows": [
     {
@@ -156,6 +156,78 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 4,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_acdc_scaling_contract_data",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "AC/DC scaling contract data is extension-specific and experimental; keep ownership in Advanced until cross-case compatibility is demonstrated.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 4,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_block_scaling_coordinate_geometry_report",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Coordinate-geometry scaling reports are BMOPFTools research artifacts; defer namespace migration until report schemas and consumers settle.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 5,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_block_scaling_covariance_report",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Block-scaling covariance is a research diagnostic derived from BMOPFTools experiments; do not promote it to the root compatibility surface.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 4,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_build_and_profile",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "BMOPFTools build/profile orchestration is an integration workflow rather than a core evaluator API; keep it Advanced pending a stable facade.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 5,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_constraint_feasibility_field_attribution",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Constraint-feasibility attribution depends on BMOPF semantic fields; retain it as an Advanced candidate pending a stable adapter contract.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 4,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_constraint_registry_coverage_report",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Constraint-registry coverage is adapter-specific evidence and should remain Advanced until registry ownership is finalized.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 13,
       "decision": "advanced_candidate_review",
       "has_runtime_usage_evidence": true,
@@ -168,6 +240,30 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 6,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_controller_curve_operating_point_observations",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Controller-curve observations are workload-specific evidence records; keep them Advanced until their schema is stable across solver cases.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 4,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_coordinate_probe_point",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Coordinate probe points are experiment inputs tied to BMOPFTools scaling campaigns; retain Advanced ownership while the probe schema evolves.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 13,
       "decision": "advanced_candidate_review",
       "has_runtime_usage_evidence": true,
@@ -176,6 +272,42 @@
       "namespace_target": "Advanced",
       "proposed_disposition": "advanced_candidate",
       "rationale": "BMOPFTools scaling adapter belongs in the research namespace pending a stable semantic contract and compatibility review.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 7,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_initialization_point",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "BMOPFTools initialization record is solver-workload specific; defer any namespace move until adapter ownership and serialization are stable.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 9,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_jacobian_row_family_scale_attribution",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "BMOPFTools row-family attribution is an experiment-facing diagnostic; keep it as an Advanced candidate until scaling semantics are versioned.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 7,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_jacobian_row_family_scaling_experiment",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Scaling experiment orchestration belongs to the research-facing extension surface; retain compatibility while the experiment contract matures.",
       "review_status": "reviewed_local",
       "usage_priority": "test_and_benchmark_usage"
     },
@@ -200,6 +332,18 @@
       "namespace_target": "Advanced",
       "proposed_disposition": "advanced_candidate",
       "rationale": "BMOPFTools-specific lifecycle helper is a plausible Advanced candidate, but adapter ownership and compatibility still require explicit review.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 7,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_variable_semantic_column_map",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "BMOPFTools variable-semantic mapping is adapter-owned and not a core evaluator primitive; review it under the Advanced namespace boundary.",
       "review_status": "reviewed_local",
       "usage_priority": "test_and_benchmark_usage"
     },
