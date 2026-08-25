@@ -1,0 +1,43 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-scaling-campaign-v1",
+  "status": "bounded_solver_campaign_size_guarded",
+  "source": {
+    "runner": "benchmarks/bmopf_combined_mv_lv_scaling_campaign.jl",
+    "case": "BMOPFTools/test/data/Master.dss",
+    "local_environment": "work/benchmark-environment",
+    "execution_date": "2026-08-25",
+    "source_warning_count": 46,
+    "source_warning_codes": ["W.PROV.POWERIO_UNCODED"],
+    "source_ledger_status": "truncated_upstream",
+    "source_license": "CC BY-NC-SA 4.0"
+  },
+  "network_shape": {
+    "bus_count": 3409,
+    "line_count": 3096,
+    "load_count": 1255,
+    "transformer_interface_count": 33,
+    "model_variable_count": 56142
+  },
+  "budgets": {
+    "max_variables": 5000,
+    "max_iter": 1,
+    "max_cpu_seconds": 5.0
+  },
+  "policies": {
+    "classic": {
+      "status": "skipped_solver_size_guard",
+      "transformer_contract_applied": false
+    },
+    "combined_mv_lv_local": {
+      "status": "skipped_solver_size_guard",
+      "proposal_admissible": true,
+      "transformer_contract_applied": true
+    },
+    "si": {
+      "status": "skipped_solver_size_guard",
+      "transformer_contract_applied": false
+    }
+  },
+  "interpretation": "The full combined case is structurally buildable but exceeds the first bounded solver budget by more than an order of magnitude. This is a size-guarded readiness result, not solver failure and not a policy ranking.",
+  "next_gate": "derive or select smaller combined MV/LV snapshots, then run matched-start Ipopt and MadNLP campaigns with the same explicit budgets"
+}

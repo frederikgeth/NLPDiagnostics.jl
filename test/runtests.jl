@@ -2053,6 +2053,14 @@ end
     @test occursin("Master.dss", combined_scaling_probe)
     @test occursin("combined_mv_lv_local", combined_scaling_probe)
     @test occursin("max_dense_entries = 0", combined_scaling_probe)
+    combined_scaling_campaign = read(
+        joinpath(benchmark_directory, "bmopf_combined_mv_lv_scaling_campaign.jl"),
+        String,
+    )
+    @test occursin("max_variables", combined_scaling_campaign)
+    @test occursin("max_cpu_seconds", combined_scaling_campaign)
+    @test occursin("skipped_solver_size_guard", combined_scaling_campaign)
+    @test occursin("combined_mv_lv_local", combined_scaling_campaign)
     combined_scaling_summary = read(
         joinpath(repository_root, "docs", "bmopf_combined_mv_lv_scaling_readiness_summary.json"),
         String,
@@ -2060,6 +2068,13 @@ end
     @test occursin("structural_readiness_complete_solver_campaign_pending", combined_scaling_summary)
     @test occursin("transformer_interface_count", combined_scaling_summary)
     @test occursin("solver_work_claim_supported", combined_scaling_summary)
+    combined_scaling_campaign_summary = read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_scaling_campaign_summary.json"),
+        String,
+    )
+    @test occursin("bounded_solver_campaign_size_guarded", combined_scaling_campaign_summary)
+    @test occursin("56142", combined_scaling_campaign_summary)
+    @test occursin("model_variable_count", combined_scaling_campaign_summary)
     magnitude_campaign = read(
         joinpath(
             benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",

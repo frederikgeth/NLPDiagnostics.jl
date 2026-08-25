@@ -4933,3 +4933,23 @@ MV/LV snapshots and starts. It must predeclare the snapshot/start/iteration
 budget, run sparse covariance and coordinate-geometry gates first, retain all
 source warnings, and compare policies descriptively. No universal scaling rule
 should be inferred from this case alone.
+
+The bounded campaign harness is now implemented as
+`benchmarks/bmopf_combined_mv_lv_scaling_campaign.jl`. It runs classic,
+two-level MV/LV local, and SI policies through BMOPFTools with the same native
+start lifecycle, explicit maximum-variable/iteration/CPU budgets, and a
+size-guarded outcome. A size guard is recorded as a readiness result rather
+than mislabeled as solver failure; successful solves retain termination,
+primal/dual status, objective, result-point availability, and transformer
+contract evidence. The first execution target remains a bounded subset or
+snapshot before allowing the full combined model into a solver campaign.
+
+The first full-case execution is now recorded in
+`docs/bmopf_combined_mv_lv_scaling_campaign_summary.json`: all three policies
+build through BMOPFTools with 56,142 model variables, while the deliberately
+bounded 5,000-variable / one-iteration / five-second budget size-guards each
+solver run. The local MV/LV policy remains admissible and reaches the 33
+interface transformer contract. This confirms that the full source is a useful
+structural fixture but is too large for the first solver campaign; the next
+deliverable is a reduced or selected combined MV/LV snapshot with matched
+Ipopt/MadNLP starts, not an unbounded full-case solve.

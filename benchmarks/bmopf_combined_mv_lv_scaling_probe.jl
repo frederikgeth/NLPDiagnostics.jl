@@ -181,8 +181,10 @@ function main()
         "input" => Dict(
             "path" => input_path,
             "source_warning_count" => length(warnings),
-            "source_warning_codes" => sort!(unique(string(get(w, "code", "unknown"))
-                                               for w in warnings if w isa AbstractDict)),
+            "source_warning_codes" => sort!(collect(unique(
+                string(get(w, "code", "unknown"))
+                for w in warnings if w isa AbstractDict
+            ))),
         ),
         "network_shape" => Dict(
             "bus_count" => length(get(network, "bus", Dict())),
