@@ -2148,6 +2148,19 @@ end
     @test occursin("workload_comparisons", analyze_scaling_summary)
     @test occursin("process_maxrss_increment_bytes", analyze_scaling_summary)
     @test occursin("memory_measurement", analyze_scaling_summary)
+    bmopf_analyze_profile_script = read(
+        joinpath(benchmark_directory, "profile_bmopf_analyze_runtime.jl"),
+        String,
+    )
+    @test Meta.parseall(bmopf_analyze_profile_script) isa Expr
+    @test occursin("skipped_size_guard", bmopf_analyze_profile_script)
+    @test occursin("powerio_warning_count", bmopf_analyze_profile_script)
+    bmopf_analyze_profile_summary = read(
+        joinpath(repository_root, "docs", "bmopf_analyze_runtime_profile_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-bmopf-analyze-runtime-profile-v1", bmopf_analyze_profile_summary)
+    @test occursin("pf_1ph_line.dss", bmopf_analyze_profile_summary)
     @test occursin("\"static\"", analyze_scaling_summary)
     @test occursin("\"expressions\"", analyze_scaling_summary)
     @test occursin("Stage attribution is now recorded", read(

@@ -93,6 +93,13 @@ Each run now also records the process high-water-mark increment from
 `Sys.maxrss()` for descriptive memory attribution; isolated peak-memory and
 solver-memory claims remain out of scope.
 
+A separate bounded BMOPFTools adapter profile is now recorded in
+`docs/bmopf_analyze_runtime_profile_summary.json`. It measures parse, model
+build, KCL finalization, and point-free `analyze(model)` costs on three small
+OpenDSS fixtures under a 24-variable guard, retaining PowerIO warning counts
+and explicit size-guard outcomes. This exercises the real adapter boundary
+without extrapolating tiny-fixture behavior to OPF-scale performance.
+
 The first evidence-preserving optimization is now implemented: `analyze_domains`
 reuses one propagated variable-interval state for issue detection and interval
 origin provenance instead of recomputing it. On the bounded 100/200/400 fixture,
