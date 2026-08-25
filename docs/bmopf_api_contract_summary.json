@@ -99,9 +99,9 @@
     }
   },
   "dependency": {
-    "git_branch": "codex/source-schema-fidelity-main",
+    "git_branch": "main",
     "git_dirty": false,
-    "git_revision": "74f907638016c69c3e926d47d437a627443aee20",
+    "git_revision": "7a902e914b8148043aba96e0f10c34c74650b9cb",
     "git_root": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl",
     "name": "BMOPFTools",
     "source_path": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/src/BMOPFTools.jl",

@@ -1,13 +1,13 @@
 {
   "bootstrap_exit_code": null,
-  "checkout": "/private/tmp/bmopf-opf-scaling-diagnostic-schema",
-  "contract_artifact": "/private/tmp/bmopf_checkout_contract.json",
+  "checkout": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl",
+  "contract_artifact": "/var/folders/9p/mwb5dzd90wx569k66lg4b8gn6tljcn/T/nlpdiagnostics-bmopf-contract-93137.json",
   "contract_exit_code": 0,
   "contract_status": "pass",
   "dependency": {
     "branch": "main",
-    "revision": "8f121216065bcd692f18444836c7c80149e5cf4a",
-    "dirty": false
+    "dirty": false,
+    "revision": "7a902e914b8148043aba96e0f10c34c74650b9cb"
   },
   "qualification": {
     "claim": "local BMOPFTools checkout compatibility and regression-suite readiness",
@@ -20,9 +20,9 @@
   "schema_version": "nlpdiagnostics-bmopf-checkout-validation-v1",
   "status": "pass",
   "suite_exit_code": 0,
-  "suite_log": "/private/tmp/bmopf-checkout-validation-main.log",
-  "suite_passed": 1634,
-  "suite_total": 1634,
+  "suite_log": "/var/folders/9p/mwb5dzd90wx569k66lg4b8gn6tljcn/T/nlpdiagnostics-bmopf-validation.log",
+  "suite_passed": 1801,
+  "suite_total": 1801,
   "validation_passed": true,
-  "validation_project": "/private/tmp/nlpdiag-bmopf-main-contract.wq1BOE"
+  "validation_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment"
 }

@@ -2192,6 +2192,32 @@ end
     @test occursin("\"benchmark_script_count\": 117", consolidation_summary)
     @test occursin("\"shared_benchmark_helper_user_count\": 114", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
+    active_bmopf_contract = read(
+        joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),
+        String,
+    )
+    clean_bmopf_contract = read(
+        joinpath(repository_root, "docs", "bmopf_api_contract_clean_main_summary.json"),
+        String,
+    )
+    handoff_summary = read(
+        joinpath(repository_root, "docs", "bmopf_pr_handoff_summary.json"),
+        String,
+    )
+    checkout_validation_summary = read(
+        joinpath(repository_root, "docs", "bmopf_checkout_validation_summary.json"),
+        String,
+    )
+    @test occursin("\"status\": \"pass\"", active_bmopf_contract)
+    @test occursin("\"status\": \"pass\"", clean_bmopf_contract)
+    @test occursin("\"handoff_passed\": true", handoff_summary)
+    @test occursin("\"status\": \"pass\"", checkout_validation_summary)
+    @test occursin("\"suite_passed\": 1801", checkout_validation_summary)
+    checkout_validator = read(
+        joinpath(benchmark_directory, "validate_bmopf_checkout.jl"),
+        String,
+    )
+    @test occursin("--compiled-modules=no", checkout_validator)
     consolidation_audit = read(
         joinpath(benchmark_directory, "audit_api_test_benchmark_consolidation.jl"),
         String,

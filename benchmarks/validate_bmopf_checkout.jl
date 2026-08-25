@@ -31,7 +31,10 @@ isdir(CHECKOUT) || error("BMOPFTools checkout is missing: $CHECKOUT")
 isfile(joinpath(ROOT, "Project.toml")) || error("NLPDiagnostics project is missing: $ROOT")
 
 function command(args::Vector{String})
-    Cmd(vcat(JULIA.exec, ["--startup-file=no"], args))
+    # The managed local environment may not permit Julia's shared compiled
+    # cache pidfiles. Keep validation reproducible in that known environment
+    # by using the same no-precompile execution boundary as the full suite.
+    Cmd(vcat(JULIA.exec, ["--startup-file=no", "--compiled-modules=no"], args))
 end
 
 function run_with_environment(cmd::Cmd, environment::Dict{String,String})

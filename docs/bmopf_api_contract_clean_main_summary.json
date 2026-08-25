@@ -6,7 +6,7 @@
     "extension_source": "ext/BMOPFToolsJuMPExt.jl",
     "missing_symbols": [],
     "optional_symbol_status": {
-      "powerio_source_behavior_contract": false
+      "powerio_source_behavior_contract": true
     },
     "optional_symbols": [
       "powerio_source_behavior_contract"
@@ -101,10 +101,10 @@
   "dependency": {
     "git_branch": "main",
     "git_dirty": false,
-    "git_revision": "8f121216065bcd692f18444836c7c80149e5cf4a",
-    "git_root": "/private/tmp/bmopf-opf-scaling-diagnostic-schema",
+    "git_revision": "7a902e914b8148043aba96e0f10c34c74650b9cb",
+    "git_root": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl",
     "name": "BMOPFTools",
-    "source_path": "/private/tmp/bmopf-opf-scaling-diagnostic-schema/src/BMOPFTools.jl",
+    "source_path": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/src/BMOPFTools.jl",
     "uuid": "5f9a3b62-8f63-4a39-b67b-af9b51e6a7c3",
     "version": "0.1.0"
   },

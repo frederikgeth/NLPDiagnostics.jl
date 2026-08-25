@@ -74,6 +74,15 @@ calibration cases, complete physical KKT/covariance coverage on the real
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
+The BMOPFTools dependency handoff has now been refreshed against clean local
+`main` at revision `7a902e914b8148043aba96e0f10c34c74650b9cb`. The active API
+contract and tracked clean-main contract match, the PR handoff audit passes,
+and the known `work/benchmark-environment` validates the checkout with the
+full 1801/1801 local suite. The validator now disables compiled modules for its
+child processes so the managed environment's shared Julia cache permissions do
+not turn a valid checkout into a false blocker. This closes the revision-sync
+deliverable, but not the broader API-tier review or scientific release gates.
+
 The `analyze(model)` scaling gate now includes bounded stage attribution in
 `docs/analyze_runtime_scaling_summary.json`. The existing end-to-end runtime
 and allocation records are unchanged, while snapshot, incidence, static,
@@ -4771,23 +4780,17 @@ residual-trend, checkout, and PR-handoff gates now use the same JSON/repository
 helper.
 The remaining benchmark scripts are not yet required by the current release
 gate. The executable
-`benchmarks/audit_bmopf_api_contract.jl` audit now extracts the exact
-BMOPFTools surface consumed by the JuMP extension and records dependency
-revision, branch, dirty state, and runtime `OpfDiagnosticSchema` major version.
-It currently fails on the active
-`codex/source-schema-fidelity` checkout because `OpfDiagnosticSchema` and
-`opf_diagnostic_schema` are absent. The tracked clean-main artifact now passes
-the runtime schema check at major version 1 at BMOPFTools
-`8f121216065bcd692f18444836c7c80149e5cf4a`, and the full local
-suite passes 1634/1634 against that worktree. The dependency handoff remains
-the next PR gate: resolve the active checkout onto the clean-main API (or
-merge the schema branch), then rerun `benchmarks/audit_bmopf_pr_handoff.jl`
-and the suite. The handoff audit is intentionally blocked while the active
-checkout remains on the older source-schema-fidelity revision. The new
-`benchmarks/validate_bmopf_checkout.jl` runner validates an arbitrary local
-BMOPFTools checkout in an isolated environment; against clean main it passes
-the API contract and all 1634 regression tests, with the result tracked in
-`docs/bmopf_checkout_validation_summary.json`.
+`benchmarks/audit_bmopf_api_contract.jl` audit extracts the exact BMOPFTools
+surface consumed by the JuMP extension and records dependency revision, branch,
+dirty state, and runtime `OpfDiagnosticSchema` major version. The active and
+tracked clean-main contracts now both pass at BMOPFTools
+`7a902e914b8148043aba96e0f10c34c74650b9cb`; the dependency handoff audit
+passes. The `benchmarks/validate_bmopf_checkout.jl` runner validates the local
+checkout against the known benchmark environment and records the full
+1801/1801 regression suite in `docs/bmopf_checkout_validation_summary.json`.
+Temporary-environment bootstrap remains unavailable under the managed Julia
+registry permissions, so this artifact deliberately records the known local
+environment boundary rather than implying isolated-environment coverage.
 full campaign JSON remains a local artifact because it contains solver traces
 and environment-specific payloads; the summary records the exact case,
 runner/environment fingerprint, sparse-work gate, dependency revision, and
