@@ -2323,6 +2323,26 @@ end
     @test analyze_readiness_data["static_optimization_generalization"]["workload_count"] == 2
     @test analyze_readiness_data["static_optimization_generalization"]["record_count"] == 6
     @test analyze_readiness_data["static_optimization_generalization"]["equivalence_passed"] == true
+    @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["feeder_count"] == 2
+    @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["record_count"] == 6
+    @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["measured_count"] == 6
+    @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["stable_measured_count"] == 6
+    analyze_combined_script = read(
+        joinpath(benchmark_directory, "profile_bmopf_combined_mv_lv_analyze_scaling.jl"),
+        String,
+    )
+    @test Meta.parseall(analyze_combined_script) isa Expr
+    @test occursin("combined_mv_lv_local", analyze_combined_script)
+    @test occursin("NLPDIAGNOSTICS_BMOPF_COMBINED_MV_LV_ANALYZE_MAX_VARIABLES", analyze_combined_script)
+    analyze_combined_summary = read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_analyze_scaling_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-bmopf-combined-mv-lv-analyze-scaling-v1", analyze_combined_summary)
+    @test occursin("PowerIO", read(
+        joinpath(benchmark_directory, "profile_bmopf_combined_mv_lv_analyze_scaling.jl"),
+        String,
+    ))
     analyze_generalization_script = read(
         joinpath(benchmark_directory, "profile_analyze_static_optimization_generalization.jl"),
         String,
