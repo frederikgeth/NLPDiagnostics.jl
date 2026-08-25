@@ -48,6 +48,13 @@ analyze_optimization_note = get(
     "description",
     "no optimization provenance recorded",
 )
+analyze_nonlinear_records = get(
+    get(analyze_runtime_scaling, "workload_comparisons", Dict{String,Any}()),
+    "sparse_nonlinear_chain",
+    Any[],
+)
+analyze_nonlinear_end = isempty(analyze_nonlinear_records) ? nothing :
+    analyze_nonlinear_records[end]
 analyze_stage_dominant = isempty(analyze_stage_records) ?
     "unavailable" :
     begin
@@ -121,7 +128,7 @@ gates = Dict{String,Any}[
     gate(
         "analyze_runtime_scaling",
         "partial",
-        "The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from $(round(analyze_runtime_scaling["records"][1]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][1]["dimension"]) to $(round(analyze_runtime_scaling["records"][end]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][end]["dimension"]) across $analyze_repetitions repetition(s), with affine propagation reaching its configured five-pass limit. Finding evidence is stable across repetitions: $analyze_evidence_stable. Stage attribution is now recorded; the largest measured stage at the largest dimension is $analyze_stage_dominant. The current evidence-preserving optimization is: $analyze_optimization_note. Portable scaling and further optimization remain open.",
+        "The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from $(round(analyze_runtime_scaling["records"][1]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][1]["dimension"]) to $(round(analyze_runtime_scaling["records"][end]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][end]["dimension"]) across $analyze_repetitions repetition(s), with affine propagation reaching its configured five-pass limit. Finding evidence is stable across repetitions: $analyze_evidence_stable. Stage attribution is now recorded; the largest measured stage at the largest dimension is $analyze_stage_dominant. A second sparse nonlinear workload is also measured, reaching $(isnothing(analyze_nonlinear_end) ? "unavailable" : "$(round(analyze_nonlinear_end["elapsed_seconds"]; digits=3))s at dimension $(analyze_nonlinear_end["dimension"]) with stable evidence $(get(analyze_nonlinear_end, "evidence_stable_across_repetitions", false))"). The current evidence-preserving optimization is: $analyze_optimization_note. Portable scaling and further optimization remain open.",
         ["docs/analyze_runtime_scaling_summary.json"],
         blocking=true,
     ),

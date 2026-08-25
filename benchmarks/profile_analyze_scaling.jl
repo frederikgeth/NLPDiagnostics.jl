@@ -81,6 +81,24 @@ function sparse_affine_chain_model(dimension::Int)
     return model
 end
 
+function sparse_nonlinear_chain_model(dimension::Int)
+    model = MOI.Utilities.Model{Float64}()
+    variables = [MOI.add_variable(model) for _ in 1:dimension]
+    for index in 1:(dimension - 1)
+        difference = MOI.ScalarNonlinearFunction(
+            :-,
+            Any[variables[index + 1], variables[index]],
+        )
+        residual = MOI.ScalarNonlinearFunction(:sin, Any[difference])
+        MOI.add_constraint(model, residual, MOI.EqualTo(0.0))
+    end
+    for variable in variables
+        MOI.add_constraint(model, variable, MOI.GreaterThan(-1.0))
+        MOI.add_constraint(model, variable, MOI.LessThan(1.0))
+    end
+    return model
+end
+
 function timed_stage(thunk::Function, stage::AbstractString)
     timed = @timed thunk()
     return Dict{String,Any}(
@@ -152,60 +170,87 @@ function aggregate_stage_attribution(runs::AbstractVector)
     ]
 end
 
+function measure_workload(
+    model_builder::Function,
+    workload::AbstractString,
+    dimensions::AbstractVector{<:Integer},
+    repetitions::Integer,
+)
+    records = Dict{String,Any}[]
+    for dimension in dimensions
+        runs = Dict{String,Any}[]
+        for repetition in 1:repetitions
+            model = model_builder(dimension)
+            GC.gc()
+            timed = @timed NLPDiagnostics.analyze(model)
+            report = timed.value
+            counts = NLPDiagnostics.finding_code_counts(report)
+            push!(runs, Dict{String,Any}(
+                "repetition" => repetition,
+                "elapsed_seconds" => timed.time,
+                "allocated_bytes" => timed.bytes,
+                "finding_count" => length(report),
+                "finding_code_counts" => Dict(string(code) => count for (code, count) in counts),
+                "limit_reached" => haskey(counts, :affine_interval_propagation_limit_reached),
+                "stage_attribution" => stage_attribution(model),
+            ))
+        end
+        elapsed = numeric_summary([run["elapsed_seconds"] for run in runs])
+        allocations = numeric_summary([run["allocated_bytes"] for run in runs])
+        reference_run = first(runs)
+        reference_findings = reference_run["finding_code_counts"]
+        evidence_stable = all(
+            run["finding_code_counts"] == reference_findings &&
+            run["finding_count"] == reference_run["finding_count"] &&
+            run["limit_reached"] == reference_run["limit_reached"] for run in runs
+        )
+        push!(records, Dict{String,Any}(
+            "workload" => workload,
+            "dimension" => dimension,
+            "variable_count" => dimension,
+            "constraint_count" => workload == "sparse_affine_chain" ?
+                                   3 * dimension - 2 : 3 * dimension - 1,
+            "repetitions" => repetitions,
+            "elapsed_seconds" => elapsed["mean"],
+            "allocated_bytes" => round(Int, allocations["mean"]),
+            "elapsed_seconds_minimum" => elapsed["minimum"],
+            "elapsed_seconds_maximum" => elapsed["maximum"],
+            "allocated_bytes_minimum" => allocations["minimum"],
+            "allocated_bytes_maximum" => allocations["maximum"],
+            "finding_count" => reference_run["finding_count"],
+            "finding_code_counts" => reference_findings,
+            "limit_reached" => reference_run["limit_reached"],
+            "evidence_stable_across_repetitions" => evidence_stable,
+            "stage_attribution" => aggregate_stage_attribution(
+                [run["stage_attribution"] for run in runs],
+            ),
+            "runs" => runs,
+        ))
+    end
+    return records
+end
+
 # Compile the public path and attribution stages once outside the measured
 # records. The warm-up is discarded from the reported evidence.
 warmup_model = sparse_affine_chain_model(first(dimensions))
 NLPDiagnostics.analyze(warmup_model)
 stage_attribution(warmup_model)
+nonlinear_warmup_model = sparse_nonlinear_chain_model(first(dimensions))
+NLPDiagnostics.analyze(nonlinear_warmup_model)
+stage_attribution(nonlinear_warmup_model)
 
-records = Dict{String,Any}[]
-for dimension in dimensions
-    runs = Dict{String,Any}[]
-    for repetition in 1:repetitions
-        model = sparse_affine_chain_model(dimension)
-        GC.gc()
-        timed = @timed NLPDiagnostics.analyze(model)
-        report = timed.value
-        counts = NLPDiagnostics.finding_code_counts(report)
-        push!(runs, Dict{String,Any}(
-            "repetition" => repetition,
-            "elapsed_seconds" => timed.time,
-            "allocated_bytes" => timed.bytes,
-            "finding_count" => length(report),
-            "finding_code_counts" => Dict(string(code) => count for (code, count) in counts),
-            "limit_reached" => haskey(counts, :affine_interval_propagation_limit_reached),
-            "stage_attribution" => stage_attribution(model),
-        ))
-    end
-    elapsed = numeric_summary([run["elapsed_seconds"] for run in runs])
-    allocations = numeric_summary([run["allocated_bytes"] for run in runs])
-    reference_findings = first(runs)["finding_code_counts"]
-    evidence_stable = all(
-        run["finding_code_counts"] == reference_findings &&
-        run["finding_count"] == first(runs)["finding_count"] &&
-        run["limit_reached"] == first(runs)["limit_reached"] for run in runs
-    )
-    push!(records, Dict{String,Any}(
-        "dimension" => dimension,
-        "variable_count" => dimension,
-        "constraint_count" => 3 * dimension - 2,
-        "repetitions" => repetitions,
-        "elapsed_seconds" => elapsed["mean"],
-        "allocated_bytes" => round(Int, allocations["mean"]),
-        "elapsed_seconds_minimum" => elapsed["minimum"],
-        "elapsed_seconds_maximum" => elapsed["maximum"],
-        "allocated_bytes_minimum" => allocations["minimum"],
-        "allocated_bytes_maximum" => allocations["maximum"],
-        "finding_count" => first(runs)["finding_count"],
-        "finding_code_counts" => reference_findings,
-        "limit_reached" => first(runs)["limit_reached"],
-        "evidence_stable_across_repetitions" => evidence_stable,
-        "stage_attribution" => aggregate_stage_attribution(
-            [run["stage_attribution"] for run in runs],
-        ),
-        "runs" => runs,
-    ))
-end
+records = measure_workload(
+    sparse_affine_chain_model,
+    "sparse_affine_chain",
+    dimensions,
+    repetitions,
+)
+nonlinear_records = measure_workload(
+    sparse_nonlinear_chain_model,
+    "sparse_nonlinear_chain",
+    dimensions,
+    repetitions,
+)
 
 status_entries = git_status_entries()
 summary = Dict{String,Any}(
@@ -214,6 +259,7 @@ summary = Dict{String,Any}(
         "runner" => "benchmarks/profile_analyze_scaling.jl",
         "dimensions" => dimensions,
         "model" => "sparse affine chain with simple variable bounds",
+        "workloads" => ["sparse_affine_chain", "sparse_nonlinear_chain"],
         "entry_point" => "NLPDiagnostics.analyze(model)",
         "point_supplied" => false,
         "repetitions" => repetitions,
@@ -237,6 +283,9 @@ summary = Dict{String,Any}(
         "git_status_entry_count" => length(status_entries),
     ),
     "records" => records,
+    "workload_comparisons" => Dict(
+        "sparse_nonlinear_chain" => nonlinear_records,
+    ),
     "optimization" => Dict(
         "id" => "reuse_domain_interval_state",
         "description" =>
