@@ -50,10 +50,12 @@ failure; the positive-bound t13 fixtures are negative controls. Both LN and LG
 labels match the independent bound-regime ledger, and all four solver-trace
 pairs are available under the matched environment. The reviewed 99-bus LN/LG
 t01 positive and t13 negative controls now all have paired traces and reviewed
-outcomes from the existing KKT-failure summary. Both 99-bus t25 controls remain
-explicitly unavailable because they were not collected; they are not converted
-into zero-record or failed results. This validates the case/trace join, not a
-solver score or causal explanation.
+outcomes from the existing KKT-failure summary. The LN/LG t25 positive controls
+are now collected under the same matched environment and paired-policy gates,
+so all ten declared controls are available. The unavailable-control path
+remains explicit for future gaps; no missing case is converted into a
+zero-record or failed result. This validates the case/trace join, not a solver
+score or causal explanation.
 
 The latest bounded 30-bus IBR calibration sequence is complete through
 row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
@@ -4899,8 +4901,9 @@ The held-out Ipopt-versus-MadNLP validation now passes all four gates on four
 cases; see `docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`.
 The telemetry crosswalk and truth-labelled positive/negative case set are now
 implemented and validated on the four-case LN/LG campaign plus reviewed
-99-bus LN/LG t01 positive and t13 negative controls. Both 99-bus t25 controls
-remain explicitly unavailable. The next trace work is to collect and review
-the t25 controls (or another pre-declared matrix extension) while preserving
-the unavailable-vs-failed distinction; do not add another trace metric family
+99-bus LN/LG t01/t13 negative/positive controls and t25 positive controls.
+All ten declared controls have paired traces under the matched environment.
+The next trace work is to pre-declare and review another matrix extension (or
+freeze this evidence for release-facing documentation) while preserving the
+unavailable-vs-failed distinction; do not add another trace metric family
 before that evidence exists.

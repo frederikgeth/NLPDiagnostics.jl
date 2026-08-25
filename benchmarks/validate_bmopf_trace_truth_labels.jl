@@ -77,21 +77,21 @@ const EXPECTED_CASES = Dict{String,Dict{String,Any}}(
         "expected_strict_complementarity_failure" => false,
         "reviewed_source" => "docs/real_99bus_phase_only_kkt_failure_summary.json",
     ),
+    case_key("ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json") => Dict(
+        "truth_role" => "positive_control",
+        "expected_physical_kkt_acceptance_passed" => false,
+        "expected_strict_complementarity_failure" => true,
+        "reviewed_source" => "docs/real_99bus_phase_only_kkt_failure_summary.json",
+    ),
+    case_key("ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json") => Dict(
+        "truth_role" => "positive_control",
+        "expected_physical_kkt_acceptance_passed" => false,
+        "expected_strict_complementarity_failure" => true,
+        "reviewed_source" => "docs/real_99bus_phase_only_kkt_failure_summary.json",
+    ),
 )
 
 const EXPECTED_UNAVAILABLE_CASES = Dict{String,Dict{String,Any}}(
-    case_key("ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json") => Dict(
-        "truth_role" => "unavailable_control",
-        "expected_trace_availability" => "unavailable",
-        "reviewed_outcome" => "positive_control",
-        "reason" => "99-bus trace collection is outside the four-case calibration campaign",
-    ),
-    case_key("ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json") => Dict(
-        "truth_role" => "unavailable_control",
-        "expected_trace_availability" => "unavailable",
-        "reviewed_outcome" => "positive_control",
-        "reason" => "99-bus trace collection is outside the reviewed t01/t13 calibration campaign",
-    ),
 )
 
 const EXPECTED_SCOPE_CASES = Dict{String,Dict{String,Any}}(
@@ -246,13 +246,15 @@ for (name, expected) in EXPECTED_SCOPE_CASES
     ))
 end
 
+unavailable_case_count = count(entry -> get(entry, "truth_role", nothing) == "unavailable_control", validated)
 validation_passed = get(readiness, "comparison_ready", false) === true &&
     !isempty(validated) && all(get(entry, "validated", false) === true for entry in validated)
 output_path = length(ARGS) >= 4 ? abspath(ARGS[end]) :
     (length(ARGS) == 3 ? abspath(ARGS[3]) : joinpath(dirname(comparison_path), "bmopf_trace_truth_label_validation.json"))
 write_json(output_path, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-trace-truth-label-validation-v1",
-    "status" => validation_passed ? "validated_with_explicit_unavailable" : "blocked",
+    "status" => validation_passed ?
+        (unavailable_case_count > 0 ? "validated_with_explicit_unavailable" : "validated") : "blocked",
     "source" => Dict(
         "runner" => "benchmarks/validate_bmopf_trace_truth_labels.jl",
         "comparison_summary" => basename(comparison_path),
@@ -263,7 +265,7 @@ write_json(output_path, Dict{String,Any}(
     "readiness" => readiness,
     "case_count" => length(validated),
     "available_case_count" => count(entry -> get(entry, "trace_available_on_both_sides", false), validated),
-    "unavailable_case_count" => count(entry -> get(entry, "truth_role", nothing) == "unavailable_control", validated),
+    "unavailable_case_count" => unavailable_case_count,
     "cases" => validated,
     "validation_passed" => validation_passed,
     "interpretation" => "Truth labels validate expected bound-regime outcomes and trace availability only; they do not rank solvers or establish causal convergence claims.",

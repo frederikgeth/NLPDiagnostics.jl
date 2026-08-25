@@ -2037,6 +2037,8 @@ end
     @test occursin("negative_control", truth_label_validation)
     @test occursin("30bus_LG", truth_label_validation)
     @test occursin("99bus_LG", truth_label_validation)
+    @test occursin("99bus_LN_t25", truth_label_validation)
+    @test occursin("99bus_LG_t25", truth_label_validation)
     @test occursin("EXPECTED_UNAVAILABLE_CASES", truth_label_validation)
     @test occursin("unavailable_control", truth_label_validation)
     @test occursin("EXPECTED_SCOPE_CASES", truth_label_validation)
