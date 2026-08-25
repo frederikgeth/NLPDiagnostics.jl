@@ -176,6 +176,14 @@ summary = Dict{String,Any}(
         "git_status_entry_count" => length(status_entries),
     ),
     "records" => records,
+    "optimization" => Dict(
+        "id" => "reuse_domain_interval_state",
+        "description" =>
+            "analyze_domains reuses one propagated variable-interval state for both issue detection and interval-origin provenance",
+        "scope" => "domains stage",
+        "evidence_preservation" =>
+            "finding identities, counts, and affine-propagation limit status remain unchanged on the bounded affine-chain campaign",
+    ),
     "interpretation" => Dict(
         "claim" => "Local runtime and allocation observations for the composed public analyze(model) entry point on a sparse affine chain.",
         "does_not_establish" => [

@@ -82,6 +82,15 @@ on the same sparse affine-chain fixtures. This identifies where optimization
 work should begin without changing the public API or promoting a portable
 complexity law; evidence-preserving optimization remains the next step.
 
+The first evidence-preserving optimization is now implemented: `analyze_domains`
+reuses one propagated variable-interval state for issue detection and interval
+origin provenance instead of recomputing it. On the bounded 100/200/400 fixture,
+finding identities, counts, and affine-propagation-limit status are unchanged;
+the dimension-400 end-to-end observation decreased from 17.175s to 14.178s.
+This is a local measurement and not a production performance guarantee, so the
+scaling gate remains blocking while broader workloads and memory behavior are
+still open.
+
 The latest consolidation increment adds
 `benchmarks/build_calibration_release_report.jl`, which renders the
 machine-readable release-gate ledger into
