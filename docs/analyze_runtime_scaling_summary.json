@@ -2,9 +2,9 @@
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
     "architecture": "aarch64",
-    "git_revision": "773dd142e51f9f5d1eb46d98fccf4076d0c1c9a2",
-    "git_status_entry_count": 2,
-    "git_worktree_dirty": true,
+    "git_revision": "b3113cf4b2c63560a6934d6b916fd661eb454f99",
+    "git_status_entry_count": 0,
+    "git_worktree_dirty": false,
     "julia_version": "1.12.6",
     "os": "Darwin"
   },
@@ -15,14 +15,14 @@
       "OPF solver runtime or memory scaling",
       "causal attribution of any observed superlinear trend"
     ],
-    "follow_up": "Profile stage-level costs, then optimize only after the dominant stages and evidence-preserving behavior are identified."
+    "follow_up": "Use stage attribution to identify a dominant cost, then optimize only after regression checks show evidence-preserving behavior."
   },
   "records": [
     {
-      "allocated_bytes": 348640144,
+      "allocated_bytes": 348638528,
       "constraint_count": 298,
       "dimension": 100,
-      "elapsed_seconds": 1.123292958,
+      "elapsed_seconds": 1.133835625,
       "error_finding_count": 0,
       "finding_code_counts": {
         "affine_interval_propagated_variable_fixed": 5,
@@ -33,14 +33,51 @@
       "finding_count": 8,
       "info_finding_count": 8,
       "limit_reached": true,
+      "stage_attribution": [
+        {
+          "allocated_bytes": 150464,
+          "elapsed_seconds": 0.000223167,
+          "stage": "snapshot"
+        },
+        {
+          "allocated_bytes": 731328,
+          "elapsed_seconds": 0.001343083,
+          "stage": "incidence_graph"
+        },
+        {
+          "allocated_bytes": 92697696,
+          "elapsed_seconds": 0.282314291,
+          "stage": "static"
+        },
+        {
+          "allocated_bytes": 126248080,
+          "elapsed_seconds": 0.427190333,
+          "stage": "domains"
+        },
+        {
+          "allocated_bytes": 63574720,
+          "elapsed_seconds": 0.2135225,
+          "stage": "derivatives"
+        },
+        {
+          "allocated_bytes": 63437536,
+          "elapsed_seconds": 0.218144958,
+          "stage": "expressions"
+        },
+        {
+          "allocated_bytes": 716416,
+          "elapsed_seconds": 0.001181541,
+          "stage": "structural"
+        }
+      ],
       "variable_count": 100,
       "warning_finding_count": 0
     },
     {
-      "allocated_bytes": 1332068112,
+      "allocated_bytes": 1332067568,
       "constraint_count": 598,
       "dimension": 200,
-      "elapsed_seconds": 4.388225583,
+      "elapsed_seconds": 4.46224775,
       "error_finding_count": 0,
       "finding_code_counts": {
         "affine_interval_propagated_variable_fixed": 5,
@@ -51,14 +88,51 @@
       "finding_count": 8,
       "info_finding_count": 8,
       "limit_reached": true,
+      "stage_attribution": [
+        {
+          "allocated_bytes": 338192,
+          "elapsed_seconds": 0.00028425,
+          "stage": "snapshot"
+        },
+        {
+          "allocated_bytes": 1508816,
+          "elapsed_seconds": 0.002533083,
+          "stage": "incidence_graph"
+        },
+        {
+          "allocated_bytes": 312515200,
+          "elapsed_seconds": 0.974452875,
+          "stage": "static"
+        },
+        {
+          "allocated_bytes": 506155216,
+          "elapsed_seconds": 1.734293042,
+          "stage": "domains"
+        },
+        {
+          "allocated_bytes": 253981888,
+          "elapsed_seconds": 0.861645833,
+          "stage": "derivatives"
+        },
+        {
+          "allocated_bytes": 253705504,
+          "elapsed_seconds": 0.858073125,
+          "stage": "expressions"
+        },
+        {
+          "allocated_bytes": 1684272,
+          "elapsed_seconds": 0.002317709,
+          "stage": "structural"
+        }
+      ],
       "variable_count": 200,
       "warning_finding_count": 0
     },
     {
-      "allocated_bytes": 5129902560,
+      "allocated_bytes": 5129902016,
       "constraint_count": 1198,
       "dimension": 400,
-      "elapsed_seconds": 17.262249917,
+      "elapsed_seconds": 17.1746955,
       "error_finding_count": 0,
       "finding_code_counts": {
         "affine_interval_propagated_variable_fixed": 5,
@@ -69,11 +143,48 @@
       "finding_count": 8,
       "info_finding_count": 8,
       "limit_reached": true,
+      "stage_attribution": [
+        {
+          "allocated_bytes": 564176,
+          "elapsed_seconds": 0.000502875,
+          "stage": "snapshot"
+        },
+        {
+          "allocated_bytes": 2936112,
+          "elapsed_seconds": 0.005164042,
+          "stage": "incidence_graph"
+        },
+        {
+          "allocated_bytes": 1117997472,
+          "elapsed_seconds": 3.537165167,
+          "stage": "static"
+        },
+        {
+          "allocated_bytes": 1998578160,
+          "elapsed_seconds": 6.840393541,
+          "stage": "domains"
+        },
+        {
+          "allocated_bytes": 1001100576,
+          "elapsed_seconds": 3.472915083,
+          "stage": "derivatives"
+        },
+        {
+          "allocated_bytes": 1000545792,
+          "elapsed_seconds": 3.531789833,
+          "stage": "expressions"
+        },
+        {
+          "allocated_bytes": 3893216,
+          "elapsed_seconds": 0.005450708,
+          "stage": "structural"
+        }
+      ],
       "variable_count": 400,
       "warning_finding_count": 0
     }
   ],
-  "schema_version": "nlpdiagnostics-analyze-runtime-scaling-v1",
+  "schema_version": "nlpdiagnostics-analyze-runtime-scaling-v2",
   "source": {
     "dimensions": [
       100,
@@ -84,6 +195,15 @@
     "model": "sparse affine chain with simple variable bounds",
     "point_supplied": false,
     "repetitions": 1,
-    "runner": "benchmarks/profile_analyze_scaling.jl"
+    "runner": "benchmarks/profile_analyze_scaling.jl",
+    "stage_attribution": [
+      "snapshot",
+      "incidence_graph",
+      "static",
+      "domains",
+      "derivatives",
+      "expressions",
+      "structural"
+    ]
   }
 }

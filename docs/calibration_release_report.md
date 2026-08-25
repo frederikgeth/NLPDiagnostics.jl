@@ -71,7 +71,7 @@ Evidence:
 
 ### `PARTIAL` — `analyze_runtime_scaling`
 
-The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from 1.123s at dimension 100 to 17.262s at dimension 400, with affine propagation reaching its configured five-pass limit; stage attribution and evidence-preserving optimization remain open.
+The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from 1.134s at dimension 100 to 17.175s at dimension 400, with affine propagation reaching its configured five-pass limit. Stage attribution is now recorded; the largest measured stage at the largest dimension is domains (6.84s). Evidence-preserving optimization remains open.
 
 Evidence:
 - [`docs/analyze_runtime_scaling_summary.json`](docs/analyze_runtime_scaling_summary.json)
