@@ -30,7 +30,7 @@ function selected_cases()
     raw = strip(get(
         ENV,
         "NLPDIAGNOSTICS_BMOPF_ANALYZE_PROFILE_CASES",
-        "pf_1ph_line.dss,pf_exp_1ph.dss,pf_1ph_xfmr.dss",
+        "pf_1ph_line.dss,pf_exp_1ph.dss,pf_1ph_xfmr.dss,pf_cap_wye.dss,pf_dy_xfmr.dss",
     ))
     cases = filter(!isempty, strip.(split(raw, ',')))
     isempty(cases) && error("NLPDIAGNOSTICS_BMOPF_ANALYZE_PROFILE_CASES must not be empty")

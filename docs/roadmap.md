@@ -145,6 +145,10 @@ without extrapolating tiny-fixture behavior to OPF-scale performance.
 The profile now performs an explicit per-fixture warmup by default and retains
 warmup time/allocation separately from the measured run, preventing cross-case
 JIT effects from being mistaken for adapter scaling.
+The default campaign now includes five fixtures: three measured small cases and
+two larger cases retained as explicit 24-variable size-guard skips. This makes
+the adapter boundary visible in the release artifact without forcing the
+high-allocation point-free analysis through larger models.
 
 The first evidence-preserving optimization is now implemented: `analyze_domains`
 reuses one propagated variable-interval state for issue detection and interval
