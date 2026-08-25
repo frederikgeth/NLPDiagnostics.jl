@@ -2322,6 +2322,27 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
+    kkt_policy_script = read(
+        joinpath(benchmark_directory, "summarize_real_99bus_kkt_tolerance_policies.jl"),
+        String,
+    )
+    @test Meta.parseall(kkt_policy_script) isa Expr
+    @test occursin("first_observed_full_paired_acceptance_policy", kkt_policy_script)
+    kkt_policy_summary = read(
+        joinpath(repository_root, "docs", "real_99bus_kkt_tolerance_policy_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-real-99bus-kkt-tolerance-policy-v1", kkt_policy_summary)
+    kkt_policy_data = JSON.parse(kkt_policy_summary)
+    @test kkt_policy_data["run_count"] == 6
+    @test kkt_policy_data["policy_count"] == 5
+    @test kkt_policy_data["strict_reference_acceptance_count"] == 2
+    @test kkt_policy_data["strict_phase_only_acceptance_count"] == 2
+    @test kkt_policy_data["first_observed_full_paired_acceptance_policy"] == "1.2e-5"
+    @test occursin("real_99bus_kkt_tolerance_policy_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     bmopf_analyze_profile_script = read(
         joinpath(benchmark_directory, "profile_bmopf_analyze_runtime.jl"),
         String,
@@ -2348,8 +2369,8 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 125", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 122", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 126", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 123", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

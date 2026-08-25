@@ -1,0 +1,379 @@
+{
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
+    "git_revision": "d28c345929e0a720e39c29a71fa9c5a14a580aff",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "first_observed_full_paired_acceptance_policy": "1.2e-5",
+  "interpretation": {
+    "claim": "Acceptance counts and failed-side totals under the already-recorded 99-bus complementarity policies.",
+    "does_not_establish": [
+      "a recommended relaxed tolerance",
+      "absolute physical correctness at any policy",
+      "a causal explanation for the residual floor"
+    ]
+  },
+  "policies": [
+    {
+      "complementarity_absolute_tolerance": 0.0001,
+      "paired_acceptance_count": 6,
+      "phase_only_acceptance_count": 6,
+      "phase_only_failed_side_total": 0,
+      "policy_name": "0.0001",
+      "profiles": [
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json"
+        }
+      ],
+      "reference_acceptance_count": 6,
+      "reference_failed_side_total": 0
+    },
+    {
+      "complementarity_absolute_tolerance": 1.0e-5,
+      "paired_acceptance_count": 2,
+      "phase_only_acceptance_count": 2,
+      "phase_only_failed_side_total": 156,
+      "policy_name": "1.0e-5",
+      "profiles": [
+        {
+          "phase_only_acceptance_passed": false,
+          "phase_only_failed_constraint_families": [
+            "ibr_p_upper"
+          ],
+          "phase_only_failed_side_count": 36,
+          "reference_acceptance_passed": false,
+          "reference_failed_constraint_families": [
+            "ibr_p_upper"
+          ],
+          "reference_failed_side_count": 36,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": false,
+          "phase_only_failed_constraint_families": [
+            "ibr_p_upper"
+          ],
+          "phase_only_failed_side_count": 48,
+          "reference_acceptance_passed": false,
+          "reference_failed_constraint_families": [
+            "ibr_p_upper"
+          ],
+          "reference_failed_side_count": 48,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": false,
+          "phase_only_failed_constraint_families": [
+            "ibr_p_upper"
+          ],
+          "phase_only_failed_side_count": 36,
+          "reference_acceptance_passed": false,
+          "reference_failed_constraint_families": [
+            "ibr_p_upper"
+          ],
+          "reference_failed_side_count": 36,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": false,
+          "phase_only_failed_constraint_families": [
+            "ibr_p_upper"
+          ],
+          "phase_only_failed_side_count": 36,
+          "reference_acceptance_passed": false,
+          "reference_failed_constraint_families": [
+            "ibr_p_upper"
+          ],
+          "reference_failed_side_count": 36,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json"
+        }
+      ],
+      "reference_acceptance_count": 2,
+      "reference_failed_side_total": 156
+    },
+    {
+      "complementarity_absolute_tolerance": 1.1e-5,
+      "paired_acceptance_count": 4,
+      "phase_only_acceptance_count": 4,
+      "phase_only_failed_side_total": 17,
+      "policy_name": "1.1e-5",
+      "profiles": [
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": false,
+          "phase_only_failed_constraint_families": [
+            "ibr_p_upper"
+          ],
+          "phase_only_failed_side_count": 7,
+          "reference_acceptance_passed": false,
+          "reference_failed_constraint_families": [
+            "ibr_p_upper"
+          ],
+          "reference_failed_side_count": 7,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": false,
+          "phase_only_failed_constraint_families": [
+            "ibr_p_upper"
+          ],
+          "phase_only_failed_side_count": 10,
+          "reference_acceptance_passed": false,
+          "reference_failed_constraint_families": [
+            "ibr_p_upper"
+          ],
+          "reference_failed_side_count": 10,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json"
+        }
+      ],
+      "reference_acceptance_count": 4,
+      "reference_failed_side_total": 17
+    },
+    {
+      "complementarity_absolute_tolerance": 1.2e-5,
+      "paired_acceptance_count": 6,
+      "phase_only_acceptance_count": 6,
+      "phase_only_failed_side_total": 0,
+      "policy_name": "1.2e-5",
+      "profiles": [
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json"
+        }
+      ],
+      "reference_acceptance_count": 6,
+      "reference_failed_side_total": 0
+    },
+    {
+      "complementarity_absolute_tolerance": 2.0e-5,
+      "paired_acceptance_count": 6,
+      "phase_only_acceptance_count": 6,
+      "phase_only_failed_side_total": 0,
+      "policy_name": "2.0e-5",
+      "profiles": [
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json"
+        },
+        {
+          "phase_only_acceptance_passed": true,
+          "phase_only_failed_constraint_families": [],
+          "phase_only_failed_side_count": 0,
+          "reference_acceptance_passed": true,
+          "reference_failed_constraint_families": [],
+          "reference_failed_side_count": 0,
+          "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json"
+        }
+      ],
+      "reference_acceptance_count": 6,
+      "reference_failed_side_total": 0
+    }
+  ],
+  "policy_count": 5,
+  "run_count": 6,
+  "schema_version": "nlpdiagnostics-real-99bus-kkt-tolerance-policy-v1",
+  "source": {
+    "campaign_artifact": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/real-99bus-phase-only-campaign.json",
+    "runner": "benchmarks/summarize_real_99bus_kkt_tolerance_policies.jl",
+    "strict_complementarity_tolerance": 1.0e-5
+  },
+  "strict_phase_only_acceptance_count": 2,
+  "strict_policy_name": "1.0e-5",
+  "strict_reference_acceptance_count": 2
+}

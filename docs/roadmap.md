@@ -117,6 +117,11 @@ full-side and failed-side quantiles plus paired reference/phase-only maxima;
 the maximum-residual ratio stays within approximately 0.9999999--1.0000001
 across the six saved endpoints. This is distributional evidence, not a causal
 diagnosis or physical acceptance claim.
+The companion `benchmarks/summarize_real_99bus_kkt_tolerance_policies.jl`
+now summarizes the five saved complementarity policies: strict 1e-5 accepts
+2/6 paired endpoints, 1.1e-5 accepts 4/6, and the first recorded full paired
+acceptance is at 1.2e-5. This remains sensitivity evidence; the strict release
+gate is unchanged.
 
 The API-tier increment now upgrades `benchmarks/audit_api_tiers.jl` from a
 count-only inventory to a review ledger. All 539 root-only exports have an
@@ -210,8 +215,8 @@ library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
 that no unclassified non-helper runner exists. It now follows local include
 chains, so compositional BMOPF runners that inherit the helper transitively are
-counted correctly; the refreshed inventory records 122 helper users across
-125 benchmark scripts with zero unclassified runners.
+counted correctly; the refreshed inventory records 123 helper users across
+126 benchmark scripts with zero unclassified runners.
 
 The latest consolidation increment adds the reviewed local quality policy in
 `docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are
