@@ -99,7 +99,12 @@ qualifies 14 complete solver-floor runs, and finds strict 1e-5 physical KKT
 acceptance stable at 2/6 across every qualified profile. Six incomplete
 profiles remain excluded rather than interpreted, and the four baseline
 failures remain localized to `ibr_p_upper`; this strengthens stability and
-failure provenance without closing the absolute physical gate.
+failure provenance without closing the absolute physical gate. The companion
+`benchmarks/summarize_real_99bus_kkt_margin.jl` now records the per-snapshot
+required tolerance and strict-gap ledger: four snapshots fail 1e-5, while the
+largest saved endpoint requires approximately 1.14172e-5 (a 1.4172e-6 gap).
+This quantifies how close the boundary is without promoting a relaxed
+tolerance or changing the release gate.
 
 The API-tier increment now upgrades `benchmarks/audit_api_tiers.jl` from a
 count-only inventory to a review ledger. All 539 root-only exports have an
@@ -187,8 +192,8 @@ library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
 that no unclassified non-helper runner exists. It now follows local include
 chains, so compositional BMOPF runners that inherit the helper transitively are
-counted correctly; the refreshed inventory records 114 helper users across
-117 benchmark scripts with zero unclassified runners.
+counted correctly; the refreshed inventory records 118 helper users across
+121 benchmark scripts with zero unclassified runners.
 
 The latest consolidation increment adds the reviewed local quality policy in
 `docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are

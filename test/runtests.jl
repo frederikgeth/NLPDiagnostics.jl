@@ -2220,6 +2220,28 @@ end
     @test occursin("\"profile_count\": 20", kkt_stability_summary)
     @test occursin("\"qualified_profile_count\": 14", kkt_stability_summary)
     @test occursin("\"strict_acceptance_count_is_stable\": true", kkt_stability_summary)
+    kkt_margin_script = read(
+        joinpath(benchmark_directory, "summarize_real_99bus_kkt_margin.jl"),
+        String,
+    )
+    @test Meta.parseall(kkt_margin_script) isa Expr
+    @test occursin("required_tolerance", kkt_margin_script)
+    @test occursin("does_not_establish", kkt_margin_script)
+    kkt_margin_summary = read(
+        joinpath(repository_root, "docs", "real_99bus_kkt_margin_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-real-99bus-kkt-margin-v1", kkt_margin_summary)
+    kkt_margin_data = JSON.parse(kkt_margin_summary)
+    @test kkt_margin_data["profile_count"] == 6
+    @test kkt_margin_data["strict_failed_snapshot_count"] == 4
+    @test kkt_margin_data["strict_passed_snapshot_count"] == 2
+    @test kkt_margin_data["maximum_required_tolerance"] > 1.0e-5
+    @test kkt_margin_data["maximum_required_tolerance"] < 1.2e-5
+    @test occursin("real_99bus_kkt_margin_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     bmopf_analyze_profile_script = read(
         joinpath(benchmark_directory, "profile_bmopf_analyze_runtime.jl"),
         String,
@@ -2246,8 +2268,8 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 120", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 117", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 121", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 118", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

@@ -1,0 +1,205 @@
+{
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
+    "git_revision": "edd4c7769c0157efb3077de170f687d5102a8f64",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "failure_localization": {
+    "all_strict_failures_are_ibr_p_upper": true,
+    "failed_constraint_families": [
+      "ibr_p_upper"
+    ],
+    "interpretation": "The companion failure-localization ledger identifies the failed family; this margin ledger quantifies the tolerance gap only."
+  },
+  "interpretation": {
+    "claim": "Per-snapshot required physical complementarity tolerance and strict-gate margin for saved reference and phase-only endpoints.",
+    "does_not_establish": [
+      "absolute physical correctness",
+      "a causal explanation for the residual floor",
+      "a recommended relaxed tolerance or universal tolerance policy"
+    ]
+  },
+  "maximum_required_tolerance": 1.141720164003029e-5,
+  "maximum_strict_tolerance_gap": 1.4172016400302888e-6,
+  "maximum_strict_tolerance_ratio": 1.1417201640030288,
+  "profile_count": 6,
+  "profiles": [
+    {
+      "angle": 0.01,
+      "margin_difference_phase_only_minus_reference": 6.218102696289732e-13,
+      "phase_only": {
+        "acceptance_passed": false,
+        "available": true,
+        "failed_side_count": 36,
+        "maximum_complementarity_residual": 1.0751474716458325e-5,
+        "required_tolerance": 1.0751474716458325e-5,
+        "strict_policy_acceptance_passed": false,
+        "strict_tolerance": 1.0e-5,
+        "strict_tolerance_gap": 7.514747164583241e-7,
+        "strict_tolerance_ratio": 1.0751474716458325
+      },
+      "reference": {
+        "acceptance_passed": false,
+        "available": true,
+        "failed_side_count": 36,
+        "maximum_complementarity_residual": 1.0751474094648055e-5,
+        "required_tolerance": 1.0751474094648055e-5,
+        "strict_policy_acceptance_passed": false,
+        "strict_tolerance": 1.0e-5,
+        "strict_tolerance_gap": 7.514740946480545e-7,
+        "strict_tolerance_ratio": 1.0751474094648055
+      },
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json"
+    },
+    {
+      "angle": 0.01,
+      "margin_difference_phase_only_minus_reference": 1.2531459651568414e-12,
+      "phase_only": {
+        "acceptance_passed": true,
+        "available": true,
+        "failed_side_count": 0,
+        "maximum_complementarity_residual": 9.79589685652193e-6,
+        "required_tolerance": 9.79589685652193e-6,
+        "strict_policy_acceptance_passed": true,
+        "strict_tolerance": 1.0e-5,
+        "strict_tolerance_gap": -2.0410314347807085e-7,
+        "strict_tolerance_ratio": 0.979589685652193
+      },
+      "reference": {
+        "acceptance_passed": true,
+        "available": true,
+        "failed_side_count": 0,
+        "maximum_complementarity_residual": 9.795895603375965e-6,
+        "required_tolerance": 9.795895603375965e-6,
+        "strict_policy_acceptance_passed": true,
+        "strict_tolerance": 1.0e-5,
+        "strict_tolerance_gap": -2.04104396624036e-7,
+        "strict_tolerance_ratio": 0.9795895603375964
+      },
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t13_1400.bmopf.json"
+    },
+    {
+      "angle": 0.01,
+      "margin_difference_phase_only_minus_reference": 6.227064965557381e-13,
+      "phase_only": {
+        "acceptance_passed": false,
+        "available": true,
+        "failed_side_count": 48,
+        "maximum_complementarity_residual": 1.1360108615700496e-5,
+        "required_tolerance": 1.1360108615700496e-5,
+        "strict_policy_acceptance_passed": false,
+        "strict_tolerance": 1.0e-5,
+        "strict_tolerance_gap": 1.360108615700495e-6,
+        "strict_tolerance_ratio": 1.1360108615700495
+      },
+      "reference": {
+        "acceptance_passed": false,
+        "available": true,
+        "failed_side_count": 48,
+        "maximum_complementarity_residual": 1.1360107992994e-5,
+        "required_tolerance": 1.1360107992994e-5,
+        "strict_policy_acceptance_passed": false,
+        "strict_tolerance": 1.0e-5,
+        "strict_tolerance_gap": 1.3601079929939983e-6,
+        "strict_tolerance_ratio": 1.1360107992993997
+      },
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t25_2000.bmopf.json"
+    },
+    {
+      "angle": 0.01,
+      "margin_difference_phase_only_minus_reference": -1.280823740796265e-12,
+      "phase_only": {
+        "acceptance_passed": false,
+        "available": true,
+        "failed_side_count": 36,
+        "maximum_complementarity_residual": 1.0895070315699911e-5,
+        "required_tolerance": 1.0895070315699911e-5,
+        "strict_policy_acceptance_passed": false,
+        "strict_tolerance": 1.0e-5,
+        "strict_tolerance_gap": 8.950703156999102e-7,
+        "strict_tolerance_ratio": 1.089507031569991
+      },
+      "reference": {
+        "acceptance_passed": false,
+        "available": true,
+        "failed_side_count": 36,
+        "maximum_complementarity_residual": 1.0895071596523652e-5,
+        "required_tolerance": 1.0895071596523652e-5,
+        "strict_policy_acceptance_passed": false,
+        "strict_tolerance": 1.0e-5,
+        "strict_tolerance_gap": 8.95071596523651e-7,
+        "strict_tolerance_ratio": 1.089507159652365
+      },
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json"
+    },
+    {
+      "angle": 0.01,
+      "margin_difference_phase_only_minus_reference": 1.2537063553784812e-12,
+      "phase_only": {
+        "acceptance_passed": true,
+        "available": true,
+        "failed_side_count": 0,
+        "maximum_complementarity_residual": 8.718943337731055e-6,
+        "required_tolerance": 8.718943337731055e-6,
+        "strict_policy_acceptance_passed": true,
+        "strict_tolerance": 1.0e-5,
+        "strict_tolerance_gap": -1.2810566622689457e-6,
+        "strict_tolerance_ratio": 0.8718943337731054
+      },
+      "reference": {
+        "acceptance_passed": true,
+        "available": true,
+        "failed_side_count": 0,
+        "maximum_complementarity_residual": 8.7189420840247e-6,
+        "required_tolerance": 8.7189420840247e-6,
+        "strict_policy_acceptance_passed": true,
+        "strict_tolerance": 1.0e-5,
+        "strict_tolerance_gap": -1.281057915975301e-6,
+        "strict_tolerance_ratio": 0.8718942084024699
+      },
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json"
+    },
+    {
+      "angle": 0.01,
+      "margin_difference_phase_only_minus_reference": 6.297482676932871e-13,
+      "phase_only": {
+        "acceptance_passed": false,
+        "available": true,
+        "failed_side_count": 36,
+        "maximum_complementarity_residual": 1.141720164003029e-5,
+        "required_tolerance": 1.141720164003029e-5,
+        "strict_policy_acceptance_passed": false,
+        "strict_tolerance": 1.0e-5,
+        "strict_tolerance_gap": 1.4172016400302888e-6,
+        "strict_tolerance_ratio": 1.1417201640030288
+      },
+      "reference": {
+        "acceptance_passed": false,
+        "available": true,
+        "failed_side_count": 36,
+        "maximum_complementarity_residual": 1.1417201010282022e-5,
+        "required_tolerance": 1.1417201010282022e-5,
+        "strict_policy_acceptance_passed": false,
+        "strict_tolerance": 1.0e-5,
+        "strict_tolerance_gap": 1.4172010102820211e-6,
+        "strict_tolerance_ratio": 1.141720101028202
+      },
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json"
+    }
+  ],
+  "required_tolerance_range": [
+    8.7189420840247e-6,
+    1.141720164003029e-5
+  ],
+  "schema_version": "nlpdiagnostics-real-99bus-kkt-margin-v1",
+  "source": {
+    "campaign_artifact": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/real-99bus-phase-only-campaign.json",
+    "failure_localization_artifact": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/real_99bus_phase_only_kkt_failure_summary.json",
+    "margin_definition": "required_tolerance_minus_strict_tolerance",
+    "runner": "benchmarks/summarize_real_99bus_kkt_margin.jl",
+    "strict_complementarity_tolerance": 1.0e-5
+  },
+  "strict_failed_snapshot_count": 4,
+  "strict_passed_snapshot_count": 2
+}
