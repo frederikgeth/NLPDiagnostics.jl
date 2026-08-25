@@ -182,13 +182,18 @@ function measure_workload(
         for repetition in 1:repetitions
             model = model_builder(dimension)
             GC.gc()
+            rss_before = Int(Sys.maxrss())
             timed = @timed NLPDiagnostics.analyze(model)
+            rss_after = Int(Sys.maxrss())
             report = timed.value
             counts = NLPDiagnostics.finding_code_counts(report)
             push!(runs, Dict{String,Any}(
                 "repetition" => repetition,
                 "elapsed_seconds" => timed.time,
                 "allocated_bytes" => timed.bytes,
+                "process_maxrss_before_bytes" => rss_before,
+                "process_maxrss_after_bytes" => rss_after,
+                "process_maxrss_increment_bytes" => max(0, rss_after - rss_before),
                 "finding_count" => length(report),
                 "finding_code_counts" => Dict(string(code) => count for (code, count) in counts),
                 "limit_reached" => haskey(counts, :affine_interval_propagation_limit_reached),
@@ -197,6 +202,7 @@ function measure_workload(
         end
         elapsed = numeric_summary([run["elapsed_seconds"] for run in runs])
         allocations = numeric_summary([run["allocated_bytes"] for run in runs])
+        rss = numeric_summary([run["process_maxrss_increment_bytes"] for run in runs])
         reference_run = first(runs)
         reference_findings = reference_run["finding_code_counts"]
         evidence_stable = all(
@@ -217,6 +223,9 @@ function measure_workload(
             "elapsed_seconds_maximum" => elapsed["maximum"],
             "allocated_bytes_minimum" => allocations["minimum"],
             "allocated_bytes_maximum" => allocations["maximum"],
+            "process_maxrss_increment_bytes" => round(Int, rss["mean"]),
+            "process_maxrss_increment_bytes_minimum" => rss["minimum"],
+            "process_maxrss_increment_bytes_maximum" => rss["maximum"],
             "finding_count" => reference_run["finding_count"],
             "finding_code_counts" => reference_findings,
             "limit_reached" => reference_run["limit_reached"],
@@ -272,6 +281,8 @@ summary = Dict{String,Any}(
             "expressions",
             "structural",
         ],
+        "memory_measurement" =>
+            "Sys.maxrss process high-water mark; per-run increments are descriptive and not isolated peak-memory certificates",
     ),
     "environment" => Dict(
         "julia_version" => string(VERSION),

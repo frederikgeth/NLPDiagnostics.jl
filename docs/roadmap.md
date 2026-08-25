@@ -89,6 +89,9 @@ The same harness now retains a second sparse nonlinear-chain workload, so the
 affine-chain result is no longer the only public-API scaling fixture. The
 nonlinear workload reaches 0.167s at dimension 400 with stable findings, and
 remains descriptive coverage rather than a portable complexity claim.
+Each run now also records the process high-water-mark increment from
+`Sys.maxrss()` for descriptive memory attribution; isolated peak-memory and
+solver-memory claims remain out of scope.
 
 The first evidence-preserving optimization is now implemented: `analyze_domains`
 reuses one propagated variable-interval state for issue detection and interval
