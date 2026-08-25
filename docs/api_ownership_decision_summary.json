@@ -1,13 +1,13 @@
 {
-  "advanced_candidate_count": 16,
+  "advanced_candidate_count": 32,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "4a05f9847622cab5fd3cf4cf3066e88cb5f1ecec",
+    "git_revision": "fc0929cd579d765b17a773910abc1299962a950f",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {
-    "claim": "Thirty-six high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except sixteen Advanced candidate reviews.",
+    "claim": "Fifty-two high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except thirty-two Advanced candidate reviews.",
     "does_not_establish": [
       "a complete review of all root-only exports",
       "permission to remove or deprecate root symbols",
@@ -20,7 +20,7 @@
     "Approve any namespace move only with an explicit compatibility and type-identity plan.",
     "Keep Stable and Advanced facades unchanged until ownership review is complete."
   ],
-  "reviewed_count": 36,
+  "reviewed_count": 52,
   "root_compatibility_retained_count": 20,
   "rows": [
     {
@@ -168,6 +168,78 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 3,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_analyze_active_set",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "BMOPFTools active-set analysis is adapter-specific solver diagnostics; defer any root promotion until its result ownership is explicit.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 3,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_analyze_component_rank_persistence",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Component-rank persistence analysis belongs to the BMOPFTools research surface; retain Advanced ownership while capability semantics evolve.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 3,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_analyze_jacobian_rank_persistence",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Jacobian-rank persistence analysis is an adapter-level diagnostic and should remain Advanced until backend and schema contracts settle.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 3,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_analyze_jacobian_row_family_perturbations",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Row-family perturbation analysis is experiment-specific BMOPFTools evidence; keep it Advanced pending a stable perturbation interface.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 3,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_analyze_opf",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "BMOPFTools OPF analysis orchestration is integration-facing rather than a core evaluator primitive; retain Advanced ownership pending facade review.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 3,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_analyze_sparse_qr_nullspace_persistence",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Sparse-QR nullspace persistence is backend- and adapter-specific evidence; keep it Advanced until capability and unavailable-reason contracts stabilize.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 4,
       "decision": "advanced_candidate_review",
       "has_runtime_usage_evidence": true,
@@ -200,6 +272,18 @@
       "namespace_target": "Advanced",
       "proposed_disposition": "advanced_candidate",
       "rationale": "BMOPFTools build/profile orchestration is an integration workflow rather than a core evaluator API; keep it Advanced pending a stable facade.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 3,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_component_rank_capability_report",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Component-rank capability reports describe BMOPFTools backend coverage; defer promotion while capability boundaries remain under review.",
       "review_status": "reviewed_local",
       "usage_priority": "test_and_benchmark_usage"
     },
@@ -264,6 +348,30 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 3,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_current_law_fingerprints",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Current-law fingerprints are BMOPFTools domain evidence records; retain Advanced ownership until their cross-case schema is versioned.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 3,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_current_law_operating_point_persistence",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Operating-point current-law persistence is an extension-specific reproducibility artifact; keep it Advanced pending stable persistence semantics.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 13,
       "decision": "advanced_candidate_review",
       "has_runtime_usage_evidence": true,
@@ -312,6 +420,18 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 4,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_phase_only_transform_plan",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Phase-only transformation planning is BMOPFTools campaign orchestration; keep it Advanced until cross-case intervention semantics are stable.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 11,
       "decision": "advanced_candidate_review",
       "has_runtime_usage_evidence": true,
@@ -324,6 +444,54 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 4,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_result_field_catalog",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "BMOPFTools result-field catalogs describe adapter-specific solver output; defer promotion until result schemas and ownership are versioned.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 4,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_saved_result_profile_case",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Saved solver-result profile cases are reproducibility artifacts for BMOPFTools campaigns; retain Advanced ownership while persistence contracts evolve.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 4,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_scaling_intervention_classification",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Scaling intervention classification is a research diagnostic derived from BMOPF experiments; keep it outside the root compatibility surface.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 4,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_source_behavior_auxiliary_model",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Auxiliary source-behavior modeling is extension-specific experiment support; defer namespace migration until its adapter contract is stable.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 18,
       "decision": "advanced_candidate_review",
       "has_runtime_usage_evidence": true,
@@ -332,6 +500,18 @@
       "namespace_target": "Advanced",
       "proposed_disposition": "advanced_candidate",
       "rationale": "BMOPFTools-specific lifecycle helper is a plausible Advanced candidate, but adapter ownership and compatibility still require explicit review.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 4,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_transport_scaling_point",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Transport scaling points are workload-specific inputs used by BMOPFTools campaigns; retain Advanced ownership while point semantics mature.",
       "review_status": "reviewed_local",
       "usage_priority": "test_and_benchmark_usage"
     },
@@ -418,6 +598,18 @@
       "rationale": "Solver instrumentation entry point is consumed by trace campaigns; defer tier migration until solver-extension ownership is reviewed.",
       "review_status": "reviewed_local",
       "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 4,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "port_expected_nullspace_summary",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "Port-extension nullspace summaries are research-facing structural evidence; keep them Advanced pending a stable port contract.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_usage"
     },
     {
       "code_file_count": 12,

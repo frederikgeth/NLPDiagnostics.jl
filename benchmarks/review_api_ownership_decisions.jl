@@ -197,6 +197,86 @@ const REVIEW_DECISIONS = Dict{String,Dict{String,Any}}(
         "namespace_target" => "Advanced",
         "rationale" => "Coordinate probe points are experiment inputs tied to BMOPFTools scaling campaigns; retain Advanced ownership while the probe schema evolves.",
     ),
+    "bmopf_phase_only_transform_plan" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Phase-only transformation planning is BMOPFTools campaign orchestration; keep it Advanced until cross-case intervention semantics are stable.",
+    ),
+    "bmopf_result_field_catalog" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "BMOPFTools result-field catalogs describe adapter-specific solver output; defer promotion until result schemas and ownership are versioned.",
+    ),
+    "bmopf_saved_result_profile_case" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Saved solver-result profile cases are reproducibility artifacts for BMOPFTools campaigns; retain Advanced ownership while persistence contracts evolve.",
+    ),
+    "bmopf_scaling_intervention_classification" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Scaling intervention classification is a research diagnostic derived from BMOPF experiments; keep it outside the root compatibility surface.",
+    ),
+    "bmopf_source_behavior_auxiliary_model" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Auxiliary source-behavior modeling is extension-specific experiment support; defer namespace migration until its adapter contract is stable.",
+    ),
+    "bmopf_transport_scaling_point" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Transport scaling points are workload-specific inputs used by BMOPFTools campaigns; retain Advanced ownership while point semantics mature.",
+    ),
+    "port_expected_nullspace_summary" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Port-extension nullspace summaries are research-facing structural evidence; keep them Advanced pending a stable port contract.",
+    ),
+    "bmopf_analyze_active_set" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "BMOPFTools active-set analysis is adapter-specific solver diagnostics; defer any root promotion until its result ownership is explicit.",
+    ),
+    "bmopf_analyze_component_rank_persistence" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Component-rank persistence analysis belongs to the BMOPFTools research surface; retain Advanced ownership while capability semantics evolve.",
+    ),
+    "bmopf_analyze_jacobian_rank_persistence" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Jacobian-rank persistence analysis is an adapter-level diagnostic and should remain Advanced until backend and schema contracts settle.",
+    ),
+    "bmopf_analyze_jacobian_row_family_perturbations" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Row-family perturbation analysis is experiment-specific BMOPFTools evidence; keep it Advanced pending a stable perturbation interface.",
+    ),
+    "bmopf_analyze_opf" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "BMOPFTools OPF analysis orchestration is integration-facing rather than a core evaluator primitive; retain Advanced ownership pending facade review.",
+    ),
+    "bmopf_analyze_sparse_qr_nullspace_persistence" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Sparse-QR nullspace persistence is backend- and adapter-specific evidence; keep it Advanced until capability and unavailable-reason contracts stabilize.",
+    ),
+    "bmopf_component_rank_capability_report" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Component-rank capability reports describe BMOPFTools backend coverage; defer promotion while capability boundaries remain under review.",
+    ),
+    "bmopf_current_law_fingerprints" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Current-law fingerprints are BMOPFTools domain evidence records; retain Advanced ownership until their cross-case schema is versioned.",
+    ),
+    "bmopf_current_law_operating_point_persistence" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "Operating-point current-law persistence is an extension-specific reproducibility artifact; keep it Advanced pending stable persistence semantics.",
+    ),
 )
 
 queue = read_summary(INPUT)["queue"]
@@ -245,7 +325,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "Keep Stable and Advanced facades unchanged until ownership review is complete.",
     ],
     "interpretation" => Dict{String,Any}(
-        "claim" => "Thirty-six high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except sixteen Advanced candidate reviews.",
+        "claim" => "Fifty-two high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except thirty-two Advanced candidate reviews.",
         "does_not_establish" => [
             "a complete review of all root-only exports",
             "permission to remove or deprecate root symbols",
