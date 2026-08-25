@@ -1,13 +1,13 @@
 {
-  "advanced_candidate_count": 1,
+  "advanced_candidate_count": 4,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "6bbf6f22eb99b557d85b6f65937302804f6e10a1",
+    "git_revision": "7511e12879eb44e6f95be9be3e601325ebffa41e",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {
-    "claim": "Twelve high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except one Advanced candidate review.",
+    "claim": "Twenty-four high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except four Advanced candidate reviews.",
     "does_not_establish": [
       "a complete review of all root-only exports",
       "permission to remove or deprecate root symbols",
@@ -20,8 +20,8 @@
     "Approve any namespace move only with an explicit compatibility and type-identity plan.",
     "Keep Stable and Advanced facades unchanged until ownership review is complete."
   ],
-  "reviewed_count": 12,
-  "root_compatibility_retained_count": 11,
+  "reviewed_count": 24,
+  "root_compatibility_retained_count": 20,
   "rows": [
     {
       "code_file_count": 19,
@@ -48,6 +48,30 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 13,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "EvaluationCache",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Evaluator cache type is coupled to numerical evaluation lifecycle; defer migration until cache ownership is documented.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 13,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "EvaluationFailure",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Failure record crosses evaluator and report boundaries; retain root compatibility while schemas remain pre-1.0.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 44,
       "decision": "retain_root_compatibility",
       "has_runtime_usage_evidence": true,
@@ -56,6 +80,18 @@
       "namespace_target": "root",
       "proposed_disposition": "legacy_manual_review",
       "rationale": "Public point type appears in model, numerical, and test contracts; no safe namespace-only migration is established.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 14,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "EvaluationPointProvenance",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Point provenance participates in reproducibility contracts and report schemas; no namespace-only move is safe yet.",
       "review_status": "reviewed_local",
       "usage_priority": "test_and_benchmark_usage"
     },
@@ -84,6 +120,18 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 15,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "JacobianEntry",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Sparse derivative entry type is constructed directly by numerical and adapter paths; retain root identity for evaluator compatibility.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 22,
       "decision": "retain_root_compatibility",
       "has_runtime_usage_evidence": true,
@@ -92,6 +140,54 @@
       "namespace_target": "root",
       "proposed_disposition": "legacy_manual_review",
       "rationale": "Central evaluator contract used by rank, activity, and adapter paths; no migration without a coordinated type-identity plan.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 11,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "SemanticBlockScalingMap",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Generic scaling-map type is shared by core and adapter reports; retain root identity until the type-tier plan is explicit.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 13,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_constraint_semantic_row_map",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "BMOPFTools registry adapter is research-facing and a plausible Advanced candidate, but ownership and adapter stability are not yet finalized.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 13,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_diagonal_scaling_map",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "BMOPFTools scaling adapter belongs in the research namespace pending a stable semantic contract and compatibility review.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 11,
+      "decision": "advanced_candidate_review",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "bmopf_physical_solver_kkt_report",
+      "namespace_target": "Advanced",
+      "proposed_disposition": "advanced_candidate",
+      "rationale": "BMOPFTools physical-KKT adapter is research-facing and should remain an Advanced candidate until endpoint semantics are stabilized.",
       "review_status": "reviewed_local",
       "usage_priority": "test_and_benchmark_usage"
     },
@@ -132,6 +228,18 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 14,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "finding_code_counts",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Diagnostic aggregation helper is used by benchmark and regression ledgers; preserve its current root entry point.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 46,
       "decision": "retain_root_compatibility",
       "has_runtime_usage_evidence": true,
@@ -140,6 +248,42 @@
       "namespace_target": "root",
       "proposed_disposition": "legacy_manual_review",
       "rationale": "Report inspection helper used throughout regression assertions; retain as a compatibility surface.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 11,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "incidence_graph",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Structural graph helper is used by analysis and tests; preserve root access while graph API ownership remains broad.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 12,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "ipopt_profile_with_iteration_trace!",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Solver instrumentation entry point is consumed by trace campaigns; defer tier migration until solver-extension ownership is reviewed.",
+      "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 12,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "report_data",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Renderer-neutral serialization boundary is used by all report families; preserve root compatibility while schemas evolve.",
       "review_status": "reviewed_local",
       "usage_priority": "test_and_benchmark_usage"
     },

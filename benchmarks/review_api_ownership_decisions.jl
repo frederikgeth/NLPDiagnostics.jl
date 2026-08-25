@@ -76,6 +76,66 @@ const REVIEW_DECISIONS = Dict{String,Dict{String,Any}}(
         "namespace_target" => "Advanced",
         "rationale" => "BMOPFTools-specific lifecycle helper is a plausible Advanced candidate, but adapter ownership and compatibility still require explicit review.",
     ),
+    "JacobianEntry" => Dict(
+        "decision" => "retain_root_compatibility",
+        "namespace_target" => "root",
+        "rationale" => "Sparse derivative entry type is constructed directly by numerical and adapter paths; retain root identity for evaluator compatibility.",
+    ),
+    "EvaluationPointProvenance" => Dict(
+        "decision" => "retain_root_compatibility",
+        "namespace_target" => "root",
+        "rationale" => "Point provenance participates in reproducibility contracts and report schemas; no namespace-only move is safe yet.",
+    ),
+    "finding_code_counts" => Dict(
+        "decision" => "retain_root_compatibility",
+        "namespace_target" => "root",
+        "rationale" => "Diagnostic aggregation helper is used by benchmark and regression ledgers; preserve its current root entry point.",
+    ),
+    "EvaluationCache" => Dict(
+        "decision" => "retain_root_compatibility",
+        "namespace_target" => "root",
+        "rationale" => "Evaluator cache type is coupled to numerical evaluation lifecycle; defer migration until cache ownership is documented.",
+    ),
+    "EvaluationFailure" => Dict(
+        "decision" => "retain_root_compatibility",
+        "namespace_target" => "root",
+        "rationale" => "Failure record crosses evaluator and report boundaries; retain root compatibility while schemas remain pre-1.0.",
+    ),
+    "bmopf_constraint_semantic_row_map" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "BMOPFTools registry adapter is research-facing and a plausible Advanced candidate, but ownership and adapter stability are not yet finalized.",
+    ),
+    "bmopf_diagonal_scaling_map" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "BMOPFTools scaling adapter belongs in the research namespace pending a stable semantic contract and compatibility review.",
+    ),
+    "ipopt_profile_with_iteration_trace!" => Dict(
+        "decision" => "retain_root_compatibility",
+        "namespace_target" => "root",
+        "rationale" => "Solver instrumentation entry point is consumed by trace campaigns; defer tier migration until solver-extension ownership is reviewed.",
+    ),
+    "report_data" => Dict(
+        "decision" => "retain_root_compatibility",
+        "namespace_target" => "root",
+        "rationale" => "Renderer-neutral serialization boundary is used by all report families; preserve root compatibility while schemas evolve.",
+    ),
+    "SemanticBlockScalingMap" => Dict(
+        "decision" => "retain_root_compatibility",
+        "namespace_target" => "root",
+        "rationale" => "Generic scaling-map type is shared by core and adapter reports; retain root identity until the type-tier plan is explicit.",
+    ),
+    "bmopf_physical_solver_kkt_report" => Dict(
+        "decision" => "advanced_candidate_review",
+        "namespace_target" => "Advanced",
+        "rationale" => "BMOPFTools physical-KKT adapter is research-facing and should remain an Advanced candidate until endpoint semantics are stabilized.",
+    ),
+    "incidence_graph" => Dict(
+        "decision" => "retain_root_compatibility",
+        "namespace_target" => "root",
+        "rationale" => "Structural graph helper is used by analysis and tests; preserve root access while graph API ownership remains broad.",
+    ),
 )
 
 queue = read_summary(INPUT)["queue"]
@@ -124,7 +184,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "Keep Stable and Advanced facades unchanged until ownership review is complete.",
     ],
     "interpretation" => Dict{String,Any}(
-        "claim" => "Twelve high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except one Advanced candidate review.",
+        "claim" => "Twenty-four high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except four Advanced candidate reviews.",
         "does_not_establish" => [
             "a complete review of all root-only exports",
             "permission to remove or deprecate root symbols",
