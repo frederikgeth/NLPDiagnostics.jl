@@ -4953,3 +4953,18 @@ interface transformer contract. This confirms that the full source is a useful
 structural fixture but is too large for the first solver campaign; the next
 deliverable is a reduced or selected combined MV/LV snapshot with matched
 Ipopt/MadNLP starts, not an unbounded full-case solve.
+
+The first selected snapshot is now implemented and exercised by
+`benchmarks/bmopf_combined_mv_lv_snapshot_campaign.jl`. It flattens the
+BMOPFTools MV21_328bus source components with the LV1_14bus source components,
+retains component hashes and the 46-entry warning ledger, and produces a
+342-bus / 4,180-variable MV+LV model. Two-repeat bounded Ipopt and MadNLP
+campaigns completed all six policy runs per solver with common-start covariance
+passing. Every run intentionally terminated at its iteration bound, so the
+campaigns are not convergence-qualified and do not rank classic, SI, or local
+MV/LV. The evidence is recorded in
+`docs/bmopf_combined_mv_lv_snapshot_campaign_summary.json`.
+
+The next gate is a larger predeclared iteration budget for both solvers on this
+same snapshot, with endpoint and physical acceptance gates enabled. Any policy
+interpretation remains conditional on those gates and on solver availability.

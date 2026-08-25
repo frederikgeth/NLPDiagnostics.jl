@@ -1,0 +1,52 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-snapshot-campaign-v1",
+  "status": "matched_ipopt_and_madnlp_campaigns_bounded",
+  "source": {
+    "runner": "benchmarks/bmopf_combined_mv_lv_snapshot_campaign.jl",
+    "case": "BMOPFTools MV21_328bus + LV1_14bus source components",
+    "local_environment": "work/benchmark-environment",
+    "execution_date": "2026-08-25",
+    "source_warning_count": 46,
+    "source_warning_codes": ["W.PROV.POWERIO_UNCODED"],
+    "source_license": "CC BY-NC-SA 4.0"
+  },
+  "snapshot_shape": {
+    "bus_count": 342,
+    "line_count": 252,
+    "load_count": 2,
+    "transformer_count": 1,
+    "switch_count": 88,
+    "model_variable_count": 4180
+  },
+  "budgets": {
+    "repeats": 2,
+    "max_iter": 2,
+    "max_variables": 5000
+  },
+  "campaigns": [
+    {
+      "solver": "Ipopt",
+      "run_count": 6,
+      "comparison_count": 4,
+      "max_iter": 2,
+      "campaign_qualified": false,
+      "termination_statuses": ["ITERATION_LIMIT"],
+      "common_start_covariance_passed_for_all_runs": true,
+      "native_initialization_covariance_passed_for_all_runs": false,
+      "solve_seconds_range": [39.333814833, 63.569745083]
+    },
+    {
+      "solver": "MadNLP",
+      "run_count": 6,
+      "comparison_count": 4,
+      "max_iter": 1,
+      "campaign_qualified": false,
+      "termination_statuses": ["ITERATION_LIMIT"],
+      "common_start_covariance_passed_for_all_runs": true,
+      "native_initialization_covariance_passed_for_all_runs": false,
+      "solve_seconds_range": [37.555551334, 72.5488485]
+    }
+  ],
+  "interpretation": "The selected MV+LV snapshot is within the bounded solver budget and preserves matched-start physical covariance for both solvers. All runs intentionally stop at their iteration bounds, so this is descriptive solver-work evidence, not convergence evidence or a policy ranking.",
+  "next_gate": "repeat both solver campaigns with a larger predeclared iteration budget and endpoint acceptance gates"
+}

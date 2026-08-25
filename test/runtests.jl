@@ -2075,6 +2075,22 @@ end
     @test occursin("bounded_solver_campaign_size_guarded", combined_scaling_campaign_summary)
     @test occursin("56142", combined_scaling_campaign_summary)
     @test occursin("model_variable_count", combined_scaling_campaign_summary)
+    combined_snapshot_campaign = read(
+        joinpath(benchmark_directory, "bmopf_combined_mv_lv_snapshot_campaign.jl"),
+        String,
+    )
+    @test occursin("MV21_328bus", combined_snapshot_campaign)
+    @test occursin("LV1_14bus", combined_snapshot_campaign)
+    @test occursin("_run_policy", combined_snapshot_campaign)
+    @test occursin("matched-start", combined_snapshot_campaign)
+    combined_snapshot_summary = read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_snapshot_campaign_summary.json"),
+        String,
+    )
+    @test occursin("matched_ipopt_and_madnlp_campaigns_bounded", combined_snapshot_summary)
+    @test occursin("4180", combined_snapshot_summary)
+    @test occursin("campaign_qualified", combined_snapshot_summary)
+    @test occursin("MadNLP", combined_snapshot_summary)
     magnitude_campaign = read(
         joinpath(
             benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",

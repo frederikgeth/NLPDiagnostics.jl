@@ -43,6 +43,19 @@ function _json_safe(value)
     return value
 end
 
+function _warning_codes(warnings)
+    codes = Set{String}()
+    for warning in warnings
+        if warning isa AbstractDict
+            push!(codes, string(get(warning, "code", "unknown")))
+        elseif warning isa AbstractString
+            match_result = match(r"^([A-Z0-9_.-]+):", String(warning))
+            push!(codes, isnothing(match_result) ? "unknown" : String(match_result.captures[1]))
+        end
+    end
+    return sort!(collect(codes))
+end
+
 function _build_case(network, policy, label)
     context = BMOPFTools.build_opf_model(
         deepcopy(network);
@@ -181,10 +194,7 @@ function main()
         "input" => Dict(
             "path" => input_path,
             "source_warning_count" => length(warnings),
-            "source_warning_codes" => sort!(collect(unique(
-                string(get(w, "code", "unknown"))
-                for w in warnings if w isa AbstractDict
-            ))),
+            "source_warning_codes" => _warning_codes(warnings),
         ),
         "network_shape" => Dict(
             "bus_count" => length(get(network, "bus", Dict())),
