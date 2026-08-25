@@ -2180,6 +2180,13 @@ end
     @test series_voltage_solver_summary["campaign_qualified_count"] == 2
     @test series_voltage_solver_summary["records"][end]["campaign_qualified"] == false
     @test occursin("ITERATION_LIMIT", string(series_voltage_solver_summary["records"][end]))
+    series_voltage_solver_budget_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_voltage_level_series_solver_campaign_maxiter60_summary.json"),
+        String,
+    ))
+    @test series_voltage_solver_budget_summary["budgets"]["max_iter"] == 60
+    @test series_voltage_solver_budget_summary["records"][end]["campaign_qualified"] == false
+    @test occursin("LOCALLY_INFEASIBLE", string(series_voltage_solver_budget_summary["records"][end]))
     practical_application_script = read(
         joinpath(benchmark_directory, "summarize_bmopf_practical_application_success.jl"),
         String,
@@ -2818,7 +2825,7 @@ end
     )
     @test occursin("\"benchmark_script_count\": 150", consolidation_summary)
     @test occursin("\"shared_benchmark_helper_user_count\": 147", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 91", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 92", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

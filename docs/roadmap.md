@@ -5336,12 +5336,14 @@ and 6-level/5-transformer cases across classic, SI, and local policies with
 stable locally solved endpoints. The 8-level/7-transformer case is an explicit
 boundary: it reaches iteration-limit or locally-infeasible terminations under
 the recorded budget. This is useful practical evidence for budget and
-initialization work, not a policy ranking.
+initialization work, not a policy ranking. A max_iter=60 follow-up still
+returns `LOCALLY_INFEASIBLE` on all six largest-case runs, so simply increasing
+the iteration budget is not yet a sufficient remedy.
 
 The next experiment is to explain the coordinate-geometry boundary, tune the
-largest ladder's solver budget/initialization, and repeat it with MadNLP when
-available before comparing the synthetic ladder with selected combined MV+LV
-snapshots.
+largest ladder's initialization/model formulation, and repeat it with MadNLP
+when available before comparing the synthetic ladder with selected combined
+MV+LV snapshots.
 
 ## 2026-08-26 practical application success checkpoint
 

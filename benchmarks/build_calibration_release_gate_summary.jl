@@ -43,6 +43,7 @@ combined_mv_lv = read_summary("docs/bmopf_combined_mv_lv_snapshot_campaign_summa
 series_voltage_scaling = read_summary("docs/bmopf_voltage_level_series_case_matrix_summary.json")
 practical_application_success = read_summary("docs/bmopf_practical_application_success_summary.json")
 series_solver_campaign = read_summary("docs/bmopf_voltage_level_series_solver_campaign_summary.json")
+series_solver_budget60 = read_summary("docs/bmopf_voltage_level_series_solver_campaign_maxiter60_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
 api_tier_usage = read_summary("docs/api_tier_usage_summary.json")
@@ -310,6 +311,13 @@ practical_application_count = get(practical_application_success, "application_co
 practical_application_success_count = get(practical_application_success, "successful_application_count", 0)
 series_solver_case_count = get(series_solver_campaign, "case_count", 0)
 series_solver_qualified_count = get(series_solver_campaign, "campaign_qualified_count", 0)
+series_solver_budget60_records = get(series_solver_budget60, "records", Any[])
+series_solver_budget60_largest = isempty(series_solver_budget60_records) ?
+    Dict{String,Any}() : only(filter(record -> get(record, "label", "") == "series_8level_230kV_208V", series_solver_budget60_records))
+series_solver_budget60_statuses = sort!(unique(
+    get(record, "termination_status", "unknown")
+    for record in get(series_solver_budget60_largest, "records", Any[])
+))
 
 function gate(id, status, rationale, evidence; blocking=false)
     Dict{String,Any}(
@@ -401,9 +409,10 @@ gates = Dict{String,Any}[
     gate(
         "bmopf_voltage_level_series_solver_campaign",
         series_solver_case_count > 0 && series_solver_qualified_count == series_solver_case_count ? "pass" : "partial",
-        "The bounded Ipopt campaign qualifies $series_solver_qualified_count/$series_solver_case_count synthetic voltage-level ladders across classic, SI, and local policies with matched starts and endpoint gates. The largest seven-transformer case remains an actionable boundary under the recorded iteration budget; this is solver-work evidence for the fixtures, not a universal policy or conditioning claim.",
+        "The bounded Ipopt campaign qualifies $series_solver_qualified_count/$series_solver_case_count synthetic voltage-level ladders across classic, SI, and local policies with matched starts and endpoint gates. The largest seven-transformer case remains an actionable boundary under the baseline iteration budget; a follow-up max_iter=60 campaign still reports terminations $(series_solver_budget60_statuses), so the boundary is not explained by the 20-iteration budget alone. This is solver-work evidence for the fixtures, not a universal policy or conditioning claim.",
         [
             "docs/bmopf_voltage_level_series_solver_campaign_summary.json",
+            "docs/bmopf_voltage_level_series_solver_campaign_maxiter60_summary.json",
             "benchmarks/bmopf_voltage_level_series_solver_campaign.jl",
         ],
     ),

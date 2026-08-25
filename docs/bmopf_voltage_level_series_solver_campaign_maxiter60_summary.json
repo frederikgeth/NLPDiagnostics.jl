@@ -1,0 +1,265 @@
+{
+  "budgets": {
+    "max_iter": 60,
+    "repeats": 2,
+    "solver_tolerance": 1.0e-8
+  },
+  "campaign_qualified_count": 2,
+  "case_count": 3,
+  "qualification": {
+    "claim": "bounded matched-start Ipopt evidence across synthetic voltage-level ladders with series transformers",
+    "does_not_establish": [
+      "a universal scaling policy or solver superiority",
+      "portable performance or memory scaling",
+      "physical validity beyond the declared synthetic fixtures"
+    ],
+    "next_experiment": "repeat the largest ladder with MadNLP when available and connect the practical success ledger to these solver records"
+  },
+  "records": [
+    {
+      "bus_count": 4,
+      "campaign_gates": {
+        "all_common_starts_covariant": true,
+        "all_comparisons_qualified": true,
+        "all_native_initializations_covariant": true,
+        "all_physical_endpoints_accepted": true,
+        "comparison_coverage_complete": true,
+        "comparison_policy_coverage_complete": true,
+        "native_initialization_covariance_coverage_complete": true,
+        "native_initialization_covariance_required": false,
+        "provenance_fingerprint_coverage_complete": true,
+        "provenance_stable": true,
+        "run_coverage_complete": true,
+        "terminations_stable_within_policy": true
+      },
+      "campaign_qualified": true,
+      "label": "series_4level_115kV_480V",
+      "loads_per_level": 2,
+      "model_variable_count": 56,
+      "records": [
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "classic_1mva",
+          "replicate": 1,
+          "solve_seconds": 30.28903925,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "classic_1mva",
+          "replicate": 2,
+          "solve_seconds": 0.061407209,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "si_units",
+          "replicate": 1,
+          "solve_seconds": 0.43175025,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "si_units",
+          "replicate": 2,
+          "solve_seconds": 0.15147675,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "series_voltage_local",
+          "replicate": 1,
+          "solve_seconds": 0.057640041,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "series_voltage_local",
+          "replicate": 2,
+          "solve_seconds": 0.055787708,
+          "termination_status": "LOCALLY_SOLVED"
+        }
+      ],
+      "transformer_count": 3,
+      "voltage_levels": [
+        115000.0,
+        24900.0,
+        4160.0,
+        480.0
+      ]
+    },
+    {
+      "bus_count": 6,
+      "campaign_gates": {
+        "all_common_starts_covariant": true,
+        "all_comparisons_qualified": true,
+        "all_native_initializations_covariant": true,
+        "all_physical_endpoints_accepted": true,
+        "comparison_coverage_complete": true,
+        "comparison_policy_coverage_complete": true,
+        "native_initialization_covariance_coverage_complete": true,
+        "native_initialization_covariance_required": false,
+        "provenance_fingerprint_coverage_complete": true,
+        "provenance_stable": true,
+        "run_coverage_complete": true,
+        "terminations_stable_within_policy": true
+      },
+      "campaign_qualified": true,
+      "label": "series_6level_115kV_240V",
+      "loads_per_level": 2,
+      "model_variable_count": 88,
+      "records": [
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "classic_1mva",
+          "replicate": 1,
+          "solve_seconds": 0.151069333,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "classic_1mva",
+          "replicate": 2,
+          "solve_seconds": 0.40783975,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "si_units",
+          "replicate": 1,
+          "solve_seconds": 0.234335333,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "si_units",
+          "replicate": 2,
+          "solve_seconds": 0.141572,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "series_voltage_local",
+          "replicate": 1,
+          "solve_seconds": 1.1144225,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "series_voltage_local",
+          "replicate": 2,
+          "solve_seconds": 0.143921042,
+          "termination_status": "LOCALLY_SOLVED"
+        }
+      ],
+      "transformer_count": 5,
+      "voltage_levels": [
+        115000.0,
+        34500.0,
+        24900.0,
+        12470.0,
+        4160.0,
+        240.0
+      ]
+    },
+    {
+      "bus_count": 8,
+      "campaign_gates": {
+        "all_common_starts_covariant": true,
+        "all_comparisons_qualified": false,
+        "all_native_initializations_covariant": true,
+        "all_physical_endpoints_accepted": false,
+        "comparison_coverage_complete": true,
+        "comparison_policy_coverage_complete": true,
+        "native_initialization_covariance_coverage_complete": true,
+        "native_initialization_covariance_required": false,
+        "provenance_fingerprint_coverage_complete": true,
+        "provenance_stable": true,
+        "run_coverage_complete": true,
+        "terminations_stable_within_policy": true
+      },
+      "campaign_qualified": false,
+      "label": "series_8level_230kV_208V",
+      "loads_per_level": 3,
+      "model_variable_count": 134,
+      "records": [
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": false,
+          "policy": "classic_1mva",
+          "replicate": 1,
+          "solve_seconds": 0.296751417,
+          "termination_status": "LOCALLY_INFEASIBLE"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": false,
+          "policy": "classic_1mva",
+          "replicate": 2,
+          "solve_seconds": 0.343501459,
+          "termination_status": "LOCALLY_INFEASIBLE"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": false,
+          "policy": "si_units",
+          "replicate": 1,
+          "solve_seconds": 0.186199458,
+          "termination_status": "LOCALLY_INFEASIBLE"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": false,
+          "policy": "si_units",
+          "replicate": 2,
+          "solve_seconds": 0.17027775,
+          "termination_status": "LOCALLY_INFEASIBLE"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": false,
+          "policy": "series_voltage_local",
+          "replicate": 1,
+          "solve_seconds": 0.238227084,
+          "termination_status": "LOCALLY_INFEASIBLE"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": false,
+          "policy": "series_voltage_local",
+          "replicate": 2,
+          "solve_seconds": 0.169298084,
+          "termination_status": "LOCALLY_INFEASIBLE"
+        }
+      ],
+      "transformer_count": 7,
+      "voltage_levels": [
+        230000.0,
+        69000.0,
+        34500.0,
+        24900.0,
+        12470.0,
+        4160.0,
+        480.0,
+        208.0
+      ]
+    }
+  ],
+  "runner": "benchmarks/bmopf_voltage_level_series_solver_campaign.jl",
+  "runner_version": "bmopf-voltage-level-series-solver-campaign-v1",
+  "schema_version": "nlpdiagnostics-bmopf-voltage-level-series-solver-campaign-v1",
+  "solver": "Ipopt",
+  "status": "matched_start_solver_campaign_partial"
+}
