@@ -153,7 +153,12 @@ nonlinear observations are approximately linear (slopes 0.99--1.01). These
 are bounded-fixture trend measurements, not an asymptotic or production law.
 Each run now also records the process high-water-mark increment from
 `Sys.maxrss()` for descriptive memory attribution; isolated peak-memory and
-solver-memory claims remain out of scope.
+solver-memory claims remain out of scope. The companion
+`benchmarks/summarize_analyze_runtime_resources.jl` now summarizes allocation
+and high-water trends for both workloads: affine allocation slopes are about
+1.92--1.94, nonlinear allocation slopes about 0.99--1.01, and `static` is the
+largest-dimension elapsed/allocation stage in both. These are resource
+observations on the saved fixtures, not portable memory guarantees.
 
 The runtime/memory increment now also includes
 `benchmarks/profile_sparse_runtime_memory_isolated.jl`, which launches the
@@ -215,8 +220,8 @@ library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
 that no unclassified non-helper runner exists. It now follows local include
 chains, so compositional BMOPF runners that inherit the helper transitively are
-counted correctly; the refreshed inventory records 123 helper users across
-126 benchmark scripts with zero unclassified runners.
+counted correctly; the refreshed inventory records 124 helper users across
+127 benchmark scripts with zero unclassified runners.
 
 The latest consolidation increment adds the reviewed local quality policy in
 `docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are

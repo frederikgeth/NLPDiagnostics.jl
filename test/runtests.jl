@@ -2187,6 +2187,26 @@ end
     @test analyze_trend_data["affine_chain"]["point_count"] == 3
     @test analyze_trend_data["affine_chain"]["evidence_stable"] == true
     @test analyze_trend_data["affine_chain"]["dominant_stage_at_largest_dimension"] == "static"
+    analyze_resource_script = read(
+        joinpath(benchmark_directory, "summarize_analyze_runtime_resources.jl"),
+        String,
+    )
+    @test Meta.parseall(analyze_resource_script) isa Expr
+    @test occursin("dominant_allocation_stage_at_largest_dimension", analyze_resource_script)
+    analyze_resource_summary = read(
+        joinpath(repository_root, "docs", "analyze_runtime_resource_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-analyze-runtime-resource-v1", analyze_resource_summary)
+    analyze_resource_data = JSON.parse(analyze_resource_summary)
+    @test analyze_resource_data["workload_count"] == 2
+    @test all(workload["point_count"] == 3 for workload in analyze_resource_data["workloads"])
+    @test all(workload["evidence_stable"] for workload in analyze_resource_data["workloads"])
+    @test all(workload["dominant_allocation_stage_at_largest_dimension"]["stage"] == "static" for workload in analyze_resource_data["workloads"])
+    @test occursin("analyze_runtime_resource_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     isolated_runtime_script = read(
         joinpath(benchmark_directory, "profile_sparse_runtime_memory_isolated.jl"),
         String,
@@ -2369,8 +2389,8 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 126", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 123", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 127", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 124", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

@@ -1,0 +1,199 @@
+{
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
+    "git_revision": "d681929d126020c570af0f130f03a31070b5bc7b",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "Saved repeated analyze(model) campaigns are summarized by runtime, allocation, process high-water, and stage-attribution trends.",
+    "does_not_establish": [
+      "a portable asymptotic complexity or memory law",
+      "solver runtime or allocator-level peak memory",
+      "fixture-independent production thresholds"
+    ]
+  },
+  "schema_version": "nlpdiagnostics-analyze-runtime-resource-v1",
+  "source": {
+    "claim_boundary": "descriptive bounded-fixture runtime and resource trends",
+    "input": "docs/analyze_runtime_scaling_summary.json",
+    "runner": "benchmarks/summarize_analyze_runtime_resources.jl"
+  },
+  "workload_count": 2,
+  "workloads": [
+    {
+      "allocation": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 100,
+            "ratio": 3.7768300862319273,
+            "to_dimension": 200
+          },
+          {
+            "from_dimension": 200,
+            "ratio": 3.826974958654399,
+            "to_dimension": 400
+          }
+        ],
+        "dimensions": [
+          100,
+          200,
+          400
+        ],
+        "log_log_slope_maximum": 1.9362044609376048,
+        "log_log_slope_minimum": 1.9171758806103363,
+        "log_log_slopes": [
+          1.9171758806103363,
+          1.9362044609376048
+        ],
+        "point_count": 3,
+        "value_key": "allocated_bytes"
+      },
+      "dominant_allocation_stage_at_largest_dimension": {
+        "stage": "static",
+        "value": 1117997472
+      },
+      "dominant_elapsed_stage_at_largest_dimension": {
+        "stage": "static",
+        "value": 3.506598944666667
+      },
+      "evidence_stable": true,
+      "point_count": 3,
+      "process_maxrss_increment": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 100,
+            "ratio": 1.9344606383295828,
+            "to_dimension": 200
+          },
+          {
+            "from_dimension": 200,
+            "ratio": 0.651366186923668,
+            "to_dimension": 400
+          }
+        ],
+        "dimensions": [
+          100,
+          200,
+          400
+        ],
+        "log_log_slope_maximum": 0.9519313736689831,
+        "log_log_slope_minimum": -0.6184592649657656,
+        "log_log_slopes": [
+          0.9519313736689831,
+          -0.6184592649657656
+        ],
+        "point_count": 3,
+        "value_key": "process_maxrss_increment_bytes"
+      },
+      "runtime": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 100,
+            "ratio": 3.888454329563097,
+            "to_dimension": 200
+          },
+          {
+            "from_dimension": 200,
+            "ratio": 3.9311021131296062,
+            "to_dimension": 400
+          }
+        ],
+        "dimensions": [
+          100,
+          200,
+          400
+        ],
+        "log_log_slope_maximum": 1.974933839262473,
+        "log_log_slope_minimum": 1.959196794230213,
+        "log_log_slopes": [
+          1.959196794230213,
+          1.974933839262473
+        ],
+        "point_count": 3,
+        "value_key": "elapsed_seconds"
+      },
+      "workload": "sparse_affine_chain"
+    },
+    {
+      "allocation": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 100,
+            "ratio": 2.0108559544787883,
+            "to_dimension": 200
+          },
+          {
+            "from_dimension": 200,
+            "ratio": 1.9863930924526487,
+            "to_dimension": 400
+          }
+        ],
+        "dimensions": [
+          100,
+          200,
+          400
+        ],
+        "log_log_slope_maximum": 1.0078097394243712,
+        "log_log_slope_minimum": 0.9901511497618882,
+        "log_log_slopes": [
+          1.0078097394243712,
+          0.9901511497618882
+        ],
+        "point_count": 3,
+        "value_key": "allocated_bytes"
+      },
+      "dominant_allocation_stage_at_largest_dimension": {
+        "stage": "static",
+        "value": 50130640
+      },
+      "dominant_elapsed_stage_at_largest_dimension": {
+        "stage": "static",
+        "value": 0.11017027800000001
+      },
+      "evidence_stable": true,
+      "point_count": 3,
+      "process_maxrss_increment": {
+        "adjacent_ratios": [],
+        "dimensions": [
+          100,
+          200,
+          400
+        ],
+        "log_log_slope_maximum": null,
+        "log_log_slope_minimum": null,
+        "log_log_slopes": [],
+        "point_count": 3,
+        "value_key": "process_maxrss_increment_bytes"
+      },
+      "runtime": {
+        "adjacent_ratios": [
+          {
+            "from_dimension": 100,
+            "ratio": 2.0101510817545383,
+            "to_dimension": 200
+          },
+          {
+            "from_dimension": 200,
+            "ratio": 1.9834237371857777,
+            "to_dimension": 400
+          }
+        ],
+        "dimensions": [
+          100,
+          200,
+          400
+        ],
+        "log_log_slope_maximum": 1.0073039375767314,
+        "log_log_slope_minimum": 0.9879929268005258,
+        "log_log_slopes": [
+          1.0073039375767314,
+          0.9879929268005258
+        ],
+        "point_count": 3,
+        "value_key": "elapsed_seconds"
+      },
+      "workload": "sparse_nonlinear_chain"
+    }
+  ]
+}
