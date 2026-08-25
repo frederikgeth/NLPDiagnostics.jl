@@ -1,0 +1,85 @@
+{
+  "advanced_only": [],
+  "alias_mismatches": [],
+  "declared_export_count": 14,
+  "declared_exports": [
+    "ProfileAggregate",
+    "ProfileCase",
+    "ProfileResult",
+    "RankPolicy",
+    "UnavailableReason",
+    "jacobian_rank_estimate",
+    "profile_aggregate_data",
+    "profile_case",
+    "profile_case_repeated",
+    "profile_cases_repeated",
+    "profile_result_data",
+    "sparse_qr_rank_estimate",
+    "unavailable_reason",
+    "unavailable_reason_data"
+  ],
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "4588dabd789c9aca7d1c9a0efc1b2dbc9a28832e",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "The explicit Advanced facade declaration, runtime export set, root aliases, and typed rank-policy/unavailable-reason smoke path are auditable in the known local environment.",
+    "does_not_establish": [
+      "Stable-tier compatibility for Advanced names",
+      "semantic correctness of every Advanced method",
+      "release readiness or numerical qualification"
+    ]
+  },
+  "missing_runtime_exports": [],
+  "root_overlap": [
+    "ProfileAggregate",
+    "ProfileCase",
+    "ProfileResult",
+    "RankPolicy",
+    "UnavailableReason",
+    "jacobian_rank_estimate",
+    "profile_aggregate_data",
+    "profile_case",
+    "profile_case_repeated",
+    "profile_cases_repeated",
+    "profile_result_data",
+    "sparse_qr_rank_estimate",
+    "unavailable_reason",
+    "unavailable_reason_data"
+  ],
+  "runtime_export_count": 14,
+  "runtime_exports": [
+    "ProfileAggregate",
+    "ProfileCase",
+    "ProfileResult",
+    "RankPolicy",
+    "UnavailableReason",
+    "jacobian_rank_estimate",
+    "profile_aggregate_data",
+    "profile_case",
+    "profile_case_repeated",
+    "profile_cases_repeated",
+    "profile_result_data",
+    "sparse_qr_rank_estimate",
+    "unavailable_reason",
+    "unavailable_reason_data"
+  ],
+  "schema_version": "nlpdiagnostics-advanced-api-surface-v1",
+  "smoke": {
+    "rank_policy_backend": "sparse_qr",
+    "rank_policy_provenance": "advanced_api_audit",
+    "status": "pass",
+    "unavailable_reason_code": "advanced_api_audit",
+    "unavailable_reason_schema_version": "nlpdiagnostics-unavailable-reason-v1"
+  },
+  "source": {
+    "advanced_module": "src/api/advanced.jl",
+    "root_module": "src/NLPDiagnostics.jl",
+    "runner": "benchmarks/audit_advanced_api_surface.jl"
+  },
+  "status": "pass",
+  "surface_matches": true,
+  "unexpected_runtime_exports": []
+}

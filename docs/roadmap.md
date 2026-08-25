@@ -139,6 +139,10 @@ match their runtime declaration, all 15 root aliases match by identity, and
 the one-variable snapshot/evaluation/analysis smoke path passes. This
 strengthens the compatibility boundary without expanding Stable or
 reclassifying legacy root exports.
+The complementary `benchmarks/audit_advanced_api_surface.jl` ledger also
+confirms all 14 Advanced exports and root aliases, with typed rank-policy and
+unavailable-reason smoke coverage. Both explicit facades are now executable
+surface contracts; the root-only migration queue remains separate.
 
 The `analyze(model)` scaling gate now includes bounded stage attribution in
 `docs/analyze_runtime_scaling_summary.json`. The existing end-to-end runtime
@@ -241,9 +245,10 @@ library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
 that no unclassified non-helper runner exists. It now follows local include
 chains, so compositional BMOPF runners that inherit the helper transitively are
-counted correctly; the refreshed inventory records 125 helper users across
-128 benchmark scripts with zero unclassified runners. The new Stable-facade
-surface audit is included in that inventory and its smoke path passes.
+counted correctly; the refreshed inventory records 126 helper users across
+129 benchmark scripts with zero unclassified runners. The Stable- and
+Advanced-facade surface audits are included in that inventory and both smoke
+paths pass.
 
 The latest consolidation increment adds the reviewed local quality policy in
 `docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are

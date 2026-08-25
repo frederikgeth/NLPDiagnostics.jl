@@ -143,6 +143,23 @@ end
     @test stable_surface_summary["surface_matches"] == true
     @test stable_surface_summary["smoke"]["status"] == "pass"
 
+    advanced_surface_script = read(
+        joinpath(normpath(joinpath(@__DIR__, "..")), "benchmarks", "audit_advanced_api_surface.jl"),
+        String,
+    )
+    @test Meta.parseall(advanced_surface_script) isa Expr
+    @test occursin("surface_matches", advanced_surface_script)
+    advanced_surface_summary = JSON.parse(read(
+        joinpath(normpath(joinpath(@__DIR__, "..")), "docs", "advanced_api_surface_summary.json"),
+        String,
+    ))
+    @test advanced_surface_summary["schema_version"] == "nlpdiagnostics-advanced-api-surface-v1"
+    @test advanced_surface_summary["status"] == "pass"
+    @test advanced_surface_summary["declared_export_count"] == 14
+    @test advanced_surface_summary["runtime_export_count"] == 14
+    @test advanced_surface_summary["surface_matches"] == true
+    @test advanced_surface_summary["smoke"]["status"] == "pass"
+
     stable_model = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
     stable_variable = MOI.add_variable(stable_model)
     stable_constraint = MOI.ScalarAffineFunction(
@@ -2435,9 +2452,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 128", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 125", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 69", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 129", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 126", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 70", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),
