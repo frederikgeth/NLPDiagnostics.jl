@@ -13,6 +13,7 @@ Environment controls:
   * `NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_FEEDER` (default `LV1_14bus`)
   * `NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_REPEATS` (default `2`, minimum `2`)
   * `NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_MAX_ITER` (default `25`)
+  * `NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_TOL` (default `1e-8`)
   * `NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_MAX_VARIABLES` (default `5000`)
   * `NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_SOLVER` (default `ipopt`; `madnlp` supported when installed)
   * `NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_OUTPUT` (default under `work/`)
@@ -34,12 +35,19 @@ end
 
 include(joinpath(@__DIR__, "bmopf_magnitude_scaling_campaign.jl"))
 
-const _SNAPSHOT_RUNNER_VERSION = "bmopf-combined-mv-lv-snapshot-campaign-v1"
+const _SNAPSHOT_RUNNER_VERSION = "bmopf-combined-mv-lv-snapshot-campaign-v2"
 
 function _snapshot_env_int(name, default; minimum = 0)
     value = try parse(Int, get(ENV, name, string(default)))
     catch; error("$name must be an integer") end
     value >= minimum || error("$name must be at least $minimum")
+    return value
+end
+
+function _snapshot_env_float(name, default; minimum = 0.0)
+    value = try parse(Float64, get(ENV, name, string(default)))
+    catch; error("$name must be a floating-point number") end
+    isfinite(value) && value > minimum || error("$name must be finite and greater than $minimum")
     return value
 end
 
@@ -95,6 +103,27 @@ function _solver_config()
     return name == "ipopt" ? (Ipopt.Optimizer, :ipopt) : (MadNLP.Optimizer, :madnlp)
 end
 
+function _snapshot_endpoint_diagnostic(comparison)
+    detail = get(comparison, "comparison", Dict{String,Any}())
+    covariance = get(detail, "covariance_report", Dict{String,Any}())
+    source = get(covariance, "source_covariance_report", Dict{String,Any}())
+    metrics = get(source, "metrics", Dict{String,Any}())
+    residuals = get(metrics, "constraint_residuals", Dict{String,Any}())
+    gates = get(detail, "gates", Dict{String,Any}())
+    return Dict{String,Any}(
+        "reference_policy" => get(comparison, "reference_policy", get(detail, "reference_scaling_policy", "unknown")),
+        "candidate_policy" => get(comparison, "candidate_policy", get(detail, "candidate_scaling_policy", "unknown")),
+        "reference_replicate" => get(comparison, "reference_replicate", nothing),
+        "candidate_replicate" => get(comparison, "candidate_replicate", nothing),
+        "comparison_qualified" => get(detail, "comparison_qualified", false),
+        "physical_covariance_passed" => get(gates, "physical_covariance_passed", false),
+        "maximum_absolute_difference" => get(residuals, "maximum_absolute_difference", nothing),
+        "maximum_relative_difference" => get(residuals, "maximum_relative_difference", nothing),
+        "endpoint_family_sets_agree" => get(gates, "endpoint_family_sets_agree", false),
+        "semantic_geometry_qualified" => get(gates, "semantic_geometry_qualified", false),
+    )
+end
+
 function _is_control_line(line)
     value = lowercase(strip(line))
     isempty(value) || startswith(value, "!") || startswith(value, "//") ||
@@ -146,6 +175,7 @@ function main()
     feeder = _feeder_name()
     repeats = _snapshot_env_int("NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_REPEATS", 2; minimum = 2)
     max_iter = _snapshot_env_int("NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_MAX_ITER", 25; minimum = 1)
+    solver_tolerance = _snapshot_env_float("NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_TOL", 1.0e-8)
     max_variables = _snapshot_env_int("NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_MAX_VARIABLES", 5000; minimum = 1)
     solver_name = lowercase(strip(get(ENV, "NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_SOLVER", "ipopt")))
     optimizer, solver = _solver_config()
@@ -175,7 +205,7 @@ function main()
                     network, policy_name, factory(), replicate,
                     anchor_context, anchor_evaluation, fingerprint;
                     max_iter,
-                    solver_tolerance = 1.0e-8,
+                    solver_tolerance,
                     add_objective = true,
                     optimizer,
                     solver,
@@ -210,11 +240,12 @@ function main()
                 "case" => "combined-mv-lv-$feeder",
                 "solver" => uppercasefirst(solver_name),
                 "max_iter" => max_iter,
+                "solver_tolerance" => solver_tolerance,
             ),
         )
     end
     payload = Dict{String,Any}(
-        "schema_version" => "nlpdiagnostics-bmopf-combined-mv-lv-snapshot-campaign-v1",
+        "schema_version" => "nlpdiagnostics-bmopf-combined-mv-lv-snapshot-campaign-v2",
         "runner_version" => _SNAPSHOT_RUNNER_VERSION,
         "status" => variable_count <= max_variables ? "matched_$(solver_name)_campaign_complete" : "snapshot_size_guarded",
         "snapshot" => Dict(
@@ -232,9 +263,12 @@ function main()
             "source_warning_count" => length(source_warnings),
             "source_warning_codes" => _warning_codes(source_warnings),
         ),
-        "budgets" => Dict("repeats" => repeats, "max_iter" => max_iter, "max_variables" => max_variables),
+        "budgets" => Dict("repeats" => repeats, "max_iter" => max_iter,
+                          "solver_tolerance" => solver_tolerance,
+                          "max_variables" => max_variables),
         "records" => records,
         "comparisons" => comparisons,
+        "endpoint_diagnostics" => [_snapshot_endpoint_diagnostic(comparison) for comparison in comparisons],
         "campaign" => campaign,
         "endpoint_gates" => campaign === nothing ? Dict{String,Any}(
             "status" => "unavailable",

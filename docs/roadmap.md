@@ -4964,10 +4964,16 @@ endpoints and individual physical endpoint acceptance. MadNLP passed the
 cross-policy physical covariance gate and its campaign qualified. Ipopt's
 individual endpoints were accepted but its largest cross-policy residual
 difference was 0.0028511005, so its scaling comparison remains unqualified.
-Neither result ranks classic, SI, or local MV/LV. The evidence is recorded in
+Neither result ranks classic, SI, or local MV/LV. The runner now records the
+solver tolerance as a declared budget and emits compact per-comparison endpoint
+diagnostics. A follow-up two-repeat Ipopt run on the same snapshot with
+`max_iter=10` and tolerance `1e-10` passed all physical and cross-policy gates,
+with maximum residual covariance `3.30e-12`. This resolves the immediate
+discrepancy as termination-tolerance/budget sensitivity to test, not as a
+solver or policy preference. The evidence is recorded in
 `docs/bmopf_combined_mv_lv_snapshot_campaign_summary.json`.
 
-The next gate is to diagnose the Ipopt endpoint discrepancy, then repeat a
-second LV feeder or perturbed-start matrix before interpreting scaling policy
+The next gate is to repeat the qualified Ipopt protocol on a second LV feeder
+or a predeclared perturbed-start matrix before interpreting scaling policy
 effects. Any policy interpretation remains conditional on endpoint covariance,
 provenance, and solver-availability gates.

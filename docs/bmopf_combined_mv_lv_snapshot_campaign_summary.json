@@ -1,5 +1,5 @@
 {
-  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-snapshot-campaign-v1",
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-snapshot-campaign-v2",
   "status": "endpoint_gated_ipopt_madnlp_campaigns_complete",
   "source": {
     "runner": "benchmarks/bmopf_combined_mv_lv_snapshot_campaign.jl",
@@ -20,7 +20,8 @@
   },
   "budgets": {
     "repeats": 2,
-    "max_iter": 2,
+    "max_iter": 5,
+    "solver_tolerance": 1e-8,
     "max_variables": 5000
   },
   "campaigns": [
@@ -52,6 +53,22 @@
       "solve_seconds_range": [37.718379458, 72.289491042]
     }
   ],
-  "interpretation": "Both solvers reached locally solved endpoints and passed individual physical endpoint acceptance. MadNLP also passed the cross-policy physical covariance gate. Ipopt did not: its largest cross-policy residual difference was 0.0028511005, so its scaling comparison remains unqualified despite accepted individual endpoints. This is solver- and tolerance-sensitive evidence, not a solver superiority claim.",
-  "next_gate": "diagnose the Ipopt cross-policy endpoint discrepancy, then repeat a second LV feeder or perturbed-start matrix before interpreting scaling policy effects"
+  "ipopt_tolerance_diagnostic": {
+    "solver": "Ipopt",
+    "repeats": 2,
+    "max_iter": 10,
+    "solver_tolerance": 1e-10,
+    "run_count": 6,
+    "comparison_count": 5,
+    "termination_statuses_observed": ["LOCALLY_SOLVED"],
+    "all_physical_endpoints_accepted": true,
+    "all_comparisons_qualified": true,
+    "comparison_coverage_complete": true,
+    "terminations_stable_within_policy": true,
+    "maximum_physical_covariance_absolute_difference": 3.299843725579385e-12,
+    "solve_seconds_range": [37.997712708, 59.114029292],
+    "interpretation": "The original Ipopt discrepancy disappears under a tighter tolerance and larger iteration budget on the same matched-start snapshot. This identifies termination tolerance/budget sensitivity as the current explanation to test, not a policy or solver superiority result."
+  },
+  "interpretation": "Both solvers reached locally solved endpoints and passed individual physical endpoint acceptance. The initial five-iteration Ipopt run at tolerance 1e-8 failed the cross-policy covariance gate (maximum residual difference 0.0028511005), while MadNLP passed it. A repeat Ipopt run on the same snapshot with tolerance 1e-10 and max_iter 10 passed every endpoint and cross-policy gate, reducing the maximum residual difference to 3.30e-12. The evidence is therefore termination-tolerance/budget sensitive and remains descriptive; it does not rank classic, SI, local MV/LV, or either solver.",
+  "next_gate": "repeat the qualified Ipopt protocol on a second LV feeder or a predeclared perturbed-start matrix before interpreting scaling policy effects"
 }

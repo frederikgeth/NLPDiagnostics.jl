@@ -2085,6 +2085,8 @@ end
     @test occursin("matched-start", combined_snapshot_campaign)
     @test occursin("baseline_repeat", combined_snapshot_campaign)
     @test occursin("endpoint_gates", combined_snapshot_campaign)
+    @test occursin("SNAPSHOT_TOL", combined_snapshot_campaign)
+    @test occursin("endpoint_diagnostics", combined_snapshot_campaign)
     combined_snapshot_summary = read(
         joinpath(repository_root, "docs", "bmopf_combined_mv_lv_snapshot_campaign_summary.json"),
         String,
