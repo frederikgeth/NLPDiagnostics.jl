@@ -1,7 +1,7 @@
 {
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
-    "git_revision": "d681929d126020c570af0f130f03a31070b5bc7b",
+    "git_revision": "6fb7f021aec9ce2c6c45be3d55c12fe64fa3d691",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -11,7 +11,8 @@
       "a portable asymptotic complexity or memory law",
       "solver runtime or allocator-level peak memory",
       "fixture-independent production thresholds"
-    ]
+    ],
+    "repeatability_note": "Per-run and per-stage coefficients of variation at the largest dimension summarize repeated local measurements only; they do not quantify cross-machine, solver, or allocator repeatability."
   },
   "schema_version": "nlpdiagnostics-analyze-runtime-resource-v1",
   "source": {
@@ -48,6 +49,12 @@
         ],
         "point_count": 3,
         "value_key": "allocated_bytes"
+      },
+      "allocation_repeatability_at_largest_dimension": {
+        "coefficient_of_variation": 0.0,
+        "mean": 4.132091712e9,
+        "sample_count": 3,
+        "standard_deviation": 0.0
       },
       "dominant_allocation_stage_at_largest_dimension": {
         "stage": "static",
@@ -113,6 +120,110 @@
         "point_count": 3,
         "value_key": "elapsed_seconds"
       },
+      "runtime_repeatability_at_largest_dimension": {
+        "coefficient_of_variation": 0.027877970077082034,
+        "mean": 13.522481208666667,
+        "sample_count": 3,
+        "standard_deviation": 0.37697932650311344
+      },
+      "stage_allocation_repeatability_at_largest_dimension": {
+        "maximum_coefficient_of_variation": 0.0,
+        "mean_coefficient_of_variation": 0.0,
+        "stage_count": 7,
+        "stages": {
+          "derivatives": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.001100576e9,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "domains": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.00076832e9,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "expressions": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.000545792e9,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "incidence_graph": {
+            "coefficient_of_variation": 0.0,
+            "mean": 2.936112e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "snapshot": {
+            "coefficient_of_variation": 0.0,
+            "mean": 564176.0,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "static": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.117997472e9,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "structural": {
+            "coefficient_of_variation": 0.0,
+            "mean": 3.893216e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          }
+        }
+      },
+      "stage_timing_repeatability_at_largest_dimension": {
+        "maximum_coefficient_of_variation": 0.0887837265803943,
+        "mean_coefficient_of_variation": 0.048104152569463376,
+        "stage_count": 7,
+        "stages": {
+          "derivatives": {
+            "coefficient_of_variation": 0.05182095795326615,
+            "mean": 3.434498236,
+            "sample_count": 3,
+            "standard_deviation": 0.17797898867832276
+          },
+          "domains": {
+            "coefficient_of_variation": 0.030398205698061523,
+            "mean": 3.3620550973333336,
+            "sample_count": 3,
+            "standard_deviation": 0.10220044241695493
+          },
+          "expressions": {
+            "coefficient_of_variation": 0.06095975365566016,
+            "mean": 3.486737333666667,
+            "sample_count": 3,
+            "standard_deviation": 0.21255064892231335
+          },
+          "incidence_graph": {
+            "coefficient_of_variation": 0.017166923627199973,
+            "mean": 0.004930291666666666,
+            "sample_count": 3,
+            "standard_deviation": 8.463794050148712e-5
+          },
+          "snapshot": {
+            "coefficient_of_variation": 0.0887837265803943,
+            "mean": 0.0004278746666666667,
+            "sample_count": 3,
+            "standard_deviation": 3.798830741601069e-5
+          },
+          "static": {
+            "coefficient_of_variation": 0.016496221324767787,
+            "mean": 3.506598944666667,
+            "sample_count": 3,
+            "standard_deviation": 0.05784563228841849
+          },
+          "structural": {
+            "coefficient_of_variation": 0.0711032791468938,
+            "mean": 0.005520319333333333,
+            "sample_count": 3,
+            "standard_deviation": 0.0003925128065379946
+          }
+        }
+      },
       "workload": "sparse_affine_chain"
     },
     {
@@ -142,6 +253,12 @@
         ],
         "point_count": 3,
         "value_key": "allocated_bytes"
+      },
+      "allocation_repeatability_at_largest_dimension": {
+        "coefficient_of_variation": 0.0,
+        "mean": 7.5689872e7,
+        "sample_count": 3,
+        "standard_deviation": 0.0
       },
       "dominant_allocation_stage_at_largest_dimension": {
         "stage": "static",
@@ -192,6 +309,110 @@
         ],
         "point_count": 3,
         "value_key": "elapsed_seconds"
+      },
+      "runtime_repeatability_at_largest_dimension": {
+        "coefficient_of_variation": 0.008896946652481788,
+        "mean": 0.16800475,
+        "sample_count": 3,
+        "standard_deviation": 0.00149472929811354
+      },
+      "stage_allocation_repeatability_at_largest_dimension": {
+        "maximum_coefficient_of_variation": 0.0,
+        "mean_coefficient_of_variation": 0.0,
+        "stage_count": 7,
+        "stages": {
+          "derivatives": {
+            "coefficient_of_variation": 0.0,
+            "mean": 5.465008e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "domains": {
+            "coefficient_of_variation": 0.0,
+            "mean": 5.106928e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "expressions": {
+            "coefficient_of_variation": 0.0,
+            "mean": 5.408064e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "incidence_graph": {
+            "coefficient_of_variation": 0.0,
+            "mean": 3.319008e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "snapshot": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.330336e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "static": {
+            "coefficient_of_variation": 0.0,
+            "mean": 5.013064e7,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          },
+          "structural": {
+            "coefficient_of_variation": 0.0,
+            "mean": 1.15216e6,
+            "sample_count": 3,
+            "standard_deviation": 0.0
+          }
+        }
+      },
+      "stage_timing_repeatability_at_largest_dimension": {
+        "maximum_coefficient_of_variation": 0.0413636767807605,
+        "mean_coefficient_of_variation": 0.020121675284024976,
+        "stage_count": 7,
+        "stages": {
+          "derivatives": {
+            "coefficient_of_variation": 0.015630884467440962,
+            "mean": 0.012256236333333335,
+            "sample_count": 3,
+            "standard_deviation": 0.00019157581413198558
+          },
+          "domains": {
+            "coefficient_of_variation": 0.00773261863523184,
+            "mean": 0.011806917333333333,
+            "sample_count": 3,
+            "standard_deviation": 9.129838899637516e-5
+          },
+          "expressions": {
+            "coefficient_of_variation": 0.013208327148013371,
+            "mean": 0.012349958333333333,
+            "sample_count": 3,
+            "standard_deviation": 0.00016312228993100062
+          },
+          "incidence_graph": {
+            "coefficient_of_variation": 0.02280289122611641,
+            "mean": 0.0054708610000000005,
+            "sample_count": 3,
+            "standard_deviation": 0.00012475144829620245
+          },
+          "snapshot": {
+            "coefficient_of_variation": 0.0413636767807605,
+            "mean": 0.001385375,
+            "sample_count": 3,
+            "standard_deviation": 5.730420372014608e-5
+          },
+          "static": {
+            "coefficient_of_variation": 0.016084973413081842,
+            "mean": 0.11017027800000001,
+            "sample_count": 3,
+            "standard_deviation": 0.0017720859925418357
+          },
+          "structural": {
+            "coefficient_of_variation": 0.0240283553175299,
+            "mean": 0.0023171666666666666,
+            "sample_count": 3,
+            "standard_deviation": 5.567770399660303e-5
+          }
+        }
       },
       "workload": "sparse_nonlinear_chain"
     }

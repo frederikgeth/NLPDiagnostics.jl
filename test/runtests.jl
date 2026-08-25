@@ -2203,7 +2203,14 @@ end
     @test all(workload["point_count"] == 3 for workload in analyze_resource_data["workloads"])
     @test all(workload["evidence_stable"] for workload in analyze_resource_data["workloads"])
     @test all(workload["dominant_allocation_stage_at_largest_dimension"]["stage"] == "static" for workload in analyze_resource_data["workloads"])
+    @test all(workload["runtime_repeatability_at_largest_dimension"]["sample_count"] == 3 for workload in analyze_resource_data["workloads"])
+    @test all(workload["stage_timing_repeatability_at_largest_dimension"]["stage_count"] == 7 for workload in analyze_resource_data["workloads"])
+    @test all(workload["runtime_repeatability_at_largest_dimension"]["coefficient_of_variation"] < 0.1 for workload in analyze_resource_data["workloads"])
     @test occursin("analyze_runtime_resource_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
+    @test occursin("runtime_repeatability_at_largest_dimension", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))

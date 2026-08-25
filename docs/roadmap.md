@@ -213,6 +213,13 @@ This is a local measurement and not a production performance guarantee, so the
 scaling gate remains blocking while broader workloads and memory behavior are
 still open.
 
+The analyze resource ledger now also records per-run and per-stage
+repeatability at the largest measured dimension. End-to-end runtime
+coefficients of variation are below 0.028 for the affine and nonlinear saved
+workloads, with stage-level timing variation retained separately. This is
+local repeatability evidence only; it does not establish cross-machine,
+solver, or allocator reproducibility.
+
 The latest consolidation increment adds
 `benchmarks/build_calibration_release_report.jl`, which renders the
 machine-readable release-gate ledger into

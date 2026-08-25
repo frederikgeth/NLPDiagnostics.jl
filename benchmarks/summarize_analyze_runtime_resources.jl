@@ -61,6 +61,55 @@ function dominant_stage(record, key)
     Dict{String,Any}("stage" => dominant["stage"], "value" => get(dominant, key, nothing))
 end
 
+function repeatability(values)
+    numeric = Float64[Float64(value) for value in values if value isa Real]
+    isempty(numeric) && return Dict{String,Any}(
+        "sample_count" => 0,
+        "mean" => nothing,
+        "standard_deviation" => nothing,
+        "coefficient_of_variation" => nothing,
+    )
+    mean_value = sum(numeric) / length(numeric)
+    variance = length(numeric) < 2 ? 0.0 :
+        sum((value - mean_value)^2 for value in numeric) / (length(numeric) - 1)
+    standard_deviation = sqrt(variance)
+    Dict{String,Any}(
+        "sample_count" => length(numeric),
+        "mean" => mean_value,
+        "standard_deviation" => standard_deviation,
+        "coefficient_of_variation" => mean_value > 0 ? standard_deviation / mean_value : nothing,
+    )
+end
+
+function stage_repeatability(record, key)
+    runs = get(record, "runs", Any[])
+    stage_names = sort!(unique(String[
+        stage["stage"] for run in runs
+        for stage in get(run, "stage_attribution", Any[])
+    ]))
+    stages = Dict{String,Any}()
+    for name in stage_names
+        values = Float64[
+            Float64(stage[key])
+            for run in runs
+            for stage in get(run, "stage_attribution", Any[])
+            if stage["stage"] == name && stage[key] isa Real
+        ]
+        stages[name] = repeatability(values)
+    end
+    coefficients = Float64[
+        Float64(item["coefficient_of_variation"])
+        for item in values(stages)
+        if item["coefficient_of_variation"] isa Real
+    ]
+    Dict{String,Any}(
+        "stage_count" => length(stages),
+        "maximum_coefficient_of_variation" => isempty(coefficients) ? nothing : maximum(coefficients),
+        "mean_coefficient_of_variation" => isempty(coefficients) ? nothing : sum(coefficients) / length(coefficients),
+        "stages" => stages,
+    )
+end
+
 affine = get(summary, "records", Any[])
 nonlinear = get(get(summary, "workload_comparisons", Dict{String,Any}()), "sparse_nonlinear_chain", Any[])
 workloads = Dict{String,Any}[]
@@ -76,6 +125,18 @@ for (name, records) in [("sparse_affine_chain", affine), ("sparse_nonlinear_chai
         "process_maxrss_increment" => trend(ordered, "process_maxrss_increment_bytes"),
         "dominant_elapsed_stage_at_largest_dimension" => dominant_stage(ordered[end], "elapsed_seconds"),
         "dominant_allocation_stage_at_largest_dimension" => dominant_stage(ordered[end], "allocated_bytes"),
+        "runtime_repeatability_at_largest_dimension" => repeatability([
+            run["elapsed_seconds"] for run in get(ordered[end], "runs", Any[])
+        ]),
+        "allocation_repeatability_at_largest_dimension" => repeatability([
+            run["allocated_bytes"] for run in get(ordered[end], "runs", Any[])
+        ]),
+        "stage_timing_repeatability_at_largest_dimension" => stage_repeatability(
+            ordered[end], "elapsed_seconds",
+        ),
+        "stage_allocation_repeatability_at_largest_dimension" => stage_repeatability(
+            ordered[end], "allocated_bytes",
+        ),
     ))
 end
 
@@ -101,6 +162,7 @@ write_json(OUTPUT, Dict{String,Any}(
             "solver runtime or allocator-level peak memory",
             "fixture-independent production thresholds",
         ],
+        "repeatability_note" => "Per-run and per-stage coefficients of variation at the largest dimension summarize repeated local measurements only; they do not quantify cross-machine, solver, or allocator repeatability.",
     ),
 ))
 println("wrote analyze runtime resource summary to $OUTPUT")
