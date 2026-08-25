@@ -41,6 +41,7 @@ bmopf_combined_analyze_scaling = read_summary("docs/bmopf_combined_mv_lv_analyze
 large_sparse_rank = read_summary("docs/large_sparse_rank_oracle_summary.json")
 combined_mv_lv = read_summary("docs/bmopf_combined_mv_lv_snapshot_campaign_summary.json")
 series_voltage_scaling = read_summary("docs/bmopf_voltage_level_series_case_matrix_summary.json")
+practical_application_success = read_summary("docs/bmopf_practical_application_success_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
 api_tier_usage = read_summary("docs/api_tier_usage_summary.json")
@@ -304,6 +305,8 @@ combined_mv_lv_gate = all([
 series_voltage_case_count = get(series_voltage_scaling, "case_count", 0)
 series_voltage_covariance_count = get(series_voltage_scaling, "covariance_gate_passed_count", 0)
 series_voltage_geometry_count = get(series_voltage_scaling, "geometry_gate_passed_count", 0)
+practical_application_count = get(practical_application_success, "application_count", 0)
+practical_application_success_count = get(practical_application_success, "successful_application_count", 0)
 
 function gate(id, status, rationale, evidence; blocking=false)
     Dict{String,Any}(
@@ -381,6 +384,15 @@ gates = Dict{String,Any}[
         [
             "docs/bmopf_voltage_level_series_case_matrix_summary.json",
             "benchmarks/bmopf_voltage_level_series_case_matrix.jl",
+        ],
+    ),
+    gate(
+        "bmopf_practical_application_success",
+        practical_application_count > 0 && practical_application_success_count == practical_application_count ? "pass" : "partial",
+        "The practical-application ledger validates $practical_application_success_count/$practical_application_count reviewed combined MV/LV workflows, including LV1_14bus and LV13_58bus matched-start campaigns, perturbed-start matrices, and solver-diverse evidence. All retained workflows have locally solved terminations and explicit endpoint/comparison gates; this is regression evidence over saved campaigns, not a universal scaling or solver-superiority claim.",
+        [
+            "docs/bmopf_practical_application_success_summary.json",
+            "benchmarks/summarize_bmopf_practical_application_success.jl",
         ],
     ),
     gate(

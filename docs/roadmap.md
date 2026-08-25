@@ -5334,3 +5334,19 @@ physical KKT, or universal voltage-base policy is claimed yet.
 The next experiment is to explain the geometry boundary and run matched-start
 Ipopt/MadNLP campaigns on the largest passing cases under explicit budgets,
 then compare the synthetic ladder with selected combined MV+LV snapshots.
+
+## 2026-08-26 practical application success checkpoint
+
+The practical BMOPFTools workflow is now protected by
+`benchmarks/summarize_bmopf_practical_application_success.jl`, recorded in
+`docs/bmopf_practical_application_success_summary.json`. The ledger validates
+six saved application workflows across LV1_14bus and LV13_58bus: tight-tolerance
+matched-start campaigns, two perturbed-start matrices, a MadNLP matrix, and a
+voltage-only start matrix. All six retain locally solved terminations and pass
+their declared endpoint, comparison-coverage, and fragility checks.
+
+This is a concrete application success and a regression anchor for future
+changes. It summarizes known-environment campaign evidence rather than
+rerunning solvers or claiming a universal scaling policy; the next practical
+extension is to apply the same ledger to selected series-transformer ladder
+solver runs.

@@ -1,0 +1,145 @@
+{
+  "application_count": 6,
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "20730d0a703b17600e4935aae4f256cb91a8c767",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "qualification": {
+    "claim": "reviewed combined MV/LV feeder workflows reached locally solved, endpoint-gated, cross-policy qualified outcomes in the known environment",
+    "does_not_establish": [
+      "a universal scaling policy",
+      "solver superiority",
+      "portable performance or memory scaling"
+    ],
+    "fragility_value": "explicitly preserves physical-endpoint, comparison-coverage, termination-stability, and start-perturbation checks",
+    "next_action": "rerun this ledger after campaign or dependency changes, then extend it to selected series-transformer ladder solver cases"
+  },
+  "records": [
+    {
+      "application": "tight-tolerance matched-start campaign",
+      "comparison_count": 5,
+      "evidence_kind": "campaign",
+      "feeder": "LV1_14bus",
+      "fragility_controls": {
+        "comparisons_qualified": true,
+        "coverage_complete": true,
+        "physical_endpoints_accepted": true,
+        "terminations_stable": true
+      },
+      "id": "lv1_14bus_ipopt_tight_tolerance",
+      "maximum_physical_covariance_absolute_difference": 3.299843725579385e-12,
+      "run_count": 6,
+      "solver": "Ipopt",
+      "success": true,
+      "termination_statuses_observed": [
+        "LOCALLY_SOLVED"
+      ]
+    },
+    {
+      "application": "second-feeder matched-start campaign",
+      "comparison_count": 5,
+      "evidence_kind": "campaign",
+      "feeder": "LV13_58bus",
+      "fragility_controls": {
+        "comparisons_qualified": true,
+        "coverage_complete": true,
+        "physical_endpoints_accepted": true,
+        "terminations_stable": true
+      },
+      "id": "lv13_58bus_ipopt_transfer",
+      "maximum_physical_covariance_absolute_difference": 1.915395841933787e-9,
+      "run_count": 6,
+      "solver": "Ipopt",
+      "success": true,
+      "termination_statuses_observed": [
+        "LOCALLY_SOLVED"
+      ]
+    },
+    {
+      "application": "global affine start perturbation matrix",
+      "comparison_count": 10,
+      "evidence_kind": "matrix",
+      "feeder": "LV1_14bus",
+      "fragility_controls": {
+        "all_variants_qualified": true,
+        "comparisons_qualified": true,
+        "physical_endpoints_accepted": true
+      },
+      "id": "lv1_14bus_perturbed_starts",
+      "maximum_physical_covariance_absolute_difference": null,
+      "run_count": 12,
+      "solver": "Ipopt",
+      "success": true,
+      "termination_statuses_observed": [
+        "LOCALLY_SOLVED"
+      ]
+    },
+    {
+      "application": "second-feeder start perturbation matrix",
+      "comparison_count": 10,
+      "evidence_kind": "matrix",
+      "feeder": "LV13_58bus",
+      "fragility_controls": {
+        "all_variants_qualified": true,
+        "comparisons_qualified": true,
+        "physical_endpoints_accepted": true
+      },
+      "id": "lv13_58bus_perturbed_starts",
+      "maximum_physical_covariance_absolute_difference": null,
+      "run_count": 12,
+      "solver": "Ipopt",
+      "success": true,
+      "termination_statuses_observed": [
+        "LOCALLY_SOLVED"
+      ]
+    },
+    {
+      "application": "solver-diverse start perturbation matrix",
+      "comparison_count": 10,
+      "evidence_kind": "matrix",
+      "feeder": "LV1_14bus",
+      "fragility_controls": {
+        "all_variants_qualified": true,
+        "comparisons_qualified": true,
+        "physical_endpoints_accepted": true
+      },
+      "id": "lv1_14bus_madnlp_perturbed_starts",
+      "maximum_physical_covariance_absolute_difference": null,
+      "run_count": 12,
+      "solver": "MadNLP",
+      "success": true,
+      "termination_statuses_observed": [
+        "LOCALLY_SOLVED"
+      ]
+    },
+    {
+      "application": "voltage-only start perturbation matrix",
+      "comparison_count": 10,
+      "evidence_kind": "matrix",
+      "feeder": "LV1_14bus",
+      "fragility_controls": {
+        "all_variants_qualified": true,
+        "comparisons_qualified": true,
+        "physical_endpoints_accepted": true
+      },
+      "id": "lv1_14bus_voltage_only_starts",
+      "maximum_physical_covariance_absolute_difference": null,
+      "run_count": 12,
+      "solver": "Ipopt",
+      "success": true,
+      "termination_statuses_observed": [
+        "LOCALLY_SOLVED"
+      ]
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-practical-application-success-v1",
+  "source": {
+    "campaign_summary": "docs/bmopf_combined_mv_lv_snapshot_campaign_summary.json",
+    "execution_mode": "summary_only_no_solver_rerun",
+    "runner": "benchmarks/summarize_bmopf_practical_application_success.jl"
+  },
+  "status": "practical_application_successes_validated",
+  "successful_application_count": 6
+}
