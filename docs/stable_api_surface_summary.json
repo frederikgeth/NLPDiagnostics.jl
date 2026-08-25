@@ -1,0 +1,92 @@
+{
+  "alias_mismatches": [],
+  "declared_export_count": 16,
+  "declared_exports": [
+    "DiagnosticReport",
+    "EvaluationPoint",
+    "EvaluationPointKind",
+    "EvaluationPointProvenance",
+    "Evidence",
+    "Finding",
+    "ModelSnapshot",
+    "NumericalEvaluation",
+    "Severity",
+    "analyze",
+    "evaluate_numerical",
+    "evidence_data",
+    "finding_data",
+    "findings",
+    "report_data",
+    "snapshot"
+  ],
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "774af914c9b7a33f6907af1b0fb6b26a93eba183",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "The explicit Stable facade declaration, runtime export set, root aliases, and one-variable smoke path are auditable in the known local environment.",
+    "does_not_establish": [
+      "semantic compatibility for every Stable method",
+      "safety of removing legacy root exports",
+      "release readiness or numerical qualification"
+    ]
+  },
+  "missing_runtime_exports": [],
+  "root_overlap": [
+    "DiagnosticReport",
+    "EvaluationPoint",
+    "EvaluationPointKind",
+    "EvaluationPointProvenance",
+    "Evidence",
+    "Finding",
+    "NumericalEvaluation",
+    "Severity",
+    "analyze",
+    "evaluate_numerical",
+    "evidence_data",
+    "finding_data",
+    "findings",
+    "report_data",
+    "snapshot"
+  ],
+  "runtime_export_count": 16,
+  "runtime_exports": [
+    "DiagnosticReport",
+    "EvaluationPoint",
+    "EvaluationPointKind",
+    "EvaluationPointProvenance",
+    "Evidence",
+    "Finding",
+    "ModelSnapshot",
+    "NumericalEvaluation",
+    "Severity",
+    "analyze",
+    "evaluate_numerical",
+    "evidence_data",
+    "finding_data",
+    "findings",
+    "report_data",
+    "snapshot"
+  ],
+  "schema_version": "nlpdiagnostics-stable-api-surface-v1",
+  "smoke": {
+    "model_variable_count": 1,
+    "report_data_has_findings": true,
+    "report_finding_count": 2,
+    "snapshot_variable_count": 1,
+    "status": "pass"
+  },
+  "source": {
+    "root_module": "src/NLPDiagnostics.jl",
+    "runner": "benchmarks/audit_stable_api_surface.jl",
+    "stable_module": "src/api/stable.jl"
+  },
+  "stable_only": [
+    "ModelSnapshot"
+  ],
+  "status": "pass",
+  "surface_matches": true,
+  "unexpected_runtime_exports": []
+}

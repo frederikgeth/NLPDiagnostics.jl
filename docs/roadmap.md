@@ -133,7 +133,12 @@ count-only inventory to a review ledger. All 539 root-only exports have an
 explicit disposition: 102 domain-extension names are Advanced candidates
 pending ownership review, while 437 names require manual legacy compatibility
 and migration review. No root-only export is promoted automatically; the
-Stable and Advanced facades remain unchanged and backward-compatible.
+Stable and Advanced facades remain unchanged and backward-compatible. The new
+`benchmarks/audit_stable_api_surface.jl` ledger confirms all 16 Stable exports
+match their runtime declaration, all 15 root aliases match by identity, and
+the one-variable snapshot/evaluation/analysis smoke path passes. This
+strengthens the compatibility boundary without expanding Stable or
+reclassifying legacy root exports.
 
 The `analyze(model)` scaling gate now includes bounded stage attribution in
 `docs/analyze_runtime_scaling_summary.json`. The existing end-to-end runtime
@@ -236,8 +241,9 @@ library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
 that no unclassified non-helper runner exists. It now follows local include
 chains, so compositional BMOPF runners that inherit the helper transitively are
-counted correctly; the refreshed inventory records 124 helper users across
-127 benchmark scripts with zero unclassified runners.
+counted correctly; the refreshed inventory records 125 helper users across
+128 benchmark scripts with zero unclassified runners. The new Stable-facade
+surface audit is included in that inventory and its smoke path passes.
 
 The latest consolidation increment adds the reviewed local quality policy in
 `docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are

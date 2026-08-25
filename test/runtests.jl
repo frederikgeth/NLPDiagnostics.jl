@@ -126,6 +126,23 @@ end
     @test tier_usage_summary["unreferenced_in_code_count"] == 4
     @test tier_usage_summary["usage_priority_counts"]["test_and_benchmark_usage"] == 133
 
+    stable_surface_script = read(
+        joinpath(normpath(joinpath(@__DIR__, "..")), "benchmarks", "audit_stable_api_surface.jl"),
+        String,
+    )
+    @test Meta.parseall(stable_surface_script) isa Expr
+    @test occursin("surface_matches", stable_surface_script)
+    stable_surface_summary = JSON.parse(read(
+        joinpath(normpath(joinpath(@__DIR__, "..")), "docs", "stable_api_surface_summary.json"),
+        String,
+    ))
+    @test stable_surface_summary["schema_version"] == "nlpdiagnostics-stable-api-surface-v1"
+    @test stable_surface_summary["status"] == "pass"
+    @test stable_surface_summary["declared_export_count"] == 16
+    @test stable_surface_summary["runtime_export_count"] == 16
+    @test stable_surface_summary["surface_matches"] == true
+    @test stable_surface_summary["smoke"]["status"] == "pass"
+
     stable_model = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
     stable_variable = MOI.add_variable(stable_model)
     stable_constraint = MOI.ScalarAffineFunction(
@@ -2418,8 +2435,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 127", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 124", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 128", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 125", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 69", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),
