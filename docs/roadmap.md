@@ -101,6 +101,13 @@ profiles remain excluded rather than interpreted, and the four baseline
 failures remain localized to `ibr_p_upper`; this strengthens stability and
 failure provenance without closing the absolute physical gate.
 
+The API-tier increment now upgrades `benchmarks/audit_api_tiers.jl` from a
+count-only inventory to a review ledger. All 539 root-only exports have an
+explicit disposition: 102 domain-extension names are Advanced candidates
+pending ownership review, while 437 names require manual legacy compatibility
+and migration review. No root-only export is promoted automatically; the
+Stable and Advanced facades remain unchanged and backward-compatible.
+
 The `analyze(model)` scaling gate now includes bounded stage attribution in
 `docs/analyze_runtime_scaling_summary.json`. The existing end-to-end runtime
 and allocation records are unchanged, while snapshot, incidence, static,

@@ -706,7 +706,3793 @@
     "stable_contract": "new application code may depend on the Stable exports; additive fields and typed report-boundary records are allowed, while breaking signature or semantic changes require a documented release decision",
     "stable_namespace": "NLPDiagnostics.Stable"
   },
-  "schema_version": "nlpdiagnostics-api-tier-inventory-v1",
+  "review": {
+    "advanced_candidate_count": 102,
+    "advanced_candidate_names": [
+      "bmopf_acdc_scaling_contract_data",
+      "bmopf_analyze_active_set",
+      "bmopf_analyze_component_rank_persistence",
+      "bmopf_analyze_degeneracy",
+      "bmopf_analyze_initialization",
+      "bmopf_analyze_jacobian_rank_persistence",
+      "bmopf_analyze_jacobian_row_family_perturbations",
+      "bmopf_analyze_opf",
+      "bmopf_analyze_reduced_hessian_persistence",
+      "bmopf_analyze_sparse_qr_nullspace_persistence",
+      "bmopf_block_scaling_coordinate_geometry_report",
+      "bmopf_block_scaling_covariance_report",
+      "bmopf_build_and_analyze_opf",
+      "bmopf_build_and_profile",
+      "bmopf_component_coordinate_semantics",
+      "bmopf_component_metadata",
+      "bmopf_component_rank_capability_report",
+      "bmopf_component_report",
+      "bmopf_constraint_feasibility_field_attribution",
+      "bmopf_constraint_registry_coverage_report",
+      "bmopf_constraint_semantic_row_map",
+      "bmopf_context_profile_report",
+      "bmopf_controller_curve_operating_point_observations",
+      "bmopf_coordinate_probe_point",
+      "bmopf_current_law_fingerprints",
+      "bmopf_current_law_operating_point_persistence",
+      "bmopf_current_law_operating_point_probes",
+      "bmopf_current_law_operating_point_report",
+      "bmopf_current_law_operating_point_trace",
+      "bmopf_current_law_report",
+      "bmopf_diagonal_scaling_map",
+      "bmopf_expected_mode_tangent_policy",
+      "bmopf_floating_neutral_candidate_modes",
+      "bmopf_floating_neutral_candidate_report",
+      "bmopf_initialization_point",
+      "bmopf_initialization_scaling_covariance_report",
+      "bmopf_iteration_trace_jacobian_family_geometry_data",
+      "bmopf_jacobian_row_family_scale_attribution",
+      "bmopf_jacobian_row_family_scaling_experiment",
+      "bmopf_opf_differentiability_report",
+      "bmopf_opf_lifecycle_report",
+      "bmopf_opf_registry_report",
+      "bmopf_passive_network_current_map_report",
+      "bmopf_passive_network_current_maps",
+      "bmopf_phase_only_covariance_report",
+      "bmopf_phase_only_endpoint",
+      "bmopf_phase_only_model_rebuild_report",
+      "bmopf_phase_only_physical_solver_kkt_report",
+      "bmopf_phase_only_rebuild_model",
+      "bmopf_phase_only_solve_model",
+      "bmopf_phase_only_transform_plan",
+      "bmopf_physical_feasibility_report",
+      "bmopf_physical_solver_kkt_report",
+      "bmopf_profile_case",
+      "bmopf_profile_saved_result",
+      "bmopf_result_field_catalog",
+      "bmopf_result_mapping_report",
+      "bmopf_result_voltage_point",
+      "bmopf_saved_result_profile_case",
+      "bmopf_scaling_coordinate_geometry_report",
+      "bmopf_scaling_covariance_report",
+      "bmopf_scaling_intervention_classification",
+      "bmopf_scaling_solver_experiment_comparison",
+      "bmopf_semantic_block_scaling_map",
+      "bmopf_set_start_values!",
+      "bmopf_solver_trace_physical_endpoint_data",
+      "bmopf_source_behavior_auxiliary_model",
+      "bmopf_source_behavior_auxiliary_solve",
+      "bmopf_source_behavior_report",
+      "bmopf_source_behavior_solver_comparison",
+      "bmopf_source_schema_report",
+      "bmopf_start_completion_point",
+      "bmopf_terminal_complex_constitutive_map_report",
+      "bmopf_terminal_complex_constitutive_maps",
+      "bmopf_terminal_constitutive_map_report",
+      "bmopf_terminal_constitutive_maps",
+      "bmopf_terminal_current_port_coordinate_maps",
+      "bmopf_terminal_current_port_coordinate_semantics",
+      "bmopf_terminal_current_port_metadata",
+      "bmopf_terminal_current_port_report",
+      "bmopf_terminal_port_assembly",
+      "bmopf_terminal_port_assembly_report",
+      "bmopf_terminal_port_connections",
+      "bmopf_terminal_port_coordinate_maps",
+      "bmopf_terminal_port_coordinate_scale_report",
+      "bmopf_terminal_port_coordinate_semantics",
+      "bmopf_terminal_port_metadata",
+      "bmopf_terminal_port_nullspace_mode_report",
+      "bmopf_terminal_port_nullspace_mode_semantics",
+      "bmopf_terminal_port_nullspace_modes",
+      "bmopf_terminal_port_report",
+      "bmopf_terminal_report",
+      "bmopf_transformer_scaling_contract_data",
+      "bmopf_transport_scaling_point",
+      "bmopf_variable_semantic_column_map",
+      "bmopf_voltage_initialization_invariants_data",
+      "port_component_expected_nullspace_modes",
+      "port_expected_nullspace_modes",
+      "port_expected_nullspace_summary",
+      "port_network_assembly_summary",
+      "port_topology_expected_nullspace_modes",
+      "port_topology_nullspace"
+    ],
+    "legacy_manual_review_count": 437,
+    "legacy_manual_review_names": [
+      "AbstractSemanticConstraintSetContract",
+      "ActiveSetStructuralDecomposition",
+      "ActiveSetStructuralMatching",
+      "Advanced",
+      "BMOPFProfileResult",
+      "CheckPolicy",
+      "CompletedInitializationPoint",
+      "ComponentConstraintScaleSemantics",
+      "ComponentCoordinateSemantics",
+      "ComponentMetadata",
+      "ComponentPortMetadata",
+      "Confidence",
+      "ConfidenceCertain",
+      "ConfidenceHigh",
+      "ConfidenceLow",
+      "ConfidenceMedium",
+      "ConstraintActivity",
+      "ConstraintFeasibilitySummary",
+      "ConstraintRole",
+      "ControllerCurveOperatingPointObservation",
+      "CoupledConstraint",
+      "CoupledSetActivity",
+      "CoupledSetFeasibilitySummary",
+      "CoupledSetMappedTangent",
+      "CoupledSetQualificationScreen",
+      "CoupledSetTangentEvidence",
+      "CurrentLawFingerprint",
+      "CurrentLawOperatingPointProbe",
+      "CurrentLawOperatingPointTrace",
+      "DiagnosticReport",
+      "DiagonalScalingMap",
+      "DiscreteVariable",
+      "DomainAssessment",
+      "DomainPossibleViolation",
+      "DomainProvenViolation",
+      "DomainSafe",
+      "DulmageMendelsohnBlock",
+      "DulmageMendelsohnPartition",
+      "ElasticDomainGuard",
+      "ElasticDomainGuardPlan",
+      "ElasticFeasibilityModel",
+      "ElasticFeasibilityPlan",
+      "ElasticFeasibilitySolve",
+      "ElasticMinimumRelaxationSearch",
+      "ElasticRelaxation",
+      "ElasticRelaxationValue",
+      "ElasticSubsetEnsemble",
+      "ElasticSubsetProbe",
+      "ElasticSubsetSearch",
+      "EntityRef",
+      "EqualityConstraint",
+      "EuclideanBallSetContract",
+      "EvaluationCache",
+      "EvaluationFailure",
+      "EvaluationPoint",
+      "EvaluationPointKind",
+      "EvaluationPointProvenance",
+      "EvaluatorCapabilities",
+      "Evidence",
+      "EvidenceBasis",
+      "ExpectedNullspaceMode",
+      "ExpectedNullspaceTangentPolicy",
+      "ExpressionDerivativeIssue",
+      "ExpressionDomainIssue",
+      "ExpressionNodePath",
+      "ExpressionNumericalRisk",
+      "Finding",
+      "FixedVariable",
+      "FixedVariableDualCompletion",
+      "FreeConstraint",
+      "FreeVariable",
+      "GolubKahanDenseCalibration",
+      "GolubKahanRitzEstimate",
+      "HarmonicGolubKahanCandidateEstimate",
+      "HarmonicGolubKahanDenseCalibration",
+      "HessianEntry",
+      "HessianEvaluation",
+      "HeuristicInterpretation",
+      "IncidenceGraph",
+      "InequalityConstraint",
+      "InfeasibleVariableDomain",
+      "InitializationPoint",
+      "IntervalEnclosure",
+      "InvalidVariableDomain",
+      "IssueDomain",
+      "IterationPointBinding",
+      "IterationTraceCapture",
+      "IterativeJacobianSpectrumEstimate",
+      "IterativeNullspaceEstimate",
+      "IterativeNullspaceSubspaceEstimate",
+      "JacobianEntry",
+      "JacobianLinearOperator",
+      "JacobianRankEstimate",
+      "JacobianScaleSummary",
+      "LocalInference",
+      "MFCQScreen",
+      "MathematicalIssue",
+      "MathematicalProof",
+      "MetricCoordinatesUnknown",
+      "MultiSeedGolubKahanEstimate",
+      "MultiplierRecovery",
+      "NullspaceFingerprint",
+      "NumericalEvaluation",
+      "NumericalIssue",
+      "NumericalObservation",
+      "OpaqueConstraint",
+      "OperatorDerivativeRequirement",
+      "OperatorDomainRequirement",
+      "OriginalModelCoordinates",
+      "ParameterVariable",
+      "PerturbedPoint",
+      "PhysicalExpectation",
+      "PhysicalIssue",
+      "PortAssemblySummary",
+      "PortConnectionMetadata",
+      "PortConstitutiveMap",
+      "PortCoordinateMap",
+      "PortCoordinateSemantics",
+      "PortExpectedNullspaceSummary",
+      "PortNullspaceMode",
+      "PortNullspaceModeSemantics",
+      "PortTerminalCoordinateSemantics",
+      "PortTopologyCoordinateProjection",
+      "PortTopologyNullspace",
+      "ProbePolicy",
+      "ProfileAllocationSummary",
+      "ProfileComparison",
+      "ProfileExpectedEvidenceSummary",
+      "ProfileFindingComparison",
+      "ProfileFindingStability",
+      "ProfileNumericalComparison",
+      "ProfileNumericalSummary",
+      "ProfileStageComparison",
+      "ProfileTimingSummary",
+      "ReducedHessianAnalysis",
+      "ReducedHessianSnapshot",
+      "RepresentationalIssue",
+      "RestartedSmallestSingularCandidateEstimate",
+      "RestartedSmallestSingularDenseCalibration",
+      "ScalarBoundsSetContract",
+      "ScalarConstraintBounds",
+      "ScalingPointTransport",
+      "SemanticBlockScalingMap",
+      "SemanticConstraintBlock",
+      "SemanticLinearBlock",
+      "Severity",
+      "SeverityError",
+      "SeverityInfo",
+      "SeverityWarning",
+      "SmallestSingularBackendCrosscheck",
+      "SolverConflictResult",
+      "SolverConstraintSideDual",
+      "SolverDefinedCoordinates",
+      "SolverDualSnapshot",
+      "SolverIteratePoint",
+      "SolverIterationMetricSemantics",
+      "SolverIterationRecord",
+      "SolverIterationSegment",
+      "SolverIterationSummary",
+      "SolverIterationTrace",
+      "SolverLogObservation",
+      "SolverMetricCoordinates",
+      "SolverPostmortem",
+      "SolverProfileResult",
+      "SolverResultAnalysis",
+      "SolverResultPoint",
+      "SolverScaledCoordinates",
+      "SolverTraceProfileRun",
+      "SparseJacobianPatternEstimate",
+      "SparseQRNullspaceDenseCalibration",
+      "SparseQRNullspaceEstimate",
+      "SparseQRNullspacePersistenceEstimate",
+      "SparseQRRankEstimate",
+      "Stable",
+      "StableReformulationCandidate",
+      "StableReformulationPlan",
+      "StructuralComponent",
+      "StructuralConstraintNode",
+      "StructuralGraphData",
+      "StructuralGraphEdge",
+      "StructuralMatching",
+      "StructuralNumericalComparison",
+      "StructuralProof",
+      "StructuralVariableNode",
+      "SyntheticSmokePoint",
+      "TransportedPoint",
+      "TrustedPointSelection",
+      "UnsupportedSetContract",
+      "UserPoint",
+      "VariableDomain",
+      "VariableRole",
+      "VariableSupport",
+      "ZeroEqualitySetContract",
+      "active_constraint_rows",
+      "active_set_matching",
+      "active_set_structural_decomposition",
+      "analyze",
+      "analyze_active_set",
+      "analyze_active_set_second_order",
+      "analyze_component_constraint_scales",
+      "analyze_component_coordinate_scales",
+      "analyze_component_rank_persistence",
+      "analyze_component_ranks",
+      "analyze_convexity",
+      "analyze_coupled_set_qualification",
+      "analyze_degeneracy",
+      "analyze_degrees_of_freedom",
+      "analyze_derivative_crosscheck_scale_sweep",
+      "analyze_derivatives",
+      "analyze_domains",
+      "analyze_elastic_domain_guard_plan",
+      "analyze_elastic_feasibility_plan",
+      "analyze_elastic_relaxations",
+      "analyze_expressions",
+      "analyze_golub_kahan_dense_calibration",
+      "analyze_golub_kahan_probe",
+      "analyze_harmonic_golub_kahan_candidates",
+      "analyze_harmonic_golub_kahan_dense_calibration",
+      "analyze_hessian_vector_crosscheck",
+      "analyze_initialization",
+      "analyze_iteration_points",
+      "analyze_iteration_trace",
+      "analyze_iterative_jacobian_spectrum_probe",
+      "analyze_iterative_left_nullspace_persistence",
+      "analyze_iterative_left_nullspace_probe",
+      "analyze_iterative_right_nullspace_persistence",
+      "analyze_iterative_right_nullspace_probe",
+      "analyze_jacobian_condition_persistence",
+      "analyze_jacobian_derivative_provenance_persistence",
+      "analyze_jacobian_directional_crosscheck",
+      "analyze_jacobian_rank_persistence",
+      "analyze_jacobian_rank_tolerance_sweep",
+      "analyze_jacobian_row_family_perturbations",
+      "analyze_jacobian_scaling_persistence",
+      "analyze_local_elastic_subset_ensemble",
+      "analyze_local_elastic_subset_search",
+      "analyze_minimum_elastic_relaxation_search",
+      "analyze_multi_seed_golub_kahan_probe",
+      "analyze_nonsmoothness",
+      "analyze_nonsmoothness_persistence",
+      "analyze_numerical",
+      "analyze_objective_gradient_directional_crosscheck",
+      "analyze_objective_jacobian_scaling",
+      "analyze_postmortem",
+      "analyze_postmortem_log_consistency",
+      "analyze_reduced_hessian",
+      "analyze_reduced_hessian_persistence",
+      "analyze_restarted_smallest_singular_candidates",
+      "analyze_restarted_smallest_singular_dense_calibration",
+      "analyze_smallest_singular_backend_crosscheck",
+      "analyze_solver_conflict",
+      "analyze_solver_conflict_crosscheck",
+      "analyze_solver_iterations",
+      "analyze_solver_log",
+      "analyze_solver_result",
+      "analyze_sparse_qr_nullspace",
+      "analyze_sparse_qr_nullspace_dense_calibration",
+      "analyze_sparse_qr_nullspace_persistence",
+      "analyze_stable_reformulation_plan",
+      "analyze_static",
+      "analyze_structure",
+      "analyze_weak_activity",
+      "analyze_weak_activity_persistence",
+      "bind_iteration_points",
+      "build_elastic_feasibility_model",
+      "capture_iteration!",
+      "compare_profiles",
+      "complete_fixed_variable_duals",
+      "component_constraint_scale_semantics",
+      "component_coordinate_semantics",
+      "component_metadata",
+      "component_port_connections",
+      "component_port_coordinate_maps",
+      "component_port_coordinate_semantics",
+      "component_port_metadata",
+      "component_port_nullspace_mode_semantics",
+      "component_port_nullspace_modes",
+      "component_rank_capability_report",
+      "compute_solver_conflict!",
+      "connected_components",
+      "constraint_feasibility_summary",
+      "constraint_role",
+      "controller_curve_operating_point_observation_data",
+      "coupled_set_activity",
+      "coupled_set_feasibility_summary",
+      "coupled_set_mapped_tangents",
+      "coupled_set_qualification_screen",
+      "coupled_set_tangent_evidence",
+      "current_law_operating_point_trace_data",
+      "derivative_issues",
+      "domain_interval_data",
+      "domain_issues",
+      "dulmage_mendelsohn",
+      "elastic_domain_guard_plan",
+      "elastic_feasibility_plan",
+      "elastic_objective_value",
+      "elastic_relaxation_values",
+      "entity_data",
+      "evaluate_lagrangian_hessian",
+      "evaluate_numerical",
+      "evaluation_call_statistics",
+      "evaluation_point",
+      "evaluation_point_fingerprint",
+      "evaluation_source_fingerprint",
+      "evaluator_capabilities",
+      "evidence_data",
+      "expected_nullspace_modes",
+      "expression_numerical_risks",
+      "finding_code_counts",
+      "finding_data",
+      "finding_family_data",
+      "findings",
+      "fixed_operator_value",
+      "fixed_variable_dual_completion_data",
+      "golub_kahan_dense_calibration",
+      "golub_kahan_ritz_estimate",
+      "harmonic_golub_kahan_candidates",
+      "harmonic_golub_kahan_dense_calibration",
+      "incidence_graph",
+      "initialization_point",
+      "ipopt_iteration_trace_capture",
+      "ipopt_optimize_with_iteration_trace!",
+      "ipopt_profile_with_iteration_trace!",
+      "is_coordinatewise_set",
+      "iteration_trace",
+      "iteration_trace_campaign_summary",
+      "iteration_trace_data",
+      "iteration_trace_jacobian_family_geometry_data",
+      "iteration_trace_policy_comparison",
+      "iteration_trace_summary",
+      "iterative_jacobian_spectrum_estimate",
+      "iterative_left_nullspace_subspace_estimate",
+      "iterative_right_nullspace_estimate",
+      "iterative_right_nullspace_subspace_estimate",
+      "jacobian_column_family_scale_attribution",
+      "jacobian_family_geometry_comparison",
+      "jacobian_linear_operator",
+      "jacobian_product",
+      "jacobian_row_family_scale_attribution",
+      "jacobian_row_family_scaling_experiment",
+      "jacobian_scale_summary",
+      "jacobian_transpose_product",
+      "local_elastic_subset_ensemble",
+      "local_elastic_subset_search",
+      "madnlp_iteration_trace_callback",
+      "madnlp_optimize_with_iteration_trace!",
+      "madnlp_primal_capture_capability",
+      "madnlp_profile_with_iteration_trace!",
+      "markdown_profile_aggregate",
+      "markdown_profile_comparison",
+      "markdown_report",
+      "matching_cardinality",
+      "maximum_matching",
+      "mfcq_screen",
+      "minimum_elastic_relaxation_search",
+      "model_fingerprint",
+      "multi_seed_golub_kahan_estimate",
+      "nullspace_fingerprints",
+      "operator_derivative_requirements",
+      "operator_domain_requirements",
+      "operator_interval",
+      "physical_complementarity_report",
+      "physical_endpoint_equivalence_report",
+      "physical_feasibility_report",
+      "physical_kkt_acceptance_report",
+      "physical_stationarity_report",
+      "powermodels_analyze_active_set",
+      "powermodels_analyze_component_rank_persistence",
+      "powermodels_analyze_degeneracy",
+      "powermodels_analyze_jacobian_rank_persistence",
+      "powermodels_analyze_reduced_hessian_persistence",
+      "powermodels_angle_gauge_modes",
+      "powermodels_capability_report",
+      "powermodels_component_metadata",
+      "powermodels_component_rank_capability_report",
+      "powermodels_jump_model",
+      "powermodels_reference_bus_report",
+      "powermodels_variable_indices",
+      "profile_comparison_data",
+      "profile_solver_result",
+      "profile_solver_with_iteration_trace!",
+      "profile_synthetic_coupled_cone_corpus",
+      "profile_synthetic_derivative_boundary_corpus",
+      "profile_synthetic_float32_derivative_overflow_corpus",
+      "profile_synthetic_quadratic_geometry_corpus",
+      "profile_synthetic_sparse_ladder",
+      "profile_synthetic_stability_corpus",
+      "recover_stationarity_multipliers",
+      "reduced_hessian_analysis",
+      "report_data",
+      "restarted_smallest_singular_candidates",
+      "restarted_smallest_singular_dense_calibration",
+      "scaling_coordinate_geometry_report",
+      "scaling_covariance_report",
+      "scaling_intervention_classification",
+      "scaling_kkt_covariance_report",
+      "scaling_point_transport_data",
+      "scaling_solver_experiment_campaign_data",
+      "scaling_solver_experiment_comparison",
+      "scaling_solver_experiment_stratified_campaign_data",
+      "select_trusted_evaluation_points",
+      "smallest_singular_backend_crosscheck",
+      "snapshot",
+      "solve_elastic_feasibility!",
+      "solver_complementarity_report",
+      "solver_dual_snapshot",
+      "solver_dual_snapshot_data",
+      "solver_iteration_records",
+      "solver_iteration_segments",
+      "solver_iteration_summary",
+      "solver_linear_telemetry_data",
+      "solver_log_observations",
+      "solver_postmortem",
+      "solver_result_point",
+      "solver_trace_physical_endpoint_data",
+      "sparse_jacobian_pattern_estimate",
+      "sparse_qr_nullspace_dense_calibration",
+      "sparse_qr_nullspace_estimate",
+      "sparse_qr_nullspace_persistence",
+      "stable_reformulation_plan",
+      "structural_graph_data",
+      "structural_graph_dot",
+      "structural_graph_text",
+      "structural_numerical_comparison",
+      "synthetic_coupled_cone_profile_corpus",
+      "synthetic_derivative_boundary_profile_corpus",
+      "synthetic_float32_derivative_overflow_profile_corpus",
+      "synthetic_quadratic_geometry_profile_corpus",
+      "synthetic_sparse_profile_corpus",
+      "synthetic_stability_profile_corpus",
+      "text_report",
+      "transport_scaling_point",
+      "trusted_point_selection_data",
+      "variable_domains",
+      "variable_roles",
+      "variable_support",
+      "well_determined_blocks"
+    ],
+    "policy": "No root-only export is promoted automatically. Advanced candidates require explicit namespace ownership and contract review; all other legacy names require compatibility and migration review.",
+    "queue": [
+      {
+        "current_surface": "root-only",
+        "name": "AbstractSemanticConstraintSetContract",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ActiveSetStructuralDecomposition",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ActiveSetStructuralMatching",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "Advanced",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "BMOPFProfileResult",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "CheckPolicy",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "CompletedInitializationPoint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ComponentConstraintScaleSemantics",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ComponentCoordinateSemantics",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ComponentMetadata",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ComponentPortMetadata",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "Confidence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ConfidenceCertain",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ConfidenceHigh",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ConfidenceLow",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ConfidenceMedium",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ConstraintActivity",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ConstraintFeasibilitySummary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ConstraintRole",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ControllerCurveOperatingPointObservation",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "CoupledConstraint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "CoupledSetActivity",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "CoupledSetFeasibilitySummary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "CoupledSetMappedTangent",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "CoupledSetQualificationScreen",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "CoupledSetTangentEvidence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "CurrentLawFingerprint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "CurrentLawOperatingPointProbe",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "CurrentLawOperatingPointTrace",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "DiagnosticReport",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "DiagonalScalingMap",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "DiscreteVariable",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "DomainAssessment",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "DomainPossibleViolation",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "DomainProvenViolation",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "DomainSafe",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "DulmageMendelsohnBlock",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "DulmageMendelsohnPartition",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ElasticDomainGuard",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ElasticDomainGuardPlan",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ElasticFeasibilityModel",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ElasticFeasibilityPlan",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ElasticFeasibilitySolve",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ElasticMinimumRelaxationSearch",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ElasticRelaxation",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ElasticRelaxationValue",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ElasticSubsetEnsemble",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ElasticSubsetProbe",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ElasticSubsetSearch",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "EntityRef",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "EqualityConstraint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "EuclideanBallSetContract",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "EvaluationCache",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "EvaluationFailure",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "EvaluationPoint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "EvaluationPointKind",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "EvaluationPointProvenance",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "EvaluatorCapabilities",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "Evidence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "EvidenceBasis",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ExpectedNullspaceMode",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ExpectedNullspaceTangentPolicy",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ExpressionDerivativeIssue",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ExpressionDomainIssue",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ExpressionNodePath",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ExpressionNumericalRisk",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "Finding",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "FixedVariable",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "FixedVariableDualCompletion",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "FreeConstraint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "FreeVariable",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "GolubKahanDenseCalibration",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "GolubKahanRitzEstimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "HarmonicGolubKahanCandidateEstimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "HarmonicGolubKahanDenseCalibration",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "HessianEntry",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "HessianEvaluation",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "HeuristicInterpretation",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "IncidenceGraph",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "InequalityConstraint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "InfeasibleVariableDomain",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "InitializationPoint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "IntervalEnclosure",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "InvalidVariableDomain",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "IssueDomain",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "IterationPointBinding",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "IterationTraceCapture",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "IterativeJacobianSpectrumEstimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "IterativeNullspaceEstimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "IterativeNullspaceSubspaceEstimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "JacobianEntry",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "JacobianLinearOperator",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "JacobianRankEstimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "JacobianScaleSummary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "LocalInference",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "MFCQScreen",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "MathematicalIssue",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "MathematicalProof",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "MetricCoordinatesUnknown",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "MultiSeedGolubKahanEstimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "MultiplierRecovery",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "NullspaceFingerprint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "NumericalEvaluation",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "NumericalIssue",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "NumericalObservation",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "OpaqueConstraint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "OperatorDerivativeRequirement",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "OperatorDomainRequirement",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "OriginalModelCoordinates",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ParameterVariable",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PerturbedPoint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PhysicalExpectation",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PhysicalIssue",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PortAssemblySummary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PortConnectionMetadata",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PortConstitutiveMap",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PortCoordinateMap",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PortCoordinateSemantics",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PortExpectedNullspaceSummary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PortNullspaceMode",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PortNullspaceModeSemantics",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PortTerminalCoordinateSemantics",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PortTopologyCoordinateProjection",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "PortTopologyNullspace",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ProbePolicy",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ProfileAllocationSummary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ProfileComparison",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ProfileExpectedEvidenceSummary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ProfileFindingComparison",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ProfileFindingStability",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ProfileNumericalComparison",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ProfileNumericalSummary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ProfileStageComparison",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ProfileTimingSummary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ReducedHessianAnalysis",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ReducedHessianSnapshot",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "RepresentationalIssue",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "RestartedSmallestSingularCandidateEstimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "RestartedSmallestSingularDenseCalibration",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ScalarBoundsSetContract",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ScalarConstraintBounds",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ScalingPointTransport",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SemanticBlockScalingMap",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SemanticConstraintBlock",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SemanticLinearBlock",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "Severity",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SeverityError",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SeverityInfo",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SeverityWarning",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SmallestSingularBackendCrosscheck",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverConflictResult",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverConstraintSideDual",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverDefinedCoordinates",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverDualSnapshot",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverIteratePoint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverIterationMetricSemantics",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverIterationRecord",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverIterationSegment",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverIterationSummary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverIterationTrace",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverLogObservation",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverMetricCoordinates",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverPostmortem",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverProfileResult",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverResultAnalysis",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverResultPoint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverScaledCoordinates",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SolverTraceProfileRun",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SparseJacobianPatternEstimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SparseQRNullspaceDenseCalibration",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SparseQRNullspaceEstimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SparseQRNullspacePersistenceEstimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SparseQRRankEstimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "Stable",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "StableReformulationCandidate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "StableReformulationPlan",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "StructuralComponent",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "StructuralConstraintNode",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "StructuralGraphData",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "StructuralGraphEdge",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "StructuralMatching",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "StructuralNumericalComparison",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "StructuralProof",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "StructuralVariableNode",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "SyntheticSmokePoint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "TransportedPoint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "TrustedPointSelection",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "UnsupportedSetContract",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "UserPoint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "VariableDomain",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "VariableRole",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "VariableSupport",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ZeroEqualitySetContract",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "active_constraint_rows",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "active_set_matching",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "active_set_structural_decomposition",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_active_set",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_active_set_second_order",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_component_constraint_scales",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_component_coordinate_scales",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_component_rank_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_component_ranks",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_convexity",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_coupled_set_qualification",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_degeneracy",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_degrees_of_freedom",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_derivative_crosscheck_scale_sweep",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_derivatives",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_domains",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_elastic_domain_guard_plan",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_elastic_feasibility_plan",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_elastic_relaxations",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_expressions",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_golub_kahan_dense_calibration",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_golub_kahan_probe",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_harmonic_golub_kahan_candidates",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_harmonic_golub_kahan_dense_calibration",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_hessian_vector_crosscheck",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_initialization",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_iteration_points",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_iteration_trace",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_iterative_jacobian_spectrum_probe",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_iterative_left_nullspace_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_iterative_left_nullspace_probe",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_iterative_right_nullspace_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_iterative_right_nullspace_probe",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_jacobian_condition_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_jacobian_derivative_provenance_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_jacobian_directional_crosscheck",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_jacobian_rank_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_jacobian_rank_tolerance_sweep",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_jacobian_row_family_perturbations",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_jacobian_scaling_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_local_elastic_subset_ensemble",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_local_elastic_subset_search",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_minimum_elastic_relaxation_search",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_multi_seed_golub_kahan_probe",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_nonsmoothness",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_nonsmoothness_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_numerical",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_objective_gradient_directional_crosscheck",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_objective_jacobian_scaling",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_postmortem",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_postmortem_log_consistency",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_reduced_hessian",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_reduced_hessian_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_restarted_smallest_singular_candidates",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_restarted_smallest_singular_dense_calibration",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_smallest_singular_backend_crosscheck",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_solver_conflict",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_solver_conflict_crosscheck",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_solver_iterations",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_solver_log",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_solver_result",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_sparse_qr_nullspace",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_sparse_qr_nullspace_dense_calibration",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_sparse_qr_nullspace_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_stable_reformulation_plan",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_static",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_structure",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_weak_activity",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "analyze_weak_activity_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bind_iteration_points",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_acdc_scaling_contract_data",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_analyze_active_set",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_analyze_component_rank_persistence",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_analyze_degeneracy",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_analyze_initialization",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_analyze_jacobian_rank_persistence",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_analyze_jacobian_row_family_perturbations",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_analyze_opf",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_analyze_reduced_hessian_persistence",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_analyze_sparse_qr_nullspace_persistence",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_block_scaling_coordinate_geometry_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_block_scaling_covariance_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_build_and_analyze_opf",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_build_and_profile",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_component_coordinate_semantics",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_component_metadata",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_component_rank_capability_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_component_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_constraint_feasibility_field_attribution",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_constraint_registry_coverage_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_constraint_semantic_row_map",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_context_profile_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_controller_curve_operating_point_observations",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_coordinate_probe_point",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_current_law_fingerprints",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_current_law_operating_point_persistence",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_current_law_operating_point_probes",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_current_law_operating_point_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_current_law_operating_point_trace",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_current_law_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_diagonal_scaling_map",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_expected_mode_tangent_policy",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_floating_neutral_candidate_modes",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_floating_neutral_candidate_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_initialization_point",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_initialization_scaling_covariance_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_iteration_trace_jacobian_family_geometry_data",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_jacobian_row_family_scale_attribution",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_jacobian_row_family_scaling_experiment",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_opf_differentiability_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_opf_lifecycle_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_opf_registry_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_passive_network_current_map_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_passive_network_current_maps",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_phase_only_covariance_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_phase_only_endpoint",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_phase_only_model_rebuild_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_phase_only_physical_solver_kkt_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_phase_only_rebuild_model",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_phase_only_solve_model",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_phase_only_transform_plan",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_physical_feasibility_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_physical_solver_kkt_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_profile_case",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_profile_saved_result",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_result_field_catalog",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_result_mapping_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_result_voltage_point",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_saved_result_profile_case",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_scaling_coordinate_geometry_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_scaling_covariance_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_scaling_intervention_classification",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_scaling_solver_experiment_comparison",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_semantic_block_scaling_map",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_set_start_values!",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_solver_trace_physical_endpoint_data",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_source_behavior_auxiliary_model",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_source_behavior_auxiliary_solve",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_source_behavior_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_source_behavior_solver_comparison",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_source_schema_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_start_completion_point",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_complex_constitutive_map_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_complex_constitutive_maps",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_constitutive_map_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_constitutive_maps",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_current_port_coordinate_maps",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_current_port_coordinate_semantics",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_current_port_metadata",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_current_port_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_port_assembly",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_port_assembly_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_port_connections",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_port_coordinate_maps",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_port_coordinate_scale_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_port_coordinate_semantics",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_port_metadata",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_port_nullspace_mode_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_port_nullspace_mode_semantics",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_port_nullspace_modes",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_port_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_terminal_report",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_transformer_scaling_contract_data",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_transport_scaling_point",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_variable_semantic_column_map",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "bmopf_voltage_initialization_invariants_data",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "build_elastic_feasibility_model",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "capture_iteration!",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "compare_profiles",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "complete_fixed_variable_duals",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "component_constraint_scale_semantics",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "component_coordinate_semantics",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "component_metadata",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "component_port_connections",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "component_port_coordinate_maps",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "component_port_coordinate_semantics",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "component_port_metadata",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "component_port_nullspace_mode_semantics",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "component_port_nullspace_modes",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "component_rank_capability_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "compute_solver_conflict!",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "connected_components",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "constraint_feasibility_summary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "constraint_role",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "controller_curve_operating_point_observation_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "coupled_set_activity",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "coupled_set_feasibility_summary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "coupled_set_mapped_tangents",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "coupled_set_qualification_screen",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "coupled_set_tangent_evidence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "current_law_operating_point_trace_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "derivative_issues",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "domain_interval_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "domain_issues",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "dulmage_mendelsohn",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "elastic_domain_guard_plan",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "elastic_feasibility_plan",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "elastic_objective_value",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "elastic_relaxation_values",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "entity_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "evaluate_lagrangian_hessian",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "evaluate_numerical",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "evaluation_call_statistics",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "evaluation_point",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "evaluation_point_fingerprint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "evaluation_source_fingerprint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "evaluator_capabilities",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "evidence_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "expected_nullspace_modes",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "expression_numerical_risks",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "finding_code_counts",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "finding_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "finding_family_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "findings",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "fixed_operator_value",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "fixed_variable_dual_completion_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "golub_kahan_dense_calibration",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "golub_kahan_ritz_estimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "harmonic_golub_kahan_candidates",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "harmonic_golub_kahan_dense_calibration",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "incidence_graph",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "initialization_point",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ipopt_iteration_trace_capture",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ipopt_optimize_with_iteration_trace!",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "ipopt_profile_with_iteration_trace!",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "is_coordinatewise_set",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "iteration_trace",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "iteration_trace_campaign_summary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "iteration_trace_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "iteration_trace_jacobian_family_geometry_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "iteration_trace_policy_comparison",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "iteration_trace_summary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "iterative_jacobian_spectrum_estimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "iterative_left_nullspace_subspace_estimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "iterative_right_nullspace_estimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "iterative_right_nullspace_subspace_estimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "jacobian_column_family_scale_attribution",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "jacobian_family_geometry_comparison",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "jacobian_linear_operator",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "jacobian_product",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "jacobian_row_family_scale_attribution",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "jacobian_row_family_scaling_experiment",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "jacobian_scale_summary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "jacobian_transpose_product",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "local_elastic_subset_ensemble",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "local_elastic_subset_search",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "madnlp_iteration_trace_callback",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "madnlp_optimize_with_iteration_trace!",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "madnlp_primal_capture_capability",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "madnlp_profile_with_iteration_trace!",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "markdown_profile_aggregate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "markdown_profile_comparison",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "markdown_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "matching_cardinality",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "maximum_matching",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "mfcq_screen",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "minimum_elastic_relaxation_search",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "model_fingerprint",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "multi_seed_golub_kahan_estimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "nullspace_fingerprints",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "operator_derivative_requirements",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "operator_domain_requirements",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "operator_interval",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "physical_complementarity_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "physical_endpoint_equivalence_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "physical_feasibility_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "physical_kkt_acceptance_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "physical_stationarity_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "port_component_expected_nullspace_modes",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "port_expected_nullspace_modes",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "port_expected_nullspace_summary",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "port_network_assembly_summary",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "port_topology_expected_nullspace_modes",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "port_topology_nullspace",
+        "proposed_disposition": "advanced_candidate",
+        "reason": "domain-extension prefix indicates research-facing adapter scope; confirm Advanced ownership before promotion"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "powermodels_analyze_active_set",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "powermodels_analyze_component_rank_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "powermodels_analyze_degeneracy",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "powermodels_analyze_jacobian_rank_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "powermodels_analyze_reduced_hessian_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "powermodels_angle_gauge_modes",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "powermodels_capability_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "powermodels_component_metadata",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "powermodels_component_rank_capability_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "powermodels_jump_model",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "powermodels_reference_bus_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "powermodels_variable_indices",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "profile_comparison_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "profile_solver_result",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "profile_solver_with_iteration_trace!",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "profile_synthetic_coupled_cone_corpus",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "profile_synthetic_derivative_boundary_corpus",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "profile_synthetic_float32_derivative_overflow_corpus",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "profile_synthetic_quadratic_geometry_corpus",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "profile_synthetic_sparse_ladder",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "profile_synthetic_stability_corpus",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "recover_stationarity_multipliers",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "reduced_hessian_analysis",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "report_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "restarted_smallest_singular_candidates",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "restarted_smallest_singular_dense_calibration",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "scaling_coordinate_geometry_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "scaling_covariance_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "scaling_intervention_classification",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "scaling_kkt_covariance_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "scaling_point_transport_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "scaling_solver_experiment_campaign_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "scaling_solver_experiment_comparison",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "scaling_solver_experiment_stratified_campaign_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "select_trusted_evaluation_points",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "smallest_singular_backend_crosscheck",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "snapshot",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "solve_elastic_feasibility!",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "solver_complementarity_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "solver_dual_snapshot",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "solver_dual_snapshot_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "solver_iteration_records",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "solver_iteration_segments",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "solver_iteration_summary",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "solver_linear_telemetry_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "solver_log_observations",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "solver_postmortem",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "solver_result_point",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "solver_trace_physical_endpoint_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "sparse_jacobian_pattern_estimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "sparse_qr_nullspace_dense_calibration",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "sparse_qr_nullspace_estimate",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "sparse_qr_nullspace_persistence",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "stable_reformulation_plan",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "structural_graph_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "structural_graph_dot",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "structural_graph_text",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "structural_numerical_comparison",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "synthetic_coupled_cone_profile_corpus",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "synthetic_derivative_boundary_profile_corpus",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "synthetic_float32_derivative_overflow_profile_corpus",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "synthetic_quadratic_geometry_profile_corpus",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "synthetic_sparse_profile_corpus",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "synthetic_stability_profile_corpus",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "text_report",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "transport_scaling_point",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "trusted_point_selection_data",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "variable_domains",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "variable_roles",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "variable_support",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      },
+      {
+        "current_surface": "root-only",
+        "name": "well_determined_blocks",
+        "proposed_disposition": "legacy_manual_review",
+        "reason": "no automatic tier promotion; review compatibility, usage, and migration path before a breaking release"
+      }
+    ],
+    "queue_count": 539,
+    "status": "review_required"
+  },
+  "schema_version": "nlpdiagnostics-api-tier-inventory-v2",
   "source": {
     "advanced_module": "src/api/advanced.jl",
     "root_module": "src/NLPDiagnostics.jl",

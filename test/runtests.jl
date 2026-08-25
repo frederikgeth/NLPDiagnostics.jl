@@ -102,6 +102,15 @@ end
     @test NLPDiagnostics.Stable.analyze === NLPDiagnostics.analyze
     @test NLPDiagnostics.Stable.report_data === NLPDiagnostics.report_data
 
+    tier_inventory = read(
+        joinpath(normpath(joinpath(@__DIR__, "..")), "docs", "api_tier_inventory_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-api-tier-inventory-v2", tier_inventory)
+    @test occursin("\"queue_count\": 539", tier_inventory)
+    @test occursin("\"advanced_candidate_count\": 102", tier_inventory)
+    @test occursin("\"legacy_manual_review_count\": 437", tier_inventory)
+
     stable_model = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
     stable_variable = MOI.add_variable(stable_model)
     stable_constraint = MOI.ScalarAffineFunction(

@@ -15,6 +15,10 @@ an explicit release decision and updated contract tests.
 
 The machine-readable export inventory is
 [`docs/api_tier_inventory_summary.json`](api_tier_inventory_summary.json).
+Its review ledger now assigns every root-only export an explicit disposition:
+102 domain-extension names are Advanced candidates pending ownership review,
+and the remaining 437 names require manual legacy compatibility/migration
+review. No export is promoted automatically.
 
 ## `NLPDiagnostics.Advanced`
 
