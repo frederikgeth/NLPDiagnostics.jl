@@ -1,7 +1,7 @@
 {
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
-    "git_revision": "edd4c7769c0157efb3077de170f687d5102a8f64",
+    "git_revision": "4dd900fda0e419bc6c263124d8ba3c361d40158e",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -188,6 +188,36 @@
       "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json"
     }
   ],
+  "required_tolerance_quantiles": {
+    "all_endpoints": {
+      "count": 12,
+      "p100": 1.141720164003029e-5,
+      "p50": 1.0823272516079118e-5,
+      "p90": 1.141149177082387e-5,
+      "p95": 1.1417201293668743e-5
+    },
+    "paired_endpoint_maximum": {
+      "count": 6,
+      "p100": 1.141720164003029e-5,
+      "p50": 1.0823273156490988e-5,
+      "p90": 1.1388655127865392e-5,
+      "p95": 1.1402928383947842e-5
+    },
+    "phase_only": {
+      "count": 6,
+      "p100": 1.141720164003029e-5,
+      "p50": 1.0823272516079118e-5,
+      "p90": 1.1388655127865392e-5,
+      "p95": 1.1402928383947842e-5
+    },
+    "reference": {
+      "count": 6,
+      "p100": 1.1417201010282022e-5,
+      "p50": 1.0823272845585854e-5,
+      "p90": 1.138865450163801e-5,
+      "p95": 1.1402927755960017e-5
+    }
+  },
   "required_tolerance_range": [
     8.7189420840247e-6,
     1.141720164003029e-5

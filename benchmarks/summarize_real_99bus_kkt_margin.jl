@@ -81,6 +81,34 @@ phase_values = [
     for profile in profiles if profile["phase_only"]["required_tolerance"] isa Real
 ]
 all_values = vcat(reference_values, phase_values)
+paired_values = [
+    max(profile["reference"]["required_tolerance"], profile["phase_only"]["required_tolerance"])
+    for profile in profiles
+    if profile["reference"]["required_tolerance"] isa Real &&
+       profile["phase_only"]["required_tolerance"] isa Real
+]
+
+function empirical_quantile(values, probability::Real)
+    isempty(values) && return nothing
+    ordered = sort(Float64.(values))
+    position = 1 + (length(ordered) - 1) * probability
+    lower = floor(Int, position)
+    upper = ceil(Int, position)
+    lower == upper && return ordered[lower]
+    weight = position - lower
+    return ordered[lower] + weight * (ordered[upper] - ordered[lower])
+end
+
+function quantile_summary(values)
+    Dict{String,Any}(
+        "count" => length(values),
+        "p50" => empirical_quantile(values, 0.50),
+        "p90" => empirical_quantile(values, 0.90),
+        "p95" => empirical_quantile(values, 0.95),
+        "p100" => empirical_quantile(values, 1.00),
+    )
+end
+
 strict_failed = [
     profile for profile in profiles
     if profile["reference"]["strict_policy_acceptance_passed"] === false ||
@@ -114,6 +142,12 @@ write_json(OUTPUT, Dict{String,Any}(
     "maximum_required_tolerance" => isempty(all_values) ? nothing : maximum(all_values),
     "maximum_strict_tolerance_gap" => isempty(all_values) ? nothing : maximum(all_values) - STRICT_TOLERANCE,
     "maximum_strict_tolerance_ratio" => isempty(all_values) ? nothing : maximum(all_values) / STRICT_TOLERANCE,
+    "required_tolerance_quantiles" => Dict(
+        "reference" => quantile_summary(reference_values),
+        "phase_only" => quantile_summary(phase_values),
+        "all_endpoints" => quantile_summary(all_values),
+        "paired_endpoint_maximum" => quantile_summary(paired_values),
+    ),
     "failure_localization" => Dict(
         "all_strict_failures_are_ibr_p_upper" => get(failure_counts, "all_failed_sides_are_ibr_p_upper", nothing),
         "failed_constraint_families" => get(failure_counts, "failed_constraint_families", Any[]),

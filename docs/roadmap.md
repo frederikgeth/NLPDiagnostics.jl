@@ -113,6 +113,8 @@ failure provenance without closing the absolute physical gate. The companion
 `benchmarks/summarize_real_99bus_kkt_margin.jl` now records the per-snapshot
 required tolerance and strict-gap ledger: four snapshots fail 1e-5, while the
 largest saved endpoint requires approximately 1.14172e-5 (a 1.4172e-6 gap).
+The paired-endpoint p95 required tolerance is approximately 1.14029e-5, so
+the distribution is now explicit rather than represented only by its maximum.
 This quantifies how close the boundary is without promoting a relaxed
 tolerance or changing the release gate. The companion
 `benchmarks/summarize_real_99bus_kkt_residual_distributions.jl` now records

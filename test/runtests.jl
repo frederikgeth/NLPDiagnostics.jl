@@ -2324,7 +2324,14 @@ end
     @test kkt_margin_data["strict_passed_snapshot_count"] == 2
     @test kkt_margin_data["maximum_required_tolerance"] > 1.0e-5
     @test kkt_margin_data["maximum_required_tolerance"] < 1.2e-5
+    @test kkt_margin_data["required_tolerance_quantiles"]["paired_endpoint_maximum"]["count"] == 6
+    @test kkt_margin_data["required_tolerance_quantiles"]["paired_endpoint_maximum"]["p95"] > 1.1e-5
+    @test kkt_margin_data["required_tolerance_quantiles"]["paired_endpoint_maximum"]["p95"] < 1.2e-5
     @test occursin("real_99bus_kkt_margin_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
+    @test occursin("paired-endpoint p95", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
