@@ -113,6 +113,13 @@ It keeps the 43 dense/sparse hard-control agreements, 24 threshold-sensitive
 records with 9 disagreements, and 20 sparse-only matches distinct, so the
 remaining rank work is clearly the broader adversarial corpus and a third
 vetted backend rather than an aggregate-count ambiguity.
+The previously test-only restarted/harmonic smallest-singular corpus is now
+summarized in `docs/smallest_singular_calibration_summary.json`: all ten
+expected relations match, with seven dense-free crosscheck agreements and
+three explicit adverse controls (singular-value disagreement, restarted
+unconvergence, and joint unconvergence). This promotes the adversarial
+relations into reviewable release evidence without treating any candidate as a
+rank certificate.
 
 The real 99-bus physical-KKT increment now joins the saved tolerance, option,
 initialization, and perturbation matrices through

@@ -2388,11 +2388,30 @@ end
     @test cross_backend_matrix["hard_control_relation"]["agreement_count"] == 43
     @test cross_backend_matrix["threshold_relation"]["disagreement_count"] == 9
     @test cross_backend_matrix["sparse_only_relation"]["match_count"] == 20
+    smallest_singular_script = read(
+        joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
+        String,
+    )
+    @test Meta.parseall(smallest_singular_script) isa Expr
+    @test occursin("dense_free_crosscheck", smallest_singular_script)
+    smallest_singular_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "smallest_singular_calibration_summary.json"),
+        String,
+    ))
+    @test smallest_singular_summary["schema_version"] == "nlpdiagnostics-smallest-singular-calibration-v1"
+    @test smallest_singular_summary["case_count"] == 10
+    @test smallest_singular_summary["all_expectations_matched"] == true
+    @test smallest_singular_summary["dense_free_crosscheck"]["agreement_count"] == 7
+    @test smallest_singular_summary["dense_free_crosscheck"]["adverse_relation_count"] == 3
     @test occursin("rank_calibration_statistics_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
     @test occursin("finite-sample", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
+    @test occursin("smallest_singular_calibration_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))

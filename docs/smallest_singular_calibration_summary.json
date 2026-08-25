@@ -1,0 +1,174 @@
+{
+  "all_expectations_matched": true,
+  "case_count": 10,
+  "cases": [
+    {
+      "crosscheck_expectation_matched": true,
+      "crosscheck_relation": "agreement",
+      "expectation_matched": true,
+      "expected_relation": "agreement",
+      "harmonic_converged": true,
+      "harmonic_expectation_matched": true,
+      "harmonic_relation": "agreement",
+      "name": "well_separated_diagonal",
+      "restarted_converged": true,
+      "restarted_relation": "agreement"
+    },
+    {
+      "crosscheck_expectation_matched": true,
+      "crosscheck_relation": "agreement",
+      "expectation_matched": true,
+      "expected_relation": "agreement",
+      "harmonic_converged": true,
+      "harmonic_expectation_matched": true,
+      "harmonic_relation": "agreement",
+      "name": "clustered_smallest_pair",
+      "restarted_converged": true,
+      "restarted_relation": "agreement"
+    },
+    {
+      "crosscheck_expectation_matched": true,
+      "crosscheck_relation": "agreement",
+      "expectation_matched": true,
+      "expected_relation": "agreement_nonunique_subspace",
+      "harmonic_converged": true,
+      "harmonic_expectation_matched": true,
+      "harmonic_relation": "agreement_nonunique_subspace",
+      "name": "repeated_smallest_boundary",
+      "restarted_converged": true,
+      "restarted_relation": "agreement_nonunique_subspace"
+    },
+    {
+      "crosscheck_expectation_matched": true,
+      "crosscheck_relation": "agreement",
+      "expectation_matched": true,
+      "expected_relation": "agreement",
+      "harmonic_converged": true,
+      "harmonic_expectation_matched": true,
+      "harmonic_relation": "agreement",
+      "name": "rotated_planted_spectrum",
+      "restarted_converged": true,
+      "restarted_relation": "agreement"
+    },
+    {
+      "crosscheck_expectation_matched": true,
+      "crosscheck_relation": "agreement",
+      "expectation_matched": true,
+      "expected_relation": "dense_target_numerically_unresolved",
+      "harmonic_converged": true,
+      "harmonic_expectation_matched": true,
+      "harmonic_relation": "dense_target_numerically_unresolved",
+      "name": "rotated_planted_nullspace",
+      "restarted_converged": true,
+      "restarted_relation": "dense_target_numerically_unresolved"
+    },
+    {
+      "crosscheck_expectation_matched": true,
+      "crosscheck_relation": "agreement",
+      "expectation_matched": true,
+      "expected_relation": "agreement",
+      "harmonic_converged": true,
+      "harmonic_expectation_matched": true,
+      "harmonic_relation": "agreement",
+      "name": "rectangular_right_nullspace",
+      "restarted_converged": true,
+      "restarted_relation": "agreement"
+    },
+    {
+      "crosscheck_expectation_matched": true,
+      "crosscheck_relation": "agreement",
+      "expectation_matched": true,
+      "expected_relation": "agreement_nonunique_subspace",
+      "harmonic_converged": true,
+      "harmonic_expectation_matched": true,
+      "harmonic_relation": "agreement_nonunique_subspace",
+      "name": "zero_operator_nonunique_subspace",
+      "restarted_converged": true,
+      "restarted_relation": "agreement_nonunique_subspace"
+    },
+    {
+      "crosscheck_expectation_matched": true,
+      "crosscheck_relation": "singular_value_disagreement",
+      "expectation_matched": true,
+      "expected_relation": "singular_value_disagreement",
+      "harmonic_converged": true,
+      "harmonic_expectation_matched": true,
+      "harmonic_relation": "agreement",
+      "name": "hilbert_false_convergence_control",
+      "restarted_converged": true,
+      "restarted_relation": "singular_value_disagreement"
+    },
+    {
+      "crosscheck_expectation_matched": true,
+      "crosscheck_relation": "restarted_unconverged",
+      "expectation_matched": true,
+      "expected_relation": "candidate_unconverged",
+      "harmonic_converged": true,
+      "harmonic_expectation_matched": true,
+      "harmonic_relation": "dense_target_numerically_unresolved",
+      "name": "badly_scaled_full_rank_control",
+      "restarted_converged": false,
+      "restarted_relation": "candidate_unconverged"
+    },
+    {
+      "crosscheck_expectation_matched": true,
+      "crosscheck_relation": "both_unconverged",
+      "expectation_matched": true,
+      "expected_relation": "candidate_unconverged",
+      "harmonic_converged": false,
+      "harmonic_expectation_matched": true,
+      "harmonic_relation": "candidate_unconverged",
+      "name": "insufficient_iteration_control",
+      "restarted_converged": false,
+      "restarted_relation": "candidate_unconverged"
+    }
+  ],
+  "dense_free_crosscheck": {
+    "adverse_relation_count": 3,
+    "adverse_relations": [
+      "both_unconverged",
+      "restarted_unconverged",
+      "singular_value_disagreement"
+    ],
+    "agreement_count": 7,
+    "relation_counts": {
+      "agreement": 7,
+      "both_unconverged": 1,
+      "restarted_unconverged": 1,
+      "singular_value_disagreement": 1
+    }
+  },
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "aadf5ec3679aaffc7f442e36f0a5953807439003",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "harmonic_relation_counts": {
+    "agreement": 5,
+    "agreement_nonunique_subspace": 2,
+    "candidate_unconverged": 1,
+    "dense_target_numerically_unresolved": 2
+  },
+  "interpretation": {
+    "claim": "The ten-case corpus makes restarted, harmonic, and dense-free crosscheck relations auditable, including expected nonconvergence and disagreement controls.",
+    "does_not_establish": [
+      "a mathematical rank certificate",
+      "universal convergence or tolerance behavior",
+      "physical interpretation of any candidate direction"
+    ]
+  },
+  "restarted_relation_counts": {
+    "agreement": 4,
+    "agreement_nonunique_subspace": 2,
+    "candidate_unconverged": 2,
+    "dense_target_numerically_unresolved": 1,
+    "singular_value_disagreement": 1
+  },
+  "schema_version": "nlpdiagnostics-smallest-singular-calibration-v1",
+  "source": {
+    "calibration_artifact": "work/restarted-smallest-singular-calibration.json",
+    "policy": "Adverse and unresolved relations are retained as calibration evidence; no candidate is promoted to a rank certificate.",
+    "runner": "benchmarks/summarize_smallest_singular_calibration.jl"
+  }
+}

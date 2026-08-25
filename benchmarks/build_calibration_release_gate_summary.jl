@@ -19,6 +19,7 @@ ibr_sparse = read_summary("docs/bmopf_30bus_ibr_p_upper_sparse_jacobian_audit_su
 rank_oracles = read_summary("docs/randomized_rank_oracle_calibration_summary.json")
 rank_perturbation = read_summary("docs/rank_perturbation_sweep_summary.json")
 rank_statistics = read_summary("docs/rank_calibration_statistics_summary.json")
+smallest_singular_calibration = read_summary("docs/smallest_singular_calibration_summary.json")
 runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
 isolated_runtime_scaling = read_summary("docs/sparse_runtime_memory_isolated_summary.json")
 isolated_runtime_trend = read_summary("docs/sparse_runtime_trend_summary.json")
@@ -207,6 +208,10 @@ rank_zero_event_upper_bound_label = rank_zero_event_upper_bound === nothing ?
     "unavailable" : string(round(rank_zero_event_upper_bound; digits=4))
 rank_cross_backend_matrix = get(rank_statistics, "cross_backend_calibration_matrix", Dict{String,Any}())
 rank_cross_backend_rows = get(rank_cross_backend_matrix, "corpus_rows", Any[])
+smallest_singular_case_count = get(smallest_singular_calibration, "case_count", 0)
+smallest_singular_crosscheck = get(smallest_singular_calibration, "dense_free_crosscheck", Dict{String,Any}())
+smallest_singular_agreement_count = get(smallest_singular_crosscheck, "agreement_count", 0)
+smallest_singular_adverse_count = get(smallest_singular_crosscheck, "adverse_relation_count", 0)
 analyze_stage_dominant = isempty(analyze_stage_records) ?
     "unavailable" :
     begin
@@ -270,8 +275,8 @@ gates = Dict{String,Any}[
     gate(
         "numerical_rank_false_positive_negative_statistics",
         "partial",
-        "The aggregate rank-statistics ledger now joins $rank_hard_controls complete hard controls with $rank_hard_mismatches mismatches and $rank_hard_unavailable unavailable results, plus $rank_threshold_records threshold-sensitive controls with $rank_threshold_disagreements backend disagreements. The zero-event hard-control result is accompanied by a one-sided $(rank_finite_sample_confidence)-level finite-sample upper bound of $rank_zero_event_upper_bound_label for any single zero-observed error rate; this is uncertainty context, not a universal guarantee. This includes the seeded randomized and controlled perturbation corpora; disagreements remain tolerance evidence. A guarded sparse-only extension contributes $rank_sparse_only_records records with $rank_sparse_only_mismatches sparse mismatches while intentionally disabling dense SVD. The cross-backend calibration matrix now retains $(length(rank_cross_backend_rows)) corpus rows separating dense/sparse hard-control agreement, threshold-sensitive disagreement, and sparse-only coverage. Broader adversarial statistics and a third vetted backend remain open.",
-        ["docs/randomized_rank_oracle_calibration_summary.json", "docs/large_sparse_rank_oracle_summary.json", "docs/rank_perturbation_sweep_summary.json", "docs/rank_calibration_statistics_summary.json"],
+        "The aggregate rank-statistics ledger now joins $rank_hard_controls complete hard controls with $rank_hard_mismatches mismatches and $rank_hard_unavailable unavailable results, plus $rank_threshold_records threshold-sensitive controls with $rank_threshold_disagreements backend disagreements. The zero-event hard-control result is accompanied by a one-sided $(rank_finite_sample_confidence)-level finite-sample upper bound of $rank_zero_event_upper_bound_label for any single zero-observed error rate; this is uncertainty context, not a universal guarantee. This includes the seeded randomized and controlled perturbation corpora; disagreements remain tolerance evidence. A guarded sparse-only extension contributes $rank_sparse_only_records records with $rank_sparse_only_mismatches sparse mismatches while intentionally disabling dense SVD. The cross-backend calibration matrix now retains $(length(rank_cross_backend_rows)) corpus rows separating dense/sparse hard-control agreement, threshold-sensitive disagreement, and sparse-only coverage. The separate smallest-singular corpus adds $smallest_singular_case_count adversarial cases with $smallest_singular_agreement_count dense-free crosscheck agreements and $smallest_singular_adverse_count expected adverse relations. Broader adversarial statistics and a third vetted backend remain open.",
+        ["docs/randomized_rank_oracle_calibration_summary.json", "docs/large_sparse_rank_oracle_summary.json", "docs/rank_perturbation_sweep_summary.json", "docs/rank_calibration_statistics_summary.json", "docs/smallest_singular_calibration_summary.json", "benchmarks/calibrate_restarted_smallest_singular.jl"],
         blocking=true,
     ),
     gate(
