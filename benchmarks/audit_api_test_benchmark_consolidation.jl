@@ -26,6 +26,28 @@ function relative_paths(paths)
     [relpath(path, REPO_ROOT) for path in paths]
 end
 
+function included_local_paths(path::AbstractString)
+    includes = String[]
+    text = read_text(path)
+    for match_result in eachmatch(
+        r"include\(joinpath\(@__DIR__,\s*\"([^\"]+)\"\)\)", text,
+    )
+        candidate = normpath(joinpath(dirname(path), match_result.captures[1]))
+        isfile(candidate) && push!(includes, candidate)
+    end
+    return includes
+end
+
+function uses_shared_helper(path::AbstractString, visiting=Set{String}())
+    absolute = abspath(path)
+    absolute in visiting && return false
+    push!(visiting, absolute)
+    text = read_text(absolute)
+    occursin("using .NLPDiagnosticsBenchmarkCommon", text) && return true
+    occursin("NLPDiagnosticsBenchmarkCommon.", text) && return true
+    return any(uses_shared_helper(child, visiting) for child in included_local_paths(absolute))
+end
+
 root_module = joinpath(REPO_ROOT, "src", "NLPDiagnostics.jl")
 root_lines = readlines(root_module)
 export_names = String[]
@@ -55,8 +77,7 @@ const benchmark_helper_exemption_reasons = Dict(
 )
 shared_helper_users = [
     path for path in benchmark_files
-    if occursin("using .NLPDiagnosticsBenchmarkCommon", read_text(path)) ||
-       occursin("NLPDiagnosticsBenchmarkCommon.", read_text(path))
+    if uses_shared_helper(path)
 ]
 non_helper_benchmark_paths = relative_paths(setdiff(benchmark_files, shared_helper_users))
 sort!(non_helper_benchmark_paths)

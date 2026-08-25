@@ -577,9 +577,9 @@
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 49,
-    "json_file_count": 51,
-    "json_schema_file_count": 51,
+    "benchmark_scripts_with_schema_version_count": 54,
+    "json_file_count": 56,
+    "json_schema_file_count": 56,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -686,7 +686,7 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 110,
+    "benchmark_script_count": 115,
     "shared_benchmark_helper": "benchmarks/common.jl",
     "shared_benchmark_helper_exemption_count": 3,
     "shared_benchmark_helper_exemptions": [
@@ -703,7 +703,7 @@
         "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
       }
     ],
-    "shared_benchmark_helper_user_count": 107,
+    "shared_benchmark_helper_user_count": 112,
     "shared_benchmark_helper_users": [
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
       "benchmarks/audit_api_tiers.jl",
@@ -726,6 +726,10 @@
       "benchmarks/bmopf_acdc_multiconverter_campaign.jl",
       "benchmarks/bmopf_acdc_multiconverter_madnlp_campaign.jl",
       "benchmarks/bmopf_acdc_scaling_campaign.jl",
+      "benchmarks/bmopf_combined_mv_lv_perturbed_start_campaign.jl",
+      "benchmarks/bmopf_combined_mv_lv_scaling_campaign.jl",
+      "benchmarks/bmopf_combined_mv_lv_scaling_probe.jl",
+      "benchmarks/bmopf_combined_mv_lv_snapshot_campaign.jl",
       "benchmarks/bmopf_draft_corpus.jl",
       "benchmarks/bmopf_magnitude_scaling_campaign.jl",
       "benchmarks/bmopf_saved_result_persistence.jl",
@@ -811,7 +815,8 @@
       "benchmarks/sweep_bmopf_solver_options.jl",
       "benchmarks/validate_bmopf_campaign.jl",
       "benchmarks/validate_bmopf_checkout.jl",
-      "benchmarks/validate_bmopf_residual_trends.jl"
+      "benchmarks/validate_bmopf_residual_trends.jl",
+      "benchmarks/validate_bmopf_trace_truth_labels.jl"
     ],
     "source_file_count": 32,
     "source_include_count": 31,

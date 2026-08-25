@@ -2130,6 +2130,18 @@ end
         String,
     )
     @test occursin("combined_mv_lv_scaling_start_robustness", release_gate_builder)
+    consolidation_summary = read(
+        joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
+        String,
+    )
+    @test occursin("\"benchmark_script_count\": 115", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 112", consolidation_summary)
+    @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
+    consolidation_audit = read(
+        joinpath(benchmark_directory, "audit_api_test_benchmark_consolidation.jl"),
+        String,
+    )
+    @test occursin("uses_shared_helper", consolidation_audit)
     magnitude_campaign = read(
         joinpath(
             benchmark_directory, "bmopf_magnitude_scaling_campaign.jl",

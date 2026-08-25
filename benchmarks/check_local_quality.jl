@@ -15,6 +15,28 @@ const ROOT = repo_root()
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath("/tmp", "nlpdiagnostics-local-quality.json") : ARGS[1])
 
+function included_local_paths(path::AbstractString)
+    includes = String[]
+    text = read_text(path)
+    for match_result in eachmatch(
+        r"include\(joinpath\(@__DIR__,\s*\"([^\"]+)\"\)\)", text,
+    )
+        candidate = normpath(joinpath(dirname(path), match_result.captures[1]))
+        isfile(candidate) && push!(includes, candidate)
+    end
+    return includes
+end
+
+function uses_shared_helper(path::AbstractString, visiting=Set{String}())
+    absolute = abspath(path)
+    absolute in visiting && return false
+    push!(visiting, absolute)
+    text = read_text(absolute)
+    occursin("using .NLPDiagnosticsBenchmarkCommon", text) && return true
+    occursin("NLPDiagnosticsBenchmarkCommon.", text) && return true
+    return any(uses_shared_helper(child, visiting) for child in included_local_paths(absolute))
+end
+
 function _git_diff_check()
     try
         output = read(`git -C $ROOT diff --check`, String)
@@ -53,8 +75,7 @@ function _check_consolidation()
     )
     actual_non_helpers = sort([
         relpath(path, ROOT) for path in benchmark_files
-        if !occursin("using .NLPDiagnosticsBenchmarkCommon", read_text(path)) &&
-           !occursin("NLPDiagnosticsBenchmarkCommon.", read_text(path))
+        if !uses_shared_helper(path)
     ])
     recorded_exemptions = sort([
         String(get(entry, "path", ""))

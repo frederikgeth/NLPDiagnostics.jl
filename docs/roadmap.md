@@ -88,7 +88,10 @@ boundary. The audit now records the 106 data-producing runners that use
 `benchmarks/common.jl`, plus explicit, reasoned exemptions for the metadata
 library, environment bootstrapper, and process launcher. The local quality
 baseline verifies that the exemption list exactly matches the repository and
-that no unclassified non-helper runner exists.
+that no unclassified non-helper runner exists. It now follows local include
+chains, so compositional BMOPF runners that inherit the helper transitively are
+counted correctly; the refreshed inventory records 112 helper users across
+115 benchmark scripts with zero unclassified runners.
 
 The latest consolidation increment adds the reviewed local quality policy in
 `docs/quality_policy.json` and `docs/quality_policy.md`. Four checks are
