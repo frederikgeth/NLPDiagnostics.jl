@@ -1,148 +1,244 @@
 {
-  "schema_version": "nlpdiagnostics-bmopf-trace-truth-label-validation-v1",
-  "status": "validated_with_explicit_unavailable",
-  "source": {
-    "runner": "benchmarks/validate_bmopf_trace_truth_labels.jl",
-    "comparison_summary": "bmopf-trace-policy-comparison-ipopt-madnlp-fourcase.json",
-    "truth_ledger": "bmopf_30bus_ibr_p_upper_bound_regime_ledger_summary.json",
-    "scope_comparison_summaries": [
-      "bmopf-trace-policy-comparison-ipopt-madnlp-99bus.json",
-      "bmopf-trace-policy-comparison-ipopt-madnlp-99bus-t01.json"
-    ],
-    "reviewed_truth_summary": "real_99bus_phase_only_kkt_failure_summary.json"
-  },
-  "readiness": {
-    "comparison_ready": true,
-    "environment_fingerprint_match": true,
-    "distinct_solver_pair": true,
-    "case_pairing_complete": true,
-    "trace_availability_complete": true,
-    "paired_trace_count": 6,
-    "scope_comparison_count": 2
-  },
-  "case_count": 7,
-  "available_case_count": 6,
-  "unavailable_case_count": 1,
+  "available_case_count": 8,
+  "case_count": 10,
   "cases": [
     {
-      "case": "ENWLsnapshots__30bus_LN__30bus_LN_t01_0800",
-      "truth_role": "positive_control",
+      "case": "ENWLsnapshots__99bus_LN__99bus_LN_t13_1400",
       "expected": {
-        "regime": "zero_bound",
-        "physical_kkt_acceptance_passed": false,
-        "strict_complementarity_failure": true
+        "expected_physical_kkt_acceptance_passed": true,
+        "expected_strict_complementarity_failure": false,
+        "reviewed_source": "docs/real_99bus_phase_only_kkt_failure_summary.json",
+        "truth_role": "negative_control"
       },
+      "label_match": true,
       "observed": {
-        "regime": "zero_bound",
-        "physical_kkt_acceptance_passed": false,
-        "strict_complementarity_failure": true,
-        "strict_complementarity_passed_count": 0,
-        "row_count": 28
-      },
-      "trace_availability_relation": "both_available",
-      "validated": true
-    },
-    {
-      "case": "ENWLsnapshots__30bus_LN__30bus_LN_t13_1400",
-      "truth_role": "negative_control",
-      "expected": {
-        "regime": "positive_bound",
         "physical_kkt_acceptance_passed": true,
-        "strict_complementarity_failure": false
-      },
-      "observed": {
-        "regime": "positive_bound",
-        "physical_kkt_acceptance_passed": true,
+        "regime": null,
+        "row_count": null,
         "strict_complementarity_failure": false,
-        "strict_complementarity_passed_count": 28,
-        "row_count": 28
+        "strict_complementarity_passed_count": null
       },
       "trace_availability_relation": "both_available",
-      "validated": true
-    },
-    {
-      "case": "ENWLsnapshots__30bus_LG__30bus_LG_t01_0800",
-      "truth_role": "positive_control",
-      "expected": {
-        "regime": "zero_bound",
-        "physical_kkt_acceptance_passed": false,
-        "strict_complementarity_failure": true
-      },
-      "observed": {
-        "regime": "zero_bound",
-        "physical_kkt_acceptance_passed": false,
-        "strict_complementarity_failure": true,
-        "strict_complementarity_passed_count": 0,
-        "row_count": 28
-      },
-      "trace_availability_relation": "both_available",
+      "trace_available_on_both_sides": true,
+      "trace_pair_present": true,
+      "truth_role": "negative_control",
       "validated": true
     },
     {
       "case": "ENWLsnapshots__30bus_LG__30bus_LG_t13_1400",
-      "truth_role": "negative_control",
       "expected": {
+        "expected_physical_kkt_acceptance_passed": true,
+        "expected_strict_complementarity_failure": false,
         "regime": "positive_bound",
-        "physical_kkt_acceptance_passed": true,
-        "strict_complementarity_failure": false
+        "truth_role": "negative_control"
       },
+      "label_match": true,
       "observed": {
-        "regime": "positive_bound",
         "physical_kkt_acceptance_passed": true,
+        "regime": "positive_bound",
+        "row_count": 28,
         "strict_complementarity_failure": false,
-        "strict_complementarity_passed_count": 28,
-        "row_count": 28
+        "strict_complementarity_passed_count": 28
       },
       "trace_availability_relation": "both_available",
-      "validated": true
-    },
-    {
-      "case": "ENWLsnapshots__99bus_LN__99bus_LN_t25_2000",
-      "truth_role": "unavailable_control",
-      "expected": {
-        "trace_availability": "unavailable",
-        "reason": "99-bus trace collection is outside the four-case calibration campaign"
-      },
-      "observed": {
-        "trace_pair_present": false,
-        "trace_availability_relation": "unavailable"
-      },
-      "unavailable_reason": "99-bus trace collection is outside the four-case calibration campaign",
+      "trace_available_on_both_sides": true,
+      "trace_pair_present": true,
+      "truth_role": "negative_control",
       "validated": true
     },
     {
       "case": "ENWLsnapshots__99bus_LN__99bus_LN_t01_0800",
-      "truth_role": "positive_control",
       "expected": {
-        "physical_kkt_acceptance_passed": false,
-        "strict_complementarity_failure": true,
-        "reviewed_source": "real_99bus_phase_only_kkt_failure_summary.json"
+        "expected_physical_kkt_acceptance_passed": false,
+        "expected_strict_complementarity_failure": true,
+        "reviewed_source": "docs/real_99bus_phase_only_kkt_failure_summary.json",
+        "truth_role": "positive_control"
       },
+      "label_match": true,
       "observed": {
-        "trace_pair_present": true,
-        "trace_availability_relation": "both_available",
         "physical_kkt_acceptance_passed": false,
-        "strict_complementarity_failure": true
+        "regime": null,
+        "row_count": null,
+        "strict_complementarity_failure": true,
+        "strict_complementarity_passed_count": null
       },
+      "trace_availability_relation": "both_available",
+      "trace_available_on_both_sides": true,
+      "trace_pair_present": true,
+      "truth_role": "positive_control",
       "validated": true
     },
     {
-      "case": "ENWLsnapshots__99bus_LN__99bus_LN_t13_1400",
-      "truth_role": "negative_control",
+      "case": "ENWLsnapshots__30bus_LN__30bus_LN_t01_0800",
       "expected": {
+        "expected_physical_kkt_acceptance_passed": false,
+        "expected_strict_complementarity_failure": true,
+        "regime": "zero_bound",
+        "truth_role": "positive_control"
+      },
+      "label_match": true,
+      "observed": {
+        "physical_kkt_acceptance_passed": false,
+        "regime": "zero_bound",
+        "row_count": 28,
+        "strict_complementarity_failure": true,
+        "strict_complementarity_passed_count": 0
+      },
+      "trace_availability_relation": "both_available",
+      "trace_available_on_both_sides": true,
+      "trace_pair_present": true,
+      "truth_role": "positive_control",
+      "validated": true
+    },
+    {
+      "case": "ENWLsnapshots__30bus_LN__30bus_LN_t13_1400",
+      "expected": {
+        "expected_physical_kkt_acceptance_passed": true,
+        "expected_strict_complementarity_failure": false,
+        "regime": "positive_bound",
+        "truth_role": "negative_control"
+      },
+      "label_match": true,
+      "observed": {
         "physical_kkt_acceptance_passed": true,
+        "regime": "positive_bound",
+        "row_count": 28,
         "strict_complementarity_failure": false,
-        "reviewed_source": "real_99bus_phase_only_kkt_failure_summary.json"
+        "strict_complementarity_passed_count": 28
+      },
+      "trace_availability_relation": "both_available",
+      "trace_available_on_both_sides": true,
+      "trace_pair_present": true,
+      "truth_role": "negative_control",
+      "validated": true
+    },
+    {
+      "case": "ENWLsnapshots__30bus_LG__30bus_LG_t01_0800",
+      "expected": {
+        "expected_physical_kkt_acceptance_passed": false,
+        "expected_strict_complementarity_failure": true,
+        "regime": "zero_bound",
+        "truth_role": "positive_control"
+      },
+      "label_match": true,
+      "observed": {
+        "physical_kkt_acceptance_passed": false,
+        "regime": "zero_bound",
+        "row_count": 28,
+        "strict_complementarity_failure": true,
+        "strict_complementarity_passed_count": 0
+      },
+      "trace_availability_relation": "both_available",
+      "trace_available_on_both_sides": true,
+      "trace_pair_present": true,
+      "truth_role": "positive_control",
+      "validated": true
+    },
+    {
+      "case": "ENWLsnapshots__99bus_LG__99bus_LG_t01_0800",
+      "expected": {
+        "expected_physical_kkt_acceptance_passed": false,
+        "expected_strict_complementarity_failure": true,
+        "reviewed_source": "docs/real_99bus_phase_only_kkt_failure_summary.json",
+        "truth_role": "positive_control"
+      },
+      "label_match": true,
+      "observed": {
+        "physical_kkt_acceptance_passed": false,
+        "regime": null,
+        "row_count": null,
+        "strict_complementarity_failure": true,
+        "strict_complementarity_passed_count": null
+      },
+      "trace_availability_relation": "both_available",
+      "trace_available_on_both_sides": true,
+      "trace_pair_present": true,
+      "truth_role": "positive_control",
+      "validated": true
+    },
+    {
+      "case": "ENWLsnapshots__99bus_LG__99bus_LG_t13_1400",
+      "expected": {
+        "expected_physical_kkt_acceptance_passed": true,
+        "expected_strict_complementarity_failure": false,
+        "reviewed_source": "docs/real_99bus_phase_only_kkt_failure_summary.json",
+        "truth_role": "negative_control"
+      },
+      "label_match": true,
+      "observed": {
+        "physical_kkt_acceptance_passed": true,
+        "regime": null,
+        "row_count": null,
+        "strict_complementarity_failure": false,
+        "strict_complementarity_passed_count": null
+      },
+      "trace_availability_relation": "both_available",
+      "trace_available_on_both_sides": true,
+      "trace_pair_present": true,
+      "truth_role": "negative_control",
+      "validated": true
+    },
+    {
+      "case": "ENWLsnapshots__99bus_LG__99bus_LG_t25_2000",
+      "expected": {
+        "expected_trace_availability": "unavailable",
+        "reason": "99-bus trace collection is outside the reviewed t01/t13 calibration campaign",
+        "reviewed_outcome": "positive_control",
+        "truth_role": "unavailable_control"
       },
       "observed": {
-        "trace_pair_present": true,
-        "trace_availability_relation": "both_available",
-        "physical_kkt_acceptance_passed": true,
-        "strict_complementarity_failure": false
+        "trace_availability_relation": "unavailable",
+        "trace_pair_present": false
       },
+      "reviewed_outcome": "positive_control",
+      "trace_available_on_both_sides": false,
+      "trace_pair_present": false,
+      "truth_role": "unavailable_control",
+      "unavailable_reason": "99-bus trace collection is outside the reviewed t01/t13 calibration campaign",
+      "validated": true
+    },
+    {
+      "case": "ENWLsnapshots__99bus_LN__99bus_LN_t25_2000",
+      "expected": {
+        "expected_trace_availability": "unavailable",
+        "reason": "99-bus trace collection is outside the four-case calibration campaign",
+        "reviewed_outcome": "positive_control",
+        "truth_role": "unavailable_control"
+      },
+      "observed": {
+        "trace_availability_relation": "unavailable",
+        "trace_pair_present": false
+      },
+      "reviewed_outcome": "positive_control",
+      "trace_available_on_both_sides": false,
+      "trace_pair_present": false,
+      "truth_role": "unavailable_control",
+      "unavailable_reason": "99-bus trace collection is outside the four-case calibration campaign",
       "validated": true
     }
   ],
-  "validation_passed": true,
-  "interpretation": "Truth labels validate expected bound-regime outcomes and trace availability only. The 99-bus t01 positive and t13 negative controls are reviewed against the existing KKT-failure summary and now have paired traces; t25 remains explicitly unavailable. None of these labels is converted into a solver score or causal convergence claim."
+  "interpretation": "Truth labels validate expected bound-regime outcomes and trace availability only; they do not rank solvers or establish causal convergence claims.",
+  "readiness": {
+    "case_pairing_complete": true,
+    "comparison_ready": true,
+    "environment_fingerprint_match": true,
+    "paired_trace_count": 8,
+    "scope_comparison_count": 3,
+    "trace_availability_complete": true
+  },
+  "schema_version": "nlpdiagnostics-bmopf-trace-truth-label-validation-v1",
+  "source": {
+    "comparison_summary": "bmopf-trace-policy-comparison-ipopt-madnlp-fourcase.json",
+    "reviewed_truth_summary": "real_99bus_phase_only_kkt_failure_summary.json",
+    "runner": "benchmarks/validate_bmopf_trace_truth_labels.jl",
+    "scope_comparison_summaries": [
+      "bmopf-trace-policy-comparison-ipopt-madnlp-99bus.json",
+      "bmopf-trace-policy-comparison-ipopt-madnlp-99bus-t01.json",
+      "bmopf-trace-policy-comparison-ipopt-madnlp-99bus-lg.json"
+    ],
+    "truth_ledger": "bmopf_30bus_ibr_p_upper_bound_regime_ledger_summary.json"
+  },
+  "status": "validated_with_explicit_unavailable",
+  "unavailable_case_count": 2,
+  "validation_passed": true
 }

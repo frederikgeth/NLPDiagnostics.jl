@@ -2036,11 +2036,13 @@ end
     @test occursin("positive_control", truth_label_validation)
     @test occursin("negative_control", truth_label_validation)
     @test occursin("30bus_LG", truth_label_validation)
+    @test occursin("99bus_LG", truth_label_validation)
     @test occursin("EXPECTED_UNAVAILABLE_CASES", truth_label_validation)
     @test occursin("unavailable_control", truth_label_validation)
     @test occursin("EXPECTED_SCOPE_CASES", truth_label_validation)
     @test occursin("reviewed_truth_cases", truth_label_validation)
     @test occursin("real_99bus_phase_only_kkt_failure_summary.json", truth_label_validation)
+    @test occursin("scope_comparison_paths", truth_label_validation)
     @test occursin("trace_available_on_both_sides", truth_label_validation)
     magnitude_campaign = read(
         joinpath(

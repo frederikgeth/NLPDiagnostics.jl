@@ -12,15 +12,14 @@ using JSON
 Base.include(@__MODULE__, joinpath(@__DIR__, "common.jl"))
 using .NLPDiagnosticsBenchmarkCommon: read_summary, write_json
 
-length(ARGS) in (2, 3, 4, 5) || error(
+length(ARGS) == 2 || length(ARGS) >= 4 || error(
     "usage: validate_bmopf_trace_truth_labels.jl <comparison.json> <ledger.json> [scope-comparison.json ...] <output.json>",
 )
 
 comparison_path, ledger_path = abspath.(ARGS[1:2])
 comparison = read_summary(comparison_path; root = "/")
 ledger = read_summary(ledger_path; root = "/")
-scope_comparison_paths = length(ARGS) == 4 ? [abspath(ARGS[3])] :
-    (length(ARGS) == 5 ? abspath.(ARGS[3:4]) : String[])
+scope_comparison_paths = length(ARGS) >= 4 ? abspath.(ARGS[3:end-1]) : String[]
 scope_comparisons = [read_summary(path; root = "/") for path in scope_comparison_paths]
 
 function case_key(path)
@@ -66,6 +65,18 @@ const EXPECTED_CASES = Dict{String,Dict{String,Any}}(
         "expected_strict_complementarity_failure" => true,
         "reviewed_source" => "docs/real_99bus_phase_only_kkt_failure_summary.json",
     ),
+    case_key("ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json") => Dict(
+        "truth_role" => "positive_control",
+        "expected_physical_kkt_acceptance_passed" => false,
+        "expected_strict_complementarity_failure" => true,
+        "reviewed_source" => "docs/real_99bus_phase_only_kkt_failure_summary.json",
+    ),
+    case_key("ENWLsnapshots/99bus_LG/99bus_LG_t13_1400.bmopf.json") => Dict(
+        "truth_role" => "negative_control",
+        "expected_physical_kkt_acceptance_passed" => true,
+        "expected_strict_complementarity_failure" => false,
+        "reviewed_source" => "docs/real_99bus_phase_only_kkt_failure_summary.json",
+    ),
 )
 
 const EXPECTED_UNAVAILABLE_CASES = Dict{String,Dict{String,Any}}(
@@ -74,6 +85,12 @@ const EXPECTED_UNAVAILABLE_CASES = Dict{String,Dict{String,Any}}(
         "expected_trace_availability" => "unavailable",
         "reviewed_outcome" => "positive_control",
         "reason" => "99-bus trace collection is outside the four-case calibration campaign",
+    ),
+    case_key("ENWLsnapshots/99bus_LG/99bus_LG_t25_2000.bmopf.json") => Dict(
+        "truth_role" => "unavailable_control",
+        "expected_trace_availability" => "unavailable",
+        "reviewed_outcome" => "positive_control",
+        "reason" => "99-bus trace collection is outside the reviewed t01/t13 calibration campaign",
     ),
 )
 
@@ -231,9 +248,8 @@ end
 
 validation_passed = get(readiness, "comparison_ready", false) === true &&
     !isempty(validated) && all(get(entry, "validated", false) === true for entry in validated)
-output_path = length(ARGS) == 5 ? abspath(ARGS[5]) :
-    (length(ARGS) == 4 ? abspath(ARGS[4]) :
-        (length(ARGS) == 3 ? abspath(ARGS[3]) : joinpath(dirname(comparison_path), "bmopf_trace_truth_label_validation.json")))
+output_path = length(ARGS) >= 4 ? abspath(ARGS[end]) :
+    (length(ARGS) == 3 ? abspath(ARGS[3]) : joinpath(dirname(comparison_path), "bmopf_trace_truth_label_validation.json"))
 write_json(output_path, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-trace-truth-label-validation-v1",
     "status" => validation_passed ? "validated_with_explicit_unavailable" : "blocked",
@@ -242,6 +258,7 @@ write_json(output_path, Dict{String,Any}(
         "comparison_summary" => basename(comparison_path),
         "truth_ledger" => basename(ledger_path),
         "scope_comparison_summaries" => basename.(scope_comparison_paths),
+        "reviewed_truth_summary" => "real_99bus_phase_only_kkt_failure_summary.json",
     ),
     "readiness" => readiness,
     "case_count" => length(validated),

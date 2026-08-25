@@ -48,12 +48,12 @@ The truth-labelled trace gate is now implemented by
 fixtures are positive controls for the declared strict-complementarity
 failure; the positive-bound t13 fixtures are negative controls. Both LN and LG
 labels match the independent bound-regime ledger, and all four solver-trace
-pairs are available under the matched environment. A 99-bus LN snapshot is
-explicitly retained as an unavailable control because it was not collected;
-it is not converted into a zero-record result. The 99-bus LN t01 positive and
-t13 negative controls now both have paired traces and reviewed outcomes from
-the existing KKT-failure summary; t25 remains explicitly unavailable. This
-validates the case/trace join, not a solver score or causal explanation.
+pairs are available under the matched environment. The reviewed 99-bus LN/LG
+t01 positive and t13 negative controls now all have paired traces and reviewed
+outcomes from the existing KKT-failure summary. Both 99-bus t25 controls remain
+explicitly unavailable because they were not collected; they are not converted
+into zero-record or failed results. This validates the case/trace join, not a
+solver score or causal explanation.
 
 The latest bounded 30-bus IBR calibration sequence is complete through
 row-level derivative, scaling, bound-regime, and tolerance-margin audits. The
@@ -4899,8 +4899,8 @@ The held-out Ipopt-versus-MadNLP validation now passes all four gates on four
 cases; see `docs/bmopf_trace_policy_comparison_ipopt_madnlp_summary.json`.
 The telemetry crosswalk and truth-labelled positive/negative case set are now
 implemented and validated on the four-case LN/LG campaign plus reviewed
-99-bus t01 positive and t13 negative controls. The 99-bus t25 control remains
-explicitly unavailable. The next trace work is to expand reviewed truth labels
-to additional 99-bus LG/t25 cases while preserving the unavailable-vs-failed
-distinction; do not add another trace metric family before that evidence
-exists.
+99-bus LN/LG t01 positive and t13 negative controls. Both 99-bus t25 controls
+remain explicitly unavailable. The next trace work is to collect and review
+the t25 controls (or another pre-declared matrix extension) while preserving
+the unavailable-vs-failed distinction; do not add another trace metric family
+before that evidence exists.
