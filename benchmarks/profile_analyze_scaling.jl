@@ -6,7 +6,9 @@ This benchmark intentionally exercises the default, point-free public entry
 point on a cheap sparse model. It is a diagnostic-cost measurement, not a
 complexity proof or a solver benchmark. The result is kept separate from the
 existing sparse-kernel profile because backend timing alone does not establish
-the cost of the composed public API.
+the cost of the composed public API. The optional stage-attribution records
+time the major point-free stages independently on the same model snapshot.
+They are attribution evidence, not a replacement for the end-to-end measure.
 
 Usage:
 
@@ -72,8 +74,48 @@ function sparse_affine_chain_model(dimension::Int)
     return model
 end
 
-# Compile the public path once outside the measured records.
-NLPDiagnostics.analyze(sparse_affine_chain_model(first(dimensions)))
+function timed_stage(thunk::Function, stage::AbstractString)
+    timed = @timed thunk()
+    return Dict{String,Any}(
+        "stage" => stage,
+        "elapsed_seconds" => timed.time,
+        "allocated_bytes" => timed.bytes,
+    )
+end
+
+function stage_attribution(model::MOI.ModelLike)
+    model_snapshot = NLPDiagnostics.snapshot(model)
+    graph = NLPDiagnostics.incidence_graph(model_snapshot)
+    stages = Dict{String,Any}[]
+    push!(stages, timed_stage("snapshot") do
+        NLPDiagnostics.snapshot(model)
+    end)
+    push!(stages, timed_stage("incidence_graph") do
+        NLPDiagnostics.incidence_graph(model_snapshot)
+    end)
+    push!(stages, timed_stage("static") do
+        NLPDiagnostics.analyze_static(model_snapshot; graph = graph)
+    end)
+    push!(stages, timed_stage("domains") do
+        NLPDiagnostics.analyze_domains(model_snapshot)
+    end)
+    push!(stages, timed_stage("derivatives") do
+        NLPDiagnostics.analyze_derivatives(model_snapshot)
+    end)
+    push!(stages, timed_stage("expressions") do
+        NLPDiagnostics.analyze_expressions(model_snapshot)
+    end)
+    push!(stages, timed_stage("structural") do
+        NLPDiagnostics.analyze_structure(model_snapshot; graph = graph)
+    end)
+    return stages
+end
+
+# Compile the public path and attribution stages once outside the measured
+# records. The warm-up is discarded from the reported evidence.
+warmup_model = sparse_affine_chain_model(first(dimensions))
+NLPDiagnostics.analyze(warmup_model)
+stage_attribution(warmup_model)
 
 records = Dict{String,Any}[]
 for dimension in dimensions
@@ -100,12 +142,13 @@ for dimension in dimensions
         )),
         "finding_code_counts" => Dict(string(code) => count for (code, count) in counts),
         "limit_reached" => haskey(counts, :affine_interval_propagation_limit_reached),
+        "stage_attribution" => stage_attribution(model),
     ))
 end
 
 status_entries = git_status_entries()
 summary = Dict{String,Any}(
-    "schema_version" => "nlpdiagnostics-analyze-runtime-scaling-v1",
+    "schema_version" => "nlpdiagnostics-analyze-runtime-scaling-v2",
     "source" => Dict(
         "runner" => "benchmarks/profile_analyze_scaling.jl",
         "dimensions" => dimensions,
@@ -113,6 +156,15 @@ summary = Dict{String,Any}(
         "entry_point" => "NLPDiagnostics.analyze(model)",
         "point_supplied" => false,
         "repetitions" => 1,
+        "stage_attribution" => [
+            "snapshot",
+            "incidence_graph",
+            "static",
+            "domains",
+            "derivatives",
+            "expressions",
+            "structural",
+        ],
     ),
     "environment" => Dict(
         "julia_version" => string(VERSION),
@@ -131,7 +183,7 @@ summary = Dict{String,Any}(
             "OPF solver runtime or memory scaling",
             "causal attribution of any observed superlinear trend",
         ],
-        "follow_up" => "Profile stage-level costs, then optimize only after the dominant stages and evidence-preserving behavior are identified.",
+        "follow_up" => "Use stage attribution to identify a dominant cost, then optimize only after regression checks show evidence-preserving behavior.",
     ),
 )
 

@@ -36,6 +36,13 @@ api_testset_count = api_modules["testset_count_in_root"]
 api_script_count = api_modules["benchmark_script_count"]
 api_schema_count = api_schemas["json_schema_file_count"]
 api_helper_user_count = api_modules["shared_benchmark_helper_user_count"]
+analyze_stage_records = get(analyze_runtime_scaling["records"][end], "stage_attribution", Any[])
+analyze_stage_dominant = isempty(analyze_stage_records) ?
+    "unavailable" :
+    begin
+        dominant = argmax(item -> item["elapsed_seconds"], analyze_stage_records)
+        "$(dominant["stage"]) ($(round(dominant["elapsed_seconds"]; digits=3))s)"
+    end
 api_contract_missing_clause = isempty(api_contract_missing) ?
     "" : " (missing: $api_contract_missing)"
 api_contract_rationale =
@@ -103,7 +110,7 @@ gates = Dict{String,Any}[
     gate(
         "analyze_runtime_scaling",
         "partial",
-        "The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from $(round(analyze_runtime_scaling["records"][1]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][1]["dimension"]) to $(round(analyze_runtime_scaling["records"][end]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][end]["dimension"]), with affine propagation reaching its configured five-pass limit; stage attribution and evidence-preserving optimization remain open.",
+        "The public point-free analyze(model) entry point now has a bounded sparse affine-chain measurement. The observed cost grows from $(round(analyze_runtime_scaling["records"][1]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][1]["dimension"]) to $(round(analyze_runtime_scaling["records"][end]["elapsed_seconds"]; digits=3))s at dimension $(analyze_runtime_scaling["records"][end]["dimension"]), with affine propagation reaching its configured five-pass limit. Stage attribution is now recorded; the largest measured stage at the largest dimension is $analyze_stage_dominant. Evidence-preserving optimization remains open.",
         ["docs/analyze_runtime_scaling_summary.json"],
         blocking=true,
     ),

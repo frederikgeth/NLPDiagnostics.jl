@@ -74,6 +74,14 @@ calibration cases, complete physical KKT/covariance coverage on the real
 API/test consolidation, and the calibration release report. The next work
 should extend those gates rather than add another uncalibrated finding family.
 
+The `analyze(model)` scaling gate now includes bounded stage attribution in
+`docs/analyze_runtime_scaling_summary.json`. The existing end-to-end runtime
+and allocation records are unchanged, while snapshot, incidence, static,
+domain, derivative, expression, and structural stages are measured separately
+on the same sparse affine-chain fixtures. This identifies where optimization
+work should begin without changing the public API or promoting a portable
+complexity law; evidence-preserving optimization remains the next step.
+
 The latest consolidation increment adds
 `benchmarks/build_calibration_release_report.jl`, which renders the
 machine-readable release-gate ledger into

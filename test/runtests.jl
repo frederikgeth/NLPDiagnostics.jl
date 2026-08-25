@@ -2130,6 +2130,24 @@ end
         String,
     )
     @test occursin("combined_mv_lv_scaling_start_robustness", release_gate_builder)
+    analyze_scaling_script = read(
+        joinpath(benchmark_directory, "profile_analyze_scaling.jl"),
+        String,
+    )
+    @test occursin("stage_attribution", analyze_scaling_script)
+    @test occursin("analyze_static", analyze_scaling_script)
+    analyze_scaling_summary = read(
+        joinpath(repository_root, "docs", "analyze_runtime_scaling_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-analyze-runtime-scaling-v2", analyze_scaling_summary)
+    @test occursin("\"stage_attribution\"", analyze_scaling_summary)
+    @test occursin("\"static\"", analyze_scaling_summary)
+    @test occursin("\"expressions\"", analyze_scaling_summary)
+    @test occursin("Stage attribution is now recorded", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     consolidation_summary = read(
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
