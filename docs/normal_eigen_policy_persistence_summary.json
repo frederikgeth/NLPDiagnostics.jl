@@ -44,8 +44,8 @@
   "cross_backend_disagreement_count": 1,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "c96bcdbbb611911e1f1ce88a412cd7569342fd47",
-    "git_worktree_dirty": true,
+    "git_revision": "a93e260d3a87bdea6f65b0c01769142e1fbfdcdf",
+    "git_worktree_dirty": false,
     "julia_version": "1.12.6"
   },
   "interpretation": "Same-point repeatability and policy comparisons are finite numerical evidence. Rank changes across scaling policies or disagreements with dense/QR are retained as policy sensitivity, not resolved by preference.",
