@@ -5,15 +5,15 @@
     "si": 50
   },
   "environment": {
-    "git_revision": "627fa56d094a1f2a0204a2c8431f24797f2b56ed",
+    "git_revision": "dfa27fbd1243d6f26a5f2adf8f59e87fcf5b0db5",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": "This inventory describes source-file readiness and campaign coverage only. Unprofiled endpoints require the BMOPFTools bridge and guarded sparse-rank workflow before numerical conclusions are drawn.",
-  "profiled_endpoint_count": 38,
+  "profiled_endpoint_count": 46,
   "profiled_unit_counts": {
-    "pu": 19,
-    "si": 19
+    "pu": 23,
+    "si": 23
   },
   "records": [
     {
@@ -169,11 +169,11 @@
         "si",
         "pu"
       ],
-      "missing_profile_units": [
+      "missing_profile_units": [],
+      "profiled_result_units": [
         "pu",
         "si"
       ],
-      "profiled_result_units": [],
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t13_1400.bmopf.json"
     },
     {
@@ -181,11 +181,11 @@
         "si",
         "pu"
       ],
-      "missing_profile_units": [
+      "missing_profile_units": [],
+      "profiled_result_units": [
         "pu",
         "si"
       ],
-      "profiled_result_units": [],
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t14_1430.bmopf.json"
     },
     {
@@ -471,11 +471,11 @@
         "si",
         "pu"
       ],
-      "missing_profile_units": [
+      "missing_profile_units": [],
+      "profiled_result_units": [
         "pu",
         "si"
       ],
-      "profiled_result_units": [],
       "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t13_1400.bmopf.json"
     },
     {
@@ -483,11 +483,11 @@
         "si",
         "pu"
       ],
-      "missing_profile_units": [
+      "missing_profile_units": [],
+      "profiled_result_units": [
         "pu",
         "si"
       ],
-      "profiled_result_units": [],
       "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t14_1430.bmopf.json"
     },
     {
@@ -634,5 +634,5 @@
     ],
     "runner": "benchmarks/summarize_bmopf_538bus_saved_result_time_coverage.jl"
   },
-  "unprofiled_endpoint_count": 62
+  "unprofiled_endpoint_count": 54
 }

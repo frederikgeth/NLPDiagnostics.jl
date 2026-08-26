@@ -29,7 +29,7 @@
         "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Extend the balanced 538-bus PU/SI sweep to t13/t14 transformer-chain snapshots and compare span persistence.",
+      "next_deliverable": "Investigate the reproduced LN SI rank delta at t13/t14, then extend the balanced 538-bus PU/SI sweep to t15/t16.",
       "priority": 1,
       "status": "partial"
     },
@@ -119,8 +119,8 @@
   "all_blocking_gates_mapped": true,
   "blocking_gate_count": 5,
   "environment": {
-    "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "627fa56d094a1f2a0204a2c8431f24797f2b56ed",
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "dfa27fbd1243d6f26a5f2adf8f59e87fcf5b0db5",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

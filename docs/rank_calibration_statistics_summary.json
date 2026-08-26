@@ -70,8 +70,8 @@
     }
   },
   "environment": {
-    "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "627fa56d094a1f2a0204a2c8431f24797f2b56ed",
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "dfa27fbd1243d6f26a5f2adf8f59e87fcf5b0db5",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -187,17 +187,17 @@
     "unavailable_count": 0
   },
   "saved_result_bmopf_campaign": {
-    "all_point_provenance_complete": true,
+    "all_point_provenance_complete": false,
     "all_sparse_estimates_available": true,
     "artifact": "docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
-    "interpretation": "Saved-result sparse-only screening across 99-bus LN/LG and 538-bus LN/LG endpoints is provenance-complete and scaling-stable in both SI and PU result representations; dense rank remains guarded.",
-    "record_count": 40,
+    "interpretation": "Saved-result sparse-only screening across 99-bus LN/LG and 538-bus LN/LG endpoints is not fully provenance-complete, with 2 scaling-sensitive and 46 scaling-stable records across SI and PU result representations; dense rank remains guarded.",
+    "record_count": 48,
     "result_units": [
       "pu",
       "si"
     ],
-    "scaling_sensitive_count": 0,
-    "scaling_stable_count": 40
+    "scaling_sensitive_count": 2,
+    "scaling_stable_count": 46
   },
   "schema_version": "nlpdiagnostics-rank-calibration-statistics-v2",
   "source": {

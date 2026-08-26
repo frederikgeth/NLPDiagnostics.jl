@@ -1,63 +1,63 @@
 {
-  "all_point_provenance_complete": true,
+  "all_point_provenance_complete": false,
   "all_sparse_estimates_available": true,
   "endpoint_span_diagnostics": {
     "by_result_units": {
       "pu": {
-        "record_count": 19,
+        "record_count": 23,
         "spans": {
           "condition_proxy_ratio_row_column_over_unscaled": {
             "available": true,
-            "count": 19,
+            "count": 23,
             "max": 9.958759490802882e-8,
             "min": 4.460218229167133e-8,
             "range": 5.498541261635749e-8
           },
           "rank_delta": {
             "available": true,
-            "count": 19,
+            "count": 23,
             "max": 0,
             "min": 0,
             "range": 0
           },
           "row_column_condition_proxy": {
             "available": true,
-            "count": 19,
-            "max": 145.77180897906416,
+            "count": 23,
+            "max": 145.8470273150178,
             "min": 92.22121181007161,
-            "range": 53.55059716899255
+            "range": 53.6258155049462
           },
           "row_column_fill_ratio": {
             "available": true,
-            "count": 19,
+            "count": 23,
             "max": 2.754274028629857,
-            "min": 2.7487934560327196,
-            "range": 0.00548057259713719
+            "min": 2.748711656441718,
+            "range": 0.00556237218813882
           },
           "row_column_rank": {
             "available": true,
-            "count": 19,
+            "count": 23,
             "max": 11028,
             "min": 11028,
             "range": 0
           },
           "unscaled_condition_proxy": {
             "available": true,
-            "count": 19,
+            "count": 23,
             "max": 3.0318751492651615e9,
             "min": 1.1925217693796453e9,
             "range": 1.8393533798855162e9
           },
           "unscaled_fill_ratio": {
             "available": true,
-            "count": 19,
+            "count": 23,
             "max": 2.756359918200409,
-            "min": 2.7515610088616222,
-            "range": 0.004798909338786572
+            "min": 2.751397409679618,
+            "range": 0.0049625085207907205
           },
           "unscaled_rank": {
             "available": true,
-            "count": 19,
+            "count": 23,
             "max": 11028,
             "min": 11028,
             "range": 0
@@ -65,60 +65,60 @@
         }
       },
       "si": {
-        "record_count": 21,
+        "record_count": 25,
         "spans": {
           "condition_proxy_ratio_row_column_over_unscaled": {
             "available": true,
-            "count": 21,
-            "max": 0.6605745353872104,
+            "count": 25,
+            "max": 4.1701009522473695,
             "min": 0.005151928541750479,
-            "range": 0.6554226068454599
+            "range": 4.164949023705619
           },
           "rank_delta": {
             "available": true,
-            "count": 21,
-            "max": 0,
+            "count": 25,
+            "max": 1,
             "min": 0,
-            "range": 0
+            "range": 1
           },
           "row_column_condition_proxy": {
             "available": true,
-            "count": 21,
-            "max": 59.01730650969418,
+            "count": 25,
+            "max": 8.433559249217729e9,
             "min": 20.032202483740097,
-            "range": 38.98510402595409
+            "range": 8.433559229185526e9
           },
           "row_column_fill_ratio": {
             "available": true,
-            "count": 21,
+            "count": 25,
             "max": 2.7775732788002725,
-            "min": 1.9868073878627968,
-            "range": 0.7907658909374757
+            "min": 1.6375460122699386,
+            "range": 1.140027266530334
           },
           "row_column_rank": {
             "available": true,
-            "count": 21,
+            "count": 25,
             "max": 11028,
             "min": 1968,
             "range": 9060
           },
           "unscaled_condition_proxy": {
             "available": true,
-            "count": 21,
-            "max": 3896.632245052683,
+            "count": 25,
+            "max": 2.0223873104733057e9,
             "min": 37.63865630830442,
-            "range": 3858.993588744379
+            "range": 2.0223872728346493e9
           },
           "unscaled_fill_ratio": {
             "available": true,
-            "count": 21,
-            "max": 2.776564417177914,
-            "min": 1.9844792798385844,
-            "range": 0.7920851373393296
+            "count": 25,
+            "max": 2.776659850034083,
+            "min": 1.6195773687798227,
+            "range": 1.1570824812542604
           },
           "unscaled_rank": {
             "available": true,
-            "count": 21,
+            "count": 25,
             "max": 11028,
             "min": 1968,
             "range": 9060
@@ -130,56 +130,56 @@
     "overall": {
       "condition_proxy_ratio_row_column_over_unscaled": {
         "available": true,
-        "count": 40,
-        "max": 0.6605745353872104,
+        "count": 48,
+        "max": 4.1701009522473695,
         "min": 4.460218229167133e-8,
-        "range": 0.6605744907850282
+        "range": 4.170100907645187
       },
       "rank_delta": {
         "available": true,
-        "count": 40,
-        "max": 0,
+        "count": 48,
+        "max": 1,
         "min": 0,
-        "range": 0
+        "range": 1
       },
       "row_column_condition_proxy": {
         "available": true,
-        "count": 40,
-        "max": 145.77180897906416,
+        "count": 48,
+        "max": 8.433559249217729e9,
         "min": 20.032202483740097,
-        "range": 125.73960649532407
+        "range": 8.433559229185526e9
       },
       "row_column_fill_ratio": {
         "available": true,
-        "count": 40,
+        "count": 48,
         "max": 2.7775732788002725,
-        "min": 1.9868073878627968,
-        "range": 0.7907658909374757
+        "min": 1.6375460122699386,
+        "range": 1.140027266530334
       },
       "row_column_rank": {
         "available": true,
-        "count": 40,
+        "count": 48,
         "max": 11028,
         "min": 1968,
         "range": 9060
       },
       "unscaled_condition_proxy": {
         "available": true,
-        "count": 40,
+        "count": 48,
         "max": 3.0318751492651615e9,
         "min": 37.63865630830442,
         "range": 3.0318751116265054e9
       },
       "unscaled_fill_ratio": {
         "available": true,
-        "count": 40,
-        "max": 2.776564417177914,
-        "min": 1.9844792798385844,
-        "range": 0.7920851373393296
+        "count": 48,
+        "max": 2.776659850034083,
+        "min": 1.6195773687798227,
+        "range": 1.1570824812542604
       },
       "unscaled_rank": {
         "available": true,
-        "count": 40,
+        "count": 48,
         "max": 11028,
         "min": 1968,
         "range": 9060
@@ -187,12 +187,12 @@
     }
   },
   "environment": {
-    "git_revision": "627fa56d094a1f2a0204a2c8431f24797f2b56ed",
+    "git_revision": "dfa27fbd1243d6f26a5f2adf8f59e87fcf5b0db5",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": "Saved solver-result points provide sparse-only rank evidence with explicit provenance. Dense rank remains guarded; rank stability is local numerical evidence and not a physical gauge or universal policy certificate.",
-  "record_count": 40,
+  "record_count": 48,
   "records": [
     {
       "condition_proxy_ratio_row_column_over_unscaled": 0.13595325181532195,
@@ -1073,14 +1073,190 @@
       "unscaled_condition_proxy": 3507.9795694151676,
       "unscaled_fill_ratio": 2.776468984321745,
       "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.464478550522801e-8,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 128.7319062522196,
+      "row_column_fill_ratio": 2.749297886843899,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t13_1400.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 2.883470147642322e9,
+      "unscaled_fill_ratio": 2.7516973415132924,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.814969141258369e-8,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 145.8470273150178,
+      "row_column_fill_ratio": 2.748984321745058,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t13_1400.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 3.0290334794731708e9,
+      "unscaled_fill_ratio": 2.7519836400817996,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.481269829528276e-8,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 128.93037412424567,
+      "row_column_fill_ratio": 2.7498295841854126,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t14_1430.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 2.8770946412262263e9,
+      "unscaled_fill_ratio": 2.7525562372188137,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.825356231755284e-8,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 145.72205298573056,
+      "row_column_fill_ratio": 2.748711656441718,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t14_1430.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 3.0199232136841083e9,
+      "unscaled_fill_ratio": 2.751397409679618,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.1701009522473695,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": false,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 1,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 8.433559249217729e9,
+      "row_column_fill_ratio": 1.6375460122699386,
+      "row_column_rank": 9850,
+      "scaling_sensitive": true,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t13_1400.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 2.0223873104733057e9,
+      "unscaled_fill_ratio": 1.6195773687798227,
+      "unscaled_rank": 9849
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.005720684120044514,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 20.048880076984876,
+      "row_column_fill_ratio": 2.776523517382413,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t13_1400.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 3504.629805854212,
+      "unscaled_fill_ratio": 2.776182685753238,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.1701009522473695,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": false,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 1,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 8.433559249217729e9,
+      "row_column_fill_ratio": 1.6375460122699386,
+      "row_column_rank": 9850,
+      "scaling_sensitive": true,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t14_1430.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 2.0223873104733057e9,
+      "unscaled_fill_ratio": 1.6195773687798227,
+      "unscaled_rank": 9849
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.00571015267334086,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 20.051483923465717,
+      "row_column_fill_ratio": 2.7762781186094068,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t14_1430.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 3511.5495277526657,
+      "unscaled_fill_ratio": 2.776659850034083,
+      "unscaled_rank": 11028
     }
   ],
   "result_units": [
     "pu",
     "si"
   ],
-  "scaling_sensitive_count": 0,
-  "scaling_stable_count": 40,
+  "scaling_sensitive_count": 2,
+  "scaling_stable_count": 46,
   "schema_version": "nlpdiagnostics-bmopf-saved-result-sparse-rank-campaign-v1",
   "source": {
     "dense_policy": "disabled by explicit work guard",
@@ -1124,7 +1300,15 @@
       "/private/tmp/nlpdiag_sparse538_t11t12_si/538_ln_t11_summary.json",
       "/private/tmp/nlpdiag_sparse538_t11t12_si/538_lg_t11_summary.json",
       "/private/tmp/nlpdiag_sparse538_t11t12_si/538_ln_t12_summary.json",
-      "/private/tmp/nlpdiag_sparse538_t11t12_si/538_lg_t12_summary.json"
+      "/private/tmp/nlpdiag_sparse538_t11t12_si/538_lg_t12_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t13t14_pu/538_ln_t13_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t13t14_pu/538_lg_t13_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t13t14_pu/538_ln_t14_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t13t14_pu/538_lg_t14_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t13t14_si/538_ln_t13_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t13t14_si/538_lg_t13_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t13t14_si/538_ln_t14_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t13t14_si/538_lg_t14_summary.json"
     ],
     "point_policy": "saved_result",
     "runner": "benchmarks/bmopf_draft_corpus.jl",
