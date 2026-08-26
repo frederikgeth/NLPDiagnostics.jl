@@ -5657,3 +5657,12 @@ contains 64 records (61 stable, 3 sensitive), with 62 of 100 538-bus endpoints
 profiled. The pattern is intermittent across snapshots, so the next
 deliverable is a t19/t20 repeat to determine whether the mapping gap tracks
 the saved-result source rather than voltage level or fault family.
+
+## 2026-08-26 t19/t20 balanced sweep
+
+The t19/t20 LN/LG PU/SI batch adds eight endpoints with rank 11,028 under
+both sparse-QR policies. All four SI records are provenance-complete, so the
+mapping gap does not recur in this pair. The campaign now contains 72 records
+(69 stable, 3 historical LN/SI-sensitive), with 70 of 100 538-bus endpoints
+profiled. The next deliverable is t21/t22 to verify that complete SI mapping
+coverage persists through the remaining time range.
