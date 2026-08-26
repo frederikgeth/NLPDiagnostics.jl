@@ -31,7 +31,7 @@
         "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Extend the balanced 538-bus PU/SI sweep to t17/t18 and verify that LN SI provenance remains complete after the t13/t14 anomaly.",
+      "next_deliverable": "Extend the balanced 538-bus PU/SI sweep to t19/t20 and test whether the intermittent LN SI mapping gap recurs.",
       "priority": 1,
       "status": "partial"
     },
@@ -122,7 +122,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "7e980d0b4ec4024f5322c37e51f56f80b9dc14e8",
+    "git_revision": "cb9111c8094f92b3862139ab3b50db094a598d33",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
