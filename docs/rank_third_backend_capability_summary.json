@@ -1,5 +1,7 @@
 {
-  "adapter_status": "not_registered",
+  "adapter_status": "registered_internal_normal_eigen",
+  "campaign_artifact": "docs/normal_eigen_rank_calibration_summary.json",
+  "campaign_valid": true,
   "candidate_packages": [
     {
       "adapter_registered": false,
@@ -39,22 +41,23 @@
   ],
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "2b81f78c41caa29ab345e6cede88c0e2844d0851",
+    "git_revision": "e980910a82098ce40216ff4287e7ee349bb78ee4",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {
-    "claim": "The known environment has an explicit capability result for the third rank backend; no third-backend evidence is currently available.",
+    "claim": "The known environment has an explicit reviewed internal normal-eigen adapter and bounded calibration evidence.",
     "does_not_establish": [
       "that candidate packages are unsuitable in every environment",
       "a universal rank error bound",
       "release readiness"
     ]
   },
-  "reason": "No reviewed third-backend adapter is registered in the known environment.",
-  "registered_backend": null,
+  "reason": "The reviewed internal normal-eigen adapter is available for bounded cross-backend calibration; its squared-spectrum limitation remains explicit.",
+  "registered_backend": "normal_eigen",
   "schema_version": "nlpdiagnostics-rank-third-backend-capability-v1",
   "source": {
+    "campaign_artifact": "docs/normal_eigen_rank_calibration_summary.json",
     "candidate_packages": [
       "Arpack",
       "ArnoldiMethod",
@@ -66,6 +69,6 @@
     "registration_environment_variable": "NLPDIAGNOSTICS_RANK_THIRD_BACKEND",
     "runner": "benchmarks/validate_rank_third_backend.jl"
   },
-  "status": "unavailable",
-  "vetted_backend_count": 0
+  "status": "available_for_calibration",
+  "vetted_backend_count": 1
 }

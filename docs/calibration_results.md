@@ -4,6 +4,18 @@ This document records bounded empirical results that have passed the current
 artifact/readiness checks. It is not a leaderboard and does not convert local
 solver behavior into a physical diagnosis.
 
+## 2026-08-26: reviewed normal-eigen third-backend calibration
+
+`RankPolicy(backend = :normal_eigen)` now provides a guarded third numerical
+rank path for calibration. The six-record campaign in
+`docs/normal_eigen_rank_calibration_summary.json` has four exact hard controls
+with zero mismatches and one expected threshold disagreement caused by the
+normal-equations squared spectrum. The adapter is therefore available for
+bounded cross-checks, but is not a production default or a universal rank
+certificate. Expansion to randomized, clustered-spectrum, and representative
+sparse cases remains required before the numerical-rank release gate can
+close.
+
 ## 2026-08-23: typed BMOPFTools capability boundaries
 
 The BMOPFTools terminal-current, passive-network map, and terminal-attachment

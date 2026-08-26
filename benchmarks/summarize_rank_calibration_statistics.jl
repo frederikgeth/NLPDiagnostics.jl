@@ -19,12 +19,14 @@ const LARGE_SPARSE_ARTIFACT = "docs/large_sparse_rank_oracle_summary.json"
 const PERTURBATION_ARTIFACT = "docs/rank_perturbation_sweep_summary.json"
 const ADVERSARIAL_EXTENSION_ARTIFACT = "docs/rank_adversarial_extension_summary.json"
 const THIRD_BACKEND_ARTIFACT = "docs/rank_third_backend_capability_summary.json"
+const NORMAL_EIGEN_ARTIFACT = "docs/normal_eigen_rank_calibration_summary.json"
 
 seeded = read_summary(SEEDED_ARTIFACT)
 large_sparse = read_summary(LARGE_SPARSE_ARTIFACT)
 perturbation = read_summary(PERTURBATION_ARTIFACT)
 adversarial_extension = read_summary(ADVERSARIAL_EXTENSION_ARTIFACT)
 third_backend = read_summary(THIRD_BACKEND_ARTIFACT)
+normal_eigen = read_summary(NORMAL_EIGEN_ARTIFACT)
 seeded_hard = get(seeded, "hard_controls", Dict{String,Any}())
 seeded_threshold = get(seeded, "threshold_controls", Dict{String,Any}())
 large_by_case = get(large_sparse, "by_case", Dict{String,Any}())
@@ -133,6 +135,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "perturbation_artifact" => PERTURBATION_ARTIFACT,
         "adversarial_extension_artifact" => ADVERSARIAL_EXTENSION_ARTIFACT,
         "third_backend_artifact" => THIRD_BACKEND_ARTIFACT,
+        "normal_eigen_artifact" => NORMAL_EIGEN_ARTIFACT,
         "policy" => "Declared hard controls are counted for false-positive/false-negative statistics; threshold-sensitive controls remain disagreement evidence; dense-unavailable large sparse records are sparse-only coverage.",
     ),
     "environment" => Dict(
@@ -222,6 +225,16 @@ write_json(OUTPUT, Dict{String,Any}(
         "reason" => get(third_backend, "reason", "capability artifact missing"),
         "artifact" => THIRD_BACKEND_ARTIFACT,
         "interpretation" => "Capability evidence is kept separate from dense/sparse calibration results; package discovery does not count as vetted backend evidence.",
+    ),
+    "normal_eigen_calibration" => Dict(
+        "status" => get(normal_eigen, "hard_controls_complete", false) ? "complete" : "partial",
+        "record_count" => get(normal_eigen, "record_count", 0),
+        "hard_control_count" => get(normal_eigen, "hard_control_count", 0),
+        "hard_control_mismatch_count" => get(normal_eigen, "hard_control_mismatch_count", 0),
+        "threshold_sensitive_count" => get(normal_eigen, "threshold_sensitive_count", 0),
+        "threshold_backend_disagreement_count" => get(normal_eigen, "threshold_backend_disagreement_count", 0),
+        "artifact" => NORMAL_EIGEN_ARTIFACT,
+        "interpretation" => "The normal-eigen path is an experimental third backend; its squared-spectrum disagreements are retained as tolerance evidence and do not establish a production rank policy.",
     ),
     "large_sparse_sparse_only" => Dict(
         "record_count" => large_sparse_records,

@@ -71,7 +71,7 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "2b81f78c41caa29ab345e6cede88c0e2844d0851",
+    "git_revision": "e980910a82098ce40216ff4287e7ee349bb78ee4",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -135,10 +135,21 @@
     "sparse_mismatch_count": 0,
     "sparse_unavailable_count": 0
   },
+  "normal_eigen_calibration": {
+    "artifact": "docs/normal_eigen_rank_calibration_summary.json",
+    "hard_control_count": 4,
+    "hard_control_mismatch_count": 0,
+    "interpretation": "The normal-eigen path is an experimental third backend; its squared-spectrum disagreements are retained as tolerance evidence and do not establish a production rank policy.",
+    "record_count": 6,
+    "status": "complete",
+    "threshold_backend_disagreement_count": 1,
+    "threshold_sensitive_count": 2
+  },
   "schema_version": "nlpdiagnostics-rank-calibration-statistics-v2",
   "source": {
     "adversarial_extension_artifact": "docs/rank_adversarial_extension_summary.json",
     "large_sparse_artifact": "docs/large_sparse_rank_oracle_summary.json",
+    "normal_eigen_artifact": "docs/normal_eigen_rank_calibration_summary.json",
     "perturbation_artifact": "docs/rank_perturbation_sweep_summary.json",
     "policy": "Declared hard controls are counted for false-positive/false-negative statistics; threshold-sensitive controls remain disagreement evidence; dense-unavailable large sparse records are sparse-only coverage.",
     "runner": "benchmarks/summarize_rank_calibration_statistics.jl",
@@ -146,12 +157,12 @@
     "third_backend_artifact": "docs/rank_third_backend_capability_summary.json"
   },
   "third_backend_capability": {
-    "adapter_status": "not_registered",
+    "adapter_status": "registered_internal_normal_eigen",
     "artifact": "docs/rank_third_backend_capability_summary.json",
     "interpretation": "Capability evidence is kept separate from dense/sparse calibration results; package discovery does not count as vetted backend evidence.",
-    "reason": "No reviewed third-backend adapter is registered in the known environment.",
-    "status": "unavailable",
-    "vetted_backend_count": 0
+    "reason": "The reviewed internal normal-eigen adapter is available for bounded cross-backend calibration; its squared-spectrum limitation remains explicit.",
+    "status": "available_for_calibration",
+    "vetted_backend_count": 1
   },
   "threshold_sensitive_controls": {
     "backend_agreement_count": 17,

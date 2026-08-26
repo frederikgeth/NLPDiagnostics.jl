@@ -291,8 +291,8 @@ function RankPolicy(
     compute_vectors::Bool = true,
     provenance::Symbol = :user,
 ) where {T<:AbstractFloat}
-    backend in (:dense_svd, :sparse_qr) ||
-        throw(ArgumentError("backend must be :dense_svd or :sparse_qr"))
+    backend in (:dense_svd, :sparse_qr, :normal_eigen) ||
+        throw(ArgumentError("backend must be :dense_svd, :sparse_qr, or :normal_eigen"))
     scaling in (:none, :row, :column, :row_column) ||
         throw(ArgumentError("scaling must be :none, :row, :column, or :row_column"))
     matrix_norm in (:frobenius, :one, :infinity) ||
@@ -312,10 +312,13 @@ function RankPolicy(
 end
 
 """
-A guarded dense-SVD estimate of local Jacobian rank.
+A guarded local Jacobian rank estimate.
 
 `left_nullspace` and `right_nullspace` are expressed in the original
-constraint and variable coordinates, even when the SVD used diagonal scaling.
+constraint and variable coordinates, even when the backend used diagonal
+scaling. The `:normal_eigen` backend is experimental and forms a symmetric
+normal-equations Gram matrix, so its squared-spectrum limitation is part of
+its provenance rather than a production guarantee.
 """
 struct JacobianRankEstimate{T<:AbstractFloat}
     available::Bool

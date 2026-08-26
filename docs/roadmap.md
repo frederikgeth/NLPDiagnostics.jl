@@ -5271,6 +5271,18 @@ unavailable outcomes. The current finite dense-SVD/SuiteSparse-QR evidence is
 unchanged; no release threshold or universal rank claim is inferred from the
 capability result.
 
+The reviewed internal normal-eigen adapter is now implemented behind
+`RankPolicy(backend = :normal_eigen)` and exercised by
+`benchmarks/calibrate_normal_eigen_rank_backend.jl`. Its six-record calibration
+has four exact hard controls with zero mismatches and one expected
+squared-spectrum threshold disagreement; the capability validator reports
+`available_for_calibration`. This is an independent bounded cross-check, not a
+default rank policy: forming `J'J` squares the condition number and can erase
+small singular values. The rank gate therefore advances from “no adapter” to
+“third backend available, corpus expansion required”; randomized,
+clustered-spectrum, and representative sparse cases remain the next numerical
+deliverable.
+
 ## 2026-08-26 real-99-bus KKT ledger validation checkpoint
 
 The saved real-99-bus KKT evidence now has a cross-artifact validator,

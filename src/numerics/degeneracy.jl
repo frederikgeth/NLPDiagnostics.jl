@@ -2849,6 +2849,7 @@ function jacobian_rank_estimate(
     evaluation::NumericalEvaluation{T},
     policy::RankPolicy{T},
 ) where {T<:AbstractFloat}
+    policy.backend == :normal_eigen && return _normal_eigen_rank_estimate(evaluation, policy)
     policy.backend == :dense_svd ||
         throw(ArgumentError("jacobian_rank_estimate requires a :dense_svd RankPolicy"))
     rows = length(evaluation.constraint_sources)
@@ -2958,6 +2959,106 @@ function jacobian_rank_estimate(
         row_scaling,
         column_scaling,
         left_nullspace,
+        right_nullspace,
+    )
+end
+
+"""
+    _normal_eigen_rank_estimate(evaluation, policy)
+
+Experimental third rank backend based on the symmetric normal equations.  The
+smallest eigenvalues of the scaled Gram matrix are square-rooted and compared
+with the same explicit rank threshold as the dense-SVD backend.  This is an
+independent algebraic path for calibration, but squaring the condition number
+can erase small singular values; it must not be treated as a production oracle.
+"""
+function _normal_eigen_rank_estimate(
+    evaluation::NumericalEvaluation{T},
+    policy::RankPolicy{T},
+) where {T<:AbstractFloat}
+    rows = length(evaluation.constraint_sources)
+    columns = length(evaluation.point.variables)
+    rows * columns <= policy.max_dense_entries || return _unavailable_rank_estimate(
+        evaluation, policy,
+        "normal-equations Jacobian would contain $(rows * columns) entries, exceeding guard $(policy.max_dense_entries)",
+    )
+    incomplete_rows = findall(
+        method -> method in _JACOBIAN_INCOMPLETE_METHODS,
+        evaluation.jacobian_row_methods,
+    )
+    isempty(incomplete_rows) || return _unavailable_rank_estimate(
+        evaluation, policy,
+        "Jacobian rows $(join(incomplete_rows, ',')) are incomplete",
+    )
+    matrix = _combined_jacobian_matrix(evaluation)
+    all(isfinite, matrix) || return _unavailable_rank_estimate(
+        evaluation, policy, "Jacobian contains non-finite combined entries",
+    )
+    intervention = _jacobian_diagonal_scaling(matrix, policy.scaling)
+    scaled = intervention.matrix
+    row_scaling = intervention.row_scaling
+    column_scaling = intervention.column_scaling
+    if iszero(rows) || iszero(columns)
+        right_nullspace = policy.compute_vectors && iszero(rows) ?
+            Matrix{T}(I, columns, columns) : zeros(T, columns, 0)
+        left_nullspace = policy.compute_vectors && iszero(columns) ?
+            Matrix{T}(I, rows, rows) : zeros(T, rows, 0)
+        return JacobianRankEstimate{T}(
+            true, nothing, evaluation.point, policy, :normal_eigen,
+            policy.scaling, rows, columns, 0, rows, columns, T[],
+            policy.relative_tolerance, policy.absolute_tolerance, nothing,
+            row_scaling, column_scaling, left_nullspace, right_nullspace,
+        )
+    end
+
+    # Use the smaller Gram matrix for the rank spectrum and form the other
+    # side only when vectors are explicitly requested.
+    right_gram = Symmetric(transpose(scaled) * scaled)
+    right_factor = eigen(right_gram)
+    raw_right_values = T.(right_factor.values)
+    # Forming J'J introduces an O(eps * ||J||²) floor.  Clamp only that
+    # roundoff band so exact rectangular nullity is not reported as a tiny
+    # positive singular direction.
+    gram_scale = maximum(abs, raw_right_values; init = zero(T))
+    gram_floor = eps(T) * max(gram_scale, one(T)) * max(rows, columns) * 10
+    right_values = T[
+        value <= gram_floor ? zero(T) : max(value, zero(T))
+        for value in raw_right_values
+    ]
+    singular_values = sort!(sqrt.(right_values); rev = true)
+    threshold = max(
+        policy.absolute_tolerance,
+        policy.relative_tolerance * maximum(singular_values; init = zero(T)),
+    )
+    estimated_rank = count(value -> value > threshold, singular_values)
+    left_nullity = rows - estimated_rank
+    right_nullity = columns - estimated_rank
+    condition_estimate = if estimated_rank < min(rows, columns)
+        T(Inf)
+    elseif isempty(singular_values) || iszero(last(singular_values))
+        T(Inf)
+    else
+        first(singular_values) / last(singular_values)
+    end
+    left_nullspace = zeros(T, rows, 0)
+    right_nullspace = zeros(T, columns, 0)
+    if policy.compute_vectors
+        # Eigenvectors are returned in ascending eigenvalue order.  Map the
+        # scaled right nullspace back to original coordinates and normalize.
+        right_nullspace = Diagonal(column_scaling) *
+            Matrix(right_factor.vectors[:, 1:right_nullity])
+        _normalized_columns(right_nullspace)
+        left_gram = Symmetric(scaled * transpose(scaled))
+        left_factor = eigen(left_gram)
+        left_nullspace = Diagonal(row_scaling) *
+            Matrix(left_factor.vectors[:, 1:left_nullity])
+        _normalized_columns(left_nullspace)
+    end
+    return JacobianRankEstimate{T}(
+        true, nothing, evaluation.point, policy, :normal_eigen,
+        policy.scaling, rows, columns, estimated_rank, left_nullity,
+        right_nullity, singular_values, policy.relative_tolerance, threshold,
+        condition_estimate, row_scaling, column_scaling, left_nullspace,
         right_nullspace,
     )
 end

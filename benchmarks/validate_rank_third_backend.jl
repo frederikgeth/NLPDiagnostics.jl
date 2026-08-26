@@ -14,6 +14,7 @@ using .NLPDiagnosticsBenchmarkCommon
 const ROOT = repo_root()
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "rank_third_backend_capability_summary.json") : ARGS[1])
+const CAMPAIGN_ARTIFACT = "docs/normal_eigen_rank_calibration_summary.json"
 
 const CANDIDATE_PACKAGES = [
     "Arpack",
@@ -39,10 +40,23 @@ end
 
 probes = [probe_package(name) for name in CANDIDATE_PACKAGES]
 registered = get(ENV, "NLPDIAGNOSTICS_RANK_THIRD_BACKEND", "")
-status = "unavailable"
-reason = isempty(registered) ?
-    "No reviewed third-backend adapter is registered in the known environment." :
-    "Requested third backend '$registered' has no reviewed adapter in this checkout."
+campaign = try
+    read_summary(CAMPAIGN_ARTIFACT)
+catch
+    Dict{String,Any}()
+end
+campaign_valid = get(campaign, "schema_version", "") ==
+    "nlpdiagnostics-normal-eigen-rank-calibration-v1" &&
+    get(campaign, "backend", "") == "normal_eigen" &&
+    get(campaign, "hard_controls_complete", false) == true
+adapter_registered = campaign_valid && (isempty(registered) || registered == "normal_eigen")
+status = adapter_registered ? "available_for_calibration" : "unavailable"
+adapter_status = adapter_registered ? "registered_internal_normal_eigen" : "not_registered"
+reason = adapter_registered ?
+    "The reviewed internal normal-eigen adapter is available for bounded cross-backend calibration; its squared-spectrum limitation remains explicit." :
+    (isempty(registered) ?
+        "No reviewed third-backend adapter is registered in the known environment." :
+        "Requested third backend '$registered' has no reviewed adapter in this checkout.")
 status_entries = git_status_entries()
 
 write_json(OUTPUT, Dict{String,Any}(
@@ -51,6 +65,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "runner" => "benchmarks/validate_rank_third_backend.jl",
         "candidate_packages" => CANDIDATE_PACKAGES,
         "registration_environment_variable" => "NLPDIAGNOSTICS_RANK_THIRD_BACKEND",
+        "campaign_artifact" => CAMPAIGN_ARTIFACT,
         "policy" => "A package is not promoted to a numerical backend without a reviewed adapter, semantics, and reproducible calibration campaign.",
     ),
     "environment" => Dict{String,Any}(
@@ -60,10 +75,12 @@ write_json(OUTPUT, Dict{String,Any}(
         "git_worktree_dirty" => !isempty(status_entries),
     ),
     "status" => status,
-    "adapter_status" => "not_registered",
-    "registered_backend" => isempty(registered) ? nothing : registered,
-    "vetted_backend_count" => 0,
+    "adapter_status" => adapter_status,
+    "registered_backend" => adapter_registered ? "normal_eigen" : (isempty(registered) ? nothing : registered),
+    "vetted_backend_count" => adapter_registered ? 1 : 0,
     "reason" => reason,
+    "campaign_artifact" => CAMPAIGN_ARTIFACT,
+    "campaign_valid" => campaign_valid,
     "candidate_packages" => probes,
     "closure_requirements" => [
         "Register a third backend adapter with explicit rank-policy semantics.",
@@ -71,7 +88,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "Record disagreements and unavailable results without converting them to pass/fail claims.",
     ],
     "interpretation" => Dict{String,Any}(
-        "claim" => "The known environment has an explicit capability result for the third rank backend; no third-backend evidence is currently available.",
+        "claim" => adapter_registered ? "The known environment has an explicit reviewed internal normal-eigen adapter and bounded calibration evidence." : "The known environment has an explicit capability result for the third rank backend; no third-backend evidence is currently available.",
         "does_not_establish" => [
             "that candidate packages are unsuitable in every environment",
             "a universal rank error bound",

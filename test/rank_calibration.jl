@@ -795,16 +795,29 @@ end
             compute_vectors = false,
             provenance = :calibration_corpus,
         )
+        normal_policy = NLPDiagnostics.RankPolicy(
+            Float64;
+            backend = :normal_eigen,
+            relative_tolerance = 1.0e-8,
+            provenance = :calibration_corpus,
+        )
         dense = NLPDiagnostics.jacobian_rank_estimate(evaluation, dense_policy)
         sparse = NLPDiagnostics.sparse_qr_rank_estimate(evaluation, sparse_policy)
+        normal = NLPDiagnostics.jacobian_rank_estimate(evaluation, normal_policy)
         @test dense.available
         @test sparse.available
+        @test normal.available
         @test dense.rank == case.rank
         @test sparse.rank == case.rank
+        @test normal.rank == case.rank
         @test dense.left_nullity == case.left_nullity
         @test dense.right_nullity == case.right_nullity
         @test dense.policy.provenance == :calibration_corpus
         @test sparse.policy.provenance == :calibration_corpus
+        @test normal.method == :normal_eigen
+        @test normal.policy.provenance == :calibration_corpus
+        @test normal.left_nullity == case.left_nullity
+        @test normal.right_nullity == case.right_nullity
     @test sparse.method == :suitesparse_qr
         @test sort(sparse.row_permutation) == collect(1:size(case.matrix, 1))
         @test sort(sparse.column_permutation) == collect(1:size(case.matrix, 2))
@@ -881,6 +894,25 @@ end
     @test unscaled.rank == 1
     @test scaled.rank == 2
     @test sparse_scaled.rank == 2
+    normal_unscaled = NLPDiagnostics.jacobian_rank_estimate(
+        badly_scaled,
+        NLPDiagnostics.RankPolicy(
+            Float64;
+            backend = :normal_eigen,
+            relative_tolerance = 1.0e-10,
+        ),
+    )
+    normal_scaled = NLPDiagnostics.jacobian_rank_estimate(
+        badly_scaled,
+        NLPDiagnostics.RankPolicy(
+            Float64;
+            backend = :normal_eigen,
+            scaling = :row_column,
+            relative_tolerance = 1.0e-10,
+        ),
+    )
+    @test normal_unscaled.rank == 1
+    @test normal_scaled.rank == 2
 
     qr_rank_input_guard = NLPDiagnostics.sparse_qr_rank_estimate(
         badly_scaled; max_input_nonzeros = 0,

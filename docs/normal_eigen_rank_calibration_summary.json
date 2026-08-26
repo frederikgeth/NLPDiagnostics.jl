@@ -1,0 +1,116 @@
+{
+  "backend": "normal_eigen",
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "e980910a82098ce40216ff4287e7ee349bb78ee4",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "hard_control_count": 4,
+  "hard_control_mismatch_count": 0,
+  "hard_controls_complete": true,
+  "interpretation": "Hard controls assess exact planted rank under the declared tolerance; threshold disagreements are retained as numerical-policy evidence. This finite corpus is not a universal rank guarantee.",
+  "record_count": 6,
+  "records": [
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 3,
+      "expected_rank": 3,
+      "hard_control_match": true,
+      "name": "identity_full_rank",
+      "ranks": {
+        "dense_svd": 3,
+        "normal_eigen": 3,
+        "sparse_qr": 3
+      },
+      "rows": 3,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 2,
+      "expected_rank": 1,
+      "hard_control_match": true,
+      "name": "dependent_rows",
+      "ranks": {
+        "dense_svd": 1,
+        "normal_eigen": 1,
+        "sparse_qr": 1
+      },
+      "rows": 2,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 3,
+      "expected_rank": 2,
+      "hard_control_match": true,
+      "name": "rectangular_right_nullspace",
+      "ranks": {
+        "dense_svd": 2,
+        "normal_eigen": 2,
+        "sparse_qr": 2
+      },
+      "rows": 2,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 3,
+      "expected_rank": 0,
+      "hard_control_match": true,
+      "name": "zero_operator",
+      "ranks": {
+        "dense_svd": 0,
+        "normal_eigen": 0,
+        "sparse_qr": 0
+      },
+      "rows": 2,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "threshold",
+      "columns": 3,
+      "expected_rank": 1,
+      "hard_control_match": false,
+      "name": "near_threshold",
+      "ranks": {
+        "dense_svd": 1,
+        "normal_eigen": 1,
+        "sparse_qr": 1
+      },
+      "rows": 3,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "threshold",
+      "columns": 2,
+      "expected_rank": 2,
+      "hard_control_match": false,
+      "name": "squared_condition_floor",
+      "ranks": {
+        "dense_svd": 2,
+        "normal_eigen": 1,
+        "sparse_qr": 2
+      },
+      "rows": 2,
+      "threshold_backend_disagreement": true
+    }
+  ],
+  "schema_version": "nlpdiagnostics-normal-eigen-rank-calibration-v1",
+  "source": {
+    "backend": "normal_eigen",
+    "policy": "Experimental third backend for bounded cross-checks only; normal equations square the condition number and are not a production default.",
+    "runner": "benchmarks/calibrate_normal_eigen_rank_backend.jl",
+    "semantics": "Eigenvalues of the scaled symmetric Gram matrix J'J are square-rooted; an explicit roundoff floor is applied before the RankPolicy threshold."
+  },
+  "threshold_backend_disagreement_count": 1,
+  "threshold_sensitive_count": 2,
+  "unavailable_count": 0
+}
