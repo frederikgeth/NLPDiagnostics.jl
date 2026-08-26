@@ -5646,3 +5646,14 @@ and localized, but it does not recur once the saved-result mapping is complete.
 The campaign now contains 56 records (54 stable, 2 sensitive), with 54 of 100
 538-bus endpoints profiled. The next deliverable is a t17/t18 repeat to test
 whether this provenance recovery persists.
+
+## 2026-08-26 t17/t18 balanced sweep
+
+The t17/t18 LN/LG PU/SI batch adds eight endpoints. PU remains stable across
+both times and fault families; LN/SI t18 is also fully mapped and stable. LN/SI
+t17, however, reproduces the one-rank unscaled-to-row-column delta with the
+same 2-of-11,028 mapping coverage seen at t13/t14. The campaign therefore now
+contains 64 records (61 stable, 3 sensitive), with 62 of 100 538-bus endpoints
+profiled. The pattern is intermittent across snapshots, so the next
+deliverable is a t19/t20 repeat to determine whether the mapping gap tracks
+the saved-result source rather than voltage level or fault family.

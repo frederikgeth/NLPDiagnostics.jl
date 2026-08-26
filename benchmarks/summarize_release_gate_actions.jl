@@ -17,7 +17,7 @@ const OUTPUT = abspath(isempty(ARGS) ?
 const ACTIONS = Dict{String,Dict{String,Any}}(
     "numerical_rank_false_positive_negative_statistics" => Dict(
         "priority" => 1,
-        "next_deliverable" => "Extend the balanced 538-bus PU/SI sweep to t17/t18 and verify that LN SI provenance remains complete after the t13/t14 anomaly.",
+        "next_deliverable" => "Extend the balanced 538-bus PU/SI sweep to t19/t20 and test whether the intermittent LN SI mapping gap recurs.",
         "closure_condition" => "Hard-control false-positive/false-negative and unavailable statistics are complete across the declared corpus, and backend disagreements are classified rather than silently resolved.",
         "dependency" => "None; this is the highest-priority numerical-algebra track.",
     ),
