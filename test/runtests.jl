@@ -2981,6 +2981,21 @@ end
     @test length(sensitive_saved_records) == 2
     @test all(record["result_units"] == "si" for record in sensitive_saved_records)
     @test all(occursin("538bus_LN", record["snapshot"]) for record in sensitive_saved_records)
+    scaling_diagnostics_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_saved_result_scaling_diagnostics.jl"),
+        String,
+    )
+    @test Meta.parseall(scaling_diagnostics_script) isa Expr
+    scaling_diagnostics_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_saved_result_scaling_diagnostics_summary.json"),
+        String,
+    ))
+    @test scaling_diagnostics_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-saved-result-scaling-diagnostics-v1"
+    @test scaling_diagnostics_summary["campaign_record_count"] == 48
+    @test scaling_diagnostics_summary["paired_snapshot_count"] == 20
+    @test scaling_diagnostics_summary["unit_dependent_rank_outcome_count"] == 2
+    @test scaling_diagnostics_summary["incomplete_provenance_sensitive_record_count"] == 2
     @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_sensitive_count"] == 2
     @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_stable_count"] == 46
     time_coverage_summary = JSON.parse(read(

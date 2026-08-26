@@ -5618,3 +5618,16 @@ the other six endpoints remain stable; this is evidence for a targeted
 unit/scaling investigation, not a universal policy recommendation. The active
 checkout remains dirty and unparseable. The next experiment is to diagnose
 that LN SI branch and then extend the balanced sweep to t15/t16.
+
+## 2026-08-26 paired SI/PU sensitivity diagnosis
+
+The paired diagnostic
+`benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl`, recorded in
+`docs/bmopf_saved_result_scaling_diagnostics_summary.json`, now compares the
+20 snapshots that have both SI and PU records. It localizes both unit-dependent
+rank outcomes to the 538-bus LN SI t13 and t14 endpoints: each has an
+unscaled-to-row-column rank delta of one, while its PU counterpart is stable.
+Both affected SI records also report incomplete point provenance, so this is
+not promoted to a physical singularity or a default scaling policy. The
+diagnostic turns the observed sensitivity into a concrete release boundary:
+complete or explain the LN SI provenance, then repeat the paired check on t15/t16.
