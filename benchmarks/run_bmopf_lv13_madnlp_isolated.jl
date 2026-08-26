@@ -56,8 +56,12 @@ if execute && !(free_memory_mb isa Number && free_memory_mb >= required_memory_m
     end
 end
 memory_ready = free_memory_mb isa Number && free_memory_mb >= required_memory_mb
+plan_ready = get(plan, "status", "") == "isolated_run_ready"
+environment_ready = get(environment, "status", "") == "environment_ready"
+preflight_ready = plan_ready && environment_ready && requested_timeout > 0
 command = get(execution, "command", "")
 launch_status = !execute ? "approval_required" :
+    !preflight_ready ? "software_preflight_incomplete" :
     !memory_ready ? "blocked_current_memory_pressure" :
     !isfile(runner) ? "runner_missing" :
     !isdir(project) ? "benchmark_project_missing" :
@@ -99,12 +103,14 @@ write_json(OUTPUT, Dict{String,Any}(
         "approval_variable" => "NLPDIAGNOSTICS_LV13_MADNLP_EXECUTE",
     ),
     "preflight" => Dict(
+        "plan_status" => get(plan, "status", "missing"),
         "environment_status" => get(environment, "status", "missing"),
         "resource_status" => get(resources, "status", "missing"),
         "total_memory_mb" => total_memory_mb,
         "free_memory_mb_at_launch_check" => free_memory_mb,
         "required_memory_mb" => required_memory_mb,
         "memory_ready" => memory_ready,
+        "preflight_ready" => preflight_ready,
     ),
     "execution" => Dict(
         "command" => command,
@@ -122,7 +128,9 @@ write_json(OUTPUT, Dict{String,Any}(
             "memory reservation or solver-result qualification",
             "physical endpoint or cross-policy acceptance before the result validator passes",
         ],
-        "next_action" => launch_status in ("approval_required", "blocked_current_memory_pressure") ?
+        "next_action" => launch_status == "software_preflight_incomplete" ?
+            "refresh the plan and software preflight before requesting execution" :
+            launch_status in ("approval_required", "blocked_current_memory_pressure") ?
             "reduce memory pressure and rerun with explicit approval when the declared envelope is available" :
             "run the isolated-result validator against the emitted result artifact",
     ),

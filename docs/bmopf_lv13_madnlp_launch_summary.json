@@ -14,8 +14,10 @@
   },
   "preflight": {
     "environment_status": "environment_ready",
-    "free_memory_mb_at_launch_check": 1502,
+    "free_memory_mb_at_launch_check": 4947,
     "memory_ready": false,
+    "plan_status": "isolated_run_ready",
+    "preflight_ready": true,
     "required_memory_mb": 8192,
     "resource_status": "resource_capacity_available_but_current_free_memory_insufficient",
     "total_memory_mb": 49152

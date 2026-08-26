@@ -2374,6 +2374,7 @@ end
     )
     @test Meta.parseall(lv13_madnlp_launcher_script) isa Expr
     @test occursin("NLPDIAGNOSTICS_LV13_MADNLP_EXECUTE", lv13_madnlp_launcher_script)
+    @test occursin("preflight_ready", lv13_madnlp_launcher_script)
     lv13_madnlp_launch_summary = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_lv13_madnlp_launch_summary.json"),
         String,
@@ -2382,6 +2383,7 @@ end
           "nlpdiagnostics-bmopf-lv13-madnlp-launch-v1"
     @test lv13_madnlp_launch_summary["status"] == "approval_required"
     @test lv13_madnlp_launch_summary["approval"]["execute_requested"] == false
+    @test lv13_madnlp_launch_summary["preflight"]["preflight_ready"] == true
     series_capacity_boundary_script = read(
         joinpath(benchmark_directory, "analyze_bmopf_series_nominal_capacity_boundary.jl"),
         String,
