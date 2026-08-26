@@ -1,11 +1,11 @@
 {
-  "campaign_record_count": 88,
+  "campaign_record_count": 80,
   "environment": {
-    "git_revision": "0994d0bab137e3e1305a219cebb2254f02daf3c6",
+    "git_revision": "2dc1966a7c2774867ecd7d81cffb6d16c49cb80b",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
-  "incomplete_provenance_record_count": 5,
+  "incomplete_provenance_record_count": 4,
   "incomplete_provenance_records": [
     {
       "mapping_diagnostics": {
@@ -51,21 +51,6 @@
       },
       "result_units": "si",
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t17_1600.bmopf.json"
-    },
-    {
-      "mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
-      },
-      "result_units": "si",
-      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t22_1830.bmopf.json"
     },
     {
       "mapping_diagnostics": {

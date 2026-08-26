@@ -5,7 +5,7 @@
     "si": 50
   },
   "environment": {
-    "git_revision": "0994d0bab137e3e1305a219cebb2254f02daf3c6",
+    "git_revision": "2dc1966a7c2774867ecd7d81cffb6d16c49cb80b",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
