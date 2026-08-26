@@ -31,7 +31,7 @@
         "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Close the remaining ten 538-bus endpoint inventory entries or document why their saved-result profiles are unavailable.",
+      "next_deliverable": "Resolve the four recurring SI/LN saved-result mapping-sensitive records or record an explicit release boundary for them.",
       "priority": 1,
       "status": "partial"
     },
@@ -122,7 +122,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "e9fdcbbae6f62dd2f2c818609649d3d29f063082",
+    "git_revision": "9a31fd8ab4edc57abf501f7ed170e590f16be051",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

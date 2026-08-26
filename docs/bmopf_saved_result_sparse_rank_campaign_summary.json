@@ -4,60 +4,60 @@
   "endpoint_span_diagnostics": {
     "by_result_units": {
       "pu": {
-        "record_count": 45,
+        "record_count": 50,
         "spans": {
           "condition_proxy_ratio_row_column_over_unscaled": {
             "available": true,
-            "count": 45,
-            "max": 9.958759490802882e-8,
+            "count": 50,
+            "max": 0.000499991878554861,
             "min": 9.267041746291114e-9,
-            "range": 9.032055316173771e-8
+            "range": 0.0004999826115131147
           },
           "rank_delta": {
             "available": true,
-            "count": 45,
+            "count": 50,
             "max": 0,
             "min": 0,
             "range": 0
           },
           "row_column_condition_proxy": {
             "available": true,
-            "count": 45,
+            "count": 50,
             "max": 145.8470273150178,
             "min": 30.09219635928444,
             "range": 115.75483095573337
           },
           "row_column_fill_ratio": {
             "available": true,
-            "count": 45,
-            "max": 2.763940013633265,
+            "count": 50,
+            "max": 2.767021131561009,
             "min": 2.748711656441718,
-            "range": 0.015228357191547026
+            "range": 0.01830947511929093
           },
           "row_column_rank": {
             "available": true,
-            "count": 45,
+            "count": 50,
             "max": 11028,
             "min": 11028,
             "range": 0
           },
           "unscaled_condition_proxy": {
             "available": true,
-            "count": 45,
+            "count": 50,
             "max": 3.2472278838420076e9,
-            "min": 1.1925217693796453e9,
-            "range": 2.0547061144623623e9
+            "min": 226658.24873800634,
+            "range": 3.24700122559327e9
           },
           "unscaled_fill_ratio": {
             "available": true,
-            "count": 45,
-            "max": 2.7666802999318336,
+            "count": 50,
+            "max": 2.769325153374233,
             "min": 2.751247443762781,
-            "range": 0.015432856169052656
+            "range": 0.018077709611452164
           },
           "unscaled_rank": {
             "available": true,
-            "count": 45,
+            "count": 50,
             "max": 11028,
             "min": 11028,
             "range": 0
@@ -65,60 +65,60 @@
         }
       },
       "si": {
-        "record_count": 47,
+        "record_count": 52,
         "spans": {
           "condition_proxy_ratio_row_column_over_unscaled": {
             "available": true,
-            "count": 47,
+            "count": 52,
             "max": 4.597650564729746,
             "min": 0.005151928541750479,
             "range": 4.592498636187996
           },
           "rank_delta": {
             "available": true,
-            "count": 47,
+            "count": 52,
             "max": 1,
             "min": 0,
             "range": 1
           },
           "row_column_condition_proxy": {
             "available": true,
-            "count": 47,
+            "count": 52,
             "max": 9.48589985860744e9,
             "min": 20.01673351702316,
             "range": 9.485899838590708e9
           },
           "row_column_fill_ratio": {
             "available": true,
-            "count": 47,
-            "max": 2.7775732788002725,
+            "count": 52,
+            "max": 2.7778323108384457,
             "min": 1.6375460122699386,
-            "range": 1.140027266530334
+            "range": 1.1402862985685072
           },
           "row_column_rank": {
             "available": true,
-            "count": 47,
+            "count": 52,
             "max": 11028,
             "min": 1968,
             "range": 9060
           },
           "unscaled_condition_proxy": {
             "available": true,
-            "count": 47,
+            "count": 52,
             "max": 2.0632059189920256e9,
             "min": 37.63865630830442,
             "range": 2.0632058813533692e9
           },
           "unscaled_fill_ratio": {
             "available": true,
-            "count": 47,
+            "count": 52,
             "max": 2.7772597137014317,
             "min": 1.6195773687798227,
             "range": 1.157682344921609
           },
           "unscaled_rank": {
             "available": true,
-            "count": 47,
+            "count": 52,
             "max": 11028,
             "min": 1968,
             "range": 9060
@@ -130,56 +130,56 @@
     "overall": {
       "condition_proxy_ratio_row_column_over_unscaled": {
         "available": true,
-        "count": 92,
+        "count": 102,
         "max": 4.597650564729746,
         "min": 9.267041746291114e-9,
         "range": 4.597650555462705
       },
       "rank_delta": {
         "available": true,
-        "count": 92,
+        "count": 102,
         "max": 1,
         "min": 0,
         "range": 1
       },
       "row_column_condition_proxy": {
         "available": true,
-        "count": 92,
+        "count": 102,
         "max": 9.48589985860744e9,
         "min": 20.01673351702316,
         "range": 9.485899838590708e9
       },
       "row_column_fill_ratio": {
         "available": true,
-        "count": 92,
-        "max": 2.7775732788002725,
+        "count": 102,
+        "max": 2.7778323108384457,
         "min": 1.6375460122699386,
-        "range": 1.140027266530334
+        "range": 1.1402862985685072
       },
       "row_column_rank": {
         "available": true,
-        "count": 92,
+        "count": 102,
         "max": 11028,
         "min": 1968,
         "range": 9060
       },
       "unscaled_condition_proxy": {
         "available": true,
-        "count": 92,
+        "count": 102,
         "max": 3.2472278838420076e9,
         "min": 37.63865630830442,
         "range": 3.2472278462033515e9
       },
       "unscaled_fill_ratio": {
         "available": true,
-        "count": 92,
+        "count": 102,
         "max": 2.7772597137014317,
         "min": 1.6195773687798227,
         "range": 1.157682344921609
       },
       "unscaled_rank": {
         "available": true,
-        "count": 92,
+        "count": 102,
         "max": 11028,
         "min": 1968,
         "range": 9060
@@ -187,12 +187,12 @@
     }
   },
   "environment": {
-    "git_revision": "3400a0161ebbfc67fd3dcaad85d815ebe185946b",
+    "git_revision": "9a31fd8ab4edc57abf501f7ed170e590f16be051",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": "Saved solver-result points provide sparse-only rank evidence with explicit provenance. Dense rank remains guarded; rank stability is local numerical evidence and not a physical gauge or universal policy certificate.",
-  "record_count": 92,
+  "record_count": 102,
   "records": [
     {
       "condition_proxy_ratio_row_column_over_unscaled": 0.13595325181532195,
@@ -3229,6 +3229,336 @@
       "unscaled_condition_proxy": 2.0632059189920256e9,
       "unscaled_fill_ratio": 1.6288070892978868,
       "unscaled_rank": 9850
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.00020185856391918795,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 250000",
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "0",
+        "mapped_coordinate_count": "11028",
+        "mapped_families": "ci_fr,ci_gnd,ci_src,cid,cii,cr_fr,cr_gnd,cr_src,crd,cri,p_ibr,q_ibr,u_ibr,vi,vr",
+        "projected_families": "ci_to,cr_to",
+        "projection_contracts": "ci_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair;cr_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "2151",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "0"
+      },
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 112.02625083660996,
+      "row_column_fill_ratio": 2.761158827539196,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t01_0800.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 554973.9810962816,
+      "unscaled_fill_ratio": 2.7621949556918883,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 6.429073335180182e-8,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 250000",
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "0",
+        "mapped_coordinate_count": "11028",
+        "mapped_families": "ci_fr,ci_gnd,ci_src,cid,cii,cr_fr,cr_gnd,cr_src,crd,cri,p_ibr,q_ibr,u_ibr,vi,vr",
+        "projected_families": "ci_to,cr_to",
+        "projection_contracts": "ci_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair;cr_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "2151",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "0"
+      },
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 46.45475231291331,
+      "row_column_fill_ratio": 2.7554192229038854,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t02_0830.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 7.225730659924314e8,
+      "unscaled_fill_ratio": 2.756578050443081,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.000499991878554861,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 250000",
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "0",
+        "mapped_coordinate_count": "11028",
+        "mapped_families": "ci_fr,ci_gnd,ci_src,cid,cii,cr_fr,cr_gnd,cr_src,crd,cri,p_ibr,q_ibr,u_ibr,vi,vr",
+        "projected_families": "ci_to,cr_to",
+        "projection_contracts": "ci_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair;cr_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "2151",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "0"
+      },
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 113.32728357647075,
+      "row_column_fill_ratio": 2.767021131561009,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t01_0800.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 226658.24873800634,
+      "unscaled_fill_ratio": 2.769325153374233,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 6.429076407988432e-8,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 250000",
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "0",
+        "mapped_coordinate_count": "11028",
+        "mapped_families": "ci_fr,ci_gnd,ci_src,cid,cii,cr_fr,cr_gnd,cr_src,crd,cri,p_ibr,q_ibr,u_ibr,vi,vr",
+        "projected_families": "ci_to,cr_to",
+        "projection_contracts": "ci_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair;cr_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "2151",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "0"
+      },
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 46.45477549408171,
+      "row_column_fill_ratio": 2.7573824130879347,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t02_0830.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 7.225730812027595e8,
+      "unscaled_fill_ratio": 2.7584867075664623,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 9.060921952564144e-8,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 250000",
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "0",
+        "mapped_coordinate_count": "11028",
+        "mapped_families": "ci_fr,ci_gnd,ci_src,cid,cii,cr_fr,cr_gnd,cr_src,crd,cri,p_ibr,q_ibr,u_ibr,vi,vr",
+        "projected_families": "ci_to,cr_to",
+        "projection_contracts": "ci_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair;cr_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "2151",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "0"
+      },
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 124.8125253430563,
+      "row_column_fill_ratio": 2.750552147239264,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t04_0930.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 1.3774815189500191e9,
+      "unscaled_fill_ratio": 2.7525289706884797,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.028798939267332443,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 250000",
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "0",
+        "mapped_coordinate_count": "11028",
+        "mapped_families": "ci_fr,ci_gnd,ci_src,cid,cii,cr_fr,cr_gnd,cr_src,crd,cri,p_ibr,q_ibr,u_ibr,vi,vr",
+        "projected_families": "ci_to,cr_to",
+        "projection_contracts": "ci_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair;cr_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "2151",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "0"
+      },
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 42.57977951972029,
+      "row_column_fill_ratio": 2.769079754601227,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t03_0900.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 1478.5190219842539,
+      "unscaled_fill_ratio": 2.767157464212679,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.019855956932955637,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 250000",
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "0",
+        "mapped_coordinate_count": "11028",
+        "mapped_families": "ci_fr,ci_gnd,ci_src,cid,cii,cr_fr,cr_gnd,cr_src,crd,cri,p_ibr,q_ibr,u_ibr,vi,vr",
+        "projected_families": "ci_to,cr_to",
+        "projection_contracts": "ci_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair;cr_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "2151",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "0"
+      },
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 36.424557262553876,
+      "row_column_fill_ratio": 2.769038854805726,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t04_0930.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 1834.4397797367674,
+      "unscaled_fill_ratio": 2.7678936605316973,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.07288540784406772,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 250000",
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "0",
+        "mapped_coordinate_count": "11028",
+        "mapped_families": "ci_fr,ci_gnd,ci_src,cid,cii,cr_fr,cr_gnd,cr_src,crd,cri,p_ibr,q_ibr,u_ibr,vi,vr",
+        "projected_families": "ci_to,cr_to",
+        "projection_contracts": "ci_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair;cr_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "2151",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "0"
+      },
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 59.01732640667564,
+      "row_column_fill_ratio": 2.776687116564417,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t02_0830.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 809.72760052243,
+      "unscaled_fill_ratio": 2.7771642808452626,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.02591344866183366,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 250000",
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "0",
+        "mapped_coordinate_count": "11028",
+        "mapped_families": "ci_fr,ci_gnd,ci_src,cid,cii,cr_fr,cr_gnd,cr_src,crd,cri,p_ibr,q_ibr,u_ibr,vi,vr",
+        "projected_families": "ci_to,cr_to",
+        "projection_contracts": "ci_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair;cr_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "2151",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "0"
+      },
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 39.20196871761345,
+      "row_column_fill_ratio": 2.7778323108384457,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t03_0900.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 1512.803997229116,
+      "unscaled_fill_ratio": 2.7770688479890935,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.01566102921978916,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 250000",
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "0",
+        "mapped_coordinate_count": "11028",
+        "mapped_families": "ci_fr,ci_gnd,ci_src,cid,cii,cr_fr,cr_gnd,cr_src,crd,cri,p_ibr,q_ibr,u_ibr,vi,vr",
+        "projected_families": "ci_to,cr_to",
+        "projection_contracts": "ci_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair;cr_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "2151",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "0"
+      },
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 27.98410420644028,
+      "row_column_fill_ratio": 2.7772733469665987,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t04_0930.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 1786.8623966986647,
+      "unscaled_fill_ratio": 2.776755282890252,
+      "unscaled_rank": 11028
     }
   ],
   "result_units": [
@@ -3236,7 +3566,7 @@
     "si"
   ],
   "scaling_sensitive_count": 4,
-  "scaling_stable_count": 88,
+  "scaling_stable_count": 98,
   "schema_version": "nlpdiagnostics-bmopf-saved-result-sparse-rank-campaign-v1",
   "source": {
     "dense_policy": "disabled by explicit work guard",
@@ -3332,7 +3662,17 @@
       "/private/tmp/nlpdiag_sparse538_t25_pu/538_ln_t25_summary.json",
       "/private/tmp/nlpdiag_sparse538_t25_pu/538_lg_t25_summary.json",
       "/private/tmp/nlpdiag_sparse538_t25_si/538_ln_t25_summary.json",
-      "/private/tmp/nlpdiag_sparse538_t25_si/538_lg_t25_summary.json"
+      "/private/tmp/nlpdiag_sparse538_t25_si/538_lg_t25_summary.json",
+      "/private/tmp/nlpdiag_sparse538_missing_pu/538_ln_t01_summary.json",
+      "/private/tmp/nlpdiag_sparse538_missing_pu/538_ln_t02_summary.json",
+      "/private/tmp/nlpdiag_sparse538_missing_pu/538_lg_t01_summary.json",
+      "/private/tmp/nlpdiag_sparse538_missing_pu/538_lg_t02_summary.json",
+      "/private/tmp/nlpdiag_sparse538_missing_pu/538_lg_t04_summary.json",
+      "/private/tmp/nlpdiag_sparse538_missing_si/538_ln_t03_summary.json",
+      "/private/tmp/nlpdiag_sparse538_missing_si/538_ln_t04_summary.json",
+      "/private/tmp/nlpdiag_sparse538_missing_si/538_lg_t02_summary.json",
+      "/private/tmp/nlpdiag_sparse538_missing_si/538_lg_t03_summary.json",
+      "/private/tmp/nlpdiag_sparse538_missing_si/538_lg_t04_summary.json"
     ],
     "point_policy": "saved_result",
     "runner": "benchmarks/bmopf_draft_corpus.jl",
