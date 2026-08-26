@@ -8,13 +8,14 @@ solver behavior into a physical diagnosis.
 
 `RankPolicy(backend = :normal_eigen)` now provides a guarded third numerical
 rank path for calibration. The six-record campaign in
-`docs/normal_eigen_rank_calibration_summary.json` has four exact hard controls
-with zero mismatches and one expected threshold disagreement caused by the
-normal-equations squared spectrum. The adapter is therefore available for
-bounded cross-checks, but is not a production default or a universal rank
-certificate. Expansion to randomized, clustered-spectrum, and representative
-sparse cases remains required before the numerical-rank release gate can
-close.
+`docs/normal_eigen_rank_calibration_summary.json` now has 20 records, including
+15 exact hard controls with zero mismatches, seeded randomized full-rank and
+duplicate-column cases, three clustered-spectrum cases, and an 80-by-100
+sparse ladder. Four threshold disagreements expose the expected
+normal-equations squared-spectrum limitation. The adapter is therefore
+available for bounded cross-checks, but is not a production default or a
+universal rank certificate; repeated-point and scaling-policy coverage remain
+required before the numerical-rank release gate can close.
 
 ## 2026-08-23: typed BMOPFTools capability boundaries
 

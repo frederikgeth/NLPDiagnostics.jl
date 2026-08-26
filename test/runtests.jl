@@ -2879,11 +2879,12 @@ end
     ))
     @test normal_eigen_summary["schema_version"] ==
           "nlpdiagnostics-normal-eigen-rank-calibration-v1"
-    @test normal_eigen_summary["record_count"] == 6
+    @test normal_eigen_summary["record_count"] == 20
+    @test normal_eigen_summary["hard_control_count"] == 15
     @test normal_eigen_summary["hard_control_mismatch_count"] == 0
-    @test normal_eigen_summary["threshold_backend_disagreement_count"] == 1
+    @test normal_eigen_summary["threshold_backend_disagreement_count"] == 4
     @test rank_statistics_data["third_backend_capability"]["status"] == "available_for_calibration"
-    @test rank_statistics_data["normal_eigen_calibration"]["record_count"] == 6
+    @test rank_statistics_data["normal_eigen_calibration"]["record_count"] == 20
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
         String,

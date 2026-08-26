@@ -83,8 +83,8 @@ write_json(OUTPUT, Dict{String,Any}(
     "campaign_valid" => campaign_valid,
     "candidate_packages" => probes,
     "closure_requirements" => [
-        "Register a third backend adapter with explicit rank-policy semantics.",
-        "Run a reproducible cross-backend calibration campaign including hard and threshold-sensitive controls.",
+        "Retain the reviewed third backend adapter with explicit rank-policy semantics.",
+        "Expand the reproducible cross-backend calibration campaign across hard, threshold-sensitive, randomized, clustered-spectrum, and sparse controls.",
         "Record disagreements and unavailable results without converting them to pass/fail claims.",
     ],
     "interpretation" => Dict{String,Any}(

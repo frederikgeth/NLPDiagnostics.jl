@@ -8,6 +8,7 @@ are retained as evidence and never promoted to a default policy.
 """
 
 using LinearAlgebra
+using Random
 import MathOptInterface as MOI
 import NLPDiagnostics
 
@@ -38,7 +39,7 @@ function evaluation(matrix, label)
     )
 end
 
-const CASES = [
+const BASE_CASES = [
     (name = "identity_full_rank", matrix = Matrix(I, 3, 3), expected_rank = 3, class = "hard", tolerance = 1.0e-8),
     (name = "dependent_rows", matrix = [1.0 2.0; 2.0 4.0], expected_rank = 1, class = "hard", tolerance = 1.0e-8),
     (name = "rectangular_right_nullspace", matrix = [1.0 0.0 1.0; 0.0 1.0 1.0], expected_rank = 2, class = "hard", tolerance = 1.0e-8),
@@ -46,6 +47,52 @@ const CASES = [
     (name = "near_threshold", matrix = Matrix(Diagonal([1.0, 1.0e-8, 0.0])), expected_rank = 1, class = "threshold", tolerance = 1.0e-8),
     (name = "squared_condition_floor", matrix = Matrix(Diagonal([1.0, 1.0e-10])), expected_rank = 2, class = "threshold", tolerance = 1.0e-14),
 ]
+
+function calibration_cases()
+    cases = copy(BASE_CASES)
+    rng = MersenneTwister(20260826)
+    # Seeded full-rank and exact-duplicate-column controls exercise
+    # rectangular/randomized structure without making the result stochastic.
+    for index in 1:6
+        matrix = randn(rng, 9 + (index % 3), 6 + (index % 2))
+        push!(cases, (
+            name = "seeded_random_full_rank_$index", matrix,
+            expected_rank = min(size(matrix)...), class = "hard", tolerance = 1.0e-8,
+        ))
+    end
+    for index in 1:4
+        matrix = randn(rng, 10, 7)
+        matrix[:, end] .= matrix[:, 1]
+        push!(cases, (
+            name = "seeded_random_duplicate_column_$index", matrix,
+            expected_rank = 6, class = "hard", tolerance = 1.0e-8,
+        ))
+    end
+    # Clustered spectra are threshold-sensitive controls; the backend is
+    # expected to agree at the declared tolerance, but the relation remains
+    # evidence rather than an exact-rank claim.
+    for index in 1:3
+        left = Matrix(qr(randn(rng, 8, 8)).Q)
+        right = Matrix(qr(randn(rng, 8, 8)).Q)
+        singular_values = [1.0, 1.0e-2, 1.0e-4, 1.0e-6, 1.0e-8, 1.0e-10, 1.0e-12, 1.0e-14]
+        matrix = left * Diagonal(singular_values) * transpose(right)
+        push!(cases, (
+            name = "clustered_spectrum_$index", matrix,
+            expected_rank = 4, class = "threshold", tolerance = 1.0e-8,
+        ))
+    end
+    sparse_matrix = zeros(80, 100)
+    for row in 1:80
+        sparse_matrix[row, row] = 1.0
+        sparse_matrix[row, 80 + (row % 20) + 1] = 0.25
+        row < 80 && (sparse_matrix[row, row + 1] = -0.1)
+    end
+    push!(cases, (
+        name = "representative_sparse_ladder", matrix = sparse_matrix,
+        expected_rank = 80, class = "hard", tolerance = 1.0e-8,
+    ))
+    return cases
+end
 
 function record(case)
     evaluation_point = evaluation(case.matrix, case.name)
@@ -85,7 +132,7 @@ function record(case)
     )
 end
 
-records = [record(case) for case in CASES]
+records = [record(case) for case in calibration_cases()]
 hard_records = filter(record -> record["class"] == "hard", records)
 threshold_records = filter(record -> record["class"] == "threshold", records)
 hard_mismatches = count(record -> !record["hard_control_match"], hard_records)

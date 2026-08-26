@@ -18,7 +18,7 @@
         "benchmarks/calibrate_restarted_smallest_singular.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Expand the reviewed normal-eigen third-backend campaign across randomized, clustered-spectrum, and representative sparse cases, retaining disagreements and unavailable outcomes.",
+      "next_deliverable": "Add repeated-point and scaling-policy normal-eigen checks, retaining cross-backend disagreement and unavailable outcomes by case.",
       "priority": 1,
       "status": "partial"
     },
@@ -109,8 +109,8 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "68530cd25f4f5a6e43a06b0d2ca7cd12fe6156b9",
-    "git_worktree_dirty": false,
+    "git_revision": "8e4e858165d81e97b5e2686f2955df63aef49119",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {

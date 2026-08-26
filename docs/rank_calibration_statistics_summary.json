@@ -71,8 +71,8 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "2e0fd545f1794ba0950ab33e1a35cbed30adcef8",
-    "git_worktree_dirty": false,
+    "git_revision": "8e4e858165d81e97b5e2686f2955df63aef49119",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "finite_sample_uncertainty": {
@@ -137,13 +137,13 @@
   },
   "normal_eigen_calibration": {
     "artifact": "docs/normal_eigen_rank_calibration_summary.json",
-    "hard_control_count": 4,
+    "hard_control_count": 15,
     "hard_control_mismatch_count": 0,
     "interpretation": "The normal-eigen path is an experimental third backend; its squared-spectrum disagreements are retained as tolerance evidence and do not establish a production rank policy.",
-    "record_count": 6,
+    "record_count": 20,
     "status": "complete",
-    "threshold_backend_disagreement_count": 1,
-    "threshold_sensitive_count": 2
+    "threshold_backend_disagreement_count": 4,
+    "threshold_sensitive_count": 5
   },
   "schema_version": "nlpdiagnostics-rank-calibration-statistics-v2",
   "source": {

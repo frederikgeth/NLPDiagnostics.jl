@@ -2,15 +2,15 @@
   "backend": "normal_eigen",
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "31f25f2935a2d9067b922947cd76e37d2dc47f60",
-    "git_worktree_dirty": false,
+    "git_revision": "8e4e858165d81e97b5e2686f2955df63aef49119",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
-  "hard_control_count": 4,
+  "hard_control_count": 15,
   "hard_control_mismatch_count": 0,
   "hard_controls_complete": true,
   "interpretation": "Hard controls assess exact planted rank under the declared tolerance; threshold disagreements are retained as numerical-policy evidence. This finite corpus is not a universal rank guarantee.",
-  "record_count": 6,
+  "record_count": 20,
   "records": [
     {
       "all_available": true,
@@ -101,6 +101,216 @@
       },
       "rows": 2,
       "threshold_backend_disagreement": true
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 7,
+      "expected_rank": 7,
+      "hard_control_match": true,
+      "name": "seeded_random_full_rank_1",
+      "ranks": {
+        "dense_svd": 7,
+        "normal_eigen": 7,
+        "sparse_qr": 7
+      },
+      "rows": 10,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 6,
+      "expected_rank": 6,
+      "hard_control_match": true,
+      "name": "seeded_random_full_rank_2",
+      "ranks": {
+        "dense_svd": 6,
+        "normal_eigen": 6,
+        "sparse_qr": 6
+      },
+      "rows": 11,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 7,
+      "expected_rank": 7,
+      "hard_control_match": true,
+      "name": "seeded_random_full_rank_3",
+      "ranks": {
+        "dense_svd": 7,
+        "normal_eigen": 7,
+        "sparse_qr": 7
+      },
+      "rows": 9,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 6,
+      "expected_rank": 6,
+      "hard_control_match": true,
+      "name": "seeded_random_full_rank_4",
+      "ranks": {
+        "dense_svd": 6,
+        "normal_eigen": 6,
+        "sparse_qr": 6
+      },
+      "rows": 10,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 7,
+      "expected_rank": 7,
+      "hard_control_match": true,
+      "name": "seeded_random_full_rank_5",
+      "ranks": {
+        "dense_svd": 7,
+        "normal_eigen": 7,
+        "sparse_qr": 7
+      },
+      "rows": 11,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 6,
+      "expected_rank": 6,
+      "hard_control_match": true,
+      "name": "seeded_random_full_rank_6",
+      "ranks": {
+        "dense_svd": 6,
+        "normal_eigen": 6,
+        "sparse_qr": 6
+      },
+      "rows": 9,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 7,
+      "expected_rank": 6,
+      "hard_control_match": true,
+      "name": "seeded_random_duplicate_column_1",
+      "ranks": {
+        "dense_svd": 6,
+        "normal_eigen": 6,
+        "sparse_qr": 6
+      },
+      "rows": 10,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 7,
+      "expected_rank": 6,
+      "hard_control_match": true,
+      "name": "seeded_random_duplicate_column_2",
+      "ranks": {
+        "dense_svd": 6,
+        "normal_eigen": 6,
+        "sparse_qr": 6
+      },
+      "rows": 10,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 7,
+      "expected_rank": 6,
+      "hard_control_match": true,
+      "name": "seeded_random_duplicate_column_3",
+      "ranks": {
+        "dense_svd": 6,
+        "normal_eigen": 6,
+        "sparse_qr": 6
+      },
+      "rows": 10,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 7,
+      "expected_rank": 6,
+      "hard_control_match": true,
+      "name": "seeded_random_duplicate_column_4",
+      "ranks": {
+        "dense_svd": 6,
+        "normal_eigen": 6,
+        "sparse_qr": 6
+      },
+      "rows": 10,
+      "threshold_backend_disagreement": false
+    },
+    {
+      "all_available": true,
+      "class": "threshold",
+      "columns": 8,
+      "expected_rank": 4,
+      "hard_control_match": false,
+      "name": "clustered_spectrum_1",
+      "ranks": {
+        "dense_svd": 4,
+        "normal_eigen": 4,
+        "sparse_qr": 5
+      },
+      "rows": 8,
+      "threshold_backend_disagreement": true
+    },
+    {
+      "all_available": true,
+      "class": "threshold",
+      "columns": 8,
+      "expected_rank": 4,
+      "hard_control_match": false,
+      "name": "clustered_spectrum_2",
+      "ranks": {
+        "dense_svd": 5,
+        "normal_eigen": 4,
+        "sparse_qr": 6
+      },
+      "rows": 8,
+      "threshold_backend_disagreement": true
+    },
+    {
+      "all_available": true,
+      "class": "threshold",
+      "columns": 8,
+      "expected_rank": 4,
+      "hard_control_match": false,
+      "name": "clustered_spectrum_3",
+      "ranks": {
+        "dense_svd": 5,
+        "normal_eigen": 4,
+        "sparse_qr": 5
+      },
+      "rows": 8,
+      "threshold_backend_disagreement": true
+    },
+    {
+      "all_available": true,
+      "class": "hard",
+      "columns": 100,
+      "expected_rank": 80,
+      "hard_control_match": true,
+      "name": "representative_sparse_ladder",
+      "ranks": {
+        "dense_svd": 80,
+        "normal_eigen": 80,
+        "sparse_qr": 80
+      },
+      "rows": 80,
+      "threshold_backend_disagreement": false
     }
   ],
   "schema_version": "nlpdiagnostics-normal-eigen-rank-calibration-v1",
@@ -110,7 +320,7 @@
     "runner": "benchmarks/calibrate_normal_eigen_rank_backend.jl",
     "semantics": "Eigenvalues of the scaled symmetric Gram matrix J'J are square-rooted; an explicit roundoff floor is applied before the RankPolicy threshold."
   },
-  "threshold_backend_disagreement_count": 1,
-  "threshold_sensitive_count": 2,
+  "threshold_backend_disagreement_count": 4,
+  "threshold_sensitive_count": 5,
   "unavailable_count": 0
 }

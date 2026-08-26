@@ -35,14 +35,14 @@
     }
   ],
   "closure_requirements": [
-    "Register a third backend adapter with explicit rank-policy semantics.",
-    "Run a reproducible cross-backend calibration campaign including hard and threshold-sensitive controls.",
+    "Retain the reviewed third backend adapter with explicit rank-policy semantics.",
+    "Expand the reproducible cross-backend calibration campaign across hard, threshold-sensitive, randomized, clustered-spectrum, and sparse controls.",
     "Record disagreements and unavailable results without converting them to pass/fail claims."
   ],
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "10c9652339b40a5bca8b4d9fd9bb6702cc8c2ad6",
-    "git_worktree_dirty": false,
+    "git_revision": "8e4e858165d81e97b5e2686f2955df63aef49119",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {

@@ -17,7 +17,7 @@ const OUTPUT = abspath(isempty(ARGS) ?
 const ACTIONS = Dict{String,Dict{String,Any}}(
     "numerical_rank_false_positive_negative_statistics" => Dict(
         "priority" => 1,
-        "next_deliverable" => "Expand the reviewed normal-eigen third-backend campaign across randomized, clustered-spectrum, and representative sparse cases, retaining disagreements and unavailable outcomes.",
+        "next_deliverable" => "Add repeated-point and scaling-policy normal-eigen checks, retaining cross-backend disagreement and unavailable outcomes by case.",
         "closure_condition" => "Hard-control false-positive/false-negative and unavailable statistics are complete across the declared corpus, and backend disagreements are classified rather than silently resolved.",
         "dependency" => "None; this is the highest-priority numerical-algebra track.",
     ),
