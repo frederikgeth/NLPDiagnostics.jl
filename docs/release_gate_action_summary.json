@@ -2,7 +2,7 @@
   "actions": [
     {
       "blocking": true,
-      "closure_condition": "Hard-control false-positive/false-negative and unavailable statistics are complete across the declared corpus, and backend disagreements are classified rather than silently resolved.",
+      "closure_condition": "Hard-control false-positive/false-negative and unavailable statistics are complete across the declared corpus, backend disagreements are classified rather than silently resolved, and all seven canonical SI files are regenerated and pass the saved-result quality audit (or an explicit exclusion decision is reviewed).",
       "dependency": "None; this is the highest-priority numerical-algebra track.",
       "evidence": [
         "docs/randomized_rank_oracle_calibration_summary.json",
@@ -27,13 +27,15 @@
         "benchmarks/summarize_bmopf_538bus_saved_result_time_coverage.jl",
         "docs/bmopf_saved_result_quality_summary.json",
         "benchmarks/summarize_bmopf_saved_result_quality.jl",
+        "docs/bmopf_si_bounded_rerun_summary.json",
+        "benchmarks/summarize_bmopf_si_rerun.jl",
         "docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
         "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl",
         "docs/bmopf_saved_result_scaling_diagnostics_summary.json",
         "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Regenerate the seven nonfinite/unsolved SI saved results or accept the explicit exclusion boundary for physical endpoint claims.",
+      "next_deliverable": "Regenerate the seven nonfinite/unsolved SI saved results using the bounded Ipopt rerun recipe, then re-audit their finiteness and mapping provenance.",
       "priority": 1,
       "status": "partial"
     },
@@ -123,8 +125,8 @@
   "all_blocking_gates_mapped": true,
   "blocking_gate_count": 5,
   "environment": {
-    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "d40113f519739a5f1d25a1b0784e15dd8d778860",
+    "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
+    "git_revision": "bf600fb7523353b4827802a285395ebf3bbb6d83",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

@@ -1,0 +1,147 @@
+{
+  "all_bounded_successes": true,
+  "bounded_failure_count": 0,
+  "bounded_success_count": 7,
+  "case_count": 7,
+  "environment": {
+    "child_timeout_seconds": 180.0,
+    "environment_fingerprint": "9bb17e055973c1a8bccada35115301801fc44e00673fc2e9024dd5666e1291b8",
+    "git_revision": "bf600fb7523353b4827802a285395ebf3bbb6d83",
+    "git_worktree_dirty": false,
+    "profile_stage": "trace",
+    "solver": "ipopt",
+    "solver_options": {
+      "max_iter": 1000,
+      "print_level": 0
+    }
+  },
+  "interpretation": "All records are bounded solver-work evidence from a fresh isolated run. They do not replace the seven nonfinite canonical saved results; physical endpoint claims remain subject to the saved-result quality boundary until those files are regenerated and re-audited.",
+  "records": [
+    {
+      "bounded_success": true,
+      "model_variable_count": 11028,
+      "name": "ENWLsnapshots__538bus_LG__538bus_LG_t22_1830",
+      "process_exit_code": 0,
+      "process_timeout": false,
+      "result_status": "ok_solver_trace_profile_skipped",
+      "runner_status": "ok_solver_trace_profile_skipped",
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t22_1830.bmopf.json",
+      "solver_log": "ENWLsnapshots__538bus_LG__538bus_LG_t22_1830.log",
+      "solver_log_evidence": {
+        "available": true,
+        "iteration_count": 13,
+        "optimal_solution": true,
+        "termination": "Optimal Solution Found."
+      }
+    },
+    {
+      "bounded_success": true,
+      "model_variable_count": 11028,
+      "name": "ENWLsnapshots__538bus_LG__538bus_LG_t24_1930",
+      "process_exit_code": 0,
+      "process_timeout": false,
+      "result_status": "ok_solver_trace_profile_skipped",
+      "runner_status": "ok_solver_trace_profile_skipped",
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t24_1930.bmopf.json",
+      "solver_log": "ENWLsnapshots__538bus_LG__538bus_LG_t24_1930.log",
+      "solver_log_evidence": {
+        "available": true,
+        "iteration_count": 15,
+        "optimal_solution": true,
+        "termination": "Optimal Solution Found."
+      }
+    },
+    {
+      "bounded_success": true,
+      "model_variable_count": 11028,
+      "name": "ENWLsnapshots__538bus_LG__538bus_LG_t25_2000",
+      "process_exit_code": 0,
+      "process_timeout": false,
+      "result_status": "ok_solver_trace_profile_skipped",
+      "runner_status": "ok_solver_trace_profile_skipped",
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t25_2000.bmopf.json",
+      "solver_log": "ENWLsnapshots__538bus_LG__538bus_LG_t25_2000.log",
+      "solver_log_evidence": {
+        "available": true,
+        "iteration_count": 22,
+        "optimal_solution": true,
+        "termination": "Optimal Solution Found."
+      }
+    },
+    {
+      "bounded_success": true,
+      "model_variable_count": 11028,
+      "name": "ENWLsnapshots__538bus_LN__538bus_LN_t13_1400",
+      "process_exit_code": 0,
+      "process_timeout": false,
+      "result_status": "ok_solver_trace_profile_skipped",
+      "runner_status": "ok_solver_trace_profile_skipped",
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t13_1400.bmopf.json",
+      "solver_log": "ENWLsnapshots__538bus_LN__538bus_LN_t13_1400.log",
+      "solver_log_evidence": {
+        "available": true,
+        "iteration_count": 32,
+        "optimal_solution": true,
+        "termination": "Optimal Solution Found."
+      }
+    },
+    {
+      "bounded_success": true,
+      "model_variable_count": 11028,
+      "name": "ENWLsnapshots__538bus_LN__538bus_LN_t14_1430",
+      "process_exit_code": 0,
+      "process_timeout": false,
+      "result_status": "ok_solver_trace_profile_skipped",
+      "runner_status": "ok_solver_trace_profile_skipped",
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t14_1430.bmopf.json",
+      "solver_log": "ENWLsnapshots__538bus_LN__538bus_LN_t14_1430.log",
+      "solver_log_evidence": {
+        "available": true,
+        "iteration_count": 33,
+        "optimal_solution": true,
+        "termination": "Optimal Solution Found."
+      }
+    },
+    {
+      "bounded_success": true,
+      "model_variable_count": 11028,
+      "name": "ENWLsnapshots__538bus_LN__538bus_LN_t17_1600",
+      "process_exit_code": 0,
+      "process_timeout": false,
+      "result_status": "ok_solver_trace_profile_skipped",
+      "runner_status": "ok_solver_trace_profile_skipped",
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t17_1600.bmopf.json",
+      "solver_log": "ENWLsnapshots__538bus_LN__538bus_LN_t17_1600.log",
+      "solver_log_evidence": {
+        "available": true,
+        "iteration_count": 35,
+        "optimal_solution": true,
+        "termination": "Optimal Solution Found."
+      }
+    },
+    {
+      "bounded_success": true,
+      "model_variable_count": 11028,
+      "name": "ENWLsnapshots__538bus_LN__538bus_LN_t25_2000",
+      "process_exit_code": 0,
+      "process_timeout": false,
+      "result_status": "ok_solver_trace_profile_skipped",
+      "runner_status": "ok_solver_trace_profile_skipped",
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t25_2000.bmopf.json",
+      "solver_log": "ENWLsnapshots__538bus_LN__538bus_LN_t25_2000.log",
+      "solver_log_evidence": {
+        "available": true,
+        "iteration_count": 22,
+        "optimal_solution": true,
+        "termination": "Optimal Solution Found."
+      }
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-si-bounded-rerun-v1",
+  "source": {
+    "benchmark_root": "/Users/uqfgeth/Documents/GitHub/BMOPFDraftData/benchmarks",
+    "isolated_index": "/private/tmp/nlpdiag-si-rerun/index.json",
+    "runner": "benchmarks/launch_bmopf_solver_trace.jl",
+    "summarizer": "benchmarks/summarize_bmopf_si_rerun.jl"
+  }
+}
