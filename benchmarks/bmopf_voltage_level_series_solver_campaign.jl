@@ -19,7 +19,13 @@ include(joinpath(@__DIR__, "bmopf_magnitude_scaling_campaign.jl"))
 
 const _SERIES_SOLVER_RUNNER_VERSION = "bmopf-voltage-level-series-solver-campaign-v1"
 
-function _series_case(label, voltage_levels; loads_per_level, load_multiplier = 1.0)
+function _series_case(
+    label,
+    voltage_levels;
+    loads_per_level,
+    load_multiplier = 1.0,
+    rating_multiplier = 1.0,
+)
     bus = Dict{String,Any}()
     for index in eachindex(voltage_levels)
         bus["$(label)_bus_$(index)"] = Dict{String,Any}(
@@ -38,7 +44,10 @@ function _series_case(label, voltage_levels; loads_per_level, load_multiplier = 
     )
     for index in 1:(length(voltage_levels) - 1)
         from_voltage, to_voltage = Float64(voltage_levels[index]), Float64(voltage_levels[index + 1])
-        rating = max(2.0e6, 10.0e3 * loads_per_level * (length(voltage_levels) - index + 1))
+        rating = rating_multiplier * max(
+            2.0e6,
+            10.0e3 * loads_per_level * (length(voltage_levels) - index + 1),
+        )
         z_from, z_to = from_voltage^2 / rating, to_voltage^2 / rating
         network["transformer"]["single_phase"]["$(label)_t_$(index)"] = Dict(
             "bus_from" => "$(label)_bus_$(index)", "bus_to" => "$(label)_bus_$(index + 1)",
@@ -102,10 +111,17 @@ function _run_case(
     max_iter,
     solver_tolerance,
     load_multiplier = 1.0,
+    rating_multiplier = 1.0,
     optimizer = Ipopt.Optimizer,
     solver = :ipopt,
 )
-    network = _series_case(label, voltage_levels; loads_per_level, load_multiplier)
+    network = _series_case(
+        label,
+        voltage_levels;
+        loads_per_level,
+        load_multiplier,
+        rating_multiplier,
+    )
     policies, anchor_context = _series_policies(network; optimizer)
     anchor_evaluation = _schema_evaluation(anchor_context, "$label-anchor")
     backend = JuMP.backend(BMOPFTools.opf_model(anchor_context))
@@ -152,6 +168,7 @@ function _run_case(
         "voltage_levels" => voltage_levels,
         "loads_per_level" => loads_per_level,
         "load_multiplier" => load_multiplier,
+        "rating_multiplier" => rating_multiplier,
         "bus_count" => length(network["bus"]),
         "transformer_count" => length(network["transformer"]["single_phase"]),
         "model_variable_count" => variable_count,

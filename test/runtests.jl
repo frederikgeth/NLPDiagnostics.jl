@@ -2267,6 +2267,23 @@ end
     @test series_capacity_boundary_summary["status"] == "capacity_boundary_aligned"
     @test series_capacity_boundary_summary["records"][1]["capacity_gate_passed"] == false
     @test series_capacity_boundary_summary["records"][end]["capacity_gate_passed"] == true
+    series_uprated_nominal_script = read(
+        joinpath(benchmark_directory, "bmopf_voltage_level_series_uprated_nominal_campaign.jl"),
+        String,
+    )
+    @test Meta.parseall(series_uprated_nominal_script) isa Expr
+    @test occursin("rating_multiplier", series_uprated_nominal_script)
+    @test occursin("MadNLP", series_uprated_nominal_script)
+    series_uprated_nominal_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_voltage_level_series_uprated_nominal_campaign_summary.json"),
+        String,
+    ))
+    @test series_uprated_nominal_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-voltage-level-series-uprated-nominal-campaign-v1"
+    @test series_uprated_nominal_summary["status"] == "uprated_nominal_campaign_complete"
+    @test series_uprated_nominal_summary["rating_multiplier"] == 2.5
+    @test length(series_uprated_nominal_summary["campaigns"]) == 2
+    @test all(item -> item["record"]["campaign_qualified"], series_uprated_nominal_summary["campaigns"])
     combined_scaling_campaign = read(
         joinpath(benchmark_directory, "bmopf_combined_mv_lv_scaling_campaign.jl"),
         String,
@@ -2890,9 +2907,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 154", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 151", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 96", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 155", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 152", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 97", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

@@ -47,6 +47,7 @@ series_solver_budget60 = read_summary("docs/bmopf_voltage_level_series_solver_ca
 series_madnlp_campaign = read_summary("docs/bmopf_voltage_level_series_madnlp_campaign_summary.json")
 series_application_bridge = read_summary("docs/bmopf_series_application_bridge_summary.json")
 series_capacity_boundary = read_summary("docs/bmopf_series_nominal_capacity_boundary_summary.json")
+series_uprated_nominal = read_summary("docs/bmopf_voltage_level_series_uprated_nominal_campaign_summary.json")
 series_feasibility_sweep = read_summary("docs/bmopf_voltage_level_series_feasibility_sweep_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
@@ -319,6 +320,7 @@ series_madnlp_case_count = get(series_madnlp_campaign, "case_count", 0)
 series_madnlp_qualified_count = get(series_madnlp_campaign, "campaign_qualified_count", 0)
 series_application_bridge_status = get(series_application_bridge, "status", "missing")
 series_capacity_boundary_status = get(series_capacity_boundary, "status", "missing")
+series_uprated_nominal_status = get(series_uprated_nominal, "status", "missing")
 series_solver_budget60_records = get(series_solver_budget60, "records", Any[])
 series_solver_budget60_largest = isempty(series_solver_budget60_records) ?
     Dict{String,Any}() : only(filter(record -> get(record, "label", "") == "series_8level_230kV_208V", series_solver_budget60_records))
@@ -451,6 +453,15 @@ gates = Dict{String,Any}[
         [
             "docs/bmopf_series_nominal_capacity_boundary_summary.json",
             "benchmarks/analyze_bmopf_series_nominal_capacity_boundary.jl",
+        ],
+    ),
+    gate(
+        "bmopf_series_uprated_nominal_campaign",
+        series_uprated_nominal_status == "uprated_nominal_campaign_complete" ? "pass" : "partial",
+        "The explicitly uprated nominal-demand fixture (rating multiplier $(get(series_uprated_nominal, "rating_multiplier", "unknown"))) qualifies both Ipopt and MadNLP across classic, SI, and local policies with complete endpoint and comparison gates. This validates the reformulated fixture as a practical numerical test case; it does not rehabilitate the original overloaded 2 MVA fixture or establish a universal rating choice.",
+        [
+            "docs/bmopf_voltage_level_series_uprated_nominal_campaign_summary.json",
+            "benchmarks/bmopf_voltage_level_series_uprated_nominal_campaign.jl",
         ],
     ),
     gate(

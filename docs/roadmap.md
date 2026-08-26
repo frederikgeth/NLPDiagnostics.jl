@@ -5387,6 +5387,18 @@ overloaded before voltage-drop and nonlinear feasibility effects are
 considered. This closes the initialization-only ambiguity and redirects the
 next experiment toward an explicitly uprated nominal-demand fixture.
 
+That uprated fixture is now implemented by
+`benchmarks/bmopf_voltage_level_series_uprated_nominal_campaign.jl` and
+recorded in
+`docs/bmopf_voltage_level_series_uprated_nominal_campaign_summary.json`. With
+a declared 2.5x transformer-rating multiplier and nominal demand, both Ipopt
+and MadNLP qualify six-run campaigns across classic, SI, and local policies;
+all endpoints are accepted and all comparison gates pass. This is the first
+practical nominal-demand success for the largest ladder, while the original
+2 MVA fixture remains correctly classified as overloaded. The next step is to
+compare the uprated result against the application bridge and retain the
+rating multiplier as explicit fixture metadata.
+
 ## 2026-08-26 practical application success checkpoint
 
 The practical BMOPFTools workflow is now protected by
