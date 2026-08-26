@@ -53,6 +53,7 @@ lv13_madnlp_plan = read_summary("docs/bmopf_lv13_madnlp_isolated_run_plan.json")
 lv13_madnlp_result = read_summary("docs/bmopf_lv13_madnlp_isolated_result_summary.json")
 lv13_madnlp_environment = read_summary("docs/bmopf_lv13_madnlp_isolated_environment_summary.json")
 lv13_madnlp_resources = read_summary("docs/bmopf_lv13_madnlp_resource_envelope_summary.json")
+lv13_madnlp_handoff = read_summary("docs/bmopf_lv13_madnlp_handoff_summary.json")
 series_feasibility_sweep = read_summary("docs/bmopf_voltage_level_series_feasibility_sweep_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
@@ -504,6 +505,16 @@ gates = Dict{String,Any}[
         [
             "docs/bmopf_lv13_madnlp_resource_envelope_summary.json",
             "benchmarks/assess_bmopf_lv13_madnlp_resource_envelope.jl",
+        ],
+    ),
+    gate(
+        "bmopf_lv13_madnlp_handoff",
+        get(lv13_madnlp_handoff, "status", "") == "ready_to_launch" ||
+            get(lv13_madnlp_handoff, "status", "") == "handoff_complete" ? "pass" : "partial",
+        "The joined LV13 MadNLP handoff state is $(get(lv13_madnlp_handoff, "status", "missing")), combining software, capacity, free-memory, and result ledgers. It is a process-readiness gate and does not promote a solver result before the isolated artifact qualifies.",
+        [
+            "docs/bmopf_lv13_madnlp_handoff_summary.json",
+            "benchmarks/summarize_bmopf_lv13_madnlp_handoff.jl",
         ],
     ),
     gate(

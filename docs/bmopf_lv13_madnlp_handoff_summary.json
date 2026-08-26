@@ -1,0 +1,58 @@
+{
+  "blockers": [
+    "current_free_memory_below_declared_envelope"
+  ],
+  "execution": {
+    "approval_required": true,
+    "command": "JULIA_PKG_PRECOMPILE_AUTO=0 julia --compiled-modules=no --startup-file=no --project=work/benchmark-environment /Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/benchmarks/bmopf_combined_mv_lv_perturbed_start_campaign.jl",
+    "environment": {
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_FEEDER": "LV13_58bus",
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_MAX_ITER": 10,
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_MAX_VARIABLES": 5000,
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_OUTPUT": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/bmopf-combined-mv-lv-perturbed-start-LV13_58bus-madnlp-isolated.json",
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_REPEATS": 2,
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_SOLVER": "madnlp",
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_TOL": 1.0e-10,
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_MAX_VARIABLES": 5000,
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_SOLVER": "madnlp"
+    },
+    "output": "work/bmopf-combined-mv-lv-perturbed-start-LV13_58bus-madnlp-isolated.json",
+    "runner_script": "benchmarks/bmopf_combined_mv_lv_perturbed_start_campaign.jl"
+  },
+  "inputs": {
+    "environment": "docs/bmopf_lv13_madnlp_isolated_environment_summary.json",
+    "plan": "docs/bmopf_lv13_madnlp_isolated_run_plan.json",
+    "resources": "docs/bmopf_lv13_madnlp_resource_envelope_summary.json",
+    "result": "docs/bmopf_lv13_madnlp_isolated_result_summary.json"
+  },
+  "qualification": {
+    "claim": "the isolated LV13 MadNLP handoff has one joined, reviewable readiness state",
+    "does_not_establish": [
+      "memory reservation or external enforcement",
+      "solver success or cross-feeder equivalence before the result artifact qualifies"
+    ],
+    "next_action": "repeat the resource assessment after reducing host memory pressure, then launch the approved command"
+  },
+  "readiness": {
+    "current_free_memory_ready": false,
+    "host_capacity_ready": true,
+    "result_complete": false,
+    "software_ready": true
+  },
+  "resource_envelope": {
+    "enforcement": "external isolated-process launcher",
+    "max_variables": 5000,
+    "memory_limit_mb": 8192,
+    "timeout_seconds": 900
+  },
+  "resource_observation": {
+    "cpu_threads": 12,
+    "free_memory_mb": 2769,
+    "julia_version": "1.12.6",
+    "telemetry_scope": "descriptive point-in-time host observation",
+    "total_memory_mb": 49152
+  },
+  "runner": "benchmarks/summarize_bmopf_lv13_madnlp_handoff.jl",
+  "schema_version": "nlpdiagnostics-bmopf-lv13-madnlp-handoff-v1",
+  "status": "blocked_current_memory_pressure"
+}
