@@ -27,7 +27,7 @@
         "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Extend the 538-bus saved-result sweep across PU and SI time snapshots, then retain endpoint-level span diagnostics.",
+      "next_deliverable": "Widen the 538-bus PU/SI time sweep with additional transformer-chain snapshots and test whether endpoint spans persist.",
       "priority": 1,
       "status": "partial"
     },
@@ -118,7 +118,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "5421e93bf4bb665912c7a811eef2fb33299c4dc5",
+    "git_revision": "d95f31073610f3debaf8467a4c5dbb8533935222",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

@@ -1,8 +1,193 @@
 {
   "all_point_provenance_complete": true,
   "all_sparse_estimates_available": true,
+  "endpoint_span_diagnostics": {
+    "by_result_units": {
+      "pu": {
+        "record_count": 3,
+        "spans": {
+          "condition_proxy_ratio_row_column_over_unscaled": {
+            "available": true,
+            "count": 3,
+            "max": 9.958759490802882e-8,
+            "min": 7.503851039351476e-8,
+            "range": 2.454908451451406e-8
+          },
+          "rank_delta": {
+            "available": true,
+            "count": 3,
+            "max": 0,
+            "min": 0,
+            "range": 0
+          },
+          "row_column_condition_proxy": {
+            "available": true,
+            "count": 3,
+            "max": 126.35073314947653,
+            "min": 92.22121181007161,
+            "range": 34.12952133940492
+          },
+          "row_column_fill_ratio": {
+            "available": true,
+            "count": 3,
+            "max": 2.754274028629857,
+            "min": 2.7515610088616222,
+            "range": 0.0027130197682345703
+          },
+          "row_column_rank": {
+            "available": true,
+            "count": 3,
+            "max": 11028,
+            "min": 11028,
+            "range": 0
+          },
+          "unscaled_condition_proxy": {
+            "available": true,
+            "count": 3,
+            "max": 1.413199108442551e9,
+            "min": 1.1925217693796453e9,
+            "range": 2.2067733906290555e8
+          },
+          "unscaled_fill_ratio": {
+            "available": true,
+            "count": 3,
+            "max": 2.756359918200409,
+            "min": 2.7534560327198365,
+            "range": 0.002903885480572299
+          },
+          "unscaled_rank": {
+            "available": true,
+            "count": 3,
+            "max": 11028,
+            "min": 11028,
+            "range": 0
+          }
+        }
+      },
+      "si": {
+        "record_count": 5,
+        "spans": {
+          "condition_proxy_ratio_row_column_over_unscaled": {
+            "available": true,
+            "count": 5,
+            "max": 0.6605745353872104,
+            "min": 0.07288538334102367,
+            "range": 0.5876891520461868
+          },
+          "rank_delta": {
+            "available": true,
+            "count": 5,
+            "max": 0,
+            "min": 0,
+            "range": 0
+          },
+          "row_column_condition_proxy": {
+            "available": true,
+            "count": 5,
+            "max": 59.01730650969418,
+            "min": 24.86313790345709,
+            "range": 34.15416860623709
+          },
+          "row_column_fill_ratio": {
+            "available": true,
+            "count": 5,
+            "max": 2.776605316973415,
+            "min": 1.9868073878627968,
+            "range": 0.7897979291106183
+          },
+          "row_column_rank": {
+            "available": true,
+            "count": 5,
+            "max": 11028,
+            "min": 1968,
+            "range": 9060
+          },
+          "unscaled_condition_proxy": {
+            "available": true,
+            "count": 5,
+            "max": 809.7275997514879,
+            "min": 37.63865630830442,
+            "range": 772.0889434431834
+          },
+          "unscaled_fill_ratio": {
+            "available": true,
+            "count": 5,
+            "max": 2.77494205862304,
+            "min": 1.9844792798385844,
+            "range": 0.7904627787844556
+          },
+          "unscaled_rank": {
+            "available": true,
+            "count": 5,
+            "max": 11028,
+            "min": 1968,
+            "range": 9060
+          }
+        }
+      }
+    },
+    "interpretation": "Endpoint spans describe observed rank, condition-proxy, and fill-ratio variation across this saved-result corpus. They are comparative diagnostics, not a universal conditioning or scaling certificate.",
+    "overall": {
+      "condition_proxy_ratio_row_column_over_unscaled": {
+        "available": true,
+        "count": 8,
+        "max": 0.6605745353872104,
+        "min": 7.503851039351476e-8,
+        "range": 0.6605744603487
+      },
+      "rank_delta": {
+        "available": true,
+        "count": 8,
+        "max": 0,
+        "min": 0,
+        "range": 0
+      },
+      "row_column_condition_proxy": {
+        "available": true,
+        "count": 8,
+        "max": 126.35073314947653,
+        "min": 24.86313790345709,
+        "range": 101.48759524601944
+      },
+      "row_column_fill_ratio": {
+        "available": true,
+        "count": 8,
+        "max": 2.776605316973415,
+        "min": 1.9868073878627968,
+        "range": 0.7897979291106183
+      },
+      "row_column_rank": {
+        "available": true,
+        "count": 8,
+        "max": 11028,
+        "min": 1968,
+        "range": 9060
+      },
+      "unscaled_condition_proxy": {
+        "available": true,
+        "count": 8,
+        "max": 1.413199108442551e9,
+        "min": 37.63865630830442,
+        "range": 1.4131990708038945e9
+      },
+      "unscaled_fill_ratio": {
+        "available": true,
+        "count": 8,
+        "max": 2.77494205862304,
+        "min": 1.9844792798385844,
+        "range": 0.7904627787844556
+      },
+      "unscaled_rank": {
+        "available": true,
+        "count": 8,
+        "max": 11028,
+        "min": 1968,
+        "range": 9060
+      }
+    }
+  },
   "environment": {
-    "git_revision": "5421e93bf4bb665912c7a811eef2fb33299c4dc5",
+    "git_revision": "d95f31073610f3debaf8467a4c5dbb8533935222",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -10,6 +195,7 @@
   "record_count": 8,
   "records": [
     {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.13595325181532195,
       "dense_available": false,
       "dense_reason": "dense Jacobian would contain 4345344 entries, exceeding guard 0",
       "model_constraint_count": 2208,
@@ -20,13 +206,18 @@
       "result_field_units": "",
       "result_units": "si",
       "row_column_available": true,
+      "row_column_condition_proxy": 24.88886185960117,
+      "row_column_fill_ratio": 1.9868073878627968,
       "row_column_rank": 1968,
       "scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json",
       "unscaled_available": true,
+      "unscaled_condition_proxy": 183.06926481913095,
+      "unscaled_fill_ratio": 1.9844792798385844,
       "unscaled_rank": 1968
     },
     {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.6605745353872104,
       "dense_available": false,
       "dense_reason": "dense Jacobian would contain 4345344 entries, exceeding guard 0",
       "model_constraint_count": 2208,
@@ -37,13 +228,18 @@
       "result_field_units": "",
       "result_units": "si",
       "row_column_available": true,
+      "row_column_condition_proxy": 24.86313790345709,
+      "row_column_fill_ratio": 1.9908427751047648,
       "row_column_rank": 1968,
       "scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json",
       "unscaled_available": true,
+      "unscaled_condition_proxy": 37.63865630830442,
+      "unscaled_fill_ratio": 1.987040198665218,
       "unscaled_rank": 1968
     },
     {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.09218415243679325,
       "dense_available": false,
       "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
       "model_constraint_count": 12538,
@@ -54,13 +250,18 @@
       "result_field_units": "",
       "result_units": "si",
       "row_column_available": true,
+      "row_column_condition_proxy": 56.85443474326674,
+      "row_column_fill_ratio": 2.7689025221540557,
       "row_column_rank": 11028,
       "scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t01_0800.bmopf.json",
       "unscaled_available": true,
+      "unscaled_condition_proxy": 616.7484675009558,
+      "unscaled_fill_ratio": 2.767593728698023,
       "unscaled_rank": 11028
     },
     {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.07288538334102367,
       "dense_available": false,
       "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
       "model_constraint_count": 12538,
@@ -71,13 +272,18 @@
       "result_field_units": "",
       "result_units": "si",
       "row_column_available": true,
+      "row_column_condition_proxy": 59.01730650969418,
+      "row_column_fill_ratio": 2.7680845262440354,
       "row_column_rank": 11028,
       "scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t02_0830.bmopf.json",
       "unscaled_available": true,
+      "unscaled_condition_proxy": 809.7275997514879,
+      "unscaled_fill_ratio": 2.7678663940013633,
       "unscaled_rank": 11028
     },
     {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.21782613246498478,
       "dense_available": false,
       "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
       "model_constraint_count": 12538,
@@ -88,13 +294,18 @@
       "result_field_units": "",
       "result_units": "si",
       "row_column_available": true,
+      "row_column_condition_proxy": 54.88898073552237,
+      "row_column_fill_ratio": 2.776605316973415,
       "row_column_rank": 11028,
       "scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t01_0800.bmopf.json",
       "unscaled_available": true,
+      "unscaled_condition_proxy": 251.98528805695838,
+      "unscaled_fill_ratio": 2.77494205862304,
       "unscaled_rank": 11028
     },
     {
+      "condition_proxy_ratio_row_column_over_unscaled": 9.958759490802882e-8,
       "dense_available": false,
       "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
       "model_constraint_count": 12538,
@@ -105,13 +316,18 @@
       "result_field_units": "",
       "result_units": "pu",
       "row_column_available": true,
+      "row_column_condition_proxy": 118.76037488798589,
+      "row_column_fill_ratio": 2.7521336059986368,
       "row_column_rank": 11028,
       "scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t03_0900.bmopf.json",
       "unscaled_available": true,
+      "unscaled_condition_proxy": 1.1925217693796453e9,
+      "unscaled_fill_ratio": 2.7540695296523516,
       "unscaled_rank": 11028
     },
     {
+      "condition_proxy_ratio_row_column_over_unscaled": 7.503851039351476e-8,
       "dense_available": false,
       "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
       "model_constraint_count": 12538,
@@ -122,13 +338,18 @@
       "result_field_units": "",
       "result_units": "pu",
       "row_column_available": true,
+      "row_column_condition_proxy": 92.22121181007161,
+      "row_column_fill_ratio": 2.754274028629857,
       "row_column_rank": 11028,
       "scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t03_0900.bmopf.json",
       "unscaled_available": true,
+      "unscaled_condition_proxy": 1.2289851081324487e9,
+      "unscaled_fill_ratio": 2.756359918200409,
       "unscaled_rank": 11028
     },
     {
+      "condition_proxy_ratio_row_column_over_unscaled": 8.940759472224993e-8,
       "dense_available": false,
       "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
       "model_constraint_count": 12538,
@@ -139,10 +360,14 @@
       "result_field_units": "",
       "result_units": "pu",
       "row_column_available": true,
+      "row_column_condition_proxy": 126.35073314947653,
+      "row_column_fill_ratio": 2.7515610088616222,
       "row_column_rank": 11028,
       "scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t04_0930.bmopf.json",
       "unscaled_available": true,
+      "unscaled_condition_proxy": 1.413199108442551e9,
+      "unscaled_fill_ratio": 2.7534560327198365,
       "unscaled_rank": 11028
     }
   ],
