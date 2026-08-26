@@ -23,6 +23,7 @@ const NORMAL_EIGEN_ARTIFACT = "docs/normal_eigen_rank_calibration_summary.json"
 const NORMAL_EIGEN_PERSISTENCE_ARTIFACT = "docs/normal_eigen_policy_persistence_summary.json"
 const NORMAL_EIGEN_BMOPF_ARTIFACT = "docs/bmopf_normal_eigen_jacobian_validation_summary.json"
 const LARGE_SPARSE_BMOPF_ARTIFACT = "docs/bmopf_large_sparse_rank_screen_summary.json"
+const LARGE_SPARSE_BMOPF_SAVED_ARTIFACT = "docs/bmopf_large_sparse_rank_screen_saved_result_summary.json"
 
 seeded = read_summary(SEEDED_ARTIFACT)
 large_sparse = read_summary(LARGE_SPARSE_ARTIFACT)
@@ -33,6 +34,7 @@ normal_eigen = read_summary(NORMAL_EIGEN_ARTIFACT)
 normal_eigen_persistence = read_summary(NORMAL_EIGEN_PERSISTENCE_ARTIFACT)
 normal_eigen_bmopf = read_summary(NORMAL_EIGEN_BMOPF_ARTIFACT)
 large_sparse_bmopf = read_summary(LARGE_SPARSE_BMOPF_ARTIFACT)
+large_sparse_bmopf_saved = read_summary(LARGE_SPARSE_BMOPF_SAVED_ARTIFACT)
 seeded_hard = get(seeded, "hard_controls", Dict{String,Any}())
 seeded_threshold = get(seeded, "threshold_controls", Dict{String,Any}())
 large_by_case = get(large_sparse, "by_case", Dict{String,Any}())
@@ -273,6 +275,17 @@ write_json(OUTPUT, Dict{String,Any}(
         "scaling_sensitive" => get(get(get(large_sparse_bmopf, "sparse_qr", Dict{String,Any}()), "comparison", Dict{String,Any}()), "scaling_sensitive", false),
         "artifact" => LARGE_SPARSE_BMOPF_ARTIFACT,
         "interpretation" => "A guarded 538-bus synthetic coordinate probe provides sparse-only rank and fill evidence; it is not a solver endpoint or physical nullspace certificate.",
+    ),
+    "large_sparse_bmopf_saved_result_screen" => Dict(
+        "snapshot" => get(large_sparse_bmopf_saved, "snapshot", nothing),
+        "model_variable_count" => get(large_sparse_bmopf_saved, "model_variable_count", 0),
+        "point_provenance_kind" => get(get(large_sparse_bmopf_saved, "evaluation", Dict{String,Any}()), "point_provenance_kind", nothing),
+        "point_provenance_complete" => get(get(large_sparse_bmopf_saved, "evaluation", Dict{String,Any}()), "point_provenance_complete", false),
+        "unscaled_rank" => get(get(get(large_sparse_bmopf_saved, "sparse_qr", Dict{String,Any}()), "comparison", Dict{String,Any}()), "unscaled_rank", nothing),
+        "row_column_rank" => get(get(get(large_sparse_bmopf_saved, "sparse_qr", Dict{String,Any}()), "comparison", Dict{String,Any}()), "row_column_rank", nothing),
+        "scaling_sensitive" => get(get(get(large_sparse_bmopf_saved, "sparse_qr", Dict{String,Any}()), "comparison", Dict{String,Any}()), "scaling_sensitive", false),
+        "artifact" => LARGE_SPARSE_BMOPF_SAVED_ARTIFACT,
+        "interpretation" => "A saved solver-result point on the 538-bus snapshot provides sparse-only rank evidence with complete point provenance; dense rank remains guarded.",
     ),
     "large_sparse_sparse_only" => Dict(
         "record_count" => large_sparse_records,

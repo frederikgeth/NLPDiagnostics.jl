@@ -71,8 +71,8 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "c11e6fea2458b400d01a20d812486b7ef48e5227",
-    "git_worktree_dirty": false,
+    "git_revision": "7a240f2fab51b570f8d0f2679b371c346bfbf662",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "finite_sample_uncertainty": {
@@ -124,6 +124,17 @@
       "algebraic rank for threshold-sensitive cases",
       "OPF physical interpretation or solver KKT conditioning"
     ]
+  },
+  "large_sparse_bmopf_saved_result_screen": {
+    "artifact": "docs/bmopf_large_sparse_rank_screen_saved_result_summary.json",
+    "interpretation": "A saved solver-result point on the 538-bus snapshot provides sparse-only rank evidence with complete point provenance; dense rank remains guarded.",
+    "model_variable_count": 11028,
+    "point_provenance_complete": true,
+    "point_provenance_kind": "SolverResultPoint",
+    "row_column_rank": 11028,
+    "scaling_sensitive": false,
+    "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t01_0800.bmopf.json",
+    "unscaled_rank": 11028
   },
   "large_sparse_bmopf_screen": {
     "artifact": "docs/bmopf_large_sparse_rank_screen_summary.json",

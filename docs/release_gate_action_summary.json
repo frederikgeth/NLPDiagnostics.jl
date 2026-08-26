@@ -19,12 +19,13 @@
         "docs/bmopf_normal_eigen_jacobian_validation_summary.json",
         "benchmarks/bmopf_normal_eigen_jacobian_validation.jl",
         "docs/bmopf_large_sparse_rank_screen_summary.json",
+        "docs/bmopf_large_sparse_rank_screen_saved_result_summary.json",
         "benchmarks/summarize_bmopf_large_sparse_rank_screen.jl",
         "docs/smallest_singular_calibration_summary.json",
         "benchmarks/calibrate_restarted_smallest_singular.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Repeat the sparse-only large-snapshot screen at saved solver-result points and localize scaling-sensitive nullspace span instability.",
+      "next_deliverable": "Expand saved-result sparse-only screening across additional 538-bus snapshots and 99-bus endpoints while tracking nullspace-span stability.",
       "priority": 1,
       "status": "partial"
     },
@@ -115,8 +116,8 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "3a2503a004485676ae7e36d485dad3754bd979a2",
-    "git_worktree_dirty": false,
+    "git_revision": "7a240f2fab51b570f8d0f2679b371c346bfbf662",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {

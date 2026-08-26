@@ -5318,6 +5318,16 @@ the boundary that synthetic probes are not solver endpoints or physical
 nullspace certificates. The next step is to repeat the screen at saved
 solver-result points where provenance permits.
 
+The first saved-result repeat is now recorded in
+`docs/bmopf_large_sparse_rank_screen_saved_result_summary.json`, using the
+same 538-bus LN snapshot and sparse-only guards. The point is a complete
+`SolverResultPoint`; sparse QR reports rank 11,028 under both unscaled and
+row-column policies (zero rank delta), while dense rank remains disabled by
+the size guard. Together with the synthetic-probe result above, this separates
+point provenance from scaling sensitivity: the one-rank synthetic effect is not
+reproduced at this saved endpoint. The next step is to expand this saved-result
+screen across additional 538-bus snapshots and 99-bus endpoints.
+
 ## 2026-08-26 real-99-bus KKT ledger validation checkpoint
 
 The saved real-99-bus KKT evidence now has a cross-artifact validator,

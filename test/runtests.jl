@@ -2941,6 +2941,17 @@ end
     @test large_sparse_screen_summary["sparse_qr"]["comparison"]["row_column_rank"] == 9850
     @test large_sparse_screen_summary["sparse_qr"]["comparison"]["scaling_sensitive"] == true
     @test rank_statistics_data["large_sparse_bmopf_screen"]["scaling_sensitive"] == true
+    large_sparse_saved_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_large_sparse_rank_screen_saved_result_summary.json"),
+        String,
+    ))
+    @test large_sparse_saved_summary["status"] == "ok"
+    @test large_sparse_saved_summary["evaluation"]["point_provenance_kind"] == "SolverResultPoint"
+    @test large_sparse_saved_summary["evaluation"]["point_provenance_complete"] == true
+    @test large_sparse_saved_summary["sparse_qr"]["comparison"]["unscaled_rank"] == 11028
+    @test large_sparse_saved_summary["sparse_qr"]["comparison"]["row_column_rank"] == 11028
+    @test large_sparse_saved_summary["sparse_qr"]["comparison"]["scaling_sensitive"] == false
+    @test rank_statistics_data["large_sparse_bmopf_saved_result_screen"]["point_provenance_complete"] == true
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
         String,
