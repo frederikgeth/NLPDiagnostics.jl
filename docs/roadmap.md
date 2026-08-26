@@ -5686,3 +5686,16 @@ historical LN/SI-sensitive), with 86 of 100 538-bus endpoints profiled. Five
 records are now incomplete-provenance records, which remain tracked separately
 from rank sensitivity. The final deliverable is the t25 endpoint batch and a
 closed time-coverage inventory.
+
+## 2026-08-27 t25 final balanced sweep
+
+The t25 LN/LG PU/SI batch closes the available 538-bus endpoint inventory for
+the current saved-result corpus. PU LN/LG and SI LG remain rank-stable; SI LN
+repeats the one-rank unscaled-to-row-column delta with the same 2-of-11,028
+mapping coverage seen in the earlier sensitive snapshots. The campaign now
+contains 92 records (88 stable, 4 sensitive), with 90 of 100 538-bus endpoints
+profiled. Seven records have incomplete provenance, and all four sensitive
+records are in that subset, so the sensitivity remains explicitly classified as
+a saved-result mapping boundary rather than a physical singularity claim. The
+next deliverable is to close the remaining ten endpoint inventory entries or
+document why their saved-result profiles are unavailable.
