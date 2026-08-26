@@ -1,0 +1,54 @@
+{
+  "dense_rank": {
+    "available": false,
+    "reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0"
+  },
+  "environment": {
+    "git_revision": "2b02db05ed16257c181097c8532665d65c799d80",
+    "git_worktree_dirty": true,
+    "source_environment_fingerprint": "cdc4cdcd145f7313b6b2d329b3106eb4a50ee54fa1189de94be2a521cabf836a"
+  },
+  "evaluation": {
+    "evaluated_row_count": 12538,
+    "pattern_rank_upper_bound": 9816,
+    "point_label": "bmopf-draft-zero-coordinate-probe",
+    "point_provenance_complete": true,
+    "point_provenance_kind": "SyntheticSmokePoint",
+    "raw_jacobian_entry_count": 73350
+  },
+  "interpretation": "This is sparse-QR evidence at a synthetic BMOPFTools coordinate probe. A rank change between unscaled and row-column sparse estimates localizes scaling sensitivity, but does not establish a physical gauge, a solver endpoint, or a default-policy recommendation.",
+  "model_constraint_count": 12538,
+  "model_variable_count": 11028,
+  "schema_version": "nlpdiagnostics-bmopf-large-sparse-rank-screen-v1",
+  "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t01_0800.bmopf.json",
+  "source": {
+    "analysis_mode": "profile",
+    "dense_rank_max_entries": 0,
+    "input": "/tmp/nlpdiag_sparse538_profile/ENWLsnapshots__538bus_LN__538bus_LN_t01_0800.json",
+    "point_policy": "zero",
+    "runner": "benchmarks/bmopf_draft_corpus.jl",
+    "sparse_qr_max_factor_nonzeros": 4000000,
+    "sparse_qr_max_input_nonzeros": 1000000,
+    "summarizer": "benchmarks/summarize_bmopf_large_sparse_rank_screen.jl"
+  },
+  "sparse_qr": {
+    "comparison": {
+      "row_column_available": true,
+      "row_column_minus_unscaled_rank": 1,
+      "row_column_rank": 9850,
+      "scaled_rank": null,
+      "scaling_sensitive": true,
+      "unscaled_available": true,
+      "unscaled_rank": 9849
+    },
+    "row_column_condition_proxy": 8.433559249217729e9,
+    "row_column_factor_nonzeros": 120114,
+    "row_column_fill_ratio": 1.6375460122699386,
+    "row_column_input_nonzeros": 73350,
+    "unscaled_condition_proxy": 2.0223873104733057e9,
+    "unscaled_factor_nonzeros": 118796,
+    "unscaled_fill_ratio": 1.6195773687798227,
+    "unscaled_input_nonzeros": 73350
+  },
+  "status": "ok"
+}

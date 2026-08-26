@@ -2923,6 +2923,24 @@ end
     @test bmopf_normal_eigen_summary["cross_backend_agreement_count"] == 8
     @test bmopf_normal_eigen_summary["cross_backend_disagreement_count"] == 0
     @test bmopf_normal_eigen_summary["cross_backend_unavailable_count"] == 4
+    large_sparse_screen_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_large_sparse_rank_screen.jl"),
+        String,
+    )
+    @test Meta.parseall(large_sparse_screen_script) isa Expr
+    @test occursin("synthetic coordinate probe", large_sparse_screen_script)
+    large_sparse_screen_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_large_sparse_rank_screen_summary.json"),
+        String,
+    ))
+    @test large_sparse_screen_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-large-sparse-rank-screen-v1"
+    @test large_sparse_screen_summary["status"] == "ok"
+    @test large_sparse_screen_summary["model_variable_count"] == 11028
+    @test large_sparse_screen_summary["sparse_qr"]["comparison"]["unscaled_rank"] == 9849
+    @test large_sparse_screen_summary["sparse_qr"]["comparison"]["row_column_rank"] == 9850
+    @test large_sparse_screen_summary["sparse_qr"]["comparison"]["scaling_sensitive"] == true
+    @test rank_statistics_data["large_sparse_bmopf_screen"]["scaling_sensitive"] == true
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
         String,

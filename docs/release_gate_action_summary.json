@@ -18,11 +18,13 @@
         "benchmarks/calibrate_normal_eigen_policy_persistence.jl",
         "docs/bmopf_normal_eigen_jacobian_validation_summary.json",
         "benchmarks/bmopf_normal_eigen_jacobian_validation.jl",
+        "docs/bmopf_large_sparse_rank_screen_summary.json",
+        "benchmarks/summarize_bmopf_large_sparse_rank_screen.jl",
         "docs/smallest_singular_calibration_summary.json",
         "benchmarks/calibrate_restarted_smallest_singular.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Extend guarded normal-eigen validation to larger trusted BMOPFTools snapshots and localize scaling-sensitive nullspace span instability.",
+      "next_deliverable": "Repeat the sparse-only large-snapshot screen at saved solver-result points and localize scaling-sensitive nullspace span instability.",
       "priority": 1,
       "status": "partial"
     },
@@ -113,7 +115,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "9751002bf1bc810d799529786e64d053455188d0",
+    "git_revision": "2b02db05ed16257c181097c8532665d65c799d80",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

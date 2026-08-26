@@ -71,8 +71,8 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "a2988762d070b806d56a759db37c8384e1faa30a",
-    "git_worktree_dirty": false,
+    "git_revision": "2b02db05ed16257c181097c8532665d65c799d80",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "finite_sample_uncertainty": {
@@ -124,6 +124,16 @@
       "algebraic rank for threshold-sensitive cases",
       "OPF physical interpretation or solver KKT conditioning"
     ]
+  },
+  "large_sparse_bmopf_screen": {
+    "artifact": "docs/bmopf_large_sparse_rank_screen_summary.json",
+    "interpretation": "A guarded 538-bus synthetic coordinate probe provides sparse-only rank and fill evidence; it is not a solver endpoint or physical nullspace certificate.",
+    "model_variable_count": 11028,
+    "point_provenance_kind": "SyntheticSmokePoint",
+    "row_column_rank": 9850,
+    "scaling_sensitive": true,
+    "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t01_0800.bmopf.json",
+    "unscaled_rank": 9849
   },
   "large_sparse_sparse_only": {
     "all_sparse_expectations_matched": true,

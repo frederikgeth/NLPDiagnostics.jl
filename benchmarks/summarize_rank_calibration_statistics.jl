@@ -22,6 +22,7 @@ const THIRD_BACKEND_ARTIFACT = "docs/rank_third_backend_capability_summary.json"
 const NORMAL_EIGEN_ARTIFACT = "docs/normal_eigen_rank_calibration_summary.json"
 const NORMAL_EIGEN_PERSISTENCE_ARTIFACT = "docs/normal_eigen_policy_persistence_summary.json"
 const NORMAL_EIGEN_BMOPF_ARTIFACT = "docs/bmopf_normal_eigen_jacobian_validation_summary.json"
+const LARGE_SPARSE_BMOPF_ARTIFACT = "docs/bmopf_large_sparse_rank_screen_summary.json"
 
 seeded = read_summary(SEEDED_ARTIFACT)
 large_sparse = read_summary(LARGE_SPARSE_ARTIFACT)
@@ -31,6 +32,7 @@ third_backend = read_summary(THIRD_BACKEND_ARTIFACT)
 normal_eigen = read_summary(NORMAL_EIGEN_ARTIFACT)
 normal_eigen_persistence = read_summary(NORMAL_EIGEN_PERSISTENCE_ARTIFACT)
 normal_eigen_bmopf = read_summary(NORMAL_EIGEN_BMOPF_ARTIFACT)
+large_sparse_bmopf = read_summary(LARGE_SPARSE_BMOPF_ARTIFACT)
 seeded_hard = get(seeded, "hard_controls", Dict{String,Any}())
 seeded_threshold = get(seeded, "threshold_controls", Dict{String,Any}())
 large_by_case = get(large_sparse, "by_case", Dict{String,Any}())
@@ -261,6 +263,16 @@ write_json(OUTPUT, Dict{String,Any}(
         "cross_backend_unavailable_count" => get(normal_eigen_bmopf, "cross_backend_unavailable_count", 0),
         "artifact" => NORMAL_EIGEN_BMOPF_ARTIFACT,
         "interpretation" => "Trusted 30/99-bus solver-result points validate backend availability and local rank agreement under scaling policies; larger snapshots are explicitly size-guarded and no physical rank interpretation is inferred.",
+    ),
+    "large_sparse_bmopf_screen" => Dict(
+        "snapshot" => get(large_sparse_bmopf, "snapshot", nothing),
+        "model_variable_count" => get(large_sparse_bmopf, "model_variable_count", 0),
+        "point_provenance_kind" => get(get(large_sparse_bmopf, "evaluation", Dict{String,Any}()), "point_provenance_kind", nothing),
+        "unscaled_rank" => get(get(get(large_sparse_bmopf, "sparse_qr", Dict{String,Any}()), "comparison", Dict{String,Any}()), "unscaled_rank", nothing),
+        "row_column_rank" => get(get(get(large_sparse_bmopf, "sparse_qr", Dict{String,Any}()), "comparison", Dict{String,Any}()), "row_column_rank", nothing),
+        "scaling_sensitive" => get(get(get(large_sparse_bmopf, "sparse_qr", Dict{String,Any}()), "comparison", Dict{String,Any}()), "scaling_sensitive", false),
+        "artifact" => LARGE_SPARSE_BMOPF_ARTIFACT,
+        "interpretation" => "A guarded 538-bus synthetic coordinate probe provides sparse-only rank and fill evidence; it is not a solver endpoint or physical nullspace certificate.",
     ),
     "large_sparse_sparse_only" => Dict(
         "record_count" => large_sparse_records,
