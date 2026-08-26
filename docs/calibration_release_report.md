@@ -41,7 +41,7 @@ This report is generated from `docs/calibration_release_gate_summary.json`. It s
 
 The action ledger sequences work without changing gate thresholds or release status.
 
-1. **`numerical_rank_false_positive_negative_statistics`** — Profile the final balanced 538-bus PU/SI t25 endpoints and close the time-coverage inventory with provenance counts.
+1. **`numerical_rank_false_positive_negative_statistics`** — Close the remaining ten 538-bus endpoint inventory entries or document why their saved-result profiles are unavailable.
 2. **`real_99bus_physical_kkt`** — Extend trusted real-99-bus endpoint coverage and localize the remaining ibr_p_upper strict-KKT boundary.
 3. **`runtime_memory_scaling`** — Add guarded OPF-solver scaling and allocator-level peak-memory evidence beyond the synthetic sparse ladder.
 4. **`analyze_runtime_scaling`** — Run the isolated analyze portability validator against a second reviewed environment with allocator-level peak telemetry.
