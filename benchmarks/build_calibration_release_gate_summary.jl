@@ -52,6 +52,7 @@ lv13_madnlp_guard = read_summary("docs/bmopf_lv13_madnlp_transfer_guard_summary.
 lv13_madnlp_plan = read_summary("docs/bmopf_lv13_madnlp_isolated_run_plan.json")
 lv13_madnlp_result = read_summary("docs/bmopf_lv13_madnlp_isolated_result_summary.json")
 lv13_madnlp_environment = read_summary("docs/bmopf_lv13_madnlp_isolated_environment_summary.json")
+lv13_madnlp_resources = read_summary("docs/bmopf_lv13_madnlp_resource_envelope_summary.json")
 series_feasibility_sweep = read_summary("docs/bmopf_voltage_level_series_feasibility_sweep_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
@@ -494,6 +495,15 @@ gates = Dict{String,Any}[
         [
             "docs/bmopf_lv13_madnlp_isolated_environment_summary.json",
             "benchmarks/validate_bmopf_lv13_madnlp_isolated_environment.jl",
+        ],
+    ),
+    gate(
+        "bmopf_lv13_madnlp_resource_envelope",
+        get(lv13_madnlp_resources, "status", "") == "resource_envelope_ready" ? "pass" : "partial",
+        "The host resource assessment compares point-in-time total and free memory with the declared 8 GiB envelope without reserving memory or launching the solver. Current status is $(get(lv13_madnlp_resources, "status", "missing")); capacity and instantaneous availability remain distinct.",
+        [
+            "docs/bmopf_lv13_madnlp_resource_envelope_summary.json",
+            "benchmarks/assess_bmopf_lv13_madnlp_resource_envelope.jl",
         ],
     ),
     gate(

@@ -1,0 +1,33 @@
+{
+  "checks": {
+    "current_free_memory_meets_envelope": false,
+    "declared_memory_positive": true,
+    "environment_ready": true,
+    "host_capacity_meets_envelope": true,
+    "plan_ready": true
+  },
+  "declared_envelope": {
+    "enforcement": "external isolated-process launcher",
+    "max_variables": 5000,
+    "memory_limit_mb": 8192,
+    "timeout_seconds": 900
+  },
+  "observed": {
+    "cpu_threads": 12,
+    "free_memory_mb": 2769,
+    "julia_version": "1.12.6",
+    "telemetry_scope": "descriptive point-in-time host observation",
+    "total_memory_mb": 49152
+  },
+  "qualification": {
+    "claim": "the host capacity and current free-memory state are recorded against the approved isolated-run envelope",
+    "does_not_establish": [
+      "memory reservation or enforcement",
+      "solver success, model construction success, or timeout compliance"
+    ],
+    "next_action": "repeat this assessment when sufficient free memory is available before launching the isolated command"
+  },
+  "runner": "benchmarks/assess_bmopf_lv13_madnlp_resource_envelope.jl",
+  "schema_version": "nlpdiagnostics-bmopf-lv13-madnlp-resource-envelope-v1",
+  "status": "resource_capacity_available_but_current_free_memory_insufficient"
+}
