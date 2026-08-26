@@ -41,7 +41,7 @@ This report is generated from `docs/calibration_release_gate_summary.json`. It s
 
 The action ledger sequences work without changing gate thresholds or release status.
 
-1. **`numerical_rank_false_positive_negative_statistics`** — Expand saved-result sparse-only screening across additional 538-bus snapshots and retain endpoint-level span diagnostics.
+1. **`numerical_rank_false_positive_negative_statistics`** — Extend the 538-bus saved-result sweep across PU and SI time snapshots, then retain endpoint-level span diagnostics.
 2. **`real_99bus_physical_kkt`** — Extend trusted real-99-bus endpoint coverage and localize the remaining ibr_p_upper strict-KKT boundary.
 3. **`runtime_memory_scaling`** — Add guarded OPF-solver scaling and allocator-level peak-memory evidence beyond the synthetic sparse ladder.
 4. **`analyze_runtime_scaling`** — Run the isolated analyze portability validator against a second reviewed environment with allocator-level peak telemetry.
