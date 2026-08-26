@@ -5699,3 +5699,16 @@ records are in that subset, so the sensitivity remains explicitly classified as
 a saved-result mapping boundary rather than a physical singularity claim. The
 next deliverable is to close the remaining ten endpoint inventory entries or
 document why their saved-result profiles are unavailable.
+
+## 2026-08-27 complete 538-bus inventory
+
+The remaining ten endpoint/unit combinations are now profiled through the
+isolated BMOPFTools environment. All ten are rank-stable at 11,028/11,028 with
+complete saved-result mapping, bringing the 538-bus ledger to 100/100 profiled
+endpoints (50 PU and 50 SI). The aggregate campaign contains 102 records
+including the two 99-bus references: 98 stable and 4 SI/LN-sensitive. The four
+sensitive records remain provenance-incomplete (2 mapped and 11,026 fallback
+coordinates), while three additional stable records are also incomplete; this
+keeps the numerical sensitivity boundary explicit even after inventory closure.
+The next deliverable is a release decision or a targeted mapping fix for the
+four recurring SI/LN records.
