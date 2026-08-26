@@ -1,7 +1,7 @@
 {
   "case_count": 3,
   "covariance_gate_passed_count": 3,
-  "geometry_gate_passed_count": 0,
+  "geometry_gate_passed_count": 3,
   "qualification": {
     "claim": "synthetic BMOPFTools scaling-coordinate readiness across voltage-level ladders with series transformers",
     "does_not_establish": [
@@ -9,7 +9,7 @@
       "causal convergence or conditioning mechanism",
       "physical KKT acceptance for these synthetic cases"
     ],
-    "next_experiment": "explain the coordinate-geometry gate boundary, then run matched-start Ipopt/MadNLP campaigns on the largest structurally passing cases under explicit budgets",
+    "next_experiment": "tune the largest ladder's initialization/model formulation, then run matched-start Ipopt/MadNLP campaigns under explicit budgets",
     "solver_work_claim_supported": false
   },
   "records": [
@@ -22,7 +22,7 @@
       },
       "geometry": {
         "available": true,
-        "geometry_gate_passed": false
+        "geometry_gate_passed": true
       },
       "label": "series_4level_115kV_480V",
       "load_count": 6,
@@ -52,7 +52,7 @@
       },
       "geometry": {
         "available": true,
-        "geometry_gate_passed": false
+        "geometry_gate_passed": true
       },
       "label": "series_6level_115kV_240V",
       "load_count": 10,
@@ -86,7 +86,7 @@
       },
       "geometry": {
         "available": true,
-        "geometry_gate_passed": false
+        "geometry_gate_passed": true
       },
       "label": "series_8level_230kV_208V",
       "load_count": 21,

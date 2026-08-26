@@ -1,0 +1,109 @@
+{
+  "budgets": {
+    "load_multiplier": 0.25,
+    "max_iter": 5,
+    "repeats": 2,
+    "solver_tolerance": 1.0e-8
+  },
+  "campaign_qualified_count": 1,
+  "case_count": 1,
+  "qualification": {
+    "claim": "bounded matched-start MadNLP evidence on the largest currently feasible synthetic series-transformer ladder",
+    "does_not_establish": [
+      "solver superiority or a universal scaling policy",
+      "feasibility at the nominal demand multiplier",
+      "portable performance or memory scaling"
+    ],
+    "next_experiment": "compare this solver-diverse result with the combined MV+LV practical application ledger and tune the nominal-demand fixture separately"
+  },
+  "records": [
+    {
+      "bus_count": 8,
+      "campaign_gates": {
+        "all_common_starts_covariant": true,
+        "all_comparisons_qualified": true,
+        "all_native_initializations_covariant": true,
+        "all_physical_endpoints_accepted": true,
+        "comparison_coverage_complete": true,
+        "comparison_policy_coverage_complete": true,
+        "native_initialization_covariance_coverage_complete": true,
+        "native_initialization_covariance_required": false,
+        "provenance_fingerprint_coverage_complete": true,
+        "provenance_stable": true,
+        "run_coverage_complete": true,
+        "terminations_stable_within_policy": true
+      },
+      "campaign_qualified": true,
+      "label": "series_8level_230kV_208V",
+      "load_multiplier": 0.25,
+      "loads_per_level": 3,
+      "model_variable_count": 134,
+      "records": [
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "classic_1mva",
+          "replicate": 1,
+          "solve_seconds": 39.720479708,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "classic_1mva",
+          "replicate": 2,
+          "solve_seconds": 0.113949375,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "si_units",
+          "replicate": 1,
+          "solve_seconds": 0.158017917,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "si_units",
+          "replicate": 2,
+          "solve_seconds": 0.147414708,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "series_voltage_local",
+          "replicate": 1,
+          "solve_seconds": 0.143323459,
+          "termination_status": "LOCALLY_SOLVED"
+        },
+        {
+          "common_start_covariance_passed": true,
+          "physical_endpoint_accepted": true,
+          "policy": "series_voltage_local",
+          "replicate": 2,
+          "solve_seconds": 0.110618625,
+          "termination_status": "LOCALLY_SOLVED"
+        }
+      ],
+      "transformer_count": 7,
+      "voltage_levels": [
+        230000.0,
+        69000.0,
+        34500.0,
+        24900.0,
+        12470.0,
+        4160.0,
+        480.0,
+        208.0
+      ]
+    }
+  ],
+  "runner": "benchmarks/bmopf_voltage_level_series_madnlp_campaign.jl",
+  "runner_version": "bmopf-voltage-level-series-madnlp-campaign-v1",
+  "schema_version": "nlpdiagnostics-bmopf-voltage-level-series-madnlp-campaign-v1",
+  "solver": "MadNLP",
+  "status": "madnlp_campaign_complete"
+}

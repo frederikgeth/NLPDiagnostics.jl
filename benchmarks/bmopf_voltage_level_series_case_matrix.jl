@@ -158,7 +158,12 @@ function _policy_case(network, label)
         ),
         "geometry" => Dict(
             "available" => get(geometry, "available", false),
-            "geometry_gate_passed" => get(geometry, "geometry_gate_passed", false),
+            # `bmopf_block_scaling_coordinate_geometry_report` uses the
+            # shared comparison contract name for its qualification gate.
+            # Keep the benchmark's domain-specific alias in the artifact, but
+            # read the authoritative field rather than silently defaulting to
+            # false when the report is available.
+            "geometry_gate_passed" => get(geometry, "comparison_qualified", false),
         ),
     )
 end
@@ -198,7 +203,7 @@ function main()
         "qualification" => Dict(
             "claim" => "synthetic BMOPFTools scaling-coordinate readiness across voltage-level ladders with series transformers",
             "solver_work_claim_supported" => false,
-            "next_experiment" => "explain the coordinate-geometry gate boundary, then run matched-start Ipopt/MadNLP campaigns on the largest structurally passing cases under explicit budgets",
+            "next_experiment" => "tune the largest ladder's initialization/model formulation, then run matched-start Ipopt/MadNLP campaigns under explicit budgets",
             "does_not_establish" => [
                 "solver superiority or a universal voltage-base policy",
                 "causal convergence or conditioning mechanism",

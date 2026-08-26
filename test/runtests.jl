@@ -2151,6 +2151,7 @@ end
     @test occursin("voltage_levels", series_voltage_matrix_script)
     @test occursin("single_phase", series_voltage_matrix_script)
     @test occursin("series_8level_230kV_208V", series_voltage_matrix_script)
+    @test occursin("comparison_qualified", series_voltage_matrix_script)
     series_voltage_matrix_summary = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_voltage_level_series_case_matrix_summary.json"),
         String,
@@ -2159,7 +2160,7 @@ end
           "nlpdiagnostics-bmopf-voltage-level-series-case-matrix-v1"
     @test series_voltage_matrix_summary["case_count"] == 3
     @test series_voltage_matrix_summary["covariance_gate_passed_count"] == 3
-    @test series_voltage_matrix_summary["geometry_gate_passed_count"] == 0
+    @test series_voltage_matrix_summary["geometry_gate_passed_count"] == 3
     @test series_voltage_matrix_summary["records"][end]["transformer_count"] == 7
     @test series_voltage_matrix_summary["records"][end]["model_variable_count"] == 134
     series_voltage_solver_script = read(
@@ -2187,6 +2188,22 @@ end
     @test series_voltage_solver_budget_summary["budgets"]["max_iter"] == 60
     @test series_voltage_solver_budget_summary["records"][end]["campaign_qualified"] == false
     @test occursin("LOCALLY_INFEASIBLE", string(series_voltage_solver_budget_summary["records"][end]))
+    series_voltage_madnlp_script = read(
+        joinpath(benchmark_directory, "bmopf_voltage_level_series_madnlp_campaign.jl"),
+        String,
+    )
+    @test Meta.parseall(series_voltage_madnlp_script) isa Expr
+    @test occursin("MadNLP", series_voltage_madnlp_script)
+    @test occursin("0.25", series_voltage_madnlp_script)
+    series_voltage_madnlp_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_voltage_level_series_madnlp_campaign_summary.json"),
+        String,
+    ))
+    @test series_voltage_madnlp_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-voltage-level-series-madnlp-campaign-v1"
+    @test series_voltage_madnlp_summary["solver"] == "MadNLP"
+    @test series_voltage_madnlp_summary["campaign_qualified_count"] == 1
+    @test occursin("LOCALLY_SOLVED", string(series_voltage_madnlp_summary["records"][end]))
     series_feasibility_sweep_script = read(
         joinpath(benchmark_directory, "bmopf_voltage_level_series_feasibility_sweep.jl"),
         String,
@@ -2843,9 +2860,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 151", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 148", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 93", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 152", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 149", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 94", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

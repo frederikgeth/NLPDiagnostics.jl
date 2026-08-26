@@ -44,6 +44,7 @@ series_voltage_scaling = read_summary("docs/bmopf_voltage_level_series_case_matr
 practical_application_success = read_summary("docs/bmopf_practical_application_success_summary.json")
 series_solver_campaign = read_summary("docs/bmopf_voltage_level_series_solver_campaign_summary.json")
 series_solver_budget60 = read_summary("docs/bmopf_voltage_level_series_solver_campaign_maxiter60_summary.json")
+series_madnlp_campaign = read_summary("docs/bmopf_voltage_level_series_madnlp_campaign_summary.json")
 series_feasibility_sweep = read_summary("docs/bmopf_voltage_level_series_feasibility_sweep_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
@@ -312,6 +313,8 @@ practical_application_count = get(practical_application_success, "application_co
 practical_application_success_count = get(practical_application_success, "successful_application_count", 0)
 series_solver_case_count = get(series_solver_campaign, "case_count", 0)
 series_solver_qualified_count = get(series_solver_campaign, "campaign_qualified_count", 0)
+series_madnlp_case_count = get(series_madnlp_campaign, "case_count", 0)
+series_madnlp_qualified_count = get(series_madnlp_campaign, "campaign_qualified_count", 0)
 series_solver_budget60_records = get(series_solver_budget60, "records", Any[])
 series_solver_budget60_largest = isempty(series_solver_budget60_records) ?
     Dict{String,Any}() : only(filter(record -> get(record, "label", "") == "series_8level_230kV_208V", series_solver_budget60_records))
@@ -404,10 +407,19 @@ gates = Dict{String,Any}[
     gate(
         "bmopf_voltage_level_series_scaling_readiness",
         series_voltage_case_count > 0 && series_voltage_covariance_count == series_voltage_case_count ? "partial" : "missing",
-        "A synthetic BMOPFTools case matrix now covers $series_voltage_case_count voltage-level ladders with series transformers; covariance gates pass on $series_voltage_covariance_count cases. Coordinate-geometry gates pass on $series_voltage_geometry_count cases, so the matrix is readiness evidence rather than a solver-scaling or universal voltage-base claim. The next step is to explain the geometry boundary and run matched-start solver campaigns on selected larger cases.",
+        "A synthetic BMOPFTools case matrix now covers $series_voltage_case_count voltage-level ladders with series transformers; covariance and coordinate-geometry gates pass on $series_voltage_covariance_count and $series_voltage_geometry_count cases respectively. The matrix is structural readiness evidence rather than a solver-scaling or universal voltage-base claim.",
         [
             "docs/bmopf_voltage_level_series_case_matrix_summary.json",
             "benchmarks/bmopf_voltage_level_series_case_matrix.jl",
+        ],
+    ),
+    gate(
+        "bmopf_voltage_level_series_madnlp_campaign",
+        series_madnlp_case_count > 0 && series_madnlp_qualified_count == series_madnlp_case_count ? "pass" : "partial",
+        "The bounded MadNLP follow-up qualifies $series_madnlp_qualified_count/$series_madnlp_case_count largest-ladder campaigns at the 0.25 demand multiplier, with all three scaling policies locally solved and physical endpoints accepted. This establishes solver-diverse procedure repeatability on the currently feasible fixture; it does not establish solver superiority or nominal-demand feasibility.",
+        [
+            "docs/bmopf_voltage_level_series_madnlp_campaign_summary.json",
+            "benchmarks/bmopf_voltage_level_series_madnlp_campaign.jl",
         ],
     ),
     gate(
@@ -432,7 +444,7 @@ gates = Dict{String,Any}[
     gate(
         "bmopf_voltage_level_series_feasibility_sweep",
         series_feasibility_records isa AbstractVector && !isempty(series_feasibility_records) ? "partial" : "missing",
-        "The largest-ladder demand sweep records $series_feasibility_solved_count/$((length(series_feasibility_records))) load multipliers with all policies locally solved and $series_feasibility_endpoint_pass_count/$((length(series_feasibility_records))) with physical endpoints accepted. The observed transition toward the 0.25 multiplier is fixture-specific feasibility evidence; coordinate-comparison qualification remains open.",
+        "The largest-ladder demand sweep records $series_feasibility_solved_count/$((length(series_feasibility_records))) load multipliers with all policies locally solved and $series_feasibility_endpoint_pass_count/$((length(series_feasibility_records))) with physical endpoints accepted. The observed transition toward the 0.25 multiplier is fixture-specific feasibility evidence; the Ipopt sweep's composite comparison gate remains open, while the separate MadNLP follow-up qualifies that boundary.",
         [
             "docs/bmopf_voltage_level_series_feasibility_sweep_summary.json",
             "benchmarks/bmopf_voltage_level_series_feasibility_sweep.jl",

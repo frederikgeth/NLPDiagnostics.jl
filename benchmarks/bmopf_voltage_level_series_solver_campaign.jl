@@ -4,8 +4,9 @@
 
 The campaign reuses the matched-start, endpoint, and comparison contracts from
 the established BMOPF scaling campaign while varying voltage levels and the
-number of series transformer interfaces.  It is deliberately Ipopt-only in
-the known environment; a later solver-diverse run can add MadNLP.
+number of series transformer interfaces.  The default artifact is the
+established Ipopt campaign; a companion runner selects the same path with
+MadNLP when that solver is available.
 """
 
 using NLPDiagnostics
@@ -60,8 +61,13 @@ function _series_case(label, voltage_levels; loads_per_level, load_multiplier = 
     return network
 end
 
-function _series_policies(network)
-    anchor = _build_context(network, BMOPFTools.OpfScaling(:classic; power_base = 1.0e6); add_objective = true)
+function _series_policies(network; optimizer = Ipopt.Optimizer)
+    anchor = _build_context(
+        network,
+        BMOPFTools.OpfScaling(:classic; power_base = 1.0e6);
+        add_objective = true,
+        optimizer,
+    )
     bases = BMOPFTools.opf_bases(anchor)
     voltage_bases = Dict(String(bus) => Float64(value) for (bus, value) in bases.v_base)
     power_bases = Dict(bus => (value > 1_000.0 ? 1.0e6 : 1.0e5) for (bus, value) in voltage_bases)
@@ -88,9 +94,19 @@ function _compact_record(record)
     )
 end
 
-function _run_case(label, voltage_levels, loads_per_level; repeats, max_iter, solver_tolerance, load_multiplier = 1.0)
+function _run_case(
+    label,
+    voltage_levels,
+    loads_per_level;
+    repeats,
+    max_iter,
+    solver_tolerance,
+    load_multiplier = 1.0,
+    optimizer = Ipopt.Optimizer,
+    solver = :ipopt,
+)
     network = _series_case(label, voltage_levels; loads_per_level, load_multiplier)
-    policies, anchor_context = _series_policies(network)
+    policies, anchor_context = _series_policies(network; optimizer)
     anchor_evaluation = _schema_evaluation(anchor_context, "$label-anchor")
     backend = JuMP.backend(BMOPFTools.opf_model(anchor_context))
     variable_count = length(MOI.get(backend, MOI.ListOfVariableIndices()))
@@ -102,7 +118,7 @@ function _run_case(label, voltage_levels, loads_per_level; repeats, max_iter, so
             network, policy_name, factory(), replicate,
             anchor_context, anchor_evaluation, fingerprint;
             max_iter, solver_tolerance, add_objective = true,
-            optimizer = Ipopt.Optimizer, solver = :ipopt, max_dense_entries = 0,
+            optimizer, solver, max_dense_entries = 0,
         )
         push!(public_records, public)
         private_records[(policy_name, replicate)] = private
@@ -127,7 +143,7 @@ function _run_case(label, voltage_levels, loads_per_level; repeats, max_iter, so
         reference_policy = reference, minimum_repeats = repeats,
         metadata = Dict(
             "runner_version" => _SERIES_SOLVER_RUNNER_VERSION,
-            "case" => label, "solver" => "Ipopt",
+            "case" => label, "solver" => string(solver),
             "max_iter" => max_iter, "solver_tolerance" => solver_tolerance,
         ),
     )
@@ -175,7 +191,7 @@ function main()
         "campaign_qualified_count" => count(record -> record["campaign_qualified"], records),
         "records" => records,
         "qualification" => Dict(
-            "claim" => "bounded matched-start Ipopt evidence across synthetic voltage-level ladders with series transformers",
+            "claim" => "bounded matched-start solver evidence across synthetic voltage-level ladders with series transformers",
             "does_not_establish" => [
                 "a universal scaling policy or solver superiority",
                 "portable performance or memory scaling",
