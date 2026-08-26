@@ -4,8 +4,8 @@
   "cross_backend_disagreement_count": 0,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "3f30c543efead170e809ffa8091d808fb4801df7",
-    "git_worktree_dirty": true,
+    "git_revision": "87312b0d5c46d5f98068750e3898cac2f03232af",
+    "git_worktree_dirty": false,
     "julia_version": "1.12.6"
   },
   "interpretation": "This bounded BMOPF endpoint validation checks implementation availability and local rank agreement under explicit scaling policies. Disagreements remain evidence for follow-up; no physical or solver-superiority claim is made.",
