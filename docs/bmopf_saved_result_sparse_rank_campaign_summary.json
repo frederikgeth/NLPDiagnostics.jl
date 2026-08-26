@@ -4,60 +4,60 @@
   "endpoint_span_diagnostics": {
     "by_result_units": {
       "pu": {
-        "record_count": 15,
+        "record_count": 19,
         "spans": {
           "condition_proxy_ratio_row_column_over_unscaled": {
             "available": true,
-            "count": 15,
+            "count": 19,
             "max": 9.958759490802882e-8,
-            "min": 4.475643133629972e-8,
-            "range": 5.4831163571729106e-8
+            "min": 4.460218229167133e-8,
+            "range": 5.498541261635749e-8
           },
           "rank_delta": {
             "available": true,
-            "count": 15,
+            "count": 19,
             "max": 0,
             "min": 0,
             "range": 0
           },
           "row_column_condition_proxy": {
             "available": true,
-            "count": 15,
-            "max": 145.44871953678754,
+            "count": 19,
+            "max": 145.77180897906416,
             "min": 92.22121181007161,
-            "range": 53.22750772671593
+            "range": 53.55059716899255
           },
           "row_column_fill_ratio": {
             "available": true,
-            "count": 15,
+            "count": 19,
             "max": 2.754274028629857,
-            "min": 2.748997955010225,
-            "range": 0.005276073619632005
+            "min": 2.7487934560327196,
+            "range": 0.00548057259713719
           },
           "row_column_rank": {
             "available": true,
-            "count": 15,
+            "count": 19,
             "max": 11028,
             "min": 11028,
             "range": 0
           },
           "unscaled_condition_proxy": {
             "available": true,
-            "count": 15,
-            "max": 3.016775885407021e9,
+            "count": 19,
+            "max": 3.0318751492651615e9,
             "min": 1.1925217693796453e9,
-            "range": 1.8242541160273757e9
+            "range": 1.8393533798855162e9
           },
           "unscaled_fill_ratio": {
             "available": true,
-            "count": 15,
+            "count": 19,
             "max": 2.756359918200409,
             "min": 2.7515610088616222,
             "range": 0.004798909338786572
           },
           "unscaled_rank": {
             "available": true,
-            "count": 15,
+            "count": 19,
             "max": 11028,
             "min": 11028,
             "range": 0
@@ -65,60 +65,60 @@
         }
       },
       "si": {
-        "record_count": 17,
+        "record_count": 21,
         "spans": {
           "condition_proxy_ratio_row_column_over_unscaled": {
             "available": true,
-            "count": 17,
+            "count": 21,
             "max": 0.6605745353872104,
             "min": 0.005151928541750479,
             "range": 0.6554226068454599
           },
           "rank_delta": {
             "available": true,
-            "count": 17,
+            "count": 21,
             "max": 0,
             "min": 0,
             "range": 0
           },
           "row_column_condition_proxy": {
             "available": true,
-            "count": 17,
+            "count": 21,
             "max": 59.01730650969418,
             "min": 20.032202483740097,
             "range": 38.98510402595409
           },
           "row_column_fill_ratio": {
             "available": true,
-            "count": 17,
+            "count": 21,
             "max": 2.7775732788002725,
             "min": 1.9868073878627968,
             "range": 0.7907658909374757
           },
           "row_column_rank": {
             "available": true,
-            "count": 17,
+            "count": 21,
             "max": 11028,
             "min": 1968,
             "range": 9060
           },
           "unscaled_condition_proxy": {
             "available": true,
-            "count": 17,
+            "count": 21,
             "max": 3896.632245052683,
             "min": 37.63865630830442,
             "range": 3858.993588744379
           },
           "unscaled_fill_ratio": {
             "available": true,
-            "count": 17,
+            "count": 21,
             "max": 2.776564417177914,
             "min": 1.9844792798385844,
             "range": 0.7920851373393296
           },
           "unscaled_rank": {
             "available": true,
-            "count": 17,
+            "count": 21,
             "max": 11028,
             "min": 1968,
             "range": 9060
@@ -130,56 +130,56 @@
     "overall": {
       "condition_proxy_ratio_row_column_over_unscaled": {
         "available": true,
-        "count": 32,
+        "count": 40,
         "max": 0.6605745353872104,
-        "min": 4.475643133629972e-8,
-        "range": 0.6605744906307791
+        "min": 4.460218229167133e-8,
+        "range": 0.6605744907850282
       },
       "rank_delta": {
         "available": true,
-        "count": 32,
+        "count": 40,
         "max": 0,
         "min": 0,
         "range": 0
       },
       "row_column_condition_proxy": {
         "available": true,
-        "count": 32,
-        "max": 145.44871953678754,
+        "count": 40,
+        "max": 145.77180897906416,
         "min": 20.032202483740097,
-        "range": 125.41651705304744
+        "range": 125.73960649532407
       },
       "row_column_fill_ratio": {
         "available": true,
-        "count": 32,
+        "count": 40,
         "max": 2.7775732788002725,
         "min": 1.9868073878627968,
         "range": 0.7907658909374757
       },
       "row_column_rank": {
         "available": true,
-        "count": 32,
+        "count": 40,
         "max": 11028,
         "min": 1968,
         "range": 9060
       },
       "unscaled_condition_proxy": {
         "available": true,
-        "count": 32,
-        "max": 3.016775885407021e9,
+        "count": 40,
+        "max": 3.0318751492651615e9,
         "min": 37.63865630830442,
-        "range": 3.016775847768365e9
+        "range": 3.0318751116265054e9
       },
       "unscaled_fill_ratio": {
         "available": true,
-        "count": 32,
+        "count": 40,
         "max": 2.776564417177914,
         "min": 1.9844792798385844,
         "range": 0.7920851373393296
       },
       "unscaled_rank": {
         "available": true,
-        "count": 32,
+        "count": 40,
         "max": 11028,
         "min": 1968,
         "range": 9060
@@ -187,12 +187,12 @@
     }
   },
   "environment": {
-    "git_revision": "8f307fcf1edaf5fcd7b1c49dd6bbc654e3994cd0",
+    "git_revision": "627fa56d094a1f2a0204a2c8431f24797f2b56ed",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": "Saved solver-result points provide sparse-only rank evidence with explicit provenance. Dense rank remains guarded; rank stability is local numerical evidence and not a physical gauge or universal policy certificate.",
-  "record_count": 32,
+  "record_count": 40,
   "records": [
     {
       "condition_proxy_ratio_row_column_over_unscaled": 0.13595325181532195,
@@ -897,6 +897,182 @@
       "unscaled_condition_proxy": 3532.0537000730087,
       "unscaled_fill_ratio": 2.776523517382413,
       "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.470556735141111e-8,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 128.7143613969641,
+      "row_column_fill_ratio": 2.7489161554192227,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t11_1300.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 2.8791573180404186e9,
+      "unscaled_fill_ratio": 2.7519700068166326,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.815859056306379e-8,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 145.62415262440936,
+      "row_column_fill_ratio": 2.7487934560327196,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t11_1300.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 3.0238458169516854e9,
+      "unscaled_fill_ratio": 2.7519563735514656,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.460218229167133e-8,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 128.68571709760073,
+      "row_column_fill_ratio": 2.749297886843899,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t12_1330.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 2.885188806594123e9,
+      "unscaled_fill_ratio": 2.7518064076346285,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.807975322281823e-8,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "pu",
+      "row_column_available": true,
+      "row_column_condition_proxy": 145.77180897906416,
+      "row_column_fill_ratio": 2.749093387866394,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t12_1330.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 3.0318751492651615e9,
+      "unscaled_fill_ratio": 2.7519427402862986,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.005152188917654853,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 20.065731593856103,
+      "row_column_fill_ratio": 2.7678936605316973,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t11_1300.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 3894.6032287553458,
+      "unscaled_fill_ratio": 2.7687116564417176,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.005695540946098981,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 20.044533114031125,
+      "row_column_fill_ratio": 2.7769597818677574,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t11_1300.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 3519.3379002498664,
+      "unscaled_fill_ratio": 2.77585548738923,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.005164206376139394,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 20.075665526904686,
+      "row_column_fill_ratio": 2.7681117927743695,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t12_1330.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 3887.4638356170135,
+      "unscaled_fill_ratio": 2.7679345603271983,
+      "unscaled_rank": 11028
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 0.005717010125634425,
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "result_field_units": "",
+      "result_units": "si",
+      "row_column_available": true,
+      "row_column_condition_proxy": 20.055154718865204,
+      "row_column_fill_ratio": 2.776755282890252,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t12_1330.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_condition_proxy": 3507.9795694151676,
+      "unscaled_fill_ratio": 2.776468984321745,
+      "unscaled_rank": 11028
     }
   ],
   "result_units": [
@@ -904,7 +1080,7 @@
     "si"
   ],
   "scaling_sensitive_count": 0,
-  "scaling_stable_count": 32,
+  "scaling_stable_count": 40,
   "schema_version": "nlpdiagnostics-bmopf-saved-result-sparse-rank-campaign-v1",
   "source": {
     "dense_policy": "disabled by explicit work guard",
@@ -940,7 +1116,15 @@
       "/private/tmp/nlpdiag_sparse538_t09t10_si/538_ln_t09_summary.json",
       "/private/tmp/nlpdiag_sparse538_t09t10_si/538_lg_t09_summary.json",
       "/private/tmp/nlpdiag_sparse538_t09t10_si/538_ln_t10_summary.json",
-      "/private/tmp/nlpdiag_sparse538_t09t10_si/538_lg_t10_summary.json"
+      "/private/tmp/nlpdiag_sparse538_t09t10_si/538_lg_t10_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t11t12_pu/538_ln_t11_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t11t12_pu/538_lg_t11_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t11t12_pu/538_ln_t12_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t11t12_pu/538_lg_t12_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t11t12_si/538_ln_t11_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t11t12_si/538_lg_t11_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t11t12_si/538_ln_t12_summary.json",
+      "/private/tmp/nlpdiag_sparse538_t11t12_si/538_lg_t12_summary.json"
     ],
     "point_policy": "saved_result",
     "runner": "benchmarks/bmopf_draft_corpus.jl",

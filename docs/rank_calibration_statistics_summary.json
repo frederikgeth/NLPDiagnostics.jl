@@ -71,7 +71,7 @@
   },
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "8f307fcf1edaf5fcd7b1c49dd6bbc654e3994cd0",
+    "git_revision": "627fa56d094a1f2a0204a2c8431f24797f2b56ed",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -191,13 +191,13 @@
     "all_sparse_estimates_available": true,
     "artifact": "docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
     "interpretation": "Saved-result sparse-only screening across 99-bus LN/LG and 538-bus LN/LG endpoints is provenance-complete and scaling-stable in both SI and PU result representations; dense rank remains guarded.",
-    "record_count": 32,
+    "record_count": 40,
     "result_units": [
       "pu",
       "si"
     ],
     "scaling_sensitive_count": 0,
-    "scaling_stable_count": 32
+    "scaling_stable_count": 40
   },
   "schema_version": "nlpdiagnostics-rank-calibration-statistics-v2",
   "source": {
