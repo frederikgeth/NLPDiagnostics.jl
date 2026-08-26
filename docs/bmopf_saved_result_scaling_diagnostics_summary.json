@@ -1,0 +1,282 @@
+{
+  "campaign_record_count": 48,
+  "environment": {
+    "git_revision": "85783c208c64742d704611982bfe9789cccb729d",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "incomplete_provenance_sensitive_record_count": 2,
+  "interpretation": "The paired comparison identifies unit-dependent sparse-rank outcomes without treating them as physical singularity claims. Incomplete point provenance is retained as a release boundary; the affected endpoints require provenance completion before policy conclusions.",
+  "next_action": "Complete or explain LN SI saved-result provenance for the affected snapshots, then repeat the paired diagnostic on the t15/t16 tranche.",
+  "paired_snapshot_count": 20,
+  "pairs": [
+    {
+      "pu_condition_proxy_ratio": 8.582296556919958e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.010839073916016238,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t05_1000.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 7.297645468951542e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.008044523349181692,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t06_1030.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 6.347218994427947e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.0069851521081867275,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t07_1100.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 5.609260694515873e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.006367742306599935,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t08_1130.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 5.1093222804346164e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.005909921872276954,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t09_1200.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 4.821329958263164e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.005677840475036832,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t10_1230.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 4.815859056306379e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.005695540946098981,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t11_1300.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 4.807975322281823e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.005717010125634425,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t12_1330.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 4.814969141258369e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.005720684120044514,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t13_1400.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 4.825356231755284e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.00571015267334086,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t14_1430.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 7.69311578791684e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.014324077810396338,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t05_1000.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 6.651592590898756e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.010176335442231413,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t06_1030.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 5.752710465726573e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.00788780810510821,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t07_1100.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 5.1587813427483256e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.006418590980782233,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t08_1130.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 4.72392914602656e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.005505520272599027,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t09_1200.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 4.475643133629972e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.005151928541750479,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t10_1230.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 4.470556735141111e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.005152188917654853,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t11_1300.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 4.460218229167133e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.005164206376139394,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t12_1330.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 4.464478550522801e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": true,
+      "si_condition_proxy_ratio": 4.1701009522473695,
+      "si_point_provenance_complete": false,
+      "si_rank_delta": 1,
+      "si_scaling_sensitive": true,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t13_1400.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 4.481269829528276e-8,
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": true,
+      "si_condition_proxy_ratio": 4.1701009522473695,
+      "si_point_provenance_complete": false,
+      "si_rank_delta": 1,
+      "si_scaling_sensitive": true,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t14_1430.bmopf.json"
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-saved-result-scaling-diagnostics-v1",
+  "sensitive_record_count": 2,
+  "sensitive_records": [
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.1701009522473695,
+      "point_provenance_complete": false,
+      "rank_delta": 1,
+      "result_units": "si",
+      "row_column_rank": 9850,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t13_1400.bmopf.json",
+      "unscaled_rank": 9849
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.1701009522473695,
+      "point_provenance_complete": false,
+      "rank_delta": 1,
+      "result_units": "si",
+      "row_column_rank": 9850,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t14_1430.bmopf.json",
+      "unscaled_rank": 9849
+    }
+  ],
+  "source": {
+    "campaign_summary": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
+    "pairing_policy": "Pair records by exact snapshot path and compare SI versus PU rank outcomes.",
+    "runner": "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
+  },
+  "unit_dependent_rank_outcome_count": 2
+}
