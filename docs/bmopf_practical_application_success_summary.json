@@ -2,8 +2,8 @@
   "application_count": 6,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "20730d0a703b17600e4935aae4f256cb91a8c767",
-    "git_worktree_dirty": true,
+    "git_revision": "98bf51423509c7b31a98ed07c3f9edbae5925b40",
+    "git_worktree_dirty": false,
     "julia_version": "1.12.6"
   },
   "qualification": {

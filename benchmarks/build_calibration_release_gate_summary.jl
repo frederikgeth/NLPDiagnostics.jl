@@ -45,6 +45,7 @@ practical_application_success = read_summary("docs/bmopf_practical_application_s
 series_solver_campaign = read_summary("docs/bmopf_voltage_level_series_solver_campaign_summary.json")
 series_solver_budget60 = read_summary("docs/bmopf_voltage_level_series_solver_campaign_maxiter60_summary.json")
 series_madnlp_campaign = read_summary("docs/bmopf_voltage_level_series_madnlp_campaign_summary.json")
+series_application_bridge = read_summary("docs/bmopf_series_application_bridge_summary.json")
 series_feasibility_sweep = read_summary("docs/bmopf_voltage_level_series_feasibility_sweep_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
@@ -315,6 +316,7 @@ series_solver_case_count = get(series_solver_campaign, "case_count", 0)
 series_solver_qualified_count = get(series_solver_campaign, "campaign_qualified_count", 0)
 series_madnlp_case_count = get(series_madnlp_campaign, "case_count", 0)
 series_madnlp_qualified_count = get(series_madnlp_campaign, "campaign_qualified_count", 0)
+series_application_bridge_status = get(series_application_bridge, "status", "missing")
 series_solver_budget60_records = get(series_solver_budget60, "records", Any[])
 series_solver_budget60_largest = isempty(series_solver_budget60_records) ?
     Dict{String,Any}() : only(filter(record -> get(record, "label", "") == "series_8level_230kV_208V", series_solver_budget60_records))
@@ -429,6 +431,15 @@ gates = Dict{String,Any}[
         [
             "docs/bmopf_practical_application_success_summary.json",
             "benchmarks/summarize_bmopf_practical_application_success.jl",
+        ],
+    ),
+    gate(
+        "bmopf_series_application_bridge",
+        series_application_bridge_status == "procedural_bridge_complete" ? "pass" : "partial",
+        "The series/application bridge aligns $((length(get(series_application_bridge, "evidence_rows", Any[])))) reviewed evidence rows on explicit local-solve, physical-endpoint, comparison, and coverage contracts while recording direct physical equivalence as unsupported. It also carries the nominal-demand boundary forward as a separate tuning target; this is an acceptance checklist, not a cross-topology equivalence claim.",
+        [
+            "docs/bmopf_series_application_bridge_summary.json",
+            "benchmarks/summarize_bmopf_series_application_bridge.jl",
         ],
     ),
     gate(

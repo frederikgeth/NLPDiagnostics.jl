@@ -2237,6 +2237,21 @@ end
           "nlpdiagnostics-bmopf-practical-application-success-v1"
     @test practical_application_summary["application_count"] == 6
     @test practical_application_summary["successful_application_count"] == 6
+    series_application_bridge_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_series_application_bridge.jl"),
+        String,
+    )
+    @test Meta.parseall(series_application_bridge_script) isa Expr
+    @test occursin("direct_physical_equivalence", series_application_bridge_script)
+    series_application_bridge_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_series_application_bridge_summary.json"),
+        String,
+    ))
+    @test series_application_bridge_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-series-application-bridge-v1"
+    @test series_application_bridge_summary["status"] == "procedural_bridge_complete"
+    @test length(series_application_bridge_summary["evidence_rows"]) == 7
+    @test series_application_bridge_summary["shared_contracts"]["direct_physical_equivalence"] == false
     combined_scaling_campaign = read(
         joinpath(benchmark_directory, "bmopf_combined_mv_lv_scaling_campaign.jl"),
         String,
@@ -2860,9 +2875,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 152", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 149", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 94", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 153", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 150", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 95", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),
