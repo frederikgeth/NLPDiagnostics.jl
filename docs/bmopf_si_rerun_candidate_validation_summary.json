@@ -1,0 +1,154 @@
+{
+  "all_candidates_usable": true,
+  "candidate_available_count": 7,
+  "candidate_count": 7,
+  "candidate_nonfinite_or_unsolved_count": 0,
+  "candidate_usable_solver_endpoint_count": 7,
+  "canonical_boundary_count_before_promotion": 7,
+  "environment": {
+    "git_revision": "7d13c1fa1e23d69b8cd5d83e750d61a6a61b8cd8",
+    "git_worktree_dirty": false
+  },
+  "interpretation": "Candidates are canonical-shaped BMOPFTools SI results validated in a separate root. They are promotable only after review and an explicit copy into the source corpus; this artifact does not mutate BMOPFDraftData or close the saved-result release boundary by itself.",
+  "records": [
+    {
+      "candidate": {
+        "available": true,
+        "candidate_quality": "usable_solver_endpoint",
+        "feasible": true,
+        "finite_numeric_count": 35783,
+        "nonfinite_numeric_count": 0,
+        "path": "/private/tmp/nlpdiag-si-candidate/ENWLsnapshots/538bus_LG/538bus_LG_t22_1830_result_si.json",
+        "sha256": "3f79660d91d0506d8a87289ec34ae4d4cacb5e5ccc09d3665fac161f47717f5a",
+        "termination_status": "LOCALLY_SOLVED"
+      },
+      "canonical_feasible": false,
+      "canonical_nonfinite_numeric_count": 25548,
+      "canonical_quality": "nonfinite_or_unsolved",
+      "canonical_termination_status": "ITERATION_LIMIT",
+      "promotable": true,
+      "result_units": "si",
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t22_1830.bmopf.json"
+    },
+    {
+      "candidate": {
+        "available": true,
+        "candidate_quality": "usable_solver_endpoint",
+        "feasible": true,
+        "finite_numeric_count": 35783,
+        "nonfinite_numeric_count": 0,
+        "path": "/private/tmp/nlpdiag-si-candidate/ENWLsnapshots/538bus_LG/538bus_LG_t24_1930_result_si.json",
+        "sha256": "4fd502f9b9e90d2d1605d681160164085aba1da5337155c2b400bd107b3840ae",
+        "termination_status": "LOCALLY_SOLVED"
+      },
+      "canonical_feasible": false,
+      "canonical_nonfinite_numeric_count": 25548,
+      "canonical_quality": "nonfinite_or_unsolved",
+      "canonical_termination_status": "ITERATION_LIMIT",
+      "promotable": true,
+      "result_units": "si",
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t24_1930.bmopf.json"
+    },
+    {
+      "candidate": {
+        "available": true,
+        "candidate_quality": "usable_solver_endpoint",
+        "feasible": true,
+        "finite_numeric_count": 35783,
+        "nonfinite_numeric_count": 0,
+        "path": "/private/tmp/nlpdiag-si-candidate/ENWLsnapshots/538bus_LG/538bus_LG_t25_2000_result_si.json",
+        "sha256": "414ed1eb61a35d1d8a3d33284d51c7a3e51c1c03bfb8996e7518ddd3bbee6943",
+        "termination_status": "LOCALLY_SOLVED"
+      },
+      "canonical_feasible": false,
+      "canonical_nonfinite_numeric_count": 25548,
+      "canonical_quality": "nonfinite_or_unsolved",
+      "canonical_termination_status": "ITERATION_LIMIT",
+      "promotable": true,
+      "result_units": "si",
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t25_2000.bmopf.json"
+    },
+    {
+      "candidate": {
+        "available": true,
+        "candidate_quality": "usable_solver_endpoint",
+        "feasible": true,
+        "finite_numeric_count": 35783,
+        "nonfinite_numeric_count": 0,
+        "path": "/private/tmp/nlpdiag-si-candidate/ENWLsnapshots/538bus_LN/538bus_LN_t13_1400_result_si.json",
+        "sha256": "71e7c59387b17618e0c7691dc26829b07ad2bf9193cfe60027c669ad34509350",
+        "termination_status": "LOCALLY_SOLVED"
+      },
+      "canonical_feasible": false,
+      "canonical_nonfinite_numeric_count": 25548,
+      "canonical_quality": "nonfinite_or_unsolved",
+      "canonical_termination_status": "ITERATION_LIMIT",
+      "promotable": true,
+      "result_units": "si",
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t13_1400.bmopf.json"
+    },
+    {
+      "candidate": {
+        "available": true,
+        "candidate_quality": "usable_solver_endpoint",
+        "feasible": true,
+        "finite_numeric_count": 35783,
+        "nonfinite_numeric_count": 0,
+        "path": "/private/tmp/nlpdiag-si-candidate/ENWLsnapshots/538bus_LN/538bus_LN_t14_1430_result_si.json",
+        "sha256": "57a7ba91a17843387d7b497df5f2f8d411ecc7076a27fe648bea7f3386dc5846",
+        "termination_status": "LOCALLY_SOLVED"
+      },
+      "canonical_feasible": false,
+      "canonical_nonfinite_numeric_count": 25548,
+      "canonical_quality": "nonfinite_or_unsolved",
+      "canonical_termination_status": "ITERATION_LIMIT",
+      "promotable": true,
+      "result_units": "si",
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t14_1430.bmopf.json"
+    },
+    {
+      "candidate": {
+        "available": true,
+        "candidate_quality": "usable_solver_endpoint",
+        "feasible": true,
+        "finite_numeric_count": 35783,
+        "nonfinite_numeric_count": 0,
+        "path": "/private/tmp/nlpdiag-si-candidate/ENWLsnapshots/538bus_LN/538bus_LN_t17_1600_result_si.json",
+        "sha256": "9688e2cfdea0aa58407d78f51285977112dafb9ab735fb1125f57eca00cd322b",
+        "termination_status": "LOCALLY_SOLVED"
+      },
+      "canonical_feasible": false,
+      "canonical_nonfinite_numeric_count": 25548,
+      "canonical_quality": "nonfinite_or_unsolved",
+      "canonical_termination_status": "ITERATION_LIMIT",
+      "promotable": true,
+      "result_units": "si",
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t17_1600.bmopf.json"
+    },
+    {
+      "candidate": {
+        "available": true,
+        "candidate_quality": "usable_solver_endpoint",
+        "feasible": true,
+        "finite_numeric_count": 35783,
+        "nonfinite_numeric_count": 0,
+        "path": "/private/tmp/nlpdiag-si-candidate/ENWLsnapshots/538bus_LN/538bus_LN_t25_2000_result_si.json",
+        "sha256": "4574c9702037601f14816c5f5a43e0881b0ef257ed5ff5c745ed61c942f3b02f",
+        "termination_status": "LOCALLY_SOLVED"
+      },
+      "canonical_feasible": false,
+      "canonical_nonfinite_numeric_count": 25548,
+      "canonical_quality": "nonfinite_or_unsolved",
+      "canonical_termination_status": "ITERATION_LIMIT",
+      "promotable": true,
+      "result_units": "si",
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t25_2000.bmopf.json"
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-rerun-candidate-validation-v1",
+  "source": {
+    "candidate_root": "/private/tmp/nlpdiag-si-candidate",
+    "quality_summary": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/bmopf_saved_result_quality_summary.json",
+    "validator": "benchmarks/validate_bmopf_rerun_candidates.jl"
+  }
+}

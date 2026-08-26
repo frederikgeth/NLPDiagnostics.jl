@@ -29,13 +29,15 @@
         "benchmarks/summarize_bmopf_saved_result_quality.jl",
         "docs/bmopf_si_bounded_rerun_summary.json",
         "benchmarks/summarize_bmopf_si_rerun.jl",
+        "docs/bmopf_si_rerun_candidate_validation_summary.json",
+        "benchmarks/validate_bmopf_rerun_candidates.jl",
         "docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
         "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl",
         "docs/bmopf_saved_result_scaling_diagnostics_summary.json",
         "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Regenerate the seven nonfinite/unsolved SI saved results using the bounded Ipopt rerun recipe, then re-audit their finiteness and mapping provenance.",
+      "next_deliverable": "Promote the seven validated SI candidate results into the canonical corpus under explicit review, then re-audit finiteness and mapping provenance.",
       "priority": 1,
       "status": "partial"
     },
@@ -126,7 +128,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "bf600fb7523353b4827802a285395ebf3bbb6d83",
+    "git_revision": "7d13c1fa1e23d69b8cd5d83e750d61a6a61b8cd8",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
