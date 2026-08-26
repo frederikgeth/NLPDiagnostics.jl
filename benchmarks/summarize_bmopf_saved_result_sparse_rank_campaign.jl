@@ -27,8 +27,11 @@ for summary in summaries
     evaluation = _dict(get(summary, "evaluation", nothing))
     sparse_qr = _dict(get(summary, "sparse_qr", nothing))
     comparison = _dict(get(sparse_qr, "comparison", nothing))
+    source = _dict(get(summary, "source", nothing))
     push!(records, Dict{String,Any}(
         "snapshot" => get(summary, "snapshot", nothing),
+        "result_units" => get(source, "result_units", nothing),
+        "result_field_units" => get(source, "result_field_units", nothing),
         "model_variable_count" => get(summary, "model_variable_count", nothing),
         "model_constraint_count" => get(summary, "model_constraint_count", nothing),
         "point_provenance_kind" => get(evaluation, "point_provenance_kind", nothing),
@@ -59,6 +62,7 @@ write_json(output_path, Dict{String,Any}(
         "git_worktree_dirty" => !isempty(git_status_entries()),
     ),
     "record_count" => length(records),
+    "result_units" => sort!(unique(filter(!isnothing, get.(records, "result_units", nothing)))),
     "all_point_provenance_complete" => all(get(record, "point_provenance_complete", false) for record in records),
     "all_sparse_estimates_available" => all(
         get(record, "unscaled_available", false) && get(record, "row_column_available", false)

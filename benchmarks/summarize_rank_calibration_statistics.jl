@@ -295,8 +295,9 @@ write_json(OUTPUT, Dict{String,Any}(
         "all_sparse_estimates_available" => get(saved_result_bmopf_campaign, "all_sparse_estimates_available", false),
         "scaling_sensitive_count" => get(saved_result_bmopf_campaign, "scaling_sensitive_count", 0),
         "scaling_stable_count" => get(saved_result_bmopf_campaign, "scaling_stable_count", 0),
+        "result_units" => get(saved_result_bmopf_campaign, "result_units", Any[]),
         "artifact" => SAVED_RESULT_BMOPF_CAMPAIGN_ARTIFACT,
-        "interpretation" => "Saved-result sparse-only screening across 99-bus LN/LG and 538-bus LN endpoints is provenance-complete and scaling-stable; dense rank remains guarded.",
+        "interpretation" => "Saved-result sparse-only screening across 99-bus LN/LG and 538-bus LN/LG endpoints is provenance-complete and scaling-stable in both SI and PU result representations; dense rank remains guarded.",
     ),
     "large_sparse_sparse_only" => Dict(
         "record_count" => large_sparse_records,

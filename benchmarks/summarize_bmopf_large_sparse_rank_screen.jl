@@ -22,6 +22,19 @@ output_path = length(ARGS) == 2 ? abspath(ARGS[2]) :
 
 result = JSON.parsefile(input_path)
 result isa AbstractDict || error("profile result is not a JSON object: $input_path")
+
+# The runner records the saved-result unit system in the campaign manifest,
+# rather than repeating it in each profile record. Carry that provenance into
+# the compact summary so SI and per-unit screens remain distinguishable when
+# they are aggregated later.
+manifest_metadata = let manifest_path = joinpath(dirname(input_path), "campaign_manifest.json")
+    if isfile(manifest_path)
+        manifest = JSON.parsefile(manifest_path)
+        manifest isa AbstractDict ? manifest : Dict{String,Any}()
+    else
+        Dict{String,Any}()
+    end
+end
 profile = get(result, "profile", Dict{String,Any}())
 profile isa AbstractDict || error("profile field is not a JSON object: $input_path")
 profile_core = get(profile, "profile", Dict{String,Any}())
@@ -55,6 +68,8 @@ payload = Dict{String,Any}(
         "summarizer" => "benchmarks/summarize_bmopf_large_sparse_rank_screen.jl",
         "input" => input_path,
         "point_policy" => get(result, "point_policy", nothing),
+        "result_units" => get(manifest_metadata, "result_units", nothing),
+        "result_field_units" => get(manifest_metadata, "result_field_units", nothing),
         "analysis_mode" => get(result, "analysis_mode", nothing),
         "dense_rank_max_entries" => get(result, "rank_max_dense_entries", nothing),
         "sparse_qr_max_input_nonzeros" => get(result, "sparse_qr_max_input_nonzeros", nothing),

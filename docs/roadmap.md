@@ -5573,3 +5573,18 @@ changes. It summarizes known-environment campaign evidence rather than
 rerunning solvers or claiming a universal scaling policy. The companion
 series-transformer solver campaign now qualifies two of three ladder cases;
 the largest case is retained as a concrete follow-up boundary.
+
+## 2026-08-26 PU/SI 538-bus saved-result sweep
+
+The saved-result sparse-rank campaign now covers eight endpoints across the
+99-bus and 538-bus corpora, with both SI and per-unit result representations.
+Three additional 538-bus endpoints (LN t03, LG t03, and LN t04) were profiled
+through the BMOPFTools bridge using complete `SolverResultPoint` provenance.
+All eight endpoints have usable sparse-QR estimates, and every unscaled versus
+row-column comparison is rank-stable (zero delta); dense rank remains guarded
+for the 538-bus dimensions. The campaign ledger now records result units
+explicitly, so unit-system coverage is auditable rather than inferred from
+paths. This strengthens the numerical-scaling evidence without elevating it
+to a universal policy recommendation. The next deliverable is to add further
+PU/SI times and retain endpoint-level span diagnostics before revisiting the
+release gate.
