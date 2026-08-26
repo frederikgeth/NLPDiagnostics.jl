@@ -774,6 +774,31 @@ function _solver_result_feasible(model)
            JuMP.primal_status(model) != MOI.NO_SOLUTION
 end
 
+"""Optionally write the canonical BMOPFTools SI result for a solved case.
+
+The solver-trace record remains diagnostic evidence.  This separate opt-in
+path uses BMOPFTools' public extractor and result writer so a guarded rerun can
+produce candidate saved-result files without changing the source corpus.
+"""
+function _write_extracted_result(context, relative)
+    raw_root = strip(get(ENV, "NLPDIAGNOSTICS_BMOPF_EXTRACTED_RESULT_DIR", ""))
+    isempty(raw_root) && return Dict{String,Any}(
+        "status" => "not_requested",
+        "result_units" => "si",
+    )
+    result_root = abspath(raw_root)
+    result_path = replace(joinpath(result_root, relative), ".bmopf.json" => "_result_si.json")
+    result = BMOPFTools.extract_result(context)
+    BMOPFTools.write_result(result, result_path)
+    return Dict{String,Any}(
+        "status" => "written",
+        "result_units" => "si",
+        "path" => result_path,
+        "termination_status" => get(result, "termination_status", nothing),
+        "feasible" => get(result, "feasible", nothing),
+    )
+end
+
 function _source_behavior_solver_comparison_data(
     context, model, point, solver_name, source_contract = nothing,
 )
@@ -961,6 +986,7 @@ function _case_record(root, relative, input_format, solver_name, output_dir, max
         run = _solve_with_trace(model, solver_name;
             capture_points, profile = !profile_budgeted,
         )
+        extracted_result = _write_extracted_result(context, relative)
         solver_result_point = NLPDiagnostics.solver_result_point(model)
         source_behavior_solver_comparison = _source_behavior_solver_comparison_data(
             context, model, solver_result_point, solver_name, source_contract,
@@ -1065,6 +1091,7 @@ function _case_record(root, relative, input_format, solver_name, output_dir, max
                 "family_perturbation_families" => String[],
                 "family_scaling_experiment_families" => String[],
                 "solver_result_constraint_row_count" => nothing,
+                "extracted_result" => extracted_result,
                 "solver_log_evidence" => solver_log_evidence,
                 "source_behavior_solver_comparison" => source_behavior_solver_comparison,
                 "solver_log_path" => solver_log_path,
@@ -1245,6 +1272,7 @@ function _case_record(root, relative, input_format, solver_name, output_dir, max
             "family_perturbation_max_iter" => perturbation_max_iter,
             "solver_result_constraint_row_count" => isnothing(run.result.profile) ?
                 nothing : length(run.result.profile.evaluation.constraint_sources),
+            "extracted_result" => extracted_result,
             "solver_log_evidence" => solver_log_evidence,
             "source_behavior_solver_comparison" => source_behavior_solver_comparison,
             "solver_log_path" => solver_log_path,
@@ -1386,6 +1414,9 @@ function main()
         "rank_max_dense_entries" => dense_entry_limit,
         "profile_max_variables" => profile_max_variables,
         "profile_stage" => profile_stage,
+        "extracted_result_directory" => get(
+            ENV, "NLPDIAGNOSTICS_BMOPF_EXTRACTED_RESULT_DIR", "",
+        ),
         "environment" => environment,
         "environment_fingerprint" => environment_fingerprint,
         "sweep_label" => sweep_label,

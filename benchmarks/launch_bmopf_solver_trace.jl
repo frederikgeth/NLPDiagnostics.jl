@@ -190,6 +190,9 @@ function _index_data(project, timeout_seconds, entries)
         "profile_stage" => get(
             ENV, "NLPDIAGNOSTICS_BMOPF_PROFILE_STAGE", "full",
         ),
+        "extracted_result_directory" => get(
+            ENV, "NLPDIAGNOSTICS_BMOPF_EXTRACTED_RESULT_DIR", "",
+        ),
         "environment" => Dict(
             "julia_version" => string(VERSION),
             "julia_executable" => string(Base.julia_cmd()),
