@@ -1,0 +1,638 @@
+{
+  "available_endpoint_count": 100,
+  "available_unit_counts": {
+    "pu": 50,
+    "si": 50
+  },
+  "environment": {
+    "git_revision": "8c70190dbf7db7b0221a7f96e5a94241d109e944",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": "This inventory describes source-file readiness and campaign coverage only. Unprofiled endpoints require the BMOPFTools bridge and guarded sparse-rank workflow before numerical conclusions are drawn.",
+  "profiled_endpoint_count": 6,
+  "profiled_unit_counts": {
+    "pu": 3,
+    "si": 3
+  },
+  "records": [
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu"
+      ],
+      "profiled_result_units": [
+        "si"
+      ],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t01_0800.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu"
+      ],
+      "profiled_result_units": [
+        "si"
+      ],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t02_0830.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "si"
+      ],
+      "profiled_result_units": [
+        "pu"
+      ],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t03_0900.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "si"
+      ],
+      "profiled_result_units": [
+        "pu"
+      ],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t04_0930.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t05_1000.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t06_1030.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t07_1100.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t08_1130.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t09_1200.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t10_1230.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t11_1300.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t12_1330.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t13_1400.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t14_1430.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t15_1500.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t16_1530.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t17_1600.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t18_1630.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t19_1700.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t20_1730.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t21_1800.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t22_1830.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t23_1900.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t24_1930.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t25_2000.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu"
+      ],
+      "profiled_result_units": [
+        "si"
+      ],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t01_0800.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t02_0830.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "si"
+      ],
+      "profiled_result_units": [
+        "pu"
+      ],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t03_0900.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t04_0930.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t05_1000.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t06_1030.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t07_1100.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t08_1130.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t09_1200.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t10_1230.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t11_1300.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t12_1330.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t13_1400.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t14_1430.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t15_1500.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t16_1530.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t17_1600.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t18_1630.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t19_1700.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t20_1730.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t21_1800.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t22_1830.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t23_1900.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t24_1930.bmopf.json"
+    },
+    {
+      "available_result_units": [
+        "si",
+        "pu"
+      ],
+      "missing_profile_units": [
+        "pu",
+        "si"
+      ],
+      "profiled_result_units": [],
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t25_2000.bmopf.json"
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-538bus-saved-result-time-coverage-v1",
+  "snapshot_count": 50,
+  "source": {
+    "benchmark_root": "/Users/uqfgeth/Documents/GitHub/BMOPFDraftData/benchmarks",
+    "campaign_summary": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
+    "result_units": [
+      "si",
+      "pu"
+    ],
+    "runner": "benchmarks/summarize_bmopf_538bus_saved_result_time_coverage.jl"
+  },
+  "unprofiled_endpoint_count": 94
+}

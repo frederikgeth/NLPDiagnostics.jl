@@ -67,6 +67,8 @@
         "benchmarks/summarize_bmopf_large_sparse_rank_screen.jl",
         "docs/smallest_singular_calibration_summary.json",
         "benchmarks/calibrate_restarted_smallest_singular.jl",
+        "docs/bmopf_538bus_saved_result_time_coverage_summary.json",
+        "benchmarks/summarize_bmopf_538bus_saved_result_time_coverage.jl",
         "docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
         "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl"
       ],

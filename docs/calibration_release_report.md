@@ -41,7 +41,7 @@ This report is generated from `docs/calibration_release_gate_summary.json`. It s
 
 The action ledger sequences work without changing gate thresholds or release status.
 
-1. **`numerical_rank_false_positive_negative_statistics`** — Extend the 538-bus saved-result sweep across PU and SI time snapshots, then retain endpoint-level span diagnostics.
+1. **`numerical_rank_false_positive_negative_statistics`** — Widen the 538-bus PU/SI time sweep with additional transformer-chain snapshots and test whether endpoint spans persist.
 2. **`real_99bus_physical_kkt`** — Extend trusted real-99-bus endpoint coverage and localize the remaining ibr_p_upper strict-KKT boundary.
 3. **`runtime_memory_scaling`** — Add guarded OPF-solver scaling and allocator-level peak-memory evidence beyond the synthetic sparse ladder.
 4. **`analyze_runtime_scaling`** — Run the isolated analyze portability validator against a second reviewed environment with allocator-level peak telemetry.
@@ -112,6 +112,8 @@ Evidence:
 - [`benchmarks/summarize_bmopf_large_sparse_rank_screen.jl`](benchmarks/summarize_bmopf_large_sparse_rank_screen.jl)
 - [`docs/smallest_singular_calibration_summary.json`](docs/smallest_singular_calibration_summary.json)
 - [`benchmarks/calibrate_restarted_smallest_singular.jl`](benchmarks/calibrate_restarted_smallest_singular.jl)
+- [`docs/bmopf_538bus_saved_result_time_coverage_summary.json`](docs/bmopf_538bus_saved_result_time_coverage_summary.json)
+- [`benchmarks/summarize_bmopf_538bus_saved_result_time_coverage.jl`](benchmarks/summarize_bmopf_538bus_saved_result_time_coverage.jl)
 - [`docs/bmopf_saved_result_sparse_rank_campaign_summary.json`](docs/bmopf_saved_result_sparse_rank_campaign_summary.json)
 - [`benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl`](benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl)
 

@@ -23,6 +23,8 @@
         "benchmarks/summarize_bmopf_large_sparse_rank_screen.jl",
         "docs/smallest_singular_calibration_summary.json",
         "benchmarks/calibrate_restarted_smallest_singular.jl",
+        "docs/bmopf_538bus_saved_result_time_coverage_summary.json",
+        "benchmarks/summarize_bmopf_538bus_saved_result_time_coverage.jl",
         "docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
         "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl"
       ],
@@ -118,7 +120,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "d95f31073610f3debaf8467a4c5dbb8533935222",
+    "git_revision": "8c70190dbf7db7b0221a7f96e5a94241d109e944",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
