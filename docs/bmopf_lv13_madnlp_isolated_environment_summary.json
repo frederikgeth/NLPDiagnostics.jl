@@ -1,0 +1,30 @@
+{
+  "checks": {
+    "benchmark_project_active": true,
+    "bmopf_loadable": true,
+    "bmopf_package_found": true,
+    "madnlp_loadable": true,
+    "madnlp_package_found": true,
+    "plan_ready": true,
+    "runner_present": true
+  },
+  "observed": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "bmopf_path": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/src/BMOPFTools.jl",
+    "expected_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "julia_version": "1.12.6",
+    "madnlp_path": "/Users/uqfgeth/.julia/packages/MadNLP/ojXCn/src/MadNLP.jl",
+    "runner": "benchmarks/bmopf_combined_mv_lv_perturbed_start_campaign.jl"
+  },
+  "qualification": {
+    "claim": "the approved isolated LV13 MadNLP software prerequisites are available in the known benchmark environment",
+    "does_not_establish": [
+      "model construction success at 4,902 variables",
+      "solver success, timeout compliance, or peak-memory compliance"
+    ],
+    "next_action": "apply the external resource envelope and run the approved isolated command"
+  },
+  "runner": "benchmarks/validate_bmopf_lv13_madnlp_isolated_environment.jl",
+  "schema_version": "nlpdiagnostics-bmopf-lv13-madnlp-isolated-environment-v1",
+  "status": "environment_ready"
+}

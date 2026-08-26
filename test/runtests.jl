@@ -2319,6 +2319,20 @@ end
         @test complete_summary["status"] == "isolated_result_complete"
         @test all(values(complete_summary["checks"]))
     end
+    lv13_madnlp_environment_script = read(
+        joinpath(benchmark_directory, "validate_bmopf_lv13_madnlp_isolated_environment.jl"),
+        String,
+    )
+    @test Meta.parseall(lv13_madnlp_environment_script) isa Expr
+    @test occursin("environment_ready", lv13_madnlp_environment_script)
+    lv13_madnlp_environment_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_lv13_madnlp_isolated_environment_summary.json"),
+        String,
+    ))
+    @test lv13_madnlp_environment_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-lv13-madnlp-isolated-environment-v1"
+    @test lv13_madnlp_environment_summary["status"] == "environment_ready"
+    @test lv13_madnlp_environment_summary["checks"]["madnlp_loadable"] == true
     series_capacity_boundary_script = read(
         joinpath(benchmark_directory, "analyze_bmopf_series_nominal_capacity_boundary.jl"),
         String,
@@ -2422,6 +2436,7 @@ end
     @test occursin("bmopf_voltage_level_series_solver_campaign", release_gate_summary)
     @test occursin("bmopf_voltage_level_series_feasibility_sweep", release_gate_summary)
     @test occursin("bmopf_lv13_madnlp_isolated_run_plan", release_gate_summary)
+    @test occursin("bmopf_lv13_madnlp_isolated_environment", release_gate_summary)
     @test occursin("bmopf_lv13_madnlp_isolated_result", release_gate_summary)
     @test occursin("\"blocking\": false", release_gate_summary)
     release_report = read(
@@ -2976,9 +2991,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 158", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 155", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 100", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 159", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 156", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 101", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

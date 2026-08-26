@@ -51,6 +51,7 @@ series_uprated_nominal = read_summary("docs/bmopf_voltage_level_series_uprated_n
 lv13_madnlp_guard = read_summary("docs/bmopf_lv13_madnlp_transfer_guard_summary.json")
 lv13_madnlp_plan = read_summary("docs/bmopf_lv13_madnlp_isolated_run_plan.json")
 lv13_madnlp_result = read_summary("docs/bmopf_lv13_madnlp_isolated_result_summary.json")
+lv13_madnlp_environment = read_summary("docs/bmopf_lv13_madnlp_isolated_environment_summary.json")
 series_feasibility_sweep = read_summary("docs/bmopf_voltage_level_series_feasibility_sweep_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
@@ -484,6 +485,15 @@ gates = Dict{String,Any}[
         [
             "docs/bmopf_lv13_madnlp_isolated_run_plan.json",
             "benchmarks/plan_bmopf_lv13_madnlp_isolated_run.jl",
+        ],
+    ),
+    gate(
+        "bmopf_lv13_madnlp_isolated_environment",
+        get(lv13_madnlp_environment, "status", "") == "environment_ready" ? "pass" : "partial",
+        "The isolated-run preflight checks the active benchmark project, MadNLP and BMOPFTools loadability, and runner presence without constructing the large feeder model. It establishes software readiness only; resource-envelope and solver-result checks remain separate.",
+        [
+            "docs/bmopf_lv13_madnlp_isolated_environment_summary.json",
+            "benchmarks/validate_bmopf_lv13_madnlp_isolated_environment.jl",
         ],
     ),
     gate(

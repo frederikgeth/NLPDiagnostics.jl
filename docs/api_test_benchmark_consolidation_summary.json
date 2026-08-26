@@ -577,9 +577,9 @@
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 97,
-    "json_file_count": 100,
-    "json_schema_file_count": 100,
+    "benchmark_scripts_with_schema_version_count": 98,
+    "json_file_count": 101,
+    "json_schema_file_count": 101,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -686,7 +686,7 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 158,
+    "benchmark_script_count": 159,
     "shared_benchmark_helper": "benchmarks/common.jl",
     "shared_benchmark_helper_exemption_count": 3,
     "shared_benchmark_helper_exemptions": [
@@ -703,7 +703,7 @@
         "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
       }
     ],
-    "shared_benchmark_helper_user_count": 155,
+    "shared_benchmark_helper_user_count": 156,
     "shared_benchmark_helper_users": [
       "benchmarks/analyze_bmopf_series_nominal_capacity_boundary.jl",
       "benchmarks/audit_advanced_api_surface.jl",
@@ -856,6 +856,7 @@
       "benchmarks/validate_bmopf_analyze_portability.jl",
       "benchmarks/validate_bmopf_campaign.jl",
       "benchmarks/validate_bmopf_checkout.jl",
+      "benchmarks/validate_bmopf_lv13_madnlp_isolated_environment.jl",
       "benchmarks/validate_bmopf_residual_trends.jl",
       "benchmarks/validate_bmopf_trace_truth_labels.jl",
       "benchmarks/validate_rank_third_backend.jl",
