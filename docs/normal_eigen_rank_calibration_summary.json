@@ -2,8 +2,8 @@
   "backend": "normal_eigen",
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "8e4e858165d81e97b5e2686f2955df63aef49119",
-    "git_worktree_dirty": true,
+    "git_revision": "a4a9a03b27045e41bf689dbe5273be343ee9115e",
+    "git_worktree_dirty": false,
     "julia_version": "1.12.6"
   },
   "hard_control_count": 15,
