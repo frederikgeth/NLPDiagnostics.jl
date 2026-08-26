@@ -136,6 +136,12 @@ corpus_rows = [
     ),
 ]
 
+campaign_provenance = get(saved_result_bmopf_campaign, "all_point_provenance_complete", false)
+campaign_sensitive = get(saved_result_bmopf_campaign, "scaling_sensitive_count", 0)
+campaign_stable = get(saved_result_bmopf_campaign, "scaling_stable_count", 0)
+campaign_provenance_label = campaign_provenance ? "provenance-complete" : "contains incomplete point provenance"
+campaign_scaling_label = "$(campaign_sensitive) scaling-sensitive and $(campaign_stable) scaling-stable records"
+
 write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-rank-calibration-statistics-v2",
     "source" => Dict(
@@ -297,7 +303,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "scaling_stable_count" => get(saved_result_bmopf_campaign, "scaling_stable_count", 0),
         "result_units" => get(saved_result_bmopf_campaign, "result_units", Any[]),
         "artifact" => SAVED_RESULT_BMOPF_CAMPAIGN_ARTIFACT,
-        "interpretation" => "Saved-result sparse-only screening across 99-bus LN/LG and 538-bus LN/LG endpoints is provenance-complete and scaling-stable in both SI and PU result representations; dense rank remains guarded.",
+        "interpretation" => "Saved-result sparse-only screening across 99-bus LN/LG and 538-bus LN/LG endpoints is $(campaign_provenance_label), with $(campaign_scaling_label) across SI and PU result representations; dense rank remains guarded.",
     ),
     "large_sparse_sparse_only" => Dict(
         "record_count" => large_sparse_records,
