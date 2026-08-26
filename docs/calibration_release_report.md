@@ -163,7 +163,7 @@ Evidence:
 
 ### `PASS` — `bmopf_series_application_bridge`
 
-The series/application bridge aligns 7 reviewed evidence rows on explicit local-solve, physical-endpoint, comparison, and coverage contracts while recording direct physical equivalence as unsupported. It also carries the nominal-demand boundary forward as a separate tuning target; this is an acceptance checklist, not a cross-topology equivalence claim.
+The series/application bridge aligns 9 reviewed evidence rows on explicit local-solve, physical-endpoint, comparison, and coverage contracts while recording direct physical equivalence as unsupported. It also carries the nominal-demand boundary forward as a separate tuning target; this is an acceptance checklist, not a cross-topology equivalence claim.
 
 Evidence:
 - [`docs/bmopf_series_application_bridge_summary.json`](docs/bmopf_series_application_bridge_summary.json)

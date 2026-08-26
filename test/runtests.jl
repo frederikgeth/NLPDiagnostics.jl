@@ -2250,8 +2250,10 @@ end
     @test series_application_bridge_summary["schema_version"] ==
           "nlpdiagnostics-bmopf-series-application-bridge-v1"
     @test series_application_bridge_summary["status"] == "procedural_bridge_complete"
-    @test length(series_application_bridge_summary["evidence_rows"]) == 7
+    @test length(series_application_bridge_summary["evidence_rows"]) == 9
     @test series_application_bridge_summary["shared_contracts"]["direct_physical_equivalence"] == false
+    @test series_application_bridge_summary["uprated_fixture"]["rating_multiplier"] == 2.5
+    @test series_application_bridge_summary["uprated_fixture"]["campaigns_qualified"] == true
     series_capacity_boundary_script = read(
         joinpath(benchmark_directory, "analyze_bmopf_series_nominal_capacity_boundary.jl"),
         String,

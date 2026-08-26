@@ -100,6 +100,39 @@
       "locally_solved": true,
       "model_variable_count": 134,
       "physical_endpoints_accepted": true,
+      "rating_multiplier": 1.0,
+      "run_count": 6,
+      "solver": "MadNLP",
+      "success": true,
+      "transformer_count": 7
+    },
+    {
+      "case": "series_8level_230kV_208V_uprated_nominal",
+      "comparisons_qualified": true,
+      "coverage_complete": true,
+      "evidence_family": "series_transformer_synthetic",
+      "evidence_id": "series_8level_230kV_208V_uprated_ipopt",
+      "load_multiplier": 1.0,
+      "locally_solved": true,
+      "model_variable_count": 134,
+      "physical_endpoints_accepted": true,
+      "rating_multiplier": 2.5,
+      "run_count": 6,
+      "solver": "Ipopt",
+      "success": true,
+      "transformer_count": 7
+    },
+    {
+      "case": "series_8level_230kV_208V_uprated_nominal",
+      "comparisons_qualified": true,
+      "coverage_complete": true,
+      "evidence_family": "series_transformer_synthetic",
+      "evidence_id": "series_8level_230kV_208V_uprated_madnlp",
+      "load_multiplier": 1.0,
+      "locally_solved": true,
+      "model_variable_count": 134,
+      "physical_endpoints_accepted": true,
+      "rating_multiplier": 2.5,
       "run_count": 6,
       "solver": "MadNLP",
       "success": true,
@@ -193,9 +226,11 @@
     "currently_qualified_multiplier": 0.25,
     "evidence_source": "docs/bmopf_voltage_level_series_feasibility_sweep_summary.json",
     "feasibility_sweep_records": 4,
-    "next_experiment": "tune initialization or formulation at the nominal multiplier without relaxing endpoint or comparison gates",
+    "next_experiment": "retain the uprated rating multiplier as explicit fixture metadata and compare its results with practical application evidence",
     "nominal_multiplier_status": "not_qualified_in_recorded_sweep",
-    "series_case": "series_8level_230kV_208V"
+    "original_fixture_nominal_status": "overloaded_by_capacity_screen",
+    "series_case": "series_8level_230kV_208V",
+    "uprated_fixture_nominal_status": "qualified"
   },
   "qualification": {
     "claim": "the synthetic ladder and practical combined MV/LV ledgers share explicit procedural success contracts",
@@ -204,7 +239,7 @@
       "solver or scaling-policy superiority",
       "nominal-demand feasibility"
     ],
-    "next_action": "use the bridge as the acceptance checklist for a nominal-demand initialization/formulation experiment"
+    "next_action": "use the bridge as the acceptance checklist for future uprated and practical application campaigns"
   },
   "runner": "benchmarks/summarize_bmopf_series_application_bridge.jl",
   "schema_version": "nlpdiagnostics-bmopf-series-application-bridge-v1",
@@ -215,5 +250,12 @@
     "direct_physical_equivalence_reason": "synthetic series ladders and combined MV/LV feeders have different topology and operating-point provenance",
     "physical_endpoint_contract": "all evidence rows retain explicit physical-endpoint acceptance"
   },
-  "status": "procedural_bridge_complete"
+  "status": "procedural_bridge_complete",
+  "uprated_fixture": {
+    "campaigns_qualified": true,
+    "load_multiplier": 1.0,
+    "rating_multiplier": 2.5,
+    "solver_count": 2,
+    "source": "docs/bmopf_voltage_level_series_uprated_nominal_campaign_summary.json"
+  }
 }

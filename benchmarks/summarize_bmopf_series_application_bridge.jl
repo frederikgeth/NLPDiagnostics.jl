@@ -13,6 +13,7 @@ using .NLPDiagnosticsBenchmarkCommon
 const ROOT = repo_root()
 const PRACTICAL_INPUT = "docs/bmopf_practical_application_success_summary.json"
 const MADNLP_INPUT = "docs/bmopf_voltage_level_series_madnlp_campaign_summary.json"
+const UPRATED_INPUT = "docs/bmopf_voltage_level_series_uprated_nominal_campaign_summary.json"
 const FEASIBILITY_INPUT = "docs/bmopf_voltage_level_series_feasibility_sweep_summary.json"
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "bmopf_series_application_bridge_summary.json") : ARGS[1])
@@ -36,17 +37,18 @@ function _practical_row(row)
     )
 end
 
-function _series_row(record)
+function _series_row(record; evidence_id, solver, rating_multiplier = nothing)
     gates = get(record, "campaign_gates", Dict{String,Any}())
     rows = get(record, "records", Any[])
     return Dict{String,Any}(
-        "evidence_id" => "series_8level_230kV_208V_madnlp",
+        "evidence_id" => evidence_id,
         "evidence_family" => "series_transformer_synthetic",
-        "solver" => "MadNLP",
+        "solver" => solver,
         "case" => get(record, "label", "unknown"),
         "model_variable_count" => get(record, "model_variable_count", nothing),
         "transformer_count" => get(record, "transformer_count", nothing),
         "load_multiplier" => get(record, "load_multiplier", nothing),
+        "rating_multiplier" => rating_multiplier,
         "run_count" => length(rows),
         "success" => get(record, "campaign_qualified", false),
         "locally_solved" => all(get(row, "termination_status", "") == "LOCALLY_SOLVED" for row in rows),
@@ -58,20 +60,32 @@ end
 
 practical = read_summary(PRACTICAL_INPUT)
 madnlp = read_summary(MADNLP_INPUT)
+uprated = read_summary(UPRATED_INPUT)
 feasibility = read_summary(FEASIBILITY_INPUT)
 practical_rows = [_practical_row(row) for row in get(practical, "records", Any[])]
 series_records = get(madnlp, "records", Any[])
 isempty(series_records) && error("MadNLP campaign has no records")
-series_row = _series_row(first(series_records))
+series_row = _series_row(
+    first(series_records);
+    evidence_id = "series_8level_230kV_208V_madnlp",
+    solver = "MadNLP",
+    rating_multiplier = 1.0,
+)
+uprated_rows = Dict{String,Any}[]
+for campaign in get(uprated, "campaigns", Any[])
+    push!(uprated_rows, _series_row(
+        get(campaign, "record", Dict{String,Any}());
+        evidence_id = "series_8level_230kV_208V_uprated_$(lowercase(get(campaign, "solver", "unknown")))",
+        solver = get(campaign, "solver", "unknown"),
+        rating_multiplier = get(uprated, "rating_multiplier", nothing),
+    ))
+end
+evidence_rows = vcat(practical_rows, [series_row], uprated_rows)
 shared_contracts = [
-    all(row["success"] for row in practical_rows),
-    series_row["success"],
-    all(row["locally_solved"] for row in practical_rows),
-    series_row["locally_solved"],
-    all(row["physical_endpoints_accepted"] for row in practical_rows),
-    series_row["physical_endpoints_accepted"],
-    all(row["comparisons_qualified"] for row in practical_rows),
-    series_row["comparisons_qualified"],
+    all(row["success"] for row in evidence_rows),
+    all(row["locally_solved"] for row in evidence_rows),
+    all(row["physical_endpoints_accepted"] for row in evidence_rows),
+    all(row["comparisons_qualified"] for row in evidence_rows),
 ]
 sweep_records = get(feasibility, "records", Any[])
 nominal = isempty(sweep_records) ? Dict{String,Any}() : first(sweep_records)
@@ -79,7 +93,14 @@ bridge = Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-series-application-bridge-v1",
     "runner" => "benchmarks/summarize_bmopf_series_application_bridge.jl",
     "status" => all(shared_contracts) ? "procedural_bridge_complete" : "procedural_bridge_partial",
-    "evidence_rows" => vcat(practical_rows, [series_row]),
+    "evidence_rows" => evidence_rows,
+    "uprated_fixture" => Dict(
+        "rating_multiplier" => get(uprated, "rating_multiplier", nothing),
+        "load_multiplier" => get(uprated, "load_multiplier", nothing),
+        "solver_count" => length(uprated_rows),
+        "campaigns_qualified" => all(row["success"] for row in uprated_rows),
+        "source" => UPRATED_INPUT,
+    ),
     "shared_contracts" => Dict(
         "all_rows_procedurally_successful" => all(shared_contracts),
         "physical_endpoint_contract" => "all evidence rows retain explicit physical-endpoint acceptance",
@@ -92,7 +113,9 @@ bridge = Dict{String,Any}(
         "feasibility_sweep_records" => length(sweep_records),
         "currently_qualified_multiplier" => get(series_row, "load_multiplier", nothing),
         "nominal_multiplier_status" => isempty(sweep_records) ? "unavailable" : "not_qualified_in_recorded_sweep",
-        "next_experiment" => "tune initialization or formulation at the nominal multiplier without relaxing endpoint or comparison gates",
+        "original_fixture_nominal_status" => "overloaded_by_capacity_screen",
+        "uprated_fixture_nominal_status" => all(row["success"] for row in uprated_rows) ? "qualified" : "partial",
+        "next_experiment" => "retain the uprated rating multiplier as explicit fixture metadata and compare its results with practical application evidence",
         "evidence_source" => FEASIBILITY_INPUT,
         "boundary_record" => nominal,
     ),
@@ -103,7 +126,7 @@ bridge = Dict{String,Any}(
             "solver or scaling-policy superiority",
             "nominal-demand feasibility",
         ],
-        "next_action" => "use the bridge as the acceptance checklist for a nominal-demand initialization/formulation experiment",
+        "next_action" => "use the bridge as the acceptance checklist for future uprated and practical application campaigns",
     ),
 )
 write_json(OUTPUT, bridge)
