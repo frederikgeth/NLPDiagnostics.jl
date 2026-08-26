@@ -1,0 +1,37 @@
+{
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-perturbed-start-campaign-v1",
+  "solver": "madnlp",
+  "snapshot": {
+    "feeder": "LV13_58bus",
+    "source_warning_count": 46
+  },
+  "budgets": {
+    "max_variables": 5000,
+    "repeats": 2,
+    "max_iter": 10,
+    "solver_tolerance": 1.0e-10
+  },
+  "matrix_gates": {
+    "all_variants_qualified": true,
+    "all_physical_endpoints_accepted": true,
+    "all_comparisons_qualified": true
+  },
+  "variants": [
+    {
+      "variant": "plus_1pct",
+      "records": [
+        {"termination_status": "LOCALLY_SOLVED"},
+        {"termination_status": "LOCALLY_SOLVED"},
+        {"termination_status": "LOCALLY_SOLVED"}
+      ]
+    },
+    {
+      "variant": "minus_1pct",
+      "records": [
+        {"termination_status": "LOCALLY_SOLVED"},
+        {"termination_status": "LOCALLY_SOLVED"},
+        {"termination_status": "LOCALLY_SOLVED"}
+      ]
+    }
+  ]
+}

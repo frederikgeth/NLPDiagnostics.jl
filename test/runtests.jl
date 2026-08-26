@@ -2305,6 +2305,20 @@ end
           "nlpdiagnostics-bmopf-lv13-madnlp-isolated-result-v1"
     @test lv13_madnlp_result_summary["status"] == "awaiting_artifact"
     @test lv13_madnlp_result_summary["checks"]["artifact_present"] == false
+    complete_fixture = joinpath(
+        repository_root, "test", "fixtures", "bmopf_lv13_madnlp_isolated_result_complete.json",
+    )
+    mktempdir() do directory
+        complete_output = joinpath(directory, "complete-summary.json")
+        complete_environment = copy(ENV)
+        complete_environment["NLPDIAGNOSTICS_LV13_MADNLP_ISOLATED_RESULT_INPUT"] = complete_fixture
+        complete_environment["NLPDIAGNOSTICS_LV13_MADNLP_ISOLATED_RESULT_OUTPUT"] = complete_output
+        complete_command = `$(Base.julia_cmd()) --compiled-modules=no --startup-file=no --project=$(joinpath(repository_root, "work", "benchmark-environment")) $(joinpath(benchmark_directory, "summarize_bmopf_lv13_madnlp_isolated_result.jl"))`
+        run(setenv(complete_command, complete_environment))
+        complete_summary = JSON.parse(read(complete_output, String))
+        @test complete_summary["status"] == "isolated_result_complete"
+        @test all(values(complete_summary["checks"]))
+    end
     series_capacity_boundary_script = read(
         joinpath(benchmark_directory, "analyze_bmopf_series_nominal_capacity_boundary.jl"),
         String,
