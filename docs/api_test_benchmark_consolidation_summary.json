@@ -577,9 +577,9 @@
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 100,
-    "json_file_count": 103,
-    "json_schema_file_count": 103,
+    "benchmark_scripts_with_schema_version_count": 101,
+    "json_file_count": 104,
+    "json_schema_file_count": 104,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -686,7 +686,7 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 161,
+    "benchmark_script_count": 162,
     "shared_benchmark_helper": "benchmarks/common.jl",
     "shared_benchmark_helper_exemption_count": 3,
     "shared_benchmark_helper_exemptions": [
@@ -703,7 +703,7 @@
         "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
       }
     ],
-    "shared_benchmark_helper_user_count": 158,
+    "shared_benchmark_helper_user_count": 159,
     "shared_benchmark_helper_users": [
       "benchmarks/analyze_bmopf_series_nominal_capacity_boundary.jl",
       "benchmarks/assess_bmopf_lv13_madnlp_resource_envelope.jl",
@@ -808,6 +808,7 @@
       "benchmarks/real_99bus_phase_only_tolerance_matrix.jl",
       "benchmarks/real_99bus_readiness.jl",
       "benchmarks/review_api_ownership_decisions.jl",
+      "benchmarks/run_bmopf_lv13_madnlp_isolated.jl",
       "benchmarks/solver_failure_cases.jl",
       "benchmarks/summarize_analyze_runtime_resources.jl",
       "benchmarks/summarize_analyze_runtime_trends.jl",

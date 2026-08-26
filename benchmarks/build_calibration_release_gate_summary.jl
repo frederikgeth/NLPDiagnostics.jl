@@ -54,6 +54,7 @@ lv13_madnlp_result = read_summary("docs/bmopf_lv13_madnlp_isolated_result_summar
 lv13_madnlp_environment = read_summary("docs/bmopf_lv13_madnlp_isolated_environment_summary.json")
 lv13_madnlp_resources = read_summary("docs/bmopf_lv13_madnlp_resource_envelope_summary.json")
 lv13_madnlp_handoff = read_summary("docs/bmopf_lv13_madnlp_handoff_summary.json")
+lv13_madnlp_launch = read_summary("docs/bmopf_lv13_madnlp_launch_summary.json")
 series_feasibility_sweep = read_summary("docs/bmopf_voltage_level_series_feasibility_sweep_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
@@ -515,6 +516,15 @@ gates = Dict{String,Any}[
         [
             "docs/bmopf_lv13_madnlp_handoff_summary.json",
             "benchmarks/summarize_bmopf_lv13_madnlp_handoff.jl",
+        ],
+    ),
+    gate(
+        "bmopf_lv13_madnlp_guarded_launcher",
+        get(lv13_madnlp_launch, "status", "") in ("approval_required", "blocked_current_memory_pressure", "ready_to_launch", "completed", "failed", "timed_out") ? "pass" : "partial",
+        "The guarded launcher records an explicit approval, memory recheck, and timeout outcome without starting the solver by default. Current status is $(get(lv13_madnlp_launch, "status", "missing")); result qualification remains delegated to the post-run validator.",
+        [
+            "docs/bmopf_lv13_madnlp_launch_summary.json",
+            "benchmarks/run_bmopf_lv13_madnlp_isolated.jl",
         ],
     ),
     gate(

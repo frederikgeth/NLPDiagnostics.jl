@@ -1,0 +1,34 @@
+{
+  "approval": {
+    "approval_variable": "NLPDIAGNOSTICS_LV13_MADNLP_EXECUTE",
+    "execute_requested": false,
+    "wait_seconds_requested": 0
+  },
+  "execution": {
+    "command": "JULIA_PKG_PRECOMPILE_AUTO=0 julia --compiled-modules=no --startup-file=no --project=work/benchmark-environment /Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/benchmarks/bmopf_combined_mv_lv_perturbed_start_campaign.jl",
+    "elapsed_seconds": null,
+    "exit_code": null,
+    "result_output": "work/bmopf-combined-mv-lv-perturbed-start-LV13_58bus-madnlp-isolated.json",
+    "runner_script": "benchmarks/bmopf_combined_mv_lv_perturbed_start_campaign.jl",
+    "timeout_seconds": 900
+  },
+  "preflight": {
+    "environment_status": "environment_ready",
+    "free_memory_mb_at_launch_check": 1502,
+    "memory_ready": false,
+    "required_memory_mb": 8192,
+    "resource_status": "resource_capacity_available_but_current_free_memory_insufficient",
+    "total_memory_mb": 49152
+  },
+  "qualification": {
+    "claim": "the guarded LV13 MadNLP launcher recorded an explicit preflight or process outcome",
+    "does_not_establish": [
+      "memory reservation or solver-result qualification",
+      "physical endpoint or cross-policy acceptance before the result validator passes"
+    ],
+    "next_action": "reduce memory pressure and rerun with explicit approval when the declared envelope is available"
+  },
+  "runner": "benchmarks/run_bmopf_lv13_madnlp_isolated.jl",
+  "schema_version": "nlpdiagnostics-bmopf-lv13-madnlp-launch-v1",
+  "status": "approval_required"
+}
