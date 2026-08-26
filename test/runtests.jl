@@ -2963,17 +2963,17 @@ end
     ))
     @test saved_result_campaign_summary["schema_version"] ==
           "nlpdiagnostics-bmopf-saved-result-sparse-rank-campaign-v1"
-    @test saved_result_campaign_summary["record_count"] == 24
+    @test saved_result_campaign_summary["record_count"] == 32
     @test saved_result_campaign_summary["result_units"] == ["pu", "si"]
     @test saved_result_campaign_summary["all_point_provenance_complete"] == true
     @test saved_result_campaign_summary["all_sparse_estimates_available"] == true
     @test saved_result_campaign_summary["scaling_sensitive_count"] == 0
     saved_result_endpoint_spans = saved_result_campaign_summary["endpoint_span_diagnostics"]
     @test saved_result_endpoint_spans["overall"]["rank_delta"]["range"] == 0
-    @test saved_result_endpoint_spans["by_result_units"]["pu"]["record_count"] == 11
-    @test saved_result_endpoint_spans["by_result_units"]["si"]["record_count"] == 13
+    @test saved_result_endpoint_spans["by_result_units"]["pu"]["record_count"] == 15
+    @test saved_result_endpoint_spans["by_result_units"]["si"]["record_count"] == 17
     @test saved_result_endpoint_spans["by_result_units"]["pu"]["spans"]["unscaled_condition_proxy"]["max"] > 1.0e9
-    @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_stable_count"] == 24
+    @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_stable_count"] == 32
     time_coverage_summary = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_538bus_saved_result_time_coverage_summary.json"),
         String,
@@ -2982,8 +2982,8 @@ end
           "nlpdiagnostics-bmopf-538bus-saved-result-time-coverage-v1"
     @test time_coverage_summary["snapshot_count"] == 50
     @test time_coverage_summary["available_endpoint_count"] == 100
-    @test time_coverage_summary["profiled_endpoint_count"] == 22
-    @test time_coverage_summary["unprofiled_endpoint_count"] == 78
+    @test time_coverage_summary["profiled_endpoint_count"] == 30
+    @test time_coverage_summary["unprofiled_endpoint_count"] == 70
     @test time_coverage_summary["available_unit_counts"] == Dict("pu" => 50, "si" => 50)
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
