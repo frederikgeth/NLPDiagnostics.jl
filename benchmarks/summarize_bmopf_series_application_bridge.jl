@@ -81,6 +81,20 @@ for campaign in get(uprated, "campaigns", Any[])
     ))
 end
 evidence_rows = vcat(practical_rows, [series_row], uprated_rows)
+solver_coverage = Dict{String,Any}()
+for case in sort!(unique(row["case"] for row in evidence_rows))
+    case_rows = filter(row -> row["case"] == case, evidence_rows)
+    solver_coverage[case] = Dict(
+        "solvers" => sort!(unique(row["solver"] for row in case_rows)),
+        "evidence_row_count" => length(case_rows),
+    )
+end
+transfer_gaps = [Dict(
+    "case" => "LV13_58bus",
+    "missing_solver" => "MadNLP",
+    "reason" => "the qualified practical ledger currently has Ipopt evidence on LV13_58bus but no bounded solver-diverse repeat",
+    "next_experiment" => "run a resource-guarded MadNLP repeat on LV13_58bus before making cross-feeder solver comparisons",
+)]
 shared_contracts = [
     all(row["success"] for row in evidence_rows),
     all(row["locally_solved"] for row in evidence_rows),
@@ -94,6 +108,8 @@ bridge = Dict{String,Any}(
     "runner" => "benchmarks/summarize_bmopf_series_application_bridge.jl",
     "status" => all(shared_contracts) ? "procedural_bridge_complete" : "procedural_bridge_partial",
     "evidence_rows" => evidence_rows,
+    "solver_coverage" => solver_coverage,
+    "transfer_gaps" => transfer_gaps,
     "uprated_fixture" => Dict(
         "rating_multiplier" => get(uprated, "rating_multiplier", nothing),
         "load_multiplier" => get(uprated, "load_multiplier", nothing),

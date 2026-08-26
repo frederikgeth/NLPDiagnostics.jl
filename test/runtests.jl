@@ -2254,6 +2254,9 @@ end
     @test series_application_bridge_summary["shared_contracts"]["direct_physical_equivalence"] == false
     @test series_application_bridge_summary["uprated_fixture"]["rating_multiplier"] == 2.5
     @test series_application_bridge_summary["uprated_fixture"]["campaigns_qualified"] == true
+    @test "MadNLP" in series_application_bridge_summary["solver_coverage"]["LV1_14bus"]["solvers"]
+    @test !("MadNLP" in series_application_bridge_summary["solver_coverage"]["LV13_58bus"]["solvers"])
+    @test series_application_bridge_summary["transfer_gaps"][1]["missing_solver"] == "MadNLP"
     series_capacity_boundary_script = read(
         joinpath(benchmark_directory, "analyze_bmopf_series_nominal_capacity_boundary.jl"),
         String,

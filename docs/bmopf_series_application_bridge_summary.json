@@ -250,7 +250,43 @@
     "direct_physical_equivalence_reason": "synthetic series ladders and combined MV/LV feeders have different topology and operating-point provenance",
     "physical_endpoint_contract": "all evidence rows retain explicit physical-endpoint acceptance"
   },
+  "solver_coverage": {
+    "LV13_58bus": {
+      "evidence_row_count": 2,
+      "solvers": [
+        "Ipopt"
+      ]
+    },
+    "LV1_14bus": {
+      "evidence_row_count": 4,
+      "solvers": [
+        "Ipopt",
+        "MadNLP"
+      ]
+    },
+    "series_8level_230kV_208V": {
+      "evidence_row_count": 1,
+      "solvers": [
+        "MadNLP"
+      ]
+    },
+    "series_8level_230kV_208V_uprated_nominal": {
+      "evidence_row_count": 2,
+      "solvers": [
+        "Ipopt",
+        "MadNLP"
+      ]
+    }
+  },
   "status": "procedural_bridge_complete",
+  "transfer_gaps": [
+    {
+      "case": "LV13_58bus",
+      "missing_solver": "MadNLP",
+      "next_experiment": "run a resource-guarded MadNLP repeat on LV13_58bus before making cross-feeder solver comparisons",
+      "reason": "the qualified practical ledger currently has Ipopt evidence on LV13_58bus but no bounded solver-diverse repeat"
+    }
+  ],
   "uprated_fixture": {
     "campaigns_qualified": true,
     "load_multiplier": 1.0,
