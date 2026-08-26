@@ -125,7 +125,7 @@ boundary_records = filter(
     result_records,
 )
 boundary_sensitive_count = count(
-    get(record, "scaling_sensitive", false) === true for record in boundary_records,
+    get(record, "scaling_sensitive", false) === true for record in boundary_records
 )
 
 payload = Dict{String,Any}(
