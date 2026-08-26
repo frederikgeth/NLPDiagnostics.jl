@@ -46,6 +46,23 @@ write_json(OUTPUT, Dict{String,Any}(
         "physical_endpoints_accepted" => false,
         "comparisons_qualified" => false,
     ),
+    "isolated_run_plan" => Dict(
+        "required_max_variables" => model_variables,
+        "proposed_max_variables" => max(5_000, something(model_variables, 5_000)),
+        "timeout_seconds" => 900,
+        "memory_limit_mb" => 8_192,
+        "repeats" => 2,
+        "variants" => ["plus_1pct", "minus_1pct"],
+        "solver" => "MadNLP",
+        "solver_tolerance" => 1.0e-10,
+        "max_iter" => 10,
+        "closure_criteria" => [
+            "all variants locally solved",
+            "all physical endpoints accepted",
+            "all cross-policy comparisons qualified",
+            "all 46 source warnings retained",
+        ],
+    ),
     "qualification" => Dict(
         "claim" => "the LV13 MadNLP transfer is explicitly size-guarded before solver execution at 4,902 variables under a 4,000-variable budget",
         "does_not_establish" => [

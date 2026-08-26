@@ -6,6 +6,26 @@
     "variants_requested": 2
   },
   "feeder": "LV13_58bus",
+  "isolated_run_plan": {
+    "closure_criteria": [
+      "all variants locally solved",
+      "all physical endpoints accepted",
+      "all cross-policy comparisons qualified",
+      "all 46 source warnings retained"
+    ],
+    "max_iter": 10,
+    "memory_limit_mb": 8192,
+    "proposed_max_variables": 5000,
+    "repeats": 2,
+    "required_max_variables": 4902,
+    "solver": "MadNLP",
+    "solver_tolerance": 1.0e-10,
+    "timeout_seconds": 900,
+    "variants": [
+      "plus_1pct",
+      "minus_1pct"
+    ]
+  },
   "observed": {
     "comparisons_qualified": false,
     "physical_endpoints_accepted": false,

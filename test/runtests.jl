@@ -2272,6 +2272,8 @@ end
           "nlpdiagnostics-bmopf-lv13-madnlp-transfer-guard-v1"
     @test lv13_madnlp_guard_summary["status"] == "resource_guard_validated"
     @test lv13_madnlp_guard_summary["observed"]["solver_runs"] == 0
+    @test lv13_madnlp_guard_summary["isolated_run_plan"]["timeout_seconds"] == 900
+    @test lv13_madnlp_guard_summary["isolated_run_plan"]["proposed_max_variables"] == 5000
     series_capacity_boundary_script = read(
         joinpath(benchmark_directory, "analyze_bmopf_series_nominal_capacity_boundary.jl"),
         String,
