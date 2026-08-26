@@ -31,7 +31,7 @@
         "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Extend the balanced 538-bus PU/SI sweep to t21/t22 and verify continued full SI mapping coverage.",
+      "next_deliverable": "Extend the balanced 538-bus PU/SI sweep to t23/t24 and track incomplete SI provenance separately from rank sensitivity.",
       "priority": 1,
       "status": "partial"
     },
@@ -122,7 +122,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "10853035f6f57bf4459fd449c69229c72495faa9",
+    "git_revision": "0994d0bab137e3e1305a219cebb2254f02daf3c6",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
