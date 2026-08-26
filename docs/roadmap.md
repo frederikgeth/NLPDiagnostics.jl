@@ -5600,3 +5600,17 @@ coordinate-aware scaling, while remaining explicitly comparative rather than
 a default-policy certificate. The next step is to widen the time sweep and
 test whether these endpoint spans persist on additional transformer-chain
 cases.
+
+## 2026-08-26 538-bus time-coverage inventory
+
+The next sweep is now bounded by
+`benchmarks/summarize_bmopf_538bus_saved_result_time_coverage.jl`, recorded in
+`docs/bmopf_538bus_saved_result_time_coverage_summary.json`. The BMOPFDraftData
+corpus contains 50 538-bus LN/LG snapshots (t01--t25), with both SI and PU
+solver-result files available for all 100 endpoint/unit combinations. Six
+538-bus combinations are currently profiled in the sparse-rank ledger, leaving
+94 explicit endpoints for guarded execution. This inventory separates source
+availability from numerical evidence and makes the remaining campaign scope
+reproducible. Execution is currently gated by the active BMOPFTools checkout's
+uncommitted syntax error; once that dependency is clean, the next experiment is
+a matched t05/t06 LN/LG PU/SI batch followed by span comparison.

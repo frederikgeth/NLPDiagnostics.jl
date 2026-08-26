@@ -2974,6 +2974,17 @@ end
     @test saved_result_endpoint_spans["by_result_units"]["si"]["record_count"] == 5
     @test saved_result_endpoint_spans["by_result_units"]["pu"]["spans"]["unscaled_condition_proxy"]["max"] > 1.0e9
     @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_stable_count"] == 8
+    time_coverage_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_538bus_saved_result_time_coverage_summary.json"),
+        String,
+    ))
+    @test time_coverage_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-538bus-saved-result-time-coverage-v1"
+    @test time_coverage_summary["snapshot_count"] == 50
+    @test time_coverage_summary["available_endpoint_count"] == 100
+    @test time_coverage_summary["profiled_endpoint_count"] == 6
+    @test time_coverage_summary["unprofiled_endpoint_count"] == 94
+    @test time_coverage_summary["available_unit_counts"] == Dict("pu" => 50, "si" => 50)
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
         String,
