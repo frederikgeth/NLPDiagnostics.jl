@@ -17,7 +17,7 @@ const OUTPUT = abspath(isempty(ARGS) ?
 const ACTIONS = Dict{String,Dict{String,Any}}(
     "numerical_rank_false_positive_negative_statistics" => Dict(
         "priority" => 1,
-        "next_deliverable" => "Investigate scaling-sensitive normal-eigen nullspace span instability and validate the guarded backend on trusted BMOPFTools Jacobians.",
+        "next_deliverable" => "Extend guarded normal-eigen validation to larger trusted BMOPFTools snapshots and localize scaling-sensitive nullspace span instability.",
         "closure_condition" => "Hard-control false-positive/false-negative and unavailable statistics are complete across the declared corpus, and backend disagreements are classified rather than silently resolved.",
         "dependency" => "None; this is the highest-priority numerical-algebra track.",
     ),

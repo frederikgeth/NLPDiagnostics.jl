@@ -71,8 +71,8 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "e66d182276c09ec69b1556cb2a968c0099a70705",
-    "git_worktree_dirty": false,
+    "git_revision": "3f30c543efead170e809ffa8091d808fb4801df7",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "finite_sample_uncertainty": {
@@ -135,6 +135,16 @@
     "sparse_mismatch_count": 0,
     "sparse_unavailable_count": 0
   },
+  "normal_eigen_bmopf_validation": {
+    "all_policy_records_available": true,
+    "artifact": "docs/bmopf_normal_eigen_jacobian_validation_summary.json",
+    "cross_backend_agreement_count": 8,
+    "cross_backend_disagreement_count": 0,
+    "interpretation": "Trusted 30-bus solver-result points validate backend availability and local rank agreement under scaling policies; no physical rank interpretation is inferred.",
+    "policy_record_count": 8,
+    "snapshot_count": 2,
+    "successful_snapshot_count": 2
+  },
   "normal_eigen_calibration": {
     "artifact": "docs/normal_eigen_rank_calibration_summary.json",
     "hard_control_count": 15,
@@ -159,6 +169,7 @@
     "adversarial_extension_artifact": "docs/rank_adversarial_extension_summary.json",
     "large_sparse_artifact": "docs/large_sparse_rank_oracle_summary.json",
     "normal_eigen_artifact": "docs/normal_eigen_rank_calibration_summary.json",
+    "normal_eigen_bmopf_artifact": "docs/bmopf_normal_eigen_jacobian_validation_summary.json",
     "normal_eigen_persistence_artifact": "docs/normal_eigen_policy_persistence_summary.json",
     "perturbation_artifact": "docs/rank_perturbation_sweep_summary.json",
     "policy": "Declared hard controls are counted for false-positive/false-negative statistics; threshold-sensitive controls remain disagreement evidence; dense-unavailable large sparse records are sparse-only coverage.",

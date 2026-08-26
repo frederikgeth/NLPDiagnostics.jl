@@ -26,6 +26,14 @@ one dense/QR disagreement. These failures are retained as conditioning and
 policy-sensitivity evidence, with trusted BMOPFTools Jacobian validation still
 outstanding.
 
+Trusted BMOPFTools validation is now captured in
+`docs/bmopf_normal_eigen_jacobian_validation_summary.json`. The LN and LG
+30-bus snapshots both reached `LOCALLY_SOLVED` endpoints; all eight dense-SVD,
+sparse-QR, and normal-eigen policy comparisons were available and agreed. This
+supports adapter availability on real solver-result Jacobians only; larger
+99-bus/538-bus coverage and interpretation of the scaling-sensitive span
+instability remain open.
+
 ## 2026-08-23: typed BMOPFTools capability boundaries
 
 The BMOPFTools terminal-current, passive-network map, and terminal-attachment

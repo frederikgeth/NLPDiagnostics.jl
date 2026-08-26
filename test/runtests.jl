@@ -2902,6 +2902,22 @@ end
     @test normal_eigen_persistence_summary["unavailable_count"] == 0
     @test normal_eigen_persistence_summary["repeatability_failure_count"] == 3
     @test rank_statistics_data["normal_eigen_policy_persistence"]["policy_record_count"] == 12
+    bmopf_normal_eigen_script = read(
+        joinpath(benchmark_directory, "bmopf_normal_eigen_jacobian_validation.jl"),
+        String,
+    )
+    @test Meta.parseall(bmopf_normal_eigen_script) isa Expr
+    @test occursin("trusted BMOPF endpoints", bmopf_normal_eigen_script)
+    bmopf_normal_eigen_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_normal_eigen_jacobian_validation_summary.json"),
+        String,
+    ))
+    @test bmopf_normal_eigen_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-normal-eigen-jacobian-validation-v1"
+    @test bmopf_normal_eigen_summary["successful_snapshot_count"] == 2
+    @test bmopf_normal_eigen_summary["policy_record_count"] == 8
+    @test bmopf_normal_eigen_summary["all_policy_records_available"] == true
+    @test bmopf_normal_eigen_summary["cross_backend_disagreement_count"] == 0
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
         String,
@@ -3080,9 +3096,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 164", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 161", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 106", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 165", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 162", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 107", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),

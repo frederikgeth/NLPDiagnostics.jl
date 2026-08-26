@@ -5281,9 +5281,9 @@ controls; the capability validator reports
 default rank policy: forming `J'J` squares the condition number and can erase
 small singular values. The rank gate therefore advances from “no adapter” to
 “third backend available, corpus expansion complete for this bounded matrix
-set.” The next numerical deliverable is repeated-point and scaling-policy
-coverage, with disagreements retained by case rather than collapsed into a
-single backend winner.
+set.” The next numerical deliverable is trusted BMOPFTools endpoint coverage,
+with disagreements retained by case rather than collapsed into a single
+backend winner.
 
 That persistence follow-up is now recorded in
 `docs/normal_eigen_policy_persistence_summary.json`: 12 policy records cover
@@ -5294,6 +5294,16 @@ repeatability failures and the ill-scaled case exposes one dense/QR
 cross-backend disagreement. These are actionable conditioning findings, not
 backend-selection grounds. The next step is to investigate that span
 instability on trusted BMOPFTools Jacobians under the same explicit guards.
+
+The trusted endpoint bridge is now recorded in
+`docs/bmopf_normal_eigen_jacobian_validation_summary.json`. Two 30-bus
+solver-result snapshots (LN and LG) produced `LOCALLY_SOLVED` endpoints and
+eight policy records; dense SVD, sparse QR, and normal-eigen ranks agreed for
+all four scaling policies on both snapshots. This validates implementation
+availability on real BMOPFTools Jacobian data, not physical rank or solver
+superiority. The next step is to extend the guarded check to larger trusted
+99-bus/538-bus snapshots and localize the scaling-sensitive nullspace-span
+instability before considering any default-policy change.
 
 ## 2026-08-26 real-99-bus KKT ledger validation checkpoint
 

@@ -1,0 +1,162 @@
+{
+  "all_policy_records_available": true,
+  "cross_backend_agreement_count": 8,
+  "cross_backend_disagreement_count": 0,
+  "environment": {
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "3f30c543efead170e809ffa8091d808fb4801df7",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": "This bounded BMOPF endpoint validation checks implementation availability and local rank agreement under explicit scaling policies. Disagreements remain evidence for follow-up; no physical or solver-superiority claim is made.",
+  "policy_record_count": 8,
+  "results": [
+    {
+      "constraint_count": 844,
+      "jacobian_entry_count": 4822,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "policies": [
+        {
+          "cross_backend_agreement": true,
+          "dense_available": true,
+          "dense_rank": 704,
+          "dense_right_nullity": 0,
+          "normal_eigen_available": true,
+          "normal_eigen_rank": 704,
+          "normal_eigen_right_nullity": 0,
+          "policy": "none",
+          "relative_tolerance": 1.8740564655672642e-13,
+          "sparse_qr_available": true,
+          "sparse_qr_rank": 704
+        },
+        {
+          "cross_backend_agreement": true,
+          "dense_available": true,
+          "dense_rank": 704,
+          "dense_right_nullity": 0,
+          "normal_eigen_available": true,
+          "normal_eigen_rank": 704,
+          "normal_eigen_right_nullity": 0,
+          "policy": "row",
+          "relative_tolerance": 1.8740564655672642e-13,
+          "sparse_qr_available": true,
+          "sparse_qr_rank": 704
+        },
+        {
+          "cross_backend_agreement": true,
+          "dense_available": true,
+          "dense_rank": 704,
+          "dense_right_nullity": 0,
+          "normal_eigen_available": true,
+          "normal_eigen_rank": 704,
+          "normal_eigen_right_nullity": 0,
+          "policy": "column",
+          "relative_tolerance": 1.8740564655672642e-13,
+          "sparse_qr_available": true,
+          "sparse_qr_rank": 704
+        },
+        {
+          "cross_backend_agreement": true,
+          "dense_available": true,
+          "dense_rank": 704,
+          "dense_right_nullity": 0,
+          "normal_eigen_available": true,
+          "normal_eigen_rank": 704,
+          "normal_eigen_right_nullity": 0,
+          "policy": "row_column",
+          "relative_tolerance": 1.8740564655672642e-13,
+          "sparse_qr_available": true,
+          "sparse_qr_rank": 704
+        }
+      ],
+      "primal_status": "FEASIBLE_POINT",
+      "snapshot": "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "variable_count": 704
+    },
+    {
+      "constraint_count": 844,
+      "jacobian_entry_count": 4822,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "policies": [
+        {
+          "cross_backend_agreement": true,
+          "dense_available": true,
+          "dense_rank": 704,
+          "dense_right_nullity": 0,
+          "normal_eigen_available": true,
+          "normal_eigen_rank": 704,
+          "normal_eigen_right_nullity": 0,
+          "policy": "none",
+          "relative_tolerance": 1.8740564655672642e-13,
+          "sparse_qr_available": true,
+          "sparse_qr_rank": 704
+        },
+        {
+          "cross_backend_agreement": true,
+          "dense_available": true,
+          "dense_rank": 704,
+          "dense_right_nullity": 0,
+          "normal_eigen_available": true,
+          "normal_eigen_rank": 704,
+          "normal_eigen_right_nullity": 0,
+          "policy": "row",
+          "relative_tolerance": 1.8740564655672642e-13,
+          "sparse_qr_available": true,
+          "sparse_qr_rank": 704
+        },
+        {
+          "cross_backend_agreement": true,
+          "dense_available": true,
+          "dense_rank": 704,
+          "dense_right_nullity": 0,
+          "normal_eigen_available": true,
+          "normal_eigen_rank": 704,
+          "normal_eigen_right_nullity": 0,
+          "policy": "column",
+          "relative_tolerance": 1.8740564655672642e-13,
+          "sparse_qr_available": true,
+          "sparse_qr_rank": 704
+        },
+        {
+          "cross_backend_agreement": true,
+          "dense_available": true,
+          "dense_rank": 704,
+          "dense_right_nullity": 0,
+          "normal_eigen_available": true,
+          "normal_eigen_rank": 704,
+          "normal_eigen_right_nullity": 0,
+          "policy": "row_column",
+          "relative_tolerance": 1.8740564655672642e-13,
+          "sparse_qr_available": true,
+          "sparse_qr_rank": 704
+        }
+      ],
+      "primal_status": "FEASIBLE_POINT",
+      "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "variable_count": 704
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-normal-eigen-jacobian-validation-v1",
+  "snapshot_count": 2,
+  "source": {
+    "data_root": "/Users/uqfgeth/Documents/GitHub/BMOPFDraftData/benchmarks",
+    "policies": [
+      "none",
+      "row",
+      "column",
+      "row_column"
+    ],
+    "policy": "Trusted solver-result points only; rank is local numerical evidence and is not a physical-mode certificate.",
+    "runner": "benchmarks/bmopf_normal_eigen_jacobian_validation.jl",
+    "snapshots": [
+      "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
+      "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json"
+    ],
+    "solver": "Ipopt"
+  },
+  "successful_snapshot_count": 2
+}
