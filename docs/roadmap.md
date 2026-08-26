@@ -5738,3 +5738,11 @@ replace the canonical files or relax the physical-endpoint boundary. The next
 deliverable is to regenerate the seven canonical SI result files from this
 recipe, rerun the quality and sparse-rank audits, and retain a before/after
 provenance record.
+
+The extraction path now writes canonical-shaped SI results through
+`BMOPFTools.extract_result` and `BMOPFTools.write_result` into an isolated
+candidate root. The seven candidates all validate as finite, feasible, and
+`LOCALLY_SOLVED`; the comparison is captured by
+`validate_bmopf_rerun_candidates.jl`. The canonical BMOPFDraftData files remain
+unchanged. The next deliverable is an explicit, reviewed promotion of these
+seven candidates followed by a full 100-endpoint quality and sparse-rank audit.

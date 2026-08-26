@@ -3046,6 +3046,22 @@ end
     @test saved_result_rerun_summary["all_bounded_successes"] == true
     @test all(record["solver_log_evidence"]["optimal_solution"] === true
               for record in saved_result_rerun_summary["records"])
+    rerun_candidate_validator = read(
+        joinpath(benchmark_directory, "validate_bmopf_rerun_candidates.jl"),
+        String,
+    )
+    @test Meta.parseall(rerun_candidate_validator) isa Expr
+    rerun_candidate_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_si_rerun_candidate_validation_summary.json"),
+        String,
+    ))
+    @test rerun_candidate_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-rerun-candidate-validation-v1"
+    @test rerun_candidate_summary["candidate_count"] == 7
+    @test rerun_candidate_summary["candidate_available_count"] == 7
+    @test rerun_candidate_summary["candidate_usable_solver_endpoint_count"] == 7
+    @test rerun_candidate_summary["candidate_nonfinite_or_unsolved_count"] == 0
+    @test rerun_candidate_summary["all_candidates_usable"] == true
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
         String,
