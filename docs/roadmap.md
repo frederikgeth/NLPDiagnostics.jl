@@ -5712,3 +5712,15 @@ coordinates), while three additional stable records are also incomplete; this
 keeps the numerical sensitivity boundary explicit even after inventory closure.
 The next deliverable is a release decision or a targeted mapping fix for the
 four recurring SI/LN records.
+
+## 2026-08-27 saved-result quality boundary
+
+The new `summarize_bmopf_saved_result_quality.jl` audit checks every one of the
+100 538-bus PU/SI result files for termination, feasibility, and numeric
+finiteness. It finds 93 usable solver endpoints and seven SI results that are
+`ITERATION_LIMIT`, infeasible, and contain non-finite payloads. All four
+rank-sensitive SI/LN records are in that seven-record set. The release boundary
+is now explicit: those records remain representational sparse-rank evidence but
+are excluded from physical endpoint claims until regenerated or independently
+justified. The next deliverable is to regenerate the seven SI results or accept
+that exclusion as the release policy.

@@ -17,7 +17,7 @@ const OUTPUT = abspath(isempty(ARGS) ?
 const ACTIONS = Dict{String,Dict{String,Any}}(
     "numerical_rank_false_positive_negative_statistics" => Dict(
         "priority" => 1,
-        "next_deliverable" => "Resolve the four recurring SI/LN saved-result mapping-sensitive records or record an explicit release boundary for them.",
+        "next_deliverable" => "Regenerate the seven nonfinite/unsolved SI saved results or accept the explicit exclusion boundary for physical endpoint claims.",
         "closure_condition" => "Hard-control false-positive/false-negative and unavailable statistics are complete across the declared corpus, and backend disagreements are classified rather than silently resolved.",
         "dependency" => "None; this is the highest-priority numerical-algebra track.",
     ),

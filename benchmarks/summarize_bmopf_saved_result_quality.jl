@@ -35,6 +35,15 @@ campaign isa AbstractDict || error("campaign summary is not an object: $campaign
 records = get(campaign, "records", Any[])
 records isa AbstractVector || error("campaign summary records is not an array: $campaign_path")
 
+campaign_index = Dict{Tuple{String,String},Any}()
+for record in records
+    record isa AbstractDict || continue
+    snapshot = String(get(record, "snapshot", ""))
+    startswith(snapshot, "ENWLsnapshots/538bus_") || continue
+    unit = String(get(record, "result_units", ""))
+    isempty(unit) || (campaign_index[(snapshot, unit)] = record)
+end
+
 snapshots = sort!(unique(String(get(record, "snapshot", "")) for record in records
                          if record isa AbstractDict &&
                             startswith(String(get(record, "snapshot", "")), "ENWLsnapshots/538bus_")))
@@ -93,6 +102,12 @@ for snapshot in snapshots, unit in units
             get(base, "nonfinite_numeric_count", 0) == 0 ? "usable_solver_endpoint" :
             "nonfinite_or_unsolved"
     end
+    campaign_record = get(campaign_index, (snapshot, unit), nothing)
+    campaign_record isa AbstractDict && merge!(base, Dict{String,Any}(
+        "scaling_sensitive" => get(campaign_record, "scaling_sensitive", false),
+        "rank_delta" => get(campaign_record, "rank_delta", nothing),
+        "mapping_diagnostics" => get(campaign_record, "mapping_diagnostics", Dict{String,Any}()),
+    ))
     push!(result_records, base)
 end
 
@@ -104,6 +119,14 @@ for record in result_records
     quality = String(record["endpoint_quality"])
     quality_counts[quality] = get(quality_counts, quality, 0) + 1
 end
+
+boundary_records = filter(
+    record -> get(record, "endpoint_quality", "") != "usable_solver_endpoint",
+    result_records,
+)
+boundary_sensitive_count = count(
+    get(record, "scaling_sensitive", false) === true for record in boundary_records,
+)
 
 payload = Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-saved-result-quality-v1",
@@ -126,6 +149,13 @@ payload = Dict{String,Any}(
     "missing_endpoint_count" => count(get(record, "endpoint_quality", "") == "missing" for record in result_records),
     "termination_status_counts" => Dict(key => status_counts[key] for key in sort!(collect(keys(status_counts)))),
     "endpoint_quality_counts" => Dict(key => quality_counts[key] for key in sort!(collect(keys(quality_counts)))),
+    "release_boundary" => Dict{String,Any}(
+        "status" => "explicit",
+        "excluded_endpoint_count" => length(boundary_records),
+        "excluded_scaling_sensitive_endpoint_count" => boundary_sensitive_count,
+        "excluded_records" => boundary_records,
+        "reason" => "Nonfinite or unsolved saved results are excluded from physical endpoint interpretation. Their sparse-rank observations remain representational evidence only until the upstream solver results are regenerated or separately justified.",
+    ),
     "records" => result_records,
     "interpretation" => "Saved-result availability, solver termination, feasibility, and numeric finiteness are input-quality evidence. A nonfinite or unsolved result must not be treated as a physical solver endpoint, even when a partial coordinate mapping and sparse-rank estimate can be produced.",
 )
