@@ -87,6 +87,16 @@ incomplete_sensitive_records = filter(
     record -> !get(record, "point_provenance_complete", false),
     sensitive_records,
 )
+incomplete_provenance_records = Dict{String,Any}[]
+for value in records
+    record = _dict(value)
+    get(record, "point_provenance_complete", false) && continue
+    push!(incomplete_provenance_records, Dict{String,Any}(
+        "snapshot" => get(record, "snapshot", nothing),
+        "result_units" => get(record, "result_units", nothing),
+        "mapping_diagnostics" => get(record, "mapping_diagnostics", Dict{String,Any}()),
+    ))
+end
 
 mapping_fallback_counts = [
     get(get(record, "mapping_diagnostics", Dict{String,Any}()), "fallback_coordinate_count", nothing)
@@ -110,6 +120,8 @@ write_json(OUTPUT, Dict{String,Any}(
     "unit_dependent_rank_outcome_count" => length(unit_dependent_pairs),
     "sensitive_record_count" => length(sensitive_records),
     "incomplete_provenance_sensitive_record_count" => length(incomplete_sensitive_records),
+    "incomplete_provenance_record_count" => length(incomplete_provenance_records),
+    "incomplete_provenance_records" => incomplete_provenance_records,
     "sensitive_mapping_fallback_coordinate_counts" => mapping_fallback_counts,
     "pairs" => pairs,
     "sensitive_records" => sensitive_records,

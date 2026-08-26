@@ -5666,3 +5666,13 @@ mapping gap does not recur in this pair. The campaign now contains 72 records
 (69 stable, 3 historical LN/SI-sensitive), with 70 of 100 538-bus endpoints
 profiled. The next deliverable is t21/t22 to verify that complete SI mapping
 coverage persists through the remaining time range.
+
+## 2026-08-27 t21/t22 balanced sweep
+
+The t21/t22 LN/LG PU/SI batch adds eight endpoints. All eight remain rank-stable
+at 11,028/11,028, but LG/SI t22 has incomplete mapping provenance despite the
+stable rank result. The campaign now contains 80 records (77 stable, 3
+historical LN/SI-sensitive), with 78 of 100 538-bus endpoints profiled. The
+diagnostic now counts four incomplete-provenance records separately from the
+three rank-sensitive records. The next deliverable is t23/t24 to track whether
+this provenance gap persists independently of rank sensitivity.
