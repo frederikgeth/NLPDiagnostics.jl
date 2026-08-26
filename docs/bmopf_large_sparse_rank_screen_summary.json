@@ -4,8 +4,8 @@
     "reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0"
   },
   "environment": {
-    "git_revision": "2b02db05ed16257c181097c8532665d65c799d80",
-    "git_worktree_dirty": true,
+    "git_revision": "b8bb380e0323cacd1070579965bd53e46fa1bf18",
+    "git_worktree_dirty": false,
     "source_environment_fingerprint": "cdc4cdcd145f7313b6b2d329b3106eb4a50ee54fa1189de94be2a521cabf836a"
   },
   "evaluation": {
