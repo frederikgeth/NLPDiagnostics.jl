@@ -32,6 +32,10 @@ catch
 end
 total_memory_mb = total_memory_bytes isa Number ? Int(fld(total_memory_bytes, 1_048_576)) : nothing
 free_memory_mb = free_memory_bytes isa Number ? Int(fld(free_memory_bytes, 1_048_576)) : nothing
+capacity_margin_mb = total_memory_mb isa Number ? total_memory_mb - required_memory_mb : nothing
+free_memory_margin_mb = free_memory_mb isa Number ? free_memory_mb - required_memory_mb : nothing
+additional_free_memory_required_mb = free_memory_margin_mb isa Number ?
+    max(0, -free_memory_margin_mb) : nothing
 checks = Dict{String,Any}(
     "environment_ready" => get(environment, "status", "") == "environment_ready",
     "plan_ready" => get(plan, "status", "") == "isolated_run_ready",
@@ -55,6 +59,9 @@ write_json(OUTPUT, Dict{String,Any}(
         "cpu_threads" => Sys.CPU_THREADS,
         "total_memory_mb" => total_memory_mb,
         "free_memory_mb" => free_memory_mb,
+        "capacity_margin_mb" => capacity_margin_mb,
+        "free_memory_margin_mb" => free_memory_margin_mb,
+        "additional_free_memory_required_mb" => additional_free_memory_required_mb,
         "telemetry_scope" => "descriptive point-in-time host observation",
     ),
     "qualification" => Dict(

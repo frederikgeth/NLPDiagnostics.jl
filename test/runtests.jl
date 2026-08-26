@@ -2346,6 +2346,8 @@ end
     @test lv13_madnlp_resource_summary["schema_version"] ==
           "nlpdiagnostics-bmopf-lv13-madnlp-resource-envelope-v1"
     @test lv13_madnlp_resource_summary["checks"]["host_capacity_meets_envelope"] == true
+    @test lv13_madnlp_resource_summary["observed"]["capacity_margin_mb"] > 0
+    @test lv13_madnlp_resource_summary["observed"]["additional_free_memory_required_mb"] > 0
     @test lv13_madnlp_resource_summary["status"] in [
         "resource_envelope_ready",
         "resource_capacity_available_but_current_free_memory_insufficient",

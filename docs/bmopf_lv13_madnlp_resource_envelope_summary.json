@@ -13,8 +13,11 @@
     "timeout_seconds": 900
   },
   "observed": {
+    "additional_free_memory_required_mb": 4856,
+    "capacity_margin_mb": 40960,
     "cpu_threads": 12,
-    "free_memory_mb": 2769,
+    "free_memory_margin_mb": -4856,
+    "free_memory_mb": 3336,
     "julia_version": "1.12.6",
     "telemetry_scope": "descriptive point-in-time host observation",
     "total_memory_mb": 49152
