@@ -5,15 +5,15 @@
     "si": 50
   },
   "environment": {
-    "git_revision": "38b4bb2c179bf72b6b59e557cf0261bf6916d888",
+    "git_revision": "3400a0161ebbfc67fd3dcaad85d815ebe185946b",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": "This inventory describes source-file readiness and campaign coverage only. Unprofiled endpoints require the BMOPFTools bridge and guarded sparse-rank workflow before numerical conclusions are drawn.",
-  "profiled_endpoint_count": 86,
+  "profiled_endpoint_count": 90,
   "profiled_unit_counts": {
-    "pu": 43,
-    "si": 43
+    "pu": 45,
+    "si": 45
   },
   "records": [
     {
@@ -313,11 +313,11 @@
         "si",
         "pu"
       ],
-      "missing_profile_units": [
+      "missing_profile_units": [],
+      "profiled_result_units": [
         "pu",
         "si"
       ],
-      "profiled_result_units": [],
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t25_2000.bmopf.json"
     },
     {
@@ -615,11 +615,11 @@
         "si",
         "pu"
       ],
-      "missing_profile_units": [
+      "missing_profile_units": [],
+      "profiled_result_units": [
         "pu",
         "si"
       ],
-      "profiled_result_units": [],
       "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t25_2000.bmopf.json"
     }
   ],
@@ -634,5 +634,5 @@
     ],
     "runner": "benchmarks/summarize_bmopf_538bus_saved_result_time_coverage.jl"
   },
-  "unprofiled_endpoint_count": 14
+  "unprofiled_endpoint_count": 10
 }

@@ -1,11 +1,11 @@
 {
-  "campaign_record_count": 88,
+  "campaign_record_count": 92,
   "environment": {
-    "git_revision": "38b4bb2c179bf72b6b59e557cf0261bf6916d888",
+    "git_revision": "3400a0161ebbfc67fd3dcaad85d815ebe185946b",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
-  "incomplete_provenance_record_count": 5,
+  "incomplete_provenance_record_count": 7,
   "incomplete_provenance_records": [
     {
       "mapping_diagnostics": {
@@ -81,12 +81,42 @@
       },
       "result_units": "si",
       "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t24_1930.bmopf.json"
+    },
+    {
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "11026",
+        "mapped_coordinate_count": "2",
+        "mapped_families": "vi,vr",
+        "projected_families": "",
+        "projection_contracts": "",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "0",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "11026"
+      },
+      "result_units": "si",
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t25_2000.bmopf.json"
+    },
+    {
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "11026",
+        "mapped_coordinate_count": "2",
+        "mapped_families": "vi,vr",
+        "projected_families": "",
+        "projection_contracts": "",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "0",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "11026"
+      },
+      "result_units": "si",
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t25_2000.bmopf.json"
     }
   ],
-  "incomplete_provenance_sensitive_record_count": 3,
+  "incomplete_provenance_sensitive_record_count": 4,
   "interpretation": "The paired comparison identifies unit-dependent sparse-rank outcomes without treating them as physical singularity claims. Incomplete point provenance is retained as a release boundary; the affected endpoints require provenance completion before policy conclusions.",
   "next_action": "Complete or explain LN SI saved-result provenance for the affected snapshots, then repeat the paired diagnostic on the t15/t16 tranche.",
-  "paired_snapshot_count": 40,
+  "paired_snapshot_count": 42,
   "pairs": [
     {
       "pu_condition_proxy_ratio": 8.582296556919958e-8,
@@ -769,6 +799,40 @@
       "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t24_1930.bmopf.json"
     },
     {
+      "pu_condition_proxy_ratio": 4.135483991706718e-8,
+      "pu_mapping_diagnostics": {
+        "fallback_coordinate_count": "0",
+        "mapped_coordinate_count": "11028",
+        "mapped_families": "ci_fr,ci_gnd,ci_src,cid,cii,cr_fr,cr_gnd,cr_src,crd,cri,p_ibr,q_ibr,u_ibr,vi,vr",
+        "projected_families": "ci_to,cr_to",
+        "projection_contracts": "ci_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair;cr_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "2151",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "0"
+      },
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 4.597650564729746,
+      "si_mapping_diagnostics": {
+        "fallback_coordinate_count": "11026",
+        "mapped_coordinate_count": "2",
+        "mapped_families": "vi,vr",
+        "projected_families": "",
+        "projection_contracts": "",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "0",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "11026"
+      },
+      "si_point_provenance_complete": false,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t25_2000.bmopf.json"
+    },
+    {
       "pu_condition_proxy_ratio": 7.69311578791684e-8,
       "pu_mapping_diagnostics": {
         "fallback_coordinate_count": "0",
@@ -1447,15 +1511,50 @@
       "si_rank_delta": 0,
       "si_scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t24_1930.bmopf.json"
+    },
+    {
+      "pu_condition_proxy_ratio": 4.193754427288193e-8,
+      "pu_mapping_diagnostics": {
+        "fallback_coordinate_count": "0",
+        "mapped_coordinate_count": "11028",
+        "mapped_families": "ci_fr,ci_gnd,ci_src,cid,cii,cr_fr,cr_gnd,cr_src,crd,cri,p_ibr,q_ibr,u_ibr,vi,vr",
+        "projected_families": "ci_to,cr_to",
+        "projection_contracts": "ci_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair;cr_to=derived line-to current export; staged IVR owns one from-side branch-current coordinate pair",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "2151",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "0"
+      },
+      "pu_point_provenance_complete": true,
+      "pu_rank_delta": 0,
+      "pu_scaling_sensitive": false,
+      "rank_outcome_differs": true,
+      "si_condition_proxy_ratio": 4.1701009522473695,
+      "si_mapping_diagnostics": {
+        "fallback_coordinate_count": "11026",
+        "mapped_coordinate_count": "2",
+        "mapped_families": "vi,vr",
+        "projected_families": "",
+        "projection_contracts": "",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "0",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "11026"
+      },
+      "si_point_provenance_complete": false,
+      "si_rank_delta": 1,
+      "si_scaling_sensitive": true,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t25_2000.bmopf.json"
     }
   ],
   "schema_version": "nlpdiagnostics-bmopf-saved-result-scaling-diagnostics-v1",
   "sensitive_mapping_fallback_coordinate_counts": [
     "11026",
     "11026",
+    "11026",
     "11026"
   ],
-  "sensitive_record_count": 3,
+  "sensitive_record_count": 4,
   "sensitive_records": [
     {
       "condition_proxy_ratio_row_column_over_unscaled": 4.1701009522473695,
@@ -1516,6 +1615,26 @@
       "row_column_rank": 9850,
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t17_1600.bmopf.json",
       "unscaled_rank": 9849
+    },
+    {
+      "condition_proxy_ratio_row_column_over_unscaled": 4.1701009522473695,
+      "mapping_diagnostics": {
+        "fallback_coordinate_count": "11026",
+        "mapped_coordinate_count": "2",
+        "mapped_families": "vi,vr",
+        "projected_families": "",
+        "projection_contracts": "",
+        "registered_coordinate_count": "11028",
+        "unit_fingerprint_count": "0",
+        "unit_fingerprint_zero_magnitude_count": "1",
+        "unmapped_registered_coordinate_count": "11026"
+      },
+      "point_provenance_complete": false,
+      "rank_delta": 1,
+      "result_units": "si",
+      "row_column_rank": 9850,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t25_2000.bmopf.json",
+      "unscaled_rank": 9849
     }
   ],
   "source": {
@@ -1523,5 +1642,5 @@
     "pairing_policy": "Pair records by exact snapshot path and compare SI versus PU rank outcomes.",
     "runner": "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
   },
-  "unit_dependent_rank_outcome_count": 3
+  "unit_dependent_rank_outcome_count": 4
 }
