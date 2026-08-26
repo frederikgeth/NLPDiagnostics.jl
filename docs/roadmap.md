@@ -5676,3 +5676,13 @@ historical LN/SI-sensitive), with 78 of 100 538-bus endpoints profiled. The
 diagnostic now counts four incomplete-provenance records separately from the
 three rank-sensitive records. The next deliverable is t23/t24 to track whether
 this provenance gap persists independently of rank sensitivity.
+
+## 2026-08-27 t23/t24 balanced sweep
+
+The t23/t24 LN/LG PU/SI batch adds eight endpoints. All eight remain
+rank-stable at 11,028/11,028; LG/SI t24 is incomplete in mapping provenance
+but has no rank delta. The campaign now contains 88 records (85 stable, 3
+historical LN/SI-sensitive), with 86 of 100 538-bus endpoints profiled. Five
+records are now incomplete-provenance records, which remain tracked separately
+from rank sensitivity. The final deliverable is the t25 endpoint batch and a
+closed time-coverage inventory.
