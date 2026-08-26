@@ -49,6 +49,7 @@ series_application_bridge = read_summary("docs/bmopf_series_application_bridge_s
 series_capacity_boundary = read_summary("docs/bmopf_series_nominal_capacity_boundary_summary.json")
 series_uprated_nominal = read_summary("docs/bmopf_voltage_level_series_uprated_nominal_campaign_summary.json")
 lv13_madnlp_guard = read_summary("docs/bmopf_lv13_madnlp_transfer_guard_summary.json")
+lv13_madnlp_plan = read_summary("docs/bmopf_lv13_madnlp_isolated_run_plan.json")
 series_feasibility_sweep = read_summary("docs/bmopf_voltage_level_series_feasibility_sweep_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
@@ -473,6 +474,15 @@ gates = Dict{String,Any}[
         [
             "docs/bmopf_lv13_madnlp_transfer_guard_summary.json",
             "benchmarks/summarize_bmopf_lv13_madnlp_transfer_guard.jl",
+        ],
+    ),
+    gate(
+        "bmopf_lv13_madnlp_isolated_run_plan",
+        get(lv13_madnlp_plan, "status", "") == "isolated_run_ready" ? "pass" : "partial",
+        "The LV13 MadNLP transfer handoff validates the resource guard and emits an operator-approved isolated-process command with explicit variable, timeout, memory, solver, and closure criteria. The planner does not launch the solver, so this gate establishes reproducible readiness rather than solver success.",
+        [
+            "docs/bmopf_lv13_madnlp_isolated_run_plan.json",
+            "benchmarks/plan_bmopf_lv13_madnlp_isolated_run.jl",
         ],
     ),
     gate(

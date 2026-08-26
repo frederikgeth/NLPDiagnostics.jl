@@ -1,0 +1,48 @@
+{
+  "closure_criteria": [
+    "all variants locally solved",
+    "all physical endpoints accepted",
+    "all cross-policy comparisons qualified",
+    "all 46 source warnings retained"
+  ],
+  "execution": {
+    "approval_required": true,
+    "command": "JULIA_PKG_PRECOMPILE_AUTO=0 julia --compiled-modules=no --startup-file=no --project=work/benchmark-environment /Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/benchmarks/bmopf_combined_mv_lv_perturbed_start_campaign.jl",
+    "environment": {
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_FEEDER": "LV13_58bus",
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_MAX_ITER": 10,
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_MAX_VARIABLES": 5000,
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_OUTPUT": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/bmopf-combined-mv-lv-perturbed-start-LV13_58bus-madnlp-isolated.json",
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_REPEATS": 2,
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_SOLVER": "madnlp",
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_PERTURBED_START_TOL": 1.0e-10,
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_MAX_VARIABLES": 5000,
+      "NLPDIAGNOSTICS_COMBINED_MV_LV_SNAPSHOT_SOLVER": "madnlp"
+    },
+    "output": "work/bmopf-combined-mv-lv-perturbed-start-LV13_58bus-madnlp-isolated.json",
+    "runner_script": "benchmarks/bmopf_combined_mv_lv_perturbed_start_campaign.jl"
+  },
+  "qualification": {
+    "claim": "the LV13 MadNLP transfer is ready for an explicitly approved isolated run",
+    "does_not_establish": [
+      "that the current environment can execute the run within the envelope",
+      "MadNLP success or cross-feeder equivalence before the artifact is produced"
+    ],
+    "next_action": "run the emitted command under the declared timeout and memory envelope, then summarize its artifact"
+  },
+  "resource_envelope": {
+    "enforcement": "external isolated-process launcher",
+    "max_variables": 5000,
+    "memory_limit_mb": 8192,
+    "timeout_seconds": 900
+  },
+  "runner": "benchmarks/plan_bmopf_lv13_madnlp_isolated_run.jl",
+  "schema_version": "nlpdiagnostics-bmopf-lv13-madnlp-isolated-run-plan-v1",
+  "source_guard": {
+    "artifact": "docs/bmopf_lv13_madnlp_transfer_guard_summary.json",
+    "model_variable_count": 4902,
+    "source_warning_count": 46,
+    "status": "resource_guard_validated"
+  },
+  "status": "isolated_run_ready"
+}
