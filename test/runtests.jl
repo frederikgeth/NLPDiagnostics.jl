@@ -2908,16 +2908,21 @@ end
     )
     @test Meta.parseall(bmopf_normal_eigen_script) isa Expr
     @test occursin("trusted BMOPF endpoints", bmopf_normal_eigen_script)
+    @test occursin("size-guarded before optimization", bmopf_normal_eigen_script)
     bmopf_normal_eigen_summary = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_normal_eigen_jacobian_validation_summary.json"),
         String,
     ))
     @test bmopf_normal_eigen_summary["schema_version"] ==
           "nlpdiagnostics-bmopf-normal-eigen-jacobian-validation-v1"
-    @test bmopf_normal_eigen_summary["successful_snapshot_count"] == 2
-    @test bmopf_normal_eigen_summary["policy_record_count"] == 8
-    @test bmopf_normal_eigen_summary["all_policy_records_available"] == true
+    @test bmopf_normal_eigen_summary["snapshot_count"] == 4
+    @test bmopf_normal_eigen_summary["successful_snapshot_count"] == 3
+    @test bmopf_normal_eigen_summary["size_guarded_snapshot_count"] == 1
+    @test bmopf_normal_eigen_summary["policy_record_count"] == 12
+    @test bmopf_normal_eigen_summary["all_policy_records_available"] == false
+    @test bmopf_normal_eigen_summary["cross_backend_agreement_count"] == 8
     @test bmopf_normal_eigen_summary["cross_backend_disagreement_count"] == 0
+    @test bmopf_normal_eigen_summary["cross_backend_unavailable_count"] == 4
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
         String,

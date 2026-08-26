@@ -1,15 +1,16 @@
 {
-  "all_policy_records_available": true,
+  "all_policy_records_available": false,
   "cross_backend_agreement_count": 8,
   "cross_backend_disagreement_count": 0,
+  "cross_backend_unavailable_count": 4,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "87312b0d5c46d5f98068750e3898cac2f03232af",
-    "git_worktree_dirty": false,
+    "git_revision": "21200bedb1583b73df830e1cdedd07b92c7e560f",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": "This bounded BMOPF endpoint validation checks implementation availability and local rank agreement under explicit scaling policies. Disagreements remain evidence for follow-up; no physical or solver-superiority claim is made.",
-  "policy_record_count": 8,
+  "policy_record_count": 12,
   "results": [
     {
       "constraint_count": 844,
@@ -19,55 +20,71 @@
       "policies": [
         {
           "cross_backend_agreement": true,
+          "cross_backend_comparison_available": true,
           "dense_available": true,
           "dense_rank": 704,
+          "dense_reason": null,
           "dense_right_nullity": 0,
           "normal_eigen_available": true,
           "normal_eigen_rank": 704,
+          "normal_eigen_reason": null,
           "normal_eigen_right_nullity": 0,
           "policy": "none",
           "relative_tolerance": 1.8740564655672642e-13,
           "sparse_qr_available": true,
-          "sparse_qr_rank": 704
+          "sparse_qr_rank": 704,
+          "sparse_qr_reason": null
         },
         {
           "cross_backend_agreement": true,
+          "cross_backend_comparison_available": true,
           "dense_available": true,
           "dense_rank": 704,
+          "dense_reason": null,
           "dense_right_nullity": 0,
           "normal_eigen_available": true,
           "normal_eigen_rank": 704,
+          "normal_eigen_reason": null,
           "normal_eigen_right_nullity": 0,
           "policy": "row",
           "relative_tolerance": 1.8740564655672642e-13,
           "sparse_qr_available": true,
-          "sparse_qr_rank": 704
+          "sparse_qr_rank": 704,
+          "sparse_qr_reason": null
         },
         {
           "cross_backend_agreement": true,
+          "cross_backend_comparison_available": true,
           "dense_available": true,
           "dense_rank": 704,
+          "dense_reason": null,
           "dense_right_nullity": 0,
           "normal_eigen_available": true,
           "normal_eigen_rank": 704,
+          "normal_eigen_reason": null,
           "normal_eigen_right_nullity": 0,
           "policy": "column",
           "relative_tolerance": 1.8740564655672642e-13,
           "sparse_qr_available": true,
-          "sparse_qr_rank": 704
+          "sparse_qr_rank": 704,
+          "sparse_qr_reason": null
         },
         {
           "cross_backend_agreement": true,
+          "cross_backend_comparison_available": true,
           "dense_available": true,
           "dense_rank": 704,
+          "dense_reason": null,
           "dense_right_nullity": 0,
           "normal_eigen_available": true,
           "normal_eigen_rank": 704,
+          "normal_eigen_reason": null,
           "normal_eigen_right_nullity": 0,
           "policy": "row_column",
           "relative_tolerance": 1.8740564655672642e-13,
           "sparse_qr_available": true,
-          "sparse_qr_rank": 704
+          "sparse_qr_rank": 704,
+          "sparse_qr_reason": null
         }
       ],
       "primal_status": "FEASIBLE_POINT",
@@ -83,65 +100,169 @@
       "policies": [
         {
           "cross_backend_agreement": true,
+          "cross_backend_comparison_available": true,
           "dense_available": true,
           "dense_rank": 704,
+          "dense_reason": null,
           "dense_right_nullity": 0,
           "normal_eigen_available": true,
           "normal_eigen_rank": 704,
+          "normal_eigen_reason": null,
           "normal_eigen_right_nullity": 0,
           "policy": "none",
           "relative_tolerance": 1.8740564655672642e-13,
           "sparse_qr_available": true,
-          "sparse_qr_rank": 704
+          "sparse_qr_rank": 704,
+          "sparse_qr_reason": null
         },
         {
           "cross_backend_agreement": true,
+          "cross_backend_comparison_available": true,
           "dense_available": true,
           "dense_rank": 704,
+          "dense_reason": null,
           "dense_right_nullity": 0,
           "normal_eigen_available": true,
           "normal_eigen_rank": 704,
+          "normal_eigen_reason": null,
           "normal_eigen_right_nullity": 0,
           "policy": "row",
           "relative_tolerance": 1.8740564655672642e-13,
           "sparse_qr_available": true,
-          "sparse_qr_rank": 704
+          "sparse_qr_rank": 704,
+          "sparse_qr_reason": null
         },
         {
           "cross_backend_agreement": true,
+          "cross_backend_comparison_available": true,
           "dense_available": true,
           "dense_rank": 704,
+          "dense_reason": null,
           "dense_right_nullity": 0,
           "normal_eigen_available": true,
           "normal_eigen_rank": 704,
+          "normal_eigen_reason": null,
           "normal_eigen_right_nullity": 0,
           "policy": "column",
           "relative_tolerance": 1.8740564655672642e-13,
           "sparse_qr_available": true,
-          "sparse_qr_rank": 704
+          "sparse_qr_rank": 704,
+          "sparse_qr_reason": null
         },
         {
           "cross_backend_agreement": true,
+          "cross_backend_comparison_available": true,
           "dense_available": true,
           "dense_rank": 704,
+          "dense_reason": null,
           "dense_right_nullity": 0,
           "normal_eigen_available": true,
           "normal_eigen_rank": 704,
+          "normal_eigen_reason": null,
           "normal_eigen_right_nullity": 0,
           "policy": "row_column",
           "relative_tolerance": 1.8740564655672642e-13,
           "sparse_qr_available": true,
-          "sparse_qr_rank": 704
+          "sparse_qr_rank": 704,
+          "sparse_qr_reason": null
         }
       ],
       "primal_status": "FEASIBLE_POINT",
       "snapshot": "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
       "termination_status": "LOCALLY_SOLVED",
       "variable_count": 704
+    },
+    {
+      "constraint_count": 2208,
+      "jacobian_entry_count": 12886,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "policies": [
+        {
+          "cross_backend_agreement": false,
+          "cross_backend_comparison_available": false,
+          "dense_available": false,
+          "dense_rank": null,
+          "dense_reason": "dense Jacobian would contain 4345344 entries, exceeding guard 4000000",
+          "dense_right_nullity": null,
+          "normal_eigen_available": false,
+          "normal_eigen_rank": null,
+          "normal_eigen_reason": "normal-equations Jacobian would contain 4345344 entries, exceeding guard 4000000",
+          "normal_eigen_right_nullity": null,
+          "policy": "none",
+          "relative_tolerance": 4.902744876744691e-13,
+          "sparse_qr_available": true,
+          "sparse_qr_rank": 1968,
+          "sparse_qr_reason": null
+        },
+        {
+          "cross_backend_agreement": false,
+          "cross_backend_comparison_available": false,
+          "dense_available": false,
+          "dense_rank": null,
+          "dense_reason": "dense Jacobian would contain 4345344 entries, exceeding guard 4000000",
+          "dense_right_nullity": null,
+          "normal_eigen_available": false,
+          "normal_eigen_rank": null,
+          "normal_eigen_reason": "normal-equations Jacobian would contain 4345344 entries, exceeding guard 4000000",
+          "normal_eigen_right_nullity": null,
+          "policy": "row",
+          "relative_tolerance": 4.902744876744691e-13,
+          "sparse_qr_available": true,
+          "sparse_qr_rank": 1968,
+          "sparse_qr_reason": null
+        },
+        {
+          "cross_backend_agreement": false,
+          "cross_backend_comparison_available": false,
+          "dense_available": false,
+          "dense_rank": null,
+          "dense_reason": "dense Jacobian would contain 4345344 entries, exceeding guard 4000000",
+          "dense_right_nullity": null,
+          "normal_eigen_available": false,
+          "normal_eigen_rank": null,
+          "normal_eigen_reason": "normal-equations Jacobian would contain 4345344 entries, exceeding guard 4000000",
+          "normal_eigen_right_nullity": null,
+          "policy": "column",
+          "relative_tolerance": 4.902744876744691e-13,
+          "sparse_qr_available": true,
+          "sparse_qr_rank": 1968,
+          "sparse_qr_reason": null
+        },
+        {
+          "cross_backend_agreement": false,
+          "cross_backend_comparison_available": false,
+          "dense_available": false,
+          "dense_rank": null,
+          "dense_reason": "dense Jacobian would contain 4345344 entries, exceeding guard 4000000",
+          "dense_right_nullity": null,
+          "normal_eigen_available": false,
+          "normal_eigen_rank": null,
+          "normal_eigen_reason": "normal-equations Jacobian would contain 4345344 entries, exceeding guard 4000000",
+          "normal_eigen_right_nullity": null,
+          "policy": "row_column",
+          "relative_tolerance": 4.902744876744691e-13,
+          "sparse_qr_available": true,
+          "sparse_qr_rank": 1968,
+          "sparse_qr_reason": null
+        }
+      ],
+      "primal_status": "FEASIBLE_POINT",
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json",
+      "termination_status": "LOCALLY_SOLVED",
+      "variable_count": 1968
+    },
+    {
+      "guard_reason": "model variable count exceeds the pre-solve normal-eigen guard",
+      "max_variables": 5000,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t01_0800.bmopf.json",
+      "status": "size_guarded",
+      "variable_count": 11028
     }
   ],
   "schema_version": "nlpdiagnostics-bmopf-normal-eigen-jacobian-validation-v1",
-  "snapshot_count": 2,
+  "size_guarded_snapshot_count": 1,
+  "snapshot_count": 4,
   "source": {
     "data_root": "/Users/uqfgeth/Documents/GitHub/BMOPFDraftData/benchmarks",
     "policies": [
@@ -154,9 +275,11 @@
     "runner": "benchmarks/bmopf_normal_eigen_jacobian_validation.jl",
     "snapshots": [
       "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
-      "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json"
+      "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+      "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json",
+      "ENWLsnapshots/538bus_LN/538bus_LN_t01_0800.bmopf.json"
     ],
     "solver": "Ipopt"
   },
-  "successful_snapshot_count": 2
+  "successful_snapshot_count": 3
 }

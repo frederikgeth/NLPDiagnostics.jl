@@ -5296,14 +5296,16 @@ backend-selection grounds. The next step is to investigate that span
 instability on trusted BMOPFTools Jacobians under the same explicit guards.
 
 The trusted endpoint bridge is now recorded in
-`docs/bmopf_normal_eigen_jacobian_validation_summary.json`. Two 30-bus
-solver-result snapshots (LN and LG) produced `LOCALLY_SOLVED` endpoints and
-eight policy records; dense SVD, sparse QR, and normal-eigen ranks agreed for
-all four scaling policies on both snapshots. This validates implementation
-availability on real BMOPFTools Jacobian data, not physical rank or solver
-superiority. The next step is to extend the guarded check to larger trusted
-99-bus/538-bus snapshots and localize the scaling-sensitive nullspace-span
-instability before considering any default-policy change.
+`docs/bmopf_normal_eigen_jacobian_validation_summary.json`. Three snapshots
+(30-bus LN/LG and 99-bus LN) produced `LOCALLY_SOLVED` endpoints and 12 policy
+records; dense SVD, sparse QR, and normal-eigen ranks agreed on all eight
+30-bus records, while the 99-bus dense/normal paths were explicitly
+unavailable under the dense-work guard. The 538-bus model was pre-solve
+size-guarded at 11,028 variables. This validates implementation availability
+and records honest capability boundaries on real BMOPFTools data, not physical
+rank or solver superiority. The next step is to extend guarded sparse-only
+validation to larger trusted snapshots and localize the scaling-sensitive
+nullspace-span instability before considering any default-policy change.
 
 ## 2026-08-26 real-99-bus KKT ledger validation checkpoint
 

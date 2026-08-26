@@ -2,9 +2,10 @@
 
 """Validate the guarded normal-eigen backend on trusted BMOPF endpoints.
 
-This runs a small, predeclared 30-bus endpoint set.  It records solver-point
+This runs a predeclared 30/99/538-bus endpoint set.  It records solver-point
 provenance and compares normal-eigen, dense-SVD, and sparse-QR ranks under all
-four scaling policies; no physical interpretation is inferred from rank.
+four scaling policies; larger cases are size-guarded before optimization and
+no physical interpretation is inferred from rank.
 """
 
 using BMOPFTools
@@ -22,6 +23,8 @@ const OUTPUT = abspath(isempty(ARGS) ?
 const SNAPSHOTS = [
     "ENWLsnapshots/30bus_LN/30bus_LN_t01_0800.bmopf.json",
     "ENWLsnapshots/30bus_LG/30bus_LG_t01_0800.bmopf.json",
+    "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json",
+    "ENWLsnapshots/538bus_LN/538bus_LN_t01_0800.bmopf.json",
 ]
 const POLICIES = (:none, :row, :column, :row_column)
 
@@ -35,6 +38,15 @@ function run_snapshot(relative)
     BMOPFTools.enforce_kcl!(context)
     model = BMOPFTools.opf_model(context)
     JuMP.set_silent(model)
+    max_variables = parse(Int, get(ENV, "NLPDIAGNOSTICS_BMOPF_NORMAL_EIGEN_MAX_VARIABLES", "5000"))
+    variable_count = JuMP.num_variables(model)
+    variable_count <= max_variables || return Dict{String,Any}(
+        "snapshot" => relative,
+        "status" => "size_guarded",
+        "variable_count" => variable_count,
+        "max_variables" => max_variables,
+        "guard_reason" => "model variable count exceeds the pre-solve normal-eigen guard",
+    )
     max_iter = parse(Int, get(ENV, "NLPDIAGNOSTICS_BMOPF_NORMAL_EIGEN_MAX_ITER", "100"))
     JuMP.set_optimizer_attribute(model, "max_iter", max_iter)
     JuMP.optimize!(model)
@@ -42,8 +54,6 @@ function run_snapshot(relative)
     point isa NLPDiagnostics.EvaluationPoint || error("solver result point unavailable")
     evaluation = NLPDiagnostics.evaluate_numerical(JuMP.backend(model), point)
     variable_count = length(evaluation.point.variables)
-    max_variables = parse(Int, get(ENV, "NLPDIAGNOSTICS_BMOPF_NORMAL_EIGEN_MAX_VARIABLES", "5000"))
-    variable_count <= max_variables || error("variable guard exceeded: $variable_count > $max_variables")
     records = Dict{String,Any}[]
     for policy in POLICIES
         tolerance = max(variable_count, length(evaluation.constraint_sources), 1) * eps(Float64)
@@ -68,11 +78,15 @@ function run_snapshot(relative)
             "dense_available" => dense.available,
             "sparse_qr_available" => sparse.available,
             "normal_eigen_available" => normal.available,
+            "dense_reason" => dense.reason,
+            "sparse_qr_reason" => sparse.reason,
+            "normal_eigen_reason" => normal.reason,
             "dense_rank" => dense.available ? dense.rank : nothing,
             "sparse_qr_rank" => sparse.available ? sparse.rank : nothing,
             "normal_eigen_rank" => normal.available ? normal.rank : nothing,
             "dense_right_nullity" => dense.available ? dense.right_nullity : nothing,
             "normal_eigen_right_nullity" => normal.available ? normal.right_nullity : nothing,
+            "cross_backend_comparison_available" => dense.available && sparse.available && normal.available,
             "cross_backend_agreement" => dense.available && sparse.available && normal.available &&
                 dense.rank == sparse.rank == normal.rank,
         ))
@@ -99,7 +113,8 @@ for snapshot in SNAPSHOTS
             "error" => sprint(showerror, error)))
     end
 end
-successful = filter(result -> !haskey(result, "error"), results)
+successful = filter(result -> haskey(result, "policies"), results)
+size_guarded = filter(result -> get(result, "status", "") == "size_guarded", results)
 policy_records = [record for result in successful for record in result["policies"]]
 write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-normal-eigen-jacobian-validation-v1",
@@ -119,13 +134,20 @@ write_json(OUTPUT, Dict{String,Any}(
     ),
     "snapshot_count" => length(SNAPSHOTS),
     "successful_snapshot_count" => length(successful),
+    "size_guarded_snapshot_count" => length(size_guarded),
     "policy_record_count" => length(policy_records),
     "all_policy_records_available" => all(
         record["dense_available"] && record["sparse_qr_available"] && record["normal_eigen_available"]
         for record in policy_records
     ),
     "cross_backend_agreement_count" => count(record -> record["cross_backend_agreement"], policy_records),
-    "cross_backend_disagreement_count" => count(record -> !record["cross_backend_agreement"], policy_records),
+    "cross_backend_disagreement_count" => count(
+        record -> record["cross_backend_comparison_available"] && !record["cross_backend_agreement"],
+        policy_records,
+    ),
+    "cross_backend_unavailable_count" => count(
+        record -> !record["cross_backend_comparison_available"], policy_records,
+    ),
     "results" => results,
     "interpretation" => "This bounded BMOPF endpoint validation checks implementation availability and local rank agreement under explicit scaling policies. Disagreements remain evidence for follow-up; no physical or solver-superiority claim is made.",
 ))

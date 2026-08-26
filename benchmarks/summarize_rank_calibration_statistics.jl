@@ -258,8 +258,9 @@ write_json(OUTPUT, Dict{String,Any}(
         "all_policy_records_available" => get(normal_eigen_bmopf, "all_policy_records_available", false),
         "cross_backend_agreement_count" => get(normal_eigen_bmopf, "cross_backend_agreement_count", 0),
         "cross_backend_disagreement_count" => get(normal_eigen_bmopf, "cross_backend_disagreement_count", 0),
+        "cross_backend_unavailable_count" => get(normal_eigen_bmopf, "cross_backend_unavailable_count", 0),
         "artifact" => NORMAL_EIGEN_BMOPF_ARTIFACT,
-        "interpretation" => "Trusted 30-bus solver-result points validate backend availability and local rank agreement under scaling policies; no physical rank interpretation is inferred.",
+        "interpretation" => "Trusted 30/99-bus solver-result points validate backend availability and local rank agreement under scaling policies; larger snapshots are explicitly size-guarded and no physical rank interpretation is inferred.",
     ),
     "large_sparse_sparse_only" => Dict(
         "record_count" => large_sparse_records,

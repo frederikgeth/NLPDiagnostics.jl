@@ -71,8 +71,8 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "7ec741b8e1c27a2b4fc2258eaa0db675fcd39c6e",
-    "git_worktree_dirty": false,
+    "git_revision": "21200bedb1583b73df830e1cdedd07b92c7e560f",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "finite_sample_uncertainty": {
@@ -136,14 +136,15 @@
     "sparse_unavailable_count": 0
   },
   "normal_eigen_bmopf_validation": {
-    "all_policy_records_available": true,
+    "all_policy_records_available": false,
     "artifact": "docs/bmopf_normal_eigen_jacobian_validation_summary.json",
     "cross_backend_agreement_count": 8,
     "cross_backend_disagreement_count": 0,
-    "interpretation": "Trusted 30-bus solver-result points validate backend availability and local rank agreement under scaling policies; no physical rank interpretation is inferred.",
-    "policy_record_count": 8,
-    "snapshot_count": 2,
-    "successful_snapshot_count": 2
+    "cross_backend_unavailable_count": 4,
+    "interpretation": "Trusted 30/99-bus solver-result points validate backend availability and local rank agreement under scaling policies; larger snapshots are explicitly size-guarded and no physical rank interpretation is inferred.",
+    "policy_record_count": 12,
+    "snapshot_count": 4,
+    "successful_snapshot_count": 3
   },
   "normal_eigen_calibration": {
     "artifact": "docs/normal_eigen_rank_calibration_summary.json",
