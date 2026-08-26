@@ -71,8 +71,8 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "66f34e8fd9b62e70f41cb00d5b2e1ace45c26b16",
-    "git_worktree_dirty": false,
+    "git_revision": "c96bcdbbb611911e1f1ce88a412cd7569342fd47",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "finite_sample_uncertainty": {
@@ -145,11 +145,21 @@
     "threshold_backend_disagreement_count": 4,
     "threshold_sensitive_count": 5
   },
+  "normal_eigen_policy_persistence": {
+    "artifact": "docs/normal_eigen_policy_persistence_summary.json",
+    "case_count": 3,
+    "cross_backend_disagreement_count": 1,
+    "interpretation": "Repeated same-point calls and scaling-policy comparisons preserve instability as evidence; no basis-column or policy preference is promoted.",
+    "policy_record_count": 12,
+    "repeatability_failure_count": 3,
+    "unavailable_count": 0
+  },
   "schema_version": "nlpdiagnostics-rank-calibration-statistics-v2",
   "source": {
     "adversarial_extension_artifact": "docs/rank_adversarial_extension_summary.json",
     "large_sparse_artifact": "docs/large_sparse_rank_oracle_summary.json",
     "normal_eigen_artifact": "docs/normal_eigen_rank_calibration_summary.json",
+    "normal_eigen_persistence_artifact": "docs/normal_eigen_policy_persistence_summary.json",
     "perturbation_artifact": "docs/rank_perturbation_sweep_summary.json",
     "policy": "Declared hard controls are counted for false-positive/false-negative statistics; threshold-sensitive controls remain disagreement evidence; dense-unavailable large sparse records are sparse-only coverage.",
     "runner": "benchmarks/summarize_rank_calibration_statistics.jl",

@@ -5285,6 +5285,16 @@ set.” The next numerical deliverable is repeated-point and scaling-policy
 coverage, with disagreements retained by case rather than collapsed into a
 single backend winner.
 
+That persistence follow-up is now recorded in
+`docs/normal_eigen_policy_persistence_summary.json`: 12 policy records cover
+three repeated matrices under `:none`, `:row`, `:column`, and `:row_column`.
+All calls are available; the duplicate-column case is repeatable across all
+policies, while column-scaled nullspace spans expose three same-point
+repeatability failures and the ill-scaled case exposes one dense/QR
+cross-backend disagreement. These are actionable conditioning findings, not
+backend-selection grounds. The next step is to investigate that span
+instability on trusted BMOPFTools Jacobians under the same explicit guards.
+
 ## 2026-08-26 real-99-bus KKT ledger validation checkpoint
 
 The saved real-99-bus KKT evidence now has a cross-artifact validator,

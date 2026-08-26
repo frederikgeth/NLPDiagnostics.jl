@@ -17,6 +17,15 @@ available for bounded cross-checks, but is not a production default or a
 universal rank certificate; repeated-point and scaling-policy coverage remain
 required before the numerical-rank release gate can close.
 
+The follow-up policy ledger in
+`docs/normal_eigen_policy_persistence_summary.json` covers three matrices and
+12 same-point policy records. Every backend result is available. The
+duplicate-column case is repeatable across all scaling policies; column-scaled
+nullspace spans show three repeatability failures, and the ill-scaled case has
+one dense/QR disagreement. These failures are retained as conditioning and
+policy-sensitivity evidence, with trusted BMOPFTools Jacobian validation still
+outstanding.
+
 ## 2026-08-23: typed BMOPFTools capability boundaries
 
 The BMOPFTools terminal-current, passive-network map, and terminal-attachment

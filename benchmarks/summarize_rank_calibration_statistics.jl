@@ -20,6 +20,7 @@ const PERTURBATION_ARTIFACT = "docs/rank_perturbation_sweep_summary.json"
 const ADVERSARIAL_EXTENSION_ARTIFACT = "docs/rank_adversarial_extension_summary.json"
 const THIRD_BACKEND_ARTIFACT = "docs/rank_third_backend_capability_summary.json"
 const NORMAL_EIGEN_ARTIFACT = "docs/normal_eigen_rank_calibration_summary.json"
+const NORMAL_EIGEN_PERSISTENCE_ARTIFACT = "docs/normal_eigen_policy_persistence_summary.json"
 
 seeded = read_summary(SEEDED_ARTIFACT)
 large_sparse = read_summary(LARGE_SPARSE_ARTIFACT)
@@ -27,6 +28,7 @@ perturbation = read_summary(PERTURBATION_ARTIFACT)
 adversarial_extension = read_summary(ADVERSARIAL_EXTENSION_ARTIFACT)
 third_backend = read_summary(THIRD_BACKEND_ARTIFACT)
 normal_eigen = read_summary(NORMAL_EIGEN_ARTIFACT)
+normal_eigen_persistence = read_summary(NORMAL_EIGEN_PERSISTENCE_ARTIFACT)
 seeded_hard = get(seeded, "hard_controls", Dict{String,Any}())
 seeded_threshold = get(seeded, "threshold_controls", Dict{String,Any}())
 large_by_case = get(large_sparse, "by_case", Dict{String,Any}())
@@ -136,6 +138,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "adversarial_extension_artifact" => ADVERSARIAL_EXTENSION_ARTIFACT,
         "third_backend_artifact" => THIRD_BACKEND_ARTIFACT,
         "normal_eigen_artifact" => NORMAL_EIGEN_ARTIFACT,
+        "normal_eigen_persistence_artifact" => NORMAL_EIGEN_PERSISTENCE_ARTIFACT,
         "policy" => "Declared hard controls are counted for false-positive/false-negative statistics; threshold-sensitive controls remain disagreement evidence; dense-unavailable large sparse records are sparse-only coverage.",
     ),
     "environment" => Dict(
@@ -235,6 +238,15 @@ write_json(OUTPUT, Dict{String,Any}(
         "threshold_backend_disagreement_count" => get(normal_eigen, "threshold_backend_disagreement_count", 0),
         "artifact" => NORMAL_EIGEN_ARTIFACT,
         "interpretation" => "The normal-eigen path is an experimental third backend; its squared-spectrum disagreements are retained as tolerance evidence and do not establish a production rank policy.",
+    ),
+    "normal_eigen_policy_persistence" => Dict(
+        "case_count" => get(normal_eigen_persistence, "case_count", 0),
+        "policy_record_count" => get(normal_eigen_persistence, "policy_record_count", 0),
+        "repeatability_failure_count" => get(normal_eigen_persistence, "repeatability_failure_count", 0),
+        "cross_backend_disagreement_count" => get(normal_eigen_persistence, "cross_backend_disagreement_count", 0),
+        "unavailable_count" => get(normal_eigen_persistence, "unavailable_count", 0),
+        "artifact" => NORMAL_EIGEN_PERSISTENCE_ARTIFACT,
+        "interpretation" => "Repeated same-point calls and scaling-policy comparisons preserve instability as evidence; no basis-column or policy preference is promoted.",
     ),
     "large_sparse_sparse_only" => Dict(
         "record_count" => large_sparse_records,

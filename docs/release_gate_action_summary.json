@@ -14,11 +14,13 @@
         "benchmarks/validate_rank_third_backend.jl",
         "docs/normal_eigen_rank_calibration_summary.json",
         "benchmarks/calibrate_normal_eigen_rank_backend.jl",
+        "docs/normal_eigen_policy_persistence_summary.json",
+        "benchmarks/calibrate_normal_eigen_policy_persistence.jl",
         "docs/smallest_singular_calibration_summary.json",
         "benchmarks/calibrate_restarted_smallest_singular.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Add repeated-point and scaling-policy normal-eigen checks, retaining cross-backend disagreement and unavailable outcomes by case.",
+      "next_deliverable": "Investigate scaling-sensitive normal-eigen nullspace span instability and validate the guarded backend on trusted BMOPFTools Jacobians.",
       "priority": 1,
       "status": "partial"
     },
@@ -109,8 +111,8 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "d5b809750e89f251eadddf881557b3811dfba25f",
-    "git_worktree_dirty": false,
+    "git_revision": "c96bcdbbb611911e1f1ce88a412cd7569342fd47",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {
