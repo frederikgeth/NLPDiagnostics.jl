@@ -1,0 +1,72 @@
+{
+  "all_point_provenance_complete": true,
+  "all_sparse_estimates_available": true,
+  "environment": {
+    "git_revision": "d2a3edea09f235902a70dcfa774bca502b5a7bc5",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": "Saved solver-result points provide sparse-only rank evidence with explicit provenance. Dense rank remains guarded; rank stability is local numerical evidence and not a physical gauge or universal policy certificate.",
+  "record_count": 3,
+  "records": [
+    {
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 4345344 entries, exceeding guard 0",
+      "model_constraint_count": 2208,
+      "model_variable_count": 1968,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "row_column_available": true,
+      "row_column_rank": 1968,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/99bus_LN/99bus_LN_t01_0800.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_rank": 1968
+    },
+    {
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 4345344 entries, exceeding guard 0",
+      "model_constraint_count": 2208,
+      "model_variable_count": 1968,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "row_column_available": true,
+      "row_column_rank": 1968,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/99bus_LG/99bus_LG_t01_0800.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_rank": 1968
+    },
+    {
+      "dense_available": false,
+      "dense_reason": "dense Jacobian would contain 138269064 entries, exceeding guard 0",
+      "model_constraint_count": 12538,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0,
+      "row_column_available": true,
+      "row_column_rank": 11028,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t01_0800.bmopf.json",
+      "unscaled_available": true,
+      "unscaled_rank": 11028
+    }
+  ],
+  "scaling_sensitive_count": 0,
+  "scaling_stable_count": 3,
+  "schema_version": "nlpdiagnostics-bmopf-saved-result-sparse-rank-campaign-v1",
+  "source": {
+    "dense_policy": "disabled by explicit work guard",
+    "input_summaries": [
+      "/tmp/nlpdiag_sparse99_saved/99bus_ln_summary.json",
+      "/tmp/nlpdiag_sparse99_saved/99bus_lg_summary.json",
+      "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/bmopf_large_sparse_rank_screen_saved_result_summary.json"
+    ],
+    "point_policy": "saved_result",
+    "runner": "benchmarks/bmopf_draft_corpus.jl",
+    "summarizer": "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl"
+  }
+}

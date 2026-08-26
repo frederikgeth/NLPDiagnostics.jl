@@ -28,6 +28,7 @@ normal_eigen_persistence = read_summary("docs/normal_eigen_policy_persistence_su
 normal_eigen_bmopf = read_summary("docs/bmopf_normal_eigen_jacobian_validation_summary.json")
 large_sparse_bmopf = read_summary("docs/bmopf_large_sparse_rank_screen_summary.json")
 large_sparse_bmopf_saved = read_summary("docs/bmopf_large_sparse_rank_screen_saved_result_summary.json")
+saved_result_bmopf_campaign = read_summary("docs/bmopf_saved_result_sparse_rank_campaign_summary.json")
 smallest_singular_calibration = read_summary("docs/smallest_singular_calibration_summary.json")
 runtime_scaling = read_summary("docs/sparse_runtime_memory_scaling_summary.json")
 isolated_runtime_scaling = read_summary("docs/sparse_runtime_memory_isolated_summary.json")
@@ -317,6 +318,9 @@ large_sparse_bmopf_saved_comparison = get(large_sparse_bmopf_saved_screen, "comp
 large_sparse_bmopf_saved_unscaled_rank = get(large_sparse_bmopf_saved_comparison, "unscaled_rank", nothing)
 large_sparse_bmopf_saved_row_column_rank = get(large_sparse_bmopf_saved_comparison, "row_column_rank", nothing)
 large_sparse_bmopf_saved_rank_delta = get(large_sparse_bmopf_saved_comparison, "row_column_minus_unscaled_rank", nothing)
+saved_result_bmopf_count = get(saved_result_bmopf_campaign, "record_count", 0)
+saved_result_bmopf_stable = get(saved_result_bmopf_campaign, "scaling_stable_count", 0)
+saved_result_bmopf_sensitive = get(saved_result_bmopf_campaign, "scaling_sensitive_count", 0)
 smallest_singular_case_count = get(smallest_singular_calibration, "case_count", 0)
 smallest_singular_crosscheck = get(smallest_singular_calibration, "dense_free_crosscheck", Dict{String,Any}())
 smallest_singular_agreement_count = get(smallest_singular_crosscheck, "agreement_count", 0)
@@ -379,6 +383,8 @@ series_feasibility_solved_count = count(
 )
 
 function gate(id, status, rationale, evidence; blocking=false)
+    evidence = id == "numerical_rank_false_positive_negative_statistics" ?
+        vcat(evidence, ["docs/bmopf_saved_result_sparse_rank_campaign_summary.json", "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl"]) : evidence
     Dict{String,Any}(
         "id" => id,
         "status" => status,

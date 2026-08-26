@@ -17,7 +17,7 @@ const OUTPUT = abspath(isempty(ARGS) ?
 const ACTIONS = Dict{String,Dict{String,Any}}(
     "numerical_rank_false_positive_negative_statistics" => Dict(
         "priority" => 1,
-        "next_deliverable" => "Expand saved-result sparse-only screening across additional 538-bus snapshots and 99-bus endpoints while tracking nullspace-span stability.",
+        "next_deliverable" => "Expand saved-result sparse-only screening across additional 538-bus snapshots and retain endpoint-level span diagnostics.",
         "closure_condition" => "Hard-control false-positive/false-negative and unavailable statistics are complete across the declared corpus, and backend disagreements are classified rather than silently resolved.",
         "dependency" => "None; this is the highest-priority numerical-algebra track.",
     ),

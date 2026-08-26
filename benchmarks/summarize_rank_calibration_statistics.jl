@@ -24,6 +24,7 @@ const NORMAL_EIGEN_PERSISTENCE_ARTIFACT = "docs/normal_eigen_policy_persistence_
 const NORMAL_EIGEN_BMOPF_ARTIFACT = "docs/bmopf_normal_eigen_jacobian_validation_summary.json"
 const LARGE_SPARSE_BMOPF_ARTIFACT = "docs/bmopf_large_sparse_rank_screen_summary.json"
 const LARGE_SPARSE_BMOPF_SAVED_ARTIFACT = "docs/bmopf_large_sparse_rank_screen_saved_result_summary.json"
+const SAVED_RESULT_BMOPF_CAMPAIGN_ARTIFACT = "docs/bmopf_saved_result_sparse_rank_campaign_summary.json"
 
 seeded = read_summary(SEEDED_ARTIFACT)
 large_sparse = read_summary(LARGE_SPARSE_ARTIFACT)
@@ -35,6 +36,7 @@ normal_eigen_persistence = read_summary(NORMAL_EIGEN_PERSISTENCE_ARTIFACT)
 normal_eigen_bmopf = read_summary(NORMAL_EIGEN_BMOPF_ARTIFACT)
 large_sparse_bmopf = read_summary(LARGE_SPARSE_BMOPF_ARTIFACT)
 large_sparse_bmopf_saved = read_summary(LARGE_SPARSE_BMOPF_SAVED_ARTIFACT)
+saved_result_bmopf_campaign = read_summary(SAVED_RESULT_BMOPF_CAMPAIGN_ARTIFACT)
 seeded_hard = get(seeded, "hard_controls", Dict{String,Any}())
 seeded_threshold = get(seeded, "threshold_controls", Dict{String,Any}())
 large_by_case = get(large_sparse, "by_case", Dict{String,Any}())
@@ -286,6 +288,15 @@ write_json(OUTPUT, Dict{String,Any}(
         "scaling_sensitive" => get(get(get(large_sparse_bmopf_saved, "sparse_qr", Dict{String,Any}()), "comparison", Dict{String,Any}()), "scaling_sensitive", false),
         "artifact" => LARGE_SPARSE_BMOPF_SAVED_ARTIFACT,
         "interpretation" => "A saved solver-result point on the 538-bus snapshot provides sparse-only rank evidence with complete point provenance; dense rank remains guarded.",
+    ),
+    "saved_result_bmopf_campaign" => Dict(
+        "record_count" => get(saved_result_bmopf_campaign, "record_count", 0),
+        "all_point_provenance_complete" => get(saved_result_bmopf_campaign, "all_point_provenance_complete", false),
+        "all_sparse_estimates_available" => get(saved_result_bmopf_campaign, "all_sparse_estimates_available", false),
+        "scaling_sensitive_count" => get(saved_result_bmopf_campaign, "scaling_sensitive_count", 0),
+        "scaling_stable_count" => get(saved_result_bmopf_campaign, "scaling_stable_count", 0),
+        "artifact" => SAVED_RESULT_BMOPF_CAMPAIGN_ARTIFACT,
+        "interpretation" => "Saved-result sparse-only screening across 99-bus LN/LG and 538-bus LN endpoints is provenance-complete and scaling-stable; dense rank remains guarded.",
     ),
     "large_sparse_sparse_only" => Dict(
         "record_count" => large_sparse_records,

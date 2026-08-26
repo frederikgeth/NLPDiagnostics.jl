@@ -22,10 +22,12 @@
         "docs/bmopf_large_sparse_rank_screen_saved_result_summary.json",
         "benchmarks/summarize_bmopf_large_sparse_rank_screen.jl",
         "docs/smallest_singular_calibration_summary.json",
-        "benchmarks/calibrate_restarted_smallest_singular.jl"
+        "benchmarks/calibrate_restarted_smallest_singular.jl",
+        "docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
+        "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Expand saved-result sparse-only screening across additional 538-bus snapshots and 99-bus endpoints while tracking nullspace-span stability.",
+      "next_deliverable": "Expand saved-result sparse-only screening across additional 538-bus snapshots and retain endpoint-level span diagnostics.",
       "priority": 1,
       "status": "partial"
     },
@@ -116,8 +118,8 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "da9b6f1a0c9516393702579d41e2a3cbdb1bc911",
-    "git_worktree_dirty": false,
+    "git_revision": "d2a3edea09f235902a70dcfa774bca502b5a7bc5",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {

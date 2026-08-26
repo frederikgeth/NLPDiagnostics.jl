@@ -2952,6 +2952,22 @@ end
     @test large_sparse_saved_summary["sparse_qr"]["comparison"]["row_column_rank"] == 11028
     @test large_sparse_saved_summary["sparse_qr"]["comparison"]["scaling_sensitive"] == false
     @test rank_statistics_data["large_sparse_bmopf_saved_result_screen"]["point_provenance_complete"] == true
+    saved_result_campaign_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_saved_result_sparse_rank_campaign.jl"),
+        String,
+    )
+    @test Meta.parseall(saved_result_campaign_script) isa Expr
+    saved_result_campaign_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_saved_result_sparse_rank_campaign_summary.json"),
+        String,
+    ))
+    @test saved_result_campaign_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-saved-result-sparse-rank-campaign-v1"
+    @test saved_result_campaign_summary["record_count"] == 3
+    @test saved_result_campaign_summary["all_point_provenance_complete"] == true
+    @test saved_result_campaign_summary["all_sparse_estimates_available"] == true
+    @test saved_result_campaign_summary["scaling_sensitive_count"] == 0
+    @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_stable_count"] == 3
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
         String,
