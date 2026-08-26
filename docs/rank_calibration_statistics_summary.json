@@ -71,8 +71,8 @@
   },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "481906602fe3ad7a1061ee42182c784bc4f8e4f4",
-    "git_worktree_dirty": true,
+    "git_revision": "6acf0b604cf00bcc31c9ddeab04677d3b439a688",
+    "git_worktree_dirty": false,
     "julia_version": "1.12.6"
   },
   "finite_sample_uncertainty": {
