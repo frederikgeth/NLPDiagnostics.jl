@@ -2258,6 +2258,8 @@ end
     @test !("MadNLP" in series_application_bridge_summary["solver_coverage"]["LV13_58bus"]["solvers"])
     @test series_application_bridge_summary["transfer_gaps"][1]["missing_solver"] == "MadNLP"
     @test series_application_bridge_summary["lv13_madnlp_guard"]["status"] == "resource_guard_validated"
+    @test series_application_bridge_summary["lv13_madnlp_result"]["status"] == "awaiting_artifact"
+    @test series_application_bridge_summary["transfer_gaps"][1]["result_status"] == "awaiting_artifact"
     lv13_madnlp_guard_script = read(
         joinpath(benchmark_directory, "summarize_bmopf_lv13_madnlp_transfer_guard.jl"),
         String,
