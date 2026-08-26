@@ -3029,6 +3029,23 @@ end
     @test saved_result_quality_summary["missing_endpoint_count"] == 0
     @test saved_result_quality_summary["termination_status_counts"]["LOCALLY_SOLVED"] == 93
     @test saved_result_quality_summary["termination_status_counts"]["ITERATION_LIMIT"] == 7
+    saved_result_rerun_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_si_rerun.jl"),
+        String,
+    )
+    @test Meta.parseall(saved_result_rerun_script) isa Expr
+    saved_result_rerun_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_si_bounded_rerun_summary.json"),
+        String,
+    ))
+    @test saved_result_rerun_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-si-bounded-rerun-v1"
+    @test saved_result_rerun_summary["case_count"] == 7
+    @test saved_result_rerun_summary["bounded_success_count"] == 7
+    @test saved_result_rerun_summary["bounded_failure_count"] == 0
+    @test saved_result_rerun_summary["all_bounded_successes"] == true
+    @test all(record["solver_log_evidence"]["optimal_solution"] === true
+              for record in saved_result_rerun_summary["records"])
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
         String,

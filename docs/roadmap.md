@@ -5724,3 +5724,17 @@ is now explicit: those records remain representational sparse-rank evidence but
 are excluded from physical endpoint claims until regenerated or independently
 justified. The next deliverable is to regenerate the seven SI results or accept
 that exclusion as the release policy.
+
+## 2026-08-27 bounded SI rerun
+
+The existing isolated solver-trace harness was used to rerun all seven excluded
+538-bus SI snapshots with Ipopt (`max_iter=1000`, `print_level=0`, a 180-second
+per-child timeout, and the 11,028-variable guard). All seven fresh child
+processes reached `EXIT: Optimal Solution Found.` in 13--35 iterations. This
+shows the prior `ITERATION_LIMIT` payloads are reproducible as a saved-result
+quality problem, not an unavoidable solver-work failure under this bounded
+recipe. The rerun is intentionally separate from BMOPFDraftData and does not
+replace the canonical files or relax the physical-endpoint boundary. The next
+deliverable is to regenerate the seven canonical SI result files from this
+recipe, rerun the quality and sparse-rank audits, and retain a before/after
+provenance record.
