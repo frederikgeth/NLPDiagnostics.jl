@@ -789,6 +789,7 @@ function _write_extracted_result(context, relative)
     result_root = abspath(raw_root)
     result_path = replace(joinpath(result_root, relative), ".bmopf.json" => "_result_si.json")
     result = BMOPFTools.extract_result(context)
+    mkpath(dirname(result_path))
     BMOPFTools.write_result(result, result_path)
     return Dict{String,Any}(
         "status" => "written",
