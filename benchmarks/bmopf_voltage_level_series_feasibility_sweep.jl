@@ -42,7 +42,7 @@ function main()
                 "a universal scaling policy",
                 "solver superiority or portable performance",
             ],
-            "next_action" => "use the first qualified multiplier as a controlled fixture for initialization and MadNLP comparison",
+            "next_action" => "retain the first qualified multiplier as a controlled regression fixture and build an explicitly uprated nominal-demand case",
         ),
     ))
     println("wrote BMOPFTools voltage-level series feasibility sweep to $output")

@@ -46,6 +46,7 @@ series_solver_campaign = read_summary("docs/bmopf_voltage_level_series_solver_ca
 series_solver_budget60 = read_summary("docs/bmopf_voltage_level_series_solver_campaign_maxiter60_summary.json")
 series_madnlp_campaign = read_summary("docs/bmopf_voltage_level_series_madnlp_campaign_summary.json")
 series_application_bridge = read_summary("docs/bmopf_series_application_bridge_summary.json")
+series_capacity_boundary = read_summary("docs/bmopf_series_nominal_capacity_boundary_summary.json")
 series_feasibility_sweep = read_summary("docs/bmopf_voltage_level_series_feasibility_sweep_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
@@ -317,6 +318,7 @@ series_solver_qualified_count = get(series_solver_campaign, "campaign_qualified_
 series_madnlp_case_count = get(series_madnlp_campaign, "case_count", 0)
 series_madnlp_qualified_count = get(series_madnlp_campaign, "campaign_qualified_count", 0)
 series_application_bridge_status = get(series_application_bridge, "status", "missing")
+series_capacity_boundary_status = get(series_capacity_boundary, "status", "missing")
 series_solver_budget60_records = get(series_solver_budget60, "records", Any[])
 series_solver_budget60_largest = isempty(series_solver_budget60_records) ?
     Dict{String,Any}() : only(filter(record -> get(record, "label", "") == "series_8level_230kV_208V", series_solver_budget60_records))
@@ -443,6 +445,15 @@ gates = Dict{String,Any}[
         ],
     ),
     gate(
+        "bmopf_series_nominal_capacity_boundary",
+        series_capacity_boundary_status == "capacity_boundary_aligned" ? "pass" : "partial",
+        "The solver-independent capacity screen aligns the recorded 1.0, 0.75, 0.5, and 0.25 demand observations with the declared transformer ratings: the first three overload the upstream interface while 0.25 passes the necessary capacity screen. This narrows nominal-demand work to an uprated or reformulated fixture; it does not prove AC feasibility or KKT acceptance.",
+        [
+            "docs/bmopf_series_nominal_capacity_boundary_summary.json",
+            "benchmarks/analyze_bmopf_series_nominal_capacity_boundary.jl",
+        ],
+    ),
+    gate(
         "bmopf_voltage_level_series_solver_campaign",
         series_solver_case_count > 0 && series_solver_qualified_count == series_solver_case_count ? "pass" : "partial",
         "The bounded Ipopt campaign qualifies $series_solver_qualified_count/$series_solver_case_count synthetic voltage-level ladders across classic, SI, and local policies with matched starts and endpoint gates. The largest seven-transformer case remains an actionable boundary under the baseline iteration budget; a follow-up max_iter=60 campaign still reports terminations $(series_solver_budget60_statuses), so the boundary is not explained by the 20-iteration budget alone. This is solver-work evidence for the fixtures, not a universal policy or conditioning claim.",
@@ -455,7 +466,7 @@ gates = Dict{String,Any}[
     gate(
         "bmopf_voltage_level_series_feasibility_sweep",
         series_feasibility_records isa AbstractVector && !isempty(series_feasibility_records) ? "partial" : "missing",
-        "The largest-ladder demand sweep records $series_feasibility_solved_count/$((length(series_feasibility_records))) load multipliers with all policies locally solved and $series_feasibility_endpoint_pass_count/$((length(series_feasibility_records))) with physical endpoints accepted. The observed transition toward the 0.25 multiplier is fixture-specific feasibility evidence; the Ipopt sweep's composite comparison gate remains open, while the separate MadNLP follow-up qualifies that boundary.",
+        "The largest-ladder demand sweep records $series_feasibility_solved_count/$((length(series_feasibility_records))) load multipliers with all policies locally solved and $series_feasibility_endpoint_pass_count/$((length(series_feasibility_records))) with physical endpoints accepted. The observed transition toward the 0.25 multiplier is consistent with the separate transformer-capacity screen; the Ipopt sweep's composite comparison gate remains open, while the MadNLP follow-up qualifies the feasible boundary.",
         [
             "docs/bmopf_voltage_level_series_feasibility_sweep_summary.json",
             "benchmarks/bmopf_voltage_level_series_feasibility_sweep.jl",

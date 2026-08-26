@@ -1,0 +1,410 @@
+{
+  "analytical_threshold": {
+    "interpretation": "multipliers below this value are required by the declared transformer ratings before voltage-drop and nonlinear feasibility effects are considered",
+    "necessary_capacity_multiplier": 0.4714959912410559,
+    "nominal_maximum_loading_ratio": 2.120908806388435
+  },
+  "case": {
+    "loads_per_level": 3,
+    "transformer_count": 7,
+    "voltage_levels": [
+      230000.0,
+      69000.0,
+      34500.0,
+      24900.0,
+      12470.0,
+      4160.0,
+      480.0,
+      208.0
+    ]
+  },
+  "qualification": {
+    "claim": "the recorded 0.25 solver boundary is consistent with a necessary transformer-capacity screen, while nominal, 0.75, and 0.5 overload the upstream transformer",
+    "does_not_establish": [
+      "AC feasibility or physical KKT acceptance",
+      "that transformer capacity is the only source of solver failure",
+      "a universal demand threshold outside this synthetic fixture"
+    ],
+    "next_action": "retain the capacity screen as a pre-solver guard and focus nominal-demand work on an explicitly uprated or reformulated fixture rather than initialization-only tuning"
+  },
+  "records": [
+    {
+      "capacity_gate_passed": false,
+      "load_multiplier": 1.0,
+      "maximum_loading_ratio": 2.120908806388435,
+      "overloaded_transformer_indices": [
+        1,
+        2
+      ],
+      "solver_observation": {
+        "all_physical_endpoints_accepted": false,
+        "all_policies_locally_solved": false,
+        "campaign_qualified": false,
+        "label": "series_8level_230kV_208V_load1.0"
+      },
+      "transformer_count": 7,
+      "transformers": [
+        {
+          "capacity_gate_passed": false,
+          "downstream_p_w": 4.003675e6,
+          "downstream_q_var": 1.40128625e6,
+          "downstream_s_va": 4.24181761277687e6,
+          "from_voltage": 230000.0,
+          "loading_ratio": 2.120908806388435,
+          "rating_va": 2.0e6,
+          "to_voltage": 69000.0,
+          "transformer_index": 1
+        },
+        {
+          "capacity_gate_passed": false,
+          "downstream_p_w": 2.192425e6,
+          "downstream_q_var": 767348.75,
+          "downstream_s_va": 2.322832642432847e6,
+          "from_voltage": 69000.0,
+          "loading_ratio": 1.1614163212164235,
+          "rating_va": 2.0e6,
+          "to_voltage": 34500.0,
+          "transformer_index": 2
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 1.243675e6,
+          "downstream_q_var": 435286.25,
+          "downstream_s_va": 1.3176500389193112e6,
+          "from_voltage": 34500.0,
+          "loading_ratio": 0.6588250194596557,
+          "rating_va": 2.0e6,
+          "to_voltage": 24900.0,
+          "transformer_index": 3
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 527800.0,
+          "downstream_q_var": 184730.0,
+          "downstream_s_va": 559194.074450007,
+          "from_voltage": 24900.0,
+          "loading_ratio": 0.2795970372250035,
+          "rating_va": 2.0e6,
+          "to_voltage": 12470.0,
+          "transformer_index": 4
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 153700.0,
+          "downstream_q_var": 53795.0,
+          "downstream_s_va": 162842.23047170535,
+          "from_voltage": 12470.0,
+          "loading_ratio": 0.08142111523585267,
+          "rating_va": 2.0e6,
+          "to_voltage": 4160.0,
+          "transformer_index": 5
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 23700.0,
+          "downstream_q_var": 8295.0,
+          "downstream_s_va": 25109.699818994253,
+          "from_voltage": 4160.0,
+          "loading_ratio": 0.012554849909497127,
+          "rating_va": 2.0e6,
+          "to_voltage": 480.0,
+          "transformer_index": 6
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 8100.000000000001,
+          "downstream_q_var": 2835.0,
+          "downstream_s_va": 8581.796140668923,
+          "from_voltage": 480.0,
+          "loading_ratio": 0.004290898070334462,
+          "rating_va": 2.0e6,
+          "to_voltage": 208.0,
+          "transformer_index": 7
+        }
+      ]
+    },
+    {
+      "capacity_gate_passed": false,
+      "load_multiplier": 0.75,
+      "maximum_loading_ratio": 1.5906816047913261,
+      "overloaded_transformer_indices": [
+        1
+      ],
+      "solver_observation": {
+        "all_physical_endpoints_accepted": false,
+        "all_policies_locally_solved": false,
+        "campaign_qualified": false,
+        "label": "series_8level_230kV_208V_load0.75"
+      },
+      "transformer_count": 7,
+      "transformers": [
+        {
+          "capacity_gate_passed": false,
+          "downstream_p_w": 3.00275625e6,
+          "downstream_q_var": 1.0509646875e6,
+          "downstream_s_va": 3.1813632095826524e6,
+          "from_voltage": 230000.0,
+          "loading_ratio": 1.5906816047913261,
+          "rating_va": 2.0e6,
+          "to_voltage": 69000.0,
+          "transformer_index": 1
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 1.64431875e6,
+          "downstream_q_var": 575511.5625,
+          "downstream_s_va": 1.7421244818246353e6,
+          "from_voltage": 69000.0,
+          "loading_ratio": 0.8710622409123177,
+          "rating_va": 2.0e6,
+          "to_voltage": 34500.0,
+          "transformer_index": 2
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 932756.25,
+          "downstream_q_var": 326464.6875,
+          "downstream_s_va": 988237.5291894835,
+          "from_voltage": 34500.0,
+          "loading_ratio": 0.49411876459474174,
+          "rating_va": 2.0e6,
+          "to_voltage": 24900.0,
+          "transformer_index": 3
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 395850.0,
+          "downstream_q_var": 138547.5,
+          "downstream_s_va": 419395.55583750526,
+          "from_voltage": 24900.0,
+          "loading_ratio": 0.20969777791875263,
+          "rating_va": 2.0e6,
+          "to_voltage": 12470.0,
+          "transformer_index": 4
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 115275.0,
+          "downstream_q_var": 40346.25,
+          "downstream_s_va": 122131.672853779,
+          "from_voltage": 12470.0,
+          "loading_ratio": 0.0610658364268895,
+          "rating_va": 2.0e6,
+          "to_voltage": 4160.0,
+          "transformer_index": 5
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 17775.0,
+          "downstream_q_var": 6221.25,
+          "downstream_s_va": 18832.27486424569,
+          "from_voltage": 4160.0,
+          "loading_ratio": 0.009416137432122844,
+          "rating_va": 2.0e6,
+          "to_voltage": 480.0,
+          "transformer_index": 6
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 6075.0,
+          "downstream_q_var": 2126.25,
+          "downstream_s_va": 6436.347105501692,
+          "from_voltage": 480.0,
+          "loading_ratio": 0.003218173552750846,
+          "rating_va": 2.0e6,
+          "to_voltage": 208.0,
+          "transformer_index": 7
+        }
+      ]
+    },
+    {
+      "capacity_gate_passed": false,
+      "load_multiplier": 0.5,
+      "maximum_loading_ratio": 1.0604544031942176,
+      "overloaded_transformer_indices": [
+        1
+      ],
+      "solver_observation": {
+        "all_physical_endpoints_accepted": false,
+        "all_policies_locally_solved": false,
+        "campaign_qualified": false,
+        "label": "series_8level_230kV_208V_load0.5"
+      },
+      "transformer_count": 7,
+      "transformers": [
+        {
+          "capacity_gate_passed": false,
+          "downstream_p_w": 2.0018375e6,
+          "downstream_q_var": 700643.125,
+          "downstream_s_va": 2.120908806388435e6,
+          "from_voltage": 230000.0,
+          "loading_ratio": 1.0604544031942176,
+          "rating_va": 2.0e6,
+          "to_voltage": 69000.0,
+          "transformer_index": 1
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 1.0962125e6,
+          "downstream_q_var": 383674.375,
+          "downstream_s_va": 1.1614163212164235e6,
+          "from_voltage": 69000.0,
+          "loading_ratio": 0.5807081606082117,
+          "rating_va": 2.0e6,
+          "to_voltage": 34500.0,
+          "transformer_index": 2
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 621837.5,
+          "downstream_q_var": 217643.125,
+          "downstream_s_va": 658825.0194596556,
+          "from_voltage": 34500.0,
+          "loading_ratio": 0.32941250972982783,
+          "rating_va": 2.0e6,
+          "to_voltage": 24900.0,
+          "transformer_index": 3
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 263900.0,
+          "downstream_q_var": 92365.0,
+          "downstream_s_va": 279597.0372250035,
+          "from_voltage": 24900.0,
+          "loading_ratio": 0.13979851861250175,
+          "rating_va": 2.0e6,
+          "to_voltage": 12470.0,
+          "transformer_index": 4
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 76850.0,
+          "downstream_q_var": 26897.5,
+          "downstream_s_va": 81421.11523585267,
+          "from_voltage": 12470.0,
+          "loading_ratio": 0.040710557617926336,
+          "rating_va": 2.0e6,
+          "to_voltage": 4160.0,
+          "transformer_index": 5
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 11850.0,
+          "downstream_q_var": 4147.5,
+          "downstream_s_va": 12554.849909497127,
+          "from_voltage": 4160.0,
+          "loading_ratio": 0.006277424954748563,
+          "rating_va": 2.0e6,
+          "to_voltage": 480.0,
+          "transformer_index": 6
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 4050.0000000000005,
+          "downstream_q_var": 1417.5,
+          "downstream_s_va": 4290.898070334461,
+          "from_voltage": 480.0,
+          "loading_ratio": 0.002145449035167231,
+          "rating_va": 2.0e6,
+          "to_voltage": 208.0,
+          "transformer_index": 7
+        }
+      ]
+    },
+    {
+      "capacity_gate_passed": true,
+      "load_multiplier": 0.25,
+      "maximum_loading_ratio": 0.5302272015971088,
+      "overloaded_transformer_indices": [],
+      "solver_observation": {
+        "all_physical_endpoints_accepted": true,
+        "all_policies_locally_solved": true,
+        "campaign_qualified": false,
+        "label": "series_8level_230kV_208V_load0.25"
+      },
+      "transformer_count": 7,
+      "transformers": [
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 1.00091875e6,
+          "downstream_q_var": 350321.5625,
+          "downstream_s_va": 1.0604544031942175e6,
+          "from_voltage": 230000.0,
+          "loading_ratio": 0.5302272015971088,
+          "rating_va": 2.0e6,
+          "to_voltage": 69000.0,
+          "transformer_index": 1
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 548106.25,
+          "downstream_q_var": 191837.1875,
+          "downstream_s_va": 580708.1606082118,
+          "from_voltage": 69000.0,
+          "loading_ratio": 0.29035408030410587,
+          "rating_va": 2.0e6,
+          "to_voltage": 34500.0,
+          "transformer_index": 2
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 310918.75,
+          "downstream_q_var": 108821.5625,
+          "downstream_s_va": 329412.5097298278,
+          "from_voltage": 34500.0,
+          "loading_ratio": 0.16470625486491391,
+          "rating_va": 2.0e6,
+          "to_voltage": 24900.0,
+          "transformer_index": 3
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 131950.0,
+          "downstream_q_var": 46182.5,
+          "downstream_s_va": 139798.51861250176,
+          "from_voltage": 24900.0,
+          "loading_ratio": 0.06989925930625088,
+          "rating_va": 2.0e6,
+          "to_voltage": 12470.0,
+          "transformer_index": 4
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 38425.0,
+          "downstream_q_var": 13448.75,
+          "downstream_s_va": 40710.55761792634,
+          "from_voltage": 12470.0,
+          "loading_ratio": 0.020355278808963168,
+          "rating_va": 2.0e6,
+          "to_voltage": 4160.0,
+          "transformer_index": 5
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 5925.0,
+          "downstream_q_var": 2073.75,
+          "downstream_s_va": 6277.424954748563,
+          "from_voltage": 4160.0,
+          "loading_ratio": 0.0031387124773742817,
+          "rating_va": 2.0e6,
+          "to_voltage": 480.0,
+          "transformer_index": 6
+        },
+        {
+          "capacity_gate_passed": true,
+          "downstream_p_w": 2025.0000000000002,
+          "downstream_q_var": 708.75,
+          "downstream_s_va": 2145.4490351672307,
+          "from_voltage": 480.0,
+          "loading_ratio": 0.0010727245175836155,
+          "rating_va": 2.0e6,
+          "to_voltage": 208.0,
+          "transformer_index": 7
+        }
+      ]
+    }
+  ],
+  "runner": "benchmarks/analyze_bmopf_series_nominal_capacity_boundary.jl",
+  "schema_version": "nlpdiagnostics-bmopf-series-nominal-capacity-boundary-v1",
+  "status": "capacity_boundary_aligned"
+}

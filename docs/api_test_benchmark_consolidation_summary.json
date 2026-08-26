@@ -577,9 +577,9 @@
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 92,
-    "json_file_count": 95,
-    "json_schema_file_count": 95,
+    "benchmark_scripts_with_schema_version_count": 93,
+    "json_file_count": 96,
+    "json_schema_file_count": 96,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -686,7 +686,7 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 153,
+    "benchmark_script_count": 154,
     "shared_benchmark_helper": "benchmarks/common.jl",
     "shared_benchmark_helper_exemption_count": 3,
     "shared_benchmark_helper_exemptions": [
@@ -703,8 +703,9 @@
         "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
       }
     ],
-    "shared_benchmark_helper_user_count": 150,
+    "shared_benchmark_helper_user_count": 151,
     "shared_benchmark_helper_users": [
+      "benchmarks/analyze_bmopf_series_nominal_capacity_boundary.jl",
       "benchmarks/audit_advanced_api_surface.jl",
       "benchmarks/audit_api_test_benchmark_consolidation.jl",
       "benchmarks/audit_api_tier_usage.jl",

@@ -2252,6 +2252,21 @@ end
     @test series_application_bridge_summary["status"] == "procedural_bridge_complete"
     @test length(series_application_bridge_summary["evidence_rows"]) == 7
     @test series_application_bridge_summary["shared_contracts"]["direct_physical_equivalence"] == false
+    series_capacity_boundary_script = read(
+        joinpath(benchmark_directory, "analyze_bmopf_series_nominal_capacity_boundary.jl"),
+        String,
+    )
+    @test Meta.parseall(series_capacity_boundary_script) isa Expr
+    @test occursin("necessary_capacity_multiplier", series_capacity_boundary_script)
+    series_capacity_boundary_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_series_nominal_capacity_boundary_summary.json"),
+        String,
+    ))
+    @test series_capacity_boundary_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-series-nominal-capacity-boundary-v1"
+    @test series_capacity_boundary_summary["status"] == "capacity_boundary_aligned"
+    @test series_capacity_boundary_summary["records"][1]["capacity_gate_passed"] == false
+    @test series_capacity_boundary_summary["records"][end]["capacity_gate_passed"] == true
     combined_scaling_campaign = read(
         joinpath(benchmark_directory, "bmopf_combined_mv_lv_scaling_campaign.jl"),
         String,
@@ -2875,9 +2890,9 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 153", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 150", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 95", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 154", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 151", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 96", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),
