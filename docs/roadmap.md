@@ -5607,12 +5607,12 @@ The next sweep is now bounded by
 `benchmarks/summarize_bmopf_538bus_saved_result_time_coverage.jl`, recorded in
 `docs/bmopf_538bus_saved_result_time_coverage_summary.json`. The BMOPFDraftData
 corpus contains 50 538-bus LN/LG snapshots (t01--t25), with both SI and PU
-solver-result files available for all 100 endpoint/unit combinations. Thirty
+solver-result files available for all 100 endpoint/unit combinations. Thirty-eight
 538-bus combinations are now profiled in the sparse-rank ledger, leaving
-70 explicit endpoints for guarded execution. This inventory separates source
+62 explicit endpoints for guarded execution. This inventory separates source
 availability from numerical evidence and makes the remaining campaign scope
-reproducible. The matched t05/t06, t07/t08, and t09/t10 LN/LG PU and SI
-batches now qualify in an isolated clean BMOPFTools worktree; the active
-checkout remains dirty and unparseable. The next experiment is a balanced
-t11/t12 LN/LG PU/SI batch, followed by later times once the dependency branch
-is clean.
+reproducible. The matched t05/t06, t07/t08, t09/t10, and t11/t12 LN/LG PU
+and SI batches now qualify in an isolated clean BMOPFTools worktree; the
+active checkout remains dirty and unparseable. The next experiment is a
+balanced t13/t14 LN/LG PU/SI batch, followed by later times once the
+dependency branch is clean.
