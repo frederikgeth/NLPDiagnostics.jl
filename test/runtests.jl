@@ -2968,6 +2968,11 @@ end
     @test saved_result_campaign_summary["all_point_provenance_complete"] == true
     @test saved_result_campaign_summary["all_sparse_estimates_available"] == true
     @test saved_result_campaign_summary["scaling_sensitive_count"] == 0
+    saved_result_endpoint_spans = saved_result_campaign_summary["endpoint_span_diagnostics"]
+    @test saved_result_endpoint_spans["overall"]["rank_delta"]["range"] == 0
+    @test saved_result_endpoint_spans["by_result_units"]["pu"]["record_count"] == 3
+    @test saved_result_endpoint_spans["by_result_units"]["si"]["record_count"] == 5
+    @test saved_result_endpoint_spans["by_result_units"]["pu"]["spans"]["unscaled_condition_proxy"]["max"] > 1.0e9
     @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_stable_count"] == 8
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),

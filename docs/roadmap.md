@@ -5588,3 +5588,15 @@ paths. This strengthens the numerical-scaling evidence without elevating it
 to a universal policy recommendation. The next deliverable is to add further
 PU/SI times and retain endpoint-level span diagnostics before revisiting the
 release gate.
+
+The endpoint-span deliverable is now materialized in the campaign artifact.
+Each record retains sparse condition proxies and fill ratios, while the
+aggregate reports rank, conditioning-proxy, and fill-ratio ranges overall and
+by result unit. The eight-endpoint ledger shows zero rank-delta span in both
+SI and PU groups, but a large PU unscaled-condition-proxy range; row-column
+scaling reduces that proxy by roughly eight orders of magnitude on the PU
+538-bus endpoints. This is useful application evidence for prioritizing
+coordinate-aware scaling, while remaining explicitly comparative rather than
+a default-policy certificate. The next step is to widen the time sweep and
+test whether these endpoint spans persist on additional transformer-chain
+cases.

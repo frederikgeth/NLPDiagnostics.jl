@@ -28,6 +28,14 @@ for summary in summaries
     sparse_qr = _dict(get(summary, "sparse_qr", nothing))
     comparison = _dict(get(sparse_qr, "comparison", nothing))
     source = _dict(get(summary, "source", nothing))
+    unscaled_condition_proxy = get(sparse_qr, "unscaled_condition_proxy", nothing)
+    row_column_condition_proxy = get(sparse_qr, "row_column_condition_proxy", nothing)
+    condition_proxy_ratio = if unscaled_condition_proxy isa Number &&
+            row_column_condition_proxy isa Number && unscaled_condition_proxy > 0
+        row_column_condition_proxy / unscaled_condition_proxy
+    else
+        nothing
+    end
     push!(records, Dict{String,Any}(
         "snapshot" => get(summary, "snapshot", nothing),
         "result_units" => get(source, "result_units", nothing),
@@ -42,10 +50,56 @@ for summary in summaries
         "scaling_sensitive" => get(comparison, "scaling_sensitive", false),
         "unscaled_available" => get(comparison, "unscaled_available", false),
         "row_column_available" => get(comparison, "row_column_available", false),
+        "unscaled_condition_proxy" => unscaled_condition_proxy,
+        "row_column_condition_proxy" => row_column_condition_proxy,
+        "condition_proxy_ratio_row_column_over_unscaled" => condition_proxy_ratio,
+        "unscaled_fill_ratio" => get(sparse_qr, "unscaled_fill_ratio", nothing),
+        "row_column_fill_ratio" => get(sparse_qr, "row_column_fill_ratio", nothing),
         "dense_available" => get(_dict(get(summary, "dense_rank", nothing)), "available", false),
         "dense_reason" => get(_dict(get(summary, "dense_rank", nothing)), "reason", nothing),
     ))
 end
+
+_numeric(records, key) = [value for value in get.(records, key, nothing) if value isa Number]
+function _span(records, key)
+    values = _numeric(records, key)
+    isempty(values) && return Dict{String,Any}("available" => false)
+    minimum_value, maximum_value = extrema(values)
+    return Dict{String,Any}(
+        "available" => true,
+        "min" => minimum_value,
+        "max" => maximum_value,
+        "range" => maximum_value - minimum_value,
+        "count" => length(values),
+    )
+end
+
+unit_groups = Dict{String,Vector{Dict{String,Any}}}()
+for record in records
+    units = get(record, "result_units", nothing)
+    units isa AbstractString || continue
+    push!(get!(unit_groups, String(units), Dict{String,Any}[]), record)
+end
+span_keys = [
+    "unscaled_rank",
+    "row_column_rank",
+    "rank_delta",
+    "unscaled_condition_proxy",
+    "row_column_condition_proxy",
+    "condition_proxy_ratio_row_column_over_unscaled",
+    "unscaled_fill_ratio",
+    "row_column_fill_ratio",
+]
+endpoint_span_diagnostics = Dict{String,Any}(
+    "overall" => Dict(key => _span(records, key) for key in span_keys),
+    "by_result_units" => Dict(
+        units => Dict(
+            "record_count" => length(group),
+            "spans" => Dict(key => _span(group, key) for key in span_keys),
+        ) for (units, group) in sort!(collect(unit_groups); by = first)
+    ),
+    "interpretation" => "Endpoint spans describe observed rank, condition-proxy, and fill-ratio variation across this saved-result corpus. They are comparative diagnostics, not a universal conditioning or scaling certificate.",
+)
 
 write_json(output_path, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-saved-result-sparse-rank-campaign-v1",
@@ -63,6 +117,7 @@ write_json(output_path, Dict{String,Any}(
     ),
     "record_count" => length(records),
     "result_units" => sort!(unique(filter(!isnothing, get.(records, "result_units", nothing)))),
+    "endpoint_span_diagnostics" => endpoint_span_diagnostics,
     "all_point_provenance_complete" => all(get(record, "point_provenance_complete", false) for record in records),
     "all_sparse_estimates_available" => all(
         get(record, "unscaled_available", false) && get(record, "row_column_available", false)
