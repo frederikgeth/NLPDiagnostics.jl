@@ -50,6 +50,7 @@ series_capacity_boundary = read_summary("docs/bmopf_series_nominal_capacity_boun
 series_uprated_nominal = read_summary("docs/bmopf_voltage_level_series_uprated_nominal_campaign_summary.json")
 lv13_madnlp_guard = read_summary("docs/bmopf_lv13_madnlp_transfer_guard_summary.json")
 lv13_madnlp_plan = read_summary("docs/bmopf_lv13_madnlp_isolated_run_plan.json")
+lv13_madnlp_result = read_summary("docs/bmopf_lv13_madnlp_isolated_result_summary.json")
 series_feasibility_sweep = read_summary("docs/bmopf_voltage_level_series_feasibility_sweep_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
@@ -483,6 +484,15 @@ gates = Dict{String,Any}[
         [
             "docs/bmopf_lv13_madnlp_isolated_run_plan.json",
             "benchmarks/plan_bmopf_lv13_madnlp_isolated_run.jl",
+        ],
+    ),
+    gate(
+        "bmopf_lv13_madnlp_isolated_result",
+        get(lv13_madnlp_result, "status", "") == "isolated_result_complete" ? "pass" : "partial",
+        "The post-run validator checks the eventual LV13 MadNLP artifact against the approved feeder, solver, budgets, ±1% variants, local terminations, endpoint/comparison gates, and 46-warning provenance. Its current status is $(get(lv13_madnlp_result, "status", "missing")); a pending artifact remains an explicit open transfer gap rather than a solver failure.",
+        [
+            "docs/bmopf_lv13_madnlp_isolated_result_summary.json",
+            "benchmarks/summarize_bmopf_lv13_madnlp_isolated_result.jl",
         ],
     ),
     gate(

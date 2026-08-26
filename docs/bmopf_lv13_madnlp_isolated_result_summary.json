@@ -1,0 +1,45 @@
+{
+  "checks": {
+    "all_comparisons_qualified": false,
+    "all_physical_endpoints_accepted": false,
+    "all_terminations_locally_solved": false,
+    "all_variants_qualified": false,
+    "artifact_present": false,
+    "budget_matches_plan": false,
+    "declared_variants_match": false,
+    "feeder_matches_plan": false,
+    "schema_matches_runner": false,
+    "solver_matches_plan": false,
+    "source_warning_count_retained": false
+  },
+  "expected": {
+    "feeder": "LV13_58bus",
+    "max_iter": 10,
+    "max_variables": 5000,
+    "repeats": 2,
+    "solver": "MadNLP",
+    "solver_tolerance": 1.0e-10,
+    "variants": [
+      "minus_1pct",
+      "plus_1pct"
+    ]
+  },
+  "input": "work/bmopf-combined-mv-lv-perturbed-start-LV13_58bus-madnlp-isolated.json",
+  "observed": {
+    "matrix_gates": {},
+    "record_count": 0,
+    "source_warning_count": null,
+    "variant_count": 0
+  },
+  "qualification": {
+    "claim": "the isolated LV13 MadNLP transfer is not yet qualified",
+    "does_not_establish": [
+      "solver superiority or a universal scaling policy",
+      "cross-feeder equivalence beyond the declared application contract"
+    ],
+    "next_action": "run the approved isolated command, then rerun this summarizer"
+  },
+  "runner": "benchmarks/summarize_bmopf_lv13_madnlp_isolated_result.jl",
+  "schema_version": "nlpdiagnostics-bmopf-lv13-madnlp-isolated-result-v1",
+  "status": "awaiting_artifact"
+}
