@@ -2,8 +2,8 @@
   "all_point_provenance_complete": true,
   "all_sparse_estimates_available": true,
   "environment": {
-    "git_revision": "481906602fe3ad7a1061ee42182c784bc4f8e4f4",
-    "git_worktree_dirty": true,
+    "git_revision": "a7119be2c3f7f36af935f427dd7bf7dc3ef3c217",
+    "git_worktree_dirty": false,
     "julia_version": "1.12.6"
   },
   "interpretation": "Saved solver-result points provide sparse-only rank evidence with explicit provenance. Dense rank remains guarded; rank stability is local numerical evidence and not a physical gauge or universal policy certificate.",
