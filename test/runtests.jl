@@ -3011,6 +3011,24 @@ end
     @test time_coverage_summary["profiled_endpoint_count"] == 100
     @test time_coverage_summary["unprofiled_endpoint_count"] == 0
     @test time_coverage_summary["available_unit_counts"] == Dict("pu" => 50, "si" => 50)
+    saved_result_quality_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_saved_result_quality.jl"),
+        String,
+    )
+    @test Meta.parseall(saved_result_quality_script) isa Expr
+    saved_result_quality_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_saved_result_quality_summary.json"),
+        String,
+    ))
+    @test saved_result_quality_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-saved-result-quality-v1"
+    @test saved_result_quality_summary["endpoint_count"] == 100
+    @test saved_result_quality_summary["available_endpoint_count"] == 100
+    @test saved_result_quality_summary["usable_solver_endpoint_count"] == 93
+    @test saved_result_quality_summary["nonfinite_or_unsolved_endpoint_count"] == 7
+    @test saved_result_quality_summary["missing_endpoint_count"] == 0
+    @test saved_result_quality_summary["termination_status_counts"]["LOCALLY_SOLVED"] == 93
+    @test saved_result_quality_summary["termination_status_counts"]["ITERATION_LIMIT"] == 7
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
         String,
