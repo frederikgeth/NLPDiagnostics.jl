@@ -577,9 +577,9 @@
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 94,
-    "json_file_count": 97,
-    "json_schema_file_count": 97,
+    "benchmark_scripts_with_schema_version_count": 95,
+    "json_file_count": 98,
+    "json_schema_file_count": 98,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -686,7 +686,7 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 155,
+    "benchmark_script_count": 156,
     "shared_benchmark_helper": "benchmarks/common.jl",
     "shared_benchmark_helper_exemption_count": 3,
     "shared_benchmark_helper_exemptions": [
@@ -703,7 +703,7 @@
         "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
       }
     ],
-    "shared_benchmark_helper_user_count": 152,
+    "shared_benchmark_helper_user_count": 153,
     "shared_benchmark_helper_users": [
       "benchmarks/analyze_bmopf_series_nominal_capacity_boundary.jl",
       "benchmarks/audit_advanced_api_surface.jl",
@@ -817,6 +817,7 @@
       "benchmarks/summarize_bmopf_endpoint_triangulation.jl",
       "benchmarks/summarize_bmopf_evidence_ledger.jl",
       "benchmarks/summarize_bmopf_ibr_p_upper_trace.jl",
+      "benchmarks/summarize_bmopf_lv13_madnlp_transfer_guard.jl",
       "benchmarks/summarize_bmopf_medium_calibration.jl",
       "benchmarks/summarize_bmopf_multiconductor_smoke.jl",
       "benchmarks/summarize_bmopf_persistence.jl",

@@ -1,0 +1,36 @@
+{
+  "budget": {
+    "max_iter": 10,
+    "max_variables": 4000,
+    "solver_tolerance": 1.0e-10,
+    "variants_requested": 2
+  },
+  "feeder": "LV13_58bus",
+  "observed": {
+    "comparisons_qualified": false,
+    "physical_endpoints_accepted": false,
+    "solver_runs": 0,
+    "termination_statuses": [],
+    "variant_count": 0
+  },
+  "qualification": {
+    "claim": "the LV13 MadNLP transfer is explicitly size-guarded before solver execution at 4,902 variables under a 4,000-variable budget",
+    "does_not_establish": [
+      "MadNLP failure or infeasibility on LV13_58bus",
+      "solver superiority or cross-feeder equivalence",
+      "that the guard is sufficient for all environments"
+    ],
+    "next_action": "repeat in an isolated process with an approved larger resource budget or select a smaller LV13 snapshot"
+  },
+  "runner": "benchmarks/summarize_bmopf_lv13_madnlp_transfer_guard.jl",
+  "schema_version": "nlpdiagnostics-bmopf-lv13-madnlp-transfer-guard-v1",
+  "snapshot": {
+    "model_variable_count": 4902,
+    "source_warning_codes": [
+      "unknown"
+    ],
+    "source_warning_count": 46
+  },
+  "solver": "MadNLP",
+  "status": "resource_guard_validated"
+}

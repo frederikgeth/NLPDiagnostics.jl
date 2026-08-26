@@ -139,6 +139,11 @@
       "transformer_count": 7
     }
   ],
+  "lv13_madnlp_guard": {
+    "solver_runs": 0,
+    "source": "docs/bmopf_lv13_madnlp_transfer_guard_summary.json",
+    "status": "resource_guard_validated"
+  },
   "nominal_demand_boundary": {
     "boundary_record": {
       "bus_count": 8,
@@ -282,9 +287,13 @@
   "transfer_gaps": [
     {
       "case": "LV13_58bus",
+      "guard_max_variables": 4000,
+      "guard_model_variables": 4902,
+      "guard_status": "resource_guard_validated",
       "missing_solver": "MadNLP",
       "next_experiment": "run a resource-guarded MadNLP repeat on LV13_58bus before making cross-feeder solver comparisons",
-      "reason": "the qualified practical ledger currently has Ipopt evidence on LV13_58bus but no bounded solver-diverse repeat"
+      "reason": "the qualified practical ledger currently has Ipopt evidence on LV13_58bus but no bounded solver-diverse repeat",
+      "solver_runs_under_guard": 0
     }
   ],
   "uprated_fixture": {

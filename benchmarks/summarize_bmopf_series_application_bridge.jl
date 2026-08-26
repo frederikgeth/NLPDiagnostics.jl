@@ -14,6 +14,7 @@ const ROOT = repo_root()
 const PRACTICAL_INPUT = "docs/bmopf_practical_application_success_summary.json"
 const MADNLP_INPUT = "docs/bmopf_voltage_level_series_madnlp_campaign_summary.json"
 const UPRATED_INPUT = "docs/bmopf_voltage_level_series_uprated_nominal_campaign_summary.json"
+const LV13_GUARD_INPUT = "docs/bmopf_lv13_madnlp_transfer_guard_summary.json"
 const FEASIBILITY_INPUT = "docs/bmopf_voltage_level_series_feasibility_sweep_summary.json"
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "bmopf_series_application_bridge_summary.json") : ARGS[1])
@@ -61,6 +62,7 @@ end
 practical = read_summary(PRACTICAL_INPUT)
 madnlp = read_summary(MADNLP_INPUT)
 uprated = read_summary(UPRATED_INPUT)
+lv13_guard = read_summary(LV13_GUARD_INPUT)
 feasibility = read_summary(FEASIBILITY_INPUT)
 practical_rows = [_practical_row(row) for row in get(practical, "records", Any[])]
 series_records = get(madnlp, "records", Any[])
@@ -92,6 +94,10 @@ end
 transfer_gaps = [Dict(
     "case" => "LV13_58bus",
     "missing_solver" => "MadNLP",
+    "guard_status" => get(lv13_guard, "status", "missing"),
+    "guard_max_variables" => get(get(lv13_guard, "budget", Dict{String,Any}()), "max_variables", nothing),
+    "guard_model_variables" => get(get(lv13_guard, "snapshot", Dict{String,Any}()), "model_variable_count", nothing),
+    "solver_runs_under_guard" => get(get(lv13_guard, "observed", Dict{String,Any}()), "solver_runs", nothing),
     "reason" => "the qualified practical ledger currently has Ipopt evidence on LV13_58bus but no bounded solver-diverse repeat",
     "next_experiment" => "run a resource-guarded MadNLP repeat on LV13_58bus before making cross-feeder solver comparisons",
 )]
@@ -116,6 +122,11 @@ bridge = Dict{String,Any}(
         "solver_count" => length(uprated_rows),
         "campaigns_qualified" => all(row["success"] for row in uprated_rows),
         "source" => UPRATED_INPUT,
+    ),
+    "lv13_madnlp_guard" => Dict(
+        "status" => get(lv13_guard, "status", "missing"),
+        "source" => LV13_GUARD_INPUT,
+        "solver_runs" => get(get(lv13_guard, "observed", Dict{String,Any}()), "solver_runs", nothing),
     ),
     "shared_contracts" => Dict(
         "all_rows_procedurally_successful" => all(shared_contracts),

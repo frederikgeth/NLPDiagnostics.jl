@@ -48,6 +48,7 @@ series_madnlp_campaign = read_summary("docs/bmopf_voltage_level_series_madnlp_ca
 series_application_bridge = read_summary("docs/bmopf_series_application_bridge_summary.json")
 series_capacity_boundary = read_summary("docs/bmopf_series_nominal_capacity_boundary_summary.json")
 series_uprated_nominal = read_summary("docs/bmopf_voltage_level_series_uprated_nominal_campaign_summary.json")
+lv13_madnlp_guard = read_summary("docs/bmopf_lv13_madnlp_transfer_guard_summary.json")
 series_feasibility_sweep = read_summary("docs/bmopf_voltage_level_series_feasibility_sweep_summary.json")
 api_consolidation = read_summary("docs/api_test_benchmark_consolidation_summary.json")
 api_tier_inventory = read_summary("docs/api_tier_inventory_summary.json")
@@ -321,6 +322,7 @@ series_madnlp_qualified_count = get(series_madnlp_campaign, "campaign_qualified_
 series_application_bridge_status = get(series_application_bridge, "status", "missing")
 series_capacity_boundary_status = get(series_capacity_boundary, "status", "missing")
 series_uprated_nominal_status = get(series_uprated_nominal, "status", "missing")
+lv13_madnlp_guard_status = get(lv13_madnlp_guard, "status", "missing")
 series_solver_budget60_records = get(series_solver_budget60, "records", Any[])
 series_solver_budget60_largest = isempty(series_solver_budget60_records) ?
     Dict{String,Any}() : only(filter(record -> get(record, "label", "") == "series_8level_230kV_208V", series_solver_budget60_records))
@@ -462,6 +464,15 @@ gates = Dict{String,Any}[
         [
             "docs/bmopf_voltage_level_series_uprated_nominal_campaign_summary.json",
             "benchmarks/bmopf_voltage_level_series_uprated_nominal_campaign.jl",
+        ],
+    ),
+    gate(
+        "bmopf_lv13_madnlp_resource_guard",
+        lv13_madnlp_guard_status == "resource_guard_validated" ? "pass" : "partial",
+        "The LV13_58bus MadNLP transfer is explicitly guarded before solver execution: the 4,902-variable snapshot is held behind a 4,000-variable limit, yielding zero solver runs rather than an ambiguous failure. This preserves the unavailable-versus-failed distinction and leaves the solver-diverse transfer gap open.",
+        [
+            "docs/bmopf_lv13_madnlp_transfer_guard_summary.json",
+            "benchmarks/summarize_bmopf_lv13_madnlp_transfer_guard.jl",
         ],
     ),
     gate(
