@@ -31,7 +31,7 @@
         "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Extend the balanced 538-bus PU/SI sweep to t23/t24 and track incomplete SI provenance separately from rank sensitivity.",
+      "next_deliverable": "Profile the final balanced 538-bus PU/SI t25 endpoints and close the time-coverage inventory with provenance counts.",
       "priority": 1,
       "status": "partial"
     },
@@ -122,7 +122,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "2dc1966a7c2774867ecd7d81cffb6d16c49cb80b",
+    "git_revision": "38b4bb2c179bf72b6b59e557cf0261bf6916d888",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
