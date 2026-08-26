@@ -2996,6 +2996,7 @@ end
     @test scaling_diagnostics_summary["paired_snapshot_count"] == 20
     @test scaling_diagnostics_summary["unit_dependent_rank_outcome_count"] == 2
     @test scaling_diagnostics_summary["incomplete_provenance_sensitive_record_count"] == 2
+    @test scaling_diagnostics_summary["sensitive_mapping_fallback_coordinate_counts"] == ["11026", "11026"]
     @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_sensitive_count"] == 2
     @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_stable_count"] == 46
     time_coverage_summary = JSON.parse(read(

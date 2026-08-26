@@ -21,6 +21,38 @@ function _load(path)
     return _dict(value)
 end
 
+function _mapping_diagnostics(source)
+    input = get(source, "input", nothing)
+    input isa AbstractString && isfile(input) || return Dict{String,Any}()
+    raw = try
+        JSON.parsefile(input)
+    catch
+        return Dict{String,Any}()
+    end
+    profile = _dict(get(raw, "profile", nothing))
+    mapping = _dict(get(profile, "bmopf_saved_result_mapping_report", nothing))
+    metadata = _dict(get(mapping, "metadata", nothing))
+    isempty(metadata) && return Dict{String,Any}()
+    selected = (
+        "mapped_coordinate_count",
+        "fallback_coordinate_count",
+        "registered_coordinate_count",
+        "unmapped_registered_coordinate_count",
+        "mapped_registered_coordinate_fraction",
+        "mapped_families",
+        "projected_families",
+        "projection_contracts",
+        "unit_fingerprint_count",
+        "unit_fingerprint_zero_magnitude_count",
+    )
+    result = Dict{String,Any}()
+    for key in selected
+        metadata_key = "bmopf_saved_result_$(key)"
+        haskey(metadata, metadata_key) && (result[key] = metadata[metadata_key])
+    end
+    return result
+end
+
 summaries = [_load(path) for path in input_paths]
 records = Dict{String,Any}[]
 for summary in summaries
@@ -28,6 +60,7 @@ for summary in summaries
     sparse_qr = _dict(get(summary, "sparse_qr", nothing))
     comparison = _dict(get(sparse_qr, "comparison", nothing))
     source = _dict(get(summary, "source", nothing))
+    mapping_diagnostics = _mapping_diagnostics(source)
     unscaled_condition_proxy = get(sparse_qr, "unscaled_condition_proxy", nothing)
     row_column_condition_proxy = get(sparse_qr, "row_column_condition_proxy", nothing)
     condition_proxy_ratio = if unscaled_condition_proxy isa Number &&
@@ -57,6 +90,7 @@ for summary in summaries
         "row_column_fill_ratio" => get(sparse_qr, "row_column_fill_ratio", nothing),
         "dense_available" => get(_dict(get(summary, "dense_rank", nothing)), "available", false),
         "dense_reason" => get(_dict(get(summary, "dense_rank", nothing)), "reason", nothing),
+        "mapping_diagnostics" => mapping_diagnostics,
     ))
 end
 

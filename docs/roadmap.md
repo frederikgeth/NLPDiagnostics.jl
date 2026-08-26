@@ -5630,4 +5630,7 @@ unscaled-to-row-column rank delta of one, while its PU counterpart is stable.
 Both affected SI records also report incomplete point provenance, so this is
 not promoted to a physical singularity or a default scaling policy. The
 diagnostic turns the observed sensitivity into a concrete release boundary:
-complete or explain the LN SI provenance, then repeat the paired check on t15/t16.
+the LN SI adapter maps only 2 of 11,028 registered coordinates and uses the
+explicit fallback for the remaining 11,026, while the paired PU records map all
+11,028 coordinates. Complete or explain that LN SI mapping, then repeat the
+paired check on t15/t16.

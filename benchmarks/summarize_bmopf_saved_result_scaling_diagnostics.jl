@@ -52,6 +52,8 @@ for snapshot in sort!(collect(keys(by_snapshot)))
         "si_scaling_sensitive" => get(si, "scaling_sensitive", false),
         "pu_point_provenance_complete" => get(pu, "point_provenance_complete", false),
         "si_point_provenance_complete" => get(si, "point_provenance_complete", false),
+        "pu_mapping_diagnostics" => get(pu, "mapping_diagnostics", Dict{String,Any}()),
+        "si_mapping_diagnostics" => get(si, "mapping_diagnostics", Dict{String,Any}()),
         "rank_outcome_differs" => rank_outcome_differs,
         "si_condition_proxy_ratio" => begin
             value = get(si, "condition_proxy_ratio_row_column_over_unscaled", nothing)
@@ -73,6 +75,7 @@ for value in records
         "result_units" => get(record, "result_units", nothing),
         "rank_delta" => get(record, "rank_delta", nothing),
         "point_provenance_complete" => get(record, "point_provenance_complete", false),
+        "mapping_diagnostics" => get(record, "mapping_diagnostics", Dict{String,Any}()),
         "unscaled_rank" => get(record, "unscaled_rank", nothing),
         "row_column_rank" => get(record, "row_column_rank", nothing),
         "condition_proxy_ratio_row_column_over_unscaled" => get(record, "condition_proxy_ratio_row_column_over_unscaled", nothing),
@@ -84,6 +87,11 @@ incomplete_sensitive_records = filter(
     record -> !get(record, "point_provenance_complete", false),
     sensitive_records,
 )
+
+mapping_fallback_counts = [
+    get(get(record, "mapping_diagnostics", Dict{String,Any}()), "fallback_coordinate_count", nothing)
+    for record in sensitive_records
+]
 
 write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-saved-result-scaling-diagnostics-v1",
@@ -102,6 +110,7 @@ write_json(OUTPUT, Dict{String,Any}(
     "unit_dependent_rank_outcome_count" => length(unit_dependent_pairs),
     "sensitive_record_count" => length(sensitive_records),
     "incomplete_provenance_sensitive_record_count" => length(incomplete_sensitive_records),
+    "sensitive_mapping_fallback_coordinate_counts" => mapping_fallback_counts,
     "pairs" => pairs,
     "sensitive_records" => sensitive_records,
     "interpretation" => "The paired comparison identifies unit-dependent sparse-rank outcomes without treating them as physical singularity claims. Incomplete point provenance is retained as a release boundary; the affected endpoints require provenance completion before policy conclusions.",
