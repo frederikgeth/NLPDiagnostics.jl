@@ -29,7 +29,7 @@
         "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Extend the balanced 538-bus PU/SI sweep to t07/t08 transformer-chain snapshots and compare span persistence.",
+      "next_deliverable": "Extend the balanced 538-bus PU/SI sweep to t09/t10 transformer-chain snapshots and compare span persistence.",
       "priority": 1,
       "status": "partial"
     },
@@ -120,7 +120,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "6796532e5b54c771aa6a090b0f9657ad9200d4ca",
+    "git_revision": "be024b93c4ad5939cc597fbc4354feea7940b201",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
