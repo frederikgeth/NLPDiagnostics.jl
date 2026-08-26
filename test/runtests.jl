@@ -2963,16 +2963,16 @@ end
     ))
     @test saved_result_campaign_summary["schema_version"] ==
           "nlpdiagnostics-bmopf-saved-result-sparse-rank-campaign-v1"
-    @test saved_result_campaign_summary["record_count"] == 48
+    @test saved_result_campaign_summary["record_count"] == 56
     @test saved_result_campaign_summary["result_units"] == ["pu", "si"]
     @test saved_result_campaign_summary["all_point_provenance_complete"] == false
     @test saved_result_campaign_summary["all_sparse_estimates_available"] == true
     @test saved_result_campaign_summary["scaling_sensitive_count"] == 2
-    @test saved_result_campaign_summary["scaling_stable_count"] == 46
+    @test saved_result_campaign_summary["scaling_stable_count"] == 54
     saved_result_endpoint_spans = saved_result_campaign_summary["endpoint_span_diagnostics"]
     @test saved_result_endpoint_spans["overall"]["rank_delta"]["range"] == 1
-    @test saved_result_endpoint_spans["by_result_units"]["pu"]["record_count"] == 23
-    @test saved_result_endpoint_spans["by_result_units"]["si"]["record_count"] == 25
+    @test saved_result_endpoint_spans["by_result_units"]["pu"]["record_count"] == 27
+    @test saved_result_endpoint_spans["by_result_units"]["si"]["record_count"] == 29
     @test saved_result_endpoint_spans["by_result_units"]["pu"]["spans"]["unscaled_condition_proxy"]["max"] > 1.0e9
     sensitive_saved_records = filter(
         record -> record["scaling_sensitive"] == true,
@@ -2992,13 +2992,13 @@ end
     ))
     @test scaling_diagnostics_summary["schema_version"] ==
           "nlpdiagnostics-bmopf-saved-result-scaling-diagnostics-v1"
-    @test scaling_diagnostics_summary["campaign_record_count"] == 48
-    @test scaling_diagnostics_summary["paired_snapshot_count"] == 20
+    @test scaling_diagnostics_summary["campaign_record_count"] == 56
+    @test scaling_diagnostics_summary["paired_snapshot_count"] == 24
     @test scaling_diagnostics_summary["unit_dependent_rank_outcome_count"] == 2
     @test scaling_diagnostics_summary["incomplete_provenance_sensitive_record_count"] == 2
     @test scaling_diagnostics_summary["sensitive_mapping_fallback_coordinate_counts"] == ["11026", "11026"]
     @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_sensitive_count"] == 2
-    @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_stable_count"] == 46
+    @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_stable_count"] == 54
     time_coverage_summary = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_538bus_saved_result_time_coverage_summary.json"),
         String,
@@ -3007,8 +3007,8 @@ end
           "nlpdiagnostics-bmopf-538bus-saved-result-time-coverage-v1"
     @test time_coverage_summary["snapshot_count"] == 50
     @test time_coverage_summary["available_endpoint_count"] == 100
-    @test time_coverage_summary["profiled_endpoint_count"] == 46
-    @test time_coverage_summary["unprofiled_endpoint_count"] == 54
+    @test time_coverage_summary["profiled_endpoint_count"] == 54
+    @test time_coverage_summary["unprofiled_endpoint_count"] == 46
     @test time_coverage_summary["available_unit_counts"] == Dict("pu" => 50, "si" => 50)
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),

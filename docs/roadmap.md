@@ -5634,3 +5634,15 @@ the LN SI adapter maps only 2 of 11,028 registered coordinates and uses the
 explicit fallback for the remaining 11,026, while the paired PU records map all
 11,028 coordinates. Complete or explain that LN SI mapping, then repeat the
 paired check on t15/t16.
+
+## 2026-08-26 t15/t16 balanced sweep
+
+The t15/t16 LN/LG PU/SI batch adds eight fully profiled endpoints to the
+sparse-rank ledger. All eight retain rank 11,028 under unscaled and
+row-column sparse QR, and all four SI records are provenance-complete with
+full 11,028-coordinate mapping. This separates the earlier LN SI t13/t14
+mapping boundary from the later snapshots: the anomaly remains reproducible
+and localized, but it does not recur once the saved-result mapping is complete.
+The campaign now contains 56 records (54 stable, 2 sensitive), with 54 of 100
+538-bus endpoints profiled. The next deliverable is a t17/t18 repeat to test
+whether this provenance recovery persists.
