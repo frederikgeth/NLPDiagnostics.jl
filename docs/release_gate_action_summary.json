@@ -29,7 +29,7 @@
         "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Widen the 538-bus PU/SI time sweep with additional transformer-chain snapshots and test whether endpoint spans persist.",
+      "next_deliverable": "Extend the balanced 538-bus PU/SI sweep to t07/t08 transformer-chain snapshots and compare span persistence.",
       "priority": 1,
       "status": "partial"
     },
@@ -119,8 +119,8 @@
   "all_blocking_gates_mapped": true,
   "blocking_gate_count": 5,
   "environment": {
-    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "8c70190dbf7db7b0221a7f96e5a94241d109e944",
+    "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
+    "git_revision": "6796532e5b54c771aa6a090b0f9657ad9200d4ca",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
