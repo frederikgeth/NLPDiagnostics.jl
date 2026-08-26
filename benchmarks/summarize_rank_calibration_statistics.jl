@@ -139,7 +139,7 @@ corpus_rows = [
 campaign_provenance = get(saved_result_bmopf_campaign, "all_point_provenance_complete", false)
 campaign_sensitive = get(saved_result_bmopf_campaign, "scaling_sensitive_count", 0)
 campaign_stable = get(saved_result_bmopf_campaign, "scaling_stable_count", 0)
-campaign_provenance_label = campaign_provenance ? "provenance-complete" : "contains incomplete point provenance"
+campaign_provenance_label = campaign_provenance ? "provenance-complete" : "not fully provenance-complete"
 campaign_scaling_label = "$(campaign_sensitive) scaling-sensitive and $(campaign_stable) scaling-stable records"
 
 write_json(OUTPUT, Dict{String,Any}(
