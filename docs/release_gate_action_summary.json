@@ -118,8 +118,8 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "481906602fe3ad7a1061ee42182c784bc4f8e4f4",
-    "git_worktree_dirty": true,
+    "git_revision": "b1d3e56960795cea7891c4e7a244f733c4514707",
+    "git_worktree_dirty": false,
     "julia_version": "1.12.6"
   },
   "interpretation": {
