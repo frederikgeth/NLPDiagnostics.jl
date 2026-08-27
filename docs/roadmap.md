@@ -5922,7 +5922,11 @@ Ipopt and returned one result, but all remained `ITERATION_LIMIT` with
 
 This closes the planned larger-budget experiment: the current full-case
 initialization remains non-convergent even with 50 iterations and explicit
-start application, while the process remains stable and bounded. The next
-deliverable is a convergent full-case initialization investigation together
-with allocator-level peak telemetry; further iteration increases alone are not
-yet justified.
+start application, while the process remains stable and bounded. The campaign
+now records native-start coverage and uses bound-aware finite values for the
+29,064 missing starts rather than blindly filling every missing coordinate with
+zero. The safer completion was then evaluated: all three policies applied
+29,064 bound-aware fills without an application error, but convergence remained
+unchanged. The next deliverable is a convergent full-case initialization
+investigation together with allocator-level peak telemetry; further iteration
+increases alone are not yet justified.

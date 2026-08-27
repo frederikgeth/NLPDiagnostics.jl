@@ -105,14 +105,52 @@ function _contract_data(context)
     end
 end
 
+function _bound_value(model, variable, lower_bound::Bool)
+    try
+        reference = JuMP.VariableRef(model, variable)
+        available = lower_bound ? JuMP.has_lower_bound(reference) : JuMP.has_upper_bound(reference)
+        available || return nothing
+        value = lower_bound ? JuMP.lower_bound(reference) : JuMP.upper_bound(reference)
+        return isfinite(Float64(value)) ? Float64(value) : nothing
+    catch
+        return nothing
+    end
+end
+
+function _bound_aware_missing_value(model, variable)
+    lower = _bound_value(model, variable, true)
+    upper = _bound_value(model, variable, false)
+    if (isnothing(lower) || lower <= 0.0) && (isnothing(upper) || upper >= 0.0)
+        return 0.0
+    elseif !isnothing(lower) && !isnothing(upper)
+        return (lower + upper) / 2.0
+    elseif !isnothing(lower)
+        return lower > 0.0 ? lower : 0.0
+    elseif !isnothing(upper)
+        return upper < 0.0 ? upper : 0.0
+    end
+    return 0.0
+end
+
 function _apply_start!(model, point)
     backend = JuMP.backend(model)
     applied = 0
+    bound_aware = 0
+    filled_indices = split(
+        String(get(point.provenance.metadata, "filled_variable_indices", "")), ',',
+    )
+    missing = Set{Int}(parse.(Int, filter(!isempty, filled_indices)))
     for (variable, value) in zip(point.variables, point.values)
-        MOI.set(backend, MOI.VariablePrimalStart(), variable, Float64(value))
+        applied_value = if variable.value in missing
+            bound_aware += 1
+            _bound_aware_missing_value(model, variable)
+        else
+            Float64(value)
+        end
+        MOI.set(backend, MOI.VariablePrimalStart(), variable, applied_value)
         applied += 1
     end
-    return applied
+    return (; applied, bound_aware)
 end
 
 function _solve_policy(network, policy, label; max_variables, max_iter, max_cpu_seconds)
@@ -156,7 +194,10 @@ function _solve_policy(network, policy, label; max_variables, max_iter, max_cpu_
     if start_point !== nothing
         record["start_point_status"] = "available"
         try
-            record["start_values_applied_count"] = _apply_start!(model, start_point)
+            applied = _apply_start!(model, start_point)
+            record["start_values_applied_count"] = applied.applied
+            record["start_values_bound_aware_count"] = applied.bound_aware
+            record["start_completion_policy"] = "native_starts_plus_bound_aware_missing_values"
             record["start_point_applied"] = true
         catch error
             record["start_point_applied"] = false

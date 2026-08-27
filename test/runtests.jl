@@ -2903,6 +2903,9 @@ end
     @test occursin("start_point_applied", read(
         joinpath(benchmark_directory, "bmopf_combined_mv_lv_scaling_campaign.jl"), String,
     ))
+    @test occursin("bound_aware_missing_values", read(
+        joinpath(benchmark_directory, "bmopf_combined_mv_lv_scaling_campaign.jl"), String,
+    ))
     combined_50iter_probe = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_combined_mv_lv_50iter_probe_summary.json"), String,
     ))
@@ -2914,6 +2917,10 @@ end
     @test combined_50iter_probe["all_reached_solver"] == true
     @test combined_50iter_probe["all_iteration_limited"] == true
     @test combined_50iter_probe["all_infeasible_points"] == true
+    @test combined_50iter_probe["all_starts_applied"] == true
+    @test all(record["start_completion_policy"] ==
+              "native_starts_plus_bound_aware_missing_values" for record in combined_50iter_probe["records"])
+    @test all(record["start_values_bound_aware_count"] == 29064 for record in combined_50iter_probe["records"])
     @test combined_50iter_probe["all_starts_applied"] == true
     @test occursin("bmopf_combined_mv_lv_50iter_probe_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,

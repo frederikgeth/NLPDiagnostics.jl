@@ -32,6 +32,8 @@ policy_records = [Dict{String,Any}(
     "start_point_status" => get(record, "start_point_status", nothing),
     "start_point_applied" => get(record, "start_point_applied", nothing),
     "start_values_applied_count" => get(record, "start_values_applied_count", nothing),
+    "start_values_bound_aware_count" => get(record, "start_values_bound_aware_count", nothing),
+    "start_completion_policy" => get(record, "start_completion_policy", nothing),
     "objective_value" => get(record, "objective_value", nothing),
     "build_seconds" => get(record, "build_seconds", nothing),
     "solve_seconds" => get(record, "solve_seconds", nothing),
@@ -41,6 +43,7 @@ policy_records = [Dict{String,Any}(
 all_reached_solver = all(get(record, "status", "") == "solved_or_bounded" for record in records)
 all_iteration_limited = all(get(record, "termination_status", "") == "ITERATION_LIMIT" for record in records)
 all_infeasible_points = all(get(record, "primal_status", "") == "INFEASIBLE_POINT" for record in records)
+all_starts_applied = all(get(record, "start_point_applied", false) for record in records)
 all_starts_applied = all(get(record, "start_point_applied", false) for record in records)
 write_json(output_path, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-combined-mv-lv-50iter-probe-v1",
@@ -61,8 +64,9 @@ write_json(output_path, Dict{String,Any}(
     "all_iteration_limited" => all_iteration_limited,
     "all_infeasible_points" => all_infeasible_points,
     "all_starts_applied" => all_starts_applied,
+    "all_starts_applied" => all_starts_applied,
     "records" => policy_records,
-    "interpretation" => "The 56,142-variable combined MV/LV model reached Ipopt for all three policies under the reviewed fifty-iteration and 120-second-per-policy budget, with completed starts applied to every model variable. All policies remained iteration-limited infeasible points; this bounds the current applied-start/iteration strategy but does not establish convergence, policy ranking, allocator peak memory, or runtime complexity.",
+    "interpretation" => "The 56,142-variable combined MV/LV model reached Ipopt for all three policies under the reviewed fifty-iteration and 120-second-per-policy budget, with native starts applied where available and bound-aware finite completion applied to every remaining variable. All policies remained iteration-limited infeasible points; this bounds the current applied-start/iteration strategy but does not establish convergence, policy ranking, allocator peak memory, or runtime complexity.",
     "next_action" => "Investigate a convergent full-case initialization and add allocator-level peak telemetry before making a production scaling claim.",
 ))
 println("wrote combined MV/LV 50-iteration summary to $output_path")
