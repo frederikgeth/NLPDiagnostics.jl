@@ -1,0 +1,65 @@
+{
+  "failure_count": 0,
+  "failures": [],
+  "high_budget_row_count": 2,
+  "high_budget_stable": true,
+  "interpretation": "This summarizes observed termination classes and process-local solve allocation deltas. It does not infer infeasibility from allocation, establish convergence, or prescribe an iteration budget.",
+  "row_count": 4,
+  "rows": [
+    {
+      "max_iter": 50,
+      "native_dual_status": "UNKNOWN_RESULT_STATUS",
+      "native_primal_status": "INFEASIBLE_POINT",
+      "native_solve_allocated_bytes": 271675984,
+      "native_termination_status": "ITERATION_LIMIT",
+      "termination_classification": "both_iteration_limited",
+      "transfer_dual_status": "UNKNOWN_RESULT_STATUS",
+      "transfer_minus_native_solve_allocated_bytes": -14670336,
+      "transfer_primal_status": "INFEASIBLE_POINT",
+      "transfer_solve_allocated_bytes": 257005648,
+      "transfer_termination_status": "ITERATION_LIMIT"
+    },
+    {
+      "max_iter": 100,
+      "native_dual_status": "INFEASIBLE_POINT",
+      "native_primal_status": "INFEASIBLE_POINT",
+      "native_solve_allocated_bytes": 280933792,
+      "native_termination_status": "LOCALLY_INFEASIBLE",
+      "termination_classification": "mixed_termination_boundary",
+      "transfer_dual_status": "UNKNOWN_RESULT_STATUS",
+      "transfer_minus_native_solve_allocated_bytes": -24135760,
+      "transfer_primal_status": "INFEASIBLE_POINT",
+      "transfer_solve_allocated_bytes": 256798032,
+      "transfer_termination_status": "ITERATION_LIMIT"
+    },
+    {
+      "max_iter": 200,
+      "native_dual_status": "INFEASIBLE_POINT",
+      "native_primal_status": "INFEASIBLE_POINT",
+      "native_solve_allocated_bytes": 271248480,
+      "native_termination_status": "LOCALLY_INFEASIBLE",
+      "termination_classification": "both_outside_iteration_limit",
+      "transfer_dual_status": "INFEASIBLE_POINT",
+      "transfer_minus_native_solve_allocated_bytes": -14433744,
+      "transfer_primal_status": "INFEASIBLE_POINT",
+      "transfer_solve_allocated_bytes": 256814736,
+      "transfer_termination_status": "LOCALLY_INFEASIBLE"
+    },
+    {
+      "max_iter": 400,
+      "native_dual_status": "INFEASIBLE_POINT",
+      "native_primal_status": "INFEASIBLE_POINT",
+      "native_solve_allocated_bytes": 304051520,
+      "native_termination_status": "LOCALLY_INFEASIBLE",
+      "termination_classification": "both_outside_iteration_limit",
+      "transfer_dual_status": "INFEASIBLE_POINT",
+      "transfer_minus_native_solve_allocated_bytes": -47236784,
+      "transfer_primal_status": "INFEASIBLE_POINT",
+      "transfer_solve_allocated_bytes": 256814736,
+      "transfer_termination_status": "LOCALLY_INFEASIBLE"
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-transfer-budget-boundary-v1",
+  "source": "docs/bmopf_combined_mv_lv_transfer_budget_sweep_summary.json",
+  "status": "pass"
+}

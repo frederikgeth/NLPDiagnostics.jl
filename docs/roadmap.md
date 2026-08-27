@@ -6563,3 +6563,11 @@ The validator requires the reviewed 50/100/200/400 paired native/transfer
 coverage and records two upper-budget pairs that escaped `ITERATION_LIMIT`.
 This turns the observed boundary into reviewable evidence while keeping hard
 feasibility, convergence, and production iteration policy explicitly open.
+
+The companion `benchmarks/summarize_bmopf_transfer_budget_boundary.jl` now
+normalizes each budget into a paired termination row, retaining primal/dual
+statuses and the transfer-minus-native process-local solve-allocation delta.
+The current artifact reports a mixed boundary at 100 iterations and a stable
+both-outside-iteration-limit class at 200 and 400. This sharpens the next
+experiment: inspect solver residual/progress evidence or alter the fixture,
+rather than treating a larger iteration budget as a scaling strategy.

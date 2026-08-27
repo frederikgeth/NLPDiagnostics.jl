@@ -3127,6 +3127,22 @@ end
     @test occursin("bmopf_transfer_budget_sweep_validation_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    transfer_budget_boundary_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_transfer_budget_boundary.jl"), String,
+    )
+    @test Meta.parseall(transfer_budget_boundary_script) isa Expr
+    @test occursin("termination_classification", transfer_budget_boundary_script)
+    transfer_budget_boundary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_transfer_budget_boundary_summary.json"), String,
+    ))
+    @test transfer_budget_boundary["schema_version"] ==
+          "nlpdiagnostics-bmopf-transfer-budget-boundary-v1"
+    @test transfer_budget_boundary["status"] == "pass"
+    @test transfer_budget_boundary["row_count"] == 4
+    @test transfer_budget_boundary["high_budget_stable"] == true
+    @test occursin("bmopf_transfer_budget_boundary_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     child_transfer_script = read(
         joinpath(benchmark_directory, "run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl"), String,
     )
