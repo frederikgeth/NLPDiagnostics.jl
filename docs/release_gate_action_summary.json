@@ -175,7 +175,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "fd38d8743cd4a8bea1adba251be51c8b5ad83746",
+    "git_revision": "424ce615cba7848667c585de04e96c4cd9bee29c",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
