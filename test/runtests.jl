@@ -2895,6 +2895,25 @@ end
     @test occursin("bmopf_combined_mv_lv_budget_extension_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    combined_50iter_probe_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_combined_mv_lv_50iter_probe.jl"), String,
+    )
+    @test Meta.parseall(combined_50iter_probe_script) isa Expr
+    @test occursin("reviewed fifty-iteration", combined_50iter_probe_script)
+    combined_50iter_probe = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_50iter_probe_summary.json"), String,
+    ))
+    @test combined_50iter_probe["schema_version"] ==
+          "nlpdiagnostics-bmopf-combined-mv-lv-50iter-probe-v1"
+    @test combined_50iter_probe["model_variable_count"] == 56142
+    @test combined_50iter_probe["budgets"]["max_iter"] == 50
+    @test combined_50iter_probe["policy_count"] == 3
+    @test combined_50iter_probe["all_reached_solver"] == true
+    @test combined_50iter_probe["all_iteration_limited"] == true
+    @test combined_50iter_probe["all_infeasible_points"] == true
+    @test occursin("bmopf_combined_mv_lv_50iter_probe_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     rank_perturbation_script = read(
         joinpath(benchmark_directory, "calibrate_rank_perturbation_sweep.jl"),
         String,

@@ -88,15 +88,17 @@
         "docs/bmopf_solver_scaling_cross_solver_summary.json",
         "docs/bmopf_combined_mv_lv_large_probe_summary.json",
         "docs/bmopf_combined_mv_lv_budget_extension_summary.json",
+        "docs/bmopf_combined_mv_lv_50iter_probe_summary.json",
         "benchmarks/summarize_bmopf_solver_scaling_readiness.jl",
         "benchmarks/plan_bmopf_solver_scaling_extension.jl",
         "benchmarks/summarize_bmopf_solver_scaling_extension.jl",
         "benchmarks/summarize_bmopf_solver_scaling_cross_solver.jl",
         "benchmarks/summarize_bmopf_combined_mv_lv_large_probe.jl",
-        "benchmarks/summarize_bmopf_combined_mv_lv_budget_extension.jl"
+        "benchmarks/summarize_bmopf_combined_mv_lv_budget_extension.jl",
+        "benchmarks/summarize_bmopf_combined_mv_lv_50iter_probe.jl"
       ],
       "id": "runtime_memory_scaling",
-      "next_deliverable": "Run a reviewed 50-iteration full-case probe or add allocator-level peak telemetry before making a production scaling claim.",
+      "next_deliverable": "Investigate a convergent full-case initialization and add allocator-level peak telemetry before making a production scaling claim.",
       "priority": 3,
       "status": "partial"
     },
@@ -150,7 +152,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "38bca90fe22e7ce591d1792bfb75aba0ba61e901",
+    "git_revision": "bc3e427c2d310e2f95e4347922f010d52703cc02",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
