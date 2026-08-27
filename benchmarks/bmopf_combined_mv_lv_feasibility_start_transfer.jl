@@ -11,6 +11,7 @@ evidence rather than treating it as a stable public API contract.
 using BMOPFTools
 using JuMP
 using Ipopt
+using MadNLP
 
 include(joinpath(@__DIR__, "common.jl"))
 using .NLPDiagnosticsBenchmarkCommon: write_json
@@ -145,6 +146,13 @@ function _ipopt_hook(max_iter, max_cpu_seconds)
     end
 end
 
+function _hard_optimizer()
+    solver = lowercase(strip(get(ENV, "NLPDIAGNOSTICS_COMBINED_MV_LV_SOLVER", "ipopt")))
+    solver == "ipopt" && return Ipopt.Optimizer, "Ipopt"
+    solver == "madnlp" && return MadNLP.Optimizer, "MadNLP"
+    error("NLPDIAGNOSTICS_COMBINED_MV_LV_SOLVER must be ipopt or madnlp")
+end
+
 function _relaxed_initialization(network, max_iter, max_cpu_seconds)
     result = BMOPFTools.solve_feasibility_opf(
         network;
@@ -218,9 +226,10 @@ end
 function _hard_run(network, initialization, label; transfer, max_iter, max_cpu_seconds)
     started = time()
     build_before = _stage_allocator_snapshot()
+    optimizer, solver_name = _hard_optimizer()
     context = BMOPFTools.build_opf_model(
         deepcopy(network);
-        optimizer = Ipopt.Optimizer,
+        optimizer,
         scaling_policy = BMOPFTools.OpfScaling(:classic; power_base = 1.0e6),
         add_objective = true,
     )
@@ -239,6 +248,7 @@ function _hard_run(network, initialization, label; transfer, max_iter, max_cpu_s
     solve_after = _stage_allocator_snapshot()
     return Dict{String,Any}(
         "label" => label,
+        "solver" => solver_name,
         "transfer_applied" => transfer,
         "transferred_voltage_start_count" => transfer_report.applied,
         "transferred_voltage_start_skipped_count" => transfer_report.skipped,
@@ -278,6 +288,7 @@ function main()
     ))
 
     started = time()
+    _, solver_name = _hard_optimizer()
     network = BMOPFTools.from_dss(input_path)
     _scale_loads!(network, load_multiplier)
     warnings = get(get(network, "_meta", Dict{String,Any}()), "powerio_warnings", Any[])
@@ -306,6 +317,7 @@ function main()
         ),
         "budgets" => Dict("max_iter" => max_iter, "max_cpu_seconds" => max_cpu_seconds),
         "load_multiplier" => load_multiplier,
+        "solver" => solver_name,
         "relaxed_initialization" => Dict(
             "termination_status" => get(relaxed, "termination_status", nothing),
             "relaxed_feasible" => get(relaxed, "feasible", nothing),

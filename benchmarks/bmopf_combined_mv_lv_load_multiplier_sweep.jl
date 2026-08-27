@@ -33,6 +33,8 @@ for multiplier in multipliers()
         environment = Dict{String,String}(string(key) => string(value) for (key, value) in ENV)
         environment["NLPDIAGNOSTICS_COMBINED_MV_LV_TRANSFER_OUTPUT"] = path
         environment["NLPDIAGNOSTICS_COMBINED_MV_LV_LOAD_MULTIPLIER"] = string(multiplier)
+        environment["NLPDIAGNOSTICS_COMBINED_MV_LV_SOLVER"] =
+            get(ENV, "NLPDIAGNOSTICS_COMBINED_MV_LV_LOAD_SWEEP_SOLVER", "ipopt")
         environment["NLPDIAGNOSTICS_COMBINED_MV_LV_TRANSFER_MAX_ITER"] =
             get(ENV, "NLPDIAGNOSTICS_COMBINED_MV_LV_LOAD_SWEEP_MAX_ITER", "100")
         environment["NLPDIAGNOSTICS_COMBINED_MV_LV_TRANSFER_MAX_CPU_SECONDS"] =

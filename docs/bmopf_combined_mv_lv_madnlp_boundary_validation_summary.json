@@ -1,0 +1,11 @@
+{
+  "failure_count": 0,
+  "failures": [],
+  "interpretation": "This validates solver-diverse bounded evidence at two fixture-demand points. It does not establish solver superiority, a physical threshold, universal scaling policy, or hard convergence beyond the observed local statuses.",
+  "iteration_limited_multiplier": 0.3,
+  "qualified_multiplier": 0.25,
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-madnlp-boundary-validation-v1",
+  "solver": "MadNLP",
+  "source": "docs/bmopf_combined_mv_lv_madnlp_boundary_summary.json",
+  "status": "pass"
+}

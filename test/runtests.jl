@@ -3198,6 +3198,34 @@ end
     @test occursin("bmopf_combined_mv_lv_load_boundary_refinement_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    @test occursin("NLPDIAGNOSTICS_COMBINED_MV_LV_SOLVER", read(
+        joinpath(benchmark_directory, "bmopf_combined_mv_lv_feasibility_start_transfer.jl"), String,
+    ))
+    madnlp_boundary_validation_script = read(
+        joinpath(benchmark_directory, "validate_bmopf_combined_mv_lv_madnlp_boundary.jl"), String,
+    )
+    @test Meta.parseall(madnlp_boundary_validation_script) isa Expr
+    @test occursin("MadNLP", madnlp_boundary_validation_script)
+    madnlp_boundary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_madnlp_boundary_summary.json"), String,
+    ))
+    @test madnlp_boundary["campaign"] == "madnlp_boundary_refinement"
+    @test madnlp_boundary["status"] == "completed"
+    @test madnlp_boundary["multipliers"] == [0.25, 0.3]
+    @test madnlp_boundary["completed_count"] == 2
+    @test madnlp_boundary["hard_locally_solved_count"] == 1
+    @test all(record["solver"] == "MadNLP" for result in madnlp_boundary["results"] for record in result["records"])
+    madnlp_boundary_validation = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_madnlp_boundary_validation_summary.json"), String,
+    ))
+    @test madnlp_boundary_validation["schema_version"] ==
+          "nlpdiagnostics-bmopf-combined-mv-lv-madnlp-boundary-validation-v1"
+    @test madnlp_boundary_validation["status"] == "pass"
+    @test madnlp_boundary_validation["qualified_multiplier"] == 0.25
+    @test madnlp_boundary_validation["iteration_limited_multiplier"] == 0.3
+    @test occursin("bmopf_combined_mv_lv_madnlp_boundary_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     child_transfer_script = read(
         joinpath(benchmark_directory, "run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl"), String,
     )
