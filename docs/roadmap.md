@@ -6449,3 +6449,12 @@ remains disabled.
 The updated artifact is
 `docs/api_ownership_decision_summary.json`. Any future namespace move requires
 explicit owner approval and a separately versioned compatibility plan.
+
+## 2026-08-27 API ownership completion guard
+
+The ownership runner now records `queue_count` and `queue_complete`, and its
+post-completion invocation is idempotent: it emits no new batch while retaining
+the full 539-name ledger. The release-gate builder incorporates this state so
+the API consolidation rationale distinguishes a completed review from an
+unfinished queue. Future API changes must update the ledger deliberately; they
+do not silently reopen migration.

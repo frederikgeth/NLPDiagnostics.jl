@@ -126,6 +126,8 @@ api_migration_unreferenced_count = get(api_migration_queue, "unreferenced_in_cod
 api_advanced_candidate_count = get(api_advanced_candidates, "candidate_count", 0)
 api_advanced_family_counts = get(api_advanced_candidates, "family_counts", Dict{String,Any}())
 api_ownership_reviewed_count = get(api_ownership_decisions, "reviewed_count", 0)
+api_ownership_queue_count = get(api_ownership_decisions, "queue_count", 0)
+api_ownership_queue_complete = get(api_ownership_decisions, "queue_complete", false)
 api_ownership_retained_count = get(api_ownership_decisions, "root_compatibility_retained_count", 0)
 api_ownership_advanced_count = get(api_ownership_decisions, "advanced_candidate_count", 0)
 api_ownership_migration_count = get(api_ownership_decisions, "migration_allowed_count", 0)
@@ -457,6 +459,9 @@ api_contract_rationale = api_contract_rationale * " The voltage-start transfer a
 api_contract_rationale = api_contract_rationale * " The API migration queue summary preserves $api_migration_queue_count root-only entries and $api_migration_unreferenced_count unreferenced names in a disposition-by-usage matrix; this is deterministic triage evidence, not automatic migration."
 api_contract_rationale = api_contract_rationale * " The Advanced-candidate summary retains $api_advanced_candidate_count candidates in $(get(api_advanced_family_counts, "bmopf_extension", 0)) BMOPF-extension and $(get(api_advanced_family_counts, "port_extension", 0)) port-extension review batches; family and usage buckets order ownership review without automatic promotion."
 api_contract_rationale = api_contract_rationale * " The bounded ownership ledger reviews $api_ownership_reviewed_count high-impact names: $api_ownership_retained_count retain root compatibility and $api_ownership_advanced_count remain Advanced candidates; automatic migration decisions remain $api_ownership_migration_count."
+api_contract_rationale = api_contract_rationale * (api_ownership_queue_complete ?
+    " The bounded ownership queue is complete at $api_ownership_reviewed_count/$api_ownership_queue_count names; future changes should update the ledger rather than reopen an implicit migration." :
+    " The bounded ownership queue remains in progress at $api_ownership_reviewed_count/$api_ownership_queue_count names; continue deterministic review before any migration decision.")
 
 combined_mv_lv_gate = all([
     get(combined_mv_lv, "ipopt_tolerance_diagnostic", Dict{String,Any}())["all_comparisons_qualified"],

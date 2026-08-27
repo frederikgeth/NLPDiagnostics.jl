@@ -3700,21 +3700,24 @@ end
     @test Meta.parseall(ownership_review_script) isa Expr
     @test occursin("retain_root_compatibility", ownership_review_script)
     @test occursin("prior_output", ownership_review_script)
+    @test occursin("queue_complete", ownership_review_script)
     ownership_review_summary = JSON.parse(read(
         joinpath(repository_root, "docs", "api_ownership_decision_summary.json"),
         String,
     ))
     @test ownership_review_summary["schema_version"] ==
           "nlpdiagnostics-api-ownership-decisions-v1"
+    @test ownership_review_summary["queue_count"] == 539
+    @test ownership_review_summary["queue_complete"] == true
     @test ownership_review_summary["reviewed_count"] == 539
     @test ownership_review_summary["root_compatibility_retained_count"] == 437
     @test ownership_review_summary["advanced_candidate_count"] == 102
     @test ownership_review_summary["migration_allowed_count"] == 0
-    @test ownership_review_summary["batch_summary"]["prior_reviewed_count"] == 524
-    @test ownership_review_summary["batch_summary"]["next_batch_count"] == 15
-    @test ownership_review_summary["batch_summary"]["next_batch_reviewed_count"] == 15
-    @test ownership_review_summary["batch_summary"]["next_batch_root_compatibility_count"] == 14
-    @test ownership_review_summary["batch_summary"]["next_batch_advanced_candidate_count"] == 1
+    @test ownership_review_summary["batch_summary"]["prior_reviewed_count"] == 539
+    @test ownership_review_summary["batch_summary"]["next_batch_count"] == 0
+    @test ownership_review_summary["batch_summary"]["next_batch_reviewed_count"] == 0
+    @test ownership_review_summary["batch_summary"]["next_batch_root_compatibility_count"] == 0
+    @test ownership_review_summary["batch_summary"]["next_batch_advanced_candidate_count"] == 0
     @test occursin("api_ownership_decision_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,

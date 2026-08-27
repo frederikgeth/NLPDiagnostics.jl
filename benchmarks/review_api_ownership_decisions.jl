@@ -415,6 +415,7 @@ sort!(remaining; by = row -> (
     row["name"],
 ))
 next_batch = first(remaining, min(24, length(remaining)))
+next_batch_names = Set(source["name"] for source in next_batch)
 for source in next_batch
     name = source["name"]
     advanced = source["proposed_disposition"] == "advanced_candidate"
@@ -442,6 +443,27 @@ for source in next_batch
     ))
 end
 sort!(rows; by = row -> row["name"])
+queue_complete = length(rows) == length(queue)
+selection_policy = queue_complete ?
+    "Previously reviewed high-impact names plus the complete root-only queue; this bounded review does not change exports or migration policy." :
+    "Previously reviewed high-impact names plus prior ledger rows and the next 24 unreviewed queue entries ordered by usage priority, reference count, and name; this bounded review does not represent the full queue."
+next_actions = queue_complete ? [
+    "Keep the completed ownership ledger synchronized with API and dependency changes.",
+    "Approve any namespace move only with an explicit compatibility and type-identity plan.",
+    "Keep Stable and Advanced facades unchanged until an owner-approved migration is ready.",
+] : [
+    "Review the remaining root-only queue in similarly bounded batches.",
+    "Approve any namespace move only with an explicit compatibility and type-identity plan.",
+    "Keep Stable and Advanced facades unchanged until ownership review is complete.",
+]
+does_not_establish = queue_complete ? [
+    "permission to remove or deprecate root symbols",
+    "Stable or Advanced namespace compatibility for future releases",
+] : [
+    "a complete review of all root-only exports",
+    "permission to remove or deprecate root symbols",
+    "Stable or Advanced namespace compatibility for future releases",
+]
 status_entries = git_status_entries()
 write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-api-ownership-decisions-v1",
@@ -449,7 +471,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "runner" => "benchmarks/review_api_ownership_decisions.jl",
         "input" => INPUT,
         "prior_output" => PRIOR_OUTPUT,
-        "selection_policy" => "Previously reviewed high-impact names plus prior ledger rows and the next 24 unreviewed queue entries ordered by usage priority, reference count, and name; this bounded review does not represent the full queue.",
+        "selection_policy" => selection_policy,
         "migration_policy" => "No export is moved, deprecated, or removed by this ledger.",
     ),
     "environment" => Dict{String,Any}(
@@ -459,29 +481,23 @@ write_json(OUTPUT, Dict{String,Any}(
         "git_worktree_dirty" => !isempty(status_entries),
     ),
     "reviewed_count" => length(rows),
+    "queue_count" => length(queue),
+    "queue_complete" => queue_complete,
     "root_compatibility_retained_count" => count(row -> row["decision"] == "retain_root_compatibility", rows),
     "advanced_candidate_count" => count(row -> row["decision"] == "advanced_candidate_review", rows),
     "migration_allowed_count" => count(row -> row["migration_allowed"], rows),
     "batch_summary" => Dict{String,Any}(
         "prior_reviewed_count" => length(baseline_reviewed_names),
         "next_batch_count" => length(next_batch),
-        "next_batch_reviewed_count" => count(row -> get(row, "review_batch", "") == NEXT_BATCH_LABEL, rows),
-        "next_batch_advanced_candidate_count" => count(row -> get(row, "review_batch", "") == NEXT_BATCH_LABEL && row["decision"] == "advanced_candidate_review", rows),
-        "next_batch_root_compatibility_count" => count(row -> get(row, "review_batch", "") == NEXT_BATCH_LABEL && row["decision"] == "retain_root_compatibility", rows),
+        "next_batch_reviewed_count" => count(row -> row["name"] in next_batch_names, rows),
+        "next_batch_advanced_candidate_count" => count(row -> row["name"] in next_batch_names && row["decision"] == "advanced_candidate_review", rows),
+        "next_batch_root_compatibility_count" => count(row -> row["name"] in next_batch_names && row["decision"] == "retain_root_compatibility", rows),
     ),
     "rows" => rows,
-    "next_actions" => [
-        "Review the remaining root-only queue in similarly bounded batches.",
-        "Approve any namespace move only with an explicit compatibility and type-identity plan.",
-        "Keep Stable and Advanced facades unchanged until ownership review is complete.",
-    ],
+    "next_actions" => next_actions,
     "interpretation" => Dict{String,Any}(
         "claim" => "$(length(rows)) root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except $(count(row -> row["decision"] == "advanced_candidate_review", rows)) Advanced candidate reviews.",
-        "does_not_establish" => [
-            "a complete review of all root-only exports",
-            "permission to remove or deprecate root symbols",
-            "Stable or Advanced namespace compatibility for future releases",
-        ],
+        "does_not_establish" => does_not_establish,
     ),
 ))
 

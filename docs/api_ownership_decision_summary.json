@@ -1,32 +1,33 @@
 {
   "advanced_candidate_count": 102,
   "batch_summary": {
-    "next_batch_advanced_candidate_count": 1,
-    "next_batch_count": 15,
-    "next_batch_reviewed_count": 15,
-    "next_batch_root_compatibility_count": 14,
-    "prior_reviewed_count": 524
+    "next_batch_advanced_candidate_count": 0,
+    "next_batch_count": 0,
+    "next_batch_reviewed_count": 0,
+    "next_batch_root_compatibility_count": 0,
+    "prior_reviewed_count": 539
   },
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "e9eb8489e53852e05b1c4a8c2fbd87f0accda9dd",
+    "git_revision": "45f87645feec0683cb0624f9b754882c9e8ea5ef",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {
     "claim": "539 root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except 102 Advanced candidate reviews.",
     "does_not_establish": [
-      "a complete review of all root-only exports",
       "permission to remove or deprecate root symbols",
       "Stable or Advanced namespace compatibility for future releases"
     ]
   },
   "migration_allowed_count": 0,
   "next_actions": [
-    "Review the remaining root-only queue in similarly bounded batches.",
+    "Keep the completed ownership ledger synchronized with API and dependency changes.",
     "Approve any namespace move only with an explicit compatibility and type-identity plan.",
-    "Keep Stable and Advanced facades unchanged until ownership review is complete."
+    "Keep Stable and Advanced facades unchanged until an owner-approved migration is ready."
   ],
+  "queue_complete": true,
+  "queue_count": 539,
   "reviewed_count": 539,
   "root_compatibility_retained_count": 437,
   "rows": [
@@ -6976,6 +6977,6 @@
     "migration_policy": "No export is moved, deprecated, or removed by this ledger.",
     "prior_output": "docs/api_ownership_decision_summary.json",
     "runner": "benchmarks/review_api_ownership_decisions.jl",
-    "selection_policy": "Previously reviewed high-impact names plus prior ledger rows and the next 24 unreviewed queue entries ordered by usage priority, reference count, and name; this bounded review does not represent the full queue."
+    "selection_policy": "Previously reviewed high-impact names plus the complete root-only queue; this bounded review does not change exports or migration policy."
   }
 }
