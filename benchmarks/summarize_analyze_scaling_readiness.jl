@@ -16,6 +16,7 @@ const ISOLATED_MEMORY_INPUT = "docs/bmopf_analyze_runtime_isolated_summary.json"
 const PORTABILITY_INPUT = "docs/bmopf_analyze_portability_summary.json"
 const EXTERNAL_PEAK_INPUT = "docs/bmopf_analyze_external_peak_probe_summary.json"
 const EXTERNAL_PEAK_PORTABILITY_INPUT = "docs/bmopf_analyze_external_peak_portability_summary.json"
+const ALLOCATOR_TELEMETRY_INPUT = "docs/bmopf_analyze_allocator_telemetry_summary.json"
 const BMOPF_COMBINED_INPUT = "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "analyze_scaling_readiness_summary.json") : ARGS[1])
@@ -30,6 +31,7 @@ isolated_memory = read_summary(ISOLATED_MEMORY_INPUT)
 portability = read_summary(PORTABILITY_INPUT)
 external_peak = read_summary(EXTERNAL_PEAK_INPUT)
 external_peak_portability = read_summary(EXTERNAL_PEAK_PORTABILITY_INPUT)
+allocator_telemetry = read_summary(ALLOCATOR_TELEMETRY_INPUT)
 bmopf_combined = read_summary(BMOPF_COMBINED_INPUT)
 
 trend_by_workload = Dict{String,Any}(
@@ -105,7 +107,7 @@ portability_resource_comparison = get(get(portability, "comparison", Dict{String
 
 open_gaps = Dict[
     Dict("id" => "static_stage_candidate_selection", "next_evidence" => "profile a different semantics-preserving static-stage candidate because the affine-row cache A/B is neutral to slightly slower locally"),
-    Dict("id" => "portable_analyze_memory", "next_evidence" => portability_comparison_status == "candidate_requires_review" ? "review the matched second-environment analyze comparison and the independent OS peak comparison, then add allocator-level peak telemetry before making a portable memory claim" : "repeat the isolated analyze profile in a second reviewed environment with allocator-level peak telemetry"),
+    Dict("id" => "portable_analyze_memory", "next_evidence" => portability_comparison_status == "candidate_requires_review" ? "review the matched second-environment analyze comparison and OS peak comparison, then obtain peak-capable allocator telemetry before making a portable memory claim" : "repeat the isolated analyze profile in a second reviewed environment with allocator-level peak telemetry"),
 ]
 if !combined_snapshot_covered
     pushfirst!(open_gaps, Dict("id" => "larger_combined_mv_lv_analyze", "next_evidence" => "extend the guarded combined MV+LV analyze profile to additional feeders or a reviewed larger snapshot without forcing the full-case memory path"))
@@ -138,7 +140,7 @@ write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-analyze-scaling-readiness-v1",
     "source" => Dict(
         "runner" => "benchmarks/summarize_analyze_scaling_readiness.jl",
-        "artifacts" => [TREND_INPUT, RESOURCE_INPUT, PROFILE_INPUT, AB_INPUT, GENERALIZATION_INPUT, TARGET_TERMS_INPUT, ISOLATED_MEMORY_INPUT, PORTABILITY_INPUT, EXTERNAL_PEAK_INPUT, EXTERNAL_PEAK_PORTABILITY_INPUT, BMOPF_COMBINED_INPUT],
+        "artifacts" => [TREND_INPUT, RESOURCE_INPUT, PROFILE_INPUT, AB_INPUT, GENERALIZATION_INPUT, TARGET_TERMS_INPUT, ISOLATED_MEMORY_INPUT, PORTABILITY_INPUT, EXTERNAL_PEAK_INPUT, EXTERNAL_PEAK_PORTABILITY_INPUT, ALLOCATOR_TELEMETRY_INPUT, BMOPF_COMBINED_INPUT],
         "policy" => "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",
     ),
     "environment" => Dict(
@@ -229,6 +231,14 @@ write_json(OUTPUT, Dict{String,Any}(
         "peak_delta_bytes" => get(get(external_peak_portability, "resource_comparison", Dict{String,Any}()), "clean_minus_active_peak_rss_bytes", nothing),
         "peak_ratio" => get(get(external_peak_portability, "resource_comparison", Dict{String,Any}()), "clean_over_active_peak_ratio", nothing),
         "claim" => "The same guarded one-fixture OS-level peak probe matches semantically across two distinct local environments; peak differences remain descriptive and do not establish portability or allocator behavior.",
+    ),
+    "allocator_telemetry" => Dict(
+        "status" => get(allocator_telemetry, "status", "unavailable"),
+        "current_available" => get(allocator_telemetry, "allocator_current_available", false),
+        "peak_available_count" => get(allocator_telemetry, "allocator_peak_available_count", 0),
+        "stage_count" => get(allocator_telemetry, "stage_count", 0),
+        "case" => get(get(allocator_telemetry, "source", Dict{String,Any}()), "case", "unknown"),
+        "claim" => "Darwin allocator current-allocation deltas are available around one analyze child; the allocator peak field remains independently unavailable when zero.",
     ),
     "bmopf_combined_mv_lv_analyze" => Dict(
         "feeder_count" => length(combined_feeders),

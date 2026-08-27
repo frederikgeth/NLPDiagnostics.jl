@@ -2744,6 +2744,22 @@ end
     @test external_peak_portability_data["status"] in ("cross_environment_peak_candidate", "candidate_requires_review")
     @test external_peak_portability_data["environment_distinct"] == true
     @test external_peak_portability_data["semantic_comparison"]["mismatch_count"] == 0
+    allocator_telemetry_script = read(
+        joinpath(benchmark_directory, "probe_bmopf_analyze_allocator_telemetry.jl"),
+        String,
+    )
+    @test Meta.parseall(allocator_telemetry_script) isa Expr
+    @test occursin("malloc_zone_statistics", allocator_telemetry_script)
+    @test occursin("peak_field_available", allocator_telemetry_script)
+    allocator_telemetry_summary = read(
+        joinpath(repository_root, "docs", "bmopf_analyze_allocator_telemetry_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-bmopf-analyze-allocator-telemetry-v1", allocator_telemetry_summary)
+    allocator_telemetry_data = JSON.parse(allocator_telemetry_summary)
+    @test allocator_telemetry_data["status"] in ("allocator_current_available", "allocator_telemetry_unavailable")
+    @test allocator_telemetry_data["stage_count"] == 4
+    @test allocator_telemetry_data["allocator_peak_available_count"] >= 0
     analyze_ab_script = read(
         joinpath(benchmark_directory, "profile_analyze_static_optimization_ab.jl"),
         String,

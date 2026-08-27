@@ -1,0 +1,150 @@
+{
+  "allocator_current_available": true,
+  "allocator_peak_available_count": 0,
+  "constraint_count": 20,
+  "environment": {
+    "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
+    "architecture": "aarch64",
+    "bmopftools_version": "0.1.0",
+    "git_revision": "fe2cf9c74bac4aa55c486f8fd52ef529a31cb3ba",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6",
+    "os": "Darwin"
+  },
+  "finding_count": 10,
+  "interpretation": {
+    "boundary": "Current allocator deltas are stage attribution; the max_size_in_use field is reported independently and is not inferred from current bytes.",
+    "claim": "Darwin malloc_zone_statistics current-allocation and peak-field capability around one point-free analyze workload.",
+    "does_not_establish": [
+      "allocator-level peak when max_size_in_use is zero",
+      "portable or retained-memory behavior",
+      "multi-case or solver scaling"
+    ]
+  },
+  "process_maxrss_after_bytes": 2040528896,
+  "process_maxrss_before_bytes": 2040381440,
+  "process_maxrss_increment_bytes": 147456,
+  "schema_version": "nlpdiagnostics-bmopf-analyze-allocator-telemetry-v1",
+  "source": {
+    "case": "pf_1ph_line.dss",
+    "entry_point": "NLPDiagnostics.analyze(model)",
+    "fixture_root": "/private/tmp/bmopftools-clean/test/data/pf_comparison",
+    "runner": "benchmarks/probe_bmopf_analyze_allocator_telemetry.jl",
+    "stage_labels": [
+      "parse",
+      "build",
+      "kcl",
+      "analyze"
+    ]
+  },
+  "stage_count": 4,
+  "stages": [
+    {
+      "allocated_bytes": 508881472,
+      "allocator_after": {
+        "available": true,
+        "blocks_in_use": 157701,
+        "max_size_in_use_bytes": 0,
+        "peak_field_available": false,
+        "size_allocated_bytes": 278937600,
+        "size_in_use_bytes": 93720112
+      },
+      "allocator_before": {
+        "available": true,
+        "blocks_in_use": 151060,
+        "max_size_in_use_bytes": 0,
+        "peak_field_available": false,
+        "size_allocated_bytes": 236994560,
+        "size_in_use_bytes": 86910736
+      },
+      "allocator_delta": {
+        "peak_field_available": false,
+        "size_allocated_delta_bytes": 41943040,
+        "size_in_use_delta_bytes": 6809376
+      },
+      "seconds": 3.072284042,
+      "stage": "parse"
+    },
+    {
+      "allocated_bytes": 1508338192,
+      "allocator_after": {
+        "available": true,
+        "blocks_in_use": 169533,
+        "max_size_in_use_bytes": 0,
+        "peak_field_available": false,
+        "size_allocated_bytes": 308297728,
+        "size_in_use_bytes": 95374432
+      },
+      "allocator_before": {
+        "available": true,
+        "blocks_in_use": 159329,
+        "max_size_in_use_bytes": 0,
+        "peak_field_available": false,
+        "size_allocated_bytes": 295714816,
+        "size_in_use_bytes": 103211392
+      },
+      "allocator_delta": {
+        "peak_field_available": false,
+        "size_allocated_delta_bytes": 12582912,
+        "size_in_use_delta_bytes": -7836960
+      },
+      "seconds": 8.560167583,
+      "stage": "build"
+    },
+    {
+      "allocated_bytes": 10084448,
+      "allocator_after": {
+        "available": true,
+        "blocks_in_use": 169972,
+        "max_size_in_use_bytes": 0,
+        "peak_field_available": false,
+        "size_allocated_bytes": 308297728,
+        "size_in_use_bytes": 96341248
+      },
+      "allocator_before": {
+        "available": true,
+        "blocks_in_use": 169780,
+        "max_size_in_use_bytes": 0,
+        "peak_field_available": false,
+        "size_allocated_bytes": 308297728,
+        "size_in_use_bytes": 96094416
+      },
+      "allocator_delta": {
+        "peak_field_available": false,
+        "size_allocated_delta_bytes": 0,
+        "size_in_use_delta_bytes": 246832
+      },
+      "seconds": 0.061971083,
+      "stage": "kcl"
+    },
+    {
+      "allocated_bytes": 4775168,
+      "allocator_after": {
+        "available": true,
+        "blocks_in_use": 183014,
+        "max_size_in_use_bytes": 0,
+        "peak_field_available": false,
+        "size_allocated_bytes": 497041408,
+        "size_in_use_bytes": 99530160
+      },
+      "allocator_before": {
+        "available": true,
+        "blocks_in_use": 182636,
+        "max_size_in_use_bytes": 0,
+        "peak_field_available": false,
+        "size_allocated_bytes": 497041408,
+        "size_in_use_bytes": 97280432
+      },
+      "allocator_delta": {
+        "peak_field_available": false,
+        "size_allocated_delta_bytes": 0,
+        "size_in_use_delta_bytes": 2249728
+      },
+      "seconds": 0.008795542,
+      "stage": "analyze"
+    }
+  ],
+  "status": "allocator_current_available",
+  "variable_count": 18,
+  "wall_seconds": 33.94779706001282
+}

@@ -5,6 +5,14 @@
     "record_count": 5,
     "warmup": true
   },
+  "allocator_telemetry": {
+    "case": "pf_1ph_line.dss",
+    "claim": "Darwin allocator current-allocation deltas are available around one analyze child; the allocator peak field remains independently unavailable when zero.",
+    "current_available": true,
+    "peak_available_count": 0,
+    "stage_count": 4,
+    "status": "allocator_current_available"
+  },
   "bmopf_combined_mv_lv_analyze": {
     "claim": "4 reviewed combined MV+LV feeder snapshots are profiled through the public point-free analyze entry point under classic, SI, and local policies; measured findings are stable under the guard and larger cases remain explicit skips.",
     "feeder_count": 4,
@@ -26,7 +34,7 @@
   },
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "200d113829483ef5654dffefd97c920b36c63081",
+    "git_revision": "fe2cf9c74bac4aa55c486f8fd52ef529a31cb3ba",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -72,7 +80,7 @@
   "open_gaps": [
     {
       "id": "portable_analyze_memory",
-      "next_evidence": "review the matched second-environment analyze comparison and the independent OS peak comparison, then add allocator-level peak telemetry before making a portable memory claim"
+      "next_evidence": "review the matched second-environment analyze comparison and OS peak comparison, then obtain peak-capable allocator telemetry before making a portable memory claim"
     }
   ],
   "portability_contract": {
@@ -103,6 +111,7 @@
       "docs/bmopf_analyze_portability_summary.json",
       "docs/bmopf_analyze_external_peak_probe_summary.json",
       "docs/bmopf_analyze_external_peak_portability_summary.json",
+      "docs/bmopf_analyze_allocator_telemetry_summary.json",
       "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
     ],
     "policy": "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",

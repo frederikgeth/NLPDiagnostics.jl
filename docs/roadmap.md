@@ -6168,3 +6168,22 @@ difference is explicitly descriptive: it does not establish portable memory,
 allocator-level peaks, retained memory, or performance. The next action is to
 review this two-environment candidate and obtain allocator-capable telemetry
 before making a portable memory statement.
+
+## 2026-08-27 analyze allocator capability audit
+
+The new `benchmarks/probe_bmopf_analyze_allocator_telemetry.jl` runner adds a
+standalone Darwin `malloc_zone_statistics` audit around parse, model build,
+KCL enforcement, and the point-free `analyze` call for `pf_1ph_line.dss`.
+Current allocator counters were available for all four stages, including a
+`2,249,728`-byte current `size_in_use` delta around analyze and a
+`12,582,912`-byte current `size_allocated` delta around model build. The
+allocator peak field (`max_size_in_use`) was zero for every stage, so peak
+availability is recorded as `0/4`, not inferred from current bytes.
+
+The result is retained in
+`docs/bmopf_analyze_allocator_telemetry_summary.json` and propagated into the
+analyze readiness and release-gate ledgers. This closes the capability audit
+for current allocator attribution while confirming that this host/process
+still lacks allocator-level peak telemetry. The next action is to obtain a
+peak-capable allocator measurement (or a reviewed release boundary) before
+making portable memory claims.
