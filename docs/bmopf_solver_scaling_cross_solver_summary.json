@@ -1,0 +1,46 @@
+{
+  "both_solved_pair_count": 2,
+  "environment": {
+    "git_revision": "20a03961f3a4eee44706666ee64d8ecbeea10fe7",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": "Both solvers completed the paired 11,028-variable trace cases under the declared guards. Iteration and residual differences are local observations and do not establish solver superiority, complexity, or production scalability.",
+  "next_action": "Extend the ladder with a larger guarded case or allocator-level telemetry before making a runtime-scaling claim.",
+  "pairs": [
+    {
+      "both_solved": true,
+      "ipopt_final_dual_infeasibility": 3.075939503105474e-11,
+      "ipopt_final_iteration": 27,
+      "ipopt_final_primal_infeasibility": 8.881784197001252e-16,
+      "ipopt_status": "locally_solved_trace",
+      "madnlp_final_dual_infeasibility": 3.0745184176339535e-11,
+      "madnlp_final_iteration": 27,
+      "madnlp_final_primal_infeasibility": 3.168992845914431e-14,
+      "madnlp_minus_ipopt_final_iteration": 0,
+      "madnlp_status": "locally_solved_trace",
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t15_1500.bmopf.json"
+    },
+    {
+      "both_solved": true,
+      "ipopt_final_dual_infeasibility": 2.546469993301438e-10,
+      "ipopt_final_iteration": 34,
+      "ipopt_final_primal_infeasibility": 1.84091255572838e-8,
+      "ipopt_status": "locally_solved_trace",
+      "madnlp_final_dual_infeasibility": 8.086300336604792e-13,
+      "madnlp_final_iteration": 36,
+      "madnlp_final_primal_infeasibility": 6.344968994653755e-11,
+      "madnlp_minus_ipopt_final_iteration": 2,
+      "madnlp_status": "locally_solved_trace",
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t15_1500.bmopf.json"
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-solver-scaling-cross-solver-v1",
+  "snapshot_pair_count": 2,
+  "source": {
+    "ipopt_summary": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/bmopf_solver_scaling_extension_summary.json",
+    "madnlp_summary": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/bmopf_solver_scaling_extension_madnlp_summary.json",
+    "pairing_policy": "Pair by exact snapshot path; compare trace termination and final residuals descriptively."
+  },
+  "timeout_pair_count": 0
+}

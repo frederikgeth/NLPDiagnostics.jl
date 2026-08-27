@@ -2834,6 +2834,32 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
+    solver_scaling_madnlp = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_solver_scaling_extension_madnlp_summary.json"), String,
+    ))
+    @test solver_scaling_madnlp["schema_version"] ==
+          "nlpdiagnostics-bmopf-solver-scaling-extension-v1"
+    @test solver_scaling_madnlp["record_count"] == 2
+    @test solver_scaling_madnlp["solved_count"] == 2
+    @test solver_scaling_madnlp["timeout_count"] == 0
+    @test solver_scaling_madnlp["incomplete_count"] == 0
+    @test all(record["solver"] == "madnlp" for record in solver_scaling_madnlp["records"])
+    cross_solver_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_solver_scaling_cross_solver.jl"), String,
+    )
+    @test Meta.parseall(cross_solver_script) isa Expr
+    @test occursin("Pair by exact snapshot path", cross_solver_script)
+    cross_solver_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_solver_scaling_cross_solver_summary.json"), String,
+    ))
+    @test cross_solver_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-solver-scaling-cross-solver-v1"
+    @test cross_solver_summary["snapshot_pair_count"] == 2
+    @test cross_solver_summary["both_solved_pair_count"] == 2
+    @test cross_solver_summary["timeout_pair_count"] == 0
+    @test occursin("bmopf_solver_scaling_cross_solver_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     rank_perturbation_script = read(
         joinpath(benchmark_directory, "calibrate_rank_perturbation_sweep.jl"),
         String,

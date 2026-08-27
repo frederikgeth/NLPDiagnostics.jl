@@ -83,11 +83,16 @@
         "docs/runtime_scaling_readiness_summary.json",
         "docs/bmopf_solver_scaling_readiness_summary.json",
         "docs/bmopf_solver_scaling_extension_plan.json",
+        "docs/bmopf_solver_scaling_extension_summary.json",
+        "docs/bmopf_solver_scaling_extension_madnlp_summary.json",
+        "docs/bmopf_solver_scaling_cross_solver_summary.json",
         "benchmarks/summarize_bmopf_solver_scaling_readiness.jl",
-        "benchmarks/plan_bmopf_solver_scaling_extension.jl"
+        "benchmarks/plan_bmopf_solver_scaling_extension.jl",
+        "benchmarks/summarize_bmopf_solver_scaling_extension.jl",
+        "benchmarks/summarize_bmopf_solver_scaling_cross_solver.jl"
       ],
       "id": "runtime_memory_scaling",
-      "next_deliverable": "Decide whether a second solver or larger guarded case is justified, then extend the readiness ledger with accepted measurements.",
+      "next_deliverable": "Extend the solver ladder with a larger guarded case or allocator-level telemetry before making a runtime-scaling claim.",
       "priority": 3,
       "status": "partial"
     },
@@ -141,7 +146,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "63fa4d409d1cdd007d4f5ea233ef00418698866d",
+    "git_revision": "20a03961f3a4eee44706666ee64d8ecbeea10fe7",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

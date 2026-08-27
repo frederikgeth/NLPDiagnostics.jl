@@ -1,0 +1,78 @@
+{
+  "all_processes_completed": true,
+  "all_trace_points_complete": true,
+  "environment": {
+    "git_revision": "20a03961f3a4eee44706666ee64d8ecbeea10fe7",
+    "git_worktree_dirty": false,
+    "julia_version": "1.12.6"
+  },
+  "incomplete_count": 0,
+  "interpretation": "Both planned 11,028-variable Ipopt children completed with callback-point traces and no process timeout. The resource-aware trace stage skipped post-solve profiling; this is solver-work evidence, not allocator-level memory or a complexity law.",
+  "model_variable_counts": [
+    11028
+  ],
+  "next_action": "Add the measured records to the solver-scaling readiness ledger and decide whether a larger or second-solver run is justified.",
+  "record_count": 2,
+  "records": [
+    {
+      "final_dual_infeasibility": 3.0745184176339535e-11,
+      "final_iteration": 27,
+      "final_objective": -1005.6700076307943,
+      "final_primal_infeasibility": 3.168992845914431e-14,
+      "id": "ENWLsnapshots__538bus_LG__538bus_LG_t15_1500",
+      "model_variable_count": 11028,
+      "point_binding_coverage": {
+        "complete_point_count": 0,
+        "incomplete_point_count": 0,
+        "selector_counts": {}
+      },
+      "process_exit_code": 0,
+      "process_log": "ENWLsnapshots__538bus_LG__538bus_LG_t15_1500.process.log",
+      "process_timeout": false,
+      "profile_skip_reason": "profile_stage_trace_only",
+      "profile_stage": "trace",
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t15_1500.bmopf.json",
+      "solved": true,
+      "solver": "madnlp",
+      "status": "locally_solved_trace",
+      "trace_record_count": 28
+    },
+    {
+      "final_dual_infeasibility": 8.086300336604792e-13,
+      "final_iteration": 36,
+      "final_objective": -942.6842060524768,
+      "final_primal_infeasibility": 6.344968994653755e-11,
+      "id": "ENWLsnapshots__538bus_LN__538bus_LN_t15_1500",
+      "model_variable_count": 11028,
+      "point_binding_coverage": {
+        "complete_point_count": 0,
+        "incomplete_point_count": 0,
+        "selector_counts": {}
+      },
+      "process_exit_code": 0,
+      "process_log": "ENWLsnapshots__538bus_LN__538bus_LN_t15_1500.process.log",
+      "process_timeout": false,
+      "profile_skip_reason": "profile_stage_trace_only",
+      "profile_stage": "trace",
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t15_1500.bmopf.json",
+      "solved": true,
+      "solver": "madnlp",
+      "status": "locally_solved_trace",
+      "trace_record_count": 37
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-solver-scaling-extension-v1",
+  "solved_count": 2,
+  "source": {
+    "declared_timeout_seconds": 180.0,
+    "launcher": "benchmarks/launch_bmopf_solver_trace.jl",
+    "profile_policy": "trace-only; post-solve profiling may be skipped by the resource budget",
+    "run_directory": "/private/tmp/nlpdiag-538-solver-extension-madnlp",
+    "solver_options": {
+      "max_iter": 50,
+      "print_level": 0
+    },
+    "summarizer": "benchmarks/summarize_bmopf_solver_scaling_extension.jl"
+  },
+  "timeout_count": 0
+}
