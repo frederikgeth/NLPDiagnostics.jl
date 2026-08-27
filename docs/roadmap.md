@@ -6594,3 +6594,10 @@ paired local solve only at 0.25; all three higher multipliers are paired
 demand bracket, not a physical threshold. The next useful experiment is to
 repeat the bracket with an independently reviewed solver/guard or to capture
 residual progress at these points.
+
+The two-point boundary was also checked with MadNLP. The new consistency
+validator compares the Ipopt and MadNLP artifacts directly: both classify
+0.25 as the paired local-solve point and 0.30 as outside local-solve
+acceptance, although their non-success termination labels differ
+(`LOCALLY_INFEASIBLE` versus `ITERATION_LIMIT`). This supports a shared
+fixture boundary, not solver equivalence or a universal demand threshold.

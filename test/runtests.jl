@@ -3226,6 +3226,23 @@ end
     @test occursin("bmopf_combined_mv_lv_madnlp_boundary_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    consistency_script = read(
+        joinpath(benchmark_directory, "validate_bmopf_combined_mv_lv_solver_boundary_consistency.jl"), String,
+    )
+    @test Meta.parseall(consistency_script) isa Expr
+    @test occursin("boundary_agreement", consistency_script)
+    consistency = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_solver_boundary_consistency_summary.json"), String,
+    ))
+    @test consistency["schema_version"] ==
+          "nlpdiagnostics-bmopf-combined-mv-lv-solver-boundary-consistency-v1"
+    @test consistency["status"] == "pass"
+    @test consistency["solvers"] == ["Ipopt", "MadNLP"]
+    @test consistency["multipliers"] == [0.25, 0.3]
+    @test consistency["agreement_count"] == 2
+    @test occursin("bmopf_combined_mv_lv_solver_boundary_consistency_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     child_transfer_script = read(
         joinpath(benchmark_directory, "run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl"), String,
     )

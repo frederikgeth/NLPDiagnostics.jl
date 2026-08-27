@@ -1,0 +1,46 @@
+{
+  "agreement_count": 2,
+  "failure_count": 0,
+  "failures": [],
+  "interpretation": "This validates shared boundary classification across two local solver backends. It does not establish solver equivalence, superiority, a physical threshold, or hard convergence beyond recorded statuses.",
+  "multipliers": [
+    0.25,
+    0.3
+  ],
+  "rows": [
+    {
+      "boundary_agreement": true,
+      "ipopt_hard_locally_solved": true,
+      "ipopt_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ],
+      "load_multiplier": 0.25,
+      "madnlp_hard_locally_solved": true,
+      "madnlp_termination_statuses": [
+        "LOCALLY_SOLVED",
+        "LOCALLY_SOLVED"
+      ]
+    },
+    {
+      "boundary_agreement": true,
+      "ipopt_hard_locally_solved": false,
+      "ipopt_termination_statuses": [
+        "LOCALLY_INFEASIBLE",
+        "LOCALLY_INFEASIBLE"
+      ],
+      "load_multiplier": 0.3,
+      "madnlp_hard_locally_solved": false,
+      "madnlp_termination_statuses": [
+        "ITERATION_LIMIT",
+        "ITERATION_LIMIT"
+      ]
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-solver-boundary-consistency-v1",
+  "solvers": [
+    "Ipopt",
+    "MadNLP"
+  ],
+  "status": "pass"
+}
