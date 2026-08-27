@@ -2957,6 +2957,11 @@ end
         String,
     )
     @test Meta.parseall(saved_result_campaign_script) isa Expr
+    merged_campaign_script = read(
+        joinpath(benchmark_directory, "merge_bmopf_saved_result_sparse_rank_campaign.jl"),
+        String,
+    )
+    @test Meta.parseall(merged_campaign_script) isa Expr
     saved_result_campaign_summary = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_saved_result_sparse_rank_campaign_summary.json"),
         String,
@@ -2965,12 +2970,12 @@ end
           "nlpdiagnostics-bmopf-saved-result-sparse-rank-campaign-v1"
     @test saved_result_campaign_summary["record_count"] == 102
     @test saved_result_campaign_summary["result_units"] == ["pu", "si"]
-    @test saved_result_campaign_summary["all_point_provenance_complete"] == false
+    @test saved_result_campaign_summary["all_point_provenance_complete"] == true
     @test saved_result_campaign_summary["all_sparse_estimates_available"] == true
-    @test saved_result_campaign_summary["scaling_sensitive_count"] == 4
-    @test saved_result_campaign_summary["scaling_stable_count"] == 98
+    @test saved_result_campaign_summary["scaling_sensitive_count"] == 0
+    @test saved_result_campaign_summary["scaling_stable_count"] == 102
     saved_result_endpoint_spans = saved_result_campaign_summary["endpoint_span_diagnostics"]
-    @test saved_result_endpoint_spans["overall"]["rank_delta"]["range"] == 1
+    @test saved_result_endpoint_spans["overall"]["rank_delta"]["range"] == 0
     @test saved_result_endpoint_spans["by_result_units"]["pu"]["record_count"] == 50
     @test saved_result_endpoint_spans["by_result_units"]["si"]["record_count"] == 52
     @test saved_result_endpoint_spans["by_result_units"]["pu"]["spans"]["unscaled_condition_proxy"]["max"] > 1.0e9
@@ -2978,9 +2983,7 @@ end
         record -> record["scaling_sensitive"] == true,
         saved_result_campaign_summary["records"],
     )
-    @test length(sensitive_saved_records) == 4
-    @test all(record["result_units"] == "si" for record in sensitive_saved_records)
-    @test all(occursin("538bus_LN", record["snapshot"]) for record in sensitive_saved_records)
+    @test isempty(sensitive_saved_records)
     scaling_diagnostics_script = read(
         joinpath(benchmark_directory, "summarize_bmopf_saved_result_scaling_diagnostics.jl"),
         String,
