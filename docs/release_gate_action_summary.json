@@ -125,6 +125,8 @@
         "docs/bmopf_analyze_external_peak_probe_clean_summary.json",
         "docs/bmopf_analyze_external_peak_portability_summary.json",
         "docs/bmopf_analyze_allocator_telemetry_summary.json",
+        "docs/bmopf_analyze_allocator_telemetry_clean_summary.json",
+        "docs/bmopf_analyze_allocator_telemetry_portability_summary.json",
         "docs/analyze_scaling_readiness_summary.json",
         "docs/analyze_static_optimization_ab_summary.json",
         "docs/analyze_static_optimization_generalization_summary.json",
@@ -132,7 +134,8 @@
         "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json",
         "benchmarks/probe_bmopf_analyze_external_peak.jl",
         "benchmarks/compare_bmopf_analyze_external_peak.jl",
-        "benchmarks/probe_bmopf_analyze_allocator_telemetry.jl"
+        "benchmarks/probe_bmopf_analyze_allocator_telemetry.jl",
+        "benchmarks/compare_bmopf_analyze_allocator_telemetry.jl"
       ],
       "id": "analyze_runtime_scaling",
       "next_deliverable": "Review the matched two-environment OS peak candidate and current-allocation stage telemetry, then obtain peak-capable allocator telemetry before making a portable runtime or memory claim.",
@@ -170,7 +173,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "fe2cf9c74bac4aa55c486f8fd52ef529a31cb3ba",
+    "git_revision": "89322430ed0deee1fb88c89c43cc491f23845fea",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
