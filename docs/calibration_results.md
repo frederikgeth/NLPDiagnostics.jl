@@ -4,6 +4,26 @@ This document records bounded empirical results that have passed the current
 artifact/readiness checks. It is not a leaderboard and does not convert local
 solver behavior into a physical diagnosis.
 
+## 2026-08-27: declared numerical-rank policy boundary
+
+The rank calibration ledger now separates three cases. Hard controls are
+required to match the declared policy and currently have 49/49 matches with no
+unavailable backend results. Near-threshold controls are reported as
+`threshold_policy_sensitivity` when dense SVD and sparse QR disagree; the
+current corpus contains 26 such controls and nine disagreements. These are not
+treated as algebraic-rank failures, and no tolerance is widened to force an
+agreement. Sparse QR remains the guarded evidence path for large models, while
+dense SVD is used only where the explicit work guard permits it. The
+`normal_eigen` path remains an experimental cross-check because its
+normal-equations spectrum and policy disagreements are not an independent
+production rank certificate.
+
+This boundary is recorded in
+`docs/rank_threshold_disagreement_summary.json`. A release decision therefore
+requires either explicit acceptance of this policy boundary or a separately
+vetted independent backend; the classification itself does not change defaults
+or promote threshold-sensitive observations into physical conclusions.
+
 ## 2026-08-26: reviewed normal-eigen third-backend calibration
 
 `RankPolicy(backend = :normal_eigen)` now provides a guarded third numerical

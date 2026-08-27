@@ -3011,6 +3011,9 @@ end
     @test threshold_disagreement_summary["hard_control_unavailable_count"] == 0
     @test threshold_disagreement_summary["threshold_sensitive_count"] == 26
     @test threshold_disagreement_summary["threshold_backend_disagreement_count"] == 9
+    calibration_results = read(joinpath(repository_root, "docs", "calibration_results.md"), String)
+    @test occursin("declared numerical-rank policy boundary", calibration_results)
+    @test occursin("threshold_policy_sensitivity", calibration_results)
     sensitive_saved_records = filter(
         record -> record["scaling_sensitive"] == true,
         saved_result_campaign_summary["records"],

@@ -55,6 +55,7 @@
         "docs/rank_adversarial_extension_summary.json",
         "docs/rank_calibration_statistics_summary.json",
         "docs/rank_threshold_disagreement_summary.json",
+        "docs/calibration_results.md",
         "benchmarks/summarize_rank_threshold_disagreements.jl",
         "docs/rank_third_backend_capability_summary.json",
         "benchmarks/validate_rank_third_backend.jl",

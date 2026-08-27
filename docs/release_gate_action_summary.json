@@ -43,7 +43,7 @@
         "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Document the declared threshold policy or add a vetted independent backend for the nine classified near-threshold disagreements.",
+      "next_deliverable": "Review and approve the declared threshold-policy boundary, or add a vetted independent backend for the nine near-threshold disagreements.",
       "priority": 1,
       "status": "partial"
     },
@@ -134,7 +134,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "3bf4a50b01f538dc2e8213fc47e5836a61a9db54",
+    "git_revision": "5af0557f802b84e0587e69d15023a25dbed315fd",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
