@@ -3102,15 +3102,15 @@ end
         joinpath(benchmark_directory, "bmopf_combined_mv_lv_transfer_budget_sweep.jl"), String,
     )
     @test Meta.parseall(transfer_budget_sweep_script) isa Expr
-    @test occursin("50,100,200", transfer_budget_sweep_script)
+    @test occursin("50,100,200,400", transfer_budget_sweep_script)
     transfer_budget_sweep = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_combined_mv_lv_transfer_budget_sweep_summary.json"), String,
     ))
     @test transfer_budget_sweep["status"] == "completed"
-    @test transfer_budget_sweep["budgets"] == [50, 100, 200]
-    @test transfer_budget_sweep["completed_count"] == 3
-    @test transfer_budget_sweep["native_record_count"] == 3
-    @test transfer_budget_sweep["transfer_record_count"] == 3
+    @test transfer_budget_sweep["budgets"] == [50, 100, 200, 400]
+    @test transfer_budget_sweep["completed_count"] == 4
+    @test transfer_budget_sweep["native_record_count"] == 4
+    @test transfer_budget_sweep["transfer_record_count"] == 4
     child_transfer_script = read(
         joinpath(benchmark_directory, "run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl"), String,
     )

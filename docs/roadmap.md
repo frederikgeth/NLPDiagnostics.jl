@@ -6552,3 +6552,8 @@ classifying whether the termination class changes. The normalized artifact is
 This is deliberately a convergence-boundary experiment: even a completed
 sweep with unchanged `ITERATION_LIMIT` statuses does not establish hard
 feasibility or a production scaling policy.
+
+The follow-up extends the default ladder through 400 iterations. A stable
+`LOCALLY_INFEASIBLE` classification at the upper budgets would narrow the
+interpretation toward an infeasible-start boundary rather than merely an
+iteration ceiling; it still would not establish a converged feasible OPF.

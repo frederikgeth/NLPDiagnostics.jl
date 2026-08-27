@@ -14,7 +14,7 @@ const OUTPUT = abspath(get(ENV, "NLPDIAGNOSTICS_COMBINED_MV_LV_SWEEP_OUTPUT",
     joinpath(ROOT, "docs", "bmopf_combined_mv_lv_transfer_budget_sweep_summary.json")))
 
 function budgets()
-    raw = split(get(ENV, "NLPDIAGNOSTICS_COMBINED_MV_LV_SWEEP_BUDGETS", "50,100,200"), ',')
+    raw = split(get(ENV, "NLPDIAGNOSTICS_COMBINED_MV_LV_SWEEP_BUDGETS", "50,100,200,400"), ',')
     values = try parse.(Int, strip.(raw)) catch; error("sweep budgets must be comma-separated integers") end
     all(value -> value > 0, values) || error("sweep budgets must be positive")
     return unique(values)
