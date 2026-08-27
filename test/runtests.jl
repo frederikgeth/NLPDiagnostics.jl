@@ -3699,17 +3699,18 @@ end
     )
     @test Meta.parseall(ownership_review_script) isa Expr
     @test occursin("retain_root_compatibility", ownership_review_script)
+    @test occursin("prior_output", ownership_review_script)
     ownership_review_summary = JSON.parse(read(
         joinpath(repository_root, "docs", "api_ownership_decision_summary.json"),
         String,
     ))
     @test ownership_review_summary["schema_version"] ==
           "nlpdiagnostics-api-ownership-decisions-v1"
-    @test ownership_review_summary["reviewed_count"] == 92
-    @test ownership_review_summary["root_compatibility_retained_count"] == 44
-    @test ownership_review_summary["advanced_candidate_count"] == 48
+    @test ownership_review_summary["reviewed_count"] == 116
+    @test ownership_review_summary["root_compatibility_retained_count"] == 61
+    @test ownership_review_summary["advanced_candidate_count"] == 55
     @test ownership_review_summary["migration_allowed_count"] == 0
-    @test ownership_review_summary["batch_summary"]["prior_reviewed_count"] == 68
+    @test ownership_review_summary["batch_summary"]["prior_reviewed_count"] == 92
     @test ownership_review_summary["batch_summary"]["next_batch_count"] == 24
     @test ownership_review_summary["batch_summary"]["next_batch_reviewed_count"] == 24
     @test occursin("api_ownership_decision_summary.json", read(

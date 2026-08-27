@@ -13,6 +13,8 @@ using .NLPDiagnosticsBenchmarkCommon
 
 const ROOT = repo_root()
 const INPUT = "docs/api_tier_usage_summary.json"
+const PRIOR_OUTPUT = "docs/api_ownership_decision_summary.json"
+const NEXT_BATCH_LABEL = "next_bounded_batch_2026-08-27_tranche_2"
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "api_ownership_decision_summary.json") : ARGS[1])
 
@@ -360,6 +362,12 @@ const REVIEW_DECISIONS = Dict{String,Dict{String,Any}}(
 )
 
 queue = read_summary(INPUT)["queue"]
+prior_rows = if isfile(joinpath(ROOT, PRIOR_OUTPUT))
+    prior = read_summary(PRIOR_OUTPUT)
+    get(prior, "rows", Any[])
+else
+    Any[]
+end
 rows = Dict{String,Any}[]
 for (name, decision) in REVIEW_DECISIONS
     matches = filter(row -> get(row, "name", "") == name, queue)
@@ -380,11 +388,20 @@ for (name, decision) in REVIEW_DECISIONS
 end
 sort!(rows; by = row -> row["name"])
 
+# Preserve the prior reviewed ledger so each invocation advances the queue
+# instead of re-selecting the same bounded tranche.
+reviewed_names = Set(row["name"] for row in rows)
+for prior in prior_rows
+    name = get(prior, "name", "")
+    isempty(name) || name in reviewed_names || (push!(rows, prior); push!(reviewed_names, name))
+end
+sort!(rows; by = row -> row["name"])
+
 # Continue the review in a deterministic, bounded tranche.  The proposal is a
 # disposition review only: no export is promoted, moved, deprecated, or
 # removed.  Priority follows observed repository usage, then reference count,
 # so the next tranche is reproducible as the queue evolves.
-reviewed_names = Set(row["name"] for row in rows)
+baseline_reviewed_names = Set(row["name"] for row in rows)
 priority_order = Dict(
     "test_and_benchmark_usage" => 1,
     "test_usage" => 2,
@@ -419,7 +436,7 @@ for source in next_batch
             "proposed_disposition" => source["proposed_disposition"],
             "migration_allowed" => false,
             "review_status" => "reviewed_local_next_batch",
-            "review_batch" => "next_bounded_batch_2026-08-27",
+            "review_batch" => NEXT_BATCH_LABEL,
         ),
         decision,
     ))
@@ -431,7 +448,8 @@ write_json(OUTPUT, Dict{String,Any}(
     "source" => Dict{String,Any}(
         "runner" => "benchmarks/review_api_ownership_decisions.jl",
         "input" => INPUT,
-        "selection_policy" => "Previously reviewed high-impact names plus the next 24 unreviewed queue entries ordered by usage priority, reference count, and name; this bounded review does not represent the full queue.",
+        "prior_output" => PRIOR_OUTPUT,
+        "selection_policy" => "Previously reviewed high-impact names plus prior ledger rows and the next 24 unreviewed queue entries ordered by usage priority, reference count, and name; this bounded review does not represent the full queue.",
         "migration_policy" => "No export is moved, deprecated, or removed by this ledger.",
     ),
     "environment" => Dict{String,Any}(
@@ -445,11 +463,11 @@ write_json(OUTPUT, Dict{String,Any}(
     "advanced_candidate_count" => count(row -> row["decision"] == "advanced_candidate_review", rows),
     "migration_allowed_count" => count(row -> row["migration_allowed"], rows),
     "batch_summary" => Dict{String,Any}(
-        "prior_reviewed_count" => length(reviewed_names),
+        "prior_reviewed_count" => length(baseline_reviewed_names),
         "next_batch_count" => length(next_batch),
-        "next_batch_reviewed_count" => count(row -> get(row, "review_batch", "") == "next_bounded_batch_2026-08-27", rows),
-        "next_batch_advanced_candidate_count" => count(row -> get(row, "review_batch", "") == "next_bounded_batch_2026-08-27" && row["decision"] == "advanced_candidate_review", rows),
-        "next_batch_root_compatibility_count" => count(row -> get(row, "review_batch", "") == "next_bounded_batch_2026-08-27" && row["decision"] == "retain_root_compatibility", rows),
+        "next_batch_reviewed_count" => count(row -> get(row, "review_batch", "") == NEXT_BATCH_LABEL, rows),
+        "next_batch_advanced_candidate_count" => count(row -> get(row, "review_batch", "") == NEXT_BATCH_LABEL && row["decision"] == "advanced_candidate_review", rows),
+        "next_batch_root_compatibility_count" => count(row -> get(row, "review_batch", "") == NEXT_BATCH_LABEL && row["decision"] == "retain_root_compatibility", rows),
     ),
     "rows" => rows,
     "next_actions" => [

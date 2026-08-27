@@ -6221,3 +6221,19 @@ investigation with an explicit release boundary rather than an implicit gap.
 If a portable memory statement is required later, the next evidence must come
 from a peak-capable allocator measurement on a reviewed host; otherwise the
 boundary should remain in release documentation.
+
+## 2026-08-27 API ownership tranche 2
+
+The ownership review now persists its prior ledger and advances the next
+deterministic 24-name queue tranche instead of re-selecting the earlier batch.
+`benchmarks/review_api_ownership_decisions.jl` carries forward the 92 prior
+decisions and adds 24 new local dispositions, bringing the reviewed queue to
+116 names: 61 retain root compatibility and 55 remain Advanced candidates.
+Seven of the new names are Advanced candidates and 17 retain root
+compatibility; automatic migration remains disabled.
+
+The updated artifact is
+`docs/api_ownership_decision_summary.json`. This closes another bounded
+consolidation increment without changing exports or type identity. The
+remaining root-only queue still requires similarly bounded review and explicit
+owner approval before any namespace move.
