@@ -2979,6 +2979,24 @@ end
     @test saved_result_endpoint_spans["by_result_units"]["pu"]["record_count"] == 50
     @test saved_result_endpoint_spans["by_result_units"]["si"]["record_count"] == 52
     @test saved_result_endpoint_spans["by_result_units"]["pu"]["spans"]["unscaled_condition_proxy"]["max"] > 1.0e9
+    t15_t16_tranche_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_t15t16_tranche.jl"), String,
+    )
+    @test Meta.parseall(t15_t16_tranche_script) isa Expr
+    @test occursin("nlpdiagnostics-bmopf-t15-t16-tranche-v1", t15_t16_tranche_script)
+    t15_t16_tranche_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_t15_t16_tranche_summary.json"), String,
+    ))
+    @test t15_t16_tranche_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-t15-t16-tranche-v1"
+    @test t15_t16_tranche_summary["endpoint_count"] == 8
+    @test t15_t16_tranche_summary["snapshot_count"] == 4
+    @test t15_t16_tranche_summary["paired_snapshot_count"] == 4
+    @test t15_t16_tranche_summary["mapping_complete_endpoint_count"] == 8
+    @test t15_t16_tranche_summary["unit_dependent_rank_outcome_count"] == 0
+    @test t15_t16_tranche_summary["scaling_sensitive_endpoint_count"] == 0
+    @test t15_t16_tranche_summary["all_mapping_complete"] == true
+    @test t15_t16_tranche_summary["all_sparse_estimates_available"] == true
     sensitive_saved_records = filter(
         record -> record["scaling_sensitive"] == true,
         saved_result_campaign_summary["records"],

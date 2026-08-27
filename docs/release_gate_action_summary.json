@@ -33,6 +33,8 @@
         "benchmarks/validate_bmopf_rerun_candidates.jl",
         "docs/bmopf_promoted_sparse_rank_summary.json",
         "benchmarks/summarize_bmopf_promoted_sparse_rank.jl",
+        "docs/bmopf_t15_t16_tranche_summary.json",
+        "benchmarks/summarize_bmopf_t15t16_tranche.jl",
         "docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
         "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl",
         "docs/bmopf_saved_result_scaling_diagnostics_summary.json",
@@ -130,8 +132,8 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "ad8c73bebc7027399a28a428326bb9c640948103",
-    "git_worktree_dirty": false,
+    "git_revision": "77a771b0e712d3510039d98fc59c6c4da6c13a37",
+    "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {
