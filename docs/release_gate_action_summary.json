@@ -39,7 +39,7 @@
         "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Reconcile the full 538-bus campaign with the refreshed canonical SI profiles, then classify any remaining rank-policy or threshold disagreements.",
+      "next_deliverable": "Extend the reconciled 538-bus campaign with the reviewed t15/t16 tranche, then classify any remaining rank-policy or threshold disagreements.",
       "priority": 1,
       "status": "partial"
     },
@@ -130,8 +130,8 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "44a2f19fc0427b90a921491e4c62841b10b10e44",
-    "git_worktree_dirty": true,
+    "git_revision": "ad8c73bebc7027399a28a428326bb9c640948103",
+    "git_worktree_dirty": false,
     "julia_version": "1.12.6"
   },
   "interpretation": {
