@@ -2502,6 +2502,7 @@ end
     @test occursin("bmopf_practical_application_success", release_report)
     @test occursin("bmopf_voltage_level_series_solver_campaign", release_report)
     @test occursin("bmopf_voltage_level_series_feasibility_sweep", release_report)
+    @test occursin("bounded ownership queue is complete at 539/539", release_report)
     release_gate_builder = read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
