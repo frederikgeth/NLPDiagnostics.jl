@@ -5992,3 +5992,20 @@ than allocator-level peak telemetry, and no portability claim follows. The
 next deliverable is instrumentation independent of `Sys.maxrss`, followed by a
 review of whether the staged-context start transfer should become a stable
 BMOPFTools API.
+
+## 2026-08-27 Darwin allocator telemetry probe
+
+The fresh-child runner now also calls Darwin's `malloc_zone_statistics` around
+the full relaxed-plus-hard transfer workload. Allocator current bytes are
+available in both repetitions: the increase in `size_allocated` ranges from
+about 1.57 to 1.71 GB, and the increase in `size_in_use` is retained per child.
+The allocator's `max_size_in_use` field reports zero in this Julia process, so
+allocator peak availability is explicitly recorded as false rather than
+treated as a peak measurement.
+
+This closes the environment-capability investigation and improves the resource
+ledger from RSS-only to RSS plus allocator-current deltas. The artifact is
+`docs/bmopf_combined_mv_lv_feasibility_start_transfer_isolated_summary.json`.
+The next deliverable is stage-level or peak-capable allocator instrumentation,
+followed by a review of whether the staged-context start transfer warrants a
+stable BMOPFTools API; hard-OPF convergence remains open.

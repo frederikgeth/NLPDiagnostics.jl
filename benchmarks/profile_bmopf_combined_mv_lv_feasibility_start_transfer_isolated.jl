@@ -61,6 +61,16 @@ peak_rss = [
     for record in measured
     if get(record, "child_peak_rss_bytes", nothing) isa Real
 ]
+allocator_deltas = [
+    Int(record["allocator_telemetry"]["current_size_allocated_delta_bytes"])
+    for record in measured
+    if get(record, "allocator_telemetry", nothing) isa AbstractDict &&
+       get(record["allocator_telemetry"], "current_size_allocated_delta_bytes", nothing) isa Real
+]
+allocator_available_count = count(
+    record -> get(get(record, "allocator_telemetry", Dict()), "peak_available", false),
+    measured,
+)
 status_entries = git_status_entries()
 write_json(output, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-isolated-v1",
@@ -81,6 +91,9 @@ write_json(output, Dict{String,Any}(
     "record_count" => length(records),
     "measured_count" => length(measured),
     "peak_rss_bytes_range" => isempty(peak_rss) ? Any[] : [minimum(peak_rss), maximum(peak_rss)],
+    "allocator_peak_available_count" => allocator_available_count,
+    "allocator_size_allocated_delta_bytes_range" => isempty(allocator_deltas) ? Any[] :
+        [minimum(allocator_deltas), maximum(allocator_deltas)],
     "records" => records,
     "interpretation" => Dict(
         "claim" => "Fresh-child local Sys.maxrss high-water observations for the full combined MV/LV feasibility-start transfer benchmark.",

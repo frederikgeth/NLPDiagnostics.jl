@@ -29,7 +29,7 @@ const ACTIONS = Dict{String,Dict{String,Any}}(
     ),
     "runtime_memory_scaling" => Dict(
         "priority" => 3,
-        "next_deliverable" => "Replace the fresh-child Sys.maxrss proxy with allocator-level peak telemetry, then review a stable BMOPFTools voltage-start transfer API.",
+        "next_deliverable" => "Extend the Darwin allocator probe to stage-level or peak-capable instrumentation, then review a stable BMOPFTools voltage-start transfer API.",
         "closure_condition" => "Solver-workload scaling and peak-memory measurements are repeatable under explicit size and process guards, or remain explicitly unavailable with a reviewed release boundary.",
         "dependency" => "Use isolated child processes and retain resource skips; do not extrapolate synthetic sparse behavior.",
     ),

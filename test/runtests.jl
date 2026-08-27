@@ -2988,6 +2988,10 @@ end
     @test isolated_transfer["record_count"] == 2
     @test isolated_transfer["measured_count"] == 2
     @test length(isolated_transfer["peak_rss_bytes_range"]) == 2
+    @test isolated_transfer["allocator_peak_available_count"] == 0
+    @test length(isolated_transfer["allocator_size_allocated_delta_bytes_range"]) == 2
+    @test all(record["allocator_telemetry"]["after"]["available"] == true for record in isolated_transfer["records"])
+    @test all(record["allocator_telemetry"]["peak_available"] == false for record in isolated_transfer["records"])
     @test all(record["isolated_process"] == true for record in isolated_transfer["records"])
     @test all(record["child_peak_rss_bytes"] > 0 for record in isolated_transfer["records"])
     @test all(record["status"] == "bounded_hard_opf_start_transfer" for record in isolated_transfer["records"])
