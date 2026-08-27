@@ -6436,3 +6436,16 @@ migration remains disabled.
 The updated artifact is
 `docs/api_ownership_decision_summary.json`. Remaining root-only names continue
 to require bounded review and explicit owner approval before namespace moves.
+
+## 2026-08-27 API ownership tranche 19
+
+The bounded API ownership ledger is now complete for the 539-name root-only
+queue. This final deterministic batch carried forward 524 decisions and added
+15 decisions: 14 retain root compatibility and 1 is an Advanced candidate.
+The ledger now records 437 root-compatible names and 102 Advanced candidates;
+exports, aliases, and type identities are unchanged, and automatic migration
+remains disabled.
+
+The updated artifact is
+`docs/api_ownership_decision_summary.json`. Any future namespace move requires
+explicit owner approval and a separately versioned compatibility plan.
