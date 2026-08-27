@@ -26,12 +26,23 @@
   },
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "6bdf7f378077e13bfbae01442800b1217f8b7d87",
+    "git_revision": "6b64c23272b7e9483c5457cb7bd0bf19eac671c9",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
+  "external_peak_probe": {
+    "available": true,
+    "case": "pf_1ph_line.dss",
+    "child_process_maxrss_after_bytes": 2146893824,
+    "child_status": "completed_with_external_tool_error",
+    "claim": "An independent OS-level peak RSS observation is available for one fresh analyze child on the local host; it is not allocator-level or portable evidence.",
+    "external_peak_rss_bytes": 2151202816,
+    "external_peak_rss_minus_child_after_bytes": 4308992,
+    "status": "peak_telemetry_available",
+    "tool": "getrusage(RUSAGE_CHILDREN)"
+  },
   "interpretation": {
-    "claim": "Bounded analyze workloads now include sparse, mixed-density affine, nonlinear, and reviewed BMOPFTools combined MV+LV feeder snapshots with stable findings; the affine-row cache A/B preserves semantics but is neutral to slightly slower locally; all claims remain guarded local evidence.",
+    "claim": "Bounded analyze workloads now include sparse, mixed-density affine, nonlinear, and reviewed BMOPFTools combined MV+LV feeder snapshots with stable findings; an independent OS-level peak probe is available for one representative child; the affine-row cache A/B preserves semantics but is neutral to slightly slower locally; all claims remain guarded local evidence.",
     "does_not_establish": [
       "a production or asymptotic complexity law",
       "allocator-level peak memory behavior",
@@ -52,7 +63,7 @@
   "open_gaps": [
     {
       "id": "portable_analyze_memory",
-      "next_evidence": "review the matched second-environment analyze comparison and add allocator-level peak telemetry before making a portable memory claim"
+      "next_evidence": "review the matched second-environment analyze comparison and add allocator-level peak telemetry before making a portable memory claim; the independent OS peak probe remains descriptive"
     }
   ],
   "portability_contract": {
@@ -81,6 +92,7 @@
       "docs/analyze_static_target_terms_summary.json",
       "docs/bmopf_analyze_runtime_isolated_summary.json",
       "docs/bmopf_analyze_portability_summary.json",
+      "docs/bmopf_analyze_external_peak_probe_summary.json",
       "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
     ],
     "policy": "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",

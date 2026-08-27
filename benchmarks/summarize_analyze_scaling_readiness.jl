@@ -14,6 +14,7 @@ const GENERALIZATION_INPUT = "docs/analyze_static_optimization_generalization_su
 const TARGET_TERMS_INPUT = "docs/analyze_static_target_terms_summary.json"
 const ISOLATED_MEMORY_INPUT = "docs/bmopf_analyze_runtime_isolated_summary.json"
 const PORTABILITY_INPUT = "docs/bmopf_analyze_portability_summary.json"
+const EXTERNAL_PEAK_INPUT = "docs/bmopf_analyze_external_peak_probe_summary.json"
 const BMOPF_COMBINED_INPUT = "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "analyze_scaling_readiness_summary.json") : ARGS[1])
@@ -26,6 +27,7 @@ optimization_generalization = read_summary(GENERALIZATION_INPUT)
 optimization_target_terms = read_summary(TARGET_TERMS_INPUT)
 isolated_memory = read_summary(ISOLATED_MEMORY_INPUT)
 portability = read_summary(PORTABILITY_INPUT)
+external_peak = read_summary(EXTERNAL_PEAK_INPUT)
 bmopf_combined = read_summary(BMOPF_COMBINED_INPUT)
 
 trend_by_workload = Dict{String,Any}(
@@ -101,7 +103,7 @@ portability_resource_comparison = get(get(portability, "comparison", Dict{String
 
 open_gaps = Dict[
     Dict("id" => "static_stage_candidate_selection", "next_evidence" => "profile a different semantics-preserving static-stage candidate because the affine-row cache A/B is neutral to slightly slower locally"),
-    Dict("id" => "portable_analyze_memory", "next_evidence" => portability_comparison_status == "candidate_requires_review" ? "review the matched second-environment analyze comparison and add allocator-level peak telemetry before making a portable memory claim" : "repeat the isolated analyze profile in a second reviewed environment with allocator-level peak telemetry"),
+    Dict("id" => "portable_analyze_memory", "next_evidence" => portability_comparison_status == "candidate_requires_review" ? "review the matched second-environment analyze comparison and add allocator-level peak telemetry before making a portable memory claim; the independent OS peak probe remains descriptive" : "repeat the isolated analyze profile in a second reviewed environment with allocator-level peak telemetry"),
 ]
 if !combined_snapshot_covered
     pushfirst!(open_gaps, Dict("id" => "larger_combined_mv_lv_analyze", "next_evidence" => "extend the guarded combined MV+LV analyze profile to additional feeders or a reviewed larger snapshot without forcing the full-case memory path"))
@@ -134,7 +136,7 @@ write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-analyze-scaling-readiness-v1",
     "source" => Dict(
         "runner" => "benchmarks/summarize_analyze_scaling_readiness.jl",
-        "artifacts" => [TREND_INPUT, RESOURCE_INPUT, PROFILE_INPUT, AB_INPUT, GENERALIZATION_INPUT, TARGET_TERMS_INPUT, ISOLATED_MEMORY_INPUT, PORTABILITY_INPUT, BMOPF_COMBINED_INPUT],
+        "artifacts" => [TREND_INPUT, RESOURCE_INPUT, PROFILE_INPUT, AB_INPUT, GENERALIZATION_INPUT, TARGET_TERMS_INPUT, ISOLATED_MEMORY_INPUT, PORTABILITY_INPUT, EXTERNAL_PEAK_INPUT, BMOPF_COMBINED_INPUT],
         "policy" => "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",
     ),
     "environment" => Dict(
@@ -206,6 +208,17 @@ write_json(OUTPUT, Dict{String,Any}(
         "comparison_required_for_portable_claim" => get(get(portability, "source", Dict{String,Any}()), "comparison_required_for_portable_claim", true),
         "claim" => portability_comparison_status == "candidate_requires_review" ? "The replay contract validates local provenance and a matched second-environment candidate with semantic status $(get(portability_semantic_comparison, "status", "unavailable")); resource differences are descriptive-only, and allocator-level peak and performance review are still required for portability." : "The replay contract validates local provenance and guard compatibility; a second environment comparison is still required for portability.",
     ),
+    "external_peak_probe" => Dict(
+        "status" => get(external_peak, "status", "unavailable"),
+        "available" => get(external_peak, "status", "") == "peak_telemetry_available",
+        "case" => get(get(external_peak, "source", Dict{String,Any}()), "case", "unknown"),
+        "tool" => get(get(external_peak, "source", Dict{String,Any}()), "tool", nothing),
+        "child_status" => get(external_peak, "child_status", "unknown"),
+        "external_peak_rss_bytes" => get(external_peak, "external_peak_rss_bytes", nothing),
+        "child_process_maxrss_after_bytes" => get(external_peak, "child_process_maxrss_after_bytes", nothing),
+        "external_peak_rss_minus_child_after_bytes" => get(external_peak, "external_peak_rss_minus_child_after_bytes", nothing),
+        "claim" => "An independent OS-level peak RSS observation is available for one fresh analyze child on the local host; it is not allocator-level or portable evidence.",
+    ),
     "bmopf_combined_mv_lv_analyze" => Dict(
         "feeder_count" => length(combined_feeders),
         "feeders" => combined_feeders,
@@ -220,7 +233,7 @@ write_json(OUTPUT, Dict{String,Any}(
     "open_gap_count" => length(open_gaps),
     "open_gaps" => open_gaps,
     "interpretation" => Dict(
-        "claim" => "Bounded analyze workloads now include sparse, mixed-density affine, nonlinear, and reviewed BMOPFTools combined MV+LV feeder snapshots with stable findings; the affine-row cache A/B preserves semantics but is neutral to slightly slower locally; all claims remain guarded local evidence.",
+        "claim" => "Bounded analyze workloads now include sparse, mixed-density affine, nonlinear, and reviewed BMOPFTools combined MV+LV feeder snapshots with stable findings; an independent OS-level peak probe is available for one representative child; the affine-row cache A/B preserves semantics but is neutral to slightly slower locally; all claims remain guarded local evidence.",
         "does_not_establish" => [
             "a production or asymptotic complexity law",
             "allocator-level peak memory behavior",

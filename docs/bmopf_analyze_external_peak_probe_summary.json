@@ -1,0 +1,38 @@
+{
+  "child_analyze_finding_count": 10,
+  "child_error": null,
+  "child_process_maxrss_after_bytes": 2146893824,
+  "child_status": "completed_with_external_tool_error",
+  "child_variable_count": 18,
+  "environment": {
+    "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
+    "architecture": "aarch64",
+    "git_revision": "6b64c23272b7e9483c5457cb7bd0bf19eac671c9",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6",
+    "os": "Darwin"
+  },
+  "external_peak_rss_bytes": 2151202816,
+  "external_peak_rss_minus_child_after_bytes": 4308992,
+  "external_tool_error": "time_wrapper_exit_nonzero (ProcessFailedException)",
+  "interpretation": {
+    "boundary": "The external peak is a process high-water observation; compare it descriptively with the child Sys.maxrss field and do not treat it as allocator telemetry.",
+    "claim": "Independent operating-system peak RSS observation for one fresh analyze child on the local host.",
+    "does_not_establish": [
+      "allocator-level peak or retained-memory behavior",
+      "portable peak memory or performance",
+      "multi-case or solver scaling"
+    ]
+  },
+  "schema_version": "nlpdiagnostics-bmopf-analyze-external-peak-v1",
+  "source": {
+    "case": "pf_1ph_line.dss",
+    "child_runner": "benchmarks/profile_bmopf_analyze_runtime.jl",
+    "max_variables": 24,
+    "project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment",
+    "runner": "benchmarks/probe_bmopf_analyze_external_peak.jl",
+    "tool": "getrusage(RUSAGE_CHILDREN)",
+    "warmup": true
+  },
+  "status": "peak_telemetry_available"
+}

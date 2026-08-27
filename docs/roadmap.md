@@ -6130,3 +6130,24 @@ This closes the bounded resource-comparison increment and identifies the next
 review question: whether the observed differences are acceptable for a local
 release envelope once peak-capable instrumentation is available. No portability
 gate is promoted by this result.
+
+## 2026-08-27 independent analyze peak probe
+
+The new `benchmarks/probe_bmopf_analyze_external_peak.jl` runner executes one
+representative `pf_1ph_line.dss` analyze child under the known benchmark project
+and records an independent operating-system high-water observation. The local
+macOS host reports a peak of `2,151,202,816` bytes through
+`getrusage(RUSAGE_CHILDREN)`; the exact value is kept in
+`docs/bmopf_analyze_external_peak_probe_summary.json` alongside
+`getrusage(RUSAGE_CHILDREN)`, with the child `Sys.maxrss` value retained beside
+it for a descriptive delta. The preferred `/usr/bin/time -l` wrapper is present
+but exits nonzero in this sandbox because its `sysctl` query is denied; the
+runner records that wrapper limitation and uses the OS rusage fallback without
+turning it into an analyze failure.
+
+This closes the independent process-peak capability probe for one fixture. It
+does not establish allocator-level retained memory, portable peak behavior, or
+multi-case/solver scaling. The portability candidate therefore remains
+`candidate_requires_review`; the next runtime action is to repeat the probe in
+the reviewed second environment (and, where available, a peak-capable wrapper)
+before considering any portable memory statement.

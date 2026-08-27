@@ -2705,6 +2705,24 @@ end
     @test portability_data["comparison"]["semantic_comparison"]["mismatch_count"] == 0
     @test portability_data["comparison"]["resource_comparison"]["status"] == "descriptive_only"
     @test portability_data["comparison"]["resource_comparison"]["matched_record_count"] == 6
+    external_peak_script = read(
+        joinpath(benchmark_directory, "probe_bmopf_analyze_external_peak.jl"),
+        String,
+    )
+    @test Meta.parseall(external_peak_script) isa Expr
+    @test occursin("getrusage(RUSAGE_CHILDREN)", external_peak_script)
+    @test occursin("maximum resident set size", external_peak_script)
+    external_peak_summary = read(
+        joinpath(repository_root, "docs", "bmopf_analyze_external_peak_probe_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-bmopf-analyze-external-peak-v1", external_peak_summary)
+    external_peak_data = JSON.parse(external_peak_summary)
+    @test external_peak_data["status"] in ("peak_telemetry_available", "peak_telemetry_unavailable")
+    @test external_peak_data["child_status"] in ("completed", "completed_with_external_tool_error", "failed")
+    if external_peak_data["status"] == "peak_telemetry_available"
+        @test external_peak_data["external_peak_rss_bytes"] > 0
+    end
     analyze_ab_script = read(
         joinpath(benchmark_directory, "profile_analyze_static_optimization_ab.jl"),
         String,
