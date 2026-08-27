@@ -29,7 +29,7 @@ const ACTIONS = Dict{String,Dict{String,Any}}(
     ),
     "runtime_memory_scaling" => Dict(
         "priority" => 3,
-        "next_deliverable" => "Extend the solver ladder with a larger guarded case or allocator-level telemetry before making a runtime-scaling claim.",
+        "next_deliverable" => "Repeat the full-case probe under a reviewed larger iteration budget or add allocator-level peak telemetry before making a production scaling claim.",
         "closure_condition" => "Solver-workload scaling and peak-memory measurements are repeatable under explicit size and process guards, or remain explicitly unavailable with a reviewed release boundary.",
         "dependency" => "Use isolated child processes and retain resource skips; do not extrapolate synthetic sparse behavior.",
     ),

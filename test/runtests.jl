@@ -2860,6 +2860,23 @@ end
     @test occursin("bmopf_solver_scaling_cross_solver_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    combined_large_probe_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_combined_mv_lv_large_probe.jl"), String,
+    )
+    @test Meta.parseall(combined_large_probe_script) isa Expr
+    @test occursin("one-iteration full-case solver startup", combined_large_probe_script)
+    combined_large_probe = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_large_probe_summary.json"), String,
+    ))
+    @test combined_large_probe["schema_version"] ==
+          "nlpdiagnostics-bmopf-combined-mv-lv-large-probe-v1"
+    @test combined_large_probe["model_variable_count"] == 56142
+    @test combined_large_probe["policy_count"] == 3
+    @test combined_large_probe["all_reached_solver"] == true
+    @test combined_large_probe["all_iteration_limited"] == true
+    @test occursin("bmopf_combined_mv_lv_large_probe_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     rank_perturbation_script = read(
         joinpath(benchmark_directory, "calibrate_rank_perturbation_sweep.jl"),
         String,
