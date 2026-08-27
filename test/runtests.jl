@@ -3706,11 +3706,11 @@ end
     ))
     @test ownership_review_summary["schema_version"] ==
           "nlpdiagnostics-api-ownership-decisions-v1"
-    @test ownership_review_summary["reviewed_count"] == 236
-    @test ownership_review_summary["root_compatibility_retained_count"] == 167
+    @test ownership_review_summary["reviewed_count"] == 260
+    @test ownership_review_summary["root_compatibility_retained_count"] == 191
     @test ownership_review_summary["advanced_candidate_count"] == 69
     @test ownership_review_summary["migration_allowed_count"] == 0
-    @test ownership_review_summary["batch_summary"]["prior_reviewed_count"] == 212
+    @test ownership_review_summary["batch_summary"]["prior_reviewed_count"] == 236
     @test ownership_review_summary["batch_summary"]["next_batch_count"] == 24
     @test ownership_review_summary["batch_summary"]["next_batch_reviewed_count"] == 24
     @test occursin("api_ownership_decision_summary.json", read(
