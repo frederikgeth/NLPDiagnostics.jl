@@ -2699,6 +2699,12 @@ end
         String,
     )
     @test occursin("nlpdiagnostics-bmopf-analyze-portability-v1", portability_summary)
+    portability_data = JSON.parse(portability_summary)
+    @test portability_data["portable_evidence_status"] == "candidate_requires_review"
+    @test portability_data["comparison"]["semantic_comparison"]["status"] == "semantics_match"
+    @test portability_data["comparison"]["semantic_comparison"]["mismatch_count"] == 0
+    @test portability_data["comparison"]["resource_comparison"]["status"] == "descriptive_only"
+    @test portability_data["comparison"]["resource_comparison"]["matched_record_count"] == 6
     analyze_ab_script = read(
         joinpath(benchmark_directory, "profile_analyze_static_optimization_ab.jl"),
         String,

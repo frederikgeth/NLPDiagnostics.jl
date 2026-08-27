@@ -26,7 +26,7 @@
   },
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "3b18e8fd13c9378a1c0acf59034a89d3362cd4b2",
+    "git_revision": "6bdf7f378077e13bfbae01442800b1217f8b7d87",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
