@@ -17,7 +17,7 @@ const OUTPUT = abspath(isempty(ARGS) ?
 const ACTIONS = Dict{String,Dict{String,Any}}(
     "numerical_rank_false_positive_negative_statistics" => Dict(
         "priority" => 1,
-        "next_deliverable" => "Reconcile the full 538-bus campaign with the refreshed canonical SI profiles, then classify any remaining rank-policy or threshold disagreements.",
+        "next_deliverable" => "Extend the reconciled 538-bus campaign with the reviewed t15/t16 tranche, then classify any remaining rank-policy or threshold disagreements.",
         "closure_condition" => "Hard-control false-positive/false-negative and unavailable statistics are complete across the declared corpus, backend disagreements are classified rather than silently resolved, and all seven canonical SI files are regenerated and pass the saved-result quality audit (or an explicit exclusion decision is reviewed).",
         "dependency" => "None; this is the highest-priority numerical-algebra track.",
     ),

@@ -5759,3 +5759,13 @@ rank-sensitive records are now rank-stable at 11,028/11,028. The next
 deliverable is to reconcile these refreshed seven records into the complete
 102-record campaign summary and classify any remaining threshold or backend
 disagreements.
+
+## 2026-08-27 campaign reconciliation
+
+The refreshed SI records are now merged into the complete 102-record campaign
+and paired SI/PU diagnostics. The ledger reports 102 scaling-stable records,
+complete point provenance, zero unit-dependent rank outcomes, and zero
+incomplete mappings. This closes the saved-result quality and campaign
+reconciliation boundary without making a universal conditioning claim. The
+next deliverable is the reviewed t15/t16 endpoint tranche, followed by explicit
+classification of any remaining rank-policy or backend threshold disagreements.
