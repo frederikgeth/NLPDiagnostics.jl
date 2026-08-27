@@ -9,7 +9,7 @@
     "max_variables": 60000
   },
   "environment": {
-    "git_revision": "7e644843a74139935131226329c9366e24046ded",
+    "git_revision": "564f2d53ff4f4475c3e2a77bd401e73582f1c0a0",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -33,6 +33,8 @@
       "start_point_status": "available",
       "start_values_applied_count": 56142,
       "start_values_bound_aware_count": 29064,
+      "start_values_missing_count": 29064,
+      "start_values_native_count": 27078,
       "status": "solved_or_bounded",
       "termination_status": "ITERATION_LIMIT",
       "wall_seconds": 31.127119064331055
@@ -52,6 +54,8 @@
       "start_point_status": "available",
       "start_values_applied_count": 56142,
       "start_values_bound_aware_count": 29064,
+      "start_values_missing_count": 29064,
+      "start_values_native_count": 27078,
       "status": "solved_or_bounded",
       "termination_status": "ITERATION_LIMIT",
       "wall_seconds": 22.688431978225708
@@ -71,6 +75,8 @@
       "start_point_status": "available",
       "start_values_applied_count": 56142,
       "start_values_bound_aware_count": 29064,
+      "start_values_missing_count": 29064,
+      "start_values_native_count": 27078,
       "status": "solved_or_bounded",
       "termination_status": "ITERATION_LIMIT",
       "wall_seconds": 31.018054962158203

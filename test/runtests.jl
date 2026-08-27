@@ -2921,6 +2921,8 @@ end
     @test all(record["start_completion_policy"] ==
               "native_starts_plus_bound_aware_missing_values" for record in combined_50iter_probe["records"])
     @test all(record["start_values_bound_aware_count"] == 29064 for record in combined_50iter_probe["records"])
+    @test all(record["start_values_native_count"] == 27078 for record in combined_50iter_probe["records"])
+    @test all(record["start_values_missing_count"] == 29064 for record in combined_50iter_probe["records"])
     @test combined_50iter_probe["all_starts_applied"] == true
     @test occursin("bmopf_combined_mv_lv_50iter_probe_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,

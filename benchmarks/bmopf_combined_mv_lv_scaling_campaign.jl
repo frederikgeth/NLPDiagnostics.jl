@@ -197,6 +197,8 @@ function _solve_policy(network, policy, label; max_variables, max_iter, max_cpu_
             applied = _apply_start!(model, start_point)
             record["start_values_applied_count"] = applied.applied
             record["start_values_bound_aware_count"] = applied.bound_aware
+            record["start_values_native_count"] = applied.applied - applied.bound_aware
+            record["start_values_missing_count"] = applied.bound_aware
             record["start_completion_policy"] = "native_starts_plus_bound_aware_missing_values"
             record["start_point_applied"] = true
         catch error
