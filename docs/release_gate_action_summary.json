@@ -41,7 +41,7 @@
         "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Extend the reconciled 538-bus campaign with the reviewed t15/t16 tranche, then classify any remaining rank-policy or threshold disagreements.",
+      "next_deliverable": "Classify the remaining rank-policy and cross-backend threshold disagreements using the reconciled campaign and reviewed t15/t16 tranche.",
       "priority": 1,
       "status": "partial"
     },
@@ -132,7 +132,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "77a771b0e712d3510039d98fc59c6c4da6c13a37",
+    "git_revision": "e0e9de6f22936a34e9e537a442a6794c412db974",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
