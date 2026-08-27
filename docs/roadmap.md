@@ -6527,3 +6527,9 @@ The validator also enforces v2 runner provenance, bounded transfer status, and
 the invariant that skipped starts equal the number of structured validation
 errors. This prevents an older or partially regenerated campaign from passing
 the evidence gate silently while the upstream public API remains pending.
+
+The isolated profiler now captures an independent external high-water reading
+from `/usr/bin/time -l` on Darwin (and `time -v` on Linux), alongside
+`Sys.maxrss`, with the measurement source recorded per repetition. This adds a
+cross-check for process-envelope evidence; it is still not allocator-level peak
+telemetry and does not close the memory or convergence gates by itself.

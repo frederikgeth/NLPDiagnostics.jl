@@ -3095,6 +3095,9 @@ end
     )
     @test Meta.parseall(isolated_transfer_script) isa Expr
     @test occursin("Sys.maxrss", isolated_transfer_script)
+    @test occursin("external_peak_rss_bytes", isolated_transfer_script)
+    @test occursin("/usr/bin/time -l", isolated_transfer_script)
+    @test occursin("[\"/usr/bin/time\", Sys.isapple() ? \"-l\" : \"-v\"]", isolated_transfer_script)
     child_transfer_script = read(
         joinpath(benchmark_directory, "run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl"), String,
     )

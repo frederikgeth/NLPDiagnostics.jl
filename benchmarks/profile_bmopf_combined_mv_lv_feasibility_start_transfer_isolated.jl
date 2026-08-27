@@ -10,6 +10,17 @@ using .NLPDiagnosticsBenchmarkCommon: git_revision, git_status_entries, repo_roo
 const ROOT = repo_root()
 const CHILD = joinpath(@__DIR__, "run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl")
 
+function _external_peak_rss(stderr_path)
+    text = try read(stderr_path, String) catch; return nothing end
+    pattern = Sys.isapple() ?
+        r"maximum resident set size:\s+(\d+)" :
+        r"Maximum resident set size \(kbytes\):\s+(\d+)"
+    match_result = match(pattern, text)
+    isnothing(match_result) && return nothing
+    value = parse(Int, match_result.captures[1])
+    return Sys.isapple() ? value : value * 1024
+end
+
 function _positive_integer(name, default)
     value = try parse(Int, get(ENV, name, string(default)))
     catch
@@ -30,6 +41,8 @@ records = Dict{String,Any}[]
 for repetition in 1:repetitions
     path, io = mktemp()
     close(io)
+    metrics_path, metrics_io = mktemp()
+    close(metrics_io)
     try
         child_env = Dict{String,String}(ENV)
         child_env["NLPDIAGNOSTICS_COMBINED_MV_LV_TRANSFER_OUTPUT"] = path
@@ -37,10 +50,25 @@ for repetition in 1:repetitions
             `$(Base.julia_cmd()) --compiled-modules=no --startup-file=no --project=$(joinpath(ROOT, "work", "benchmark-environment")) $CHILD $path`,
             child_env,
         )
-        run(command)
+        timed_command = Cmd(vcat(
+            ["/usr/bin/time", Sys.isapple() ? "-l" : "-v"], command.exec,
+        ))
+        external_probe_error = nothing
+        try
+            run(pipeline(setenv(timed_command, child_env), stderr=metrics_path))
+        catch error
+            # Keep the benchmark useful when a sandboxed/macOS time wrapper
+            # cannot execute or inspect a child process.
+            external_probe_error = string(typeof(error))
+            run(command)
+        end
         child = JSON.parsefile(path)
         child["repetition"] = repetition
         child["isolated_process"] = true
+        child["external_peak_rss_bytes"] = _external_peak_rss(metrics_path)
+        child["external_peak_rss_source"] = isnothing(external_probe_error) ?
+            (Sys.isapple() ? "/usr/bin/time -l" : "/usr/bin/time -v") :
+            "unavailable: " * external_probe_error
         push!(records, child)
     catch error
         push!(records, Dict{String,Any}(
@@ -52,6 +80,7 @@ for repetition in 1:repetitions
         ))
     finally
         isfile(path) && rm(path; force = true)
+        isfile(metrics_path) && rm(metrics_path; force = true)
     end
 end
 
@@ -60,6 +89,11 @@ peak_rss = [
     Int(record["child_peak_rss_bytes"])
     for record in measured
     if get(record, "child_peak_rss_bytes", nothing) isa Real
+]
+external_peak_rss = [
+    Int(record["external_peak_rss_bytes"])
+    for record in measured
+    if get(record, "external_peak_rss_bytes", nothing) isa Real
 ]
 allocator_deltas = [
     Int(record["allocator_telemetry"]["current_size_allocated_delta_bytes"])
@@ -91,12 +125,15 @@ write_json(output, Dict{String,Any}(
     "record_count" => length(records),
     "measured_count" => length(measured),
     "peak_rss_bytes_range" => isempty(peak_rss) ? Any[] : [minimum(peak_rss), maximum(peak_rss)],
+    "external_peak_rss_bytes_range" => isempty(external_peak_rss) ? Any[] :
+        [minimum(external_peak_rss), maximum(external_peak_rss)],
+    "external_peak_rss_measured_count" => length(external_peak_rss),
     "allocator_peak_available_count" => allocator_available_count,
     "allocator_size_allocated_delta_bytes_range" => isempty(allocator_deltas) ? Any[] :
         [minimum(allocator_deltas), maximum(allocator_deltas)],
     "records" => records,
     "interpretation" => Dict(
-        "claim" => "Fresh-child local Sys.maxrss high-water observations for the full combined MV/LV feasibility-start transfer benchmark.",
+        "claim" => "Fresh-child local Sys.maxrss and independent /usr/bin/time (or time -v) high-water observations for the full combined MV/LV feasibility-start transfer benchmark.",
         "does_not_establish" => [
             "allocator-level peak memory beyond process high-water telemetry",
             "portable memory scaling or a second-environment guarantee",
