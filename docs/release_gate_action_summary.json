@@ -62,6 +62,8 @@
         "docs/real_99bus_kkt_residual_distribution_summary.json",
         "docs/real_99bus_kkt_tolerance_policy_summary.json",
         "docs/real_99bus_kkt_endpoint_matrix_summary.json",
+        "docs/real_99bus_kkt_boundary_review_summary.json",
+        "benchmarks/review_real_99bus_kkt_boundary.jl",
         "docs/real_99bus_kkt_gate_validation_summary.json",
         "benchmarks/validate_real_99bus_kkt_gate.jl"
       ],
@@ -83,7 +85,7 @@
         "benchmarks/summarize_bmopf_solver_scaling_readiness.jl"
       ],
       "id": "runtime_memory_scaling",
-      "next_deliverable": "Add guarded OPF-solver scaling and allocator-level peak-memory evidence beyond the synthetic sparse ladder.",
+      "next_deliverable": "Execute the planned guarded 11,028-variable 538-bus solver cases and summarize termination, timing, and provenance.",
       "priority": 3,
       "status": "partial"
     },
@@ -137,7 +139,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "03a7acb06b4801d8794a360e669d09fc3e2fbf54",
+    "git_revision": "a0eb889542bd1935e142e67adcc03248bc6307f1",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

@@ -1,0 +1,60 @@
+{
+  "acceptance_criteria": [
+    "record model variable count and solver termination for every child",
+    "retain solve-time range and endpoint provenance",
+    "classify timeout, iteration-limit, infeasible, and size-guard outcomes separately",
+    "do not fit a complexity law from two new cases",
+    "do not interpret Sys.maxrss as allocator-level peak memory"
+  ],
+  "current_guarded_count": 1,
+  "current_measured_count": 4,
+  "current_measured_dimensions": [
+    4180,
+    4902,
+    56142
+  ],
+  "environment": {
+    "git_revision": "a0eb889542bd1935e142e67adcc03248bc6307f1",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "guards": {
+    "child_process": true,
+    "dense_rank_max_entries": 0,
+    "max_cpu_seconds": 180,
+    "max_variables": 12000,
+    "sparse_qr_max_factor_nonzeros": 4000000,
+    "sparse_qr_max_input_nonzeros": 1000000
+  },
+  "interpretation": "This is an execution-ready measurement plan, not solver evidence. The 11,028-variable cases are selected to extend the existing 4,180/4,902-variable ladder while preserving explicit child-process and dense-work guards.",
+  "next_action": "Run the reviewed 538-bus child-process cases and summarize termination, solve-time, and endpoint provenance before drawing any scaling conclusion.",
+  "open_gaps": [
+    "extend the solver ladder beyond the two selected BMOPFTools snapshots",
+    "add allocator-level peak telemetry independent of Sys.maxrss",
+    "repeat the workload in a second reviewed environment"
+  ],
+  "planned_cases": [
+    {
+      "expected_model_variable_count": 11028,
+      "id": "538bus_lg_t15_1500",
+      "max_iter": 50,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t15_1500.bmopf.json",
+      "solver": "Ipopt",
+      "timeout_seconds": 180
+    },
+    {
+      "expected_model_variable_count": 11028,
+      "id": "538bus_ln_t15_1500",
+      "max_iter": 50,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t15_1500.bmopf.json",
+      "solver": "Ipopt",
+      "timeout_seconds": 180
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-solver-scaling-extension-plan-v1",
+  "source": {
+    "planner": "benchmarks/plan_bmopf_solver_scaling_extension.jl",
+    "readiness_summary": "docs/bmopf_solver_scaling_readiness_summary.json"
+  },
+  "status": "ready_for_review"
+}

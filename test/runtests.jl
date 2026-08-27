@@ -2790,6 +2790,25 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
+    solver_scaling_plan_script = read(
+        joinpath(benchmark_directory, "plan_bmopf_solver_scaling_extension.jl"), String,
+    )
+    @test Meta.parseall(solver_scaling_plan_script) isa Expr
+    @test occursin("expected_model_variable_count", solver_scaling_plan_script)
+    solver_scaling_plan = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_solver_scaling_extension_plan.json"), String,
+    ))
+    @test solver_scaling_plan["schema_version"] ==
+          "nlpdiagnostics-bmopf-solver-scaling-extension-plan-v1"
+    @test solver_scaling_plan["status"] == "ready_for_review"
+    @test solver_scaling_plan["current_measured_count"] == 4
+    @test length(solver_scaling_plan["planned_cases"]) == 2
+    @test all(case["expected_model_variable_count"] == 11028 for case in solver_scaling_plan["planned_cases"])
+    @test solver_scaling_plan["guards"]["child_process"] == true
+    @test occursin("bmopf_solver_scaling_extension_plan.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     @test occursin("runtime_scaling_readiness_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,

@@ -29,7 +29,7 @@ const ACTIONS = Dict{String,Dict{String,Any}}(
     ),
     "runtime_memory_scaling" => Dict(
         "priority" => 3,
-        "next_deliverable" => "Add guarded OPF-solver scaling and allocator-level peak-memory evidence beyond the synthetic sparse ladder.",
+        "next_deliverable" => "Execute the planned guarded 11,028-variable 538-bus solver cases and summarize termination, timing, and provenance.",
         "closure_condition" => "Solver-workload scaling and peak-memory measurements are repeatable under explicit size and process guards, or remain explicitly unavailable with a reviewed release boundary.",
         "dependency" => "Use isolated child processes and retain resource skips; do not extrapolate synthetic sparse behavior.",
     ),
