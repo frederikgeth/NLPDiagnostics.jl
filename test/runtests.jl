@@ -3706,15 +3706,15 @@ end
     ))
     @test ownership_review_summary["schema_version"] ==
           "nlpdiagnostics-api-ownership-decisions-v1"
-    @test ownership_review_summary["reviewed_count"] == 332
-    @test ownership_review_summary["root_compatibility_retained_count"] == 245
-    @test ownership_review_summary["advanced_candidate_count"] == 87
+    @test ownership_review_summary["reviewed_count"] == 356
+    @test ownership_review_summary["root_compatibility_retained_count"] == 265
+    @test ownership_review_summary["advanced_candidate_count"] == 91
     @test ownership_review_summary["migration_allowed_count"] == 0
-    @test ownership_review_summary["batch_summary"]["prior_reviewed_count"] == 308
+    @test ownership_review_summary["batch_summary"]["prior_reviewed_count"] == 332
     @test ownership_review_summary["batch_summary"]["next_batch_count"] == 24
     @test ownership_review_summary["batch_summary"]["next_batch_reviewed_count"] == 24
-    @test ownership_review_summary["batch_summary"]["next_batch_root_compatibility_count"] == 6
-    @test ownership_review_summary["batch_summary"]["next_batch_advanced_candidate_count"] == 18
+    @test ownership_review_summary["batch_summary"]["next_batch_root_compatibility_count"] == 20
+    @test ownership_review_summary["batch_summary"]["next_batch_advanced_candidate_count"] == 4
     @test occursin("api_ownership_decision_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
