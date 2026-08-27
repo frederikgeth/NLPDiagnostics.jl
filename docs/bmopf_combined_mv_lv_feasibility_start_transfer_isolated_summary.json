@@ -153,6 +153,8 @@
           "transfer_applied": false,
           "transferred_voltage_start_count": 0,
           "transferred_voltage_start_skipped_count": 0,
+          "transferred_voltage_start_validation_error_count": 0,
+          "transferred_voltage_start_validation_errors": [],
           "wall_seconds": 9.455562114715576
         },
         {
@@ -236,6 +238,8 @@
           "transfer_applied": true,
           "transferred_voltage_start_count": 13309,
           "transferred_voltage_start_skipped_count": 0,
+          "transferred_voltage_start_validation_error_count": 0,
+          "transferred_voltage_start_validation_errors": [],
           "wall_seconds": 10.428282976150513
         }
       ],
@@ -268,7 +272,7 @@
         "total_slack_magnitude_A": 354.3101805271313
       },
       "repetition": 1,
-      "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v1",
+      "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v2",
       "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-v1",
       "status": "bounded_hard_opf_start_transfer",
       "wall_seconds": 39.77639198303223
@@ -399,6 +403,8 @@
           "transfer_applied": false,
           "transferred_voltage_start_count": 0,
           "transferred_voltage_start_skipped_count": 0,
+          "transferred_voltage_start_validation_error_count": 0,
+          "transferred_voltage_start_validation_errors": [],
           "wall_seconds": 10.154388904571533
         },
         {
@@ -482,6 +488,8 @@
           "transfer_applied": true,
           "transferred_voltage_start_count": 13309,
           "transferred_voltage_start_skipped_count": 0,
+          "transferred_voltage_start_validation_error_count": 0,
+          "transferred_voltage_start_validation_errors": [],
           "wall_seconds": 11.141377925872803
         }
       ],
@@ -514,7 +522,7 @@
         "total_slack_magnitude_A": 354.3101805271313
       },
       "repetition": 2,
-      "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v1",
+      "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v2",
       "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-v1",
       "status": "bounded_hard_opf_start_transfer",
       "wall_seconds": 43.31486797332764

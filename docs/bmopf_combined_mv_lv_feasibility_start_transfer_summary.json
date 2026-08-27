@@ -101,6 +101,8 @@
       "transfer_applied": false,
       "transferred_voltage_start_count": 0,
       "transferred_voltage_start_skipped_count": 0,
+      "transferred_voltage_start_validation_error_count": 0,
+      "transferred_voltage_start_validation_errors": [],
       "wall_seconds": 9.02477216720581
     },
     {
@@ -184,6 +186,8 @@
       "transfer_applied": true,
       "transferred_voltage_start_count": 13309,
       "transferred_voltage_start_skipped_count": 0,
+      "transferred_voltage_start_validation_error_count": 0,
+      "transferred_voltage_start_validation_errors": [],
       "wall_seconds": 10.253607034683228
     }
   ],
@@ -215,7 +219,7 @@
     "termination_status": "LOCALLY_SOLVED",
     "total_slack_magnitude_A": 354.3101805271313
   },
-  "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v1",
+  "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v2",
   "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-v1",
   "status": "bounded_hard_opf_start_transfer",
   "wall_seconds": 39.307323932647705

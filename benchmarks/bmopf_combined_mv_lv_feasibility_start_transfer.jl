@@ -15,7 +15,27 @@ using Ipopt
 include(joinpath(@__DIR__, "common.jl"))
 using .NLPDiagnosticsBenchmarkCommon: write_json
 
-const _RUNNER_VERSION = "bmopf-combined-mv-lv-feasibility-start-transfer-v1"
+const _RUNNER_VERSION = "bmopf-combined-mv-lv-feasibility-start-transfer-v2"
+
+struct _VoltageStartTransferValidationError
+    code::Symbol
+    bus::String
+    terminal::String
+end
+
+struct _VoltageStartTransferReport
+    applied::Int
+    skipped::Int
+    validation_errors::Vector{_VoltageStartTransferValidationError}
+end
+
+function _validation_error_payload(report::_VoltageStartTransferReport)
+    return [Dict{String,Any}(
+        "code" => String(error.code),
+        "bus" => error.bus,
+        "terminal" => error.terminal,
+    ) for error in report.validation_errors]
+end
 
 # Darwin exposes current allocator counters for the default malloc zone.  The
 # process-level child runner records the outer envelope; these helpers add
@@ -130,25 +150,56 @@ function _apply_voltage_initialization!(context, initialization)
     voltage_bases = bases === nothing ? Dict{String,Float64}() : bases.v_base
     applied = 0
     skipped = 0
+    validation_errors = _VoltageStartTransferValidationError[]
+    function skip!(code, bus, terminal)
+        skipped += 1
+        push!(validation_errors, _VoltageStartTransferValidationError(
+            code, String(bus), String(terminal),
+        ))
+    end
     for (bus, terminals) in initialization
-        terminals isa AbstractDict || continue
+        bus_name = String(bus)
+        if !(terminals isa AbstractDict)
+            skip!(:invalid_bus_payload, bus_name, "")
+            continue
+        end
         for (terminal, values_by_name) in terminals
-            values_by_name isa AbstractDict || continue
-            key = (String(bus), String(terminal))
-            haskey(vars[:vr], key) && haskey(vars[:vi], key) || (skipped += 1; continue)
-            haskey(values_by_name, "vr_init") && haskey(values_by_name, "vi_init") ||
-                (skipped += 1; continue)
-            base = get(voltage_bases, String(bus), 1.0)
-            isfinite(base) && base > 0.0 || (skipped += 1; continue)
-            vr = Float64(values_by_name["vr_init"]) / base
-            vi = Float64(values_by_name["vi_init"]) / base
-            isfinite(vr) && isfinite(vi) || (skipped += 1; continue)
+            terminal_name = String(terminal)
+            if !(values_by_name isa AbstractDict)
+                skip!(:invalid_terminal_payload, bus_name, terminal_name)
+                continue
+            end
+            key = (bus_name, terminal_name)
+            if !(haskey(vars[:vr], key) && haskey(vars[:vi], key))
+                skip!(:unknown_bus_terminal, bus_name, terminal_name)
+                continue
+            end
+            if !(haskey(values_by_name, "vr_init") && haskey(values_by_name, "vi_init"))
+                skip!(:missing_rectangular_start, bus_name, terminal_name)
+                continue
+            end
+            base = get(voltage_bases, bus_name, 1.0)
+            if !(isfinite(base) && base > 0.0)
+                skip!(:invalid_voltage_base, bus_name, terminal_name)
+                continue
+            end
+            vr, vi = try
+                Float64(values_by_name["vr_init"]) / base,
+                Float64(values_by_name["vi_init"]) / base
+            catch
+                skip!(:non_numeric_phasor, bus_name, terminal_name)
+                continue
+            end
+            if !(isfinite(vr) && isfinite(vi))
+                skip!(:nonfinite_phasor, bus_name, terminal_name)
+                continue
+            end
             JuMP.set_start_value(vars[:vr][key], vr)
             JuMP.set_start_value(vars[:vi][key], vi)
             applied += 1
         end
     end
-    return (; applied, skipped)
+    return _VoltageStartTransferReport(applied, skipped, validation_errors)
 end
 
 function _hard_run(network, initialization, label; transfer, max_iter, max_cpu_seconds)
@@ -164,8 +215,8 @@ function _hard_run(network, initialization, label; transfer, max_iter, max_cpu_s
     BMOPFTools.enforce_kcl!(context)
     model = BMOPFTools.opf_model(context)
     start_before = _stage_allocator_snapshot()
-    transfer_counts = transfer ? _apply_voltage_initialization!(context, initialization) :
-        (; applied = 0, skipped = 0)
+    transfer_report = transfer ? _apply_voltage_initialization!(context, initialization) :
+        _VoltageStartTransferReport(0, 0, _VoltageStartTransferValidationError[])
     start_after = _stage_allocator_snapshot()
     JuMP.set_optimizer_attribute(model, "max_iter", max_iter)
     JuMP.set_optimizer_attribute(model, "max_cpu_time", max_cpu_seconds)
@@ -176,8 +227,10 @@ function _hard_run(network, initialization, label; transfer, max_iter, max_cpu_s
     return Dict{String,Any}(
         "label" => label,
         "transfer_applied" => transfer,
-        "transferred_voltage_start_count" => transfer_counts.applied,
-        "transferred_voltage_start_skipped_count" => transfer_counts.skipped,
+        "transferred_voltage_start_count" => transfer_report.applied,
+        "transferred_voltage_start_skipped_count" => transfer_report.skipped,
+        "transferred_voltage_start_validation_error_count" => length(transfer_report.validation_errors),
+        "transferred_voltage_start_validation_errors" => _validation_error_payload(transfer_report),
         "termination_status" => string(JuMP.termination_status(model)),
         "primal_status" => string(JuMP.primal_status(model)),
         "dual_status" => string(JuMP.dual_status(model)),

@@ -3064,6 +3064,10 @@ end
     @test occursin("feasibility_voltage_transfer", transfer_probe_script)
     @test occursin("solve_allocated_bytes", transfer_probe_script)
     @test occursin("allocator_stage_telemetry", transfer_probe_script)
+    @test occursin("_VoltageStartTransferReport", transfer_probe_script)
+    @test occursin("transferred_voltage_start_validation_errors", transfer_probe_script)
+    @test occursin(":unknown_bus_terminal", transfer_probe_script)
+    @test occursin(":invalid_voltage_base", transfer_probe_script)
     transfer_probe = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_combined_mv_lv_feasibility_start_transfer_summary.json"), String,
     ))
@@ -3076,6 +3080,8 @@ end
     @test transfer_probe["records"][2]["transfer_applied"] == true
     @test transfer_probe["records"][2]["transferred_voltage_start_count"] == 13309
     @test transfer_probe["records"][2]["transferred_voltage_start_skipped_count"] == 0
+    @test transfer_probe["records"][2]["transferred_voltage_start_validation_error_count"] == 0
+    @test isempty(transfer_probe["records"][2]["transferred_voltage_start_validation_errors"])
     @test transfer_probe["records"][1]["solve_allocated_bytes"] > 0
     @test transfer_probe["records"][2]["solve_allocated_bytes"] > 0
     @test transfer_probe["relaxed_initialization"]["allocator_stage_telemetry"]["available"] == true

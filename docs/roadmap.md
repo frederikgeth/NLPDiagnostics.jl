@@ -6462,8 +6462,8 @@ do not silently reopen migration.
 ## 2026-08-27 API consolidation inventory refresh
 
 The API/test/benchmark consolidation audit now consumes the ownership ledger
-directly and records the current repository shape: 195 benchmark scripts, 192
-shared-helper users, and 139 schema-covered JSON artifacts. Its new
+directly and records the current repository shape: 196 benchmark scripts, 193
+shared-helper users, and 140 schema-covered JSON artifacts. Its new
 `api_ownership` section carries the 539/539 completion state and keeps the
 remaining gate focused on adapter adoption, dependency synchronization, and
 explicit migration approval rather than repeated queue review.
@@ -6486,3 +6486,17 @@ The machine-readable evidence is
 `docs/typed_unavailable_adoption_summary.json`. Its status remains `partial` by
 design: source adoption is measurable, but semantic adapter review and future
 report-schema changes still require owner approval.
+
+## 2026-08-27 typed voltage-start transfer report
+
+The experimental combined MV/LV feasibility-start transfer now returns an
+explicit `_VoltageStartTransferReport` with applied and skipped counts plus
+structured validation errors. The report distinguishes malformed payloads,
+unknown bus-terminal keys, missing rectangular starts, invalid voltage bases,
+and non-numeric or nonfinite phasors; the JSON record exposes both an error
+count and machine-readable error entries. This keeps the internal `ctx.vars`
+workaround bounded and reviewable while the proposed public
+`opf_voltage_start_values`/`set_opf_voltage_start_values!` seam remains pending
+in BMOPFTools. Existing v1 evidence remains valid; rerunning the bounded
+campaign will refresh its additive v2 fields when upstream review or a local
+regression check requires it.
