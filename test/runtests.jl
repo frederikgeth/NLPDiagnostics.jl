@@ -3243,6 +3243,32 @@ end
     @test occursin("bmopf_combined_mv_lv_solver_boundary_consistency_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    fine_boundary_validation_script = read(
+        joinpath(benchmark_directory, "validate_bmopf_combined_mv_lv_load_fine_boundary.jl"), String,
+    )
+    @test Meta.parseall(fine_boundary_validation_script) isa Expr
+    @test occursin("paired_infeasible_range", fine_boundary_validation_script)
+    fine_boundary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_load_fine_boundary_summary.json"), String,
+    ))
+    @test fine_boundary["campaign"] == "fine_boundary_refinement"
+    @test fine_boundary["status"] == "completed"
+    @test fine_boundary["multipliers"] == [0.26, 0.27, 0.28, 0.29]
+    @test fine_boundary["completed_count"] == 4
+    @test fine_boundary["hard_locally_solved_count"] == 2
+    @test fine_boundary["results"][2]["hard_locally_solved"] == true
+    @test fine_boundary["results"][3]["hard_locally_solved"] == false
+    fine_boundary_validation = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_load_fine_boundary_validation_summary.json"), String,
+    ))
+    @test fine_boundary_validation["schema_version"] ==
+          "nlpdiagnostics-bmopf-combined-mv-lv-load-fine-boundary-validation-v1"
+    @test fine_boundary_validation["status"] == "pass"
+    @test fine_boundary_validation["paired_local_solve_range"] == [0.26, 0.27]
+    @test fine_boundary_validation["paired_infeasible_range"] == [0.28, 0.29]
+    @test occursin("bmopf_combined_mv_lv_load_fine_boundary_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     child_transfer_script = read(
         joinpath(benchmark_directory, "run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl"), String,
     )

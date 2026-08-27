@@ -6601,3 +6601,10 @@ validator compares the Ipopt and MadNLP artifacts directly: both classify
 acceptance, although their non-success termination labels differ
 (`LOCALLY_INFEASIBLE` versus `ITERATION_LIMIT`). This supports a shared
 fixture boundary, not solver equivalence or a universal demand threshold.
+
+The fine Ipopt refinement narrows the paired native/transfer transition to
+0.27 versus 0.28: both starts are `LOCALLY_SOLVED` at 0.27 and both are
+`LOCALLY_INFEASIBLE` at 0.28. A dedicated validator records the bracket under
+the 100-iteration/30-second guard. This is a sharper fixture benchmark, not a
+physical operating limit; residual/progress capture remains the next
+diagnostic step.

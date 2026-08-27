@@ -1,0 +1,22 @@
+{
+  "expected_multipliers": [
+    0.26,
+    0.27,
+    0.28,
+    0.29
+  ],
+  "failure_count": 0,
+  "failures": [],
+  "interpretation": "This validates the fine fixture-demand bracket under the declared Ipopt guard. It does not establish a physical demand threshold, universal scaling policy, or solver-independent feasibility limit.",
+  "paired_infeasible_range": [
+    0.28,
+    0.29
+  ],
+  "paired_local_solve_range": [
+    0.26,
+    0.27
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-load-fine-boundary-validation-v1",
+  "source": "docs/bmopf_combined_mv_lv_load_fine_boundary_summary.json",
+  "status": "pass"
+}
