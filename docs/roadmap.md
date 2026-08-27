@@ -6516,3 +6516,9 @@ The checked-in transfer evidence now has a standalone validator at
 that both paired records expose typed validation-error arrays whose counts
 match their entries. This is a report-contract check only; hard-OPF convergence
 and the upstream public setter remain open.
+
+The same validator now flattens and checks the two fresh-child repetitions as
+well, so all four isolated native/transfer records are covered by the same
+typed-field consistency gate. Direct and isolated report validation now travel
+together in the release evidence; this closes report-integrity scope without
+changing the scientific conclusion that hard-OPF convergence is unresolved.

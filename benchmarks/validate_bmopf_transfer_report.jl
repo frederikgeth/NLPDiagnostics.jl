@@ -15,7 +15,19 @@ const OUTPUT = abspath(length(ARGS) < 2 ?
 
 isfile(INPUT) || error("transfer report is missing: $INPUT")
 report = JSON.parsefile(INPUT)
-records = get(report, "records", Any[])
+
+function flattened_records(report)
+    outer = get(report, "records", Any[])
+    isempty(outer) && return Any[]
+    # Isolated summaries retain one nested base report per repetition. Flatten
+    # only that known shape while preserving the ordinary two-record report.
+    all(entry -> entry isa AbstractDict && haskey(entry, "records"), outer) || return outer
+    return Any[
+        record for entry in outer for record in get(entry, "records", Any[])
+    ]
+end
+
+records = flattened_records(report)
 failures = String[]
 validated_count = 0
 
