@@ -1,0 +1,16 @@
+{
+  "expected_multipliers": [
+    1.0,
+    0.75,
+    0.5,
+    0.25
+  ],
+  "failure_count": 0,
+  "failures": [],
+  "interpretation": "This validates a practical combined MV/LV demand sweep and the 0.25 paired local-solve point. It does not establish a physical demand threshold, universal scaling policy, or solver superiority.",
+  "paired_hard_local_solve_count": 1,
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-load-sweep-validation-v1",
+  "source": "docs/bmopf_combined_mv_lv_load_multiplier_sweep_summary.json",
+  "status": "pass",
+  "validated_multiplier_count": 4
+}

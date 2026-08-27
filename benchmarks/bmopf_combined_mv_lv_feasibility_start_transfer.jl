@@ -112,6 +112,19 @@ function _network_path()
         joinpath(pkgdir(BMOPFTools), "test", "data", "Master.dss") : abspath(override)
 end
 
+function _scale_loads!(network, multiplier)
+    loads = get(network, "load", Dict{String,Any}())
+    for load in values(loads)
+        load isa AbstractDict || continue
+        for field in ("p_nom", "q_nom")
+            values = get(load, field, nothing)
+            values isa AbstractVector || continue
+            load[field] = [multiplier * Float64(value) for value in values]
+        end
+    end
+    return network
+end
+
 function _warning_codes(warnings)
     codes = Set{String}()
     for warning in warnings
@@ -255,6 +268,9 @@ function main()
     max_cpu_seconds = _env_float(
         "NLPDIAGNOSTICS_COMBINED_MV_LV_TRANSFER_MAX_CPU_SECONDS", 60.0,
     )
+    load_multiplier = _env_float(
+        "NLPDIAGNOSTICS_COMBINED_MV_LV_LOAD_MULTIPLIER", 1.0; minimum = 0.01,
+    )
     output = abspath(get(
         ENV,
         "NLPDIAGNOSTICS_COMBINED_MV_LV_TRANSFER_OUTPUT",
@@ -263,6 +279,7 @@ function main()
 
     started = time()
     network = BMOPFTools.from_dss(input_path)
+    _scale_loads!(network, load_multiplier)
     warnings = get(get(network, "_meta", Dict{String,Any}()), "powerio_warnings", Any[])
     relaxed_before = _stage_allocator_snapshot()
     relaxed = _relaxed_initialization(network, max_iter, max_cpu_seconds)
@@ -288,6 +305,7 @@ function main()
             "load_count" => length(get(network, "load", Dict())),
         ),
         "budgets" => Dict("max_iter" => max_iter, "max_cpu_seconds" => max_cpu_seconds),
+        "load_multiplier" => load_multiplier,
         "relaxed_initialization" => Dict(
             "termination_status" => get(relaxed, "termination_status", nothing),
             "relaxed_feasible" => get(relaxed, "feasible", nothing),

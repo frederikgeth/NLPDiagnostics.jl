@@ -6571,3 +6571,18 @@ The current artifact reports a mixed boundary at 100 iterations and a stable
 both-outside-iteration-limit class at 200 and 400. This sharpens the next
 experiment: inspect solver residual/progress evidence or alter the fixture,
 rather than treating a larger iteration budget as a scaling strategy.
+
+## 2026-08-28 combined MV/LV demand-multiplier application sweep
+
+The combined BMOPFTools MV/LV feeder now has a bounded demand sweep through
+`benchmarks/bmopf_combined_mv_lv_load_multiplier_sweep.jl`, using the same
+native versus feasibility-voltage-transfer hard-OPF comparison at multipliers
+1.0, 0.75, 0.5, and 0.25. The checked-in artifact records four completed
+runs: the nominal, 0.75, and 0.5 cases remain outside local-solve acceptance,
+while both starts at 0.25 reach `LOCALLY_SOLVED` with `FEASIBLE_POINT` status.
+
+This is the first practical combined-case success at a controlled operating
+point and provides a fixture-sensitive boundary for future scaling work. It is
+not a physical demand threshold or a claim that the voltage-start transfer is
+production-ready. The companion validator keeps the paired coverage and the
+0.25 success machine-checkable.

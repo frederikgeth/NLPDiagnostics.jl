@@ -1,0 +1,836 @@
+{
+  "completed_count": 4,
+  "hard_locally_solved_count": 1,
+  "interpretation": "This bounded demand sweep identifies a practical combined MV/LV operating point and a fixture-sensitive feasibility boundary. It does not establish a physical demand threshold, universal scaling policy, or solver superiority.",
+  "multipliers": [
+    1.0,
+    0.75,
+    0.5,
+    0.25
+  ],
+  "record_count": 4,
+  "results": [
+    {
+      "hard_locally_solved": false,
+      "load_multiplier": 1.0,
+      "records": [
+        {
+          "allocator_stage_telemetry": {
+            "model_build": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 162899,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1667366912,
+                "size_in_use_bytes": 1354143440
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 164815,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1619345408,
+                "size_in_use_bytes": 1336837360
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 48021504,
+              "size_in_use_delta_bytes": 17306080
+            },
+            "solve": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 166595,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 2919825408,
+                "size_in_use_bytes": 2577841872
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 162936,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1672085504,
+                "size_in_use_bytes": 1364473552
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 1247739904,
+              "size_in_use_delta_bytes": 1213368320
+            },
+            "start_application": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 162936,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1672085504,
+                "size_in_use_bytes": 1364473552
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 162936,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1672085504,
+                "size_in_use_bytes": 1364473552
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 0,
+              "size_in_use_delta_bytes": 0
+            }
+          },
+          "dual_status": "INFEASIBLE_POINT",
+          "label": "native",
+          "objective_value": 0.0,
+          "primal_status": "INFEASIBLE_POINT",
+          "result_count": 1,
+          "solve_allocated_bytes": 280934592,
+          "solve_gc_seconds": 0.065337042,
+          "solve_seconds": 10.41626501083374,
+          "termination_status": "LOCALLY_INFEASIBLE",
+          "transfer_applied": false,
+          "transferred_voltage_start_count": 0,
+          "transferred_voltage_start_skipped_count": 0,
+          "transferred_voltage_start_validation_error_count": 0,
+          "transferred_voltage_start_validation_errors": [],
+          "wall_seconds": 12.1403169631958
+        },
+        {
+          "allocator_stage_telemetry": {
+            "model_build": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159645,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 666910720,
+                "size_in_use_bytes": 127353600
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 166595,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 2919825408,
+                "size_in_use_bytes": 2577841872
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": -2252914688,
+              "size_in_use_delta_bytes": -2450488272
+            },
+            "solve": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 163909,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1716436992,
+                "size_in_use_bytes": 1276698704
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159790,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 671105024,
+                "size_in_use_bytes": 137321984
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 1045331968,
+              "size_in_use_delta_bytes": 1139376720
+            },
+            "start_application": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159790,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 671105024,
+                "size_in_use_bytes": 137321984
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159682,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 671105024,
+                "size_in_use_bytes": 137159424
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 0,
+              "size_in_use_delta_bytes": 162560
+            }
+          },
+          "dual_status": "UNKNOWN_RESULT_STATUS",
+          "label": "feasibility_voltage_transfer",
+          "objective_value": 0.0,
+          "primal_status": "INFEASIBLE_POINT",
+          "result_count": 1,
+          "solve_allocated_bytes": 256798032,
+          "solve_gc_seconds": 0.072400792,
+          "solve_seconds": 16.700314044952393,
+          "termination_status": "ITERATION_LIMIT",
+          "transfer_applied": true,
+          "transferred_voltage_start_count": 13309,
+          "transferred_voltage_start_skipped_count": 0,
+          "transferred_voltage_start_validation_error_count": 0,
+          "transferred_voltage_start_validation_errors": [],
+          "wall_seconds": 18.43311095237732
+        }
+      ],
+      "relaxed_initialization": {
+        "allocator_stage_telemetry": {
+          "after": {
+            "available": true,
+            "blocks_in_use": 164219,
+            "max_size_in_use_bytes": 0,
+            "peak_field_available": false,
+            "size_allocated_bytes": 1619345408,
+            "size_in_use_bytes": 1335158512
+          },
+          "available": true,
+          "before": {
+            "available": true,
+            "blocks_in_use": 256078,
+            "max_size_in_use_bytes": 0,
+            "peak_field_available": false,
+            "size_allocated_bytes": 357040128,
+            "size_in_use_bytes": 107349792
+          },
+          "peak_available": false,
+          "size_allocated_delta_bytes": 1262305280,
+          "size_in_use_delta_bytes": 1227808720
+        },
+        "initialization_bus_count": 3409,
+        "relaxed_feasible": true,
+        "termination_status": "LOCALLY_SOLVED",
+        "total_slack_magnitude_A": 354.3101805271313
+      },
+      "status": "completed"
+    },
+    {
+      "hard_locally_solved": false,
+      "load_multiplier": 0.75,
+      "records": [
+        {
+          "allocator_stage_telemetry": {
+            "model_build": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 162893,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1633812480,
+                "size_in_use_bytes": 1354445312
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 164824,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1606762496,
+                "size_in_use_bytes": 1337194528
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 27049984,
+              "size_in_use_delta_bytes": 17250784
+            },
+            "solve": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 166659,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 2911322112,
+                "size_in_use_bytes": 2582575248
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 162930,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1638531072,
+                "size_in_use_bytes": 1364775424
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 1272791040,
+              "size_in_use_delta_bytes": 1217799824
+            },
+            "start_application": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 162930,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1638531072,
+                "size_in_use_bytes": 1364775424
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 162930,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1638531072,
+                "size_in_use_bytes": 1364775424
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 0,
+              "size_in_use_delta_bytes": 0
+            }
+          },
+          "dual_status": "UNKNOWN_RESULT_STATUS",
+          "label": "native",
+          "objective_value": 0.0,
+          "primal_status": "INFEASIBLE_POINT",
+          "result_count": 1,
+          "solve_allocated_bytes": 280966800,
+          "solve_gc_seconds": 0.070156709,
+          "solve_seconds": 19.206936836242676,
+          "termination_status": "ITERATION_LIMIT",
+          "transfer_applied": false,
+          "transferred_voltage_start_count": 0,
+          "transferred_voltage_start_skipped_count": 0,
+          "transferred_voltage_start_validation_error_count": 0,
+          "transferred_voltage_start_validation_errors": [],
+          "wall_seconds": 21.01756191253662
+        },
+        {
+          "allocator_stage_telemetry": {
+            "model_build": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159722,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 671105024,
+                "size_in_use_bytes": 127721152
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 166882,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 2911322112,
+                "size_in_use_bytes": 2584514768
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": -2240217088,
+              "size_in_use_delta_bytes": -2456793616
+            },
+            "solve": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 163780,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1790771200,
+                "size_in_use_bytes": 1316926144
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159867,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 675299328,
+                "size_in_use_bytes": 137689536
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 1115471872,
+              "size_in_use_delta_bytes": 1179236608
+            },
+            "start_application": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159867,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 675299328,
+                "size_in_use_bytes": 137689536
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159759,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 675299328,
+                "size_in_use_bytes": 137526976
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 0,
+              "size_in_use_delta_bytes": 162560
+            }
+          },
+          "dual_status": "UNKNOWN_RESULT_STATUS",
+          "label": "feasibility_voltage_transfer",
+          "objective_value": 0.0,
+          "primal_status": "INFEASIBLE_POINT",
+          "result_count": 1,
+          "solve_allocated_bytes": 256797488,
+          "solve_gc_seconds": 0.075117333,
+          "solve_seconds": 18.573522090911865,
+          "termination_status": "ITERATION_LIMIT",
+          "transfer_applied": true,
+          "transferred_voltage_start_count": 13309,
+          "transferred_voltage_start_skipped_count": 0,
+          "transferred_voltage_start_validation_error_count": 0,
+          "transferred_voltage_start_validation_errors": [],
+          "wall_seconds": 20.345149993896484
+        }
+      ],
+      "relaxed_initialization": {
+        "allocator_stage_telemetry": {
+          "after": {
+            "available": true,
+            "blocks_in_use": 164228,
+            "max_size_in_use_bytes": 0,
+            "peak_field_available": false,
+            "size_allocated_bytes": 1606762496,
+            "size_in_use_bytes": 1335515680
+          },
+          "available": true,
+          "before": {
+            "available": true,
+            "blocks_in_use": 256728,
+            "max_size_in_use_bytes": 0,
+            "peak_field_available": false,
+            "size_allocated_bytes": 361234432,
+            "size_in_use_bytes": 110531488
+          },
+          "peak_available": false,
+          "size_allocated_delta_bytes": 1245528064,
+          "size_in_use_delta_bytes": 1224984192
+        },
+        "initialization_bus_count": 3409,
+        "relaxed_feasible": true,
+        "termination_status": "LOCALLY_SOLVED",
+        "total_slack_magnitude_A": 217.389317843355
+      },
+      "status": "completed"
+    },
+    {
+      "hard_locally_solved": false,
+      "load_multiplier": 0.5,
+      "records": [
+        {
+          "allocator_stage_telemetry": {
+            "model_build": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159855,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 570753024,
+                "size_in_use_bytes": 128770896
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 164847,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1664958464,
+                "size_in_use_bytes": 1336461040
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": -1094205440,
+              "size_in_use_delta_bytes": -1207690144
+            },
+            "solve": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 163743,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1801682944,
+                "size_in_use_bytes": 1420597120
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159892,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 574947328,
+                "size_in_use_bytes": 138576720
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 1226735616,
+              "size_in_use_delta_bytes": 1282020400
+            },
+            "start_application": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159892,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 574947328,
+                "size_in_use_bytes": 138576720
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159892,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 574947328,
+                "size_in_use_bytes": 138576720
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 0,
+              "size_in_use_delta_bytes": 0
+            }
+          },
+          "dual_status": "INFEASIBLE_POINT",
+          "label": "native",
+          "objective_value": 0.0,
+          "primal_status": "INFEASIBLE_POINT",
+          "result_count": 1,
+          "solve_allocated_bytes": 262934768,
+          "solve_gc_seconds": 0.039391542,
+          "solve_seconds": 9.462525129318237,
+          "termination_status": "LOCALLY_INFEASIBLE",
+          "transfer_applied": false,
+          "transferred_voltage_start_count": 0,
+          "transferred_voltage_start_skipped_count": 0,
+          "transferred_voltage_start_validation_error_count": 0,
+          "transferred_voltage_start_validation_errors": [],
+          "wall_seconds": 11.548406839370728
+        },
+        {
+          "allocator_stage_telemetry": {
+            "model_build": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159701,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 704528384,
+                "size_in_use_bytes": 218735872
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 163743,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1801682944,
+                "size_in_use_bytes": 1420597120
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": -1097154560,
+              "size_in_use_delta_bytes": -1201861248
+            },
+            "solve": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 163827,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1861304320,
+                "size_in_use_bytes": 1434375920
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159847,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 708722688,
+                "size_in_use_bytes": 228769792
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 1152581632,
+              "size_in_use_delta_bytes": 1205606128
+            },
+            "start_application": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159847,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 708722688,
+                "size_in_use_bytes": 228769792
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159738,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 708722688,
+                "size_in_use_bytes": 228541696
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 0,
+              "size_in_use_delta_bytes": 228096
+            }
+          },
+          "dual_status": "INFEASIBLE_POINT",
+          "label": "feasibility_voltage_transfer",
+          "objective_value": 0.0,
+          "primal_status": "INFEASIBLE_POINT",
+          "result_count": 1,
+          "solve_allocated_bytes": 265174144,
+          "solve_gc_seconds": 0.064897333,
+          "solve_seconds": 9.084673881530762,
+          "termination_status": "LOCALLY_INFEASIBLE",
+          "transfer_applied": true,
+          "transferred_voltage_start_count": 13309,
+          "transferred_voltage_start_skipped_count": 0,
+          "transferred_voltage_start_validation_error_count": 0,
+          "transferred_voltage_start_validation_errors": [],
+          "wall_seconds": 10.836246967315674
+        }
+      ],
+      "relaxed_initialization": {
+        "allocator_stage_telemetry": {
+          "after": {
+            "available": true,
+            "blocks_in_use": 164251,
+            "max_size_in_use_bytes": 0,
+            "peak_field_available": false,
+            "size_allocated_bytes": 1664958464,
+            "size_in_use_bytes": 1334782192
+          },
+          "available": true,
+          "before": {
+            "available": true,
+            "blocks_in_use": 254768,
+            "max_size_in_use_bytes": 0,
+            "peak_field_available": false,
+            "size_allocated_bytes": 394788864,
+            "size_in_use_bytes": 98762528
+          },
+          "peak_available": false,
+          "size_allocated_delta_bytes": 1270169600,
+          "size_in_use_delta_bytes": 1236019664
+        },
+        "initialization_bus_count": 3409,
+        "relaxed_feasible": true,
+        "termination_status": "LOCALLY_SOLVED",
+        "total_slack_magnitude_A": 88.31247437648577
+      },
+      "status": "completed"
+    },
+    {
+      "hard_locally_solved": true,
+      "load_multiplier": 0.25,
+      "records": [
+        {
+          "allocator_stage_telemetry": {
+            "model_build": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 162904,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1654374400,
+                "size_in_use_bytes": 1354428624
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 164811,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1614626816,
+                "size_in_use_bytes": 1336309488
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 39747584,
+              "size_in_use_delta_bytes": 18119136
+            },
+            "solve": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 162472,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1811726336,
+                "size_in_use_bytes": 1465412480
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 162579,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1658978304,
+                "size_in_use_bytes": 1361946320
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 152748032,
+              "size_in_use_delta_bytes": 103466160
+            },
+            "start_application": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 162579,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1658978304,
+                "size_in_use_bytes": 1361946320
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 162579,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1658978304,
+                "size_in_use_bytes": 1361946320
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 0,
+              "size_in_use_delta_bytes": 0
+            }
+          },
+          "dual_status": "FEASIBLE_POINT",
+          "label": "native",
+          "objective_value": 0.0,
+          "primal_status": "FEASIBLE_POINT",
+          "result_count": 1,
+          "solve_allocated_bytes": 276694624,
+          "solve_gc_seconds": 0.197009625,
+          "solve_seconds": 1.0779311656951904,
+          "termination_status": "LOCALLY_SOLVED",
+          "transfer_applied": false,
+          "transferred_voltage_start_count": 0,
+          "transferred_voltage_start_skipped_count": 0,
+          "transferred_voltage_start_validation_error_count": 0,
+          "transferred_voltage_start_validation_errors": [],
+          "wall_seconds": 2.854534864425659
+        },
+        {
+          "allocator_stage_telemetry": {
+            "model_build": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 162674,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1746747392,
+                "size_in_use_bytes": 1358654336
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 162472,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1811726336,
+                "size_in_use_bytes": 1465412480
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": -64978944,
+              "size_in_use_delta_bytes": -106758144
+            },
+            "solve": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 162600,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1863172096,
+                "size_in_use_bytes": 1484970736
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 162819,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1750941696,
+                "size_in_use_bytes": 1368622720
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 112230400,
+              "size_in_use_delta_bytes": 116348016
+            },
+            "start_application": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 162819,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1750941696,
+                "size_in_use_bytes": 1368622720
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 162711,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1750941696,
+                "size_in_use_bytes": 1368460160
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 0,
+              "size_in_use_delta_bytes": 162560
+            }
+          },
+          "dual_status": "FEASIBLE_POINT",
+          "label": "feasibility_voltage_transfer",
+          "objective_value": 0.0,
+          "primal_status": "FEASIBLE_POINT",
+          "result_count": 1,
+          "solve_allocated_bytes": 256888640,
+          "solve_gc_seconds": 0.217931,
+          "solve_seconds": 1.082348108291626,
+          "termination_status": "LOCALLY_SOLVED",
+          "transfer_applied": true,
+          "transferred_voltage_start_count": 13309,
+          "transferred_voltage_start_skipped_count": 0,
+          "transferred_voltage_start_validation_error_count": 0,
+          "transferred_voltage_start_validation_errors": [],
+          "wall_seconds": 2.552826166152954
+        }
+      ],
+      "relaxed_initialization": {
+        "allocator_stage_telemetry": {
+          "after": {
+            "available": true,
+            "blocks_in_use": 164215,
+            "max_size_in_use_bytes": 0,
+            "peak_field_available": false,
+            "size_allocated_bytes": 1614626816,
+            "size_in_use_bytes": 1334630640
+          },
+          "available": true,
+          "before": {
+            "available": true,
+            "blocks_in_use": 260654,
+            "max_size_in_use_bytes": 0,
+            "peak_field_available": false,
+            "size_allocated_bytes": 379830272,
+            "size_in_use_bytes": 148375968
+          },
+          "peak_available": false,
+          "size_allocated_delta_bytes": 1234796544,
+          "size_in_use_delta_bytes": 1186254672
+        },
+        "initialization_bus_count": 3409,
+        "relaxed_feasible": true,
+        "termination_status": "LOCALLY_SOLVED",
+        "total_slack_magnitude_A": 0.09454189685488579
+      },
+      "status": "completed"
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-load-multiplier-sweep-v1",
+  "status": "completed"
+}

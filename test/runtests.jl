@@ -3143,6 +3143,36 @@ end
     @test occursin("bmopf_transfer_budget_boundary_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    @test occursin("NLPDIAGNOSTICS_COMBINED_MV_LV_LOAD_MULTIPLIER", read(
+        joinpath(benchmark_directory, "bmopf_combined_mv_lv_feasibility_start_transfer.jl"), String,
+    ))
+    load_sweep_script = read(
+        joinpath(benchmark_directory, "bmopf_combined_mv_lv_load_multiplier_sweep.jl"), String,
+    )
+    @test Meta.parseall(load_sweep_script) isa Expr
+    @test occursin("1.0,0.75,0.5,0.25", load_sweep_script)
+    load_sweep_validation_script = read(
+        joinpath(benchmark_directory, "validate_bmopf_combined_mv_lv_load_sweep.jl"), String,
+    )
+    @test Meta.parseall(load_sweep_validation_script) isa Expr
+    load_sweep = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_load_multiplier_sweep_summary.json"), String,
+    ))
+    @test load_sweep["status"] == "completed"
+    @test load_sweep["multipliers"] == [1.0, 0.75, 0.5, 0.25]
+    @test load_sweep["completed_count"] == 4
+    @test load_sweep["hard_locally_solved_count"] == 1
+    @test load_sweep["results"][4]["hard_locally_solved"] == true
+    load_sweep_validation = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_load_sweep_validation_summary.json"), String,
+    ))
+    @test load_sweep_validation["schema_version"] ==
+          "nlpdiagnostics-bmopf-combined-mv-lv-load-sweep-validation-v1"
+    @test load_sweep_validation["status"] == "pass"
+    @test load_sweep_validation["paired_hard_local_solve_count"] == 1
+    @test occursin("bmopf_combined_mv_lv_load_multiplier_sweep_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     child_transfer_script = read(
         joinpath(benchmark_directory, "run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl"), String,
     )
