@@ -6539,3 +6539,16 @@ Darwin sandbox reports `kern.clockrate` access denied to `/usr/bin/time -l`,
 so the external reading is recorded as unavailable while the child still
 completes and reports `Sys.maxrss`. A less restricted host remains required
 before promoting the external measurement to release evidence.
+
+## 2026-08-28 hard-OPF transfer budget sweep
+
+The next convergence investigation is now executable through
+`benchmarks/bmopf_combined_mv_lv_transfer_budget_sweep.jl`. It runs paired
+native and feasibility-voltage-transfer hard OPFs at 50, 100, and 200
+iterations under the same CPU guard, retaining each bounded solver record and
+classifying whether the termination class changes. The normalized artifact is
+`docs/bmopf_combined_mv_lv_transfer_budget_sweep_summary.json`.
+
+This is deliberately a convergence-boundary experiment: even a completed
+sweep with unchanged `ITERATION_LIMIT` statuses does not establish hard
+feasibility or a production scaling policy.

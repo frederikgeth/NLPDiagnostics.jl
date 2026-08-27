@@ -3098,6 +3098,19 @@ end
     @test occursin("external_peak_rss_bytes", isolated_transfer_script)
     @test occursin("/usr/bin/time -l", isolated_transfer_script)
     @test occursin("[\"/usr/bin/time\", Sys.isapple() ? \"-l\" : \"-v\"]", isolated_transfer_script)
+    transfer_budget_sweep_script = read(
+        joinpath(benchmark_directory, "bmopf_combined_mv_lv_transfer_budget_sweep.jl"), String,
+    )
+    @test Meta.parseall(transfer_budget_sweep_script) isa Expr
+    @test occursin("50,100,200", transfer_budget_sweep_script)
+    transfer_budget_sweep = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_transfer_budget_sweep_summary.json"), String,
+    ))
+    @test transfer_budget_sweep["status"] == "completed"
+    @test transfer_budget_sweep["budgets"] == [50, 100, 200]
+    @test transfer_budget_sweep["completed_count"] == 3
+    @test transfer_budget_sweep["native_record_count"] == 3
+    @test transfer_budget_sweep["transfer_record_count"] == 3
     child_transfer_script = read(
         joinpath(benchmark_directory, "run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl"), String,
     )
