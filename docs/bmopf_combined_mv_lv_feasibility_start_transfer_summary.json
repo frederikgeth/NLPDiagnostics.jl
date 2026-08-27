@@ -1,0 +1,66 @@
+{
+  "budgets": {
+    "max_cpu_seconds": 60.0,
+    "max_iter": 50
+  },
+  "input": {
+    "path": "/private/tmp/bmopftools-clean/test/data/Master.dss",
+    "source_warning_codes": [
+      "EMIT.BMOPF.FIELD_DROPPED",
+      "EMIT.BMOPF.RETAINED_SOURCE_ONLY",
+      "EMIT.BMOPF.TRANSFORMER_EXTRA_DROPPED"
+    ],
+    "source_warning_count": 10277
+  },
+  "interpretation": "The feasibility-relaxed voltage state is transferred into the hard OPF voltage starts and compared with the native hard-OPF start under identical budgets. Termination remains bounded evidence; nonzero relaxed KCL slack and iteration-limited hard statuses do not establish hard feasibility or a production scaling policy.",
+  "memory_observation": "@timed solve allocation bytes and GC time are process-local allocation telemetry, not allocator-level peak memory.",
+  "network_shape": {
+    "bus_count": 3409,
+    "line_count": 3096,
+    "load_count": 1255,
+    "transformer_count": 1
+  },
+  "next_action": "Add fresh-child allocator peak telemetry and expose a stable BMOPFTools voltage-start transfer API if this initialization is retained.",
+  "records": [
+    {
+      "dual_status": "UNKNOWN_RESULT_STATUS",
+      "label": "native",
+      "objective_value": 0.0,
+      "primal_status": "INFEASIBLE_POINT",
+      "result_count": 1,
+      "solve_allocated_bytes": 307108592,
+      "solve_gc_seconds": 0.172506042,
+      "solve_seconds": 7.699693918228149,
+      "termination_status": "ITERATION_LIMIT",
+      "transfer_applied": false,
+      "transferred_voltage_start_count": 0,
+      "transferred_voltage_start_skipped_count": 0,
+      "wall_seconds": 9.658715963363647
+    },
+    {
+      "dual_status": "UNKNOWN_RESULT_STATUS",
+      "label": "feasibility_voltage_transfer",
+      "objective_value": 0.0,
+      "primal_status": "INFEASIBLE_POINT",
+      "result_count": 1,
+      "solve_allocated_bytes": 256697984,
+      "solve_gc_seconds": 0.043466583,
+      "solve_seconds": 7.480069875717163,
+      "termination_status": "ITERATION_LIMIT",
+      "transfer_applied": true,
+      "transferred_voltage_start_count": 13309,
+      "transferred_voltage_start_skipped_count": 0,
+      "wall_seconds": 9.554107904434204
+    }
+  ],
+  "relaxed_initialization": {
+    "initialization_bus_count": 3409,
+    "relaxed_feasible": true,
+    "termination_status": "LOCALLY_SOLVED",
+    "total_slack_magnitude_A": 354.3101805271313
+  },
+  "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v1",
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-v1",
+  "status": "bounded_hard_opf_start_transfer",
+  "wall_seconds": 42.290985107421875
+}

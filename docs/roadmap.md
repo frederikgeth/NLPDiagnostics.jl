@@ -5950,3 +5950,26 @@ BMOPFTools' numeric `solver_options` converts it to a floating-point value.
 The roadmap therefore advances from “find a convergent initialization” to
 “map this returned initialization into a hard OPF start, then add allocator-
 level peak telemetry”; the production scaling claim remains blocked.
+
+## 2026-08-27 feasibility-start transfer into hard OPF
+
+The relaxed initialization was transferred into the hard full-case OPF as a
+paired experiment against the existing native start. All 13,309 voltage
+terminal starts were applied after converting the returned SI phasors into the
+classic per-unit coordinates. Under identical 50-iteration and 60-second
+guards, both runs remained `ITERATION_LIMIT` with `INFEASIBLE_POINT`; the
+transfer therefore does not yet provide hard-OPF convergence.
+
+The transfer did provide a practical resource signal: process-local solve
+allocation bytes fell from about 307 MB (native) to 257 MB (transferred),
+while solve time was 7.70 s versus 7.48 s in this run. These are single-run
+`@timed` observations, not allocator-level peak measurements or a general
+performance claim. The evidence is
+`docs/bmopf_combined_mv_lv_feasibility_start_transfer_summary.json`, generated
+by `benchmarks/bmopf_combined_mv_lv_feasibility_start_transfer.jl`.
+
+This closes the initialization-transfer experiment and identifies the next
+API boundary: the benchmark still reaches into BMOPFTools' staged context
+variable ledger because no stable voltage-start setter is available. The next
+deliverable is fresh-child allocator peak telemetry and, if the transfer is
+retained, a reviewed stable BMOPFTools start-transfer interface.

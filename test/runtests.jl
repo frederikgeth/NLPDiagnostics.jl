@@ -2948,6 +2948,29 @@ end
     @test occursin("bmopf_combined_mv_lv_feasibility_probe_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    transfer_probe_script = read(
+        joinpath(benchmark_directory, "bmopf_combined_mv_lv_feasibility_start_transfer.jl"), String,
+    )
+    @test Meta.parseall(transfer_probe_script) isa Expr
+    @test occursin("feasibility_voltage_transfer", transfer_probe_script)
+    @test occursin("solve_allocated_bytes", transfer_probe_script)
+    transfer_probe = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_feasibility_start_transfer_summary.json"), String,
+    ))
+    @test transfer_probe["schema_version"] ==
+          "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-v1"
+    @test transfer_probe["status"] == "bounded_hard_opf_start_transfer"
+    @test length(transfer_probe["records"]) == 2
+    @test transfer_probe["records"][1]["termination_status"] == "ITERATION_LIMIT"
+    @test transfer_probe["records"][2]["termination_status"] == "ITERATION_LIMIT"
+    @test transfer_probe["records"][2]["transfer_applied"] == true
+    @test transfer_probe["records"][2]["transferred_voltage_start_count"] == 13309
+    @test transfer_probe["records"][2]["transferred_voltage_start_skipped_count"] == 0
+    @test transfer_probe["records"][1]["solve_allocated_bytes"] > 0
+    @test transfer_probe["records"][2]["solve_allocated_bytes"] > 0
+    @test occursin("bmopf_combined_mv_lv_feasibility_start_transfer_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     rank_perturbation_script = read(
         joinpath(benchmark_directory, "calibrate_rank_perturbation_sweep.jl"),
         String,
