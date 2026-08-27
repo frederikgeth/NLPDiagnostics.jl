@@ -6237,3 +6237,16 @@ The updated artifact is
 consolidation increment without changing exports or type identity. The
 remaining root-only queue still requires similarly bounded review and explicit
 owner approval before any namespace move.
+
+## 2026-08-27 API ownership tranche 3
+
+The persisted ownership ledger advanced another deterministic 24-name queue
+batch. It now carries forward 140 prior decisions and records 164 reviewed
+root-only names: 95 retain root compatibility and 69 remain Advanced
+candidates. This tranche contains 24 root-compatibility decisions; automatic
+migration remains disabled and Stable/Advanced exports are unchanged.
+
+The updated artifact is
+`docs/api_ownership_decision_summary.json`. The queue is now materially more
+reviewed, but the remaining names still require bounded ownership decisions and
+explicit compatibility planning before any namespace move.
