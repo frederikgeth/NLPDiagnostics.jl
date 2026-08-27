@@ -1,0 +1,35 @@
+{
+  "checks": {
+    "comparison_candidate": true,
+    "current_allocator_available_both": true,
+    "peak_field_unavailable_active": true,
+    "peak_field_unavailable_clean": true,
+    "stage_count_active": 4,
+    "stage_count_clean": 4
+  },
+  "decision": {
+    "allocator_peak_claim_allowed": false,
+    "boundary": "Allocator-level peak memory is unavailable on the reviewed host/process; current-allocation stage deltas and OS-level RSS high-water observations remain descriptive only.",
+    "current_allocation_attribution_allowed": true,
+    "next_evidence": "Obtain a peak-capable allocator measurement on a reviewed host if a portable memory claim is required; otherwise retain this explicit boundary in release documentation.",
+    "portable_memory_claim_allowed": false,
+    "release_note_required": true
+  },
+  "interpretation": {
+    "claim": "The allocator limitation is internally consistent across the two reviewed environments and can be carried as an explicit release boundary.",
+    "does_not_establish": [
+      "allocator-level peak memory",
+      "portable retained-memory limits",
+      "performance or solver scaling"
+    ]
+  },
+  "schema_version": "nlpdiagnostics-bmopf-analyze-allocator-boundary-v1",
+  "source": {
+    "active_input": "docs/bmopf_analyze_allocator_telemetry_summary.json",
+    "clean_input": "docs/bmopf_analyze_allocator_telemetry_clean_summary.json",
+    "comparison_input": "docs/bmopf_analyze_allocator_telemetry_portability_summary.json",
+    "review_policy": "A release boundary is ready only when two distinct environments match semantically, current allocator counters are available, and peak fields are explicitly unavailable in both.",
+    "runner": "benchmarks/review_bmopf_analyze_allocator_boundary.jl"
+  },
+  "status": "release_boundary_ready"
+}

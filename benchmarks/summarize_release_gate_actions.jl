@@ -35,7 +35,7 @@ const ACTIONS = Dict{String,Dict{String,Any}}(
     ),
     "analyze_runtime_scaling" => Dict(
         "priority" => 4,
-        "next_deliverable" => "Review the matched two-environment OS peak candidate and current-allocation stage telemetry, then obtain peak-capable allocator telemetry before making a portable runtime or memory claim.",
+        "next_deliverable" => "Record the owner disposition for the explicit allocator-peak boundary; obtain peak-capable telemetry only if a portable memory claim is required.",
         "closure_condition" => "The broader workload campaign has stable findings, stage/resource attribution, and documented portability limits; optimization candidates are either supported by repeated A/B evidence or explicitly not promoted.",
         "dependency" => "Keep the public API unchanged and preserve repeatability and memory provenance.",
     ),

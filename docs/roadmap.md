@@ -6204,3 +6204,20 @@ match. These are allocator-reuse/process observations, not portable peak or
 retained-memory measurements. This closes the two-environment current-
 allocation comparison and leaves the remaining action precise: obtain a
 peak-capable allocator measurement or record an explicit release boundary.
+
+## 2026-08-27 allocator peak boundary review
+
+The new `benchmarks/review_bmopf_analyze_allocator_boundary.jl` validator joins
+the two-environment allocator comparison and checks that the four stage
+measurements, semantic outputs, and current-counter availability are
+consistent. It records `release_boundary_ready`: both environments have
+current allocator telemetry, both expose zero peak-field availability, and
+neither portable-memory nor allocator-peak claims are allowed.
+
+The machine-readable decision is in
+`docs/bmopf_analyze_allocator_boundary_summary.json` and is propagated into
+the analyze readiness and release-gate ledgers. This closes the capability
+investigation with an explicit release boundary rather than an implicit gap.
+If a portable memory statement is required later, the next evidence must come
+from a peak-capable allocator measurement on a reviewed host; otherwise the
+boundary should remain in release documentation.

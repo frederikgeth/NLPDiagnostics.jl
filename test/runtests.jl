@@ -2781,6 +2781,21 @@ end
     @test allocator_comparison_data["environment_distinct"] == true
     @test allocator_comparison_data["semantic_comparison"]["mismatch_count"] == 0
     @test allocator_comparison_data["resource_comparison"]["status"] == "descriptive_only"
+    allocator_boundary_script = read(
+        joinpath(benchmark_directory, "review_bmopf_analyze_allocator_boundary.jl"),
+        String,
+    )
+    @test Meta.parseall(allocator_boundary_script) isa Expr
+    @test occursin("release_boundary_ready", allocator_boundary_script)
+    allocator_boundary_summary = read(
+        joinpath(repository_root, "docs", "bmopf_analyze_allocator_boundary_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-bmopf-analyze-allocator-boundary-v1", allocator_boundary_summary)
+    allocator_boundary_data = JSON.parse(allocator_boundary_summary)
+    @test allocator_boundary_data["status"] in ("release_boundary_ready", "boundary_requires_review")
+    @test allocator_boundary_data["decision"]["portable_memory_claim_allowed"] == false
+    @test allocator_boundary_data["decision"]["allocator_peak_claim_allowed"] == false
     analyze_ab_script = read(
         joinpath(benchmark_directory, "profile_analyze_static_optimization_ab.jl"),
         String,

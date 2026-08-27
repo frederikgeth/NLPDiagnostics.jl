@@ -18,6 +18,7 @@ const EXTERNAL_PEAK_INPUT = "docs/bmopf_analyze_external_peak_probe_summary.json
 const EXTERNAL_PEAK_PORTABILITY_INPUT = "docs/bmopf_analyze_external_peak_portability_summary.json"
 const ALLOCATOR_TELEMETRY_INPUT = "docs/bmopf_analyze_allocator_telemetry_summary.json"
 const ALLOCATOR_PORTABILITY_INPUT = "docs/bmopf_analyze_allocator_telemetry_portability_summary.json"
+const ALLOCATOR_BOUNDARY_INPUT = "docs/bmopf_analyze_allocator_boundary_summary.json"
 const BMOPF_COMBINED_INPUT = "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "analyze_scaling_readiness_summary.json") : ARGS[1])
@@ -34,6 +35,7 @@ external_peak = read_summary(EXTERNAL_PEAK_INPUT)
 external_peak_portability = read_summary(EXTERNAL_PEAK_PORTABILITY_INPUT)
 allocator_telemetry = read_summary(ALLOCATOR_TELEMETRY_INPUT)
 allocator_portability = read_summary(ALLOCATOR_PORTABILITY_INPUT)
+allocator_boundary = read_summary(ALLOCATOR_BOUNDARY_INPUT)
 bmopf_combined = read_summary(BMOPF_COMBINED_INPUT)
 
 trend_by_workload = Dict{String,Any}(
@@ -142,7 +144,7 @@ write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-analyze-scaling-readiness-v1",
     "source" => Dict(
         "runner" => "benchmarks/summarize_analyze_scaling_readiness.jl",
-        "artifacts" => [TREND_INPUT, RESOURCE_INPUT, PROFILE_INPUT, AB_INPUT, GENERALIZATION_INPUT, TARGET_TERMS_INPUT, ISOLATED_MEMORY_INPUT, PORTABILITY_INPUT, EXTERNAL_PEAK_INPUT, EXTERNAL_PEAK_PORTABILITY_INPUT, ALLOCATOR_TELEMETRY_INPUT, ALLOCATOR_PORTABILITY_INPUT, BMOPF_COMBINED_INPUT],
+        "artifacts" => [TREND_INPUT, RESOURCE_INPUT, PROFILE_INPUT, AB_INPUT, GENERALIZATION_INPUT, TARGET_TERMS_INPUT, ISOLATED_MEMORY_INPUT, PORTABILITY_INPUT, EXTERNAL_PEAK_INPUT, EXTERNAL_PEAK_PORTABILITY_INPUT, ALLOCATOR_TELEMETRY_INPUT, ALLOCATOR_PORTABILITY_INPUT, ALLOCATOR_BOUNDARY_INPUT, BMOPF_COMBINED_INPUT],
         "policy" => "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",
     ),
     "environment" => Dict(
@@ -249,6 +251,13 @@ write_json(OUTPUT, Dict{String,Any}(
         "stage_count" => get(allocator_portability, "stage_count", 0),
         "nonzero_stage_difference_count" => get(allocator_portability, "nonzero_stage_difference_count", 0),
         "claim" => "Stage coverage and current-allocation telemetry match across two reviewed environments; differences remain descriptive and both allocator peak fields are unavailable.",
+    ),
+    "allocator_boundary" => Dict(
+        "status" => get(allocator_boundary, "status", "unavailable"),
+        "portable_memory_claim_allowed" => get(get(allocator_boundary, "decision", Dict{String,Any}()), "portable_memory_claim_allowed", false),
+        "allocator_peak_claim_allowed" => get(get(allocator_boundary, "decision", Dict{String,Any}()), "allocator_peak_claim_allowed", false),
+        "release_note_required" => get(get(allocator_boundary, "decision", Dict{String,Any}()), "release_note_required", true),
+        "claim" => get(get(allocator_boundary, "decision", Dict{String,Any}()), "boundary", "Allocator peak availability remains unreviewed."),
     ),
     "bmopf_combined_mv_lv_analyze" => Dict(
         "feeder_count" => length(combined_feeders),
