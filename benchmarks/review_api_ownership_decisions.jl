@@ -14,7 +14,7 @@ using .NLPDiagnosticsBenchmarkCommon
 const ROOT = repo_root()
 const INPUT = "docs/api_tier_usage_summary.json"
 const PRIOR_OUTPUT = "docs/api_ownership_decision_summary.json"
-const NEXT_BATCH_LABEL = "next_bounded_batch_2026-08-27_tranche_16"
+const NEXT_BATCH_LABEL = "next_bounded_batch_2026-08-27_tranche_17"
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "api_ownership_decision_summary.json") : ARGS[1])
 
