@@ -3736,6 +3736,8 @@ end
     @test transfer_report_validation["record_count"] == 2
     @test transfer_report_validation["validated_record_count"] == 2
     @test transfer_report_validation["failure_count"] == 0
+    @test transfer_report_validation["validated_runner_versions"] ==
+          ["bmopf-combined-mv-lv-feasibility-start-transfer-v2"]
     isolated_transfer_report_validation = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_transfer_report_isolated_validation_summary.json"), String,
     ))
@@ -3743,6 +3745,8 @@ end
     @test isolated_transfer_report_validation["record_count"] == 4
     @test isolated_transfer_report_validation["validated_record_count"] == 4
     @test isolated_transfer_report_validation["failure_count"] == 0
+    @test isolated_transfer_report_validation["validated_runner_versions"] ==
+          ["bmopf-combined-mv-lv-feasibility-start-transfer-v2"]
     ownership_review_script = read(
         joinpath(benchmark_directory, "review_api_ownership_decisions.jl"),
         String,

@@ -6522,3 +6522,8 @@ well, so all four isolated native/transfer records are covered by the same
 typed-field consistency gate. Direct and isolated report validation now travel
 together in the release evidence; this closes report-integrity scope without
 changing the scientific conclusion that hard-OPF convergence is unresolved.
+
+The validator also enforces v2 runner provenance, bounded transfer status, and
+the invariant that skipped starts equal the number of structured validation
+errors. This prevents an older or partially regenerated campaign from passing
+the evidence gate silently while the upstream public API remains pending.
