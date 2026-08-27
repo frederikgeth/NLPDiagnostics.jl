@@ -3111,6 +3111,22 @@ end
     @test transfer_budget_sweep["completed_count"] == 4
     @test transfer_budget_sweep["native_record_count"] == 4
     @test transfer_budget_sweep["transfer_record_count"] == 4
+    transfer_budget_validator_script = read(
+        joinpath(benchmark_directory, "validate_bmopf_transfer_budget_sweep.jl"), String,
+    )
+    @test Meta.parseall(transfer_budget_validator_script) isa Expr
+    @test occursin("EXPECTED_BUDGETS", transfer_budget_validator_script)
+    transfer_budget_validation = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_transfer_budget_sweep_validation_summary.json"), String,
+    ))
+    @test transfer_budget_validation["schema_version"] ==
+          "nlpdiagnostics-bmopf-transfer-budget-sweep-validation-v1"
+    @test transfer_budget_validation["status"] == "pass"
+    @test transfer_budget_validation["validated_budget_count"] == 4
+    @test transfer_budget_validation["high_budget_pair_count"] == 2
+    @test occursin("bmopf_transfer_budget_sweep_validation_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     child_transfer_script = read(
         joinpath(benchmark_directory, "run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl"), String,
     )

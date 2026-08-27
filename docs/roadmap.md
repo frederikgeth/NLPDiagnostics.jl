@@ -6557,3 +6557,9 @@ The follow-up extends the default ladder through 400 iterations. A stable
 `LOCALLY_INFEASIBLE` classification at the upper budgets would narrow the
 interpretation toward an infeasible-start boundary rather than merely an
 iteration ceiling; it still would not establish a converged feasible OPF.
+
+The sweep is now guarded by `benchmarks/validate_bmopf_transfer_budget_sweep.jl`.
+The validator requires the reviewed 50/100/200/400 paired native/transfer
+coverage and records two upper-budget pairs that escaped `ITERATION_LIMIT`.
+This turns the observed boundary into reviewable evidence while keeping hard
+feasibility, convergence, and production iteration policy explicitly open.
