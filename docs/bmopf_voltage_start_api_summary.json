@@ -1,17 +1,34 @@
 {
   "current_workaround": {
+    "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v2",
     "stable_api_ready": false,
     "transfer_benchmark": "benchmarks/bmopf_combined_mv_lv_feasibility_start_transfer.jl",
-    "uses_internal_context_variable_ledger": true
+    "transfer_report_fields": {
+      "_VoltageStartTransferReport": true,
+      "transferred_voltage_start_validation_error_count": true,
+      "transferred_voltage_start_validation_errors": true,
+      "validation_errors::Vector": true
+    },
+    "typed_transfer_report_ready": true,
+    "uses_internal_context_variable_ledger": true,
+    "validation_error_codes": [
+      "invalid_bus_payload",
+      "invalid_terminal_payload",
+      "invalid_voltage_base",
+      "missing_rectangular_start",
+      "non_numeric_phasor",
+      "nonfinite_phasor",
+      "unknown_bus_terminal"
+    ]
   },
   "decision": "Do not promote the internal ctx.vars workaround as stable API. Carry the contract and proposal document to BMOPFTools for review and retain the bounded benchmark evidence until an upstream implementation is available.",
   "dependency": {
-    "git_branch": "main",
+    "git_branch": null,
     "git_dirty": false,
-    "git_revision": "1d9954ca29d4dd2bb5754171e55f1c3af321aa55",
-    "git_root": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl",
+    "git_revision": "a9e059fba88bb3c5355ed171fa4abd70adf1f213",
+    "git_root": "/private/tmp/bmopftools-clean",
     "name": "BMOPFTools",
-    "source_path": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/src/BMOPFTools.jl",
+    "source_path": "/private/tmp/bmopftools-clean/src/BMOPFTools.jl",
     "version": "0.1.0"
   },
   "existing_public_symbols": {

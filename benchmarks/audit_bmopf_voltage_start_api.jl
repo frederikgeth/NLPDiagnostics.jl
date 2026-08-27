@@ -30,6 +30,15 @@ const PROPOSED_SYMBOLS = [
     "opf_voltage_start_values",
     "set_opf_voltage_start_values!",
 ]
+const TRANSFER_VALIDATION_CODES = [
+    "invalid_bus_payload",
+    "invalid_terminal_payload",
+    "unknown_bus_terminal",
+    "missing_rectangular_start",
+    "invalid_voltage_base",
+    "non_numeric_phasor",
+    "nonfinite_phasor",
+]
 
 function package_git_root(source_path::AbstractString)
     current = abspath(dirname(source_path))
@@ -58,6 +67,20 @@ function main()
     existing = Dict(symbol => isdefined(BMOPF, Symbol(symbol)) for symbol in REQUIRED_EXISTING_SYMBOLS)
     proposed = Dict(symbol => isdefined(BMOPF, Symbol(symbol)) for symbol in PROPOSED_SYMBOLS)
     proposal_missing = sort!([symbol for (symbol, present) in proposed if !present])
+    transfer_runner_match = match(
+        r"const _RUNNER_VERSION = \"([^\"]+)\"", source_text,
+    )
+    transfer_validation_codes = sort!([
+        code for code in TRANSFER_VALIDATION_CODES if occursin(":" * code, source_text)
+    ])
+    transfer_report_fields = Dict(
+        field => occursin(field, source_text) for field in [
+            "_VoltageStartTransferReport",
+            "validation_errors::Vector",
+            "transferred_voltage_start_validation_error_count",
+            "transferred_voltage_start_validation_errors",
+        ]
+    )
     report = Dict{String,Any}(
         "schema_version" => "nlpdiagnostics-bmopf-voltage-start-api-v1",
         "status" => isempty(proposal_missing) ? "proposal_symbols_available" : "proposal_required",
@@ -76,6 +99,10 @@ function main()
         "current_workaround" => Dict(
             "transfer_benchmark" => relpath(TRANSFER_SOURCE, ROOT),
             "uses_internal_context_variable_ledger" => occursin("getfield(context, :vars)", source_text),
+            "runner_version" => isnothing(transfer_runner_match) ? nothing : transfer_runner_match.captures[1],
+            "typed_transfer_report_ready" => all(values(transfer_report_fields)),
+            "transfer_report_fields" => transfer_report_fields,
+            "validation_error_codes" => transfer_validation_codes,
             "stable_api_ready" => false,
         ),
         "proposal_document" => Dict(

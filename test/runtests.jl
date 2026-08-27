@@ -3707,6 +3707,10 @@ end
           "nlpdiagnostics-bmopf-voltage-start-api-v1"
     @test voltage_start_api["status"] == "proposal_required"
     @test voltage_start_api["current_workaround"]["uses_internal_context_variable_ledger"] == true
+    @test voltage_start_api["current_workaround"]["typed_transfer_report_ready"] == true
+    @test voltage_start_api["current_workaround"]["runner_version"] ==
+          "bmopf-combined-mv-lv-feasibility-start-transfer-v2"
+    @test length(voltage_start_api["current_workaround"]["validation_error_codes"]) == 7
     @test voltage_start_api["current_workaround"]["stable_api_ready"] == false
     @test voltage_start_api["existing_public_symbols"]["build_opf_model"] == true
     @test length(voltage_start_api["proposal_missing_symbols"]) == 2
@@ -3716,6 +3720,9 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
     @test occursin("bmopf_voltage_start_api_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
+    @test occursin("typed transfer report", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
     ownership_review_script = read(

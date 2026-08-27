@@ -6500,3 +6500,13 @@ workaround bounded and reviewable while the proposed public
 in BMOPFTools. Existing v1 evidence remains valid; rerunning the bounded
 campaign will refresh its additive v2 fields when upstream review or a local
 regression check requires it.
+
+The voltage-start audit now records whether the downstream workaround has a
+typed transfer report, its runner version, and the complete validation-code
+vocabulary. This makes the upstream handoff checkable independently of solver
+outcomes: the local v2 benchmark is report-ready, while the public BMOPFTools
+read/write symbols remain the only missing adoption boundary.
+
+The release-gate builder now carries that report-readiness state into the API
+consolidation rationale, so upstream handoff evidence distinguishes a typed
+downstream contract from the still-missing public BMOPFTools symbols.
