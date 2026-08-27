@@ -6458,3 +6458,16 @@ the full 539-name ledger. The release-gate builder incorporates this state so
 the API consolidation rationale distinguishes a completed review from an
 unfinished queue. Future API changes must update the ledger deliberately; they
 do not silently reopen migration.
+
+## 2026-08-27 API consolidation inventory refresh
+
+The API/test/benchmark consolidation audit now consumes the ownership ledger
+directly and records the current repository shape: 195 benchmark scripts, 192
+shared-helper users, and 139 schema-covered JSON artifacts. Its new
+`api_ownership` section carries the 539/539 completion state and keeps the
+remaining gate focused on adapter adoption, dependency synchronization, and
+explicit migration approval rather than repeated queue review.
+
+The refreshed evidence is
+`docs/api_test_benchmark_consolidation_summary.json`, with release-gate and
+Markdown report consumers regenerated from the same source.

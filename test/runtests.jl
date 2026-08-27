@@ -2514,6 +2514,7 @@ end
     @test occursin("bmopf_voltage_level_series_feasibility_sweep", release_gate_builder)
     @test occursin("api_migration_queue_summary.json", release_gate_builder)
     @test occursin("api_advanced_candidate_summary.json", release_gate_builder)
+    @test occursin("api_ownership_queue_complete", release_gate_builder)
     release_action_script = read(
         joinpath(benchmark_directory, "summarize_release_gate_actions.jl"),
         String,
@@ -3646,10 +3647,12 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 165", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 162", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 107", consolidation_summary)
+    @test occursin("\"benchmark_script_count\": 195", consolidation_summary)
+    @test occursin("\"shared_benchmark_helper_user_count\": 192", consolidation_summary)
+    @test occursin("\"json_schema_file_count\": 139", consolidation_summary)
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
+    @test occursin("\"queue_complete\": true", consolidation_summary)
+    @test occursin("complete bounded API ownership decision ledger", consolidation_summary)
     active_bmopf_contract = read(
         joinpath(repository_root, "docs", "bmopf_api_contract_summary.json"),
         String,

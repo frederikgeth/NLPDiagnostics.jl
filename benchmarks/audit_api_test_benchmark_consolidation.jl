@@ -109,6 +109,9 @@ bmopf_validation = isfile(bmopf_validation_path) ?
 api_tier_path = joinpath(REPO_ROOT, "docs", "api_tier_inventory_summary.json")
 api_tiers = isfile(api_tier_path) ?
     JSON.parsefile(api_tier_path) : Dict{String,Any}("status" => "missing")
+api_ownership_path = joinpath(REPO_ROOT, "docs", "api_ownership_decision_summary.json")
+api_ownership = isfile(api_ownership_path) ?
+    JSON.parsefile(api_ownership_path) : Dict{String,Any}("status" => "missing")
 quality_policy_path = joinpath(REPO_ROOT, "docs", "quality_policy.json")
 quality_policy = isfile(quality_policy_path) ?
     JSON.parsefile(quality_policy_path) : Dict{String,Any}("status" => "missing")
@@ -182,6 +185,8 @@ for name in export_names
     bucket = export_bucket(name)
     export_buckets[bucket] = get(export_buckets, bucket, 0) + 1
 end
+
+api_ownership_complete = get(api_ownership, "queue_complete", false)
 
 summary = Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-api-test-benchmark-consolidation-v1",
@@ -283,6 +288,20 @@ summary = Dict{String,Any}(
             nothing,
         ),
     ),
+    "api_ownership" => Dict{String,Any}(
+        "artifact" => "docs/api_ownership_decision_summary.json",
+        "schema_version" => get(api_ownership, "schema_version", "missing"),
+        "queue_count" => get(api_ownership, "queue_count", nothing),
+        "reviewed_count" => get(api_ownership, "reviewed_count", 0),
+        "queue_complete" => api_ownership_complete,
+        "root_compatibility_retained_count" => get(
+            api_ownership, "root_compatibility_retained_count", 0,
+        ),
+        "advanced_candidate_count" => get(
+            api_ownership, "advanced_candidate_count", 0,
+        ),
+        "migration_allowed_count" => get(api_ownership, "migration_allowed_count", 0),
+    ),
     "quality_policy" => Dict{String,Any}(
         "artifact" => "docs/quality_policy.json",
         "documentation" => "docs/quality_policy.md",
@@ -302,7 +321,9 @@ summary = Dict{String,Any}(
     "interpretation" => Dict(
         "status" => "partial",
         "finding" =>
-            "The repository has broad root exports and split implementation files. A typed unavailable-reason schema and explicit Stable/Advanced facades now exist at the report boundary, while broad adapter adoption and root-export tier migration are not yet complete.",
+            api_ownership_complete ?
+                "The repository has broad root exports and split implementation files. A typed unavailable-reason schema, explicit Stable/Advanced facades, and a complete bounded API ownership ledger now exist at the report boundary, while broad adapter adoption and namespace migration remain intentionally gated." :
+                "The repository has broad root exports and split implementation files. A typed unavailable-reason schema and explicit Stable/Advanced facades now exist at the report boundary, while broad adapter adoption and root-export tier migration are not yet complete.",
         "completed_evidence" => [
             "root export inventory",
             "source and test include boundaries",
@@ -314,6 +335,9 @@ summary = Dict{String,Any}(
             "BMOPFTools PR handoff gate",
             "isolated BMOPFTools checkout validation",
             "explicit Stable/Advanced facades and root-export tier inventory",
+            api_ownership_complete ?
+                "complete bounded API ownership decision ledger" :
+                "bounded API ownership decision ledger in progress",
             "typed unavailable-reason serialization for solver linear telemetry",
             "typed unavailable-reason serialization for solver-dual and complementarity boundaries",
             "generic report-boundary unavailable-reason collection for paired and suffix-only metadata",
@@ -375,6 +399,9 @@ summary = Dict{String,Any}(
             "review the deliberately small Stable facade and document stable versus advanced/experimental API tiers",
             "adopt typed unavailable reasons across capability and work-guard adapters without changing legacy result layouts accidentally",
             "review helper exemptions when infrastructure scripts begin producing benchmark artifacts",
+            api_ownership_complete ?
+                "keep the completed API ownership ledger synchronized with API and dependency changes" :
+                "continue the bounded API ownership decision review",
             "keep the tracked BMOPFTools contract artifact synchronized with the active dependency checkout",
             "resolve the active BMOPFTools revision against the validated clean-main handoff gate",
             "activate documentation-example, Aqua, and targeted JET checks only after reviewed environments are available",
