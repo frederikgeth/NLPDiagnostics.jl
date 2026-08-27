@@ -1,0 +1,62 @@
+{
+  "all_iteration_limited": true,
+  "all_reached_solver": true,
+  "budgets": {
+    "max_cpu_seconds": 30.0,
+    "max_iter": 10,
+    "max_variables": 60000
+  },
+  "environment": {
+    "git_revision": "38bca90fe22e7ce591d1792bfb75aba0ba61e901",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": "The 56,142-variable combined MV/LV model reached Ipopt for all three policies under the reviewed ten-iteration and 30-second-per-policy budget. All policies remained iteration-limited infeasible points; this is bounded termination evidence only and does not establish convergence, policy ranking, allocator peak memory, or runtime complexity.",
+  "model_variable_count": 56142,
+  "next_action": "Run a reviewed 50-iteration full-case probe or add allocator-level peak telemetry before making a production scaling claim.",
+  "policy_count": 3,
+  "records": [
+    {
+      "build_seconds": 9.194616079330444,
+      "dual_status": "UNKNOWN_RESULT_STATUS",
+      "label": "classic",
+      "model_variable_count": 56142,
+      "primal_status": "INFEASIBLE_POINT",
+      "result_count": 1,
+      "solve_seconds": 2.5515449047088623,
+      "status": "solved_or_bounded",
+      "termination_status": "ITERATION_LIMIT",
+      "wall_seconds": 24.160160064697266
+    },
+    {
+      "build_seconds": 2.626508951187134,
+      "dual_status": "UNKNOWN_RESULT_STATUS",
+      "label": "combined_mv_lv_local",
+      "model_variable_count": 56142,
+      "primal_status": "INFEASIBLE_POINT",
+      "result_count": 1,
+      "solve_seconds": 2.329702138900757,
+      "status": "solved_or_bounded",
+      "termination_status": "ITERATION_LIMIT",
+      "wall_seconds": 16.855702877044678
+    },
+    {
+      "build_seconds": 1.7998340129852295,
+      "dual_status": "UNKNOWN_RESULT_STATUS",
+      "label": "si",
+      "model_variable_count": 56142,
+      "primal_status": "INFEASIBLE_POINT",
+      "result_count": 1,
+      "solve_seconds": 3.028252124786377,
+      "status": "solved_or_bounded",
+      "termination_status": "ITERATION_LIMIT",
+      "wall_seconds": 16.063819885253906
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-budget-extension-v1",
+  "source": {
+    "input": "/private/tmp/nlpdiag-combined-mv-lv-budget-extension.json",
+    "policy": "Summarize the reviewed ten-iteration full-case termination evidence; do not infer convergence or scaling.",
+    "runner": "benchmarks/bmopf_combined_mv_lv_scaling_campaign.jl"
+  }
+}

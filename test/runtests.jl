@@ -2877,6 +2877,24 @@ end
     @test occursin("bmopf_combined_mv_lv_large_probe_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    combined_budget_extension_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_combined_mv_lv_budget_extension.jl"), String,
+    )
+    @test Meta.parseall(combined_budget_extension_script) isa Expr
+    @test occursin("reviewed ten-iteration", combined_budget_extension_script)
+    combined_budget_extension = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_budget_extension_summary.json"), String,
+    ))
+    @test combined_budget_extension["schema_version"] ==
+          "nlpdiagnostics-bmopf-combined-mv-lv-budget-extension-v1"
+    @test combined_budget_extension["model_variable_count"] == 56142
+    @test combined_budget_extension["budgets"]["max_iter"] == 10
+    @test combined_budget_extension["policy_count"] == 3
+    @test combined_budget_extension["all_reached_solver"] == true
+    @test combined_budget_extension["all_iteration_limited"] == true
+    @test occursin("bmopf_combined_mv_lv_budget_extension_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     rank_perturbation_script = read(
         joinpath(benchmark_directory, "calibrate_rank_perturbation_sweep.jl"),
         String,
