@@ -36,11 +36,27 @@
     "environment_distinct": true,
     "interpretation": "Compatibility checks establish comparable workload and guard provenance; they do not establish portable performance or allocator behavior.",
     "mismatches": {},
+    "semantic_comparison": {
+      "baseline_measured_record_count": 6,
+      "compared_fields": [
+        "status",
+        "variable_count",
+        "constraint_count",
+        "analyze_finding_count",
+        "analyze_finding_code_counts"
+      ],
+      "current_measured_record_count": 6,
+      "matched_record_count": 6,
+      "mismatch_count": 0,
+      "mismatches": [],
+      "record_key_sets_match": true,
+      "status": "semantics_match"
+    },
     "status": "cross_environment_candidate"
   },
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "017bcbde59b6ffc35bca1ff7e3f941a93876d8b4",
+    "git_revision": "34beab1f809b706c54fe526c385af5655321c4b2",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

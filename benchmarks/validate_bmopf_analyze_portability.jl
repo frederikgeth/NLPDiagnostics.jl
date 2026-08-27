@@ -101,7 +101,44 @@ function compatibility(baseline, current, baseline_validation, current_validatio
         "status" => status,
         "mismatches" => mismatches,
         "environment_distinct" => environment_distinct,
+        "semantic_comparison" => semantic_comparison(baseline, current),
         "interpretation" => "Compatibility checks establish comparable workload and guard provenance; they do not establish portable performance or allocator behavior.",
+    )
+end
+
+function semantic_comparison(baseline, current)
+    fields = ("status", "variable_count", "constraint_count", "analyze_finding_count", "analyze_finding_code_counts")
+    function measured_map(summary)
+        result = Dict{String,Any}()
+        for raw in get(summary, "records", Any[])
+            record = dict(raw)
+            get(record, "status", "") == "measured" || continue
+            key = "$(get(record, "case", ""))#$(get(record, "repetition", ""))"
+            result[key] = record
+        end
+        result
+    end
+    left = measured_map(baseline)
+    right = measured_map(current)
+    keys_match = sort!(collect(keys(left))) == sort!(collect(keys(right)))
+    mismatches = Dict{String,Any}[]
+    for key in sort!(collect(intersect(Set(keys(left)), Set(keys(right)))))
+        differing = Dict{String,Any}()
+        for field in fields
+            get(left[key], field, nothing) == get(right[key], field, nothing) ||
+                (differing[field] = Dict("baseline" => get(left[key], field, nothing), "current" => get(right[key], field, nothing)))
+        end
+        isempty(differing) || push!(mismatches, Dict("key" => key, "fields" => differing))
+    end
+    Dict{String,Any}(
+        "status" => keys_match && isempty(mismatches) ? "semantics_match" : "semantic_mismatch",
+        "baseline_measured_record_count" => length(left),
+        "current_measured_record_count" => length(right),
+        "matched_record_count" => length(intersect(Set(keys(left)), Set(keys(right)))),
+        "record_key_sets_match" => keys_match,
+        "mismatch_count" => length(mismatches),
+        "mismatches" => mismatches,
+        "compared_fields" => collect(fields),
     )
 end
 

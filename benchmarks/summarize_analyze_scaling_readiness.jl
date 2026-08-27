@@ -96,6 +96,7 @@ isolated_memory_summaries = get(isolated_memory, "case_summaries", Any[])
 isolated_memory_stable_count = count(summary -> get(summary, "stable_across_repetitions", false), isolated_memory_summaries)
 portability_validation = get(portability, "baseline_validation", Dict{String,Any}())
 portability_comparison_status = get(portability, "portable_evidence_status", "unavailable")
+portability_semantic_comparison = get(get(portability, "comparison", Dict{String,Any}()), "semantic_comparison", Dict{String,Any}())
 
 open_gaps = Dict[
     Dict("id" => "static_stage_candidate_selection", "next_evidence" => "profile a different semantics-preserving static-stage candidate because the affine-row cache A/B is neutral to slightly slower locally"),
@@ -195,8 +196,11 @@ write_json(OUTPUT, Dict{String,Any}(
         "comparison_status" => portability_comparison_status,
         "comparison_environment_distinct" => get(get(portability, "comparison", Dict{String,Any}()), "environment_distinct", false),
         "comparison_mismatch_count" => length(get(get(portability, "comparison", Dict{String,Any}()), "mismatches", Dict{String,Any}())),
+        "semantic_comparison_status" => get(portability_semantic_comparison, "status", "unavailable"),
+        "semantic_comparison_mismatch_count" => get(portability_semantic_comparison, "mismatch_count", 0),
+        "semantic_comparison_matched_record_count" => get(portability_semantic_comparison, "matched_record_count", 0),
         "comparison_required_for_portable_claim" => get(get(portability, "source", Dict{String,Any}()), "comparison_required_for_portable_claim", true),
-        "claim" => portability_comparison_status == "candidate_requires_review" ? "The replay contract validates local provenance and a matched second-environment candidate; allocator-level peak and performance review are still required for portability." : "The replay contract validates local provenance and guard compatibility; a second environment comparison is still required for portability.",
+        "claim" => portability_comparison_status == "candidate_requires_review" ? "The replay contract validates local provenance and a matched second-environment candidate with semantic status $(get(portability_semantic_comparison, "status", "unavailable")); allocator-level peak and performance review are still required for portability." : "The replay contract validates local provenance and guard compatibility; a second environment comparison is still required for portability.",
     ),
     "bmopf_combined_mv_lv_analyze" => Dict(
         "feeder_count" => length(combined_feeders),

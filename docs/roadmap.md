@@ -6100,3 +6100,18 @@ gate from “comparison not supplied” to “candidate requires review,” but 
 not establish portable runtime, allocator peak, or performance equivalence.
 The next action is review of the matched outputs and peak-capable memory
 telemetry before any portability claim.
+
+## 2026-08-27 portability semantic comparison
+
+The portability validator now compares matched case/repetition records across
+the two reviewed environments, covering status, variable count, constraint
+count, finding count, and finding-code counts. All six measured records match
+with zero semantic mismatches, and the project/guard comparison remains
+compatible. The result is recorded in
+`docs/bmopf_analyze_portability_summary.json` and propagated into
+`docs/analyze_scaling_readiness_summary.json` as `semantics_match`.
+
+This strengthens the portability candidate from metadata-only compatibility to
+structural result equivalence on the bounded corpus. It still does not support
+portable runtime, performance, or allocator-peak claims; those remain review
+items for the next tranche.
