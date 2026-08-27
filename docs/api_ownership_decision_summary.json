@@ -1,13 +1,20 @@
 {
   "advanced_candidate_count": 48,
+  "batch_summary": {
+    "next_batch_advanced_candidate_count": 0,
+    "next_batch_count": 24,
+    "next_batch_reviewed_count": 24,
+    "next_batch_root_compatibility_count": 24,
+    "prior_reviewed_count": 68
+  },
   "environment": {
     "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "a2168870d4842f7f4b827a487fb196d6773c014a",
+    "git_revision": "82f9497934065cbcaabac19528a848887a91f32f",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "interpretation": {
-    "claim": "Sixty-eight high-impact root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except forty-eight Advanced candidate reviews.",
+    "claim": "92 root-only names now have explicit local ownership decisions; all remain non-migrating compatibility decisions except 48 Advanced candidate reviews.",
     "does_not_establish": [
       "a complete review of all root-only exports",
       "permission to remove or deprecate root symbols",
@@ -20,8 +27,8 @@
     "Approve any namespace move only with an explicit compatibility and type-identity plan.",
     "Keep Stable and Advanced facades unchanged until ownership review is complete."
   ],
-  "reviewed_count": 68,
-  "root_compatibility_retained_count": 20,
+  "reviewed_count": 92,
+  "root_compatibility_retained_count": 44,
   "rows": [
     {
       "code_file_count": 19,
@@ -96,6 +103,19 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 9,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "EvaluatorCapabilities",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 18,
       "decision": "retain_root_compatibility",
       "has_runtime_usage_evidence": true,
@@ -153,6 +173,123 @@
       "proposed_disposition": "legacy_manual_review",
       "rationale": "Generic scaling-map type is shared by core and adapter reports; retain root identity until the type-tier plan is explicit.",
       "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 10,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "SemanticConstraintBlock",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 10,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "SemanticLinearBlock",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 6,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "SolverResultPoint",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 8,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "Stable",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 9,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "ZeroEqualitySetContract",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 6,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "active_constraint_rows",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 9,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "analyze",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 6,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "analyze_expressions",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 8,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "analyze_numerical",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
       "usage_priority": "test_and_benchmark_usage"
     },
     {
@@ -720,6 +857,45 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 7,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "complete_fixed_variable_duals",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 8,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "constraint_feasibility_summary",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 6,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "controller_curve_operating_point_observation_data",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 47,
       "decision": "retain_root_compatibility",
       "has_runtime_usage_evidence": true,
@@ -768,6 +944,19 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 6,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "harmonic_golub_kahan_dense_calibration",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 11,
       "decision": "retain_root_compatibility",
       "has_runtime_usage_evidence": true,
@@ -789,6 +978,19 @@
       "proposed_disposition": "legacy_manual_review",
       "rationale": "Solver instrumentation entry point is consumed by trace campaigns; defer tier migration until solver-extension ownership is reviewed.",
       "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 11,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "iteration_trace",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
       "usage_priority": "test_and_benchmark_usage"
     },
     {
@@ -816,6 +1018,84 @@
       "usage_priority": "test_and_benchmark_usage"
     },
     {
+      "code_file_count": 11,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "scaling_coordinate_geometry_report",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 11,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "scaling_covariance_report",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 11,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "scaling_intervention_classification",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 8,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "scaling_solver_experiment_campaign_data",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 9,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "scaling_solver_experiment_stratified_campaign_data",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 11,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "smallest_singular_backend_crosscheck",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
       "code_file_count": 73,
       "decision": "retain_root_compatibility",
       "has_runtime_usage_evidence": true,
@@ -825,6 +1105,19 @@
       "proposed_disposition": "legacy_manual_review",
       "rationale": "Core model-boundary constructor with broad test and benchmark usage; retain until a versioned compatibility plan exists.",
       "review_status": "reviewed_local",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 7,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "solver_dual_snapshot",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
       "usage_priority": "test_and_benchmark_usage"
     },
     {
@@ -838,6 +1131,32 @@
       "rationale": "Solver-result provenance boundary is consumed by adapters and tests; retain until solver extension ownership is reviewed.",
       "review_status": "reviewed_local",
       "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 10,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "sparse_qr_nullspace_dense_calibration",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
+    },
+    {
+      "code_file_count": 7,
+      "decision": "retain_root_compatibility",
+      "has_runtime_usage_evidence": true,
+      "migration_allowed": false,
+      "name": "sparse_qr_nullspace_persistence",
+      "namespace_target": "root",
+      "proposed_disposition": "legacy_manual_review",
+      "rationale": "Bounded next-tranche review retains this legacy export at root until an explicit compatibility and migration plan is approved.",
+      "review_batch": "next_bounded_batch_2026-08-27",
+      "review_status": "reviewed_local_next_batch",
+      "usage_priority": "test_and_benchmark_usage"
     }
   ],
   "schema_version": "nlpdiagnostics-api-ownership-decisions-v1",
@@ -845,6 +1164,6 @@
     "input": "docs/api_tier_usage_summary.json",
     "migration_policy": "No export is moved, deprecated, or removed by this ledger.",
     "runner": "benchmarks/review_api_ownership_decisions.jl",
-    "selection_policy": "Highest repository-usage root-only names plus one BMOPF Advanced candidate; this bounded review does not represent the full queue."
+    "selection_policy": "Previously reviewed high-impact names plus the next 24 unreviewed queue entries ordered by usage priority, reference count, and name; this bounded review does not represent the full queue."
   }
 }

@@ -6064,3 +6064,19 @@ The current BMOPFTools checkout still lacks both proposed symbols, so this is a
 handoff deliverable rather than an API implementation. Until upstream review
 and tests land, the experimental `ctx.vars` path remains isolated to the
 benchmark and no Stable NLPDiagnostics facade is widened.
+
+## 2026-08-27 API ownership next tranche
+
+The root-only ownership review advanced by a deterministic 24-name tranche.
+`benchmarks/review_api_ownership_decisions.jl` now orders unreviewed names by
+observed usage priority, repository reference count, and name, then records
+explicit non-migrating decisions. The regenerated
+`docs/api_ownership_decision_summary.json` covers 92 names: 44 retain root
+compatibility and 48 remain Advanced candidates; zero migrations are allowed.
+The new batch metadata preserves the prior 68-name checkpoint and identifies
+all 24 names reviewed in this increment.
+
+This closes another bounded consolidation increment without changing Stable or
+Advanced exports. The remaining queue is still too large for an implicit
+compatibility claim; the next API action is another reviewed tranche or an
+explicit owner decision before any namespace move.
