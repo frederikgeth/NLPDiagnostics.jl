@@ -3014,6 +3014,18 @@ end
     calibration_results = read(joinpath(repository_root, "docs", "calibration_results.md"), String)
     @test occursin("declared numerical-rank policy boundary", calibration_results)
     @test occursin("threshold_policy_sensitivity", calibration_results)
+    threshold_policy_review_script = read(
+        joinpath(benchmark_directory, "review_rank_threshold_policy.jl"), String,
+    )
+    @test Meta.parseall(threshold_policy_review_script) isa Expr
+    threshold_policy_review = JSON.parse(read(
+        joinpath(repository_root, "docs", "rank_threshold_policy_review_summary.json"), String,
+    ))
+    @test threshold_policy_review["schema_version"] ==
+          "nlpdiagnostics-rank-threshold-policy-review-v1"
+    @test threshold_policy_review["status"] == "review_required"
+    @test threshold_policy_review["evidence_consistent"] == true
+    @test threshold_policy_review["decision"] === nothing
     sensitive_saved_records = filter(
         record -> record["scaling_sensitive"] == true,
         saved_result_campaign_summary["records"],

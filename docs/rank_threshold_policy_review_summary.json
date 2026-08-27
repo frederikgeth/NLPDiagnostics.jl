@@ -1,0 +1,32 @@
+{
+  "decision": null,
+  "decision_options": [
+    {
+      "description": "Accept threshold-sensitive disagreements as bounded numerical-policy evidence and retain current defaults.",
+      "id": "accept_policy_boundary"
+    },
+    {
+      "description": "Add and vet an independent backend before making any rank-policy change.",
+      "id": "add_independent_backend"
+    }
+  ],
+  "environment": {
+    "git_revision": "1ebad5ce418d56755a08fe74842c8ea1f634edf9",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "evidence_consistent": true,
+  "hard_control_count": 49,
+  "hard_control_mismatch_count": 0,
+  "hard_control_unavailable_count": 0,
+  "interpretation": "The evidence is internally consistent but does not select a policy decision. Near-threshold backend disagreement is not promoted to a mathematical-rank failure, and no tolerance change is authorized by this review record.",
+  "next_action": "Project owner selects one decision option and records the rationale, or supplies an independent backend qualification artifact.",
+  "schema_version": "nlpdiagnostics-rank-threshold-policy-review-v1",
+  "source": {
+    "classification_summary": "docs/rank_threshold_disagreement_summary.json",
+    "reviewer": "pending project-owner decision"
+  },
+  "status": "review_required",
+  "threshold_backend_disagreement_count": 9,
+  "threshold_sensitive_count": 26
+}

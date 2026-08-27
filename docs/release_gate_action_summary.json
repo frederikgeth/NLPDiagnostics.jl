@@ -11,6 +11,7 @@
         "docs/rank_adversarial_extension_summary.json",
         "docs/rank_calibration_statistics_summary.json",
         "docs/rank_threshold_disagreement_summary.json",
+        "docs/calibration_results.md",
         "benchmarks/summarize_rank_threshold_disagreements.jl",
         "docs/rank_third_backend_capability_summary.json",
         "benchmarks/validate_rank_third_backend.jl",
@@ -43,7 +44,7 @@
         "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Review and approve the declared threshold-policy boundary, or add a vetted independent backend for the nine near-threshold disagreements.",
+      "next_deliverable": "Record the project-owner decision on the threshold-policy review handoff, then implement and revalidate the selected path.",
       "priority": 1,
       "status": "partial"
     },
@@ -134,7 +135,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "5af0557f802b84e0587e69d15023a25dbed315fd",
+    "git_revision": "1ebad5ce418d56755a08fe74842c8ea1f634edf9",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
