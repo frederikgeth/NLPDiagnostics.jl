@@ -1,121 +1,15 @@
 {
   "campaign_record_count": 102,
   "environment": {
-    "git_revision": "9a31fd8ab4edc57abf501f7ed170e590f16be051",
+    "git_revision": "affa57b84af433a4f596e6da6429f017e07a88d7",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
-  "incomplete_provenance_record_count": 7,
-  "incomplete_provenance_records": [
-    {
-      "mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
-      },
-      "result_units": "si",
-      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t13_1400.bmopf.json"
-    },
-    {
-      "mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
-      },
-      "result_units": "si",
-      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t14_1430.bmopf.json"
-    },
-    {
-      "mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
-      },
-      "result_units": "si",
-      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t17_1600.bmopf.json"
-    },
-    {
-      "mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
-      },
-      "result_units": "si",
-      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t22_1830.bmopf.json"
-    },
-    {
-      "mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
-      },
-      "result_units": "si",
-      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t24_1930.bmopf.json"
-    },
-    {
-      "mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
-      },
-      "result_units": "si",
-      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t25_2000.bmopf.json"
-    },
-    {
-      "mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
-      },
-      "result_units": "si",
-      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t25_2000.bmopf.json"
-    }
-  ],
-  "incomplete_provenance_sensitive_record_count": 4,
-  "interpretation": "The paired comparison identifies unit-dependent sparse-rank outcomes without treating them as physical singularity claims. Incomplete point provenance is retained as a release boundary; the affected endpoints require provenance completion before policy conclusions.",
-  "next_action": "Complete or explain LN SI saved-result provenance for the affected snapshots, then repeat the paired diagnostic on the t15/t16 tranche.",
+  "incomplete_provenance_record_count": 0,
+  "incomplete_provenance_records": [],
+  "incomplete_provenance_sensitive_record_count": 0,
+  "interpretation": "The paired comparison identifies unit-dependent sparse-rank outcomes without treating them as physical singularity claims. The promoted 538-bus SI refresh now has complete point provenance and is rank-stable; future policy conclusions remain bounded to the declared corpus.",
+  "next_action": "Extend the reconciled campaign with the next reviewed endpoint tranche (t15/t16) and preserve the same complete-provenance, paired SI/PU audit.",
   "paired_snapshot_count": 50,
   "pairs": [
     {
@@ -849,19 +743,14 @@
       "pu_rank_delta": 0,
       "pu_scaling_sensitive": false,
       "rank_outcome_differs": false,
-      "si_condition_proxy_ratio": 4.597650564729746,
+      "si_condition_proxy_ratio": 0.009329248544610043,
       "si_mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
+        "fallback_coordinate_count": "0.0",
+        "mapped_coordinate_count": "11028.0",
+        "registered_coordinate_count": "11028.0",
+        "unmapped_registered_coordinate_count": "0"
       },
-      "si_point_provenance_complete": false,
+      "si_point_provenance_complete": true,
       "si_rank_delta": 0,
       "si_scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t22_1830.bmopf.json"
@@ -917,19 +806,14 @@
       "pu_rank_delta": 0,
       "pu_scaling_sensitive": false,
       "rank_outcome_differs": false,
-      "si_condition_proxy_ratio": 4.597650564729746,
+      "si_condition_proxy_ratio": 0.014890637933204057,
       "si_mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
+        "fallback_coordinate_count": "0.0",
+        "mapped_coordinate_count": "11028.0",
+        "registered_coordinate_count": "11028.0",
+        "unmapped_registered_coordinate_count": "0"
       },
-      "si_point_provenance_complete": false,
+      "si_point_provenance_complete": true,
       "si_rank_delta": 0,
       "si_scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t24_1930.bmopf.json"
@@ -951,19 +835,14 @@
       "pu_rank_delta": 0,
       "pu_scaling_sensitive": false,
       "rank_outcome_differs": false,
-      "si_condition_proxy_ratio": 4.597650564729746,
+      "si_condition_proxy_ratio": 0.01135598002373797,
       "si_mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
+        "fallback_coordinate_count": "0.0",
+        "mapped_coordinate_count": "11028.0",
+        "registered_coordinate_count": "11028.0",
+        "unmapped_registered_coordinate_count": "0"
       },
-      "si_point_provenance_complete": false,
+      "si_point_provenance_complete": true,
       "si_rank_delta": 0,
       "si_scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t25_2000.bmopf.json"
@@ -1392,22 +1271,17 @@
       "pu_point_provenance_complete": true,
       "pu_rank_delta": 0,
       "pu_scaling_sensitive": false,
-      "rank_outcome_differs": true,
-      "si_condition_proxy_ratio": 4.1701009522473695,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.005174611869500743,
       "si_mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
+        "fallback_coordinate_count": "0.0",
+        "mapped_coordinate_count": "11028.0",
+        "registered_coordinate_count": "11028.0",
+        "unmapped_registered_coordinate_count": "0"
       },
-      "si_point_provenance_complete": false,
-      "si_rank_delta": 1,
-      "si_scaling_sensitive": true,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t13_1400.bmopf.json"
     },
     {
@@ -1426,22 +1300,17 @@
       "pu_point_provenance_complete": true,
       "pu_rank_delta": 0,
       "pu_scaling_sensitive": false,
-      "rank_outcome_differs": true,
-      "si_condition_proxy_ratio": 4.1701009522473695,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.005178299392422756,
       "si_mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
+        "fallback_coordinate_count": "0.0",
+        "mapped_coordinate_count": "11028.0",
+        "registered_coordinate_count": "11028.0",
+        "unmapped_registered_coordinate_count": "0"
       },
-      "si_point_provenance_complete": false,
-      "si_rank_delta": 1,
-      "si_scaling_sensitive": true,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t14_1430.bmopf.json"
     },
     {
@@ -1528,22 +1397,17 @@
       "pu_point_provenance_complete": true,
       "pu_rank_delta": 0,
       "pu_scaling_sensitive": false,
-      "rank_outcome_differs": true,
-      "si_condition_proxy_ratio": 4.1701009522473695,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.005572329806906523,
       "si_mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
+        "fallback_coordinate_count": "0.0",
+        "mapped_coordinate_count": "11028.0",
+        "registered_coordinate_count": "11028.0",
+        "unmapped_registered_coordinate_count": "0"
       },
-      "si_point_provenance_complete": false,
-      "si_rank_delta": 1,
-      "si_scaling_sensitive": true,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t17_1600.bmopf.json"
     },
     {
@@ -1800,119 +1664,28 @@
       "pu_point_provenance_complete": true,
       "pu_rank_delta": 0,
       "pu_scaling_sensitive": false,
-      "rank_outcome_differs": true,
-      "si_condition_proxy_ratio": 4.1701009522473695,
+      "rank_outcome_differs": false,
+      "si_condition_proxy_ratio": 0.013177580818075909,
       "si_mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
+        "fallback_coordinate_count": "0.0",
+        "mapped_coordinate_count": "11028.0",
+        "registered_coordinate_count": "11028.0",
+        "unmapped_registered_coordinate_count": "0"
       },
-      "si_point_provenance_complete": false,
-      "si_rank_delta": 1,
-      "si_scaling_sensitive": true,
+      "si_point_provenance_complete": true,
+      "si_rank_delta": 0,
+      "si_scaling_sensitive": false,
       "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t25_2000.bmopf.json"
     }
   ],
   "schema_version": "nlpdiagnostics-bmopf-saved-result-scaling-diagnostics-v1",
-  "sensitive_mapping_fallback_coordinate_counts": [
-    "11026",
-    "11026",
-    "11026",
-    "11026"
-  ],
-  "sensitive_record_count": 4,
-  "sensitive_records": [
-    {
-      "condition_proxy_ratio_row_column_over_unscaled": 4.1701009522473695,
-      "mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
-      },
-      "point_provenance_complete": false,
-      "rank_delta": 1,
-      "result_units": "si",
-      "row_column_rank": 9850,
-      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t13_1400.bmopf.json",
-      "unscaled_rank": 9849
-    },
-    {
-      "condition_proxy_ratio_row_column_over_unscaled": 4.1701009522473695,
-      "mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
-      },
-      "point_provenance_complete": false,
-      "rank_delta": 1,
-      "result_units": "si",
-      "row_column_rank": 9850,
-      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t14_1430.bmopf.json",
-      "unscaled_rank": 9849
-    },
-    {
-      "condition_proxy_ratio_row_column_over_unscaled": 4.1701009522473695,
-      "mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
-      },
-      "point_provenance_complete": false,
-      "rank_delta": 1,
-      "result_units": "si",
-      "row_column_rank": 9850,
-      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t17_1600.bmopf.json",
-      "unscaled_rank": 9849
-    },
-    {
-      "condition_proxy_ratio_row_column_over_unscaled": 4.1701009522473695,
-      "mapping_diagnostics": {
-        "fallback_coordinate_count": "11026",
-        "mapped_coordinate_count": "2",
-        "mapped_families": "vi,vr",
-        "projected_families": "",
-        "projection_contracts": "",
-        "registered_coordinate_count": "11028",
-        "unit_fingerprint_count": "0",
-        "unit_fingerprint_zero_magnitude_count": "1",
-        "unmapped_registered_coordinate_count": "11026"
-      },
-      "point_provenance_complete": false,
-      "rank_delta": 1,
-      "result_units": "si",
-      "row_column_rank": 9850,
-      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t25_2000.bmopf.json",
-      "unscaled_rank": 9849
-    }
-  ],
+  "sensitive_mapping_fallback_coordinate_counts": [],
+  "sensitive_record_count": 0,
+  "sensitive_records": [],
   "source": {
     "campaign_summary": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
     "pairing_policy": "Pair records by exact snapshot path and compare SI versus PU rank outcomes.",
     "runner": "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
   },
-  "unit_dependent_rank_outcome_count": 4
+  "unit_dependent_rank_outcome_count": 0
 }
