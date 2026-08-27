@@ -1,0 +1,42 @@
+{
+  "budgets": {
+    "max_cpu_seconds": 60.0,
+    "max_iter": 50
+  },
+  "hard_kcl_zero_slack": false,
+  "initialization": {
+    "bus_count": 3409,
+    "finite_scalar_count": 53236,
+    "scalar_count": 53236,
+    "terminal_count": 13309,
+    "voltage_magnitude_max_V": 6350.852961084902,
+    "voltage_magnitude_min_V": 0.0
+  },
+  "input": {
+    "path": "/private/tmp/bmopftools-clean/test/data/Master.dss",
+    "source_warning_codes": [
+      "EMIT.BMOPF.FIELD_DROPPED",
+      "EMIT.BMOPF.RETAINED_SOURCE_ONLY",
+      "EMIT.BMOPF.TRANSFORMER_EXTRA_DROPPED"
+    ],
+    "source_warning_count": 10277
+  },
+  "interpretation": "The feasibility-relaxed formulation converged with topology-aware voltage initialization. Nonzero KCL slack means this is an initialization diagnostic, not hard OPF feasibility, policy ranking, or a production scaling claim.",
+  "network_shape": {
+    "bus_count": 3409,
+    "line_count": 3096,
+    "load_count": 1255,
+    "transformer_count": 1
+  },
+  "next_action": "Map the returned initialization into a hard OPF start and add allocator-level peak telemetry.",
+  "relaxed_feasible": true,
+  "result_key_count": 22,
+  "runner_version": "bmopf-combined-mv-lv-feasibility-probe-v1",
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-probe-v1",
+  "slack_injection_count": 3409,
+  "solve_seconds": 3.1112258434295654,
+  "status": "relaxed_feasibility_solved",
+  "termination_status": "LOCALLY_SOLVED",
+  "total_slack_magnitude_A": 354.3101805271313,
+  "wall_seconds": 23.006106853485107
+}

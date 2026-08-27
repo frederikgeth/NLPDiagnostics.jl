@@ -89,16 +89,18 @@
         "docs/bmopf_combined_mv_lv_large_probe_summary.json",
         "docs/bmopf_combined_mv_lv_budget_extension_summary.json",
         "docs/bmopf_combined_mv_lv_50iter_probe_summary.json",
+        "docs/bmopf_combined_mv_lv_feasibility_probe_summary.json",
         "benchmarks/summarize_bmopf_solver_scaling_readiness.jl",
         "benchmarks/plan_bmopf_solver_scaling_extension.jl",
         "benchmarks/summarize_bmopf_solver_scaling_extension.jl",
         "benchmarks/summarize_bmopf_solver_scaling_cross_solver.jl",
         "benchmarks/summarize_bmopf_combined_mv_lv_large_probe.jl",
         "benchmarks/summarize_bmopf_combined_mv_lv_budget_extension.jl",
-        "benchmarks/summarize_bmopf_combined_mv_lv_50iter_probe.jl"
+        "benchmarks/summarize_bmopf_combined_mv_lv_50iter_probe.jl",
+        "benchmarks/bmopf_combined_mv_lv_feasibility_probe.jl"
       ],
       "id": "runtime_memory_scaling",
-      "next_deliverable": "Investigate a convergent full-case initialization and add allocator-level peak telemetry before making a production scaling claim.",
+      "next_deliverable": "Map the converged feasibility-relaxed initialization into a hard full-case OPF start, then add allocator-level peak telemetry before making a production scaling claim.",
       "priority": 3,
       "status": "partial"
     },
@@ -152,7 +154,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "564f2d53ff4f4475c3e2a77bd401e73582f1c0a0",
+    "git_revision": "2ad9878c55ac2edf4f81f34fcb5f5d0091312ed2",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

@@ -2927,6 +2927,27 @@ end
     @test occursin("bmopf_combined_mv_lv_50iter_probe_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    feasibility_probe_script = read(
+        joinpath(benchmark_directory, "bmopf_combined_mv_lv_feasibility_probe.jl"), String,
+    )
+    @test Meta.parseall(feasibility_probe_script) isa Expr
+    @test occursin("solve_feasibility_opf", feasibility_probe_script)
+    @test occursin("hard_kcl_zero_slack", feasibility_probe_script)
+    feasibility_probe = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_feasibility_probe_summary.json"), String,
+    ))
+    @test feasibility_probe["schema_version"] ==
+          "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-probe-v1"
+    @test feasibility_probe["status"] == "relaxed_feasibility_solved"
+    @test feasibility_probe["network_shape"]["bus_count"] == 3409
+    @test feasibility_probe["termination_status"] == "LOCALLY_SOLVED"
+    @test feasibility_probe["relaxed_feasible"] == true
+    @test feasibility_probe["hard_kcl_zero_slack"] == false
+    @test feasibility_probe["initialization"]["finite_scalar_count"] == 53236
+    @test feasibility_probe["total_slack_magnitude_A"] > 0.0
+    @test occursin("bmopf_combined_mv_lv_feasibility_probe_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     rank_perturbation_script = read(
         joinpath(benchmark_directory, "calibrate_rank_perturbation_sweep.jl"),
         String,
