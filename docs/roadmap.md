@@ -6510,3 +6510,9 @@ read/write symbols remain the only missing adoption boundary.
 The release-gate builder now carries that report-readiness state into the API
 consolidation rationale, so upstream handoff evidence distinguishes a typed
 downstream contract from the still-missing public BMOPFTools symbols.
+
+The checked-in transfer evidence now has a standalone validator at
+`benchmarks/validate_bmopf_transfer_report.jl`. Its pass artifact confirms
+that both paired records expose typed validation-error arrays whose counts
+match their entries. This is a report-contract check only; hard-OPF convergence
+and the upstream public setter remain open.

@@ -1,0 +1,11 @@
+{
+  "failure_count": 0,
+  "failures": [],
+  "interpretation": "This validates typed transfer-report structure and count consistency; it does not establish hard-OPF convergence or a stable upstream API.",
+  "record_count": 2,
+  "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v2",
+  "schema_version": "nlpdiagnostics-bmopf-transfer-report-validation-v1",
+  "source": "docs/bmopf_combined_mv_lv_feasibility_start_transfer_summary.json",
+  "status": "pass",
+  "validated_record_count": 2
+}

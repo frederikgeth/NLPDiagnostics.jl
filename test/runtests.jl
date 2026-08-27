@@ -3725,6 +3725,17 @@ end
     @test occursin("typed transfer report", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    transfer_report_validator = read(
+        joinpath(benchmark_directory, "validate_bmopf_transfer_report.jl"), String,
+    )
+    @test Meta.parseall(transfer_report_validator) isa Expr
+    transfer_report_validation = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_transfer_report_validation_summary.json"), String,
+    ))
+    @test transfer_report_validation["status"] == "pass"
+    @test transfer_report_validation["record_count"] == 2
+    @test transfer_report_validation["validated_record_count"] == 2
+    @test transfer_report_validation["failure_count"] == 0
     ownership_review_script = read(
         joinpath(benchmark_directory, "review_api_ownership_decisions.jl"),
         String,
