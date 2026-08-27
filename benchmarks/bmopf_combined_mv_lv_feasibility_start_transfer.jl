@@ -17,6 +17,57 @@ using .NLPDiagnosticsBenchmarkCommon: write_json
 
 const _RUNNER_VERSION = "bmopf-combined-mv-lv-feasibility-start-transfer-v1"
 
+# Darwin exposes current allocator counters for the default malloc zone.  The
+# process-level child runner records the outer envelope; these helpers add
+# stage attribution without treating current bytes as a peak measurement.
+struct _StageMallocStatistics
+    blocks_in_use::Csize_t
+    size_in_use::Csize_t
+    max_size_in_use::Csize_t
+    size_allocated::Csize_t
+end
+
+function _stage_allocator_snapshot()
+    Sys.isapple() || return nothing
+    try
+        zone = ccall(:malloc_default_zone, Ptr{Cvoid}, ())
+        stats = Ref(_StageMallocStatistics(0, 0, 0, 0))
+        ccall(:malloc_zone_statistics, Cvoid,
+            (Ptr{Cvoid}, Ref{_StageMallocStatistics}), zone, stats)
+        value = stats[]
+        return Dict{String,Any}(
+            "available" => true,
+            "blocks_in_use" => Int(value.blocks_in_use),
+            "size_in_use_bytes" => Int(value.size_in_use),
+            "size_allocated_bytes" => Int(value.size_allocated),
+            "max_size_in_use_bytes" => Int(value.max_size_in_use),
+            "peak_field_available" => value.max_size_in_use > 0,
+        )
+    catch error
+        return Dict{String,Any}(
+            "available" => false,
+            "error_type" => string(typeof(error)),
+            "error" => sprint(showerror, error),
+        )
+    end
+end
+
+function _stage_allocator_delta(before, after)
+    available = before isa AbstractDict && after isa AbstractDict &&
+        get(before, "available", false) && get(after, "available", false)
+    return Dict{String,Any}(
+        "available" => available,
+        "before" => before,
+        "after" => after,
+        "size_in_use_delta_bytes" => available ?
+            get(after, "size_in_use_bytes", 0) - get(before, "size_in_use_bytes", 0) : nothing,
+        "size_allocated_delta_bytes" => available ?
+            get(after, "size_allocated_bytes", 0) - get(before, "size_allocated_bytes", 0) : nothing,
+        "peak_available" => available &&
+            get(after, "peak_field_available", false),
+    )
+end
+
 function _env_int(name, default; minimum = 1)
     value = try parse(Int, get(ENV, name, string(default)))
     catch
@@ -102,20 +153,26 @@ end
 
 function _hard_run(network, initialization, label; transfer, max_iter, max_cpu_seconds)
     started = time()
+    build_before = _stage_allocator_snapshot()
     context = BMOPFTools.build_opf_model(
         deepcopy(network);
         optimizer = Ipopt.Optimizer,
         scaling_policy = BMOPFTools.OpfScaling(:classic; power_base = 1.0e6),
         add_objective = true,
     )
+    build_after = _stage_allocator_snapshot()
     BMOPFTools.enforce_kcl!(context)
     model = BMOPFTools.opf_model(context)
+    start_before = _stage_allocator_snapshot()
     transfer_counts = transfer ? _apply_voltage_initialization!(context, initialization) :
         (; applied = 0, skipped = 0)
+    start_after = _stage_allocator_snapshot()
     JuMP.set_optimizer_attribute(model, "max_iter", max_iter)
     JuMP.set_optimizer_attribute(model, "max_cpu_time", max_cpu_seconds)
     solve_started = time()
+    solve_before = _stage_allocator_snapshot()
     timed = @timed JuMP.optimize!(model)
+    solve_after = _stage_allocator_snapshot()
     return Dict{String,Any}(
         "label" => label,
         "transfer_applied" => transfer,
@@ -130,6 +187,11 @@ function _hard_run(network, initialization, label; transfer, max_iter, max_cpu_s
         "solve_gc_seconds" => timed.gctime,
         "objective_value" => try JuMP.objective_value(model) catch; nothing end,
         "wall_seconds" => time() - started,
+        "allocator_stage_telemetry" => Dict(
+            "model_build" => _stage_allocator_delta(build_before, build_after),
+            "start_application" => _stage_allocator_delta(start_before, start_after),
+            "solve" => _stage_allocator_delta(solve_before, solve_after),
+        ),
     )
 end
 
@@ -149,7 +211,9 @@ function main()
     started = time()
     network = BMOPFTools.from_dss(input_path)
     warnings = get(get(network, "_meta", Dict{String,Any}()), "powerio_warnings", Any[])
+    relaxed_before = _stage_allocator_snapshot()
     relaxed = _relaxed_initialization(network, max_iter, max_cpu_seconds)
+    relaxed_after = _stage_allocator_snapshot()
     initialization = get(relaxed, "initialisation", Dict{String,Any}())
     native = _hard_run(network, initialization, "native";
         transfer = false, max_iter, max_cpu_seconds)
@@ -176,11 +240,12 @@ function main()
             "relaxed_feasible" => get(relaxed, "feasible", nothing),
             "total_slack_magnitude_A" => get(relaxed, "total_slack_magnitude_A", nothing),
             "initialization_bus_count" => length(initialization),
+            "allocator_stage_telemetry" => _stage_allocator_delta(relaxed_before, relaxed_after),
         ),
         "records" => [native, transferred],
-        "memory_observation" => "@timed solve allocation bytes and GC time are process-local allocation telemetry, not allocator-level peak memory.",
+        "memory_observation" => "@timed solve allocation bytes plus Darwin current allocator deltas are process-local telemetry; stage deltas are attribution evidence and not allocator-level peak memory.",
         "interpretation" => "The feasibility-relaxed voltage state is transferred into the hard OPF voltage starts and compared with the native hard-OPF start under identical budgets. Termination remains bounded evidence; nonzero relaxed KCL slack and iteration-limited hard statuses do not establish hard feasibility or a production scaling policy.",
-        "next_action" => "Add fresh-child allocator peak telemetry and expose a stable BMOPFTools voltage-start transfer API if this initialization is retained.",
+        "next_action" => "Carry the reviewed voltage-start API contract upstream; hard-OPF convergence and peak-capable allocator telemetry remain open.",
         "wall_seconds" => time() - started,
     )
     write_json(output, payload)

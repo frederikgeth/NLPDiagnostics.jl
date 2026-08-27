@@ -1,13 +1,13 @@
 {
   "allocator_peak_available_count": 0,
   "allocator_size_allocated_delta_bytes_range": [
-    1573978112,
-    1710407680
+    1583464448,
+    2713534464
   ],
   "environment": {
-    "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
     "architecture": "aarch64",
-    "git_revision": "8071b27094a472881c83a05b0ce6613bcee5764b",
+    "git_revision": "30eedee75cda5d725f1080b03edf36807337b857",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6",
     "os": "Darwin"
@@ -22,8 +22,8 @@
   },
   "measured_count": 2,
   "peak_rss_bytes_range": [
-    2646261760,
-    2916925440
+    2847227904,
+    3149856768
   ],
   "record_count": 2,
   "records": [
@@ -31,29 +31,29 @@
       "allocator_telemetry": {
         "after": {
           "available": true,
-          "blocks_in_use": 166854,
+          "blocks_in_use": 167395,
           "max_size_in_use_bytes": 0,
           "peak_field_available": false,
-          "size_allocated_bytes": 1844527104,
-          "size_in_use_bytes": 1445744912
+          "size_allocated_bytes": 1858207744,
+          "size_in_use_bytes": 1449146416
         },
         "before": {
           "available": true,
-          "blocks_in_use": 133140,
+          "blocks_in_use": 133758,
           "max_size_in_use_bytes": 0,
           "peak_field_available": false,
-          "size_allocated_bytes": 270548992,
-          "size_in_use_bytes": 78147280
+          "size_allocated_bytes": 274743296,
+          "size_in_use_bytes": 83726336
         },
-        "current_size_allocated_delta_bytes": 1573978112,
-        "current_size_in_use_delta_bytes": 1367597632,
+        "current_size_allocated_delta_bytes": 1583464448,
+        "current_size_in_use_delta_bytes": 1365420080,
         "peak_available": false
       },
       "budgets": {
         "max_cpu_seconds": 60.0,
         "max_iter": 50
       },
-      "child_peak_rss_bytes": 2646261760,
+      "child_peak_rss_bytes": 2847227904,
       "input": {
         "path": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/test/data/Master.dss",
         "source_warning_codes": [
@@ -70,40 +70,198 @@
         "load_count": 1255,
         "transformer_count": 1
       },
-      "next_action": "Add fresh-child allocator peak telemetry and expose a stable BMOPFTools voltage-start transfer API if this initialization is retained.",
+      "next_action": "Carry the reviewed voltage-start API contract upstream; hard-OPF convergence and peak-capable allocator telemetry remain open.",
       "records": [
         {
+          "allocator_stage_telemetry": {
+            "model_build": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159660,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 617840640,
+                "size_in_use_bytes": 199169840
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 164555,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1654374400,
+                "size_in_use_bytes": 1338161872
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": -1036533760,
+              "size_in_use_delta_bytes": -1138992032
+            },
+            "solve": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 163395,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1795604480,
+                "size_in_use_bytes": 1425477056
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159697,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 622034944,
+                "size_in_use_bytes": 208975664
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 1173569536,
+              "size_in_use_delta_bytes": 1216501392
+            },
+            "start_application": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159697,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 622034944,
+                "size_in_use_bytes": 208975664
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159697,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 622034944,
+                "size_in_use_bytes": 208975664
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 0,
+              "size_in_use_delta_bytes": 0
+            }
+          },
           "dual_status": "UNKNOWN_RESULT_STATUS",
           "label": "native",
           "objective_value": 0.0,
           "primal_status": "INFEASIBLE_POINT",
           "result_count": 1,
-          "solve_allocated_bytes": 262928800,
-          "solve_gc_seconds": 0.03903075,
-          "solve_seconds": 6.947524070739746,
+          "solve_allocated_bytes": 271198592,
+          "solve_gc_seconds": 0.067401292,
+          "solve_seconds": 7.379178047180176,
           "termination_status": "ITERATION_LIMIT",
           "transfer_applied": false,
           "transferred_voltage_start_count": 0,
           "transferred_voltage_start_skipped_count": 0,
-          "wall_seconds": 9.002785921096802
+          "wall_seconds": 9.455562114715576
         },
         {
+          "allocator_stage_telemetry": {
+            "model_build": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159566,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 696025088,
+                "size_in_use_bytes": 227793696
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 163617,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1795604480,
+                "size_in_use_bytes": 1427351040
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": -1099579392,
+              "size_in_use_delta_bytes": -1199557344
+            },
+            "solve": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 163560,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1858207744,
+                "size_in_use_bytes": 1429544384
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159711,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 700219392,
+                "size_in_use_bytes": 237762080
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 1157988352,
+              "size_in_use_delta_bytes": 1191782304
+            },
+            "start_application": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159711,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 700219392,
+                "size_in_use_bytes": 237762080
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159603,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 700219392,
+                "size_in_use_bytes": 237599520
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 0,
+              "size_in_use_delta_bytes": 162560
+            }
+          },
           "dual_status": "UNKNOWN_RESULT_STATUS",
           "label": "feasibility_voltage_transfer",
           "objective_value": 0.0,
           "primal_status": "INFEASIBLE_POINT",
           "result_count": 1,
-          "solve_allocated_bytes": 265175760,
-          "solve_gc_seconds": 0.063872875,
-          "solve_seconds": 8.805548906326294,
+          "solve_allocated_bytes": 256901840,
+          "solve_gc_seconds": 0.082628333,
+          "solve_seconds": 8.709609031677246,
           "termination_status": "ITERATION_LIMIT",
           "transfer_applied": true,
           "transferred_voltage_start_count": 13309,
           "transferred_voltage_start_skipped_count": 0,
-          "wall_seconds": 10.489243030548096
+          "wall_seconds": 10.428282976150513
         }
       ],
       "relaxed_initialization": {
+        "allocator_stage_telemetry": {
+          "after": {
+            "available": true,
+            "blocks_in_use": 164061,
+            "max_size_in_use_bytes": 0,
+            "peak_field_available": false,
+            "size_allocated_bytes": 1654374400,
+            "size_in_use_bytes": 1336652576
+          },
+          "available": true,
+          "before": {
+            "available": true,
+            "blocks_in_use": 265903,
+            "max_size_in_use_bytes": 0,
+            "peak_field_available": false,
+            "size_allocated_bytes": 413384704,
+            "size_in_use_bytes": 176322432
+          },
+          "peak_available": false,
+          "size_allocated_delta_bytes": 1240989696,
+          "size_in_use_delta_bytes": 1160330144
+        },
         "initialization_bus_count": 3409,
         "relaxed_feasible": true,
         "termination_status": "LOCALLY_SOLVED",
@@ -113,35 +271,35 @@
       "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v1",
       "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-v1",
       "status": "bounded_hard_opf_start_transfer",
-      "wall_seconds": 40.904722929000854
+      "wall_seconds": 39.77639198303223
     },
     {
       "allocator_telemetry": {
         "after": {
           "available": true,
-          "blocks_in_use": 166851,
+          "blocks_in_use": 171522,
           "max_size_in_use_bytes": 0,
           "peak_field_available": false,
-          "size_allocated_bytes": 1934819328,
-          "size_in_use_bytes": 1551633040
+          "size_allocated_bytes": 2984083456,
+          "size_in_use_bytes": 2632171712
         },
         "before": {
           "available": true,
-          "blocks_in_use": 132001,
+          "blocks_in_use": 133522,
           "max_size_in_use_bytes": 0,
           "peak_field_available": false,
-          "size_allocated_bytes": 224411648,
-          "size_in_use_bytes": 69889104
+          "size_allocated_bytes": 270548992,
+          "size_in_use_bytes": 82574336
         },
-        "current_size_allocated_delta_bytes": 1710407680,
-        "current_size_in_use_delta_bytes": 1481743936,
+        "current_size_allocated_delta_bytes": 2713534464,
+        "current_size_in_use_delta_bytes": 2549597376,
         "peak_available": false
       },
       "budgets": {
         "max_cpu_seconds": 60.0,
         "max_iter": 50
       },
-      "child_peak_rss_bytes": 2916925440,
+      "child_peak_rss_bytes": 3149856768,
       "input": {
         "path": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/test/data/Master.dss",
         "source_warning_codes": [
@@ -158,40 +316,198 @@
         "load_count": 1255,
         "transformer_count": 1
       },
-      "next_action": "Add fresh-child allocator peak telemetry and expose a stable BMOPFTools voltage-start transfer API if this initialization is retained.",
+      "next_action": "Carry the reviewed voltage-start API contract upstream; hard-OPF convergence and peak-capable allocator telemetry remain open.",
       "records": [
         {
+          "allocator_stage_telemetry": {
+            "model_build": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159643,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 558170112,
+                "size_in_use_bytes": 129052080
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 164572,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1656782848,
+                "size_in_use_bytes": 1340791120
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": -1098612736,
+              "size_in_use_delta_bytes": -1211739040
+            },
+            "solve": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 163296,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1753120768,
+                "size_in_use_bytes": 1347142080
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159680,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 562364416,
+                "size_in_use_bytes": 138857904
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 1190756352,
+              "size_in_use_delta_bytes": 1208284176
+            },
+            "start_application": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 159680,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 562364416,
+                "size_in_use_bytes": 138857904
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 159680,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 562364416,
+                "size_in_use_bytes": 138857904
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 0,
+              "size_in_use_delta_bytes": 0
+            }
+          },
           "dual_status": "UNKNOWN_RESULT_STATUS",
           "label": "native",
           "objective_value": 0.0,
           "primal_status": "INFEASIBLE_POINT",
           "result_count": 1,
-          "solve_allocated_bytes": 271201296,
-          "solve_gc_seconds": 0.237893959,
-          "solve_seconds": 7.761852025985718,
+          "solve_allocated_bytes": 263875136,
+          "solve_gc_seconds": 0.3155495,
+          "solve_seconds": 8.101551055908203,
           "termination_status": "ITERATION_LIMIT",
           "transfer_applied": false,
           "transferred_voltage_start_count": 0,
           "transferred_voltage_start_skipped_count": 0,
-          "wall_seconds": 9.645906925201416
+          "wall_seconds": 10.154388904571533
         },
         {
+          "allocator_stage_telemetry": {
+            "model_build": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 163627,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1759412224,
+                "size_in_use_bytes": 1381946368
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 163518,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1753120768,
+                "size_in_use_bytes": 1349016064
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 6291456,
+              "size_in_use_delta_bytes": 32930304
+            },
+            "solve": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 167687,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 2984083456,
+                "size_in_use_bytes": 2612569680
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 163772,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1764130816,
+                "size_in_use_bytes": 1392439040
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 1219952640,
+              "size_in_use_delta_bytes": 1220130640
+            },
+            "start_application": {
+              "after": {
+                "available": true,
+                "blocks_in_use": 163772,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1764130816,
+                "size_in_use_bytes": 1392439040
+              },
+              "available": true,
+              "before": {
+                "available": true,
+                "blocks_in_use": 163664,
+                "max_size_in_use_bytes": 0,
+                "peak_field_available": false,
+                "size_allocated_bytes": 1764130816,
+                "size_in_use_bytes": 1392276480
+              },
+              "peak_available": false,
+              "size_allocated_delta_bytes": 0,
+              "size_in_use_delta_bytes": 162560
+            }
+          },
           "dual_status": "UNKNOWN_RESULT_STATUS",
           "label": "feasibility_voltage_transfer",
           "objective_value": 0.0,
           "primal_status": "INFEASIBLE_POINT",
           "result_count": 1,
-          "solve_allocated_bytes": 262133840,
-          "solve_gc_seconds": 0.241687917,
-          "solve_seconds": 8.996263980865479,
+          "solve_allocated_bytes": 275595984,
+          "solve_gc_seconds": 0.088679084,
+          "solve_seconds": 9.448511123657227,
           "termination_status": "ITERATION_LIMIT",
           "transfer_applied": true,
           "transferred_voltage_start_count": 13309,
           "transferred_voltage_start_skipped_count": 0,
-          "wall_seconds": 10.545429944992065
+          "wall_seconds": 11.141377925872803
         }
       ],
       "relaxed_initialization": {
+        "allocator_stage_telemetry": {
+          "after": {
+            "available": true,
+            "blocks_in_use": 164078,
+            "max_size_in_use_bytes": 0,
+            "peak_field_available": false,
+            "size_allocated_bytes": 1656782848,
+            "size_in_use_bytes": 1339281824
+          },
+          "available": true,
+          "before": {
+            "available": true,
+            "blocks_in_use": 260128,
+            "max_size_in_use_bytes": 0,
+            "peak_field_available": false,
+            "size_allocated_bytes": 425967616,
+            "size_in_use_bytes": 146366464
+          },
+          "peak_available": false,
+          "size_allocated_delta_bytes": 1230815232,
+          "size_in_use_delta_bytes": 1192915360
+        },
         "initialization_bus_count": 3409,
         "relaxed_feasible": true,
         "termination_status": "LOCALLY_SOLVED",
@@ -201,7 +517,7 @@
       "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v1",
       "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-v1",
       "status": "bounded_hard_opf_start_transfer",
-      "wall_seconds": 41.56469798088074
+      "wall_seconds": 43.31486797332764
     }
   ],
   "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-isolated-v1",

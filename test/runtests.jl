@@ -2954,6 +2954,7 @@ end
     @test Meta.parseall(transfer_probe_script) isa Expr
     @test occursin("feasibility_voltage_transfer", transfer_probe_script)
     @test occursin("solve_allocated_bytes", transfer_probe_script)
+    @test occursin("allocator_stage_telemetry", transfer_probe_script)
     transfer_probe = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_combined_mv_lv_feasibility_start_transfer_summary.json"), String,
     ))
@@ -2968,6 +2969,9 @@ end
     @test transfer_probe["records"][2]["transferred_voltage_start_skipped_count"] == 0
     @test transfer_probe["records"][1]["solve_allocated_bytes"] > 0
     @test transfer_probe["records"][2]["solve_allocated_bytes"] > 0
+    @test transfer_probe["relaxed_initialization"]["allocator_stage_telemetry"]["available"] == true
+    @test all(haskey(record["allocator_stage_telemetry"], stage) for record in transfer_probe["records"] for stage in ("model_build", "start_application", "solve"))
+    @test all(record["allocator_stage_telemetry"]["solve"]["available"] == true for record in transfer_probe["records"])
     @test occursin("bmopf_combined_mv_lv_feasibility_start_transfer_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
@@ -2992,6 +2996,9 @@ end
     @test length(isolated_transfer["allocator_size_allocated_delta_bytes_range"]) == 2
     @test all(record["allocator_telemetry"]["after"]["available"] == true for record in isolated_transfer["records"])
     @test all(record["allocator_telemetry"]["peak_available"] == false for record in isolated_transfer["records"])
+    @test all(record["relaxed_initialization"]["allocator_stage_telemetry"]["available"] == true for record in isolated_transfer["records"])
+    @test all(record["records"][1]["allocator_stage_telemetry"]["solve"]["available"] == true for record in isolated_transfer["records"])
+    @test all(record["records"][2]["allocator_stage_telemetry"]["solve"]["available"] == true for record in isolated_transfer["records"])
     @test all(record["isolated_process"] == true for record in isolated_transfer["records"])
     @test all(record["child_peak_rss_bytes"] > 0 for record in isolated_transfer["records"])
     @test all(record["status"] == "bounded_hard_opf_start_transfer" for record in isolated_transfer["records"])

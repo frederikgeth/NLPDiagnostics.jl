@@ -258,6 +258,19 @@ runtime_combined_allocator_peak_available_count = get(
 runtime_combined_allocator_delta_range = get(
     runtime_combined_transfer_isolated, "allocator_size_allocated_delta_bytes_range", Any[],
 )
+runtime_combined_stage_records = [
+    stage
+    for record in get(runtime_combined_transfer_isolated, "records", Any[])
+    for stage in vcat(
+        [get(get(record, "relaxed_initialization", Dict{String,Any}()), "allocator_stage_telemetry", Dict{String,Any}())],
+        [stage
+         for stage_record in get(record, "records", Any[])
+         for stage in values(get(stage_record, "allocator_stage_telemetry", Dict{String,Any}()))],
+    )
+]
+runtime_combined_stage_available = !isempty(runtime_combined_stage_records) && all(
+    get(stage, "available", false) for stage in runtime_combined_stage_records
+)
 analyze_readiness_workloads = get(analyze_scaling_readiness, "workloads", Any[])
 analyze_readiness_workload_count = get(analyze_scaling_readiness, "workload_count", length(analyze_readiness_workloads))
 analyze_readiness_stable_count = count(workload -> get(workload, "evidence_stable", false), analyze_readiness_workloads)
@@ -703,6 +716,12 @@ gates = Dict{String,Any}[
         blocking=true,
     ),
 ]
+
+for gate in gates
+    if gate["id"] == "runtime_memory_scaling"
+        gate["rationale"] *= " Stage-level allocator attribution is available=$runtime_combined_stage_available across the relaxed, model-build, start-application, and solve stages; these deltas are attribution evidence, not allocator peaks."
+    end
+end
 
 output = abspath(get(ENV, "NLPDIAGNOSTICS_CALIBRATION_RELEASE_OUTPUT", joinpath(ROOT, "docs", "calibration_release_gate_summary.json")))
 write_json(output, Dict(

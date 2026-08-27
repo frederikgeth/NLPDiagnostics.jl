@@ -6029,3 +6029,23 @@ access remains explicitly experimental. This closes the API review deliverable
 without widening the stable NLPDiagnostics facade; the next action is to carry
 the contract upstream while keeping hard-OPF convergence and portable peak
 memory as open gates.
+
+## 2026-08-27 stage-level allocator attribution
+
+The combined MV/LV transfer runner now records Darwin allocator snapshots around
+the relaxed initialization, each hard-OPF model build, voltage-start
+application, and solver call. Across the regenerated two-repetition isolated
+campaign, all stage snapshots were available and the allocator peak field
+remained unavailable (`max_size_in_use == 0`). The solver stages accounted for
+the largest positive current-allocation deltas, while model-build and
+start-application deltas varied with allocator reuse; these counters are
+attribution evidence, not a peak or retained-memory estimate. The updated
+summary is `docs/bmopf_combined_mv_lv_feasibility_start_transfer_summary.json`
+and the isolated envelope remains in
+`docs/bmopf_combined_mv_lv_feasibility_start_transfer_isolated_summary.json`.
+
+This closes the stage-attribution increment and confirms that the current
+Darwin interface cannot provide allocator peaks in this Julia process. The
+next runtime action is therefore to carry the reviewed voltage-start contract
+upstream and identify a peak-capable or externally profiled environment before
+making memory claims; hard-OPF convergence remains open.
