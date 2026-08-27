@@ -3578,6 +3578,11 @@ end
     @test voltage_start_api["current_workaround"]["stable_api_ready"] == false
     @test voltage_start_api["existing_public_symbols"]["build_opf_model"] == true
     @test length(voltage_start_api["proposal_missing_symbols"]) == 2
+    @test voltage_start_api["proposal_document"]["exists"] == true
+    @test voltage_start_api["proposal_document"]["ready_for_upstream_review"] == true
+    @test occursin("bmopf_voltage_start_api_proposal.md", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     @test occursin("bmopf_voltage_start_api_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))

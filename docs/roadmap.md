@@ -6049,3 +6049,18 @@ Darwin interface cannot provide allocator peaks in this Julia process. The
 next runtime action is therefore to carry the reviewed voltage-start contract
 upstream and identify a peak-capable or externally profiled environment before
 making memory claims; hard-OPF convergence remains open.
+
+## 2026-08-27 upstream-ready voltage-start proposal
+
+The voltage-start audit is now accompanied by an upstream-ready proposal at
+`docs/bmopf_voltage_start_api_proposal.md`. It defines the additive read/write
+surface, SI versus working-coordinate semantics, per-bus base conversion,
+grounded-terminal handling, lifecycle constraints, partial-application
+reporting, and acceptance checks. The audit artifact now verifies the proposal
+document and its required sections, so the handoff is reproducible rather than
+just an informal list of missing symbols.
+
+The current BMOPFTools checkout still lacks both proposed symbols, so this is a
+handoff deliverable rather than an API implementation. Until upstream review
+and tests land, the experimental `ctx.vars` path remains isolated to the
+benchmark and no Stable NLPDiagnostics facade is widened.

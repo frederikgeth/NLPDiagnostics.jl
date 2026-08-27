@@ -4,7 +4,7 @@
     "transfer_benchmark": "benchmarks/bmopf_combined_mv_lv_feasibility_start_transfer.jl",
     "uses_internal_context_variable_ledger": true
   },
-  "decision": "Do not promote the internal ctx.vars workaround as stable API. Carry this contract to BMOPFTools for review and retain the bounded benchmark evidence until an upstream implementation is available.",
+  "decision": "Do not promote the internal ctx.vars workaround as stable API. Carry the contract and proposal document to BMOPFTools for review and retain the bounded benchmark evidence until an upstream implementation is available.",
   "dependency": {
     "git_branch": "main",
     "git_dirty": false,
@@ -20,6 +20,16 @@
     "opf_bases": true,
     "opf_model": true,
     "set_opf_start_values!": true
+  },
+  "proposal_document": {
+    "exists": true,
+    "path": "docs/bmopf_voltage_start_api_proposal.md",
+    "ready_for_upstream_review": true,
+    "required_sections": {
+      "## Acceptance checks": true,
+      "## Lifecycle and semantics": true,
+      "## Proposed surface": true
+    }
   },
   "proposal_missing_symbols": [
     "opf_voltage_start_values",

@@ -710,6 +710,7 @@ gates = Dict{String,Any}[
             "docs/api_advanced_candidate_summary.json",
             "docs/api_ownership_decision_summary.json",
             "docs/bmopf_voltage_start_api_summary.json",
+            "docs/bmopf_voltage_start_api_proposal.md",
             "benchmarks/review_api_ownership_decisions.jl",
             "benchmarks/audit_bmopf_voltage_start_api.jl",
         ],

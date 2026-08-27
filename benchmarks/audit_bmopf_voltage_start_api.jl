@@ -17,6 +17,7 @@ const ROOT = repo_root()
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "bmopf_voltage_start_api_summary.json") : ARGS[1])
 const TRANSFER_SOURCE = joinpath(ROOT, "benchmarks", "bmopf_combined_mv_lv_feasibility_start_transfer.jl")
+const PROPOSAL_DOCUMENT = joinpath(ROOT, "docs", "bmopf_voltage_start_api_proposal.md")
 
 const REQUIRED_EXISTING_SYMBOLS = [
     "build_opf_model",
@@ -47,6 +48,13 @@ function main()
     source_path = try pathof(BMOPF) catch; package_path end
     source_root = package_git_root(source_path)
     source_text = isfile(TRANSFER_SOURCE) ? read(TRANSFER_SOURCE, String) : ""
+    proposal_text = isfile(PROPOSAL_DOCUMENT) ? read(PROPOSAL_DOCUMENT, String) : ""
+    proposal_sections = [
+        "## Proposed surface",
+        "## Lifecycle and semantics",
+        "## Acceptance checks",
+    ]
+    proposal_section_status = Dict(section => occursin(section, proposal_text) for section in proposal_sections)
     existing = Dict(symbol => isdefined(BMOPF, Symbol(symbol)) for symbol in REQUIRED_EXISTING_SYMBOLS)
     proposed = Dict(symbol => isdefined(BMOPF, Symbol(symbol)) for symbol in PROPOSED_SYMBOLS)
     proposal_missing = sort!([symbol for (symbol, present) in proposed if !present])
@@ -70,6 +78,12 @@ function main()
             "uses_internal_context_variable_ledger" => occursin("getfield(context, :vars)", source_text),
             "stable_api_ready" => false,
         ),
+        "proposal_document" => Dict(
+            "path" => relpath(PROPOSAL_DOCUMENT, ROOT),
+            "exists" => isfile(PROPOSAL_DOCUMENT),
+            "required_sections" => proposal_section_status,
+            "ready_for_upstream_review" => isfile(PROPOSAL_DOCUMENT) && all(values(proposal_section_status)),
+        ),
         "recommended_contract" => Dict(
             "read" => "opf_voltage_start_values(ctx; units=:SI) -> typed bus/terminal rectangular phasors and coordinate metadata",
             "write" => "set_opf_voltage_start_values!(ctx, starts; units=:SI) -> applied/skipped counts with validation errors",
@@ -77,7 +91,7 @@ function main()
             "semantics" => "accept physical SI phasors or explicit working-coordinate values, honor per-bus voltage bases, preserve grounded terminals, and reject nonfinite or unknown bus-terminal keys",
             "compatibility" => "keep set_opf_start_values!(ctx) unchanged; add the transfer overload as an additive API with a versioned return schema",
         ),
-        "decision" => "Do not promote the internal ctx.vars workaround as stable API. Carry this contract to BMOPFTools for review and retain the bounded benchmark evidence until an upstream implementation is available.",
+        "decision" => "Do not promote the internal ctx.vars workaround as stable API. Carry the contract and proposal document to BMOPFTools for review and retain the bounded benchmark evidence until an upstream implementation is available.",
     )
     write_json(OUTPUT, report)
     println("wrote BMOPFTools voltage-start API audit to $OUTPUT")
