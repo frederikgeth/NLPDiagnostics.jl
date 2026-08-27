@@ -31,13 +31,15 @@
         "benchmarks/summarize_bmopf_si_rerun.jl",
         "docs/bmopf_si_rerun_candidate_validation_summary.json",
         "benchmarks/validate_bmopf_rerun_candidates.jl",
+        "docs/bmopf_promoted_sparse_rank_summary.json",
+        "benchmarks/summarize_bmopf_promoted_sparse_rank.jl",
         "docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
         "benchmarks/summarize_bmopf_saved_result_sparse_rank_campaign.jl",
         "docs/bmopf_saved_result_scaling_diagnostics_summary.json",
         "benchmarks/summarize_bmopf_saved_result_scaling_diagnostics.jl"
       ],
       "id": "numerical_rank_false_positive_negative_statistics",
-      "next_deliverable": "Promote the seven validated SI candidate results into the canonical corpus under explicit review, then re-audit finiteness and mapping provenance.",
+      "next_deliverable": "Reconcile the full 538-bus campaign with the refreshed canonical SI profiles, then classify any remaining rank-policy or threshold disagreements.",
       "priority": 1,
       "status": "partial"
     },
@@ -128,7 +130,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "7d13c1fa1e23d69b8cd5d83e750d61a6a61b8cd8",
+    "git_revision": "51aa2c35d42d1dc900dee1d7e13ddae3c59529bd",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

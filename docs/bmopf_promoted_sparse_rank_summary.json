@@ -1,0 +1,253 @@
+{
+  "after_incomplete_mapping_count": 0,
+  "after_scaling_sensitive_count": 0,
+  "all_after_mappings_complete": true,
+  "before_incomplete_provenance_count": 7,
+  "before_scaling_sensitive_count": 4,
+  "environment": {
+    "git_revision": "51aa2c35d42d1dc900dee1d7e13ddae3c59529bd",
+    "git_worktree_dirty": false
+  },
+  "interpretation": "This is a before/after diagnostic for the seven promoted SI endpoints. It confirms mapping and local sparse-rank behavior after explicit promotion; it does not generalize rank stability beyond this declared corpus.",
+  "record_count": 7,
+  "records": [
+    {
+      "before": {
+        "mapping_diagnostics": {
+          "fallback_coordinate_count": "11026",
+          "mapped_coordinate_count": "2",
+          "mapped_families": "vi,vr",
+          "projected_families": "",
+          "projection_contracts": "",
+          "registered_coordinate_count": "11028",
+          "unit_fingerprint_count": "0",
+          "unit_fingerprint_zero_magnitude_count": "1",
+          "unmapped_registered_coordinate_count": "11026"
+        },
+        "point_provenance_complete": false,
+        "rank_delta": 0,
+        "scaling_sensitive": false
+      },
+      "fallback_coordinate_count": 0.0,
+      "mapped_coordinate_count": 11028.0,
+      "mapping_complete": true,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0.0,
+      "registered_coordinate_count": 11028.0,
+      "result_units": "si",
+      "row_column_condition_proxy": 33.097319114824394,
+      "row_column_rank": 11028.0,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t22_1830.bmopf.json",
+      "unscaled_condition_proxy": 3547.6940030659075,
+      "unscaled_rank": 11028.0
+    },
+    {
+      "before": {
+        "mapping_diagnostics": {
+          "fallback_coordinate_count": "11026",
+          "mapped_coordinate_count": "2",
+          "mapped_families": "vi,vr",
+          "projected_families": "",
+          "projection_contracts": "",
+          "registered_coordinate_count": "11028",
+          "unit_fingerprint_count": "0",
+          "unit_fingerprint_zero_magnitude_count": "1",
+          "unmapped_registered_coordinate_count": "11026"
+        },
+        "point_provenance_complete": false,
+        "rank_delta": 0,
+        "scaling_sensitive": false
+      },
+      "fallback_coordinate_count": 0.0,
+      "mapped_coordinate_count": 11028.0,
+      "mapping_complete": true,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0.0,
+      "registered_coordinate_count": 11028.0,
+      "result_units": "si",
+      "row_column_condition_proxy": 59.58354434704432,
+      "row_column_rank": 11028.0,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t24_1930.bmopf.json",
+      "unscaled_condition_proxy": 4001.409786089908,
+      "unscaled_rank": 11028.0
+    },
+    {
+      "before": {
+        "mapping_diagnostics": {
+          "fallback_coordinate_count": "11026",
+          "mapped_coordinate_count": "2",
+          "mapped_families": "vi,vr",
+          "projected_families": "",
+          "projection_contracts": "",
+          "registered_coordinate_count": "11028",
+          "unit_fingerprint_count": "0",
+          "unit_fingerprint_zero_magnitude_count": "1",
+          "unmapped_registered_coordinate_count": "11026"
+        },
+        "point_provenance_complete": false,
+        "rank_delta": 0,
+        "scaling_sensitive": false
+      },
+      "fallback_coordinate_count": 0.0,
+      "mapped_coordinate_count": 11028.0,
+      "mapping_complete": true,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0.0,
+      "registered_coordinate_count": 11028.0,
+      "result_units": "si",
+      "row_column_condition_proxy": 48.65708635838065,
+      "row_column_rank": 11028.0,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LG/538bus_LG_t25_2000.bmopf.json",
+      "unscaled_condition_proxy": 4284.7104571045675,
+      "unscaled_rank": 11028.0
+    },
+    {
+      "before": {
+        "mapping_diagnostics": {
+          "fallback_coordinate_count": "11026",
+          "mapped_coordinate_count": "2",
+          "mapped_families": "vi,vr",
+          "projected_families": "",
+          "projection_contracts": "",
+          "registered_coordinate_count": "11028",
+          "unit_fingerprint_count": "0",
+          "unit_fingerprint_zero_magnitude_count": "1",
+          "unmapped_registered_coordinate_count": "11026"
+        },
+        "point_provenance_complete": false,
+        "rank_delta": 1,
+        "scaling_sensitive": true
+      },
+      "fallback_coordinate_count": 0.0,
+      "mapped_coordinate_count": 11028.0,
+      "mapping_complete": true,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0.0,
+      "registered_coordinate_count": 11028.0,
+      "result_units": "si",
+      "row_column_condition_proxy": 20.0700238643066,
+      "row_column_rank": 11028.0,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t13_1400.bmopf.json",
+      "unscaled_condition_proxy": 3878.556376875276,
+      "unscaled_rank": 11028.0
+    },
+    {
+      "before": {
+        "mapping_diagnostics": {
+          "fallback_coordinate_count": "11026",
+          "mapped_coordinate_count": "2",
+          "mapped_families": "vi,vr",
+          "projected_families": "",
+          "projection_contracts": "",
+          "registered_coordinate_count": "11028",
+          "unit_fingerprint_count": "0",
+          "unit_fingerprint_zero_magnitude_count": "1",
+          "unmapped_registered_coordinate_count": "11026"
+        },
+        "point_provenance_complete": false,
+        "rank_delta": 1,
+        "scaling_sensitive": true
+      },
+      "fallback_coordinate_count": 0.0,
+      "mapped_coordinate_count": 11028.0,
+      "mapping_complete": true,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0.0,
+      "registered_coordinate_count": 11028.0,
+      "result_units": "si",
+      "row_column_condition_proxy": 20.072425871964217,
+      "row_column_rank": 11028.0,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t14_1430.bmopf.json",
+      "unscaled_condition_proxy": 3876.2582753201896,
+      "unscaled_rank": 11028.0
+    },
+    {
+      "before": {
+        "mapping_diagnostics": {
+          "fallback_coordinate_count": "11026",
+          "mapped_coordinate_count": "2",
+          "mapped_families": "vi,vr",
+          "projected_families": "",
+          "projection_contracts": "",
+          "registered_coordinate_count": "11028",
+          "unit_fingerprint_count": "0",
+          "unit_fingerprint_zero_magnitude_count": "1",
+          "unmapped_registered_coordinate_count": "11026"
+        },
+        "point_provenance_complete": false,
+        "rank_delta": 1,
+        "scaling_sensitive": true
+      },
+      "fallback_coordinate_count": 0.0,
+      "mapped_coordinate_count": 11028.0,
+      "mapping_complete": true,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0.0,
+      "registered_coordinate_count": 11028.0,
+      "result_units": "si",
+      "row_column_condition_proxy": 20.05508600196788,
+      "row_column_rank": 11028.0,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t17_1600.bmopf.json",
+      "unscaled_condition_proxy": 3599.048637988183,
+      "unscaled_rank": 11028.0
+    },
+    {
+      "before": {
+        "mapping_diagnostics": {
+          "fallback_coordinate_count": "11026",
+          "mapped_coordinate_count": "2",
+          "mapped_families": "vi,vr",
+          "projected_families": "",
+          "projection_contracts": "",
+          "registered_coordinate_count": "11028",
+          "unit_fingerprint_count": "0",
+          "unit_fingerprint_zero_magnitude_count": "1",
+          "unmapped_registered_coordinate_count": "11026"
+        },
+        "point_provenance_complete": false,
+        "rank_delta": 1,
+        "scaling_sensitive": true
+      },
+      "fallback_coordinate_count": 0.0,
+      "mapped_coordinate_count": 11028.0,
+      "mapping_complete": true,
+      "model_variable_count": 11028,
+      "point_provenance_complete": true,
+      "point_provenance_kind": "SolverResultPoint",
+      "rank_delta": 0.0,
+      "registered_coordinate_count": 11028.0,
+      "result_units": "si",
+      "row_column_condition_proxy": 60.10916258851679,
+      "row_column_rank": 11028.0,
+      "scaling_sensitive": false,
+      "snapshot": "ENWLsnapshots/538bus_LN/538bus_LN_t25_2000.bmopf.json",
+      "unscaled_condition_proxy": 4561.471746472922,
+      "unscaled_rank": 11028.0
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-promoted-sparse-rank-v1",
+  "source": {
+    "old_campaign": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/bmopf_saved_result_sparse_rank_campaign_summary.json",
+    "profile_directory": "/private/tmp/nlpdiag-si-canonical-profile",
+    "runner": "benchmarks/bmopf_draft_corpus.jl",
+    "summarizer": "benchmarks/summarize_bmopf_promoted_sparse_rank.jl"
+  }
+}
