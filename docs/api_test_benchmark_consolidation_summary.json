@@ -587,9 +587,9 @@
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 133,
-    "json_file_count": 139,
-    "json_schema_file_count": 139,
+    "benchmark_scripts_with_schema_version_count": 134,
+    "json_file_count": 140,
+    "json_schema_file_count": 140,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -698,7 +698,7 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 195,
+    "benchmark_script_count": 196,
     "shared_benchmark_helper": "benchmarks/common.jl",
     "shared_benchmark_helper_exemption_count": 3,
     "shared_benchmark_helper_exemptions": [
@@ -715,7 +715,7 @@
         "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
       }
     ],
-    "shared_benchmark_helper_user_count": 192,
+    "shared_benchmark_helper_user_count": 193,
     "shared_benchmark_helper_users": [
       "benchmarks/analyze_bmopf_series_nominal_capacity_boundary.jl",
       "benchmarks/assess_bmopf_lv13_madnlp_resource_envelope.jl",
@@ -727,6 +727,7 @@
       "benchmarks/audit_bmopf_pr_handoff.jl",
       "benchmarks/audit_bmopf_voltage_start_api.jl",
       "benchmarks/audit_stable_api_surface.jl",
+      "benchmarks/audit_typed_unavailable_adoption.jl",
       "benchmarks/bmopf_30bus_ibr_p_upper_bound_regime_ledger.jl",
       "benchmarks/bmopf_30bus_ibr_p_upper_budget_matrix.jl",
       "benchmarks/bmopf_30bus_ibr_p_upper_directional_delta_matrix.jl",

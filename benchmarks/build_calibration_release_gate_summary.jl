@@ -88,6 +88,7 @@ advanced_api_surface = read_summary("docs/advanced_api_surface_summary.json")
 api_migration_queue = read_summary("docs/api_migration_queue_summary.json")
 api_advanced_candidates = read_summary("docs/api_advanced_candidate_summary.json")
 api_ownership_decisions = read_summary("docs/api_ownership_decision_summary.json")
+typed_unavailable_adoption = read_summary("docs/typed_unavailable_adoption_summary.json")
 bmopf_voltage_start_api = read_summary("docs/bmopf_voltage_start_api_summary.json")
 release_gate_actions = read_summary("docs/release_gate_action_summary.json")
 api_inventory = api_consolidation["api_inventory"]
@@ -131,6 +132,10 @@ api_ownership_queue_complete = get(api_ownership_decisions, "queue_complete", fa
 api_ownership_retained_count = get(api_ownership_decisions, "root_compatibility_retained_count", 0)
 api_ownership_advanced_count = get(api_ownership_decisions, "advanced_candidate_count", 0)
 api_ownership_migration_count = get(api_ownership_decisions, "migration_allowed_count", 0)
+typed_unavailable_constructor_count = get(typed_unavailable_adoption, "typed_constructor_call_count", 0)
+typed_unavailable_serializer_count = get(typed_unavailable_adoption, "typed_serializer_call_count", 0)
+typed_unavailable_metadata_count = get(typed_unavailable_adoption, "metadata_unavailable_reason_write_count", 0)
+typed_unavailable_adoption_status = get(typed_unavailable_adoption, "status", "missing")
 bmopf_voltage_start_api_status = get(bmopf_voltage_start_api, "status", "missing")
 bmopf_voltage_start_api_missing = get(bmopf_voltage_start_api, "proposal_missing_symbols", String[])
 bmopf_voltage_start_api_proposal = isempty(bmopf_voltage_start_api_missing) ?
@@ -462,6 +467,7 @@ api_contract_rationale = api_contract_rationale * " The bounded ownership ledger
 api_contract_rationale = api_contract_rationale * (api_ownership_queue_complete ?
     " The bounded ownership queue is complete at $api_ownership_reviewed_count/$api_ownership_queue_count names; future changes should update the ledger rather than reopen an implicit migration." :
     " The bounded ownership queue remains in progress at $api_ownership_reviewed_count/$api_ownership_queue_count names; continue deterministic review before any migration decision.")
+api_contract_rationale = api_contract_rationale * " Typed unavailable-reason adoption is status=$typed_unavailable_adoption_status with $typed_unavailable_constructor_count constructor calls, $typed_unavailable_serializer_count serializer calls, and $typed_unavailable_metadata_count metadata writes inventoried; new adapters should extend this path without changing legacy report layouts implicitly."
 
 combined_mv_lv_gate = all([
     get(combined_mv_lv, "ipopt_tolerance_diagnostic", Dict{String,Any}())["all_comparisons_qualified"],
@@ -728,6 +734,7 @@ gates = Dict{String,Any}[
             "docs/api_migration_queue_summary.json",
             "docs/api_advanced_candidate_summary.json",
             "docs/api_ownership_decision_summary.json",
+            "docs/typed_unavailable_adoption_summary.json",
             "docs/bmopf_voltage_start_api_summary.json",
             "docs/bmopf_voltage_start_api_proposal.md",
             "benchmarks/review_api_ownership_decisions.jl",

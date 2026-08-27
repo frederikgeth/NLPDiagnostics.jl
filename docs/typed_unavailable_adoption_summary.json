@@ -1,0 +1,71 @@
+{
+  "bare_catch_count": 28,
+  "bound_catch_count": 75,
+  "capability_or_work_guard_files": [
+    "src/NLPDiagnostics.jl",
+    "src/analysis/activity.jl",
+    "src/analysis/crosscheck.jl",
+    "src/analysis/degeneracy.jl",
+    "src/analysis/numerical.jl",
+    "src/analysis/postmortem.jl",
+    "src/analysis/profiling.jl",
+    "src/analysis/scaling.jl",
+    "src/api/advanced.jl",
+    "src/numerics/degeneracy.jl",
+    "src/numerics/duals.jl",
+    "src/numerics/types.jl",
+    "src/reports/types.jl"
+  ],
+  "environment": {
+    "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
+    "git_revision": "91c100110b586dc403056291c4ec247eb8ed9086",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "interpretation": {
+    "claim": "Typed unavailable-reason construction and serialization are explicitly inventoried across source adapters; metadata writes remain a compatibility boundary.",
+    "does_not_establish": [
+      "semantic correctness of every capability or work-guard adapter",
+      "that legacy report layouts can be changed without review",
+      "release readiness or CI execution"
+    ]
+  },
+  "metadata_reason_files": [
+    "src/NLPDiagnostics.jl",
+    "src/analysis/activity.jl",
+    "src/analysis/crosscheck.jl",
+    "src/analysis/degeneracy.jl",
+    "src/analysis/numerical.jl"
+  ],
+  "metadata_unavailable_reason_write_count": 79,
+  "next_actions": [
+    "Keep new capability and work-guard adapters on the typed unavailable-reason path.",
+    "Review remaining metadata-only boundaries before changing report schemas.",
+    "Re-run this audit when adapter ownership or the BMOPFTools contract changes."
+  ],
+  "schema_version": "nlpdiagnostics-typed-unavailable-adoption-v1",
+  "source": {
+    "policy": "Count explicit typed unavailable-reason boundaries without changing legacy report layouts or inferring adapter correctness from source counts.",
+    "root": "src",
+    "runner": "benchmarks/audit_typed_unavailable_adoption.jl"
+  },
+  "source_file_count": 32,
+  "status": "partial",
+  "typed_constructor_call_count": 77,
+  "typed_constructor_files": [
+    "src/NLPDiagnostics.jl",
+    "src/analysis/activity.jl",
+    "src/analysis/crosscheck.jl",
+    "src/analysis/degeneracy.jl",
+    "src/analysis/numerical.jl",
+    "src/analysis/postmortem.jl"
+  ],
+  "typed_serializer_call_count": 16,
+  "typed_serializer_files": [
+    "src/analysis/postmortem.jl",
+    "src/analysis/profiling.jl",
+    "src/analysis/scaling.jl",
+    "src/numerics/duals.jl",
+    "src/reports/types.jl"
+  ]
+}

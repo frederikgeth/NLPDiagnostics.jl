@@ -6471,3 +6471,18 @@ explicit migration approval rather than repeated queue review.
 The refreshed evidence is
 `docs/api_test_benchmark_consolidation_summary.json`, with release-gate and
 Markdown report consumers regenerated from the same source.
+
+## 2026-08-27 typed unavailable-reason adoption audit
+
+The next adapter-adoption deliverable adds
+`benchmarks/audit_typed_unavailable_adoption.jl`, a deterministic source audit
+for typed unavailable-reason construction, serialization, and metadata
+boundaries. The current inventory records 77 typed constructor calls, 16
+serializer calls, and 79 metadata writes across the 32 source files; it keeps
+the remaining schema migration explicit rather than changing legacy report
+layouts opportunistically.
+
+The machine-readable evidence is
+`docs/typed_unavailable_adoption_summary.json`. Its status remains `partial` by
+design: source adoption is measurable, but semantic adapter review and future
+report-schema changes still require owner approval.

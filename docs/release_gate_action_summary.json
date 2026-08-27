@@ -160,6 +160,7 @@
         "docs/api_migration_queue_summary.json",
         "docs/api_advanced_candidate_summary.json",
         "docs/api_ownership_decision_summary.json",
+        "docs/typed_unavailable_adoption_summary.json",
         "docs/bmopf_voltage_start_api_summary.json",
         "docs/bmopf_voltage_start_api_proposal.md",
         "benchmarks/review_api_ownership_decisions.jl",
@@ -175,7 +176,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "40f3b165fa6e6f3cc00c7e02e13ec6dc30c2bc8f",
+    "git_revision": "91c100110b586dc403056291c4ec247eb8ed9086",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
