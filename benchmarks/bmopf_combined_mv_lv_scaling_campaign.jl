@@ -105,6 +105,16 @@ function _contract_data(context)
     end
 end
 
+function _apply_start!(model, point)
+    backend = JuMP.backend(model)
+    applied = 0
+    for (variable, value) in zip(point.variables, point.values)
+        MOI.set(backend, MOI.VariablePrimalStart(), variable, Float64(value))
+        applied += 1
+    end
+    return applied
+end
+
 function _solve_policy(network, policy, label; max_variables, max_iter, max_cpu_seconds)
     started = time()
     context = BMOPFTools.build_opf_model(
@@ -143,7 +153,16 @@ function _solve_policy(network, policy, label; max_variables, max_iter, max_cpu_
         record["start_point_error"] = sprint(showerror, error)
         nothing
     end
-    start_point !== nothing && (record["start_point_status"] = "available")
+    if start_point !== nothing
+        record["start_point_status"] = "available"
+        try
+            record["start_values_applied_count"] = _apply_start!(model, start_point)
+            record["start_point_applied"] = true
+        catch error
+            record["start_point_applied"] = false
+            record["start_point_apply_error"] = sprint(showerror, error)
+        end
+    end
     JuMP.set_optimizer_attribute(model, "max_iter", max_iter)
     JuMP.set_optimizer_attribute(model, "max_cpu_time", max_cpu_seconds)
     solve_started = time()

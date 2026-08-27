@@ -2900,6 +2900,9 @@ end
     )
     @test Meta.parseall(combined_50iter_probe_script) isa Expr
     @test occursin("reviewed fifty-iteration", combined_50iter_probe_script)
+    @test occursin("start_point_applied", read(
+        joinpath(benchmark_directory, "bmopf_combined_mv_lv_scaling_campaign.jl"), String,
+    ))
     combined_50iter_probe = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_combined_mv_lv_50iter_probe_summary.json"), String,
     ))
@@ -2911,6 +2914,7 @@ end
     @test combined_50iter_probe["all_reached_solver"] == true
     @test combined_50iter_probe["all_iteration_limited"] == true
     @test combined_50iter_probe["all_infeasible_points"] == true
+    @test combined_50iter_probe["all_starts_applied"] == true
     @test occursin("bmopf_combined_mv_lv_50iter_probe_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))

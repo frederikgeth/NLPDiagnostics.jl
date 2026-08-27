@@ -2,23 +2,24 @@
   "all_infeasible_points": true,
   "all_iteration_limited": true,
   "all_reached_solver": true,
+  "all_starts_applied": true,
   "budgets": {
     "max_cpu_seconds": 120.0,
     "max_iter": 50,
     "max_variables": 60000
   },
   "environment": {
-    "git_revision": "bc3e427c2d310e2f95e4347922f010d52703cc02",
+    "git_revision": "17e3415a10bfddf9b71a06324c87fb185c1f3021",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
-  "interpretation": "The 56,142-variable combined MV/LV model reached Ipopt for all three policies under the reviewed fifty-iteration and 120-second-per-policy budget. All policies remained iteration-limited infeasible points; this bounds the current initialization/iteration strategy but does not establish convergence, policy ranking, allocator peak memory, or runtime complexity.",
+  "interpretation": "The 56,142-variable combined MV/LV model reached Ipopt for all three policies under the reviewed fifty-iteration and 120-second-per-policy budget, with completed starts applied to every model variable. All policies remained iteration-limited infeasible points; this bounds the current applied-start/iteration strategy but does not establish convergence, policy ranking, allocator peak memory, or runtime complexity.",
   "model_variable_count": 56142,
   "next_action": "Investigate a convergent full-case initialization and add allocator-level peak telemetry before making a production scaling claim.",
   "policy_count": 3,
   "records": [
     {
-      "build_seconds": 9.594231128692627,
+      "build_seconds": 8.719528913497925,
       "dual_status": "UNKNOWN_RESULT_STATUS",
       "label": "classic",
       "model_variable_count": 56142,
@@ -26,13 +27,16 @@
       "primal_status": "INFEASIBLE_POINT",
       "result_count": 1,
       "result_point_status": "available",
-      "solve_seconds": 7.817018985748291,
+      "solve_seconds": 7.357934236526489,
+      "start_point_applied": true,
+      "start_point_status": "available",
+      "start_values_applied_count": 56142,
       "status": "solved_or_bounded",
       "termination_status": "ITERATION_LIMIT",
-      "wall_seconds": 30.147309064865112
+      "wall_seconds": 28.180291891098022
     },
     {
-      "build_seconds": 2.55391001701355,
+      "build_seconds": 2.5493409633636475,
       "dual_status": "UNKNOWN_RESULT_STATUS",
       "label": "combined_mv_lv_local",
       "model_variable_count": 56142,
@@ -40,13 +44,16 @@
       "primal_status": "INFEASIBLE_POINT",
       "result_count": 1,
       "result_point_status": "available",
-      "solve_seconds": 7.195391893386841,
+      "solve_seconds": 7.33629584312439,
+      "start_point_applied": true,
+      "start_point_status": "available",
+      "start_values_applied_count": 56142,
       "status": "solved_or_bounded",
       "termination_status": "ITERATION_LIMIT",
-      "wall_seconds": 21.574620962142944
+      "wall_seconds": 21.62516188621521
     },
     {
-      "build_seconds": 1.891692876815796,
+      "build_seconds": 1.9224638938903809,
       "dual_status": "UNKNOWN_RESULT_STATUS",
       "label": "si",
       "model_variable_count": 56142,
@@ -54,15 +61,18 @@
       "primal_status": "INFEASIBLE_POINT",
       "result_count": 1,
       "result_point_status": "available",
-      "solve_seconds": 16.883201122283936,
+      "solve_seconds": 17.265084981918335,
+      "start_point_applied": true,
+      "start_point_status": "available",
+      "start_values_applied_count": 56142,
       "status": "solved_or_bounded",
       "termination_status": "ITERATION_LIMIT",
-      "wall_seconds": 29.757219791412354
+      "wall_seconds": 30.282750844955444
     }
   ],
   "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-50iter-probe-v1",
   "source": {
-    "input": "/private/tmp/nlpdiag-combined-mv-lv-50iter.json",
+    "input": "/private/tmp/nlpdiag-combined-mv-lv-50iter-applied-start.json",
     "policy": "Summarize the reviewed fifty-iteration full-case termination evidence; do not infer convergence or scaling.",
     "runner": "benchmarks/bmopf_combined_mv_lv_scaling_campaign.jl"
   }
