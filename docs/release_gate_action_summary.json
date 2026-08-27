@@ -11,8 +11,10 @@
         "docs/rank_adversarial_extension_summary.json",
         "docs/rank_calibration_statistics_summary.json",
         "docs/rank_threshold_disagreement_summary.json",
+        "docs/rank_threshold_policy_review_summary.json",
         "docs/calibration_results.md",
         "benchmarks/summarize_rank_threshold_disagreements.jl",
+        "benchmarks/review_rank_threshold_policy.jl",
         "docs/rank_third_backend_capability_summary.json",
         "benchmarks/validate_rank_third_backend.jl",
         "docs/normal_eigen_rank_calibration_summary.json",
@@ -64,7 +66,7 @@
         "benchmarks/validate_real_99bus_kkt_gate.jl"
       ],
       "id": "real_99bus_physical_kkt",
-      "next_deliverable": "Extend trusted real-99-bus endpoint coverage and localize the remaining ibr_p_upper strict-KKT boundary.",
+      "next_deliverable": "Record the project-owner disposition for the localized 99-bus strict-KKT boundary, then revalidate the selected policy.",
       "priority": 2,
       "status": "partial"
     },
@@ -135,7 +137,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "1ebad5ce418d56755a08fe74842c8ea1f634edf9",
+    "git_revision": "03a7acb06b4801d8794a360e669d09fc3e2fbf54",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

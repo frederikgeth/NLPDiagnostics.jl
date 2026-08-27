@@ -3261,6 +3261,26 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
+    kkt_boundary_review_script = read(
+        joinpath(benchmark_directory, "review_real_99bus_kkt_boundary.jl"), String,
+    )
+    @test Meta.parseall(kkt_boundary_review_script) isa Expr
+    @test occursin("retain_strict_gate", kkt_boundary_review_script)
+    kkt_boundary_review = JSON.parse(read(
+        joinpath(repository_root, "docs", "real_99bus_kkt_boundary_review_summary.json"), String,
+    ))
+    @test kkt_boundary_review["schema_version"] ==
+          "nlpdiagnostics-real-99bus-kkt-boundary-review-v1"
+    @test kkt_boundary_review["status"] == "review_required"
+    @test kkt_boundary_review["evidence_consistent"] == true
+    @test kkt_boundary_review["strict_tolerance"] == 1.0e-5
+    @test kkt_boundary_review["strict_paired_acceptance_count"] == 2
+    @test kkt_boundary_review["strict_paired_failure_count"] == 4
+    @test kkt_boundary_review["decision"] === nothing
+    @test occursin("real_99bus_kkt_boundary_review_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     kkt_gate_validation_script = read(
         joinpath(benchmark_directory, "validate_real_99bus_kkt_gate.jl"),
         String,

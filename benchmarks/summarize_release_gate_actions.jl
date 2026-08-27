@@ -23,7 +23,7 @@ const ACTIONS = Dict{String,Dict{String,Any}}(
     ),
     "real_99bus_physical_kkt" => Dict(
         "priority" => 2,
-        "next_deliverable" => "Extend trusted real-99-bus endpoint coverage and localize the remaining ibr_p_upper strict-KKT boundary.",
+        "next_deliverable" => "Record the project-owner disposition for the localized 99-bus strict-KKT boundary, then revalidate the selected policy.",
         "closure_condition" => "The strict 1e-5 physical-KKT gate is accepted on the declared paired endpoint corpus, or a reviewed release decision explicitly records why the gate changes.",
         "dependency" => "Preserve solver-point provenance, covariance evidence, and strict tolerance semantics while extending the corpus.",
     ),

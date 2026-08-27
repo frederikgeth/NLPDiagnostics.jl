@@ -1,0 +1,37 @@
+{
+  "all_failures_localized": true,
+  "decision": null,
+  "decision_options": [
+    {
+      "description": "Retain the strict 1e-5 gate and treat the four localized failures as an open physical-endpoint boundary.",
+      "id": "retain_strict_gate"
+    },
+    {
+      "description": "Review a tolerance change only with an explicit physical justification; the observed margin is not itself a recommendation.",
+      "id": "review_tolerance_change"
+    }
+  ],
+  "endpoint_count": 6,
+  "environment": {
+    "git_revision": "03a7acb06b4801d8794a360e669d09fc3e2fbf54",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "evidence_consistent": true,
+  "interpretation": "The six-endpoint ledger is complete and internally consistent. The maximum required tolerance is retained as margin evidence only; this record does not relax the strict physical-KKT gate or establish a causal explanation.",
+  "maximum_required_tolerance": 1.141720164003029e-5,
+  "maximum_strict_tolerance_gap": 1.4172016400302888e-6,
+  "next_action": "Project owner selects the strict-gate disposition or supplies a physically justified tolerance review, then revalidates the selected policy.",
+  "schema_version": "nlpdiagnostics-real-99bus-kkt-boundary-review-v1",
+  "source": {
+    "endpoint_matrix": "docs/real_99bus_kkt_endpoint_matrix_summary.json",
+    "margin": "docs/real_99bus_kkt_margin_summary.json",
+    "reviewer": "pending project-owner decision",
+    "tolerance_policies": "docs/real_99bus_kkt_tolerance_policy_summary.json"
+  },
+  "status": "review_required",
+  "strict_paired_acceptance_count": 2,
+  "strict_paired_failure_count": 4,
+  "strict_tolerance": 1.0e-5,
+  "tolerance_policy_record_count": 5
+}
