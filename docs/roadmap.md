@@ -6187,3 +6187,20 @@ for current allocator attribution while confirming that this host/process
 still lacks allocator-level peak telemetry. The next action is to obtain a
 peak-capable allocator measurement (or a reviewed release boundary) before
 making portable memory claims.
+
+## 2026-08-27 two-environment allocator comparison
+
+The allocator capability audit was repeated in the reviewed clean environment
+with the same four stages and `pf_1ph_line.dss` fixture. Both environments
+reported current allocator counters for parse, build, KCL, and analyze, and
+both reported zero allocator peak-field availability (`0/4`). Stage coverage,
+variable count, constraint count, and finding count matched exactly.
+
+The comparison is recorded in
+`docs/bmopf_analyze_allocator_telemetry_portability_summary.json` as
+`cross_environment_allocator_candidate`. Two stages show nonzero current-byte
+differences, concentrated in model build and parse; the analyze and KCL deltas
+match. These are allocator-reuse/process observations, not portable peak or
+retained-memory measurements. This closes the two-environment current-
+allocation comparison and leaves the remaining action precise: obtain a
+peak-capable allocator measurement or record an explicit release boundary.

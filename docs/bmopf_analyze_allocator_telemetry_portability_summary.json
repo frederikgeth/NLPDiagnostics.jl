@@ -1,0 +1,83 @@
+{
+  "environment_distinct": true,
+  "interpretation": {
+    "claim": "The two reviewed environments expose matching stage coverage and current-allocation telemetry for the same analyze fixture.",
+    "does_not_establish": [
+      "allocator-level peak memory",
+      "portable retained-memory limits",
+      "performance or solver scaling"
+    ],
+    "next_review": "Obtain a peak-capable allocator measurement or record an explicit release boundary."
+  },
+  "mismatches": {},
+  "nonzero_stage_difference_count": 2,
+  "resource_comparison": {
+    "interpretation": "Current allocator deltas vary across environments and are useful for attribution only; peak-field availability remains false in both runs.",
+    "stages": [
+      {
+        "active_size_allocated_delta_bytes": 0,
+        "active_size_in_use_delta_bytes": 2249728,
+        "clean_minus_active_size_allocated_delta_bytes": 0,
+        "clean_minus_active_size_in_use_delta_bytes": 0,
+        "clean_size_allocated_delta_bytes": 0,
+        "clean_size_in_use_delta_bytes": 2249728,
+        "peak_field_available_active": false,
+        "peak_field_available_clean": false,
+        "stage": "analyze"
+      },
+      {
+        "active_size_allocated_delta_bytes": 12582912,
+        "active_size_in_use_delta_bytes": -7836960,
+        "clean_minus_active_size_allocated_delta_bytes": 0,
+        "clean_minus_active_size_in_use_delta_bytes": 48029200,
+        "clean_size_allocated_delta_bytes": 12582912,
+        "clean_size_in_use_delta_bytes": 40192240,
+        "peak_field_available_active": false,
+        "peak_field_available_clean": false,
+        "stage": "build"
+      },
+      {
+        "active_size_allocated_delta_bytes": 0,
+        "active_size_in_use_delta_bytes": 246832,
+        "clean_minus_active_size_allocated_delta_bytes": 0,
+        "clean_minus_active_size_in_use_delta_bytes": 0,
+        "clean_size_allocated_delta_bytes": 0,
+        "clean_size_in_use_delta_bytes": 246832,
+        "peak_field_available_active": false,
+        "peak_field_available_clean": false,
+        "stage": "kcl"
+      },
+      {
+        "active_size_allocated_delta_bytes": 41943040,
+        "active_size_in_use_delta_bytes": 6809376,
+        "clean_minus_active_size_allocated_delta_bytes": -4194304,
+        "clean_minus_active_size_in_use_delta_bytes": 55424,
+        "clean_size_allocated_delta_bytes": 37748736,
+        "clean_size_in_use_delta_bytes": 6864800,
+        "peak_field_available_active": false,
+        "peak_field_available_clean": false,
+        "stage": "parse"
+      }
+    ],
+    "status": "descriptive_only"
+  },
+  "schema_version": "nlpdiagnostics-bmopf-analyze-allocator-telemetry-comparison-v1",
+  "semantic_comparison": {
+    "mismatch_count": 0,
+    "stage_names": [
+      "analyze",
+      "build",
+      "kcl",
+      "parse"
+    ],
+    "status": "matched"
+  },
+  "source": {
+    "active_input": "docs/bmopf_analyze_allocator_telemetry_summary.json",
+    "clean_input": "docs/bmopf_analyze_allocator_telemetry_clean_summary.json",
+    "comparison_required_for_portable_claim": true,
+    "runner": "benchmarks/compare_bmopf_analyze_allocator_telemetry.jl"
+  },
+  "stage_count": 4,
+  "status": "cross_environment_allocator_candidate"
+}

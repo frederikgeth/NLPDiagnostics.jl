@@ -5,6 +5,14 @@
     "record_count": 5,
     "warmup": true
   },
+  "allocator_portability": {
+    "claim": "Stage coverage and current-allocation telemetry match across two reviewed environments; differences remain descriptive and both allocator peak fields are unavailable.",
+    "environment_distinct": true,
+    "nonzero_stage_difference_count": 2,
+    "semantic_status": "matched",
+    "stage_count": 4,
+    "status": "cross_environment_allocator_candidate"
+  },
   "allocator_telemetry": {
     "case": "pf_1ph_line.dss",
     "claim": "Darwin allocator current-allocation deltas are available around one analyze child; the allocator peak field remains independently unavailable when zero.",
@@ -34,7 +42,7 @@
   },
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "fe2cf9c74bac4aa55c486f8fd52ef529a31cb3ba",
+    "git_revision": "89322430ed0deee1fb88c89c43cc491f23845fea",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -112,6 +120,7 @@
       "docs/bmopf_analyze_external_peak_probe_summary.json",
       "docs/bmopf_analyze_external_peak_portability_summary.json",
       "docs/bmopf_analyze_allocator_telemetry_summary.json",
+      "docs/bmopf_analyze_allocator_telemetry_portability_summary.json",
       "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
     ],
     "policy": "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",

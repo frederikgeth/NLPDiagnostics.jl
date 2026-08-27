@@ -2760,6 +2760,27 @@ end
     @test allocator_telemetry_data["status"] in ("allocator_current_available", "allocator_telemetry_unavailable")
     @test allocator_telemetry_data["stage_count"] == 4
     @test allocator_telemetry_data["allocator_peak_available_count"] >= 0
+    allocator_telemetry_clean_summary = read(
+        joinpath(repository_root, "docs", "bmopf_analyze_allocator_telemetry_clean_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-bmopf-analyze-allocator-telemetry-v1", allocator_telemetry_clean_summary)
+    allocator_comparison_script = read(
+        joinpath(benchmark_directory, "compare_bmopf_analyze_allocator_telemetry.jl"),
+        String,
+    )
+    @test Meta.parseall(allocator_comparison_script) isa Expr
+    @test occursin("cross_environment_allocator_candidate", allocator_comparison_script)
+    allocator_comparison_summary = read(
+        joinpath(repository_root, "docs", "bmopf_analyze_allocator_telemetry_portability_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-bmopf-analyze-allocator-telemetry-comparison-v1", allocator_comparison_summary)
+    allocator_comparison_data = JSON.parse(allocator_comparison_summary)
+    @test allocator_comparison_data["status"] in ("cross_environment_allocator_candidate", "candidate_requires_review")
+    @test allocator_comparison_data["environment_distinct"] == true
+    @test allocator_comparison_data["semantic_comparison"]["mismatch_count"] == 0
+    @test allocator_comparison_data["resource_comparison"]["status"] == "descriptive_only"
     analyze_ab_script = read(
         joinpath(benchmark_directory, "profile_analyze_static_optimization_ab.jl"),
         String,
