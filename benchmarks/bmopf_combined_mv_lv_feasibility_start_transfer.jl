@@ -185,6 +185,7 @@ function main()
     )
     write_json(output, payload)
     println("wrote combined MV/LV feasibility-start transfer to $output")
+    return payload
 end
 
 if abspath(PROGRAM_FILE) == abspath(@__FILE__)

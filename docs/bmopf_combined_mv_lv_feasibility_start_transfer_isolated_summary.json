@@ -1,0 +1,167 @@
+{
+  "environment": {
+    "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
+    "architecture": "aarch64",
+    "git_revision": "481f472ef6149697226736ab9d3f6b5df9fca1e8",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6",
+    "os": "Darwin"
+  },
+  "interpretation": {
+    "claim": "Fresh-child local Sys.maxrss high-water observations for the full combined MV/LV feasibility-start transfer benchmark.",
+    "does_not_establish": [
+      "allocator-level peak memory beyond process high-water telemetry",
+      "portable memory scaling or a second-environment guarantee",
+      "hard OPF convergence or a production scaling policy"
+    ]
+  },
+  "measured_count": 2,
+  "peak_rss_bytes_range": [
+    2719547392,
+    2749612032
+  ],
+  "record_count": 2,
+  "records": [
+    {
+      "budgets": {
+        "max_cpu_seconds": 60.0,
+        "max_iter": 50
+      },
+      "child_peak_rss_bytes": 2719547392,
+      "input": {
+        "path": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/test/data/Master.dss",
+        "source_warning_codes": [
+          "unknown"
+        ],
+        "source_warning_count": 46
+      },
+      "interpretation": "The feasibility-relaxed voltage state is transferred into the hard OPF voltage starts and compared with the native hard-OPF start under identical budgets. Termination remains bounded evidence; nonzero relaxed KCL slack and iteration-limited hard statuses do not establish hard feasibility or a production scaling policy.",
+      "isolated_process": true,
+      "memory_observation": "fresh-child Sys.maxrss high-water after the paired solve; process-local and not allocator-level peak memory",
+      "network_shape": {
+        "bus_count": 3409,
+        "line_count": 3096,
+        "load_count": 1255,
+        "transformer_count": 1
+      },
+      "next_action": "Add fresh-child allocator peak telemetry and expose a stable BMOPFTools voltage-start transfer API if this initialization is retained.",
+      "records": [
+        {
+          "dual_status": "UNKNOWN_RESULT_STATUS",
+          "label": "native",
+          "objective_value": 0.0,
+          "primal_status": "INFEASIBLE_POINT",
+          "result_count": 1,
+          "solve_allocated_bytes": 262925120,
+          "solve_gc_seconds": 0.070934625,
+          "solve_seconds": 7.718664884567261,
+          "termination_status": "ITERATION_LIMIT",
+          "transfer_applied": false,
+          "transferred_voltage_start_count": 0,
+          "transferred_voltage_start_skipped_count": 0,
+          "wall_seconds": 9.78154993057251
+        },
+        {
+          "dual_status": "UNKNOWN_RESULT_STATUS",
+          "label": "feasibility_voltage_transfer",
+          "objective_value": 0.0,
+          "primal_status": "INFEASIBLE_POINT",
+          "result_count": 1,
+          "solve_allocated_bytes": 256901840,
+          "solve_gc_seconds": 0.222629584,
+          "solve_seconds": 9.140736103057861,
+          "termination_status": "ITERATION_LIMIT",
+          "transfer_applied": true,
+          "transferred_voltage_start_count": 13309,
+          "transferred_voltage_start_skipped_count": 0,
+          "wall_seconds": 10.972624063491821
+        }
+      ],
+      "relaxed_initialization": {
+        "initialization_bus_count": 3409,
+        "relaxed_feasible": true,
+        "termination_status": "LOCALLY_SOLVED",
+        "total_slack_magnitude_A": 354.3101805271313
+      },
+      "repetition": 1,
+      "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v1",
+      "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-v1",
+      "status": "bounded_hard_opf_start_transfer",
+      "wall_seconds": 42.84332799911499
+    },
+    {
+      "budgets": {
+        "max_cpu_seconds": 60.0,
+        "max_iter": 50
+      },
+      "child_peak_rss_bytes": 2749612032,
+      "input": {
+        "path": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/test/data/Master.dss",
+        "source_warning_codes": [
+          "unknown"
+        ],
+        "source_warning_count": 46
+      },
+      "interpretation": "The feasibility-relaxed voltage state is transferred into the hard OPF voltage starts and compared with the native hard-OPF start under identical budgets. Termination remains bounded evidence; nonzero relaxed KCL slack and iteration-limited hard statuses do not establish hard feasibility or a production scaling policy.",
+      "isolated_process": true,
+      "memory_observation": "fresh-child Sys.maxrss high-water after the paired solve; process-local and not allocator-level peak memory",
+      "network_shape": {
+        "bus_count": 3409,
+        "line_count": 3096,
+        "load_count": 1255,
+        "transformer_count": 1
+      },
+      "next_action": "Add fresh-child allocator peak telemetry and expose a stable BMOPFTools voltage-start transfer API if this initialization is retained.",
+      "records": [
+        {
+          "dual_status": "UNKNOWN_RESULT_STATUS",
+          "label": "native",
+          "objective_value": 0.0,
+          "primal_status": "INFEASIBLE_POINT",
+          "result_count": 1,
+          "solve_allocated_bytes": 262924832,
+          "solve_gc_seconds": 0.071334334,
+          "solve_seconds": 7.777801990509033,
+          "termination_status": "ITERATION_LIMIT",
+          "transfer_applied": false,
+          "transferred_voltage_start_count": 0,
+          "transferred_voltage_start_skipped_count": 0,
+          "wall_seconds": 9.84702205657959
+        },
+        {
+          "dual_status": "UNKNOWN_RESULT_STATUS",
+          "label": "feasibility_voltage_transfer",
+          "objective_value": 0.0,
+          "primal_status": "INFEASIBLE_POINT",
+          "result_count": 1,
+          "solve_allocated_bytes": 256901840,
+          "solve_gc_seconds": 0.222921292,
+          "solve_seconds": 9.130016088485718,
+          "termination_status": "ITERATION_LIMIT",
+          "transfer_applied": true,
+          "transferred_voltage_start_count": 13309,
+          "transferred_voltage_start_skipped_count": 0,
+          "wall_seconds": 10.969593048095703
+        }
+      ],
+      "relaxed_initialization": {
+        "initialization_bus_count": 3409,
+        "relaxed_feasible": true,
+        "termination_status": "LOCALLY_SOLVED",
+        "total_slack_magnitude_A": 354.3101805271313
+      },
+      "repetition": 2,
+      "runner_version": "bmopf-combined-mv-lv-feasibility-start-transfer-v1",
+      "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-v1",
+      "status": "bounded_hard_opf_start_transfer",
+      "wall_seconds": 43.055075883865356
+    }
+  ],
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-isolated-v1",
+  "source": {
+    "child_runner": "benchmarks/run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl",
+    "isolated_process_per_repetition": true,
+    "repetitions": 2,
+    "runner": "benchmarks/profile_bmopf_combined_mv_lv_feasibility_start_transfer_isolated.jl"
+  }
+}

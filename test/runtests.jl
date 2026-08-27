@@ -2971,6 +2971,29 @@ end
     @test occursin("bmopf_combined_mv_lv_feasibility_start_transfer_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    isolated_transfer_script = read(
+        joinpath(benchmark_directory, "profile_bmopf_combined_mv_lv_feasibility_start_transfer_isolated.jl"), String,
+    )
+    @test Meta.parseall(isolated_transfer_script) isa Expr
+    @test occursin("Sys.maxrss", isolated_transfer_script)
+    child_transfer_script = read(
+        joinpath(benchmark_directory, "run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl"), String,
+    )
+    @test Meta.parseall(child_transfer_script) isa Expr
+    isolated_transfer = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_feasibility_start_transfer_isolated_summary.json"), String,
+    ))
+    @test isolated_transfer["schema_version"] ==
+          "nlpdiagnostics-bmopf-combined-mv-lv-feasibility-start-transfer-isolated-v1"
+    @test isolated_transfer["record_count"] == 2
+    @test isolated_transfer["measured_count"] == 2
+    @test length(isolated_transfer["peak_rss_bytes_range"]) == 2
+    @test all(record["isolated_process"] == true for record in isolated_transfer["records"])
+    @test all(record["child_peak_rss_bytes"] > 0 for record in isolated_transfer["records"])
+    @test all(record["status"] == "bounded_hard_opf_start_transfer" for record in isolated_transfer["records"])
+    @test occursin("bmopf_combined_mv_lv_feasibility_start_transfer_isolated_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     rank_perturbation_script = read(
         joinpath(benchmark_directory, "calibrate_rank_perturbation_sweep.jl"),
         String,

@@ -5973,3 +5973,22 @@ API boundary: the benchmark still reaches into BMOPFTools' staged context
 variable ledger because no stable voltage-start setter is available. The next
 deliverable is fresh-child allocator peak telemetry and, if the transfer is
 retained, a reviewed stable BMOPFTools start-transfer interface.
+
+## 2026-08-27 isolated full-case resource envelope
+
+The feasibility-start transfer was repeated in two fresh Julia child processes
+using the current local BMOPFTools checkout. Both repetitions completed the
+relaxed solve and both bounded hard-OPF runs with the same
+`LOCALLY_SOLVED`/`ITERATION_LIMIT` pattern. Child-process RSS high-water ranged
+about 2.72--2.75 GB across the two repetitions, while the transferred hard-OPF
+solve allocated about 257 MB in each repetition.
+
+The isolated evidence is
+`work/bmopf-combined-mv-lv-feasibility-start-transfer-isolated.json`, generated
+by `benchmarks/profile_bmopf_combined_mv_lv_feasibility_start_transfer_isolated.jl`
+and its child runner. This is a reproducible local resource envelope for the
+reviewed checkout, but `Sys.maxrss` remains a process high-water proxy rather
+than allocator-level peak telemetry, and no portability claim follows. The
+next deliverable is instrumentation independent of `Sys.maxrss`, followed by a
+review of whether the staged-context start transfer should become a stable
+BMOPFTools API.
