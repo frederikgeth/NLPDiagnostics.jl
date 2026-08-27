@@ -95,10 +95,11 @@ isolated_memory_measured = filter(record -> get(record, "status", "") == "measur
 isolated_memory_summaries = get(isolated_memory, "case_summaries", Any[])
 isolated_memory_stable_count = count(summary -> get(summary, "stable_across_repetitions", false), isolated_memory_summaries)
 portability_validation = get(portability, "baseline_validation", Dict{String,Any}())
+portability_comparison_status = get(portability, "portable_evidence_status", "unavailable")
 
 open_gaps = Dict[
     Dict("id" => "static_stage_candidate_selection", "next_evidence" => "profile a different semantics-preserving static-stage candidate because the affine-row cache A/B is neutral to slightly slower locally"),
-    Dict("id" => "portable_analyze_memory", "next_evidence" => "repeat the isolated analyze profile in a second reviewed environment with allocator-level peak telemetry"),
+    Dict("id" => "portable_analyze_memory", "next_evidence" => portability_comparison_status == "candidate_requires_review" ? "review the matched second-environment analyze comparison and add allocator-level peak telemetry before making a portable memory claim" : "repeat the isolated analyze profile in a second reviewed environment with allocator-level peak telemetry"),
 ]
 if !combined_snapshot_covered
     pushfirst!(open_gaps, Dict("id" => "larger_combined_mv_lv_analyze", "next_evidence" => "extend the guarded combined MV+LV analyze profile to additional feeders or a reviewed larger snapshot without forcing the full-case memory path"))
@@ -191,9 +192,11 @@ write_json(OUTPUT, Dict{String,Any}(
     "portability_contract" => Dict(
         "baseline_status" => get(portability_validation, "status", "unavailable"),
         "baseline_error_count" => length(get(portability_validation, "errors", Any[])),
-        "comparison_status" => get(portability, "portable_evidence_status", "unavailable"),
+        "comparison_status" => portability_comparison_status,
+        "comparison_environment_distinct" => get(get(portability, "comparison", Dict{String,Any}()), "environment_distinct", false),
+        "comparison_mismatch_count" => length(get(get(portability, "comparison", Dict{String,Any}()), "mismatches", Dict{String,Any}())),
         "comparison_required_for_portable_claim" => get(get(portability, "source", Dict{String,Any}()), "comparison_required_for_portable_claim", true),
-        "claim" => "The replay contract validates local provenance and guard compatibility; a second environment comparison is still required for portability.",
+        "claim" => portability_comparison_status == "candidate_requires_review" ? "The replay contract validates local provenance and a matched second-environment candidate; allocator-level peak and performance review are still required for portability." : "The replay contract validates local provenance and guard compatibility; a second environment comparison is still required for portability.",
     ),
     "bmopf_combined_mv_lv_analyze" => Dict(
         "feeder_count" => length(combined_feeders),

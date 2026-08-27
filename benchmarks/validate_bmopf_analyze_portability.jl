@@ -95,7 +95,7 @@ function compatibility(baseline, current, baseline_validation, current_validatio
     current_cases = sort!(collect(keys(case_map(current))))
     baseline_cases == current_cases || (mismatches["case_summaries"] = Dict("baseline" => baseline_cases, "current" => current_cases))
     environment_distinct = any(get(left_env, field, nothing) != get(right_env, field, nothing)
-                               for field in ("julia_version", "os", "architecture", "git_revision"))
+                               for field in ("julia_version", "os", "architecture", "git_revision", "active_project"))
     status = !isempty(mismatches) ? "incompatible" : environment_distinct ? "cross_environment_candidate" : "same_environment"
     Dict{String,Any}(
         "status" => status,

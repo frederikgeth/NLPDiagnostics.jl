@@ -2623,7 +2623,9 @@ end
     @test analyze_readiness_data["isolated_adapter_memory"]["stable_case_count"] == 3
     @test analyze_readiness_data["isolated_adapter_memory"]["all_measured_cases_stable"] == true
     @test analyze_readiness_data["portability_contract"]["baseline_status"] == "valid"
-    @test analyze_readiness_data["portability_contract"]["comparison_status"] == "open_comparison_not_supplied"
+    @test analyze_readiness_data["portability_contract"]["comparison_status"] == "candidate_requires_review"
+    @test analyze_readiness_data["portability_contract"]["comparison_environment_distinct"] == true
+    @test analyze_readiness_data["portability_contract"]["comparison_mismatch_count"] == 0
     @test analyze_readiness_data["portability_contract"]["comparison_required_for_portable_claim"] == true
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["feeder_count"] == 4
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["record_count"] == 12
@@ -2684,6 +2686,7 @@ end
     )
     @test Meta.parseall(portability_script) isa Expr
     @test occursin("comparison_required_for_portable_claim", portability_script)
+    @test occursin("active_project", portability_script)
     portability_summary = read(
         joinpath(repository_root, "docs", "bmopf_analyze_portability_summary.json"),
         String,

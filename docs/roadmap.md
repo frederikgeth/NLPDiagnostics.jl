@@ -6080,3 +6080,23 @@ This closes another bounded consolidation increment without changing Stable or
 Advanced exports. The remaining queue is still too large for an implicit
 compatibility claim; the next API action is another reviewed tranche or an
 explicit owner decision before any namespace move.
+
+## 2026-08-27 second-environment analyze portability candidate
+
+The isolated `analyze(model)` campaign was rerun with identical five-fixture,
+24-variable-guard, warmup, and two-repetition settings against the clean local
+environment at `/private/tmp/nlpdiag-benchmark-env-clean`, whose BMOPFTools
+checkout is distinct from the active work environment. Both environments
+produced six measured records with stable finding identities. The comparison
+validator initially exposed that project identity was omitted from its
+environment-distinctness test; it now includes `active_project`, yielding a
+`cross_environment_candidate` with no workload or guard mismatches.
+
+The evidence is retained in
+`docs/bmopf_analyze_runtime_isolated_summary.json`,
+`docs/bmopf_analyze_runtime_isolated_clean_summary.json`, and
+`docs/bmopf_analyze_portability_summary.json`. This advances the portability
+gate from “comparison not supplied” to “candidate requires review,” but does
+not establish portable runtime, allocator peak, or performance equivalence.
+The next action is review of the matched outputs and peak-capable memory
+telemetry before any portability claim.

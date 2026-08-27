@@ -25,8 +25,8 @@
     ]
   },
   "environment": {
-    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "5f38b0a85df070363e9120bb409072882a9723ca",
+    "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
+    "git_revision": "017bcbde59b6ffc35bca1ff7e3f941a93876d8b4",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -52,15 +52,17 @@
   "open_gaps": [
     {
       "id": "portable_analyze_memory",
-      "next_evidence": "repeat the isolated analyze profile in a second reviewed environment with allocator-level peak telemetry"
+      "next_evidence": "review the matched second-environment analyze comparison and add allocator-level peak telemetry before making a portable memory claim"
     }
   ],
   "portability_contract": {
     "baseline_error_count": 0,
     "baseline_status": "valid",
-    "claim": "The replay contract validates local provenance and guard compatibility; a second environment comparison is still required for portability.",
+    "claim": "The replay contract validates local provenance and a matched second-environment candidate; allocator-level peak and performance review are still required for portability.",
+    "comparison_environment_distinct": true,
+    "comparison_mismatch_count": 0,
     "comparison_required_for_portable_claim": true,
-    "comparison_status": "open_comparison_not_supplied"
+    "comparison_status": "candidate_requires_review"
   },
   "schema_version": "nlpdiagnostics-analyze-scaling-readiness-v1",
   "source": {

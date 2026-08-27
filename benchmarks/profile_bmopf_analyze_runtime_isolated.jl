@@ -9,7 +9,11 @@ using .NLPDiagnosticsBenchmarkCommon
 
 const ROOT = repo_root()
 const CHILD = joinpath(@__DIR__, "profile_bmopf_analyze_runtime.jl")
-const PROJECT = joinpath(ROOT, "work", "benchmark-environment")
+const PROJECT = abspath(get(
+    ENV,
+    "NLPDIAGNOSTICS_BMOPF_ANALYZE_ISOLATED_PROJECT",
+    joinpath(ROOT, "work", "benchmark-environment"),
+))
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "bmopf_analyze_runtime_isolated_summary.json") : ARGS[1])
 
@@ -114,6 +118,7 @@ write_json(OUTPUT, Dict{String,Any}(
     "source" => Dict(
         "runner" => "benchmarks/profile_bmopf_analyze_runtime_isolated.jl",
         "child_runner" => "benchmarks/profile_bmopf_analyze_runtime.jl",
+        "project" => PROJECT,
         "cases" => cases,
         "repetitions" => repetitions,
         "max_variables" => max_variables,

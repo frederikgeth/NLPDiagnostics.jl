@@ -4,7 +4,7 @@
     "environment": {
       "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
       "architecture": "aarch64",
-      "git_revision": "20a0f624912ec0051d6cfc3877c2347008e64b8a",
+      "git_revision": "017bcbde59b6ffc35bca1ff7e3f941a93876d8b4",
       "git_status_entry_count": 1,
       "git_worktree_dirty": true,
       "julia_version": "1.12.6",
@@ -24,6 +24,7 @@
       "child_runner": "benchmarks/profile_bmopf_analyze_runtime.jl",
       "isolated_process_per_case_and_repetition": true,
       "max_variables": 24,
+      "project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment",
       "repetitions": 2,
       "runner": "benchmarks/profile_bmopf_analyze_runtime_isolated.jl",
       "warmup": true
@@ -31,10 +32,15 @@
     "status": "valid",
     "warnings": []
   },
-  "comparison": null,
+  "comparison": {
+    "environment_distinct": true,
+    "interpretation": "Compatibility checks establish comparable workload and guard provenance; they do not establish portable performance or allocator behavior.",
+    "mismatches": {},
+    "status": "cross_environment_candidate"
+  },
   "environment": {
-    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "5f38b0a85df070363e9120bb409072882a9723ca",
+    "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
+    "git_revision": "017bcbde59b6ffc35bca1ff7e3f941a93876d8b4",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -45,12 +51,12 @@
       "cross-environment equivalence without a supplied comparison summary"
     ]
   },
-  "portable_evidence_status": "open_comparison_not_supplied",
+  "portable_evidence_status": "candidate_requires_review",
   "schema_version": "nlpdiagnostics-bmopf-analyze-portability-v1",
   "source": {
     "baseline_summary": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/bmopf_analyze_runtime_isolated_summary.json",
     "comparison_required_for_portable_claim": true,
-    "comparison_summary": null,
+    "comparison_summary": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/bmopf_analyze_runtime_isolated_clean_summary.json",
     "runner": "benchmarks/validate_bmopf_analyze_portability.jl"
   }
 }

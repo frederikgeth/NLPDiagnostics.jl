@@ -35,7 +35,7 @@ const ACTIONS = Dict{String,Dict{String,Any}}(
     ),
     "analyze_runtime_scaling" => Dict(
         "priority" => 4,
-        "next_deliverable" => "Run the isolated analyze portability validator against a second reviewed environment with allocator-level peak telemetry.",
+        "next_deliverable" => "Review the matched second-environment analyze candidate and add allocator-level peak telemetry before making a portable runtime or memory claim.",
         "closure_condition" => "The broader workload campaign has stable findings, stage/resource attribution, and documented portability limits; optimization candidates are either supported by repeated A/B evidence or explicitly not promoted.",
         "dependency" => "Keep the public API unchanged and preserve repeatability and memory provenance.",
     ),
