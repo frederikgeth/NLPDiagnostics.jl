@@ -125,7 +125,7 @@ write_json(OUTPUT, Dict{String,Any}(
     "sensitive_mapping_fallback_coordinate_counts" => mapping_fallback_counts,
     "pairs" => pairs,
     "sensitive_records" => sensitive_records,
-    "interpretation" => "The paired comparison identifies unit-dependent sparse-rank outcomes without treating them as physical singularity claims. Incomplete point provenance is retained as a release boundary; the affected endpoints require provenance completion before policy conclusions.",
-    "next_action" => "Complete or explain LN SI saved-result provenance for the affected snapshots, then repeat the paired diagnostic on the t15/t16 tranche.",
+    "interpretation" => "The paired comparison identifies unit-dependent sparse-rank outcomes without treating them as physical singularity claims. The promoted 538-bus SI refresh now has complete point provenance and is rank-stable; future policy conclusions remain bounded to the declared corpus.",
+    "next_action" => "Extend the reconciled campaign with the next reviewed endpoint tranche (t15/t16) and preserve the same complete-provenance, paired SI/PU audit.",
 ))
 println("wrote BMOPF saved-result scaling diagnostics to $OUTPUT")

@@ -2994,12 +2994,12 @@ end
           "nlpdiagnostics-bmopf-saved-result-scaling-diagnostics-v1"
     @test scaling_diagnostics_summary["campaign_record_count"] == 102
     @test scaling_diagnostics_summary["paired_snapshot_count"] == 50
-    @test scaling_diagnostics_summary["unit_dependent_rank_outcome_count"] == 4
-    @test scaling_diagnostics_summary["incomplete_provenance_sensitive_record_count"] == 4
-    @test scaling_diagnostics_summary["incomplete_provenance_record_count"] == 7
-    @test scaling_diagnostics_summary["sensitive_mapping_fallback_coordinate_counts"] == ["11026", "11026", "11026", "11026"]
-    @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_sensitive_count"] == 4
-    @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_stable_count"] == 98
+    @test scaling_diagnostics_summary["unit_dependent_rank_outcome_count"] == 0
+    @test scaling_diagnostics_summary["incomplete_provenance_sensitive_record_count"] == 0
+    @test scaling_diagnostics_summary["incomplete_provenance_record_count"] == 0
+    @test scaling_diagnostics_summary["sensitive_mapping_fallback_coordinate_counts"] == []
+    @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_sensitive_count"] == 0
+    @test rank_statistics_data["saved_result_bmopf_campaign"]["scaling_stable_count"] == 102
     time_coverage_summary = JSON.parse(read(
         joinpath(repository_root, "docs", "bmopf_538bus_saved_result_time_coverage_summary.json"),
         String,
