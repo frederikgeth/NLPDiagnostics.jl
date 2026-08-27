@@ -6115,3 +6115,18 @@ This strengthens the portability candidate from metadata-only compatibility to
 structural result equivalence on the bounded corpus. It still does not support
 portable runtime, performance, or allocator-peak claims; those remain review
 items for the next tranche.
+
+## 2026-08-27 portability resource comparison
+
+The portability validator now joins matched case/repetition records for
+process-local parse, build, KCL, analyze allocation, and `Sys.maxrss`
+increments. Six records were compared; all six show nonzero resource
+differences while the semantic comparison remains `semantics_match`. The new
+resource ledger is explicitly `descriptive_only`, preserving the distinction
+between observed allocation variation and a portable performance or
+allocator-peak claim.
+
+This closes the bounded resource-comparison increment and identifies the next
+review question: whether the observed differences are acceptable for a local
+release envelope once peak-capable instrumentation is available. No portability
+gate is promoted by this result.

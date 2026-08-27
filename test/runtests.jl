@@ -2629,6 +2629,9 @@ end
     @test analyze_readiness_data["portability_contract"]["semantic_comparison_status"] == "semantics_match"
     @test analyze_readiness_data["portability_contract"]["semantic_comparison_mismatch_count"] == 0
     @test analyze_readiness_data["portability_contract"]["semantic_comparison_matched_record_count"] == 6
+    @test analyze_readiness_data["portability_contract"]["resource_comparison_status"] == "descriptive_only"
+    @test analyze_readiness_data["portability_contract"]["resource_comparison_matched_record_count"] == 6
+    @test analyze_readiness_data["portability_contract"]["resource_comparison_nonzero_difference_count"] == 6
     @test analyze_readiness_data["portability_contract"]["comparison_required_for_portable_claim"] == true
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["feeder_count"] == 4
     @test analyze_readiness_data["bmopf_combined_mv_lv_analyze"]["record_count"] == 12

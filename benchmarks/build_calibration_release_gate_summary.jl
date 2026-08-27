@@ -298,6 +298,8 @@ analyze_isolated_memory_stable = get(analyze_isolated_memory, "stable_case_count
 analyze_portability = get(analyze_scaling_readiness, "portability_contract", Dict{String,Any}())
 analyze_portability_baseline_status = get(analyze_portability, "baseline_status", "unavailable")
 analyze_portability_comparison_status = get(analyze_portability, "comparison_status", "unavailable")
+analyze_portability_semantic_status = get(analyze_portability, "semantic_comparison_status", "unavailable")
+analyze_portability_resource_status = get(analyze_portability, "resource_comparison_status", "unavailable")
 analyze_combined = get(analyze_scaling_readiness, "bmopf_combined_mv_lv_analyze", Dict{String,Any}())
 analyze_combined_feeder_count = get(analyze_combined, "feeder_count", 0)
 analyze_combined_measured_count = get(analyze_combined, "measured_count", 0)
@@ -721,6 +723,8 @@ gates = Dict{String,Any}[
 for gate in gates
     if gate["id"] == "runtime_memory_scaling"
         gate["rationale"] *= " Stage-level allocator attribution is available=$runtime_combined_stage_available across the relaxed, model-build, start-application, and solve stages; these deltas are attribution evidence, not allocator peaks."
+    elseif gate["id"] == "analyze_runtime_scaling"
+        gate["rationale"] *= " The matched portability candidate has semantic status=$analyze_portability_semantic_status and resource comparison status=$analyze_portability_resource_status; resource differences remain descriptive and do not establish portable performance or allocator peaks."
     end
 end
 

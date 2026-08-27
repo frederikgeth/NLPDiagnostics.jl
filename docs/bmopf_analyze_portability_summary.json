@@ -36,6 +36,201 @@
     "environment_distinct": true,
     "interpretation": "Compatibility checks establish comparable workload and guard provenance; they do not establish portable performance or allocator behavior.",
     "mismatches": {},
+    "resource_comparison": {
+      "compared_metrics": [
+        "parse_allocated_bytes",
+        "build_allocated_bytes",
+        "kcl_allocated_bytes",
+        "analyze_allocated_bytes",
+        "process_maxrss_increment_bytes"
+      ],
+      "interpretation": "Allocation and process high-water differences are descriptive local observations; they do not establish portable performance or allocator-level peak memory.",
+      "matched_record_count": 6,
+      "records": [
+        {
+          "key": "pf_1ph_line.dss#1",
+          "metrics": {
+            "analyze_allocated_bytes": {
+              "baseline": 4775712,
+              "current": 4775712,
+              "delta": 0
+            },
+            "build_allocated_bytes": {
+              "baseline": 1550877856,
+              "current": 1558075008,
+              "delta": 7197152
+            },
+            "kcl_allocated_bytes": {
+              "baseline": 6613520,
+              "current": 6611568,
+              "delta": -1952
+            },
+            "parse_allocated_bytes": {
+              "baseline": 173728256,
+              "current": 261307600,
+              "delta": 87579344
+            },
+            "process_maxrss_increment_bytes": {
+              "baseline": 0,
+              "current": 0,
+              "delta": 0
+            }
+          }
+        },
+        {
+          "key": "pf_1ph_line.dss#2",
+          "metrics": {
+            "analyze_allocated_bytes": {
+              "baseline": 4775712,
+              "current": 4775712,
+              "delta": 0
+            },
+            "build_allocated_bytes": {
+              "baseline": 1549995472,
+              "current": 1558388128,
+              "delta": 8392656
+            },
+            "kcl_allocated_bytes": {
+              "baseline": 6613360,
+              "current": 6611408,
+              "delta": -1952
+            },
+            "parse_allocated_bytes": {
+              "baseline": 173716368,
+              "current": 261289456,
+              "delta": 87573088
+            },
+            "process_maxrss_increment_bytes": {
+              "baseline": 0,
+              "current": 0,
+              "delta": 0
+            }
+          }
+        },
+        {
+          "key": "pf_1ph_xfmr.dss#1",
+          "metrics": {
+            "analyze_allocated_bytes": {
+              "baseline": 5884624,
+              "current": 5884624,
+              "delta": 0
+            },
+            "build_allocated_bytes": {
+              "baseline": 1699441184,
+              "current": 1706228448,
+              "delta": 6787264
+            },
+            "kcl_allocated_bytes": {
+              "baseline": 6614400,
+              "current": 6612624,
+              "delta": -1776
+            },
+            "parse_allocated_bytes": {
+              "baseline": 165248496,
+              "current": 251157024,
+              "delta": 85908528
+            },
+            "process_maxrss_increment_bytes": {
+              "baseline": 0,
+              "current": 0,
+              "delta": 0
+            }
+          }
+        },
+        {
+          "key": "pf_1ph_xfmr.dss#2",
+          "metrics": {
+            "analyze_allocated_bytes": {
+              "baseline": 5884624,
+              "current": 5884624,
+              "delta": 0
+            },
+            "build_allocated_bytes": {
+              "baseline": 1699143696,
+              "current": 1706359488,
+              "delta": 7215792
+            },
+            "kcl_allocated_bytes": {
+              "baseline": 6614560,
+              "current": 6612784,
+              "delta": -1776
+            },
+            "parse_allocated_bytes": {
+              "baseline": 165215856,
+              "current": 251146304,
+              "delta": 85930448
+            },
+            "process_maxrss_increment_bytes": {
+              "baseline": 0,
+              "current": 0,
+              "delta": 0
+            }
+          }
+        },
+        {
+          "key": "pf_exp_1ph.dss#1",
+          "metrics": {
+            "analyze_allocated_bytes": {
+              "baseline": 4775712,
+              "current": 4775712,
+              "delta": 0
+            },
+            "build_allocated_bytes": {
+              "baseline": 1550938768,
+              "current": 1557458224,
+              "delta": 6519456
+            },
+            "kcl_allocated_bytes": {
+              "baseline": 6613712,
+              "current": 6611568,
+              "delta": -2144
+            },
+            "parse_allocated_bytes": {
+              "baseline": 173737408,
+              "current": 261348656,
+              "delta": 87611248
+            },
+            "process_maxrss_increment_bytes": {
+              "baseline": 0,
+              "current": 0,
+              "delta": 0
+            }
+          }
+        },
+        {
+          "key": "pf_exp_1ph.dss#2",
+          "metrics": {
+            "analyze_allocated_bytes": {
+              "baseline": 4775712,
+              "current": 4775712,
+              "delta": 0
+            },
+            "build_allocated_bytes": {
+              "baseline": 1549992816,
+              "current": 1558145008,
+              "delta": 8152192
+            },
+            "kcl_allocated_bytes": {
+              "baseline": 6613632,
+              "current": 6611568,
+              "delta": -2064
+            },
+            "parse_allocated_bytes": {
+              "baseline": 173727008,
+              "current": 261318928,
+              "delta": 87591920
+            },
+            "process_maxrss_increment_bytes": {
+              "baseline": 0,
+              "current": 0,
+              "delta": 0
+            }
+          }
+        }
+      ],
+      "records_with_nonzero_differences": 6,
+      "status": "descriptive_only"
+    },
     "semantic_comparison": {
       "baseline_measured_record_count": 6,
       "compared_fields": [
@@ -56,7 +251,7 @@
   },
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "34beab1f809b706c54fe526c385af5655321c4b2",
+    "git_revision": "3b18e8fd13c9378a1c0acf59034a89d3362cd4b2",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

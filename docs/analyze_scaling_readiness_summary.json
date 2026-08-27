@@ -26,7 +26,7 @@
   },
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "34beab1f809b706c54fe526c385af5655321c4b2",
+    "git_revision": "3b18e8fd13c9378a1c0acf59034a89d3362cd4b2",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -58,11 +58,14 @@
   "portability_contract": {
     "baseline_error_count": 0,
     "baseline_status": "valid",
-    "claim": "The replay contract validates local provenance and a matched second-environment candidate with semantic status semantics_match; allocator-level peak and performance review are still required for portability.",
+    "claim": "The replay contract validates local provenance and a matched second-environment candidate with semantic status semantics_match; resource differences are descriptive-only, and allocator-level peak and performance review are still required for portability.",
     "comparison_environment_distinct": true,
     "comparison_mismatch_count": 0,
     "comparison_required_for_portable_claim": true,
     "comparison_status": "candidate_requires_review",
+    "resource_comparison_matched_record_count": 6,
+    "resource_comparison_nonzero_difference_count": 6,
+    "resource_comparison_status": "descriptive_only",
     "semantic_comparison_matched_record_count": 6,
     "semantic_comparison_mismatch_count": 0,
     "semantic_comparison_status": "semantics_match"
