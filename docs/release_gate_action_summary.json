@@ -147,7 +147,9 @@
         "docs/api_migration_queue_summary.json",
         "docs/api_advanced_candidate_summary.json",
         "docs/api_ownership_decision_summary.json",
-        "benchmarks/review_api_ownership_decisions.jl"
+        "docs/bmopf_voltage_start_api_summary.json",
+        "benchmarks/review_api_ownership_decisions.jl",
+        "benchmarks/audit_bmopf_voltage_start_api.jl"
       ],
       "id": "api_test_benchmark_consolidation",
       "next_deliverable": "Review root-only legacy ownership and migrate only explicitly approved Stable/Advanced symbols.",
@@ -159,7 +161,7 @@
   "blocking_gate_count": 5,
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "8071b27094a472881c83a05b0ce6613bcee5764b",
+    "git_revision": "8106a253ec88e6bccf7b57419cc58fd878ff4076",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },

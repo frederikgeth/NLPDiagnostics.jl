@@ -101,7 +101,7 @@
   "dependency": {
     "git_branch": "main",
     "git_dirty": false,
-    "git_revision": "7a902e914b8148043aba96e0f10c34c74650b9cb",
+    "git_revision": "1d9954ca29d4dd2bb5754171e55f1c3af321aa55",
     "git_root": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl",
     "name": "BMOPFTools",
     "source_path": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/src/BMOPFTools.jl",

@@ -1,0 +1,41 @@
+{
+  "current_workaround": {
+    "stable_api_ready": false,
+    "transfer_benchmark": "benchmarks/bmopf_combined_mv_lv_feasibility_start_transfer.jl",
+    "uses_internal_context_variable_ledger": true
+  },
+  "decision": "Do not promote the internal ctx.vars workaround as stable API. Carry this contract to BMOPFTools for review and retain the bounded benchmark evidence until an upstream implementation is available.",
+  "dependency": {
+    "git_branch": "main",
+    "git_dirty": false,
+    "git_revision": "1d9954ca29d4dd2bb5754171e55f1c3af321aa55",
+    "git_root": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl",
+    "name": "BMOPFTools",
+    "source_path": "/Users/uqfgeth/Documents/GitHub/BMOPFTools.jl/src/BMOPFTools.jl",
+    "version": "0.1.0"
+  },
+  "existing_public_symbols": {
+    "build_opf_model": true,
+    "enforce_kcl!": true,
+    "opf_bases": true,
+    "opf_model": true,
+    "set_opf_start_values!": true
+  },
+  "proposal_missing_symbols": [
+    "opf_voltage_start_values",
+    "set_opf_voltage_start_values!"
+  ],
+  "proposed_symbols": {
+    "opf_voltage_start_values": false,
+    "set_opf_voltage_start_values!": false
+  },
+  "recommended_contract": {
+    "compatibility": "keep set_opf_start_values!(ctx) unchanged; add the transfer overload as an additive API with a versioned return schema",
+    "lifecycle": "call after build_opf_model and before enforce_kcl!/optimize!; must not mutate constraints or optimize",
+    "read": "opf_voltage_start_values(ctx; units=:SI) -> typed bus/terminal rectangular phasors and coordinate metadata",
+    "semantics": "accept physical SI phasors or explicit working-coordinate values, honor per-bus voltage bases, preserve grounded terminals, and reject nonfinite or unknown bus-terminal keys",
+    "write": "set_opf_voltage_start_values!(ctx, starts; units=:SI) -> applied/skipped counts with validation errors"
+  },
+  "schema_version": "nlpdiagnostics-bmopf-voltage-start-api-v1",
+  "status": "proposal_required"
+}

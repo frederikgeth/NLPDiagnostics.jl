@@ -3556,6 +3556,24 @@ end
     @test occursin("\"handoff_passed\": true", handoff_summary)
     @test occursin("\"status\": \"pass\"", checkout_validation_summary)
     @test occursin("\"suite_passed\": 1801", checkout_validation_summary)
+    voltage_start_api_script = read(
+        joinpath(benchmark_directory, "audit_bmopf_voltage_start_api.jl"), String,
+    )
+    @test Meta.parseall(voltage_start_api_script) isa Expr
+    @test occursin("set_opf_voltage_start_values!", voltage_start_api_script)
+    voltage_start_api = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_voltage_start_api_summary.json"), String,
+    ))
+    @test voltage_start_api["schema_version"] ==
+          "nlpdiagnostics-bmopf-voltage-start-api-v1"
+    @test voltage_start_api["status"] == "proposal_required"
+    @test voltage_start_api["current_workaround"]["uses_internal_context_variable_ledger"] == true
+    @test voltage_start_api["current_workaround"]["stable_api_ready"] == false
+    @test voltage_start_api["existing_public_symbols"]["build_opf_model"] == true
+    @test length(voltage_start_api["proposal_missing_symbols"]) == 2
+    @test occursin("bmopf_voltage_start_api_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     ownership_review_script = read(
         joinpath(benchmark_directory, "review_api_ownership_decisions.jl"),
         String,
