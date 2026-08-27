@@ -5746,3 +5746,16 @@ candidate root. The seven candidates all validate as finite, feasible, and
 `validate_bmopf_rerun_candidates.jl`. The canonical BMOPFDraftData files remain
 unchanged. The next deliverable is an explicit, reviewed promotion of these
 seven candidates followed by a full 100-endpoint quality and sparse-rank audit.
+
+## 2026-08-27 promoted SI re-audit
+
+The seven validated candidates were promoted into BMOPFDraftData with a
+backup-first manifest under `/private/tmp/nlpdiag-si-promotion-backup-20260827`.
+The canonical quality audit now reports 100/100 available, finite,
+feasible, `LOCALLY_SOLVED` endpoints and no excluded records. A fresh sparse
+profile of all seven promoted SI snapshots maps all 11,028 registered
+coordinates with zero fallback coordinates; all four previously
+rank-sensitive records are now rank-stable at 11,028/11,028. The next
+deliverable is to reconcile these refreshed seven records into the complete
+102-record campaign summary and classify any remaining threshold or backend
+disagreements.

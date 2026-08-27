@@ -3024,11 +3024,11 @@ end
           "nlpdiagnostics-bmopf-saved-result-quality-v1"
     @test saved_result_quality_summary["endpoint_count"] == 100
     @test saved_result_quality_summary["available_endpoint_count"] == 100
-    @test saved_result_quality_summary["usable_solver_endpoint_count"] == 93
-    @test saved_result_quality_summary["nonfinite_or_unsolved_endpoint_count"] == 7
+    @test saved_result_quality_summary["usable_solver_endpoint_count"] == 100
+    @test saved_result_quality_summary["nonfinite_or_unsolved_endpoint_count"] == 0
     @test saved_result_quality_summary["missing_endpoint_count"] == 0
-    @test saved_result_quality_summary["termination_status_counts"]["LOCALLY_SOLVED"] == 93
-    @test saved_result_quality_summary["termination_status_counts"]["ITERATION_LIMIT"] == 7
+    @test saved_result_quality_summary["termination_status_counts"]["LOCALLY_SOLVED"] == 100
+    @test !haskey(saved_result_quality_summary["termination_status_counts"], "ITERATION_LIMIT")
     saved_result_rerun_script = read(
         joinpath(benchmark_directory, "summarize_bmopf_si_rerun.jl"),
         String,
@@ -3062,6 +3062,23 @@ end
     @test rerun_candidate_summary["candidate_usable_solver_endpoint_count"] == 7
     @test rerun_candidate_summary["candidate_nonfinite_or_unsolved_count"] == 0
     @test rerun_candidate_summary["all_candidates_usable"] == true
+    promoted_sparse_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_promoted_sparse_rank.jl"),
+        String,
+    )
+    @test Meta.parseall(promoted_sparse_script) isa Expr
+    promoted_sparse_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_promoted_sparse_rank_summary.json"),
+        String,
+    ))
+    @test promoted_sparse_summary["schema_version"] ==
+          "nlpdiagnostics-bmopf-promoted-sparse-rank-v1"
+    @test promoted_sparse_summary["record_count"] == 7
+    @test promoted_sparse_summary["before_incomplete_provenance_count"] == 7
+    @test promoted_sparse_summary["after_incomplete_mapping_count"] == 0
+    @test promoted_sparse_summary["before_scaling_sensitive_count"] == 4
+    @test promoted_sparse_summary["after_scaling_sensitive_count"] == 0
+    @test promoted_sparse_summary["all_after_mappings_complete"] == true
     smallest_singular_script = read(
         joinpath(benchmark_directory, "summarize_smallest_singular_calibration.jl"),
         String,
