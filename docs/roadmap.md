@@ -5788,3 +5788,17 @@ not close the broader numerical release gate: threshold-sensitive cross-backend
 disagreements and policy calibration remain separate work. The next deliverable
 is to classify those remaining disagreements with the existing calibration
 ledger before proposing any release decision or threshold change.
+
+## 2026-08-27 threshold-disagreement classification
+
+The remaining rank-policy disagreements are now separated into an explicit
+ledger by corpus in `docs/rank_threshold_disagreement_summary.json`, generated
+by `benchmarks/summarize_rank_threshold_disagreements.jl`. It records 49 hard
+controls with zero mismatches and zero unavailable backends, alongside 26
+threshold-sensitive controls and nine dense/SuiteSparseQR disagreements. The
+disagreements are confined to the seeded randomized and controlled perturbation
+corpora; the deterministic adversarial extension has no backend disagreement.
+This is a classification and provenance deliverable only: no tolerance,
+backend, or release threshold is changed. The next decision is to document the
+declared threshold policy or add a vetted independent backend for this
+near-threshold class.

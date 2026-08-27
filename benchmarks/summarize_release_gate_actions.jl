@@ -17,7 +17,7 @@ const OUTPUT = abspath(isempty(ARGS) ?
 const ACTIONS = Dict{String,Dict{String,Any}}(
     "numerical_rank_false_positive_negative_statistics" => Dict(
         "priority" => 1,
-        "next_deliverable" => "Classify the remaining rank-policy and cross-backend threshold disagreements using the reconciled campaign and reviewed t15/t16 tranche.",
+        "next_deliverable" => "Document the declared threshold policy or add a vetted independent backend for the nine classified near-threshold disagreements.",
         "closure_condition" => "Hard-control false-positive/false-negative and unavailable statistics are complete across the declared corpus, backend disagreements are classified rather than silently resolved, and all seven canonical SI files are regenerated and pass the saved-result quality audit (or an explicit exclusion decision is reviewed).",
         "dependency" => "None; this is the highest-priority numerical-algebra track.",
     ),

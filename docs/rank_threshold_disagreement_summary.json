@@ -1,0 +1,69 @@
+{
+  "classification": "All observed disagreements are retained as threshold-policy sensitivity. No hard-control mismatch or unavailable backend is reclassified as a disagreement, and no tolerance is changed by this ledger.",
+  "corpus_count": 3,
+  "environment": {
+    "git_revision": "3bf4a50b01f538dc2e8213fc47e5836a61a9db54",
+    "git_worktree_dirty": true,
+    "julia_version": "1.12.6"
+  },
+  "hard_control_count": 49,
+  "hard_control_mismatch_count": 0,
+  "hard_control_unavailable_count": 0,
+  "next_action": "Review the threshold-sensitive corpus and either document the declared policy boundary or add a vetted independent backend before release.",
+  "rows": [
+    {
+      "backend_agreement_count": 5,
+      "backend_disagreement_count": 4,
+      "classification": "threshold_policy_sensitivity",
+      "corpus": "seeded_randomized",
+      "disagreement_names": [
+        "seed_11_threshold_cluster_1.0e-8",
+        "seed_11_threshold_cluster_2.0e-8",
+        "seed_29_threshold_cluster_5.0e-9",
+        "seed_29_threshold_cluster_2.0e-8"
+      ],
+      "record_count": 9,
+      "threshold_sensitive_count": 9,
+      "unavailable_count": 0
+    },
+    {
+      "backend_agreement_count": 35,
+      "backend_disagreement_count": 5,
+      "classification": "threshold_policy_sensitivity",
+      "corpus": "controlled_perturbation",
+      "disagreement_names": [
+        "threshold_band_low_seed_101",
+        "threshold_band_low_seed_211",
+        "threshold_band_low_seed_307",
+        "threshold_band_low_seed_401",
+        "threshold_band_low_seed_509"
+      ],
+      "record_count": 40,
+      "threshold_sensitive_count": 15,
+      "unavailable_count": 0
+    },
+    {
+      "backend_agreement_count": 8,
+      "backend_disagreement_count": 0,
+      "classification": "no_disagreement_observed",
+      "corpus": "deterministic_adversarial_extension",
+      "disagreement_names": [],
+      "record_count": 8,
+      "threshold_sensitive_count": 2,
+      "unavailable_count": 0
+    }
+  ],
+  "schema_version": "nlpdiagnostics-rank-threshold-disagreement-v1",
+  "source": {
+    "inputs": [
+      "docs/randomized_rank_oracle_calibration_summary.json",
+      "docs/rank_perturbation_sweep_summary.json",
+      "docs/rank_adversarial_extension_summary.json",
+      "docs/rank_calibration_statistics_summary.json"
+    ],
+    "summarizer": "benchmarks/summarize_rank_threshold_disagreements.jl"
+  },
+  "threshold_backend_agreement_count": 17,
+  "threshold_backend_disagreement_count": 9,
+  "threshold_sensitive_count": 26
+}

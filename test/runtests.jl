@@ -2997,6 +2997,20 @@ end
     @test t15_t16_tranche_summary["scaling_sensitive_endpoint_count"] == 0
     @test t15_t16_tranche_summary["all_mapping_complete"] == true
     @test t15_t16_tranche_summary["all_sparse_estimates_available"] == true
+    threshold_disagreement_script = read(
+        joinpath(benchmark_directory, "summarize_rank_threshold_disagreements.jl"), String,
+    )
+    @test Meta.parseall(threshold_disagreement_script) isa Expr
+    threshold_disagreement_summary = JSON.parse(read(
+        joinpath(repository_root, "docs", "rank_threshold_disagreement_summary.json"), String,
+    ))
+    @test threshold_disagreement_summary["schema_version"] ==
+          "nlpdiagnostics-rank-threshold-disagreement-v1"
+    @test threshold_disagreement_summary["corpus_count"] == 3
+    @test threshold_disagreement_summary["hard_control_mismatch_count"] == 0
+    @test threshold_disagreement_summary["hard_control_unavailable_count"] == 0
+    @test threshold_disagreement_summary["threshold_sensitive_count"] == 26
+    @test threshold_disagreement_summary["threshold_backend_disagreement_count"] == 9
     sensitive_saved_records = filter(
         record -> record["scaling_sensitive"] == true,
         saved_result_campaign_summary["records"],
