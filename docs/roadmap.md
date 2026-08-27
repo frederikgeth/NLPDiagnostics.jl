@@ -6533,3 +6533,9 @@ from `/usr/bin/time -l` on Darwin (and `time -v` on Linux), alongside
 `Sys.maxrss`, with the measurement source recorded per repetition. This adds a
 cross-check for process-envelope evidence; it is still not allocator-level peak
 telemetry and does not close the memory or convergence gates by itself.
+
+The one-repetition local smoke confirmed the fallback path: this managed
+Darwin sandbox reports `kern.clockrate` access denied to `/usr/bin/time -l`,
+so the external reading is recorded as unavailable while the child still
+completes and reports `Sys.maxrss`. A less restricted host remains required
+before promoting the external measurement to release evidence.
