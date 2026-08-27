@@ -64,6 +64,7 @@ completed = filter(item -> item["status"] == "completed", results)
 qualified = filter(item -> get(item, "hard_locally_solved", false), completed)
 write_json(OUTPUT, Dict{String,Any}(
     "schema_version" => "nlpdiagnostics-bmopf-combined-mv-lv-load-multiplier-sweep-v1",
+    "campaign" => get(ENV, "NLPDIAGNOSTICS_COMBINED_MV_LV_LOAD_SWEEP_CAMPAIGN", "coarse"),
     "status" => length(completed) == length(results) ? "completed" : "partial",
     "multipliers" => [item["load_multiplier"] for item in results],
     "record_count" => length(results),

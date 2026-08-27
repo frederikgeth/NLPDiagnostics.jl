@@ -6586,3 +6586,11 @@ point and provides a fixture-sensitive boundary for future scaling work. It is
 not a physical demand threshold or a claim that the voltage-start transfer is
 production-ready. The companion validator keeps the paired coverage and the
 0.25 success machine-checkable.
+
+The follow-up refinement campaign records the narrower ladder 0.25, 0.30,
+0.35, and 0.40 under the same 100-iteration/30-second guard. It confirms a
+paired local solve only at 0.25; all three higher multipliers are paired
+`LOCALLY_INFEASIBLE`. The dedicated validator records this as a fixture
+demand bracket, not a physical threshold. The next useful experiment is to
+repeat the bracket with an independently reviewed solver/guard or to capture
+residual progress at these points.

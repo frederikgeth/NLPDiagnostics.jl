@@ -1,0 +1,17 @@
+{
+  "expected_multipliers": [
+    0.25,
+    0.3,
+    0.35,
+    0.4
+  ],
+  "failure_count": 0,
+  "failures": [],
+  "interpretation": "This validates the refined fixture-demand bracket observed under the declared bounded solver guard. It does not establish a physical demand threshold, universal scaling policy, or solver superiority.",
+  "paired_local_solve_multiplier": 0.25,
+  "schema_version": "nlpdiagnostics-bmopf-combined-mv-lv-load-boundary-refinement-validation-v1",
+  "source": "docs/bmopf_combined_mv_lv_load_boundary_refinement_summary.json",
+  "status": "pass",
+  "upper_boundary_failure_count": 3,
+  "validated_multiplier_count": 4
+}

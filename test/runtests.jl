@@ -3173,6 +3173,31 @@ end
     @test occursin("bmopf_combined_mv_lv_load_multiplier_sweep_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
     ))
+    refinement_validation_script = read(
+        joinpath(benchmark_directory, "validate_bmopf_combined_mv_lv_load_boundary_refinement.jl"), String,
+    )
+    @test Meta.parseall(refinement_validation_script) isa Expr
+    @test occursin("boundary_refinement", refinement_validation_script)
+    refinement = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_load_boundary_refinement_summary.json"), String,
+    ))
+    @test refinement["campaign"] == "boundary_refinement"
+    @test refinement["status"] == "completed"
+    @test refinement["multipliers"] == [0.25, 0.3, 0.35, 0.4]
+    @test refinement["completed_count"] == 4
+    @test refinement["hard_locally_solved_count"] == 1
+    @test refinement["results"][1]["hard_locally_solved"] == true
+    refinement_validation = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_combined_mv_lv_load_boundary_refinement_validation_summary.json"), String,
+    ))
+    @test refinement_validation["schema_version"] ==
+          "nlpdiagnostics-bmopf-combined-mv-lv-load-boundary-refinement-validation-v1"
+    @test refinement_validation["status"] == "pass"
+    @test refinement_validation["paired_local_solve_multiplier"] == 0.25
+    @test refinement_validation["upper_boundary_failure_count"] == 3
+    @test occursin("bmopf_combined_mv_lv_load_boundary_refinement_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"), String,
+    ))
     child_transfer_script = read(
         joinpath(benchmark_directory, "run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl"), String,
     )
