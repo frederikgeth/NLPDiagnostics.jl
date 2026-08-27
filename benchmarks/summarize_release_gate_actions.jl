@@ -29,7 +29,7 @@ const ACTIONS = Dict{String,Dict{String,Any}}(
     ),
     "runtime_memory_scaling" => Dict(
         "priority" => 3,
-        "next_deliverable" => "Execute the planned guarded 11,028-variable 538-bus solver cases and summarize termination, timing, and provenance.",
+        "next_deliverable" => "Decide whether a second solver or larger guarded case is justified, then extend the readiness ledger with accepted measurements.",
         "closure_condition" => "Solver-workload scaling and peak-memory measurements are repeatable under explicit size and process guards, or remain explicitly unavailable with a reviewed release boundary.",
         "dependency" => "Use isolated child processes and retain resource skips; do not extrapolate synthetic sparse behavior.",
     ),

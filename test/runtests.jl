@@ -2809,6 +2809,27 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
+    solver_scaling_extension_script = read(
+        joinpath(benchmark_directory, "summarize_bmopf_solver_scaling_extension.jl"), String,
+    )
+    @test Meta.parseall(solver_scaling_extension_script) isa Expr
+    @test occursin("locally_solved_trace", solver_scaling_extension_script)
+    solver_scaling_extension = JSON.parse(read(
+        joinpath(repository_root, "docs", "bmopf_solver_scaling_extension_summary.json"), String,
+    ))
+    @test solver_scaling_extension["schema_version"] ==
+          "nlpdiagnostics-bmopf-solver-scaling-extension-v1"
+    @test solver_scaling_extension["record_count"] == 2
+    @test solver_scaling_extension["solved_count"] == 2
+    @test solver_scaling_extension["timeout_count"] == 0
+    @test solver_scaling_extension["incomplete_count"] == 0
+    @test solver_scaling_extension["model_variable_counts"] == [11028]
+    @test solver_scaling_extension["all_processes_completed"] == true
+    @test solver_scaling_extension["all_trace_points_complete"] == true
+    @test occursin("bmopf_solver_scaling_extension_summary.json", read(
+        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
+        String,
+    ))
     @test occursin("runtime_scaling_readiness_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
