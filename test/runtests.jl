@@ -2723,6 +2723,27 @@ end
     if external_peak_data["status"] == "peak_telemetry_available"
         @test external_peak_data["external_peak_rss_bytes"] > 0
     end
+    external_peak_clean_summary = read(
+        joinpath(repository_root, "docs", "bmopf_analyze_external_peak_probe_clean_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-bmopf-analyze-external-peak-v1", external_peak_clean_summary)
+    external_peak_portability_script = read(
+        joinpath(benchmark_directory, "compare_bmopf_analyze_external_peak.jl"),
+        String,
+    )
+    @test Meta.parseall(external_peak_portability_script) isa Expr
+    @test occursin("cross_environment_peak_candidate", external_peak_portability_script)
+    @test occursin("comparison_required_for_portable_claim", external_peak_portability_script)
+    external_peak_portability_summary = read(
+        joinpath(repository_root, "docs", "bmopf_analyze_external_peak_portability_summary.json"),
+        String,
+    )
+    @test occursin("nlpdiagnostics-bmopf-analyze-external-peak-comparison-v1", external_peak_portability_summary)
+    external_peak_portability_data = JSON.parse(external_peak_portability_summary)
+    @test external_peak_portability_data["status"] in ("cross_environment_peak_candidate", "candidate_requires_review")
+    @test external_peak_portability_data["environment_distinct"] == true
+    @test external_peak_portability_data["semantic_comparison"]["mismatch_count"] == 0
     analyze_ab_script = read(
         joinpath(benchmark_directory, "profile_analyze_static_optimization_ab.jl"),
         String,

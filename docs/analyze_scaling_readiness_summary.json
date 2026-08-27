@@ -26,9 +26,18 @@
   },
   "environment": {
     "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "6b64c23272b7e9483c5457cb7bd0bf19eac671c9",
+    "git_revision": "200d113829483ef5654dffefd97c920b36c63081",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
+  },
+  "external_peak_portability": {
+    "claim": "The same guarded one-fixture OS-level peak probe matches semantically across two distinct local environments; peak differences remain descriptive and do not establish portability or allocator behavior.",
+    "environment_distinct": true,
+    "peak_delta_bytes": 222953472,
+    "peak_ratio": 1.103641307245295,
+    "resource_status": "descriptive_only",
+    "semantic_status": "matched",
+    "status": "cross_environment_peak_candidate"
   },
   "external_peak_probe": {
     "available": true,
@@ -63,7 +72,7 @@
   "open_gaps": [
     {
       "id": "portable_analyze_memory",
-      "next_evidence": "review the matched second-environment analyze comparison and add allocator-level peak telemetry before making a portable memory claim; the independent OS peak probe remains descriptive"
+      "next_evidence": "review the matched second-environment analyze comparison and the independent OS peak comparison, then add allocator-level peak telemetry before making a portable memory claim"
     }
   ],
   "portability_contract": {
@@ -93,6 +102,7 @@
       "docs/bmopf_analyze_runtime_isolated_summary.json",
       "docs/bmopf_analyze_portability_summary.json",
       "docs/bmopf_analyze_external_peak_probe_summary.json",
+      "docs/bmopf_analyze_external_peak_portability_summary.json",
       "docs/bmopf_combined_mv_lv_analyze_scaling_summary.json"
     ],
     "policy": "This ledger joins bounded point-free analyze trends, resource repeatability, and BMOPFTools adapter coverage without promoting a portable complexity or memory claim.",

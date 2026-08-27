@@ -1,0 +1,43 @@
+{
+  "environment_distinct": true,
+  "interpretation": {
+    "claim": "The two reviewed environments ran the same one-fixture analyze-child probe with matching configuration and child semantics, and both exposed an independent OS-level peak observation.",
+    "does_not_establish": [
+      "portable peak-memory limits",
+      "allocator-level peak or retained-memory behavior",
+      "multi-case or solver scaling"
+    ],
+    "next_review": "Decide whether a third host or allocator-capable measurement is required before a portable memory statement."
+  },
+  "mismatches": {},
+  "resource_comparison": {
+    "active_child_after_bytes": 2146893824,
+    "active_external_peak_rss_bytes": 2151202816,
+    "clean_child_after_bytes": 2369798144,
+    "clean_external_peak_rss_bytes": 2374156288,
+    "clean_minus_active_peak_rss_bytes": 222953472,
+    "clean_over_active_peak_ratio": 1.103641307245295,
+    "interpretation": "Peak RSS differences are host/process observations only; they do not establish portable performance, allocator peaks, or retained memory.",
+    "status": "descriptive_only"
+  },
+  "schema_version": "nlpdiagnostics-bmopf-analyze-external-peak-comparison-v1",
+  "semantic_comparison": {
+    "matched_fields": [
+      "case",
+      "max_variables",
+      "warmup",
+      "child_status",
+      "child_variable_count",
+      "child_analyze_finding_count"
+    ],
+    "mismatch_count": 0,
+    "status": "matched"
+  },
+  "source": {
+    "active_input": "docs/bmopf_analyze_external_peak_probe_summary.json",
+    "clean_input": "docs/bmopf_analyze_external_peak_probe_clean_summary.json",
+    "comparison_required_for_portable_claim": true,
+    "runner": "benchmarks/compare_bmopf_analyze_external_peak.jl"
+  },
+  "status": "cross_environment_peak_candidate"
+}

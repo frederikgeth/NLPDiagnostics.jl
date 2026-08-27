@@ -6151,3 +6151,20 @@ multi-case/solver scaling. The portability candidate therefore remains
 `candidate_requires_review`; the next runtime action is to repeat the probe in
 the reviewed second environment (and, where available, a peak-capable wrapper)
 before considering any portable memory statement.
+
+## 2026-08-27 two-environment external peak comparison
+
+The independent peak probe was repeated against the reviewed clean benchmark
+environment at `/private/tmp/nlpdiag-benchmark-env-clean` with the same
+`pf_1ph_line.dss`, 24-variable guard, and warmup settings. Both children
+completed with matching configuration, variable count, and finding count, and
+both exposed an OS-level `getrusage(RUSAGE_CHILDREN)` observation. The active
+environment measured `2,151,202,816` bytes and the clean environment measured
+`2,374,156,288` bytes (clean/active ratio `1.1036`, delta `222,953,472` bytes).
+
+The comparison is recorded as `cross_environment_peak_candidate` in
+`docs/bmopf_analyze_external_peak_portability_summary.json`. The resource
+difference is explicitly descriptive: it does not establish portable memory,
+allocator-level peaks, retained memory, or performance. The next action is to
+review this two-environment candidate and obtain allocator-capable telemetry
+before making a portable memory statement.
