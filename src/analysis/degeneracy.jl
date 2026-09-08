@@ -1,5 +1,37 @@
+const _EntityRowKey = Tuple{Symbol,Int,Union{Nothing,Int},Union{Nothing,String},Union{Nothing,String}}
+
+# Names are presentation metadata. MOI function/set types are part of identity.
 _entity_row_key(reference::EntityRef) =
+    (reference.kind, reference.index, reference.subindex,
+     reference.function_type, reference.set_type)
+_entity_legacy_row_key(reference::EntityRef) =
     (reference.kind, reference.index, reference.subindex)
+
+function _entity_row_lookup(sources)
+    rows = collect(sources)
+    typed = Dict{_EntityRowKey,Vector{Int}}()
+    legacy = Dict{Tuple{Symbol,Int,Union{Nothing,Int}},Vector{Int}}()
+    for (row, source) in enumerate(rows)
+        push!(get!(typed, _entity_row_key(source), Int[]), row)
+        push!(get!(legacy, _entity_legacy_row_key(source), Int[]), row)
+    end
+    return (; sources = rows, typed, legacy)
+end
+
+"""Resolve a typed row, or a legacy reference only when uniquely identifiable."""
+function _find_entity_row(lookup, reference::EntityRef)
+    fully_typed = !isnothing(reference.function_type) && !isnothing(reference.set_type)
+    candidates = if fully_typed
+        get(lookup.typed, _entity_row_key(reference), Int[])
+    else
+        filter(get(lookup.legacy, _entity_legacy_row_key(reference), Int[])) do row
+            source = lookup.sources[row]
+            (isnothing(reference.function_type) || reference.function_type == source.function_type) &&
+                (isnothing(reference.set_type) || reference.set_type == source.set_type)
+        end
+    end
+    return length(candidates) == 1 ? only(candidates) : 0
+end
 
 """
     expected_nullspace_modes(model, evaluation)
@@ -568,6 +600,7 @@ function structural_numerical_comparison(
     additional_variable_indices::AbstractVector{MOI.VariableIndex} =
         MOI.VariableIndex[],
 ) where {T<:AbstractFloat}
+    _validate_evaluation_variable_order(model, evaluation)
     graph = incidence_graph(model)
     graph.complete || return _unavailable_structural_numerical_comparison(
         evaluation,
@@ -578,28 +611,12 @@ function structural_numerical_comparison(
         evaluation,
         "structural matching is unavailable",
     )
-    # Prefer the complete EntityRef as the alignment key. MOI constraint
-    # indices are only unique within a function/set type, so a domain row and
-    # an algebraic row can legitimately share the same integer index. The
-    # reduced key is retained only as a conservative fallback when it is
-    # unambiguous.
-    numerical_rows = Dict(
-        source => row for
-        (row, source) in enumerate(evaluation.constraint_sources)
-    )
-    numerical_rows_by_reduced_key = Dict{Tuple{Symbol,Int,Union{Nothing,Int}},Vector{Int}}()
-    for (row, source) in enumerate(evaluation.constraint_sources)
-        push!(get!(numerical_rows_by_reduced_key, _entity_row_key(source), Int[]), row)
-    end
+    numerical_rows = _entity_row_lookup(evaluation.constraint_sources)
     selected_rows = Int[]
     for position in matching.eligible_constraint_positions
         node = graph.constraint_nodes[position]
         reference = _constraint_ref(node.constraint; row = node.row)
-        row = get(numerical_rows, reference, 0)
-        if iszero(row)
-            candidates = get(numerical_rows_by_reduced_key, _entity_row_key(reference), Int[])
-            length(candidates) == 1 && (row = only(candidates))
-        end
+        row = _find_entity_row(numerical_rows, reference)
         iszero(row) && return _unavailable_structural_numerical_comparison(
             evaluation,
             "could not align structural equality node $(reference.index) with one unambiguous evaluated row",

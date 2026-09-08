@@ -22,6 +22,11 @@ end
 include("rank_calibration.jl")
 include("randomized_rank_oracles.jl")
 include("point_provenance.jl")
+include("scientific_contracts.jl")
+include("certified_interval_arithmetic.jl")
+include("interval_certification.jl")
+include("exact_static_rows.jl")
+include("certified_quadratic_geometry.jl")
 include("fingerprints_and_crosscheck.jl")
 include("scaling_covariance.jl")
 include("block_scaling_covariance.jl")
@@ -5922,11 +5927,20 @@ end
         rank_model,
         NLPDiagnostics.evaluation_point(rank_model, [0.0, 0.0]),
     )
+    # MOI reuses numeric indices across constraint types. These scopes must
+    # distinguish the variable bound from the affine equality explicitly.
+    freedom_snapshot = NLPDiagnostics.snapshot(rank_model)
+    bound_source = NLPDiagnostics._constraint_ref(only(filter(
+        record -> record.index == constraint, freedom_snapshot.constraints,
+    )))
+    freedom_source = NLPDiagnostics._constraint_ref(only(filter(
+        record -> record.index == freedom, freedom_snapshot.constraints,
+    )))
     freedom_component = NLPDiagnostics.ComponentMetadata(
         :floating_device,
         "one_expected_mode";
         variables = [x, y],
-        constraints = [NLPDiagnostics.EntityRef(:constraint, freedom.value)],
+        constraints = [freedom_source],
         expected_rank = 1,
     )
     freedom_report = NLPDiagnostics.analyze_component_ranks(
@@ -5942,10 +5956,7 @@ end
         :floating_device,
         "unexpected_mode";
         variables = [x, y],
-        constraints = [
-            NLPDiagnostics.EntityRef(:constraint, constraint.value),
-            NLPDiagnostics.EntityRef(:constraint, freedom.value),
-        ],
+        constraints = [bound_source, freedom_source],
         expected_rank = 2,
     )
     extra_mode_report = NLPDiagnostics.analyze_component_ranks(
@@ -7179,7 +7190,7 @@ function NLPDiagnostics.operator_interval(
     arguments::Vector{NLPDiagnostics.IntervalEnclosure},
     original_arguments,
 )
-    return NLPDiagnostics.IntervalEnclosure(1.0, Inf, true, true)
+    return NLPDiagnostics.IntervalEnclosure(1.0, Inf; certified = true)
 end
 
 function NLPDiagnostics.operator_domain_requirements(
@@ -7321,7 +7332,7 @@ end
         expression = MOI.ScalarNonlinearFunction(:sin, Any[cancelled])
         MOI.add_constraint(model, expression, MOI.LessThan(-1.0))
         report = NLPDiagnostics.analyze_static(model)
-        @test length(findings(report, :infeasible_constant_constraint)) == 1
+        @test length(findings(report, :constant_expression_numerical_violation)) == 1
         @test length(findings(report, :disconnected_variable)) == 1
     end
 
@@ -7997,7 +8008,8 @@ end
         report = NLPDiagnostics.analyze_static(model)
         redundant = only(findings(report, :redundant_fixed_affine_constraint))
         @test redundant.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(redundant)["evaluated_value"] == "0.0"
+        @test evidence_details(redundant)["evaluated_value"] == "0//1"
+        @test evidence_details(redundant)["evaluation_certified"] == "true"
 
         infeasible = new_model()
         a, b = MOI.add_variables(infeasible, 2)
@@ -8050,7 +8062,7 @@ end
             MOI.Interval(0.999, 1.0),
         )
         report = NLPDiagnostics.analyze_static(model)
-        @test length(findings(report, :redundant_fixed_expression_constraint)) == 2
+        @test length(findings(report, :fixed_expression_numerically_satisfied)) == 2
         @test isempty(findings(report, :fixed_expression_domain_violation))
     end
 
@@ -8066,7 +8078,7 @@ end
         report = NLPDiagnostics.analyze_static(model)
         fixed = only(findings(report, :fixed_objective))
         @test fixed.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(fixed)["objective_value"] == "7.0"
+        @test evidence_details(fixed)["objective_value"] == "7//1"
     end
 
     @testset "constant objectives are distinguished from fixed objectives" begin
@@ -8182,7 +8194,7 @@ end
         )
         extended_report = NLPDiagnostics.analyze_static(extended)
         @test length(
-            findings(extended_report, :redundant_fixed_expression_constraint),
+            findings(extended_report, :fixed_expression_numerically_satisfied),
         ) == 1
 
         overflow = new_model()
@@ -8199,7 +8211,7 @@ end
         ) == 1
     end
 
-    @testset "fixed degree-trigonometric primitives are evaluated exactly" begin
+    @testset "fixed degree-trigonometric primitives are evaluated numerically" begin
         model = new_model()
         x = MOI.add_variable(model)
         MOI.add_constraint(model, x, MOI.EqualTo(0.0))
@@ -8209,7 +8221,7 @@ end
             MOI.EqualTo(0.0),
         )
         report = NLPDiagnostics.analyze_static(model)
-        @test length(findings(report, :redundant_fixed_expression_constraint)) == 1
+        @test length(findings(report, :fixed_expression_numerically_satisfied)) == 1
         @test isempty(findings(report, :fixed_expression_evaluation_unavailable))
     end
 
@@ -8276,7 +8288,7 @@ end
         report = NLPDiagnostics.analyze_static(model)
         dominated = only(findings(report, :dominated_affine_inequality))
         @test dominated.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(dominated)["tightest_normalized_bound"] == "1.0"
+        @test evidence_details(dominated)["tightest_normalized_bound"] == "1//1"
         @test evidence_details(dominated)["dominated_constraint_count"] == "1"
     end
 
@@ -8293,8 +8305,8 @@ end
             findings(report, :inconsistent_opposing_affine_inequalities),
         )
         @test inconsistent.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(inconsistent)["normalized_lower"] == "-1.0"
-        @test evidence_details(inconsistent)["normalized_upper"] == "-2.0"
+        @test evidence_details(inconsistent)["normalized_lower"] == "-1//1"
+        @test evidence_details(inconsistent)["normalized_upper"] == "-2//1"
     end
 
     @testset "affine equalities are checked against parallel half-spaces" begin
@@ -8308,7 +8320,7 @@ end
         report = NLPDiagnostics.analyze_static(model)
         incompatible = only(findings(report, :inconsistent_affine_equality_halfspace))
         @test incompatible.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(incompatible)["normalized_upper"] == "1.0"
+        @test evidence_details(incompatible)["normalized_upper"] == "1//1"
 
         parallel = new_model()
         a, b = MOI.add_variables(parallel, 2)
@@ -14258,7 +14270,7 @@ end
             NLPDiagnostics.analyze_static(weighted_nonlinear),
             :nonunit_circular_constraint_radius,
         ))
-        @test evidence_details(weighted_finding)["radius_squared"] == "2.0"
+        @test evidence_details(weighted_finding)["radius_squared"] == "2//1"
 
         nary_weighted_nonlinear = new_model()
         r, s = MOI.add_variables(nary_weighted_nonlinear, 2)
@@ -14274,7 +14286,7 @@ end
             NLPDiagnostics.analyze_static(nary_weighted_nonlinear),
             :nonunit_circular_constraint_radius,
         ))
-        @test evidence_details(nary_finding)["radius_squared"] == "2.0"
+        @test evidence_details(nary_finding)["radius_squared"] == "2//1"
 
         coupled = new_model()
         m, n = MOI.add_variables(coupled, 2)
@@ -14323,7 +14335,7 @@ end
             NLPDiagnostics.analyze_static(shifted_level_nonlinear),
             :nonunit_circular_constraint_radius,
         ))
-        @test evidence_details(level_finding)["radius_squared"] == "4.0"
+        @test evidence_details(level_finding)["radius_squared"] == "4//1"
 
         bounded_circle = new_model()
         r, s = MOI.add_variables(bounded_circle, 2)
@@ -14358,8 +14370,8 @@ end
             NLPDiagnostics.analyze_static(shifted_center_nonlinear),
             :nonunit_circular_constraint_radius,
         ))
-        @test evidence_details(shifted_finding)["center"] == "[2.0, -3.0]"
-        @test evidence_details(shifted_finding)["radius_squared"] == "4.0"
+        @test evidence_details(shifted_finding)["center"] == "Rational{BigInt}[2, -3]"
+        @test evidence_details(shifted_finding)["radius_squared"] == "4//1"
     end
 
     @testset "nonpositive circular equality levels have proven consequences" begin
@@ -14394,7 +14406,7 @@ end
             :zero_radius_circular_constraint,
         ))
         @test zero.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(zero)["center"] == "[0.0, 0.0]"
+        @test evidence_details(zero)["center"] == "Rational{BigInt}[0, 0]"
         nonregular = only(findings(
             NLPDiagnostics.analyze_static(zero_radius),
             :nonregular_zero_radius_quadratic_fixing,
@@ -14416,7 +14428,7 @@ end
             :inconsistent_zero_radius_circular_variable_bound,
         ))
         @test contradiction.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(contradiction)["implied_value"] == "0.0"
+        @test evidence_details(contradiction)["implied_value"] == "0//1"
     end
 
     @testset "shifted isotropic quadratic equalities are completed statically" begin
@@ -14437,8 +14449,8 @@ end
             :nonunit_circular_constraint_radius,
         ))
         @test evidence_details(scaling)["is_shifted"] == "true"
-        @test evidence_details(scaling)["center"] == "[2.0, -3.0]"
-        @test evidence_details(scaling)["radius_squared"] == "4.0"
+        @test evidence_details(scaling)["center"] == "Rational{BigInt}[2, -3]"
+        @test evidence_details(scaling)["radius_squared"] == "4//1"
 
         impossible = new_model()
         u, v = MOI.add_variables(impossible, 2)
@@ -14471,7 +14483,7 @@ end
             NLPDiagnostics.analyze_static(model),
             :nonunit_ellipsoidal_constraint_axes,
         ))
-        @test evidence_details(scaling)["center"] == "[2.0, -1.0]"
+        @test evidence_details(scaling)["center"] == "Rational{BigInt}[2, -1]"
         @test evidence_details(scaling)["semiaxes"] == "[2.0, 1.0]"
 
         impossible = new_model()
@@ -14500,7 +14512,7 @@ end
             :zero_level_diagonal_quadratic_constraint,
         ))
         @test fixed.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(fixed)["center"] == "[2.0, -1.0]"
+        @test evidence_details(fixed)["center"] == "Rational{BigInt}[2, -1]"
         @test length(findings(
             NLPDiagnostics.analyze_static(zero_level),
             :nonregular_zero_level_diagonal_quadratic_fixing,
@@ -14520,7 +14532,7 @@ end
             :inconsistent_diagonal_quadratic_minimum_variable_bound,
         ))
         @test minimum_contradiction.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(minimum_contradiction)["implied_value"] == "2.0"
+        @test evidence_details(minimum_contradiction)["implied_value"] == "2//1"
 
         nonlinear = new_model()
         a, b = MOI.add_variables(nonlinear, 2)
@@ -14571,21 +14583,21 @@ end
         )
         # (x - 2)^2 + 4 * (y + 1)^2 = 1, so x ∈ [1, 3].
         MOI.add_constraint(domain_model, domain_ellipsoid, MOI.EqualTo(-7.0))
-        propagated_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(domain_model),
-        )
+        propagated_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(domain_model))
+        @test any(interval -> !interval.certified, values(propagated_domains))
         @test propagated_domains[domain_x].lower == 1.0
         @test propagated_domains[domain_x].upper == 3.0
 
-        # Geometry-derived coordinate intervals feed the generic expression
-        # domain pass, but remain analysis-only: the model has no scalar bound
-        # constraint on `domain_x` other than its ellipsoidal equality.
+        # Approximate geometry is retained as an estimate but cannot discharge
+        # a domain warning. The model has no certified scalar bound on x.
         MOI.add_constraint(
             domain_model,
             MOI.ScalarNonlinearFunction(:log, Any[domain_x]),
             MOI.LessThan(10.0),
         )
-        @test isempty(NLPDiagnostics.domain_issues(domain_model))
+        @test !isempty(NLPDiagnostics.domain_issues(domain_model))
+        @test all(issue -> issue.assessment == NLPDiagnostics.DomainPossibleViolation,
+            NLPDiagnostics.domain_issues(domain_model))
 
         nonlinear_domain_model = new_model()
         nonlinear_x, nonlinear_y = MOI.add_variables(nonlinear_domain_model, 2)
@@ -14612,7 +14624,9 @@ end
             MOI.ScalarNonlinearFunction(:log, Any[nonlinear_x]),
             MOI.LessThan(10.0),
         )
-        @test isempty(NLPDiagnostics.domain_issues(nonlinear_domain_model))
+        @test !isempty(NLPDiagnostics.domain_issues(nonlinear_domain_model))
+        @test all(issue -> issue.assessment == NLPDiagnostics.DomainPossibleViolation,
+            NLPDiagnostics.domain_issues(nonlinear_domain_model))
 
         affine_domain_model = new_model()
         affine_a, affine_b, affine_c = MOI.add_variables(affine_domain_model, 3)
@@ -14700,13 +14714,14 @@ end
             MOI.ScalarNonlinearFunction(:log, Any[monotone_z]),
             MOI.LessThan(10.0),
         )
-        monotone_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(monotone_domain_model),
-        )
+        monotone_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(monotone_domain_model))
+        @test any(interval -> !interval.certified, values(monotone_domains))
         @test monotone_domains[monotone_x].lower == 1.0
         @test monotone_domains[monotone_y].upper ≈ 2.0 atol = 1.0e-12
         @test monotone_domains[monotone_z].lower == 4.0
-        @test isempty(NLPDiagnostics.domain_issues(monotone_domain_model))
+        @test !isempty(NLPDiagnostics.domain_issues(monotone_domain_model))
+        @test all(issue -> issue.assessment == NLPDiagnostics.DomainPossibleViolation,
+            NLPDiagnostics.domain_issues(monotone_domain_model))
 
         log1mexp_domain_model = new_model()
         log1mexp_x = MOI.add_variable(log1mexp_domain_model)
@@ -14725,12 +14740,13 @@ end
             ),
             MOI.LessThan(10.0),
         )
-        log1mexp_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(log1mexp_domain_model),
-        )
+        log1mexp_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(log1mexp_domain_model))
+        @test any(interval -> !interval.certified, values(log1mexp_domains))
         @test log1mexp_domains[log1mexp_x].upper ≈
               log1p(-exp(-1.0)) atol = 1.0e-12
-        @test isempty(NLPDiagnostics.domain_issues(log1mexp_domain_model))
+        @test !isempty(NLPDiagnostics.domain_issues(log1mexp_domain_model))
+        @test all(issue -> issue.assessment == NLPDiagnostics.DomainPossibleViolation,
+            NLPDiagnostics.domain_issues(log1mexp_domain_model))
 
         softplus_domain_model = new_model()
         softplus_x = MOI.add_variable(softplus_domain_model)
@@ -14744,12 +14760,13 @@ end
             MOI.ScalarNonlinearFunction(:log, Any[softplus_x]),
             MOI.LessThan(10.0),
         )
-        softplus_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(softplus_domain_model),
-        )
+        softplus_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(softplus_domain_model))
+        @test any(interval -> !interval.certified, values(softplus_domains))
         @test softplus_domains[softplus_x].lower ≈
               2.0 + log1p(-exp(-2.0)) atol = 1.0e-12
-        @test isempty(NLPDiagnostics.domain_issues(softplus_domain_model))
+        @test !isempty(NLPDiagnostics.domain_issues(softplus_domain_model))
+        @test all(issue -> issue.assessment == NLPDiagnostics.DomainPossibleViolation,
+            NLPDiagnostics.domain_issues(softplus_domain_model))
 
         logistic_domain_model = new_model()
         logistic_x = MOI.add_variable(logistic_domain_model)
@@ -14763,12 +14780,13 @@ end
             MOI.ScalarNonlinearFunction(:log, Any[logistic_x]),
             MOI.LessThan(10.0),
         )
-        logistic_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(logistic_domain_model),
-        )
+        logistic_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(logistic_domain_model))
+        @test any(interval -> !interval.certified, values(logistic_domains))
         @test logistic_domains[logistic_x].lower ≈
               log(0.9) - log1p(-0.9) atol = 1.0e-12
-        @test isempty(NLPDiagnostics.domain_issues(logistic_domain_model))
+        @test !isempty(NLPDiagnostics.domain_issues(logistic_domain_model))
+        @test all(issue -> issue.assessment == NLPDiagnostics.DomainPossibleViolation,
+            NLPDiagnostics.domain_issues(logistic_domain_model))
 
         tanh_domain_model = new_model()
         tanh_x = MOI.add_variable(tanh_domain_model)
@@ -14782,12 +14800,13 @@ end
             MOI.ScalarNonlinearFunction(:log, Any[tanh_x]),
             MOI.LessThan(10.0),
         )
-        tanh_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(tanh_domain_model),
-        )
+        tanh_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(tanh_domain_model))
+        @test any(interval -> !interval.certified, values(tanh_domains))
         @test tanh_domains[tanh_x].lower ≈
               (log1p(0.9) - log1p(-0.9)) / 2 atol = 1.0e-12
-        @test isempty(NLPDiagnostics.domain_issues(tanh_domain_model))
+        @test !isempty(NLPDiagnostics.domain_issues(tanh_domain_model))
+        @test all(issue -> issue.assessment == NLPDiagnostics.DomainPossibleViolation,
+            NLPDiagnostics.domain_issues(tanh_domain_model))
 
         atanh_domain_model = new_model()
         atanh_x = MOI.add_variable(atanh_domain_model)
@@ -14801,12 +14820,11 @@ end
             MOI.ScalarNonlinearFunction(:log, Any[atanh_x]),
             MOI.LessThan(10.0),
         )
-        atanh_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(atanh_domain_model),
-        )
+        atanh_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(atanh_domain_model))
+        @test any(interval -> !interval.certified, values(atanh_domains))
         @test atanh_domains[atanh_x].lower ≈ tanh(0.9) atol = 1.0e-12
-        @test isempty(filter(
-            issue -> issue.operator == :log,
+        @test !isempty(filter(
+            issue -> issue.operator == :log && issue.assessment == NLPDiagnostics.DomainPossibleViolation,
             NLPDiagnostics.domain_issues(atanh_domain_model),
         ))
 
@@ -14822,11 +14840,12 @@ end
             MOI.ScalarNonlinearFunction(:log, Any[asinh_x]),
             MOI.LessThan(10.0),
         )
-        asinh_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(asinh_domain_model),
-        )
+        asinh_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(asinh_domain_model))
+        @test any(interval -> !interval.certified, values(asinh_domains))
         @test asinh_domains[asinh_x].lower ≈ sinh(1.0) atol = 1.0e-12
-        @test isempty(NLPDiagnostics.domain_issues(asinh_domain_model))
+        @test !isempty(NLPDiagnostics.domain_issues(asinh_domain_model))
+        @test all(issue -> issue.assessment == NLPDiagnostics.DomainPossibleViolation,
+            NLPDiagnostics.domain_issues(asinh_domain_model))
 
         acosh_domain_model = new_model()
         acosh_x = MOI.add_variable(acosh_domain_model)
@@ -14840,11 +14859,12 @@ end
             MOI.ScalarNonlinearFunction(:log, Any[acosh_x]),
             MOI.LessThan(10.0),
         )
-        acosh_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(acosh_domain_model),
-        )
+        acosh_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(acosh_domain_model))
+        @test any(interval -> !interval.certified, values(acosh_domains))
         @test acosh_domains[acosh_x].lower ≈ cosh(1.0) atol = 1.0e-12
-        @test isempty(NLPDiagnostics.domain_issues(acosh_domain_model))
+        @test !isempty(NLPDiagnostics.domain_issues(acosh_domain_model))
+        @test all(issue -> issue.assessment == NLPDiagnostics.DomainPossibleViolation,
+            NLPDiagnostics.domain_issues(acosh_domain_model))
 
         atan_domain_model = new_model()
         atan_x = MOI.add_variable(atan_domain_model)
@@ -14858,11 +14878,12 @@ end
             MOI.ScalarNonlinearFunction(:log, Any[atan_x]),
             MOI.LessThan(10.0),
         )
-        atan_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(atan_domain_model),
-        )
+        atan_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(atan_domain_model))
+        @test any(interval -> !interval.certified, values(atan_domains))
         @test atan_domains[atan_x].lower ≈ tan(1.0) atol = 1.0e-12
-        @test isempty(NLPDiagnostics.domain_issues(atan_domain_model))
+        @test !isempty(NLPDiagnostics.domain_issues(atan_domain_model))
+        @test all(issue -> issue.assessment == NLPDiagnostics.DomainPossibleViolation,
+            NLPDiagnostics.domain_issues(atan_domain_model))
 
         inverse_trig_domain_model = new_model()
         asin_x, acos_x, asind_x, acosd_x, atand_x = MOI.add_variables(
@@ -14893,9 +14914,8 @@ end
             MOI.ScalarNonlinearFunction(:atand, Any[atand_x]),
             MOI.GreaterThan(45.0),
         )
-        inverse_trig_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(inverse_trig_domain_model),
-        )
+        inverse_trig_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(inverse_trig_domain_model))
+        @test any(interval -> !interval.certified, values(inverse_trig_domains))
         @test inverse_trig_domains[asin_x].lower ≈ sin(0.5) atol = 1.0e-12
         @test inverse_trig_domains[acos_x].lower ≈ cos(1.0) atol = 1.0e-12
         @test inverse_trig_domains[asind_x].lower ≈ 0.5 atol = 1.0e-12
@@ -14914,9 +14934,8 @@ end
             MOI.ScalarNonlinearFunction(:cbrt, Any[cbrt_x]),
             MOI.GreaterThan(2.0),
         )
-        monotone_extension_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(monotone_extension_model),
-        )
+        monotone_extension_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(monotone_extension_model))
+        @test any(interval -> !interval.certified, values(monotone_extension_domains))
         @test monotone_extension_domains[sinh_x].lower ≈ asinh(1.0) atol = 1.0e-12
         @test monotone_extension_domains[cbrt_x].lower == 8.0
 
@@ -14935,8 +14954,8 @@ end
             ),
             MOI.LessThan(10.0),
         )
-        @test isempty(filter(
-            issue -> issue.operator == :log,
+        @test !isempty(filter(
+            issue -> issue.operator == :log && issue.assessment == NLPDiagnostics.DomainPossibleViolation,
             NLPDiagnostics.domain_issues(bounded_logistic_model),
         ))
 
@@ -14955,8 +14974,8 @@ end
             ),
             MOI.LessThan(10.0),
         )
-        @test isempty(filter(
-            issue -> issue.operator == :log,
+        @test !isempty(filter(
+            issue -> issue.operator == :log && issue.assessment == NLPDiagnostics.DomainPossibleViolation,
             NLPDiagnostics.domain_issues(bounded_sine_model),
         ))
 
@@ -14975,8 +14994,8 @@ end
             ),
             MOI.LessThan(10.0),
         )
-        @test isempty(filter(
-            issue -> issue.operator == :log,
+        @test !isempty(filter(
+            issue -> issue.operator == :log && issue.assessment == NLPDiagnostics.DomainPossibleViolation,
             NLPDiagnostics.domain_issues(bounded_tangent_model),
         ))
 
@@ -15121,9 +15140,8 @@ end
             0.0,
         )
         MOI.add_constraint(zero_domain_model, zero_domain_circle, MOI.EqualTo(0.0))
-        zero_propagated_domains = NLPDiagnostics._domain_variable_intervals(
-            NLPDiagnostics.snapshot(zero_domain_model),
-        )
+        zero_propagated_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(zero_domain_model))
+        @test any(interval -> !interval.certified, values(zero_propagated_domains))
         @test zero_propagated_domains[zero_x].lower == 0.0
         @test zero_propagated_domains[zero_x].upper == 0.0
         MOI.add_constraint(
@@ -15133,7 +15151,7 @@ end
         )
         @test length(findings(
             NLPDiagnostics.analyze_domains(zero_domain_model),
-            :proven_expression_domain_violation,
+            :possible_expression_domain_violation,
         )) == 1
 
         near_unit = new_model()
@@ -15162,7 +15180,7 @@ end
             :inconsistent_zero_level_diagonal_quadratic_variable_bound,
         ))
         @test zero_contradiction.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(zero_contradiction)["implied_value"] == "2.0"
+        @test evidence_details(zero_contradiction)["implied_value"] == "2//1"
     end
 
     @testset "diagonal quadratic upper bounds expose exact minima" begin
@@ -15183,7 +15201,7 @@ end
             :infeasible_below_minimum_diagonal_quadratic_constraint,
         ))
         @test infeasible.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(infeasible)["minimum_value"] == "-5.0"
+        @test evidence_details(infeasible)["minimum_value"] == "-5//1"
 
         minimum_level = new_model()
         u, v = MOI.add_variables(minimum_level, 2)
@@ -15197,7 +15215,7 @@ end
             NLPDiagnostics.analyze_static(minimum_level),
             :minimum_level_diagonal_quadratic_constraint,
         ))
-        @test evidence_details(fixed)["center"] == "[2.0, -1.0]"
+        @test evidence_details(fixed)["center"] == "Rational{BigInt}[2, -1]"
         nonregular_minimum = only(findings(
             NLPDiagnostics.analyze_static(minimum_level),
             :nonregular_minimum_level_diagonal_quadratic_inequality,
@@ -15287,9 +15305,9 @@ end
         report = NLPDiagnostics.analyze_initialization(model)
         violation = only(findings(
             report,
-            :initialization_violates_diagonal_quadratic_implied_bound,
+            :initialization_numerical_diagonal_quadratic_bound_violation,
         ))
-        @test violation.basis == NLPDiagnostics.MathematicalProof
+        @test violation.basis == NLPDiagnostics.NumericalObservation
         @test occursin(
             "value=5.0",
             Dict(violation.evidence[2].details)["v$(x.value)"],
@@ -15316,7 +15334,7 @@ end
         nonlinear_report = NLPDiagnostics.analyze_initialization(nonlinear)
         @test length(findings(
             nonlinear_report,
-            :initialization_violates_diagonal_quadratic_implied_bound,
+            :initialization_numerical_diagonal_quadratic_bound_violation,
         )) == 1
 
         equality = new_model()
@@ -15332,7 +15350,7 @@ end
         equality_report = NLPDiagnostics.analyze_initialization(equality)
         @test length(findings(
             equality_report,
-            :initialization_violates_diagonal_quadratic_equality_implied_bound,
+            :initialization_numerical_diagonal_quadratic_equality_bound_violation,
         )) == 1
 
         nonlinear_equality = new_model()
@@ -15350,7 +15368,7 @@ end
         nonlinear_equality_report = NLPDiagnostics.analyze_initialization(nonlinear_equality)
         nonlinear_equality_violation = only(findings(
             nonlinear_equality_report,
-            :initialization_violates_diagonal_quadratic_equality_implied_bound,
+            :initialization_numerical_diagonal_quadratic_equality_bound_violation,
         ))
         @test Dict(nonlinear_equality_violation.evidence[2].details)["representation"] ==
               "ScalarNonlinearFunction"

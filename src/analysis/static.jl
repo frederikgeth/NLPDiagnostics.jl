@@ -337,7 +337,37 @@ end
 
 _constant_value(value) = (false, nothing, nothing)
 
-"""Evaluate a supported scalar expression after exact fixed-value substitution."""
+"""Evaluate finite fixed polynomials over the exact represented coefficients."""
+function _exact_fixed_polynomial_value(value::MOI.ScalarAffineFunction, fixed_values)
+    result = _exact_real_value(value.constant)
+    isnothing(result) && return nothing
+    for term in value.terms
+        iszero(term.coefficient) && continue
+        coefficient = _exact_real_value(term.coefficient)
+        coordinate = _exact_real_value(get(fixed_values, term.variable, nothing))
+        (isnothing(coefficient) || isnothing(coordinate)) && return nothing
+        result += coefficient * coordinate
+    end
+    return result
+end
+
+function _exact_fixed_polynomial_value(value::MOI.ScalarQuadraticFunction, fixed_values)
+    result = _exact_fixed_polynomial_value(
+        MOI.ScalarAffineFunction(value.affine_terms, value.constant), fixed_values)
+    isnothing(result) && return nothing
+    for term in value.quadratic_terms
+        iszero(term.coefficient) && continue
+        coefficient = _exact_real_value(term.coefficient)
+        left = _exact_real_value(get(fixed_values, term.variable_1, nothing))
+        right = _exact_real_value(get(fixed_values, term.variable_2, nothing))
+        any(isnothing, (coefficient, left, right)) && return nothing
+        # MOI stores diagonal terms in the 1/2 x'Qx convention.
+        result += coefficient * left * right / (term.variable_1 == term.variable_2 ? 2 : 1)
+    end
+    return result
+end
+
+"""Evaluate fixed expressions; only the finite polynomial path is certified."""
 _fixed_expression_value(value::Real, _) = (true, value, nothing)
 
 function _fixed_expression_value(
@@ -352,6 +382,8 @@ function _fixed_expression_value(
     value::MOI.ScalarAffineFunction,
     fixed_values::Dict{MOI.VariableIndex,Any},
 )
+    exact = _exact_fixed_polynomial_value(value, fixed_values)
+    !isnothing(exact) && return (true, exact, nothing)
     result = value.constant
     for (variable, coefficient) in _canonical_affine_terms(value.terms)
         is_fixed, variable_value, exception = _fixed_expression_value(variable, fixed_values)
@@ -366,6 +398,8 @@ function _fixed_expression_value(
     value::MOI.ScalarQuadraticFunction,
     fixed_values::Dict{MOI.VariableIndex,Any},
 )
+    exact = _exact_fixed_polynomial_value(value, fixed_values)
+    !isnothing(exact) && return (true, exact, nothing)
     affine = MOI.ScalarAffineFunction(value.affine_terms, value.constant)
     is_fixed, result, exception = _fixed_expression_value(affine, fixed_values)
     exception === nothing || return (true, nothing, exception)
@@ -505,6 +539,16 @@ _satisfies(value, set::MOI.EqualTo) = value == set.value
 _satisfies(value, set::MOI.Interval) = set.lower <= value <= set.upper
 _satisfies(value, set) = nothing
 
+# A numerical evaluation of a variable-free nonlinear tree is not an exact
+# value certificate. Keep only represented literals/polynomials and direct
+# syntactic identities on the proof path.
+function _constant_evaluation_certified(function_value, value)
+    isnothing(_exact_real_value(value)) && return false
+    return function_value isa Union{Real,MOI.ScalarAffineFunction,MOI.ScalarQuadraticFunction} ||
+        (function_value isa MOI.ScalarNonlinearFunction &&
+         (_is_direct_variable_cancellation(function_value) || _is_direct_zero_product(function_value)))
+end
+
 function _analyze_constant_constraints!(
     report::DiagnosticReport,
     model::ModelSnapshot,
@@ -515,6 +559,7 @@ function _analyze_constant_constraints!(
         isempty(support.variables) || continue
         is_constant, value, exception = _constant_value(constraint.function_value)
         is_constant || continue
+        certified = _constant_evaluation_certified(constraint.function_value, value)
         reference = _constraint_ref(constraint)
 
         if exception !== nothing &&
@@ -524,11 +569,11 @@ function _analyze_constant_constraints!(
                 Finding(
                     :constant_domain_violation;
                     severity = SeverityError,
-                    domain = MathematicalIssue,
-                    basis = MathematicalProof,
+                    domain = NumericalIssue,
+                    basis = NumericalObservation,
                     confidence = ConfidenceCertain,
-                    observation = "A constant expression in constraint $(reference.index) is outside an operator domain.",
-                    why_it_matters = "The expression cannot be evaluated over the real numbers, independently of the solver or starting point.",
+                    observation = "A constant expression in constraint $(reference.index) encountered an operator-domain failure during numerical evaluation.",
+                    why_it_matters = "Numerical evaluation failed; intermediate rounding can cause this even when the real expression is defined. This finding does not prove infeasibility.",
                     evidence = [
                         Evidence(
                             "Constant evaluation failed";
@@ -554,24 +599,25 @@ function _analyze_constant_constraints!(
             push!(
                 report,
                 Finding(
-                    :redundant_constant_constraint;
+                    certified ? :redundant_constant_constraint : :constant_expression_numerically_satisfied;
                     severity = SeverityInfo,
-                    domain = RepresentationalIssue,
-                    basis = MathematicalProof,
+                    domain = certified ? RepresentationalIssue : NumericalIssue,
+                    basis = certified ? MathematicalProof : NumericalObservation,
                     confidence = ConfidenceCertain,
-                    observation = "Constraint $(reference.index) is constant and always satisfied.",
-                    why_it_matters = "The constraint has no effect on the feasible set and may indicate a lost variable dependency.",
+                    observation = certified ? "Constraint $(reference.index) is constant and always satisfied." : "The variable-free constraint $(reference.index) is satisfied by its numerically evaluated value.",
+                    why_it_matters = certified ? "The constraint has no effect on the feasible set and may indicate a lost variable dependency." : "The value is a numerical observation; verify the original expression before treating this row as redundant.",
                     evidence = [
                         Evidence(
                             "The constant belongs to the constraint set";
                             details = [
                                 "value" => value,
+                                "value_certified" => certified,
                                 "set" => constraint.set_value,
                             ],
                         ),
                     ],
                     suggested_actions = [
-                        "Remove it if intentional, or inspect expression construction for a missing variable.",
+                        certified ? "Remove it if intentional, or inspect expression construction for a missing variable." : "Verify the original expression with exact or validated arithmetic before removing this row.",
                     ],
                     affected = [reference],
                 ),
@@ -580,18 +626,19 @@ function _analyze_constant_constraints!(
             push!(
                 report,
                 Finding(
-                    :infeasible_constant_constraint;
+                    certified ? :infeasible_constant_constraint : :constant_expression_numerical_violation;
                     severity = SeverityError,
-                    domain = MathematicalIssue,
-                    basis = MathematicalProof,
+                    domain = certified ? MathematicalIssue : NumericalIssue,
+                    basis = certified ? MathematicalProof : NumericalObservation,
                     confidence = ConfidenceCertain,
-                    observation = "Constraint $(reference.index) is constant and cannot be satisfied.",
-                    why_it_matters = "This single constraint proves that the model is infeasible.",
+                    observation = certified ? "Constraint $(reference.index) is constant and cannot be satisfied." : "The variable-free constraint $(reference.index) is violated by its numerically evaluated value.",
+                    why_it_matters = certified ? "This single constraint proves that the model is infeasible." : "Rounding or overflow may account for this violation; numerical evaluation alone does not prove model infeasibility.",
                     evidence = [
                         Evidence(
                             "The constant does not belong to the constraint set";
                             details = [
                                 "value" => value,
+                                "value_certified" => certified,
                                 "set" => constraint.set_value,
                             ],
                         ),
@@ -630,6 +677,8 @@ function _analyze_fixed_expression_constraints!(
         length(fixed_values) == length(support.variables) || continue
         is_fixed, value, exception = _fixed_expression_value(function_value, fixed_values)
         is_fixed || continue
+        certified = function_value isa Union{MOI.ScalarAffineFunction,MOI.ScalarQuadraticFunction} &&
+                    value isa Rational{BigInt} && isfinite(value)
         reference = _constraint_ref(constraint)
         variable_references = [_variable_ref(records[variable]) for variable in support.variables]
         if exception !== nothing &&
@@ -637,11 +686,11 @@ function _analyze_fixed_expression_constraints!(
             push!(report, Finding(
                 :fixed_expression_domain_violation;
                 severity = SeverityError,
-                domain = MathematicalIssue,
-                basis = MathematicalProof,
+                domain = NumericalIssue,
+                basis = NumericalObservation,
                 confidence = ConfidenceCertain,
                 observation = "Constraint $(reference.index) has an operator-domain failure after substituting its fixed variables.",
-                why_it_matters = "The fixed values are the only allowed values of every expression variable, so the expression cannot be evaluated over the reals in any feasible point.",
+                why_it_matters = "Numerical evaluation failed at the fixed values. Rounding inside the expression can cause this failure; this observation does not certify that the real expression is undefined.",
                 evidence = [Evidence("Fixed-value expression evaluation failed";
                     details = ["exception" => nameof(typeof(exception)),
                                "message" => sprint(showerror, exception)],
@@ -680,7 +729,7 @@ function _analyze_fixed_expression_constraints!(
                 observation = "Constraint $(reference.index) evaluates to a non-finite floating-point value after fixed-variable substitution.",
                 why_it_matters = "The mathematical expression may be defined, but this numeric representation cannot safely evaluate it; derivative and feasibility checks may fail before a solver can proceed.",
                 evidence = [Evidence("Fixed-value floating-point evaluation";
-                    details = ["evaluated_value" => value,
+                    details = ["evaluated_value" => value, "evaluation_certified" => certified,
                                "set" => constraint.set_value],
                 )],
                 suggested_actions = ["Use a stable equivalent expression or rescale the model.",
@@ -693,39 +742,41 @@ function _analyze_fixed_expression_constraints!(
         isnothing(satisfied) && continue
         is_affine = function_value isa MOI.ScalarAffineFunction
         expression_label = is_affine ? "Affine constraint" : "Constraint"
-        redundant_code = is_affine ? :redundant_fixed_affine_constraint :
-                                    :redundant_fixed_expression_constraint
-        infeasible_code = is_affine ? :infeasible_fixed_affine_constraint :
-                                     :infeasible_fixed_expression_constraint
+        redundant_code = !certified ? :fixed_expression_numerically_satisfied :
+                         is_affine ? :redundant_fixed_affine_constraint :
+                                     :redundant_fixed_expression_constraint
+        infeasible_code = !certified ? :fixed_expression_numerical_violation :
+                          is_affine ? :infeasible_fixed_affine_constraint :
+                                      :infeasible_fixed_expression_constraint
         if satisfied
             push!(report, Finding(
                 redundant_code;
                 severity = SeverityInfo,
                 domain = RepresentationalIssue,
-                basis = MathematicalProof,
+                basis = certified ? MathematicalProof : NumericalObservation,
                 confidence = ConfidenceCertain,
-                observation = "$expression_label $(reference.index) is already satisfied because every variable in its supported expression is fixed.",
-                why_it_matters = "The expression contributes no remaining degree-of-freedom restriction and may be intentional bookkeeping or evidence of unexpected over-fixing.",
+                observation = certified ? "$expression_label $(reference.index) is exactly satisfied after fixed-variable substitution." : "$expression_label $(reference.index) is numerically satisfied after fixed-variable substitution.",
+                why_it_matters = certified ? "Exact substitution shows that this row contributes no further restriction." : "The row is satisfied in this numerical evaluation; its real-valued feasibility has not been certified.",
                 evidence = [Evidence("Substitution of effective fixed variable values";
-                    details = ["evaluated_value" => value,
+                    details = ["evaluated_value" => value, "evaluation_certified" => certified,
                                "set" => constraint.set_value,
                                "fixed_variable_count" => length(variable_references)],
                 )],
                 suggested_actions = ["Confirm that the fixed variables and retained row are intentional.",
-                                     "Remove or annotate the row if it is only redundant bookkeeping."],
+                                     "Require an exact or validated evaluation before removing the row as redundant."],
                 affected = vcat(variable_references, [reference]),
             ))
         else
             push!(report, Finding(
                 infeasible_code;
                 severity = SeverityError,
-                domain = MathematicalIssue,
-                basis = MathematicalProof,
+                domain = certified ? MathematicalIssue : NumericalIssue,
+                basis = certified ? MathematicalProof : NumericalObservation,
                 confidence = ConfidenceCertain,
-                observation = "$expression_label $(reference.index) is violated by the only values allowed for every variable in its supported expression.",
-                why_it_matters = "All variables in this expression are fixed, so the violated constraint proves that the model is infeasible.",
+                observation = certified ? "$expression_label $(reference.index) is violated by the only values allowed for every variable in its supported expression." : "$expression_label $(reference.index) is numerically violated after fixed-variable substitution.",
+                why_it_matters = certified ? "All variables in this expression are fixed, so exact substitution proves that the model is infeasible." : "This numerical violation may reflect either incompatible fixed values or evaluation error; it is not a mathematical infeasibility certificate.",
                 evidence = [Evidence("Substitution of effective fixed variable values";
-                    details = ["evaluated_value" => value,
+                    details = ["evaluated_value" => value, "evaluation_certified" => certified,
                                "set" => constraint.set_value,
                                "fixed_variable_count" => length(variable_references)],
                 )],
@@ -773,11 +824,11 @@ function _analyze_fixed_objective!(
         push!(report, Finding(
             :fixed_objective_domain_violation;
             severity = SeverityError,
-            domain = MathematicalIssue,
-            basis = MathematicalProof,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
             confidence = ConfidenceCertain,
             observation = "The objective has an operator-domain failure after substituting all of its fixed variables.",
-            why_it_matters = "Every objective variable is fixed at this invalid expression input, so no feasible optimization point has a real-valued objective.",
+            why_it_matters = "Numerical objective evaluation failed at the fixed values. This does not certify real-domain infeasibility because intermediate rounding may cause the failure.",
             evidence = [Evidence("Fixed-value objective evaluation failed";
                 details = ["exception" => nameof(typeof(exception)),
                            "message" => sprint(showerror, exception)],
@@ -850,6 +901,7 @@ function _analyze_constant_objective!(
     support.complete && isempty(support.variables) || return
     is_constant, value, exception = _constant_value(objective.function_value)
     is_constant || return
+    certified = _constant_evaluation_certified(objective.function_value, value)
     objective_reference = EntityRef(
         :objective,
         1;
@@ -859,11 +911,11 @@ function _analyze_constant_objective!(
         push!(report, Finding(
             :constant_objective_domain_violation;
             severity = SeverityError,
-            domain = MathematicalIssue,
-            basis = MathematicalProof,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
             confidence = ConfidenceCertain,
-            observation = "The variable-free objective is outside an operator domain.",
-            why_it_matters = "The optimization problem has no real-valued objective, independently of feasibility constraints or solver initialization.",
+            observation = "The variable-free objective encountered an operator-domain failure during numerical evaluation.",
+            why_it_matters = "Intermediate rounding can cause this failure even when the real objective is defined. Verify the expression before concluding that it has no real value.",
             evidence = [Evidence("Constant objective evaluation failed";
                 details = ["exception" => nameof(typeof(exception)),
                            "message" => sprint(showerror, exception)],
@@ -879,7 +931,7 @@ function _analyze_constant_objective!(
             basis = StructuralProof,
             confidence = ConfidenceCertain,
             observation = "The objective has no variable support, but its operator cannot be evaluated by the registered fixed-value evaluator.",
-            why_it_matters = "The objective may be constant, but NLPDiagnostics deliberately does not infer its value without an exact evaluator.",
+            why_it_matters = "The objective may be constant, but NLPDiagnostics deliberately does not infer its value without a registered evaluator.",
             evidence = [Evidence("Constant objective evaluation is unavailable";
                 details = ["exception" => nameof(typeof(exception)),
                            "message" => sprint(showerror, exception)],
@@ -908,12 +960,13 @@ function _analyze_constant_objective!(
             :constant_objective;
             severity = SeverityInfo,
             domain = RepresentationalIssue,
-            basis = MathematicalProof,
+            basis = certified ? MathematicalProof : NumericalObservation,
             confidence = ConfidenceCertain,
-            observation = "The $sense objective is the constant value $value and has no decision-variable dependence.",
+            observation = certified ? "The $sense objective is the constant value $value and has no decision-variable dependence." : "The variable-free $sense objective numerically evaluates to $value; its exact value is uncertified.",
             why_it_matters = "The model is a feasibility problem from the objective's perspective; an unintended constant objective often indicates a missing variable term or parameter substitution error.",
             evidence = [Evidence("Variable-free objective expression";
                 details = ["objective_value" => value,
+                           "value_certified" => certified,
                            "sense" => objective.sense],
             )],
             suggested_actions = ["Confirm that a feasibility objective is intended.",
@@ -2276,34 +2329,34 @@ end
 _fingerprint(value::Real) = "number($(repr(value)))"
 _fingerprint(value::MOI.VariableIndex) = "variable($(value.value))"
 
-function _fingerprint(value::MOI.ScalarAffineFunction)
-    coefficients = Dict{Int,Any}()
-    for term in value.terms
-        coefficients[term.variable.value] =
-            get(coefficients, term.variable.value, zero(term.coefficient)) +
-            term.coefficient
+# Canonical structural comparisons use exact represented coefficients. Unsupported
+# values retain their original syntax rather than undergoing lossy aggregation.
+function _exact_row_terms(terms, key)
+    coefficients = Dict{Any,Rational{BigInt}}()
+    for term in terms
+        coefficient = _exact_real_value(term.coefficient)
+        isnothing(coefficient) && return nothing
+        variable = key(term)
+        coefficients[variable] = get(coefficients, variable, big(0)//big(1)) + coefficient
     end
-    terms = sort!(
-        filter(term -> !iszero(last(term)), collect(coefficients));
-        by = first,
-    )
-    return "affine($(repr(value.constant));$(repr(terms)))"
+    return sort!(filter(term -> !iszero(last(term)), collect(coefficients)); by = first)
+end
+_exact_row_terms(terms) = _exact_row_terms(terms, term -> term.variable.value)
+
+function _fingerprint(value::MOI.ScalarAffineFunction)
+    terms = _exact_row_terms(value.terms)
+    constant = _exact_real_value(value.constant)
+    (isnothing(terms) || isnothing(constant)) && return "raw_affine($(repr(value)))"
+    return "affine($(repr(constant));$(repr(terms)))"
 end
 
 function _fingerprint(value::MOI.ScalarQuadraticFunction)
     affine = _fingerprint(
         MOI.ScalarAffineFunction(value.affine_terms, value.constant),
     )
-    coefficients = Dict{Tuple{Int,Int},Any}()
-    for term in value.quadratic_terms
-        key = minmax(term.variable_1.value, term.variable_2.value)
-        coefficients[key] =
-            get(coefficients, key, zero(term.coefficient)) + term.coefficient
-    end
-    terms = sort!(
-        filter(term -> !iszero(last(term)), collect(coefficients));
-        by = first,
-    )
+    terms = _exact_row_terms(value.quadratic_terms,
+        term -> minmax(term.variable_1.value, term.variable_2.value))
+    isnothing(terms) && return "raw_quadratic($(repr(value)))"
     return "quadratic($affine;$(repr(terms)))"
 end
 
@@ -2328,24 +2381,14 @@ function _affine_equality_normalized_relation(record::ConstraintRecord)
     else
         return nothing
     end
-    coefficients = Dict{Int,Any}()
-    for term in function_value.terms
-        coefficients[term.variable.value] = get(
-            coefficients,
-            term.variable.value,
-            zero(term.coefficient),
-        ) + term.coefficient
-    end
-    terms = sort!(
-        filter(term -> !iszero(last(term)), collect(coefficients));
-        by = first,
-    )
+    terms = _exact_row_terms(function_value.terms)
+    constant = _exact_real_value(function_value.constant)
+    rhs = _exact_real_value(right_hand_side)
+    any(isnothing, (terms, constant, rhs)) && return nothing
     isempty(terms) && return nothing
     scale = first(terms)[2]
     normalized_terms = [(variable, coefficient / scale) for (variable, coefficient) in terms]
-    normalized_value = (right_hand_side - function_value.constant) / scale
-    iszero(normalized_value) && (normalized_value = zero(normalized_value))
-    normalized_value isa AbstractFloat && isnan(normalized_value) && return nothing
+    normalized_value = (rhs - constant) / scale
     return normalized_terms, normalized_value
 end
 
@@ -2367,30 +2410,20 @@ function _affine_inequality_normalized_relation(record::ConstraintRecord)
     function_value isa MOI.ScalarAffineFunction || return nothing
     set_value = record.set_value
     orientation, right_hand_side = if set_value isa MOI.LessThan
-        one(set_value.upper), set_value.upper
+        1, set_value.upper
     elseif set_value isa MOI.GreaterThan
-        -one(set_value.lower), set_value.lower
+        -1, set_value.lower
     else
         return nothing
     end
-    coefficients = Dict{Int,Any}()
-    for term in function_value.terms
-        coefficients[term.variable.value] = get(
-            coefficients,
-            term.variable.value,
-            zero(term.coefficient),
-        ) + orientation * term.coefficient
-    end
-    terms = sort!(
-        filter(term -> !iszero(last(term)), collect(coefficients));
-        by = first,
-    )
+    terms = _exact_row_terms(function_value.terms)
+    constant = _exact_real_value(function_value.constant)
+    rhs = _exact_real_value(right_hand_side)
+    any(isnothing, (terms, constant, rhs)) && return nothing
     isempty(terms) && return nothing
     scale = abs(first(terms)[2])
-    normalized_terms = [(variable, coefficient / scale) for (variable, coefficient) in terms]
-    normalized_bound = orientation * (right_hand_side - function_value.constant) / scale
-    iszero(normalized_bound) && (normalized_bound = zero(normalized_bound))
-    normalized_bound isa AbstractFloat && isnan(normalized_bound) && return nothing
+    normalized_terms = [(variable, orientation * coefficient / scale) for (variable, coefficient) in terms]
+    normalized_bound = orientation * (rhs - constant) / scale
     return normalized_terms, normalized_bound
 end
 
@@ -2731,28 +2764,18 @@ function _single_variable_affine_interval(
     function_value::MOI.ScalarAffineFunction,
     set_value,
 )
-    interval = _scalar_set_interval(set_value)
+    interval = _exact_affine_set_interval(set_value)
     isnothing(interval) && return nothing
-    coefficients = Dict{MOI.VariableIndex,Any}()
-    for term in function_value.terms
-        coefficients[term.variable] = get(
-            coefficients,
-            term.variable,
-            zero(term.coefficient),
-        ) + term.coefficient
-    end
-    nonzero_terms = filter(term -> !iszero(last(term)), collect(coefficients))
-    length(nonzero_terms) == 1 || return nothing
-    variable, coefficient = only(nonzero_terms)
-    iszero(coefficient) && return nothing
+    coefficients = _combined_affine_coefficients(function_value)
+    (isnothing(coefficients) || length(coefficients) != 1) && return nothing
+    isnothing(_exact_real_value(function_value.constant)) && return nothing
+    variable, coefficient = only(coefficients)
     lower, upper = interval
     translated_lower = isnothing(lower) ? nothing :
-                       (lower - function_value.constant) / coefficient
+                       _exact_affine_bound(lower, function_value.constant, coefficient)
     translated_upper = isnothing(upper) ? nothing :
-                       (upper - function_value.constant) / coefficient
-    if coefficient < 0
-        translated_lower, translated_upper = translated_upper, translated_lower
-    end
+                       _exact_affine_bound(upper, function_value.constant, coefficient)
+    coefficient < 0 && ((translated_lower, translated_upper) = (translated_upper, translated_lower))
     return variable, translated_lower, translated_upper
 end
 
@@ -2830,15 +2853,23 @@ function _analyze_affine_implied_variable_bounds!(
 end
 
 function _combined_affine_coefficients(function_value::MOI.ScalarAffineFunction)
-    coefficients = Dict{MOI.VariableIndex,Any}()
-    for term in function_value.terms
-        coefficients[term.variable] = get(
-            coefficients,
-            term.variable,
-            zero(term.coefficient),
-        ) + term.coefficient
+    coefficients = _domain_affine_coefficients(function_value)
+    isnothing(coefficients) && return nothing
+    return Dict{MOI.VariableIndex,Any}(coefficients)
+end
+
+# Missing endpoints mean unbounded. Nonfinite/malformed scalar rows are left to
+# data validation, rather than used as premises for affine propagation proofs.
+function _exact_affine_set_interval(set_value)
+    interval = _scalar_set_interval(set_value)
+    isnothing(interval) && return nothing
+    lower, upper = interval
+    lower == -Inf && (lower = nothing)
+    upper == Inf && (upper = nothing)
+    for endpoint in (lower, upper)
+        !isnothing(endpoint) && isnothing(_exact_real_value(endpoint)) && return nothing
     end
-    return filter(term -> !iszero(last(term)), coefficients)
+    return lower, upper
 end
 
 function _affine_interval_rows(model::ModelSnapshot)
@@ -2846,10 +2877,10 @@ function _affine_interval_rows(model::ModelSnapshot)
     for constraint in model.constraints
         function_value = constraint.function_value
         function_value isa MOI.ScalarAffineFunction || continue
-        interval = _scalar_set_interval(constraint.set_value)
+        interval = _exact_affine_set_interval(constraint.set_value)
         isnothing(interval) && continue
         coefficients = _combined_affine_coefficients(function_value)
-        length(coefficients) >= 2 || continue
+        (isnothing(coefficients) || length(coefficients) < 2) && continue
         push!(rows, (constraint, interval, coefficients))
     end
     return rows
@@ -2860,10 +2891,10 @@ function _affine_interval_target_rows(model::ModelSnapshot)
     for constraint in model.constraints
         function_value = constraint.function_value
         function_value isa MOI.ScalarAffineFunction || continue
-        interval = _scalar_set_interval(constraint.set_value)
+        interval = _exact_affine_set_interval(constraint.set_value)
         isnothing(interval) && continue
         coefficients = _combined_affine_coefficients(function_value)
-        length(coefficients) >= 2 || continue
+        (isnothing(coefficients) || length(coefficients) < 2) && continue
         targets = Tuple{MOI.VariableIndex,Any,Vector{Tuple{MOI.VariableIndex,Any}}}[]
         for (target, coefficient) in coefficients
             others = Tuple{MOI.VariableIndex,Any}[
@@ -2878,43 +2909,24 @@ function _affine_interval_target_rows(model::ModelSnapshot)
     return rows
 end
 
-function _other_affine_interval(
-    coefficients,
-    target::MOI.VariableIndex,
-    constant,
-    domains,
-)
-    lower, upper = constant, constant
-    for (variable, coefficient) in coefficients
-        variable == target && continue
-        domain = get(domains, variable, nothing)
-        isnothing(domain) && return nothing
-        domain_lower = domain isa Tuple ? domain[1] : domain.lower
-        domain_upper = domain isa Tuple ? domain[2] : domain.upper
-        isnothing(domain_lower) && return nothing
-        isnothing(domain_upper) && return nothing
-        isfinite(domain_lower) && isfinite(domain_upper) || return nothing
-        if coefficient > 0
-            lower += coefficient * domain_lower
-            upper += coefficient * domain_upper
-        else
-            lower += coefficient * domain_upper
-            upper += coefficient * domain_lower
-        end
-    end
-    return lower, upper
+function _other_affine_interval(coefficients, target::MOI.VariableIndex, constant, domains)
+    return _other_affine_interval_terms(
+        (term for term in coefficients if first(term) != target), constant, domains)
 end
 
 function _other_affine_interval_terms(terms, constant, domains)
-    lower, upper = constant, constant
+    lower = _exact_real_value(constant)
+    isnothing(lower) && return nothing
+    upper = lower
     for (variable, coefficient) in terms
         domain = get(domains, variable, nothing)
         isnothing(domain) && return nothing
         domain_lower = domain isa Tuple ? domain[1] : domain.lower
         domain_upper = domain isa Tuple ? domain[2] : domain.upper
-        isnothing(domain_lower) && return nothing
-        isnothing(domain_upper) && return nothing
-        isfinite(domain_lower) && isfinite(domain_upper) || return nothing
+        coefficient, domain_lower, domain_upper =
+            _exact_real_value.((coefficient, domain_lower, domain_upper))
+        any(isnothing, (coefficient, domain_lower, domain_upper)) && return nothing
+        domain_lower <= domain_upper || return nothing
         if coefficient > 0
             lower += coefficient * domain_lower
             upper += coefficient * domain_upper
@@ -2936,10 +2948,10 @@ function _analyze_affine_interval_propagation!(
     for constraint in model.constraints
         function_value = constraint.function_value
         function_value isa MOI.ScalarAffineFunction || continue
-        interval = _scalar_set_interval(constraint.set_value)
+        interval = _exact_affine_set_interval(constraint.set_value)
         isnothing(interval) && continue
         coefficients = _combined_affine_coefficients(function_value)
-        length(coefficients) >= 2 || continue
+        (isnothing(coefficients) || length(coefficients) < 2) && continue
         row_lower, row_upper = interval
         for (variable, coefficient) in coefficients
             others = _other_affine_interval(
@@ -2953,11 +2965,11 @@ function _analyze_affine_interval_propagation!(
             implied_lower = nothing
             implied_upper = nothing
             if !isnothing(row_lower)
-                candidate = (row_lower - others_upper) / coefficient
+                candidate = _exact_affine_bound(row_lower, others_upper, coefficient)
                 coefficient > 0 ? (implied_lower = candidate) : (implied_upper = candidate)
             end
             if !isnothing(row_upper)
-                candidate = (row_upper - others_lower) / coefficient
+                candidate = _exact_affine_bound(row_upper, others_lower, coefficient)
                 coefficient > 0 ? (implied_upper = candidate) : (implied_lower = candidate)
             end
             push!(get!(implications, variable, Tuple{Any,Any,ConstraintRecord}[]),
@@ -3057,9 +3069,9 @@ function _analyze_affine_interval_fixed_point!(
                     isnothing(others) && continue
                     other_lower, other_upper = others
                     lower = isnothing(row_lower) ? nothing :
-                            (row_lower - other_upper) / coefficient
+                            _exact_affine_bound(row_lower, other_upper, coefficient)
                     upper = isnothing(row_upper) ? nothing :
-                            (row_upper - other_lower) / coefficient
+                            _exact_affine_bound(row_upper, other_lower, coefficient)
                     coefficient < 0 && ((lower, upper) = (upper, lower))
                     push!(get!(candidates, variable, Tuple{Any,Any,ConstraintRecord}[]),
                           (lower, upper, constraint))
@@ -3072,9 +3084,9 @@ function _analyze_affine_interval_fixed_point!(
                     isnothing(others) && continue
                     other_lower, other_upper = others
                     lower = isnothing(row_lower) ? nothing :
-                            (row_lower - other_upper) / coefficient
+                            _exact_affine_bound(row_lower, other_upper, coefficient)
                     upper = isnothing(row_upper) ? nothing :
-                            (row_upper - other_lower) / coefficient
+                            _exact_affine_bound(row_upper, other_lower, coefficient)
                     coefficient < 0 && ((lower, upper) = (upper, lower))
                     push!(get!(candidates, variable, Tuple{Any,Any,ConstraintRecord}[]),
                           (lower, upper, constraint))
@@ -3269,8 +3281,6 @@ function _analyze_reused_constraint_expressions!(
     return
 end
 
-_canonical_signed_zero(value::Real) = iszero(value) ? 0.0 : value
-
 """Recognize an exact positive diagonal quadratic equality by completing squares.
 
 The recognized form is `sum(cᵢ / 2 * (xᵢ - centerᵢ)^2) = level`, with each
@@ -3278,89 +3288,89 @@ The recognized form is `sum(cᵢ / 2 * (xᵢ - centerᵢ)^2) = level`, with each
 static feasibility and fixed-coordinate conclusions.
 """
 function _positive_diagonal_quadratic_equality(function_value, set_value)
-    function_value isa MOI.ScalarQuadraticFunction || return nothing
     set_value isa MOI.EqualTo || return nothing
-    coefficients = Float64[]
-    variables = MOI.VariableIndex[]
-    for term in function_value.quadratic_terms
-        term.variable_1 == term.variable_2 || return nothing
-        coefficient = Float64(term.coefficient)
-        isfinite(coefficient) && coefficient > 0 || return nothing
-        push!(coefficients, coefficient)
-        push!(variables, term.variable_1)
-    end
-    length(coefficients) >= 2 || return nothing
-    length(unique(variables)) == length(variables) || return nothing
-    affine_coefficients = Dict(variable => 0.0 for variable in variables)
-    for term in function_value.affine_terms
-        haskey(affine_coefficients, term.variable) || return nothing
-        coefficient = Float64(term.coefficient)
-        isfinite(coefficient) || return nothing
-        affine_coefficients[term.variable] += coefficient
-    end
-    centers = [
-        _canonical_signed_zero(-affine_coefficients[variable] / coefficient) for
-        (variable, coefficient) in zip(variables, coefficients)
-    ]
-    set_value_value = Float64(set_value.value)
-    constant_value = Float64(function_value.constant)
-    isfinite(set_value_value) && isfinite(constant_value) || return nothing
-    effective_level = set_value_value - constant_value +
-                      sum(
-        affine_coefficients[variable]^2 / (2 * coefficient) for
-        (variable, coefficient) in zip(variables, coefficients)
-    )
-    axis_squared = [2 * effective_level / coefficient for coefficient in coefficients]
-    return (
-        coefficients = coefficients,
-        variables = variables,
-        centers = centers,
-        effective_level = effective_level,
-        axis_squared = axis_squared,
-        is_shifted = any(!iszero, centers),
-        representation = "ScalarQuadraticFunction",
-    )
+    minimum = _positive_diagonal_quadratic_minimum(function_value)
+    isnothing(minimum) && return nothing
+    return _diagonal_equality_from_minimum(minimum, set_value.value, "ScalarQuadraticFunction")
 end
 
-"""Return the exact center and minimum of a positive diagonal quadratic function."""
+function _diagonal_equality_from_minimum(minimum, rhs, representation)
+    exact_rhs = _exact_real_value(rhs)
+    isnothing(exact_rhs) && return nothing
+    level = exact_rhs - minimum.minimum_value
+    return (coefficients = minimum.coefficients, variables = minimum.variables,
+        centers = minimum.centers, effective_level = level,
+        axis_squared = [minimum.axis_squared_multiplier * level / c for c in minimum.coefficients],
+        is_shifted = minimum.is_shifted, representation = representation)
+end
+
+"""Complete a diagonal quadratic with exact represented coefficients."""
+function _diagonal_minimum(coefficients, variables, affine_coefficients, constant, multiplier)
+    centers = [-multiplier * get(affine_coefficients, v, big(0)//big(1)) / (2c)
+               for (v,c) in zip(variables, coefficients)]
+    minimum_value = constant - sum(c * center^2 / multiplier
+        for (c,center) in zip(coefficients, centers))
+    return (coefficients = coefficients, variables = variables, centers = centers,
+        minimum_value = minimum_value, is_shifted = any(!iszero, centers),
+        axis_squared_multiplier = multiplier)
+end
+
+"""Return the exact center and minimum, respecting MOI's diagonal factor 1/2."""
 function _positive_diagonal_quadratic_minimum(function_value)
     function_value isa MOI.ScalarQuadraticFunction || return nothing
-    coefficients = Float64[]
-    variables = MOI.VariableIndex[]
-    for term in function_value.quadratic_terms
-        term.variable_1 == term.variable_2 || return nothing
-        coefficient = Float64(term.coefficient)
-        isfinite(coefficient) && coefficient > 0 || return nothing
-        push!(coefficients, coefficient)
-        push!(variables, term.variable_1)
-    end
-    length(coefficients) >= 2 || return nothing
-    length(unique(variables)) == length(variables) || return nothing
-    affine_coefficients = Dict(variable => 0.0 for variable in variables)
-    for term in function_value.affine_terms
-        haskey(affine_coefficients, term.variable) || return nothing
-        coefficient = Float64(term.coefficient)
-        isfinite(coefficient) || return nothing
-        affine_coefficients[term.variable] += coefficient
-    end
-    centers = [
-        _canonical_signed_zero(-affine_coefficients[variable] / coefficient) for
-        (variable, coefficient) in zip(variables, coefficients)
-    ]
-    constant_value = Float64(function_value.constant)
-    isfinite(constant_value) || return nothing
-    minimum_value = constant_value - sum(
-        affine_coefficients[variable]^2 / (2 * coefficient) for
-        (variable, coefficient) in zip(variables, coefficients)
-    )
-    return (
-        coefficients = coefficients,
-        variables = variables,
-        centers = centers,
-        minimum_value = minimum_value,
-        is_shifted = any(!iszero, centers),
-        axis_squared_multiplier = 2.0,
-    )
+    quadratic = _exact_row_terms(function_value.quadratic_terms,
+        t -> minmax(t.variable_1.value, t.variable_2.value))
+    affine = _exact_row_terms(function_value.affine_terms)
+    constant = _exact_real_value(function_value.constant)
+    any(isnothing, (quadratic, affine, constant)) && return nothing
+    length(quadratic) >= 2 || return nothing
+    all(term -> first(term)[1] == first(term)[2] && last(term) > 0, quadratic) || return nothing
+    variables = [MOI.VariableIndex(first(term)[1]) for term in quadratic]
+    coefficients = last.(quadratic)
+    linear = Dict(MOI.VariableIndex(v) => c for (v,c) in affine)
+    all(v -> v in variables, keys(linear)) || return nothing
+    return _diagonal_minimum(coefficients, variables, linear, constant, 2)
+end
+
+# A dyadic enclosure of sqrt(n/d), certified using integer square roots alone.
+# Precision controls enclosure width, not proof validity or floating rounding.
+function _exact_sqrt_bounds(value::Rational{BigInt})
+    value >= 0 || throw(DomainError(value, "square-root enclosure requires nonnegative input"))
+    n, d = numerator(value), denominator(value)
+    rn, rd = isqrt(n), isqrt(d)
+    rn^2 == n && rd^2 == d && return (rn//rd, rn//rd)
+    exponent = fld(ndigits(n; base=2) - ndigits(d; base=2), 2)
+    shift = 128 - exponent
+    scaled_n, scaled_d = shift >= 0 ? (n << (2shift), d) : (n, d << (-2shift))
+    root = isqrt(div(scaled_n, scaled_d))
+    unit = shift >= 0 ? big(1)//(big(1) << shift) : (big(1) << (-shift))//big(1)
+    return root * unit, (root + 1) * unit
+end
+
+# Numerical display/scaling only. Avoid Float64 overflow before taking a root.
+function _quadratic_radius_estimate(radius_squared)
+    estimate = sqrt(BigFloat(radius_squared))
+    compact = Float64(estimate)
+    return isfinite(compact) && (iszero(estimate) || !iszero(compact)) ? compact : estimate
+end
+
+function _quadratic_coordinate_bounds(center, radius_squared)
+    center, radius_squared = _exact_real_value.((center, radius_squared))
+    any(isnothing, (center, radius_squared)) && return nothing
+    radius_squared >= 0 || return nothing
+    _, radius_upper = _exact_sqrt_bounds(radius_squared)
+    return _compact_interval_endpoint(center - radius_upper),
+           _compact_interval_endpoint(center + radius_upper)
+end
+
+# Exact exclusion remains decisive even if an outward enclosure is too wide.
+function _quadratic_coordinate_conflicts(domain, center, radius_squared)
+    center, radius_squared = _exact_real_value.((center, radius_squared))
+    any(isnothing, (center, radius_squared)) && return false, false
+    lower, upper = _exact_real_value.((domain.lower, domain.upper))
+    lower_conflict = !isnothing(lower) && lower > center && (lower-center)^2 > radius_squared
+    upper_conflict = !isnothing(upper) && upper < center && (upper-center)^2 > radius_squared
+    return lower_conflict, upper_conflict
 end
 
 function _analyze_diagonal_quadratic_upper_bounds!(
@@ -3372,12 +3382,13 @@ function _analyze_diagonal_quadratic_upper_bounds!(
     for constraint in model.constraints
         set_value = constraint.set_value
         upper = if set_value isa MOI.LessThan
-            Float64(set_value.upper)
+            _exact_real_value(set_value.upper)
         elseif set_value isa MOI.Interval
-            Float64(set_value.upper)
+            _exact_real_value(set_value.upper)
         else
             continue
         end
+        isnothing(upper) && continue
         result = _positive_diagonal_quadratic_minimum(constraint.function_value)
         isnothing(result) && (result = _nonlinear_positive_diagonal_minimum(
             constraint.function_value,
@@ -3396,7 +3407,7 @@ function _analyze_diagonal_quadratic_upper_bounds!(
                 observation = "Constraint $(constraint.index.value) bounds a $geometry expression above by $upper, below its exact minimum $(result.minimum_value).",
                 why_it_matters = "This single constraint is infeasible independently of initialization, numerical tolerances, or the remaining model.",
                 evidence = [Evidence("Completed positive diagonal quadratic minimum";
-                    details = ["upper_bound" => upper,
+                    details = Pair{String,Any}["upper_bound" => upper,
                                "minimum_value" => result.minimum_value,
                                "center" => result.centers,
                                "coefficients" => result.coefficients],
@@ -3423,7 +3434,7 @@ function _analyze_diagonal_quadratic_upper_bounds!(
                         observation = "Constraint $(constraint.index.value) fixes $(_display_name(records[variable])) to $center at its exact positive-diagonal quadratic minimum, conflicting with the declared bound intersection.",
                         why_it_matters = "The exact quadratic minimum and scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
                         evidence = [Evidence("Completed positive diagonal quadratic minimum coordinate";
-                            details = ["implied_value" => center,
+                            details = Pair{String,Any}["implied_value" => center,
                                        "minimum_value" => result.minimum_value,
                                        "declared_lower" => declared.lower,
                                        "declared_upper" => declared.upper],
@@ -3445,7 +3456,7 @@ function _analyze_diagonal_quadratic_upper_bounds!(
                 observation = "Constraint $(constraint.index.value) reaches the exact minimum of a $geometry expression, so every involved variable is mathematically fixed to its inferred center.",
                 why_it_matters = "This may be intentional, but it creates implicit fixed variables and can expose a missing margin or incorrectly scaled upper bound.",
                 evidence = [Evidence("Completed positive diagonal quadratic minimum";
-                    details = ["upper_bound" => upper,
+                    details = Pair{String,Any}["upper_bound" => upper,
                                "minimum_value" => result.minimum_value,
                                "center" => result.centers,
                                "coefficients" => result.coefficients],
@@ -3462,7 +3473,7 @@ function _analyze_diagonal_quadratic_upper_bounds!(
                 observation = "The positive diagonal quadratic upper bound is active only at its minimum, where its constraint gradient vanishes.",
                 why_it_matters = "This is an exact nonregular active inequality: standard constraint qualifications such as MFCQ can fail even though the feasible set is a single intended point.",
                 evidence = [Evidence("Completed positive diagonal quadratic minimum";
-                    details = ["minimum_value" => result.minimum_value,
+                    details = Pair{String,Any}["minimum_value" => result.minimum_value,
                                "center" => result.centers,
                                "variable_count" => length(result.variables)],
                 )],
@@ -3478,14 +3489,10 @@ function _analyze_diagonal_quadratic_upper_bounds!(
                 radius_squared = result.axis_squared_multiplier *
                                  (upper - result.minimum_value) / coefficient
                 radius_squared >= 0 && isfinite(radius_squared) || continue
-                radius = sqrt(radius_squared)
-                lower = center - radius
-                upper_coordinate = center + radius
+                lower, upper_coordinate = _quadratic_coordinate_bounds(center, radius_squared)
                 declared = domains[variable]
-                lower_conflict = !isnothing(declared.lower) &&
-                                 declared.lower > upper_coordinate
-                upper_conflict = !isnothing(declared.upper) &&
-                                 declared.upper < lower
+                lower_conflict, upper_conflict =
+                    _quadratic_coordinate_conflicts(declared, center, radius_squared)
                 if lower_conflict || upper_conflict
                     bound_sources = vcat(
                         lower_conflict ? declared.effective_lower_sources : EntityRef[],
@@ -3497,10 +3504,13 @@ function _analyze_diagonal_quadratic_upper_bounds!(
                         domain = MathematicalIssue,
                         basis = MathematicalProof,
                         confidence = ConfidenceCertain,
-                        observation = "Constraint $(constraint.index.value) implies $(_display_name(records[variable])) lies in [$lower, $upper_coordinate], which conflicts with its declared bound intersection.",
+                        observation = "Constraint $(constraint.index.value) implies $(_display_name(records[variable])) lies in [$lower, $upper_coordinate], with a declared bound excluded by the exact squared-distance limit.",
                         why_it_matters = "The quadratic upper level and the scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
                         evidence = [Evidence("Completed positive diagonal quadratic coordinate interval";
-                            details = ["derived_lower" => lower,
+                            details = Pair{String,Any}["derived_lower" => lower,
+                                       "interval_certified" => true,
+                                       "center" => center,
+                                       "radius_squared" => radius_squared,
                                        "derived_upper" => upper_coordinate,
                                        "declared_lower" => declared.lower,
                                        "declared_upper" => declared.upper,
@@ -3521,13 +3531,15 @@ function _analyze_diagonal_quadratic_upper_bounds!(
                     basis = MathematicalProof,
                     confidence = ConfidenceCertain,
                     observation = "Constraint $(constraint.index.value) proves $(lower) ≤ $(_display_name(records[variable])) ≤ $(upper_coordinate) from its positive diagonal quadratic upper level.",
-                    why_it_matters = "The nonlinear row supplies an exact finite coordinate bound that can improve initialization, scaling interpretation, and downstream presolve without changing the model.",
+                    why_it_matters = "The nonlinear row supplies a certified finite coordinate enclosure that can improve initialization, scaling interpretation, and downstream presolve without changing the model.",
                     evidence = [Evidence("Completed positive diagonal quadratic coordinate interval";
-                        details = ["constraint_upper_bound" => upper,
+                        details = Pair{String,Any}["constraint_upper_bound" => upper,
                                    "minimum_value" => result.minimum_value,
                                    "center" => center,
                                    "coefficient" => coefficient,
                                    "derived_lower" => lower,
+                                   "interval_certified" => true,
+                                   "radius_squared" => radius_squared,
                                    "derived_upper" => upper_coordinate],
                     )],
                     suggested_actions = ["Compare this implied interval with declared variable bounds and initialization values; NLPDiagnostics does not add bounds automatically."],
@@ -3560,9 +3572,9 @@ function _isotropic_quadratic_equality(function_value, set_value)
     )
 end
 
-function _nonlinear_signed_addition_terms(value, sign::Real = 1.0)
+function _nonlinear_signed_addition_terms(value, sign::Int = 1)
     if value isa MOI.ScalarNonlinearFunction && value.head == :+
-        terms = Tuple{Float64,Any}[]
+        terms = Tuple{Int,Any}[]
         for argument in value.args
             append!(terms, _nonlinear_signed_addition_terms(argument, sign))
         end
@@ -3576,7 +3588,7 @@ function _nonlinear_signed_addition_terms(value, sign::Real = 1.0)
             return terms
         end
     end
-    return Tuple{Float64,Any}[(Float64(sign), value)]
+    return Tuple{Int,Any}[(sign, value)]
 end
 
 function _nonlinear_square_variable(value)
@@ -3594,12 +3606,14 @@ end
 
 function _nonlinear_weighted_square(value)
     variable = _nonlinear_square_variable(value)
-    !isnothing(variable) && return 1.0, variable
+    !isnothing(variable) && return big(1)//big(1), variable
     value isa MOI.ScalarNonlinearFunction && value.head == :* || return nothing
     numeric_factors = Real[argument for argument in value.args if argument isa Real]
     nonnumeric_factors = Any[argument for argument in value.args if !(argument isa Real)]
     isempty(numeric_factors) && return nothing
-    coefficient = prod(Float64.(numeric_factors))
+    exact_factors = _exact_real_value.(numeric_factors)
+    any(isnothing, exact_factors) && return nothing
+    coefficient = prod(exact_factors)
     if length(nonnumeric_factors) == 1
         variable = _nonlinear_square_variable(only(nonnumeric_factors))
         !isnothing(variable) && return coefficient, variable
@@ -3612,27 +3626,29 @@ function _nonlinear_weighted_square(value)
 end
 
 function _nonlinear_weighted_variable(value)
-    value isa MOI.VariableIndex && return 1.0, value
+    value isa MOI.VariableIndex && return big(1)//big(1), value
     value isa MOI.ScalarNonlinearFunction && value.head == :* || return nothing
     numeric_factors = Real[argument for argument in value.args if argument isa Real]
     nonnumeric_factors = Any[argument for argument in value.args if !(argument isa Real)]
     length(nonnumeric_factors) == 1 && only(nonnumeric_factors) isa MOI.VariableIndex ||
         return nothing
     isempty(numeric_factors) && return nothing
-    return prod(Float64.(numeric_factors)), only(nonnumeric_factors)
+    exact_factors = _exact_real_value.(numeric_factors)
+    any(isnothing, exact_factors) && return nothing
+    return prod(exact_factors), only(nonnumeric_factors)
 end
 
 """Normalize an exact positive diagonal nonlinear quadratic expression."""
 function _nonlinear_positive_diagonal_components(function_value)
     function_value isa MOI.ScalarNonlinearFunction || return nothing
     variables = MOI.VariableIndex[]
-    coefficients = Float64[]
-    linear_coefficients = Dict{MOI.VariableIndex,Float64}()
-    constant = 0.0
+    coefficients = Rational{BigInt}[]
+    linear_coefficients = Dict{MOI.VariableIndex,Rational{BigInt}}()
+    constant = big(0)//big(1)
     for (sign, term) in _nonlinear_signed_addition_terms(function_value)
         if term isa Real
-            term_value = Float64(term)
-            isfinite(term_value) || return nothing
+            term_value = _exact_real_value(term)
+            isnothing(term_value) && return nothing
             constant += sign * term_value
             continue
         end
@@ -3650,7 +3666,7 @@ function _nonlinear_positive_diagonal_components(function_value)
         coefficient, variable = weighted_variable
         isfinite(coefficient) || return nothing
         linear_coefficients[variable] =
-            get(linear_coefficients, variable, 0.0) + sign * coefficient
+            get(linear_coefficients, variable, big(0)//big(1)) + sign * coefficient
     end
     length(variables) >= 2 || return nothing
     length(unique(variables)) == length(variables) || return nothing
@@ -3668,55 +3684,17 @@ end
 """Recognize an exact positive diagonal nonlinear quadratic equality."""
 function _nonlinear_positive_diagonal_equality(function_value, set_value)
     set_value isa MOI.EqualTo || return nothing
-    components = _nonlinear_positive_diagonal_components(function_value)
-    isnothing(components) && return nothing
-    set_value_value = Float64(set_value.value)
-    isfinite(set_value_value) || return nothing
-    coefficients = components.coefficients
-    variables = components.variables
-    linear_coefficients = components.linear_coefficients
-    centers = [
-        _canonical_signed_zero(-get(linear_coefficients, variable, 0.0) / (2 * coefficient)) for
-        (variable, coefficient) in zip(variables, coefficients)
-    ]
-    effective_level = set_value_value - components.constant + sum(
-        get(linear_coefficients, variable, 0.0)^2 / (4 * coefficient) for
-        (variable, coefficient) in zip(variables, coefficients)
-    )
-    return (
-        coefficients = coefficients,
-        variables = variables,
-        centers = centers,
-        effective_level = effective_level,
-        axis_squared = [effective_level / coefficient for coefficient in coefficients],
-        is_shifted = any(!iszero, centers),
-        representation = "ScalarNonlinearFunction",
-    )
+    minimum = _nonlinear_positive_diagonal_minimum(function_value)
+    isnothing(minimum) && return nothing
+    return _diagonal_equality_from_minimum(minimum, set_value.value, "ScalarNonlinearFunction")
 end
 
-"""Return the exact center and minimum of a positive diagonal nonlinear quadratic."""
+"""Return the exact center and minimum of a recognized nonlinear polynomial."""
 function _nonlinear_positive_diagonal_minimum(function_value)
     components = _nonlinear_positive_diagonal_components(function_value)
     isnothing(components) && return nothing
-    coefficients = components.coefficients
-    variables = components.variables
-    linear_coefficients = components.linear_coefficients
-    centers = [
-        _canonical_signed_zero(-get(linear_coefficients, variable, 0.0) / (2 * coefficient)) for
-        (variable, coefficient) in zip(variables, coefficients)
-    ]
-    minimum_value = components.constant - sum(
-        get(linear_coefficients, variable, 0.0)^2 / (4 * coefficient) for
-        (variable, coefficient) in zip(variables, coefficients)
-    )
-    return (
-        coefficients = coefficients,
-        variables = variables,
-        centers = centers,
-        minimum_value = minimum_value,
-        is_shifted = any(!iszero, centers),
-        axis_squared_multiplier = 1.0,
-    )
+    return _diagonal_minimum(components.coefficients, components.variables,
+        components.linear_coefficients, components.constant, 1)
 end
 
 """Recognize `sum(a*xᵢ^2 + bᵢ*xᵢ) + c == d` with common positive `a` exactly."""
@@ -3777,7 +3755,7 @@ function _analyze_circular_normalization!(
                     why_it_matters = "A positive weighted sum of squares cannot equal a negative level, independently of initialization or solver tolerances.",
                     evidence = [Evidence(
                         "Recognized isotropic quadratic equality";
-                        details = [
+                        details = Pair{String,Any}[
                             "variable_count" => length(variables),
                             "radius_squared" => radius_squared,
                             "is_shifted" => is_shifted,
@@ -3811,7 +3789,7 @@ function _analyze_circular_normalization!(
                         observation = "The zero-radius circular equality fixes $(_display_name(records[variable])) to $center, conflicting with the declared bound intersection.",
                         why_it_matters = "The implied circular center and scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
                         evidence = [Evidence("Zero-radius isotropic quadratic coordinate";
-                            details = ["implied_value" => center,
+                            details = Pair{String,Any}["implied_value" => center,
                                        "declared_lower" => declared.lower,
                                        "declared_upper" => declared.upper,
                                        "representation" => representation],
@@ -3836,7 +3814,7 @@ function _analyze_circular_normalization!(
                     why_it_matters = "This may be intentional, but it creates implicit fixed variables and can expose a missing or incorrectly scaled right-hand side.",
                     evidence = [Evidence(
                         "Recognized zero-radius isotropic quadratic equality";
-                        details = [
+                        details = Pair{String,Any}[
                             "variable_count" => length(variables),
                             "radius_squared" => radius_squared,
                             "is_shifted" => is_shifted,
@@ -3862,7 +3840,7 @@ function _analyze_circular_normalization!(
                     why_it_matters = "This exact implicit fixing is nonregular in standard equality coordinates: local rank, LICQ, and derivative-based solver diagnostics can report a singular row even though the feasible set is a point.",
                     evidence = [Evidence(
                         "Zero-radius completed-square geometry";
-                        details = [
+                        details = Pair{String,Any}[
                             "variable_count" => length(variables),
                             "center" => centers,
                             "representation" => representation,
@@ -3877,12 +3855,12 @@ function _analyze_circular_normalization!(
             )
             continue
         end
-        radius = sqrt(radius_squared)
+        radius = _quadratic_radius_estimate(radius_squared)
         for (variable, center) in zip(variables, centers)
-            lower, upper = center - radius, center + radius
+            lower, upper = _quadratic_coordinate_bounds(center, radius_squared)
             declared = domains[variable]
-            lower_conflict = !isnothing(declared.lower) && declared.lower > upper
-            upper_conflict = !isnothing(declared.upper) && declared.upper < lower
+            lower_conflict, upper_conflict =
+                _quadratic_coordinate_conflicts(declared, center, radius_squared)
             if lower_conflict || upper_conflict
                 bound_sources = vcat(
                     lower_conflict ? declared.effective_lower_sources : EntityRef[],
@@ -3894,13 +3872,15 @@ function _analyze_circular_normalization!(
                     domain = MathematicalIssue,
                     basis = MathematicalProof,
                     confidence = ConfidenceCertain,
-                    observation = "The circular equality implies $(_display_name(records[variable])) lies in [$lower, $upper], conflicting with the declared bound intersection.",
-                    why_it_matters = "The exact circular coordinate interval and scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
+                    observation = "A declared bound for $(_display_name(records[variable])) violates the circular equality's exact squared-distance limit around $center.",
+                    why_it_matters = "The exact circular squared-distance restriction and scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
                     evidence = [Evidence("Circular equality coordinate interval";
-                        details = ["derived_lower" => lower,
-                                   "derived_upper" => upper,
+                        details = Pair{String,Any}["derived_lower" => lower,
+                                   "interval_certified" => true,
                                    "center" => center,
-                                   "radius" => radius,
+                                   "radius_squared" => radius_squared,
+                                   "derived_upper" => upper,
+                                   "radius_estimate" => radius,
                                    "declared_lower" => declared.lower,
                                    "declared_upper" => declared.upper,
                                    "representation" => representation],
@@ -3919,12 +3899,14 @@ function _analyze_circular_normalization!(
                     basis = MathematicalProof,
                     confidence = ConfidenceCertain,
                     observation = "The circular equality proves $(_display_name(records[variable])) lies in [$lower, $upper].",
-                    why_it_matters = "This exact coordinate interval can reveal hidden scaling, unsafe initialization, or safe presolve tightening without modifying the model.",
+                    why_it_matters = "This certified coordinate enclosure can reveal hidden scaling, unsafe initialization, or safe presolve tightening without modifying the model.",
                     evidence = [Evidence("Circular equality coordinate interval";
-                        details = ["derived_lower" => lower,
-                                   "derived_upper" => upper,
+                        details = Pair{String,Any}["derived_lower" => lower,
+                                   "interval_certified" => true,
                                    "center" => center,
-                                   "radius" => radius,
+                                   "radius_squared" => radius_squared,
+                                   "derived_upper" => upper,
+                                   "radius_estimate" => radius,
                                    "representation" => representation],
                     )],
                     suggested_actions = ["Compare this interval with declared bounds and initialization values; NLPDiagnostics does not add bounds automatically."],
@@ -3947,7 +3929,7 @@ function _analyze_circular_normalization!(
                 evidence = [
                     Evidence(
                         "Recognized isotropic quadratic equality";
-                        details = [
+                        details = Pair{String,Any}[
                             "variable_count" => length(variables),
                             "radius" => radius,
                             "radius_squared" => radius_squared,
@@ -4001,7 +3983,7 @@ function _analyze_ellipsoidal_normalization!(
                 observation = "A $geometry equality has negative completed-square level $(result.effective_level) and is infeasible.",
                 why_it_matters = "A positive weighted sum of squares cannot equal a negative level, independently of initialization or solver tolerances.",
                 evidence = [Evidence("Completed positive diagonal quadratic equality";
-                    details = ["variable_count" => length(result.variables),
+                    details = Pair{String,Any}["variable_count" => length(result.variables),
                                "effective_level" => result.effective_level,
                                "coefficients" => result.coefficients,
                                "center" => result.centers,
@@ -4030,7 +4012,7 @@ function _analyze_ellipsoidal_normalization!(
                         observation = "The zero-level diagonal quadratic equality fixes $(_display_name(records[variable])) to $center, conflicting with the declared bound intersection.",
                         why_it_matters = "The implied ellipsoid center and scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
                         evidence = [Evidence("Zero-level positive diagonal quadratic coordinate";
-                            details = ["implied_value" => center,
+                            details = Pair{String,Any}["implied_value" => center,
                                        "declared_lower" => declared.lower,
                                        "declared_upper" => declared.upper,
                                        "representation" => result.representation],
@@ -4052,7 +4034,7 @@ function _analyze_ellipsoidal_normalization!(
                 observation = "A $geometry equality has zero completed-square level, so every involved variable is mathematically fixed to its inferred center.",
                 why_it_matters = "This may be intentional, but it creates implicit fixed variables and can expose a missing or incorrectly scaled right-hand side.",
                 evidence = [Evidence("Completed positive diagonal quadratic equality";
-                    details = ["variable_count" => length(result.variables),
+                    details = Pair{String,Any}["variable_count" => length(result.variables),
                                "effective_level" => result.effective_level,
                                "center" => result.centers,
                                "representation" => result.representation],
@@ -4069,7 +4051,7 @@ function _analyze_ellipsoidal_normalization!(
                 observation = "The zero-level diagonal ellipsoid fixes $(length(result.variables)) coordinate(s), but its equality Jacobian vanishes at the only feasible center.",
                 why_it_matters = "This exact implicit fixing is nonregular in standard equality coordinates and can produce singular local Jacobian or active-set evidence despite a point feasible set.",
                 evidence = [Evidence("Zero-level completed-square geometry";
-                    details = ["variable_count" => length(result.variables),
+                    details = Pair{String,Any}["variable_count" => length(result.variables),
                                "center" => result.centers,
                                "representation" => result.representation],
                 )],
@@ -4081,13 +4063,13 @@ function _analyze_ellipsoidal_normalization!(
             ))
             continue
         end
-        semiaxes = sqrt.(result.axis_squared)
-        for (variable, center, semiaxis) in
-            zip(result.variables, result.centers, semiaxes)
-            lower, upper = center - semiaxis, center + semiaxis
+        semiaxes = _quadratic_radius_estimate.(result.axis_squared)
+        for (variable, center, semiaxis, radius_squared) in
+            zip(result.variables, result.centers, semiaxes, result.axis_squared)
+            lower, upper = _quadratic_coordinate_bounds(center, radius_squared)
             declared = domains[variable]
-            lower_conflict = !isnothing(declared.lower) && declared.lower > upper
-            upper_conflict = !isnothing(declared.upper) && declared.upper < lower
+            lower_conflict, upper_conflict =
+                _quadratic_coordinate_conflicts(declared, center, radius_squared)
             if lower_conflict || upper_conflict
                 bound_sources = vcat(
                     lower_conflict ? declared.effective_lower_sources : EntityRef[],
@@ -4099,13 +4081,15 @@ function _analyze_ellipsoidal_normalization!(
                     domain = MathematicalIssue,
                     basis = MathematicalProof,
                     confidence = ConfidenceCertain,
-                    observation = "The ellipsoidal equality implies $(_display_name(records[variable])) lies in [$lower, $upper], conflicting with the declared bound intersection.",
-                    why_it_matters = "The exact ellipsoidal coordinate interval and scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
+                    observation = "A declared bound for $(_display_name(records[variable])) violates the ellipsoidal equality's exact squared-distance limit around $center.",
+                    why_it_matters = "The exact ellipsoidal squared-distance restriction and scalar variable bounds cannot be satisfied simultaneously, so the model is infeasible.",
                     evidence = [Evidence("Ellipsoidal equality coordinate interval";
-                        details = ["derived_lower" => lower,
-                                   "derived_upper" => upper,
+                        details = Pair{String,Any}["derived_lower" => lower,
+                                   "interval_certified" => true,
                                    "center" => center,
-                                   "semiaxis" => semiaxis,
+                                   "radius_squared" => radius_squared,
+                                   "derived_upper" => upper,
+                                   "semiaxis_estimate" => semiaxis,
                                    "declared_lower" => declared.lower,
                                    "declared_upper" => declared.upper,
                                    "representation" => result.representation],
@@ -4124,12 +4108,14 @@ function _analyze_ellipsoidal_normalization!(
                     basis = MathematicalProof,
                     confidence = ConfidenceCertain,
                     observation = "The ellipsoidal equality proves $(_display_name(records[variable])) lies in [$lower, $upper].",
-                    why_it_matters = "This exact coordinate interval can reveal hidden scaling, unsafe initialization, or safe presolve tightening without modifying the model.",
+                    why_it_matters = "This certified coordinate enclosure can reveal hidden scaling, unsafe initialization, or safe presolve tightening without modifying the model.",
                     evidence = [Evidence("Ellipsoidal equality coordinate interval";
-                        details = ["derived_lower" => lower,
-                                   "derived_upper" => upper,
+                        details = Pair{String,Any}["derived_lower" => lower,
+                                   "interval_certified" => true,
                                    "center" => center,
-                                   "semiaxis" => semiaxis,
+                                   "radius_squared" => radius_squared,
+                                   "derived_upper" => upper,
+                                   "semiaxis_estimate" => semiaxis,
                                    "representation" => result.representation],
                     )],
                     suggested_actions = ["Compare this interval with declared bounds and initialization values; NLPDiagnostics does not add bounds automatically."],
@@ -4149,7 +4135,7 @@ function _analyze_ellipsoidal_normalization!(
             observation = "A $geometry equality has inferred semiaxes $semiaxes, rather than approximately unit coordinate scales.",
             why_it_matters = "The equality is mathematically valid, but unequal or non-unit axes can hide coordinate scaling and change derivative and tolerance semantics.",
             evidence = [Evidence("Completed positive diagonal quadratic equality";
-                details = ["variable_count" => length(result.variables),
+                details = Pair{String,Any}["variable_count" => length(result.variables),
                            "semiaxes" => semiaxes,
                            "axis_squared" => result.axis_squared,
                            "coefficients" => result.coefficients,

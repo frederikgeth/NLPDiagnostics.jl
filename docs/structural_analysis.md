@@ -3,7 +3,7 @@
 NLPDiagnostics distinguishes the declared incidence graph from the structural
 equation graph used for matching.
 
-For scalar affine and quadratic functions, duplicate terms are combined before
+For scalar affine and quadratic functions, finite represented duplicate coefficients are combined exactly before
 incidence is formed. Thus exact cancellations such as `x - x` or cancelling
 quadratic monomials do not create false variable dependencies. Nonlinear
 expression support remains syntactic and deliberately does not attempt general
@@ -11,7 +11,7 @@ symbolic simplification. One safe direct nonlinear identity is recognized:
 `x - x` for the same bare MOI variable is folded to zero. This intentionally
 does not simplify repeated nonlinear subexpressions, which could conceal an
 operator-domain requirement. Likewise, a product containing a literal zero is
-folded only when every remaining operand is a bare variable or constant; this
+folded only when every remaining operand is a bare variable or supported finite constant; this
 does not erase a nested expression such as `0 * log(x)`.
 
 When a direct `x / x` node uses a variable whose declared scalar domain proves
@@ -105,6 +105,17 @@ a separate matching. The static view never assumes they are active.
 
 ## Reused scalar expressions
 
+Canonical polynomial fingerprints and affine row normalization use exact
+rational arithmetic on the represented finite coefficients. This prevents
+cancellation, underflow, or overflow from turning distinct rows into duplicates
+or parallel equations. Normalization abstains on unsupported or nonfinite
+coefficients, constants, or right-hand sides. Polynomial fingerprints preserve
+original syntax when exact aggregation is unavailable. This cannot recover
+coefficient information already rounded away by an upstream model backend.
+Normalized-bound evidence now retains rational strings such as `1//1` instead
+of rounding them back to decimal values; report consumers should preserve this
+representation.
+
 Static analysis canonicalizes supported scalar affine, quadratic, and
 nonlinear expression trees. Exact function-and-set duplicates are reported as
 `duplicate_constraint`. When the same canonical scalar expression appears with
@@ -149,12 +160,24 @@ The latter is a direct mathematical infeasibility proof; neither finding
 changes the model.
 
 The same fixed-value substitution supports scalar quadratic and supported
-scalar nonlinear expressions. Their satisfied/violated cases are reported as
+scalar nonlinear expressions. Certified finite polynomial cases use
 `redundant_fixed_expression_constraint` and
-`infeasible_fixed_expression_constraint`; an invalid fixed nonlinear domain
-is `fixed_expression_domain_violation`. These are distinct from observations
-at an initialization point because the substituted values are mathematically
-required by declared bounds.
+`infeasible_fixed_expression_constraint`. Nonlinear numerical evaluations use
+`fixed_expression_numerically_satisfied` and
+`fixed_expression_numerical_violation`. An operator-domain evaluation failure
+uses `fixed_expression_domain_violation` with numerical evidence: intermediate
+rounding can fail even when the real expression is defined.
+
+Variable-free constraints follow the same distinction. Exact represented
+polynomial constants and direct syntactic zero identities retain
+`redundant_constant_constraint` and `infeasible_constant_constraint` proofs.
+General nonlinear values use `constant_expression_numerically_satisfied` or
+`constant_expression_numerical_violation`. `constant_domain_violation` and
+`constant_objective_domain_violation` describe numerical evaluation failures,
+not real-domain proofs. A `constant_objective` finding includes
+`value_certified`; its basis is numerical when the value comes from a general
+nonlinear evaluation. Verify uncertified expressions before removing rows or
+declaring infeasibility.
 
 Fixed-value evaluation recognizes numerically deliberate primitives including
 `log1p`, `expm1`, `log1pexp`/`log1exp`/`softplus`, `log1mexp`, `logdiffexp`,
@@ -230,6 +253,35 @@ reports a singleton derived interval as
 `affine_interval_propagated_variable_fixed`. If the pass limit is reached
 before stabilization, it reports `affine_interval_propagation_limit_reached`
 and retains pass/convergence metadata. It never modifies the model.
+
+## Certified diagonal quadratic geometry
+
+For recognized positive diagonal quadratic constraints, static analysis
+completes squares using exact rational arithmetic on the represented
+coefficients. MOI quadratic functions retain the diagonal factor of one half;
+recognized nonlinear polynomial trees use their explicit coefficients.
+Nonfinite coefficients, unsupported terms, and unsupported right-hand sides
+cause abstention.
+
+Minimum levels, centers, and squared radii are exact. A negative equality level
+or an upper bound below the minimum proves infeasibility. A zero level fixes
+the participating coordinates to the exact center. These conclusions no longer
+depend on rounded coefficient squares, sums, or divisions.
+
+Coordinate bounds use certified outward square-root enclosures constructed
+with integer arithmetic. Perfect rational square roots remain exact; other
+endpoints enclose the true coordinate extrema and may be slightly wider.
+Conflicts with declared finite bounds are decided by exact squared-distance
+comparisons, independently of the displayed enclosure's width. Evidence includes
+`interval_certified`, the center, and the squared radius. Decimal radius or
+semiaxis estimates are used only for numerical scaling interpretation.
+Evidence containers preserve the individual numeric types, so a floating-point
+declared bound cannot round an exact rational center during serialization.
+
+This certification applies to direct static geometry findings. The separate
+domain-propagation and initialization geometry paths still use numerical
+enclosures and retain their conservative evidence policy. General nonlinear
+range rules and other static identity families are not certified by this change.
 
 ## Matching
 

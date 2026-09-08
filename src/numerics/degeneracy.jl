@@ -205,8 +205,7 @@ function jacobian_linear_operator(
         throw(ArgumentError(
             "native_consistency_tolerance must be finite and nonnegative",
         ))
-    evaluation.point.variables == MOI.get(model, MOI.ListOfVariableIndices()) ||
-        throw(ArgumentError("evaluation-point variable order does not match the model"))
+    _validate_evaluation_variable_order(model, evaluation)
     assembled = jacobian_linear_operator(evaluation)
     assembled.available || return assembled
     prefer_native || return assembled
@@ -2854,10 +2853,16 @@ function jacobian_rank_estimate(
         throw(ArgumentError("jacobian_rank_estimate requires a :dense_svd RankPolicy"))
     rows = length(evaluation.constraint_sources)
     columns = length(evaluation.point.variables)
-    rows * columns <= policy.max_dense_entries || return _unavailable_rank_estimate(
+    # The entry guard limits each dense matrix, including full singular-vector
+    # factors and identity/nullspace outputs. It is not a process-peak budget.
+    largest_matrix_entries = max(
+        widen(rows) * columns,
+        policy.compute_vectors ? max(widen(rows)^2, widen(columns)^2) : 0,
+    )
+    largest_matrix_entries <= policy.max_dense_entries || return _unavailable_rank_estimate(
         evaluation,
         policy,
-        "dense Jacobian would contain $(rows * columns) entries, exceeding guard $(policy.max_dense_entries)",
+        "dense Jacobian or requested singular-vector factor requires $largest_matrix_entries entries, exceeding guard $(policy.max_dense_entries)",
     )
     incomplete_rows = findall(
         method -> method in _JACOBIAN_INCOMPLETE_METHODS,
@@ -2910,8 +2915,8 @@ function jacobian_rank_estimate(
         )
     end
 
-    factorization = svd(scaled; full = true)
-    singular_values = T.(factorization.S)
+    factorization = policy.compute_vectors ? svd(scaled; full = true) : nothing
+    singular_values = isnothing(factorization) ? T.(svdvals(scaled)) : T.(factorization.S)
     threshold = max(
         policy.absolute_tolerance,
         policy.relative_tolerance * maximum(singular_values; init = zero(T)),
@@ -2978,9 +2983,11 @@ function _normal_eigen_rank_estimate(
 ) where {T<:AbstractFloat}
     rows = length(evaluation.constraint_sources)
     columns = length(evaluation.point.variables)
-    rows * columns <= policy.max_dense_entries || return _unavailable_rank_estimate(
+    largest_matrix_entries = max(widen(rows) * columns, widen(columns)^2,
+        policy.compute_vectors ? widen(rows)^2 : 0)
+    largest_matrix_entries <= policy.max_dense_entries || return _unavailable_rank_estimate(
         evaluation, policy,
-        "normal-equations Jacobian would contain $(rows * columns) entries, exceeding guard $(policy.max_dense_entries)",
+        "normal-equations matrix or factor requires $largest_matrix_entries entries, exceeding guard $(policy.max_dense_entries)",
     )
     incomplete_rows = findall(
         method -> method in _JACOBIAN_INCOMPLETE_METHODS,

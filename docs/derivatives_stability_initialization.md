@@ -22,16 +22,18 @@ The first and second derivative checks matter because gradient-based solvers
 may evaluate a valid function value and still receive an infinite,
 discontinuous, or implementation-defined derivative.
 
-Initialization analysis also distinguishes declared scalar-bound violations from
-coordinates that violate an interval mathematically implied by a recognized
-positive diagonal quadratic upper level. The latter finding identifies the
-source quadratic row and coordinate interval; it does not claim that remaining
-coordinates inside their individual intervals make the full quadratic row
-feasible.
-The same implication is available when that quadratic is represented as an
-exact recognized MOI nonlinear expression.
-Positive-level circle and diagonal-ellipsoid equalities supply the analogous
-coordinate intervals during initialization analysis.
+Initialization checks prove violations only against certified bounds. Rounded
+quadratic geometry remains available as numerical evidence, using
+`initialization_numerical_diagonal_quadratic_bound_violation` and
+`initialization_numerical_diagonal_quadratic_equality_bound_violation`.
+These findings identify the source row and estimated coordinate interval; they
+do not certify that the start is infeasible or that a start inside every
+coordinate interval satisfies the full row.
+
+Derivative checks propagate interval certification. At an explicit point, an
+uncertified intermediate range produces `operating_point_derivative_domain_unknown`
+with heuristic evidence, rather than a mathematical proof. Direct certified
+boundary cases such as `sqrt(0)` retain their derivative-domain findings.
 
 `operator_derivative_requirements(Val(operator), arguments, intervals)` is a
 public extension hook for user-defined operators. Value-domain requirements
@@ -47,8 +49,9 @@ possible algebraic simplifications.
 
 ## Floating-point range checks
 
-`analyze_expressions` evaluates conservative primitive ranges against an
-explicit floating-point type. The default is `Float64`.
+`analyze_expressions` compares primitive range estimates against an explicit
+floating-point type. The default is `Float64`. These numerical fingerprints can
+use uncertified estimates and do not certify real-domain validity or invalidity.
 
 Current range fingerprints include:
 
@@ -204,11 +207,12 @@ report = analyze(model; check_initialization = true)
 
 A complete initialization is checked for:
 
-- violations of statically implied variable intervals (declared bounds plus
-  supported affine, geometric, and monotone-row implications);
+- violations of certified variable intervals (declared bounds plus exact affine
+  and supported exact inverse implications);
+- numerical warnings from approximate quadratic-geometry intervals;
 - non-fixed variables exactly on finite implied interval boundaries;
-- value-domain violations;
-- derivative-domain violations;
+- value-domain violations or unknown domains;
+- derivative-domain violations or unknown derivative domains;
 - strict-domain derivative-amplification warnings for stable `log1mexp` and
   `logdiffexp` operators near their boundaries;
 - overflow, underflow, and non-finite values or derivatives; and

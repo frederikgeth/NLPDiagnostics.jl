@@ -37,7 +37,7 @@ function _initialization_bound_findings(
     point::EvaluationPoint,
 )
     findings = Finding[]
-    intervals, interval_origins = _domain_variable_interval_state(model_snapshot)
+    intervals, interval_origins = _domain_variable_interval_state(model_snapshot; certified_only = true)
     records = Dict(record.index => record for record in model_snapshot.variables)
     violations = MOI.VariableIndex[]
     boundary = MOI.VariableIndex[]
@@ -54,7 +54,7 @@ function _initialization_bound_findings(
         end
     end
     for (variable, value) in zip(point.variables, point.values)
-        interval = intervals[variable]
+        interval = _certified_interval(intervals[variable])
         interval.valid || continue
         if value < interval.lower || value > interval.upper
             push!(violations, variable)
@@ -184,7 +184,7 @@ function _initialization_constraint_margin_findings(
     ]
 end
 
-"""Identify starts outside coordinate intervals proved by diagonal quadratic upper levels."""
+"""Report numerical exclusions from estimated diagonal quadratic upper-level intervals."""
 function _initialization_diagonal_quadratic_bound_findings(
     model_snapshot::ModelSnapshot,
     point::EvaluationPoint,
@@ -227,24 +227,24 @@ function _initialization_diagonal_quadratic_bound_findings(
             (variable, value, lower, coordinate_upper) in violated
         ]
         push!(findings, Finding(
-            :initialization_violates_diagonal_quadratic_implied_bound;
+            :initialization_numerical_diagonal_quadratic_bound_violation;
             severity = SeverityError,
-            domain = MathematicalIssue,
-            basis = MathematicalProof,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
             confidence = ConfidenceCertain,
-            observation = "$(length(violated)) initial coordinate value(s) lie outside intervals mathematically implied by quadratic constraint $(constraint.index.value).",
-            why_it_matters = "The supplied start cannot satisfy this quadratic upper level; the coordinate-level intervals identify a direct cause before solver-specific restoration behavior is considered.",
+            observation = "$(length(violated)) initial coordinate value(s) lie outside numerically estimated intervals for quadratic constraint $(constraint.index.value).",
+            why_it_matters = "Rounded quadratic geometry suggests a bound violation. This is numerical evidence, not a certified exclusion of the supplied start.",
             evidence = [_point_evidence(point), Evidence(
                 "Completed positive diagonal quadratic initialization intervals";
                 details = vcat(
-                    ["constraint_upper_bound" => upper,
+                    ["interval_certified" => false, "constraint_upper_bound" => upper,
                      "minimum_value" => result.minimum_value,
                      "center" => result.centers],
                     details,
                 ),
             )],
             suggested_actions = [
-                "Choose starts inside the reported coordinate intervals, then check full constraint feasibility.",
+                "Check the original constraint residual and validate the estimated intervals before changing the start.",
                 "Confirm the quadratic level and coordinate scaling if the current start was intended.",
             ],
             affected = vcat(
@@ -256,7 +256,7 @@ function _initialization_diagonal_quadratic_bound_findings(
     return findings
 end
 
-"""Identify starts outside coordinate intervals proved by diagonal quadratic equalities."""
+"""Report numerical exclusions from estimated diagonal quadratic equality intervals."""
 function _initialization_diagonal_quadratic_equality_bound_findings(
     model_snapshot::ModelSnapshot,
     point::EvaluationPoint,
@@ -292,24 +292,24 @@ function _initialization_diagonal_quadratic_equality_bound_findings(
             (variable, value, lower, upper) in violated
         ]
         push!(findings, Finding(
-            :initialization_violates_diagonal_quadratic_equality_implied_bound;
+            :initialization_numerical_diagonal_quadratic_equality_bound_violation;
             severity = SeverityError,
-            domain = MathematicalIssue,
-            basis = MathematicalProof,
+            domain = NumericalIssue,
+            basis = NumericalObservation,
             confidence = ConfidenceCertain,
-            observation = "$(length(violated)) initial coordinate value(s) lie outside intervals mathematically implied by quadratic equality constraint $(constraint.index.value).",
-            why_it_matters = "The supplied start cannot satisfy this equality; the coordinate-level intervals identify a direct cause before solver-specific restoration behavior is considered.",
+            observation = "$(length(violated)) initial coordinate value(s) lie outside numerically estimated intervals for quadratic equality constraint $(constraint.index.value).",
+            why_it_matters = "Rounded quadratic geometry suggests an equality-bound violation. Verify the original residual or a validated enclosure before excluding the supplied start.",
             evidence = [_point_evidence(point), Evidence(
                 "Completed positive diagonal quadratic equality initialization intervals";
                 details = vcat(
-                    ["center" => result.centers,
+                    ["interval_certified" => false, "center" => result.centers,
                      "semiaxes" => semiaxes,
                      "representation" => result.representation],
                     details,
                 ),
             )],
             suggested_actions = [
-                "Choose starts inside the reported coordinate intervals, then check the full equality residual.",
+                "Check the original equality residual and validate the estimated intervals before changing the start.",
                 "Confirm the quadratic level and coordinate scaling if the current start was intended.",
             ],
             affected = vcat(

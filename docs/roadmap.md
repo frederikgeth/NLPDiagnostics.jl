@@ -1,5 +1,10 @@
 # Development roadmap
 
+The active correctness-first implementation sequence is now maintained in
+[recovery_plan.md](/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/recovery_plan.md).
+The chronology below is retained as the historical implementation and experiment
+ledger; its older gate ordering does not supersede the scientific review fixes.
+
 This roadmap orders work by the evidence needed for later claims. A numerical
 or physical interpretation should not be implemented before the structural and
 evaluation layers can expose its supporting evidence.

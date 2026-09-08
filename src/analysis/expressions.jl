@@ -1533,7 +1533,7 @@ function _scan_expression_numerics!(
         strict_domain_proximity_threshold,
     )
     _composition_fingerprint_risks!(risks, value, source, path)
-    return operator_interval(Val(value.head), intervals, value.args)
+    return _estimated_operator_interval(Val(value.head), intervals, value.args)
 end
 
 function _expression_numerical_risks(
@@ -1587,7 +1587,7 @@ function expression_numerical_risks(
 )
     return _expression_numerical_risks(
         model,
-        _domain_variable_intervals(model);
+        first(_domain_variable_interval_state(model));
         numeric_type = numeric_type,
         strict_domain_proximity_threshold = strict_domain_proximity_threshold,
     )
@@ -1723,6 +1723,7 @@ function _expression_risk_finding(
                 [
                     "path" => _path_string(risk.path),
                     "assessment" => risk.assessment,
+                    "interval_policy" => "numerical_estimates_not_certificates",
                     "support_interval_origins" => support_origins,
                 ],
                 risk.evidence,
@@ -1779,7 +1780,7 @@ function analyze_expressions(
         _domain_variable_interval_state(model)
     else
         Dict(
-            variable => IntervalEnclosure(value, value, true, true) for
+            variable => _declared_interval(value, value) for
             (variable, value) in zip(point.variables, point.values)
         ), nothing
     end

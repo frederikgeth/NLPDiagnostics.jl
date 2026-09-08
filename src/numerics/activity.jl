@@ -134,6 +134,7 @@ function constraint_feasibility_summary(
     feasibility_tolerance::Real = sqrt(eps(T)),
     active_tolerance::Real = sqrt(eps(T)),
 ) where {T<:AbstractFloat}
+    _validate_evaluation_variable_order(model, evaluation)
     feasibility = convert(T, feasibility_tolerance)
     active = convert(T, active_tolerance)
     feasibility >= zero(T) ||

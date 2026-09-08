@@ -4475,7 +4475,7 @@ function _operating_point_domain_issues(
     point::EvaluationPoint,
 )
     intervals = Dict(
-        variable => IntervalEnclosure(value, value, true, true) for
+        variable => _declared_interval(value, value) for
         (variable, value) in zip(point.variables, point.values)
     )
     issues = ExpressionDomainIssue[]
@@ -4512,7 +4512,7 @@ function _operating_point_domain_issues(
         end
     end
     return filter(
-        issue -> issue.assessment == DomainProvenViolation,
+        issue -> issue.assessment == DomainProvenViolation || !issue.enclosure.certified,
         issues,
     )
 end
@@ -4534,16 +4534,17 @@ function _operating_point_domain_findings(
                 push!(affected, _variable_ref(variable_records[variable]))
             end
         end
+        proven = issue.assessment == DomainProvenViolation && issue.enclosure.certified
         push!(
             findings,
             Finding(
-                :operating_point_domain_violation;
-                severity = SeverityError,
+                proven ? :operating_point_domain_violation : :operating_point_domain_unknown;
+                severity = proven ? SeverityError : SeverityWarning,
                 domain = MathematicalIssue,
-                basis = MathematicalProof,
-                confidence = ConfidenceCertain,
-                observation = "Expression $(_path_string(issue.path)) violates $(issue.requirement) at point \"$(evaluation.point.label)\".",
-                why_it_matters = "The real-valued expression is undefined at this exact operating point, independently of solver choice.",
+                basis = proven ? MathematicalProof : HeuristicInterpretation,
+                confidence = proven ? ConfidenceCertain : ConfidenceMedium,
+                observation = proven ? "Expression $(_path_string(issue.path)) violates $(issue.requirement) at point \"$(evaluation.point.label)\"." : "The argument range at this operating point is uncertified; the operator domain is unknown.",
+                why_it_matters = proven ? "The real-valued expression is undefined at this exact operating point, independently of solver choice." : "An approximate intermediate range cannot certify real-domain validity or invalidity; inspect numerical evaluation failures separately.",
                 evidence = [
                     _point_evidence(evaluation.point),
                     Evidence(
@@ -4553,7 +4554,9 @@ function _operating_point_domain_findings(
                             "operator" => issue.operator,
                             "argument" => issue.argument,
                             "required_domain" => issue.requirement,
-                            "argument_value" => issue.enclosure.lower,
+                            "argument_value" => (issue.enclosure.certified && issue.enclosure.lower == issue.enclosure.upper ? issue.enclosure.lower : "unavailable"),
+                            "argument_interval" => "[$(issue.enclosure.lower), $(issue.enclosure.upper)]",
+                            "interval_certified" => issue.enclosure.certified,
                         ],
                     ),
                 ],
@@ -5966,6 +5969,12 @@ function _analyze_numerical_evaluation(
     report.metadata[:evaluation_point_provenance_complete] =
         string(point.provenance.complete)
     report.metadata[:model_fingerprint] = model_fingerprint(model)
+    report.metadata[:evaluation_model_binding] = isnothing(evaluation.model_binding) ?
+        "unverified" : "captured_public_description"
+    report.metadata[:evaluation_model_fingerprint] = isnothing(evaluation.model_binding) ?
+        "unavailable" : evaluation.model_binding.public_fingerprint
+    report.metadata[:evaluation_model_binding_scope] =
+        "public model description only; opaque callback implementation and captured state are not certified"
     report.metadata[:evaluation_point_fingerprint] =
         evaluation_point_fingerprint(point)
     report.metadata[:evaluation_source_fingerprint] =

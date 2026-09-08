@@ -14,7 +14,10 @@ evidence needed to test those hypotheses, and compare controlled interventions.
 It does not assign a single model-health score, silently rewrite a model, or
 claim a physical cause from one local numerical observation.
 
-The package is in a consolidation-and-calibration phase. The current implementation takes a
+The package is in a correctness-recovery and calibration phase. The active
+[recovery plan](/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/recovery_plan.md)
+tracks the scientific contract fixes and the remaining proof boundaries before
+feature expansion. The current implementation takes a
 read-only snapshot through the public MOI model API and reports:
 
 - inconsistent, repeated, and fixing variable bounds;
@@ -121,6 +124,7 @@ point = evaluation_point(model, [0.5]; label = "initialization")
 report = analyze(model; point = point)
 
 # Reuse a captured evaluation without probing the model again:
+evaluation = evaluate_numerical(model, point)
 report = analyze(model; evaluation = evaluation)
 
 # Or inspect complete MOI/JuMP start values:

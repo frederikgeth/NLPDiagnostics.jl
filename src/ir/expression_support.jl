@@ -57,15 +57,35 @@ variable_support(value::Real) = VariableSupport()
 variable_support(value::MOI.VariableIndex) =
     VariableSupport(MOI.VariableIndex[value])
 
+_exact_real_value(value::Union{Integer,Rational}) = isfinite(value) ? Rational{BigInt}(value) : nothing
+_exact_real_value(value::AbstractFloat) = isfinite(value) ? Rational{BigInt}(value) : nothing
+_exact_real_value(value) = nothing
+
+# Repeated coefficients are algebraic sums, not an ordered floating-point
+# computation. Preserve the usual coefficient type only if it loses no bits.
+function _exact_coefficient_sum(left, right)
+    iszero(left) && return right
+    iszero(right) && return left
+    a, b = _exact_real_value(left), _exact_real_value(right)
+    (isnothing(a) || isnothing(b)) && return left + right
+    exact = a + b
+    compact = try
+        convert(promote_type(typeof(left), typeof(right)), exact)
+    catch
+        return exact
+    end
+    return _exact_real_value(compact) == exact ? compact : exact
+end
+
 """Combine duplicate affine terms and remove exact zero coefficients."""
 function _canonical_affine_terms(terms)
     coefficients = Dict{MOI.VariableIndex,Any}()
     for term in terms
-        coefficients[term.variable] = get(
+        coefficients[term.variable] = _exact_coefficient_sum(get(
             coefficients,
             term.variable,
             zero(term.coefficient),
-        ) + term.coefficient
+        ), term.coefficient)
     end
     return sort!(
         filter(term -> !iszero(last(term)), collect(coefficients));
@@ -80,8 +100,8 @@ function _canonical_quadratic_terms(terms)
         key = term.variable_1.value <= term.variable_2.value ?
               (term.variable_1, term.variable_2) :
               (term.variable_2, term.variable_1)
-        coefficients[key] = get(coefficients, key, zero(term.coefficient)) +
-                            term.coefficient
+        coefficients[key] = _exact_coefficient_sum(
+            get(coefficients, key, zero(term.coefficient)), term.coefficient)
     end
     return sort!(
         filter(term -> !iszero(last(term)), collect(coefficients));
@@ -113,7 +133,8 @@ end
 """Whether a product is safely zero without suppressing a nested operator."""
 function _is_direct_zero_product(value::MOI.ScalarNonlinearFunction)
     value.head == :* || return false
-    all(argument -> argument isa Union{Real,MOI.VariableIndex}, value.args) ||
+    all(argument -> argument isa MOI.VariableIndex ||
+                    !isnothing(_exact_real_value(argument)), value.args) ||
         return false
     return any(argument -> argument isa Real && iszero(argument), value.args)
 end

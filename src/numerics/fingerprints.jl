@@ -14,8 +14,12 @@ end
 
 """Return a stable digest of the copied public MOI model description."""
 function model_fingerprint(model::MOI.ModelLike)
-    model_snapshot = snapshot(model)
-    parts = String["NLPDiagnostics:model-fingerprint:v1"]
+    return _model_fingerprint(model, snapshot(model))
+end
+
+function _model_fingerprint(model::MOI.ModelLike, model_snapshot::ModelSnapshot)
+    parts = String["NLPDiagnostics:model-fingerprint:v2"]
+    push!(parts, "objective_sense=$(MOI.get(model, MOI.ObjectiveSense()))")
     push!(parts, "model_name=" * something(model_snapshot.model_name, ""))
     for variable in sort!(copy(model_snapshot.variables); by = item -> item.index.value)
         push!(parts, "variable=$(variable.index.value)|name=$(something(variable.name, ""))")
@@ -49,6 +53,14 @@ function model_fingerprint(model::MOI.ModelLike)
         ], "|"))
     end
     append!(parts, "opaque_source=" .* sort!(copy(model_snapshot.opaque_sources)))
+    block = _optional_nlp_block(model)
+    if !isnothing(block)
+        push!(parts, "nlp_has_objective=$(block.has_objective)")
+        push!(parts, "nlp_row_count=$(length(block.constraint_bounds))")
+        for (row, bounds) in enumerate(block.constraint_bounds)
+            push!(parts, "nlp_bound=$row|$(_fingerprint_show(bounds.lower))|$(_fingerprint_show(bounds.upper))")
+        end
+    end
     return _sha256_fingerprint(parts)
 end
 

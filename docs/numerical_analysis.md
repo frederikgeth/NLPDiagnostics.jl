@@ -803,12 +803,38 @@ confidence intervals.
 ## Cache lifetime
 
 `EvaluationCache` stores a complete evaluation under the model object, cache
-generation, evaluation point, numeric type, and finite-difference step.
+generation, evaluation point, numeric type, and finite-difference step. Point
+identity includes provenance kind, source, completeness, and metadata, even when
+coordinates and labels are identical.
 Repeated requests at the same point do not reinitialize or call an evaluator.
 
 MOI does not provide a generic model mutation counter. After changing model
 functions, sets, callbacks, or operator registrations, call `empty!(cache)`
 before reusing it. This clears entries and advances the cache generation.
+
+Captured evaluations additionally retain the originating model object identity
+and a version-2 fingerprint of the public model description. Model-aware analysis
+rejects a captured evaluation when this description has changed or the supplied
+model is a different object. Re-evaluate after clearing the cache. Manual or
+transformed evaluations built with the historical positional constructors have
+no captured binding; numerical report metadata labels them `unverified` rather
+than claiming their values were obtained from the supplied model.
+
+Fingerprint version 2 includes NLPBlock bounds, row count, objective flag, and
+model objective sense. It does not identify opaque callback implementations or
+their captured mutable state. Numerical reports state this coverage limitation;
+callback changes still require explicit invalidation. Historical v1 and v2
+digests are not interchangeable.
+
+For dense rank analysis, `max_dense_entries` limits the largest admitted dense
+matrix, including requested full singular-vector factors and identity outputs.
+It is not a total-byte or process-peak memory guarantee. With
+`compute_vectors=false`, the SVD path computes singular values only. A rectangular
+input that fits the guard may require a larger explicit guard when full
+nullspaces are requested. The normal-eigen research backend also guards its
+Gram matrices and factors. Reduced-Hessian analysis densifies only selected
+Jacobian rows and avoids the full left singular-vector factor when it is not
+needed.
 
 ## Solver postmortem records
 

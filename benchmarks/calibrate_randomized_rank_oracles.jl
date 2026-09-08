@@ -89,7 +89,8 @@ function _rank_record(
         scaling,
         relative_tolerance,
         compute_vectors = true,
-        max_dense_entries = length(matrix),
+        # This bounded oracle requests both full singular-vector factors.
+        max_dense_entries = max(size(matrix)...)^2,
         provenance = :seeded_rank_oracle,
     )
     sparse_policy = NLPDiagnostics.RankPolicy(

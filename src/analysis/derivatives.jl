@@ -40,6 +40,7 @@ function _interval_intersection(
         upper,
         true,
         left.informative && right.informative,
+        left.certified && right.certified,
     )
 end
 
@@ -48,6 +49,7 @@ function _tie_assessment(
     right::IntervalEnclosure,
 )
     overlap = _interval_intersection(left, right)
+    (left.certified && right.certified) || return DomainPossibleViolation, _certified_interval(overlap)
     overlap.valid || return DomainSafe, overlap
     if left.lower == left.upper == right.lower == right.upper
         return DomainProvenViolation, overlap
@@ -83,6 +85,7 @@ function _endpoint_assessment(
     interval::IntervalEnclosure,
     endpoints,
 )
+    interval.certified || return DomainPossibleViolation
     interval.valid || return DomainSafe
     found = any(endpoint -> interval.lower <= endpoint <= interval.upper, endpoints)
     found || return DomainSafe
@@ -94,6 +97,7 @@ function _endpoint_assessment(
 end
 
 function _joint_zero_assessment(intervals)
+    all(interval -> interval.certified, intervals) || return DomainPossibleViolation
     all(_contains_zero, intervals) || return DomainSafe
     all(interval -> interval.lower == interval.upper == 0.0, intervals) &&
         return DomainProvenViolation
@@ -426,7 +430,7 @@ function _scan_derivative_expression!(
     variable_intervals,
 )
     !(value isa MOI.ScalarNonlinearFunction) &&
-        return _base_interval(value, variable_intervals)
+        return _certified_interval(_base_interval(value, variable_intervals))
     argument_intervals = IntervalEnclosure[]
     for (argument_index, argument) in enumerate(value.args)
         push!(
@@ -445,7 +449,9 @@ function _scan_derivative_expression!(
         value.args,
         argument_intervals,
     )
-        requirement.assessment == DomainSafe && continue
+        certified = requirement.enclosure.certified && all(item -> item.certified, argument_intervals)
+        assessment = certified ? requirement.assessment : DomainPossibleViolation
+        assessment == DomainSafe && continue
         argument_value = requirement.argument == 0 ? value :
                          value.args[requirement.argument]
         support = variable_support(argument_value)
@@ -456,14 +462,14 @@ function _scan_derivative_expression!(
                 value.head,
                 requirement.order,
                 requirement.argument,
-                requirement.assessment,
+                assessment,
                 requirement.requirement,
-                requirement.enclosure,
+                _with_interval_certification(requirement.enclosure, certified),
                 support.variables,
             ),
         )
     end
-    return operator_interval(Val(value.head), argument_intervals, value.args)
+    return _checked_operator_interval(Val(value.head), argument_intervals, value.args)
 end
 
 function _source_derivative_issues!(
@@ -537,7 +543,7 @@ function _derivative_issue_finding(
     point::Union{Nothing,EvaluationPoint} = nothing,
     interval_origins = nothing,
 )
-    proven = issue.assessment == DomainProvenViolation
+    proven = issue.assessment == DomainProvenViolation && issue.enclosure.certified
     at_point = !isnothing(point)
     affected = EntityRef[issue.path.source]
     for variable in issue.variables
@@ -546,7 +552,7 @@ function _derivative_issue_finding(
     end
     order_name = issue.order == 1 ? "first" : "second"
     code = at_point ?
-           :operating_point_derivative_violation :
+           (proven ? :operating_point_derivative_violation : :operating_point_derivative_domain_unknown) :
            proven ?
            :proven_derivative_domain_violation :
            :possible_derivative_domain_violation
@@ -572,6 +578,7 @@ function _derivative_issue_finding(
                 "argument_interval" =>
                     "[$(issue.enclosure.lower), $(issue.enclosure.upper)]",
                 "assessment" => issue.assessment,
+                "interval_certified" => issue.enclosure.certified,
                 "support_interval_origins" => support_origins,
             ],
         ),
@@ -579,17 +586,19 @@ function _derivative_issue_finding(
     isnothing(point) || pushfirst!(evidence, _point_evidence(point))
     return Finding(
         code;
-        severity = proven || at_point ? SeverityError : SeverityWarning,
+        severity = proven ? SeverityError : SeverityWarning,
         domain = MathematicalIssue,
-        basis = proven || at_point ?
+        basis = proven ?
                 MathematicalProof :
                 HeuristicInterpretation,
-        confidence = proven || at_point ?
+        confidence = proven ?
                      ConfidenceCertain :
                      issue.enclosure.informative ?
                      ConfidenceHigh :
                      ConfidenceMedium,
-        observation = "Expression $(_path_string(issue.path)) applies $(issue.operator), whose finite $order_name derivative requires $(issue.requirement), but that requirement is violated or may be violated $context.",
+        observation = issue.enclosure.certified ?
+            "Expression $(_path_string(issue.path)) applies $(issue.operator), whose finite $order_name derivative requires $(issue.requirement), but that requirement is violated or may be violated $context." :
+            "An uncertified intermediate range prevents establishing $(issue.requirement) for the $order_name derivative $context.",
         why_it_matters = "Gradient- and Hessian-based NLP algorithms can receive non-finite, discontinuous, or implementation-dependent derivative values even when the function value itself is valid.",
         evidence = evidence,
         suggested_actions = [
@@ -610,19 +619,16 @@ function analyze_derivatives(
     point::Union{Nothing,EvaluationPoint} = nothing,
 )
     variable_intervals, interval_origins = if isnothing(point)
-        _domain_variable_interval_state(model)
+        _domain_variable_interval_state(model; certified_only = true)
     else
         Dict(
-            variable => IntervalEnclosure(value, value, true, true) for
+            variable => _declared_interval(value, value) for
             (variable, value) in zip(point.variables, point.values)
         ), nothing
     end
     issues = _derivative_issues(model, variable_intervals)
     if !isnothing(point)
-        issues = filter(
-            issue -> issue.assessment == DomainProvenViolation,
-            issues,
-        )
+        issues = filter(issue -> issue.assessment == DomainProvenViolation || !issue.enclosure.certified, issues)
     end
     report = DiagnosticReport()
     records = Dict(record.index => record for record in model.variables)

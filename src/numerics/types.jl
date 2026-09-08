@@ -2015,6 +2015,11 @@ function ProfileCase(
     )
 end
 
+struct _EvaluationModelBinding
+    model_id::UInt
+    public_fingerprint::String
+end
+
 """
 Numerical values and derivatives observed at one exact point.
 
@@ -2034,6 +2039,37 @@ struct NumericalEvaluation{T<:AbstractFloat}
     failures::Vector{EvaluationFailure}
     call_statistics::Dict{Symbol,Tuple{Int,Float64}}
     objective_gradient_method::Symbol
+    model_binding::Union{Nothing,_EvaluationModelBinding}
+end
+
+# Manual and transformed evaluations retain their historical constructors.
+# They have no captured model binding and must be reported as unverified.
+function NumericalEvaluation{T}(
+    point, objective_value, objective_source, objective_gradient,
+    constraint_values, constraint_sources, jacobian_entries,
+    jacobian_row_methods, capabilities, failures, call_statistics,
+    objective_gradient_method,
+) where {T<:AbstractFloat}
+    return NumericalEvaluation{T}(
+        point, objective_value, objective_source, objective_gradient,
+        constraint_values, constraint_sources, jacobian_entries,
+        jacobian_row_methods, capabilities, failures, call_statistics,
+        objective_gradient_method, nothing,
+    )
+end
+
+function NumericalEvaluation(
+    point::EvaluationPoint{T}, objective_value, objective_source, objective_gradient,
+    constraint_values, constraint_sources, jacobian_entries,
+    jacobian_row_methods, capabilities, failures, call_statistics,
+    objective_gradient_method,
+) where {T<:AbstractFloat}
+    return NumericalEvaluation{T}(
+        point, objective_value, objective_source, objective_gradient,
+        constraint_values, constraint_sources, jacobian_entries,
+        jacobian_row_methods, capabilities, failures, call_statistics,
+        objective_gradient_method,
+    )
 end
 
 function NumericalEvaluation{T}(
@@ -2065,6 +2101,15 @@ function _validate_evaluation_variable_order(
         throw(ArgumentError(
             "evaluation-point variable order does not match ListOfVariableIndices",
         ))
+    binding = evaluation.model_binding
+    if !isnothing(binding)
+        binding.model_id == objectid(model) || throw(ArgumentError(
+            "evaluation was captured from a different model; evaluate this model explicitly",
+        ))
+        binding.public_fingerprint == model_fingerprint(model) || throw(ArgumentError(
+            "evaluation is stale: the public model description has changed; clear any evaluation cache and evaluate again",
+        ))
+    end
     return nothing
 end
 

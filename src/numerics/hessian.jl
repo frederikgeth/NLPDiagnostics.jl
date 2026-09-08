@@ -448,15 +448,14 @@ function reduced_hessian_analysis(
     )
     variable_count = length(evaluation.point.variables)
     required_entries =
-        length(selected_rows) * variable_count + variable_count^2
+        widen(length(selected_rows)) * variable_count + widen(variable_count)^2
     required_entries <= max_dense_entries ||
         return _unavailable_reduced_hessian(
             evaluation,
             selected_rows,
             "dense reduced-Hessian work requires $required_entries entries, exceeding guard $max_dense_entries",
         )
-    full_jacobian = _combined_jacobian_matrix(evaluation)
-    active_jacobian = full_jacobian[selected_rows, :]
+    active_jacobian = Matrix(_combined_sparse_jacobian_matrix(evaluation)[selected_rows, :])
     all(isfinite, active_jacobian) ||
         return _unavailable_reduced_hessian(
             evaluation,
@@ -482,7 +481,9 @@ function reduced_hessian_analysis(
         jacobian_threshold = zero(T)
         tangent_basis = Matrix{T}(I, variable_count, variable_count)
     else
-        factorization = svd(active_jacobian; full = true)
+        # Only a wide Jacobian needs full=true to expose all right directions.
+        # A tall Jacobian's full left factor would allocate rows^2 needlessly.
+        factorization = svd(active_jacobian; full = length(selected_rows) < variable_count)
         maximum_singular =
             maximum(factorization.S; init = zero(T))
         jacobian_threshold = jacobian_tolerance * maximum_singular

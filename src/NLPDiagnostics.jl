@@ -934,13 +934,16 @@ function analyze_component_constraint_scales(
     report.metadata[:component_constraint_scale_source_count] = string(sum(
         (length(item.constraints) for item in semantics); init = 0,
     ))
-    declarations_by_source = Dict{Tuple{Symbol,Int,Union{Nothing,Int}},Vector{ComponentConstraintScaleSemantics}}()
+    activities = _entity_row_lookup(item.source for item in summary.activities)
+    declarations_by_source = Dict{_EntityRowKey,Vector{ComponentConstraintScaleSemantics}}()
     for item in semantics, source in item.constraints
-        push!(get!(declarations_by_source, _entity_row_key(source),
-                   ComponentConstraintScaleSemantics[]), item)
+        row = _find_entity_row(activities, source)
+        iszero(row) && continue
+        key = _entity_row_key(activities.sources[row])
+        push!(get!(declarations_by_source, key, ComponentConstraintScaleSemantics[]), item)
     end
     for key in sort!(collect(Base.keys(declarations_by_source));
-                     by = key -> (string(key[1]), key[2], something(key[3], 0)))
+                     by = key -> (string(key[1]), key[2], something(key[3], 0), something(key[4], ""), something(key[5], "")))
         declarations = declarations_by_source[key]
         length(declarations) <= 1 && continue
         reference = first(declarations).nominal_scale
@@ -958,18 +961,18 @@ function analyze_component_constraint_scales(
             why_it_matters = "One scalar set-relative residual cannot receive a single physical tolerance interpretation when component declarations use different nominal scales.",
             evidence = [Evidence("Component constraint-scale declarations";
                 details = ["constraint" => key[2], "declarations" => components])],
-            affected = [EntityRef(key[1], key[2]; subindex = key[3])],
+            affected = [EntityRef(key[1], key[2]; subindex = key[3], function_type = key[4], set_type = key[5])],
             suggested_actions = ["Align nominal residual scales or split the shared constraint into explicitly transformed component rows."],
         ))
     end
-    activities = Dict(_entity_row_key(item.source) => item for item in summary.activities)
     checked = 0
     unavailable = 0
     missing_source = 0
     unavailable_residual = 0
-    reported = Set{Tuple{Symbol,Int,Union{Nothing,Int},Float64}}()
+    reported = Set{Tuple{_EntityRowKey,Float64}}()
     for item in semantics, source in item.constraints
-        activity = get(activities, _entity_row_key(source), nothing)
+        activity_row = _find_entity_row(activities, source)
+        activity = iszero(activity_row) ? nothing : summary.activities[activity_row]
         if isnothing(activity)
             unavailable += 1
             missing_source += 1
@@ -983,12 +986,12 @@ function analyze_component_constraint_scales(
         violation = activity.feasibility_violation
         ratio = violation / item.nominal_scale
         ratio > mismatch_factor || continue
-        report_key = (_entity_row_key(source)..., item.nominal_scale)
+        report_key = (_entity_row_key(activity.source), item.nominal_scale)
         report_key in reported && continue
         push!(reported, report_key)
         declarations = join(sort!(unique([
             "$(candidate.component_type):$(candidate.component_id)" for candidate in
-            get(declarations_by_source, _entity_row_key(source), ComponentConstraintScaleSemantics[]) if
+            get(declarations_by_source, _entity_row_key(activity.source), ComponentConstraintScaleSemantics[]) if
             isapprox(candidate.nominal_scale, item.nominal_scale;
                      rtol = sqrt(eps(Float64)), atol = 0.0)
         ])), ", ")
@@ -1000,7 +1003,7 @@ function analyze_component_constraint_scales(
             evidence = [Evidence("Declared constraint residual scale"; details = [
                 "components" => declarations, "quantity" => item.quantity, "violation" => violation,
                 "nominal_scale" => item.nominal_scale, "ratio" => ratio,
-            ])], affected = [source],
+            ])], affected = [activity.source],
             suggested_actions = ["Check the declared residual scale and compare it with the solver's feasibility tolerance."],
         ))
     end
@@ -1164,13 +1167,16 @@ function analyze_component_constraint_scales(
     report.metadata[:component_coupled_constraint_scale_source_count] = string(sum(
         (length(item.constraints) for item in semantics); init = 0,
     ))
-    declarations_by_source = Dict{Tuple{Symbol,Int,Union{Nothing,Int}},Vector{ComponentConstraintScaleSemantics}}()
+    activities = _entity_row_lookup(item.source for item in summary.activities)
+    declarations_by_source = Dict{_EntityRowKey,Vector{ComponentConstraintScaleSemantics}}()
     for item in semantics, source in item.constraints
-        push!(get!(declarations_by_source, _entity_row_key(source),
-                   ComponentConstraintScaleSemantics[]), item)
+        row = _find_entity_row(activities, source)
+        iszero(row) && continue
+        key = _entity_row_key(activities.sources[row])
+        push!(get!(declarations_by_source, key, ComponentConstraintScaleSemantics[]), item)
     end
     for key in sort!(collect(Base.keys(declarations_by_source));
-                     by = key -> (string(key[1]), key[2], something(key[3], 0)))
+                     by = key -> (string(key[1]), key[2], something(key[3], 0), something(key[4], ""), something(key[5], "")))
         declarations = declarations_by_source[key]
         length(declarations) <= 1 && continue
         reference = first(declarations).nominal_scale
@@ -1187,19 +1193,19 @@ function analyze_component_constraint_scales(
             why_it_matters = "One coupled feasibility margin cannot have a single physical tolerance interpretation when component declarations use different nominal scales.",
             evidence = [Evidence("Component coupled constraint-scale declarations";
                 details = ["constraint" => key[2], "declarations" => labels])],
-            affected = [EntityRef(key[1], key[2]; subindex = key[3])],
+            affected = [EntityRef(key[1], key[2]; subindex = key[3], function_type = key[4], set_type = key[5])],
             suggested_actions = ["Align nominal residual scales or provide explicitly transformed component-level residual conventions."],
         ))
     end
-    activities = Dict(_entity_row_key(item.source) => item for item in summary.activities)
     checked = 0
     unavailable = 0
     missing_source = 0
     unsupported_geometry = 0
     unavailable_residual = 0
-    reported = Set{Tuple{Symbol,Int,Union{Nothing,Int},Float64}}()
+    reported = Set{Tuple{_EntityRowKey,Float64}}()
     for item in semantics, source in item.constraints
-        activity = get(activities, _entity_row_key(source), nothing)
+        activity_row = _find_entity_row(activities, source)
+        activity = iszero(activity_row) ? nothing : summary.activities[activity_row]
         if isnothing(activity)
             unavailable += 1
             missing_source += 1
@@ -1232,12 +1238,12 @@ function analyze_component_constraint_scales(
         checked += 1
         ratio = activity.feasibility_violation / item.nominal_scale
         ratio > mismatch_factor || continue
-        report_key = (_entity_row_key(source)..., item.nominal_scale)
+        report_key = (_entity_row_key(activity.source), item.nominal_scale)
         report_key in reported && continue
         push!(reported, report_key)
         declarations = join(sort!(unique([
             "$(candidate.component_type):$(candidate.component_id)" for candidate in
-            get(declarations_by_source, _entity_row_key(source), ComponentConstraintScaleSemantics[]) if
+            get(declarations_by_source, _entity_row_key(activity.source), ComponentConstraintScaleSemantics[]) if
             isapprox(candidate.nominal_scale, item.nominal_scale;
                      rtol = sqrt(eps(Float64)), atol = 0.0)
         ])), ", ")
@@ -1247,7 +1253,7 @@ function analyze_component_constraint_scales(
             observation = "$(activity.set_kind) constraint $(source.index) violation exceeds its declared nominal residual scale by a factor of $(ratio).",
             why_it_matters = "This uses the generic cone feasibility margin, not a raw vector-function value.",
             evidence = [Evidence("Declared coupled constraint residual scale"; details = ["components" => declarations, "violation" => activity.feasibility_violation, "nominal_scale" => item.nominal_scale, "ratio" => ratio])],
-            affected = [source],
+            affected = [activity.source],
             suggested_actions = ["Check the declared cone residual scale and compare it with solver feasibility tolerances."],
         ))
     end
@@ -4969,6 +4975,7 @@ function analyze_component_ranks(
     relative_tolerance::Real = max(length(evaluation.point.variables), 1) * eps(T),
     max_dense_entries::Integer = 4_000_000,
 ) where {T<:AbstractFloat}
+    _validate_evaluation_variable_order(model, evaluation)
     report = DiagnosticReport()
     report.metadata[:stage] = "component_ranks"
     declared_capability = count(component -> !isnothing(component.expected_rank), components)
@@ -4979,7 +4986,7 @@ function analyze_component_ranks(
     report.metadata[:component_expected_rank_coverage] = isempty(components) ?
         "unavailable" : string(declared_capability / length(components))
     variable_columns = Dict(variable => column for (column, variable) in enumerate(evaluation.point.variables))
-    row_keys = Dict(_entity_row_key(source) => row for (row, source) in enumerate(evaluation.constraint_sources))
+    row_keys = _entity_row_lookup(evaluation.constraint_sources)
     declared = 0
     compared = 0
     unavailable = 0
@@ -4991,7 +4998,7 @@ function analyze_component_ranks(
         (isempty(component.variables) || isempty(component.constraints)) && continue
         declared += 1
         columns = [get(variable_columns, variable, 0) for variable in component.variables]
-        rows = [get(row_keys, _entity_row_key(constraint), 0) for constraint in component.constraints]
+        rows = [_find_entity_row(row_keys, constraint) for constraint in component.constraints]
         if any(iszero, columns) || any(iszero, rows)
             unavailable += 1
             push!(report, Finding(:component_rank_comparison_unavailable;
@@ -5090,6 +5097,9 @@ function analyze_component_rank_persistence(
     expected_modes::AbstractVector{<:ExpectedNullspaceMode} = ExpectedNullspaceMode[],
     expected_mode_residual_tolerance::Real = sqrt(eps(T)),
 ) where {T<:AbstractFloat}
+    for evaluation in evaluations
+        _validate_evaluation_variable_order(model, evaluation)
+    end
     minimum_evaluations >= 2 ||
         throw(ArgumentError("minimum_evaluations must be at least two"))
     tolerance = convert(T, relative_tolerance)
@@ -5135,12 +5145,9 @@ function analyze_component_rank_persistence(
                 variable => column for
                 (column, variable) in enumerate(evaluation.point.variables)
             )
-            row_keys = Dict(
-                _entity_row_key(source) => row for
-                (row, source) in enumerate(evaluation.constraint_sources)
-            )
+            row_keys = _entity_row_lookup(evaluation.constraint_sources)
             columns = [get(variable_columns, variable, 0) for variable in component.variables]
-            rows = [get(row_keys, _entity_row_key(constraint), 0) for constraint in component.constraints]
+            rows = [_find_entity_row(row_keys, constraint) for constraint in component.constraints]
             if any(iszero, columns) || any(iszero, rows)
                 alignment_failure = "component scope is not fully aligned"
                 break
@@ -5653,6 +5660,7 @@ function analyze(
     else
         Float64
     end
+    !isnothing(evaluation) && _validate_evaluation_variable_order(model, evaluation)
     model_snapshot = snapshot(model)
     graph = incidence_graph(model_snapshot)
     report = analyze_static(

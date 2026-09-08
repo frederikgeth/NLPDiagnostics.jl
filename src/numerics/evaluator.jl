@@ -833,9 +833,14 @@ function _evaluation_cache_key(
     return (
         objectid(model),
         generation,
+        eltype(point.values),
         Tuple(variable.value for variable in point.variables),
         Tuple(point.values),
         point.label,
+        point.provenance.kind,
+        point.provenance.source,
+        point.provenance.complete,
+        Tuple(sort!(collect(point.provenance.metadata); by = first)),
         relative_step,
     )
 end
@@ -877,6 +882,7 @@ function evaluate_numerical(
     cache.misses += 1
 
     model_snapshot = snapshot(model)
+    model_binding = _EvaluationModelBinding(objectid(model), _model_fingerprint(model, model_snapshot))
     capabilities = evaluator_capabilities(model)
     failures = EvaluationFailure[]
     objective_value::Union{Nothing,Missing,T} = nothing
@@ -943,6 +949,7 @@ function evaluate_numerical(
         failures,
         call_statistics,
         objective_gradient_method[],
+        model_binding,
     )
     cache.entries[key] = result
     return result

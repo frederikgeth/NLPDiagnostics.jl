@@ -1,0 +1,19 @@
+FALSE PROOF: Affine constraint 1 is violated by the only values allowed for every variable in its supported expression.
+NON-ENCLOSURE: NLPDiagnostics.IntervalEnclosure(1.0e16, 1.0e16, true, true) excludes exact value 10000000000000001
+Test Summary:                                                   | Pass  Total   Time
+Review: floating-point evaluation is not an infeasibility proof |    5      5  18.0s
+STALE EVALUATION: old residual=Union{Missing, Float64}[1.0], fresh residual=Union{Missing, Float64}[1.0e6]; report accepts old values with current model fingerprint
+Test Summary:                                    | Pass  Total   Time
+Review: stale evaluation accepted and relabelled |    4      4  18.3s
+FINGERPRINT COLLISION: disjoint NLPBlock bounds have identical digest
+Test Summary:                               | Pass  Total  Time
+Review: NLPBlock fingerprint ignores bounds |    1      1  0.0s
+DENSE GUARD: 1200 permitted entries, compute_vectors=false, 11887664 allocated bytes after warmup
+Test Summary:                                     | Pass  Total  Time
+Review: dense SVD guard ignores full factor sizes |    2      2  0.3s
+PROVENANCE LOST: requested synthetic point returns cached UserPoint
+Test Summary:                            | Pass  Total  Time
+Review: cache key omits point provenance |    3      3  0.0s
+WRONG COMPONENT ROW: Component review 'first row' declares expected rank 1, while its scoped local Jacobian rank is 0.
+Test Summary:                            | Pass  Total  Time
+Review: component row identity collision |    4      4  0.2s
