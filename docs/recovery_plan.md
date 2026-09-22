@@ -15,7 +15,12 @@ checks package loadability and dependency source identity. Rank summary schema v
 uses per-record, class-specific backend accounting and withdraws the unsupported
 pooled confidence bounds. The bounded numerical-rank policy is now accepted with
 current defaults retained; threshold-sensitive backend disagreements remain visible,
-and the decision authorizes no algebraic-rank or physical-cause claim.
+and the decision authorizes no algebraic-rank or physical-cause claim. The
+real-99-bus KKT boundary is also accepted as a bounded release limitation: the
+strict `1e-5` threshold remains unchanged, two of six paired endpoints pass,
+and four localized `ibr_p_upper` failures stay explicit. This disposition does
+not convert those failures into passes, adopt the observed `1.2e-5` sensitivity
+policy, or establish a physical cause.
 
 Next application work requires separately prepared source-backed incidents and a
 new frozen evaluation. The human study remains prepared, not run. Structural and

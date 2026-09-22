@@ -2216,3 +2216,14 @@ and semantic Jacobian comparison. Physical rank remains unavailable because
 dense rank is disabled, and inequality-multiplier covariance remains outside
 the covariance report. The machine-readable release-gate ledger is
 `docs/calibration_release_gate_summary.json`.
+
+## 2026-09-22: bounded real-99-bus KKT release decision
+
+The project-owner-authorized disposition retains the strict `1e-5` diagnostic
+threshold and accepts the saved six-endpoint result as a bounded release
+limitation. Two paired endpoints pass and four remain strict failures, all
+localized to `ibr_p_upper`; the failures remain visible in every release
+artifact. The observed full acceptance at `1.2e-5` remains sensitivity evidence
+only. This decision closes the review blocker without asserting that the four
+endpoints pass, changing the tolerance, or assigning a physical cause to the
+residual floor.

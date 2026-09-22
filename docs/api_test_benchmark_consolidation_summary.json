@@ -588,9 +588,9 @@
   },
   "benchmark_schema_inventory": {
     "benchmark_scripts_with_schema_version_count": 152,
-    "json_file_count": 162,
+    "json_file_count": 161,
     "json_schema_file_count": 161,
-    "json_without_schema_count": 1,
+    "json_without_schema_count": 0,
     "schema_errors": []
   },
   "bmopf_api_contract": {

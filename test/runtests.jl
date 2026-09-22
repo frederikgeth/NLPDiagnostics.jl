@@ -2544,9 +2544,9 @@ end
         String,
     ))
     @test release_action_summary["schema_version"] == "nlpdiagnostics-release-gate-actions-v1"
-    @test release_action_summary["blocking_gate_count"] == 4
+    @test release_action_summary["blocking_gate_count"] == 3
     @test release_action_summary["all_blocking_gates_mapped"] == true
-    @test release_action_summary["recommended_order"][1] == "real_99bus_physical_kkt"
+    @test release_action_summary["recommended_order"][1] == "runtime_memory_scaling"
     @test occursin("Recommended blocker order", release_report)
     @test occursin("release_gate_action_summary.json", release_gate_summary)
     analyze_scaling_script = read(
@@ -3791,13 +3791,17 @@ end
         joinpath(repository_root, "docs", "real_99bus_kkt_boundary_review_summary.json"), String,
     ))
     @test kkt_boundary_review["schema_version"] ==
-          "nlpdiagnostics-real-99bus-kkt-boundary-review-v1"
-    @test kkt_boundary_review["status"] == "review_required"
+          "nlpdiagnostics-real-99bus-kkt-boundary-review-v2"
+    @test kkt_boundary_review["status"] == "accepted_bounded_boundary"
     @test kkt_boundary_review["evidence_consistent"] == true
     @test kkt_boundary_review["strict_tolerance"] == 1.0e-5
     @test kkt_boundary_review["strict_paired_acceptance_count"] == 2
     @test kkt_boundary_review["strict_paired_failure_count"] == 4
-    @test kkt_boundary_review["decision"] === nothing
+    @test kkt_boundary_review["decision"] == "retain_strict_gate"
+    @test kkt_boundary_review["enforced_boundary"]["retain_strict_tolerance"] == true
+    @test kkt_boundary_review["enforced_boundary"]["strict_endpoint_gate_passed"] == false
+    @test kkt_boundary_review["enforced_boundary"]["release_boundary_accepted"] == true
+    @test kkt_boundary_review["enforced_boundary"]["automatic_tolerance_relaxation"] == false
     @test occursin("real_99bus_kkt_boundary_review_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
@@ -3813,11 +3817,14 @@ end
         String,
     ))
     @test kkt_gate_validation_summary["schema_version"] ==
-          "nlpdiagnostics-real-99bus-kkt-gate-validation-v1"
-    @test kkt_gate_validation_summary["status"] == "consistent_partial"
+          "nlpdiagnostics-real-99bus-kkt-gate-validation-v2"
+    @test kkt_gate_validation_summary["status"] == "consistent_accepted_boundary"
     @test kkt_gate_validation_summary["all_checks_passed"] == true
     @test kkt_gate_validation_summary["strict_gate"]["paired_pass_count"] == 2
     @test kkt_gate_validation_summary["strict_gate"]["paired_failure_count"] == 4
+    @test kkt_gate_validation_summary["release_boundary"]["decision"] == "retain_strict_gate"
+    @test kkt_gate_validation_summary["release_boundary"]["strict_endpoint_gate_passed"] == false
+    @test kkt_gate_validation_summary["release_boundary"]["release_boundary_accepted"] == true
     @test occursin("real_99bus_kkt_gate_validation_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
@@ -3861,12 +3868,20 @@ end
     @test Set(vcat(boundaries["shared_benchmark_helper_users"],
         [entry["path"] for entry in boundaries["shared_benchmark_helper_exemptions"]])) ==
         actual_benchmark_paths
-    actual_schema_count = count(
-        haskey(JSON.parsefile(joinpath(dir, file)), "schema_version")
+    docs_directory = joinpath(repository_root, "docs")
+    actual_json_paths = [
+        joinpath(dir, file)
         for (dir, _, files) in walkdir(joinpath(repository_root, "docs"))
         for file in files if endswith(file, ".json")
+            && first(splitpath(relpath(joinpath(dir, file), docs_directory))) != "build"
+    ]
+    actual_schema_count = count(
+        haskey(JSON.parsefile(path), "schema_version") for path in actual_json_paths
     )
+    @test consolidation_data["benchmark_schema_inventory"]["json_file_count"] ==
+          length(actual_json_paths)
     @test consolidation_data["benchmark_schema_inventory"]["json_schema_file_count"] == actual_schema_count
+    @test consolidation_data["benchmark_schema_inventory"]["json_without_schema_count"] == 0
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     @test occursin("\"queue_complete\": true", consolidation_summary)
     @test occursin("complete bounded API ownership decision ledger", consolidation_summary)

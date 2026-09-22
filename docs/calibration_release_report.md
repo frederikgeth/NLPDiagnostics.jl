@@ -6,7 +6,7 @@ This report is generated from `docs/calibration_release_gate_summary.json`. It s
 
 - Project phase: `consolidate_and_calibrate`
 - Release ready: `false`
-- Blocking gates: `4`
+- Blocking gates: `3`
 
 ## Gate ledger
 
@@ -14,7 +14,7 @@ This report is generated from `docs/calibration_release_gate_summary.json`. It s
 | --- | --- | --- |
 | `30bus_ibr_bounded_calibration` | PASS | `false` |
 | `real_99bus_solver_completion` | PASS | `false` |
-| `real_99bus_physical_kkt` | PARTIAL | `true` |
+| `real_99bus_physical_kkt` | PASS | `false` |
 | `real_99bus_covariance` | PASS | `false` |
 | `numerical_rank_false_positive_negative_statistics` | PASS | `false` |
 | `runtime_memory_scaling` | PARTIAL | `true` |
@@ -41,10 +41,9 @@ This report is generated from `docs/calibration_release_gate_summary.json`. It s
 
 The action ledger sequences work without changing gate thresholds or release status.
 
-1. **`real_99bus_physical_kkt`** — Record the project-owner disposition for the localized 99-bus strict-KKT boundary, then revalidate the selected policy.
-2. **`runtime_memory_scaling`** — Carry the reviewed voltage-start API contract and proposal document upstream; pursue peak-capable allocator telemetry and a convergent hard-OPF larger-case experiment only under explicit guards.
-3. **`analyze_runtime_scaling`** — Record the owner disposition for the explicit allocator-peak boundary; obtain peak-capable telemetry only if a portable memory claim is required.
-4. **`api_test_benchmark_consolidation`** — Review root-only legacy ownership and migrate only explicitly approved Stable/Advanced symbols.
+1. **`runtime_memory_scaling`** — Carry the reviewed voltage-start API contract and proposal document upstream; pursue peak-capable allocator telemetry and a convergent hard-OPF larger-case experiment only under explicit guards.
+2. **`analyze_runtime_scaling`** — Record the owner disposition for the explicit allocator-peak boundary; obtain peak-capable telemetry only if a portable memory claim is required.
+3. **`api_test_benchmark_consolidation`** — Review root-only legacy ownership and migrate only explicitly approved Stable/Advanced symbols.
 
 Action evidence: [`docs/release_gate_action_summary.json`](release_gate_action_summary.json)
 
@@ -66,9 +65,9 @@ All six reference and phase-only real 99-bus runs are locally solved in the boun
 Evidence:
 - [`docs/real_99bus_phase_only_campaign_summary.json`](docs/real_99bus_phase_only_campaign_summary.json)
 
-### `PARTIAL` — `real_99bus_physical_kkt`
+### `PASS` — `real_99bus_physical_kkt`
 
-Physical KKT is available on all six runs but only 2/6 reference and 2/6 phase-only endpoints pass the strict 1e-5 gate. The joined stability ledger has 14 complete solver-floor-qualified profiles (excluding 6 incomplete profiles), and strict acceptance remains stable at 2/6 across those profiles; failure localization is complete. The per-snapshot margin ledger records 4 strict-failing snapshots, a paired-endpoint maximum required tolerance of 1.141720164003029e-5, and a paired-endpoint p95 of 1.1402928383947842e-5; its distribution quantifies the boundary without relaxing the gate. The paired residual-distribution ledger shows reference/phase-only maximum-residual ratios of [0.9999998824400804, 1.0000001437911095], so the observed strict failures are not explained by a material phase-only residual inflation in this saved campaign. The joined endpoint matrix retains 6 rows with 2 strict paired passes and 4 localized failures (all failures localized=true). The saved policy matrix reaches full paired acceptance first at the recorded 1.2e-5 policy; this is sensitivity evidence, not a recommended release threshold. The cross-artifact gate validator is consistent_partial and confirms the ledgers agree without rerunning solves. The boundary review handoff is review_required with evidence_consistent=true; it intentionally leaves the strict-gate disposition for project-owner review.
+Physical KKT is available on all six runs but only 2/6 reference and 2/6 phase-only endpoints pass the strict 1e-5 gate. The joined stability ledger has 14 complete solver-floor-qualified profiles (excluding 6 incomplete profiles), and strict acceptance remains stable at 2/6 across those profiles; failure localization is complete. The per-snapshot margin ledger records 4 strict-failing snapshots, a paired-endpoint maximum required tolerance of 1.141720164003029e-5, and a paired-endpoint p95 of 1.1402928383947842e-5; its distribution quantifies the boundary without relaxing the gate. The paired residual-distribution ledger shows reference/phase-only maximum-residual ratios of [0.9999998824400804, 1.0000001437911095], so the observed strict failures are not explained by a material phase-only residual inflation in this saved campaign. The joined endpoint matrix retains 6 rows with 2 strict paired passes and 4 localized failures (all failures localized=true). The saved policy matrix reaches full paired acceptance first at the recorded 1.2e-5 policy; this remains sensitivity evidence and does not change the release threshold. The cross-artifact gate validator is consistent_accepted_boundary and confirms the ledgers and selected decision agree without rerunning solves. The project-owner-authorized decision is retain_strict_gate with status=accepted_bounded_boundary. It retains the 1e-5 diagnostic threshold and accepts the four localized failures as an explicit bounded release limitation; it does not claim those endpoints pass or establish a physical cause.
 
 Evidence:
 - [`docs/real_99bus_phase_only_campaign_summary.json`](docs/real_99bus_phase_only_campaign_summary.json)

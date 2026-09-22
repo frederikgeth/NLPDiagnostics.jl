@@ -3,8 +3,8 @@
 """Validate consistency of the saved real-99-bus physical-KKT ledgers.
 
 This is a review-boundary validator: it checks that the campaign, endpoint,
-margin, residual-distribution, stability, and tolerance-policy artifacts agree.
-It does not rerun solves or relax the strict 1e-5 gate.
+margin, residual-distribution, stability, tolerance-policy, and approved review
+artifacts agree. It does not rerun solves or relax the strict 1e-5 gate.
 """
 
 include(joinpath(@__DIR__, "common.jl"))
@@ -20,6 +20,7 @@ margin = read_summary("docs/real_99bus_kkt_margin_summary.json")
 distribution = read_summary("docs/real_99bus_kkt_residual_distribution_summary.json")
 policies = read_summary("docs/real_99bus_kkt_tolerance_policy_summary.json")
 endpoint = read_summary("docs/real_99bus_kkt_endpoint_matrix_summary.json")
+boundary = read_summary("docs/real_99bus_kkt_boundary_review_summary.json")
 
 campaign_source = get(campaign, "source", Dict{String,Any}())
 campaign_summary = get(campaign, "summary", Dict{String,Any}())
@@ -55,12 +56,28 @@ checks = Dict{String,Any}(
         maximum(Float64.(ratio_range)) < 1.000001,
     "strict_tolerance_is_1e-5" => strict_tolerance == 1.0e-5,
     "full_acceptance_policy_is_sensitivity_only" => first_full_policy == "1.2e-5",
+    "boundary_evidence_is_consistent" => get(boundary, "evidence_consistent", false),
+    "boundary_retains_strict_gate" =>
+        get(boundary, "status", "") == "accepted_bounded_boundary" &&
+        get(boundary, "decision", nothing) == "retain_strict_gate" &&
+        get(boundary, "strict_tolerance", nothing) == strict_tolerance,
+    "boundary_endpoint_partition_matches" =>
+        get(boundary, "endpoint_count", -1) == length(rows) &&
+        get(boundary, "strict_paired_acceptance_count", -1) == paired_pass_count &&
+        get(boundary, "strict_paired_failure_count", -1) == paired_failure_count,
+    "boundary_preserves_failed_endpoint_semantics" =>
+        !get(get(boundary, "enforced_boundary", Dict{String,Any}()),
+            "strict_endpoint_gate_passed", true) &&
+        get(get(boundary, "enforced_boundary", Dict{String,Any}()),
+            "release_boundary_accepted", false) &&
+        !get(get(boundary, "enforced_boundary", Dict{String,Any}()),
+            "automatic_tolerance_relaxation", true),
 )
 
 status_entries = git_status_entries()
 all_checks_passed = all(values(checks))
 write_json(OUTPUT, Dict{String,Any}(
-    "schema_version" => "nlpdiagnostics-real-99bus-kkt-gate-validation-v1",
+    "schema_version" => "nlpdiagnostics-real-99bus-kkt-gate-validation-v2",
     "source" => Dict{String,Any}(
         "runner" => "benchmarks/validate_real_99bus_kkt_gate.jl",
         "artifacts" => [
@@ -70,6 +87,7 @@ write_json(OUTPUT, Dict{String,Any}(
             "docs/real_99bus_kkt_residual_distribution_summary.json",
             "docs/real_99bus_kkt_tolerance_policy_summary.json",
             "docs/real_99bus_kkt_endpoint_matrix_summary.json",
+            "docs/real_99bus_kkt_boundary_review_summary.json",
         ],
         "strict_tolerance_policy" => "1e-5 remains the release threshold; saved relaxed policies are sensitivity evidence only.",
     ),
@@ -79,7 +97,7 @@ write_json(OUTPUT, Dict{String,Any}(
         "git_revision" => git_revision(),
         "git_worktree_dirty" => !isempty(status_entries),
     ),
-    "status" => all_checks_passed ? "consistent_partial" : "inconsistent",
+    "status" => all_checks_passed ? "consistent_accepted_boundary" : "inconsistent",
     "all_checks_passed" => all_checks_passed,
     "checks" => checks,
     "strict_gate" => Dict{String,Any}(
@@ -101,8 +119,18 @@ write_json(OUTPUT, Dict{String,Any}(
         "first_observed_full_paired_acceptance_policy" => first_full_policy,
         "release_threshold_changed" => false,
     ),
+    "release_boundary" => Dict{String,Any}(
+        "decision" => get(boundary, "decision", nothing),
+        "strict_endpoint_gate_passed" => paired_failure_count == 0,
+        "release_boundary_accepted" => get(
+            get(boundary, "enforced_boundary", Dict{String,Any}()),
+            "release_boundary_accepted",
+            false,
+        ),
+        "strict_tolerance_changed" => false,
+    ),
     "interpretation" => Dict{String,Any}(
-        "claim" => "The saved real-99-bus KKT ledgers are internally consistent: six locally solved paired endpoints, two strict 1e-5 passes, four localized ibr_p_upper failures, and near-unity paired residual ratios.",
+        "claim" => "The saved real-99-bus KKT ledgers and approved bounded release decision are internally consistent: six locally solved paired endpoints, two strict 1e-5 passes, four localized ibr_p_upper failures, and near-unity paired residual ratios.",
         "does_not_establish" => [
             "strict physical-KKT acceptance beyond the six saved endpoints",
             "a relaxed release threshold",

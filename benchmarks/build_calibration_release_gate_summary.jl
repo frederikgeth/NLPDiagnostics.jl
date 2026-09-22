@@ -181,7 +181,17 @@ real_kkt_endpoint_failure_count = get(real_kkt_endpoint_matrix, "strict_paired_f
 real_kkt_endpoint_localized = get(real_kkt_endpoint_matrix, "all_failures_localized", false)
 real_kkt_boundary_review_status = get(real_kkt_boundary_review, "status", "missing")
 real_kkt_boundary_review_consistent = get(real_kkt_boundary_review, "evidence_consistent", false)
+real_kkt_boundary_review_decision = get(real_kkt_boundary_review, "decision", nothing)
 real_kkt_gate_validation_status = get(real_kkt_gate_validation, "status", "missing")
+real_kkt_gate_validation_checks_passed = get(real_kkt_gate_validation, "all_checks_passed", false)
+real_kkt_boundary_accepted =
+    real_kkt_boundary_review_status == "accepted_bounded_boundary" &&
+    real_kkt_boundary_review_decision == "retain_strict_gate" &&
+    real_kkt_boundary_review_consistent &&
+    real_kkt_gate_validation_status == "consistent_accepted_boundary" &&
+    real_kkt_gate_validation_checks_passed &&
+    real_kkt_endpoint_count == 6 && real_kkt_endpoint_pass_count == 2 &&
+    real_kkt_endpoint_failure_count == 4 && real_kkt_endpoint_localized
 analyze_stage_records = get(analyze_runtime_scaling["records"][end], "stage_attribution", Any[])
 analyze_repetitions = get(analyze_runtime_scaling["source"], "repetitions", 1)
 analyze_memory_note = get(
@@ -610,10 +620,10 @@ gates = Dict{String,Any}[
     ),
     gate(
         "real_99bus_physical_kkt",
-        "partial",
-        "Physical KKT is available on all six runs but only 2/6 reference and 2/6 phase-only endpoints pass the strict 1e-5 gate. The joined stability ledger has $real_kkt_qualified_profiles complete solver-floor-qualified profiles (excluding $real_kkt_excluded_profiles incomplete profiles), and strict acceptance remains stable at $(isnothing(real_kkt_stable_count) ? "unavailable" : "$(real_kkt_stable_count)/6") across those profiles; failure localization is complete. The per-snapshot margin ledger records $real_kkt_margin_failed_snapshots strict-failing snapshots, a paired-endpoint maximum required tolerance of $(isnothing(real_kkt_margin_maximum) ? "unavailable" : string(real_kkt_margin_maximum)), and a paired-endpoint p95 of $(isnothing(real_kkt_margin_p95) ? "unavailable" : string(real_kkt_margin_p95)); its distribution quantifies the boundary without relaxing the gate. The paired residual-distribution ledger shows reference/phase-only maximum-residual ratios of $real_kkt_distribution_ratio_text, so the observed strict failures are not explained by a material phase-only residual inflation in this saved campaign. The joined endpoint matrix retains $real_kkt_endpoint_count rows with $real_kkt_endpoint_pass_count strict paired passes and $real_kkt_endpoint_failure_count localized failures (all failures localized=$real_kkt_endpoint_localized). The saved policy matrix reaches full paired acceptance first at the recorded $(isnothing(real_kkt_policy_full_acceptance) ? "unavailable" : real_kkt_policy_full_acceptance) policy; this is sensitivity evidence, not a recommended release threshold. The cross-artifact gate validator is $real_kkt_gate_validation_status and confirms the ledgers agree without rerunning solves. The boundary review handoff is $real_kkt_boundary_review_status with evidence_consistent=$real_kkt_boundary_review_consistent; it intentionally leaves the strict-gate disposition for project-owner review.",
+        real_kkt_boundary_accepted ? "pass" : "partial",
+        "Physical KKT is available on all six runs but only 2/6 reference and 2/6 phase-only endpoints pass the strict 1e-5 gate. The joined stability ledger has $real_kkt_qualified_profiles complete solver-floor-qualified profiles (excluding $real_kkt_excluded_profiles incomplete profiles), and strict acceptance remains stable at $(isnothing(real_kkt_stable_count) ? "unavailable" : "$(real_kkt_stable_count)/6") across those profiles; failure localization is complete. The per-snapshot margin ledger records $real_kkt_margin_failed_snapshots strict-failing snapshots, a paired-endpoint maximum required tolerance of $(isnothing(real_kkt_margin_maximum) ? "unavailable" : string(real_kkt_margin_maximum)), and a paired-endpoint p95 of $(isnothing(real_kkt_margin_p95) ? "unavailable" : string(real_kkt_margin_p95)); its distribution quantifies the boundary without relaxing the gate. The paired residual-distribution ledger shows reference/phase-only maximum-residual ratios of $real_kkt_distribution_ratio_text, so the observed strict failures are not explained by a material phase-only residual inflation in this saved campaign. The joined endpoint matrix retains $real_kkt_endpoint_count rows with $real_kkt_endpoint_pass_count strict paired passes and $real_kkt_endpoint_failure_count localized failures (all failures localized=$real_kkt_endpoint_localized). The saved policy matrix reaches full paired acceptance first at the recorded $(isnothing(real_kkt_policy_full_acceptance) ? "unavailable" : real_kkt_policy_full_acceptance) policy; this remains sensitivity evidence and does not change the release threshold. The cross-artifact gate validator is $real_kkt_gate_validation_status and confirms the ledgers and selected decision agree without rerunning solves. The project-owner-authorized decision is $real_kkt_boundary_review_decision with status=$real_kkt_boundary_review_status. It retains the 1e-5 diagnostic threshold and accepts the four localized failures as an explicit bounded release limitation; it does not claim those endpoints pass or establish a physical cause.",
         ["docs/real_99bus_phase_only_campaign_summary.json", "docs/real_99bus_phase_only_kkt_failure_summary.json", "docs/real_99bus_kkt_stability_summary.json", "docs/real_99bus_kkt_margin_summary.json", "docs/real_99bus_kkt_residual_distribution_summary.json", "docs/real_99bus_kkt_tolerance_policy_summary.json", "docs/real_99bus_kkt_endpoint_matrix_summary.json", "docs/real_99bus_kkt_boundary_review_summary.json", "benchmarks/review_real_99bus_kkt_boundary.jl", "docs/real_99bus_kkt_gate_validation_summary.json", "benchmarks/validate_real_99bus_kkt_gate.jl"],
-        blocking=true,
+        blocking=!real_kkt_boundary_accepted,
     ),
     gate(
         "real_99bus_covariance",

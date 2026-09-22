@@ -2,28 +2,6 @@
   "actions": [
     {
       "blocking": true,
-      "closure_condition": "The strict 1e-5 physical-KKT gate is accepted on the declared paired endpoint corpus, or a reviewed release decision explicitly records why the gate changes.",
-      "dependency": "Preserve solver-point provenance, covariance evidence, and strict tolerance semantics while extending the corpus.",
-      "evidence": [
-        "docs/real_99bus_phase_only_campaign_summary.json",
-        "docs/real_99bus_phase_only_kkt_failure_summary.json",
-        "docs/real_99bus_kkt_stability_summary.json",
-        "docs/real_99bus_kkt_margin_summary.json",
-        "docs/real_99bus_kkt_residual_distribution_summary.json",
-        "docs/real_99bus_kkt_tolerance_policy_summary.json",
-        "docs/real_99bus_kkt_endpoint_matrix_summary.json",
-        "docs/real_99bus_kkt_boundary_review_summary.json",
-        "benchmarks/review_real_99bus_kkt_boundary.jl",
-        "docs/real_99bus_kkt_gate_validation_summary.json",
-        "benchmarks/validate_real_99bus_kkt_gate.jl"
-      ],
-      "id": "real_99bus_physical_kkt",
-      "next_deliverable": "Record the project-owner disposition for the localized 99-bus strict-KKT boundary, then revalidate the selected policy.",
-      "priority": 2,
-      "status": "partial"
-    },
-    {
-      "blocking": true,
       "closure_condition": "Solver-workload scaling and peak-memory measurements are repeatable under explicit size and process guards, or remain explicitly unavailable with a reviewed release boundary.",
       "dependency": "Use isolated child processes and retain resource skips; do not extrapolate synthetic sparse behavior.",
       "evidence": [
@@ -147,10 +125,10 @@
     }
   ],
   "all_blocking_gates_mapped": true,
-  "blocking_gate_count": 4,
+  "blocking_gate_count": 3,
   "environment": {
-    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
-    "git_revision": "aee992aa90b60ea32e210fc73d8afd58840834a9",
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
+    "git_revision": "263f3bcfec45d9e517bbd04e11a09b83f4be4ecf",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -163,7 +141,6 @@
     ]
   },
   "recommended_order": [
-    "real_99bus_physical_kkt",
     "runtime_memory_scaling",
     "analyze_runtime_scaling",
     "api_test_benchmark_consolidation"

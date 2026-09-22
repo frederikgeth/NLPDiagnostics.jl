@@ -5832,6 +5832,17 @@ quality and provenance checks pass, and threshold-sensitive disagreements stay
 classified and visible. The decision authorizes no algebraic-rank or physical-
 cause claim and must be reopened if those conditions change.
 
+## 2026-09-22 bounded real-99-bus KKT decision
+
+The authorized decision selects `retain_strict_gate`. The strict `1e-5`
+diagnostic threshold remains unchanged, with two of six paired endpoints passing
+and four failures remaining explicitly localized to `ibr_p_upper`. The bounded
+release decision accepts that transparent limitation without converting the
+failures into strict acceptances, adopting the observed `1.2e-5` sensitivity
+policy, or claiming a physical cause. The decision must be reopened if endpoint
+evidence becomes incomplete, failure localization changes, or a physical-KKT
+acceptance claim is required.
+
 ## 2026-08-27 real 99-bus strict-KKT boundary handoff
 
 The complete six-endpoint real 99-bus ledger now has a dedicated decision

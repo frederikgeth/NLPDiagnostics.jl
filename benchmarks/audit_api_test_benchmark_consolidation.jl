@@ -115,7 +115,11 @@ unclassified_non_helper_paths = setdiff(
     non_helper_benchmark_paths,
     [entry["path"] for entry in benchmark_helper_exemptions],
 )
-json_files = recursive_files(joinpath(REPO_ROOT, "docs"), ".json")
+docs_root = joinpath(REPO_ROOT, "docs")
+json_files = filter(
+    path -> first(splitpath(relpath(path, docs_root))) != "build",
+    recursive_files(docs_root, ".json"),
+)
 bmopf_contract_path = joinpath(REPO_ROOT, "docs", "bmopf_api_contract_summary.json")
 bmopf_contract = isfile(bmopf_contract_path) ? JSON.parsefile(bmopf_contract_path) :
     Dict{String,Any}("status" => "missing")
