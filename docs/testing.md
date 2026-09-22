@@ -7,7 +7,7 @@ well calibrated.
 
 ## Continuous-integration lanes
 
-The CI workflow has three explicit lanes:
+CI has five explicit lanes:
 
 1. **Package** runs the declared package test target on Julia 1.10 and the
    current stable Julia release. This covers the generic core, JuMP, and the
@@ -15,17 +15,32 @@ The CI workflow has three explicit lanes:
 2. **Solver extensions** creates an isolated environment containing JuMP,
    Ipopt, and MadNLP. It runs the same regression suite with both public
    callback extensions loaded.
-3. **Domain extensions** creates an isolated environment containing JuMP,
-   Ipopt, PowerModels, and the authoritative BMOPFTools Git repository. It
-   exercises the optional physical-metadata and staged OPF adapters.
+3. **Full extensions** uses Julia 1.12.6 and the checked-in full-extension
+   Project/Manifest, with BMOPFTools pinned to commit
+   `b5e050dff579c9a0c3e69c1e1ad11d0b748f2482` and PowerIO 0.11.1. A preflight
+   rejects unloadable packages or a changed dependency checkout before the suite.
+4. **Power workflow** uses the pinned pilot environment and
+   `test/power_workflow_runtests.jl`. It rebuilds checked-in inputs without saved
+   `work/` artifacts and exercises version 2 reports and switching provenance.
+5. **Documentation** resolves the isolated `docs/Project.toml` environment on
+   Julia 1.10 and the current stable release. It executes every Documenter
+   `@example` block, verifies the generated finding-code inventory, checks
+   cross-references and selected API docstrings, and renders the site. The
+   current-Julia job deploys main/tag builds to GitHub Pages. This lane includes
+   a checked-in three-bus PowerModels ACP case and Ipopt returned-point analysis.
+   Tutorial assertions are regression checks for the teaching examples; they do
+   not replace the package or scientific-calibration suites.
 
 The lanes are intentionally separate. A missing optional dependency must not
 silently make its extension appear tested.
 
 ## Local full-extension test
 
-The benchmark bootstrap creates a local environment containing the optional
-solver and domain dependencies:
+The reproducible full-extension lane is described in
+[`benchmarks/environments/full_extensions/README.md`](../benchmarks/environments/full_extensions/README.md).
+It pins dependencies and the BMOPFTools revision. Use that lane for regression
+comparisons. The benchmark bootstrap separately creates a development environment
+containing caller-selected optional solver and domain dependencies:
 
 ```sh
 julia --startup-file=no benchmarks/bootstrap_benchmark_environment.jl
@@ -35,6 +50,18 @@ julia --startup-file=no --project=work/benchmark-environment test/runtests.jl
 The bootstrap modifies only the explicit benchmark environment. It develops
 the selected local NLPDiagnostics and BMOPFTools checkouts and should not be
 used as the minimal package environment.
+
+The September review found the development manifest still selected PowerIO 0.7.3
+for a BMOPFTools checkout requiring 0.11. The local manifest was repaired with
+0.11.1; the pinned lane prevents that combination from recurring. The preflight
+now treats a found-but-unloadable required dependency as a failure, retaining the
+exception text. A previous passing assertion count never substitutes for the
+current environment's completed test result.
+
+Rank-statistics regressions use checked-in record-level observations, explicit
+truth classes, backend-specific denominators, unavailable outcomes, and injected
+errors in each corpus. Selected/related cases support descriptive counts only;
+the former pooled zero-event confidence bounds have been removed.
 
 ## Calibration tests
 

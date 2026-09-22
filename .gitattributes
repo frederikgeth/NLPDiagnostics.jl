@@ -1,0 +1,2 @@
+# Preserve third-party license files byte-for-byte without whitespace cleanup.
+test/fixtures/*.LICENSE -whitespace
