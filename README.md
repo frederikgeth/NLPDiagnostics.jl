@@ -51,7 +51,8 @@ is organized for PhD candidates and researchers:
 - a repeatable diagnostic research workflow;
 - tutorials on coefficient and unit inspection, bounds versus named rows,
   structural and numerical Hessian density, contradictions, initialization,
-  objective consistency and applicable primal-dual gaps, rank, controlled
+  objective consistency and applicable primal-dual gaps, rank, dependent-row
+  localization, seeded convexity counterexamples, controlled
   scaling and solver traces, OPF hypotheses, formulation comparison, and a
   complete three-bus ACP solve;
 - a symptom-based diagnostic playbook and reproducible experiment template;

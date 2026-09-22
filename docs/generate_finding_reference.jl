@@ -17,6 +17,7 @@ const CURATED = [
     ("unmatched_structural_variables", "structural pattern", "Some eligible free variables are unmatched in a maximum equality matching.", "Inspect the corresponding Dulmage–Mendelsohn region."),
     ("dense_sparse_qr_rank_agreement", "one point and policy", "Guarded dense and sparse rank backends agree under the recorded policy.", "Retain the tolerance and scaling; agreement does not make rank global."),
     ("numerical_irreducible_dependent_rows", "one point and policy", "Every one-row deletion from the localized Jacobian row set is independent under a fixed threshold.", "Inspect source equations and repeat at another justified point and tolerance."),
+    ("convexity_counterexample_observed", "seeded scalar-function campaign", "A sampled pair violates the stated convexity or concavity Jensen inequality beyond tolerance.", "Replay the stored points and values independently; inspect the expression and domain."),
     ("solver_result_point_unavailable", "solver result", "The requested result does not expose a complete real primal vector.", "Inspect result count and primal status; do not fill coordinates silently."),
 ]
 
@@ -40,7 +41,7 @@ function area(path::String)
     )) && return "Expression domains and derivatives"
     any(endswith(path, suffix) for suffix in (
         "analysis/numerical.jl", "analysis/activity.jl", "analysis/degeneracy.jl",
-        "analysis/crosscheck.jl", "analysis/scaling.jl", "numerics/degeneracy.jl",
+        "analysis/crosscheck.jl", "analysis/scaling.jl", "analysis/convexity_campaign.jl", "numerics/degeneracy.jl",
         "numerics/activity.jl", "numerics/hessian.jl", "numerics/duals.jl",
         "numerics/objective_consistency.jl", "numerics/dependent_rows.jl",
     )) && return "Numerical geometry"

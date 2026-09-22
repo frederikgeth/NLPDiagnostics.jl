@@ -4,6 +4,7 @@ module NLPDiagnostics
 
 import MathOptInterface as MOI
 using LinearAlgebra
+using Random
 using SparseArrays
 using SHA
 
@@ -36,6 +37,7 @@ include("analysis/scaling.jl")
 include("analysis/crosscheck.jl")
 include("analysis/activity.jl")
 include("analysis/degeneracy.jl")
+include("analysis/convexity_campaign.jl")
 include("analysis/profiling.jl")
 include("analysis/postmortem.jl")
 include("analysis/initialization.jl")

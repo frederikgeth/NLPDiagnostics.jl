@@ -16,6 +16,10 @@ not enlarge a local result into a global one.
 **Controlled intervention** — An explicit change to one proposed mechanism,
 compared with a declared baseline while other relevant inputs are held fixed.
 
+**Convexity counterexample** — Two points and their convex combination whose
+scalar function values violate the claimed Jensen inequality beyond a recorded
+numerical tolerance. No observed violation in finite samples is not a proof.
+
 **Coordinate convention** — The ordering, representation, and scaling used for
 model variables or residuals. Physical and solver-scaled coordinates are not
 interchangeable.

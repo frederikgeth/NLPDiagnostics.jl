@@ -21,6 +21,7 @@ end
 
 include("rank_calibration.jl")
 include("dependent_rows.jl")
+include("convexity_campaign.jl")
 include("rank_statistics_contracts.jl")
 include("benchmark_environment_contracts.jl")
 include("power_repair_physics.jl")
@@ -108,7 +109,7 @@ end
         name -> name != :Advanced,
         names(NLPDiagnostics.Advanced; all=false, imported=false),
     )
-    @test length(advanced_exports) == 18
+    @test length(advanced_exports) == 23
     @test all(isdefined(NLPDiagnostics, name) for name in advanced_exports)
     @test all(isdefined(NLPDiagnostics.Advanced, name) for name in advanced_exports)
 end
@@ -185,8 +186,8 @@ end
     ))
     @test advanced_surface_summary["schema_version"] == "nlpdiagnostics-advanced-api-surface-v1"
     @test advanced_surface_summary["status"] == "pass"
-    @test advanced_surface_summary["declared_export_count"] == 18
-    @test advanced_surface_summary["runtime_export_count"] == 18
+    @test advanced_surface_summary["declared_export_count"] == 23
+    @test advanced_surface_summary["runtime_export_count"] == 23
     @test advanced_surface_summary["surface_matches"] == true
     @test advanced_surface_summary["smoke"]["status"] == "pass"
 

@@ -230,7 +230,8 @@ evidence_records = evidence_data.(finding.evidence)
 ## Research-facing APIs
 
 `NLPDiagnostics.Advanced` contains a small explicit facade for profiling,
-rank-policy, dependent-row localization, and unavailable-capability experiments. It carries no Stable-tier
+rank-policy, dependent-row localization, seeded convexity counterexamples,
+and unavailable-capability experiments. It carries no Stable-tier
 compatibility guarantee. Solver traces, detailed scaling maps, physical KKT
 contracts, power-system adapters, and the broader historical root namespace
 remain research-facing while their ownership and contracts are reviewed.
@@ -240,4 +241,7 @@ NLPDiagnostics.jacobian_rank_estimate
 NLPDiagnostics.dependent_row_localization
 NLPDiagnostics.dependent_row_localization_data
 NLPDiagnostics.dependent_row_localization_report
+NLPDiagnostics.convexity_counterexample_campaign
+NLPDiagnostics.convexity_counterexample_campaign_data
+NLPDiagnostics.convexity_counterexample_campaign_report
 ```

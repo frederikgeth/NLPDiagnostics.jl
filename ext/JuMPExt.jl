@@ -15,6 +15,9 @@ NLPDiagnostics.model_summary(model::JuMP.Model; kwargs...) =
 NLPDiagnostics.hessian_density_summary(model::JuMP.Model, point; kwargs...) =
     NLPDiagnostics.hessian_density_summary(JuMP.backend(model), point; kwargs...)
 
+NLPDiagnostics.convexity_counterexample_campaign(model::JuMP.Model; kwargs...) =
+    NLPDiagnostics.convexity_counterexample_campaign(JuMP.backend(model); kwargs...)
+
 NLPDiagnostics.objective_consistency_summary(model::JuMP.Model; kwargs...) =
     NLPDiagnostics.objective_consistency_summary(JuMP.backend(model); kwargs...)
 

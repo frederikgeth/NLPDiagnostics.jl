@@ -15,6 +15,8 @@ const ProfileAggregate = NLPDiagnostics.ProfileAggregate
 const ProfileResult = NLPDiagnostics.ProfileResult
 const RankPolicy = NLPDiagnostics.RankPolicy
 const DependentRowLocalization = NLPDiagnostics.DependentRowLocalization
+const ConvexityCampaignTrial = NLPDiagnostics.ConvexityCampaignTrial
+const ConvexityCampaignSummary = NLPDiagnostics.ConvexityCampaignSummary
 const UnavailableReason = NLPDiagnostics.UnavailableReason
 
 const profile_case = NLPDiagnostics.profile_case
@@ -26,6 +28,9 @@ const jacobian_rank_estimate = NLPDiagnostics.jacobian_rank_estimate
 const dependent_row_localization = NLPDiagnostics.dependent_row_localization
 const dependent_row_localization_data = NLPDiagnostics.dependent_row_localization_data
 const dependent_row_localization_report = NLPDiagnostics.dependent_row_localization_report
+const convexity_counterexample_campaign = NLPDiagnostics.convexity_counterexample_campaign
+const convexity_counterexample_campaign_data = NLPDiagnostics.convexity_counterexample_campaign_data
+const convexity_counterexample_campaign_report = NLPDiagnostics.convexity_counterexample_campaign_report
 const sparse_qr_rank_estimate = NLPDiagnostics.sparse_qr_rank_estimate
 const unavailable_reason = NLPDiagnostics.unavailable_reason
 const unavailable_reason_data = NLPDiagnostics.unavailable_reason_data
@@ -35,6 +40,8 @@ export ProfileAggregate
 export ProfileResult
 export RankPolicy
 export DependentRowLocalization
+export ConvexityCampaignTrial
+export ConvexityCampaignSummary
 export UnavailableReason
 export profile_case
 export profile_case_repeated
@@ -45,6 +52,9 @@ export jacobian_rank_estimate
 export dependent_row_localization
 export dependent_row_localization_data
 export dependent_row_localization_report
+export convexity_counterexample_campaign
+export convexity_counterexample_campaign_data
+export convexity_counterexample_campaign_report
 export sparse_qr_rank_estimate
 export unavailable_reason
 export unavailable_reason_data

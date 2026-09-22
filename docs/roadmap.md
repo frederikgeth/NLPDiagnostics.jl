@@ -33,7 +33,7 @@ deeper NLP and OPF evidence layers. The public documentation records the
 | Variables absent from constraints | Supported | Preserve the current disconnected-variable check and distinguish objective-only variables. |
 | Starting-point analysis | Supported | Preserve point completeness, bound feasibility, domain, finite-value, and derivative evidence with typed provenance. |
 | Domain analysis | Supported | Extend operator coverage and keep proven, possible, and point-local domain claims separate. |
-| Convexity analysis | Partial | Add a seeded campaign of domain-valid point pairs that can produce reproducible convexity counterexamples; retain local Hessian inertia as local evidence. |
+| Convexity analysis | Supported | `convexity_counterexample_campaign` now searches an interval-domain-certified coordinate box with a seed and retains all scalar-function Jensen trials. It can disprove a claimed property numerically; no-witness and opaque-source cases remain explicitly inconclusive or unavailable. |
 | Reduced infeasible subsystem | Supported | Preserve solver-native conflicts and elastic subset tools. Say “IIS” only after irreducibility is verified; otherwise report a reduced infeasible subsystem. |
 | Dual feasibility report | Strong | `objective_consistency_summary` compares public solver and independently evaluated objectives at one exact endpoint. It reports a gap only for a continuous scalar affine model with tolerance-qualified primal and dual representatives. |
 | Hessian analysis | Strong | `hessian_density_summary` now separates declared or candidate structure from point-local numerical nonzeros, including tolerance, method provenance, duplicates, and incomplete coverage. |
@@ -45,7 +45,8 @@ The implementation order for the open items is:
    Hessian-density, and objective-consistency front doors and teaching fixtures;
 2. maintain and calibrate the delivered dependent-row localization, including
    larger equality and active-set fixtures;
-3. add a reproducible convexity-counterexample campaign; and
+3. maintain the delivered seeded convexity-counterexample campaign and extend
+   its calibrated domain and source coverage only with explicit evidence; and
 4. keep the MIP solution refiner outside scope unless the mission changes.
 
 The terminology is part of each acceptance condition. Static coefficient

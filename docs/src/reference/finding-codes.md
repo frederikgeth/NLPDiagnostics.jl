@@ -20,6 +20,7 @@ confidence, affected entities, evidence, point provenance, and report metadata.
 | `unmatched_structural_variables` | structural pattern | Some eligible free variables are unmatched in a maximum equality matching. | Inspect the corresponding Dulmage–Mendelsohn region. |
 | `dense_sparse_qr_rank_agreement` | one point and policy | Guarded dense and sparse rank backends agree under the recorded policy. | Retain the tolerance and scaling; agreement does not make rank global. |
 | `numerical_irreducible_dependent_rows` | one point and policy | Every one-row deletion from the localized Jacobian row set is independent under a fixed threshold. | Inspect source equations and repeat at another justified point and tolerance. |
+| `convexity_counterexample_observed` | seeded scalar-function campaign | A sampled pair violates the stated convexity or concavity Jensen inequality beyond tolerance. | Replay the stored points and values independently; inspect the expression and domain. |
 | `solver_result_point_unavailable` | solver result | The requested result does not expose a complete real primal vector. | Inspect result count and primal status; do not fill coordinates silently. |
 
 ## Statically declared inventory
@@ -180,6 +181,10 @@ outside this lexical inventory. The documentation build fails when this file is 
 - `component_expected_rank_unavailable` — `src/analysis/degeneracy.jl`
 - `constraint_activity_semantics_unavailable` — `src/analysis/activity.jl`
 - `constraint_feasibility_violation` — `src/analysis/activity.jl`
+- `convexity_campaign_inconclusive` — `src/analysis/convexity_campaign.jl`
+- `convexity_campaign_unavailable` — `src/analysis/convexity_campaign.jl`
+- `convexity_counterexample_not_observed` — `src/analysis/convexity_campaign.jl`
+- `convexity_counterexample_observed` — `src/analysis/convexity_campaign.jl`
 - `convexity_unavailable` — `src/analysis/numerical.jl`
 - `coupled_set_boundary_tangent_gradient_unavailable` — `src/analysis/activity.jl`
 - `coupled_set_boundary_tangent_semantics_unavailable` — `src/analysis/activity.jl`
@@ -502,4 +507,4 @@ outside this lexical inventory. The documentation build fails when this file is 
 - `solver_conflict_not_found` — `src/NLPDiagnostics.jl`
 - `solver_conflict_unavailable` — `src/NLPDiagnostics.jl`
 
-Inventory count: **455** literal finding codes.
+Inventory count: **459** literal finding codes.
