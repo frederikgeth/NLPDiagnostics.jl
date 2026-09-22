@@ -12,7 +12,7 @@ struct ExpressionNumericalRisk
     variables::Vector{MOI.VariableIndex}
 end
 
-"""One exact-real-semantics rewrite suggested by an expression fingerprint."""
+"""A proposed rewrite; this public record does not certify equivalence to a source model."""
 struct StableReformulationCandidate
     source::EntityRef
     path::ExpressionNodePath
@@ -1670,10 +1670,10 @@ function analyze_stable_reformulation_plan(plan::StableReformulationPlan)
         push!(report, Finding(:stable_reformulation_candidate;
             severity = SeverityInfo,
             domain = NumericalIssue,
-            basis = MathematicalProof,
-            confidence = ConfidenceCertain,
-            observation = "The $(candidate.fingerprint) fingerprint has an exact-real-semantics rewrite to $(candidate.replacement).",
-            why_it_matters = "$(candidate.replacement_description); $registration",
+            basis = HeuristicInterpretation,
+            confidence = ConfidenceHigh,
+            observation = "The $(candidate.fingerprint) fingerprint proposes a rewrite to $(candidate.replacement).",
+            why_it_matters = "$(candidate.replacement_description); $registration The plan record alone does not verify equivalence, domain preservation, or source-model identity.",
             evidence = [Evidence("Stable reformulation fingerprint"; details = ["path" => _path_string(candidate.path), "fingerprint" => candidate.fingerprint, "replacement" => candidate.replacement, "requires_registered_operator" => candidate.requires_registered_operator])],
             affected = [candidate.source],
             suggested_actions = candidate.requires_registered_operator ?

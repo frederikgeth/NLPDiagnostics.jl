@@ -234,6 +234,21 @@ An affine term inside a quadratic objective still yields
 monomial. Curvature in other objective variables does not mask this separate
 linear ray.
 
+Both ray families require a finite represented polynomial objective, an explicit
+minimization or maximization sense, and no opaque constraint sources. Nonfinite
+constants or coefficients anywhere in the objective cause abstention. Missing
+scalar bounds are interpreted only for supported interval-like variable domains
+and integer domains. Semicontinuous, semiinteger, and unknown scalar domains
+block a proof for the affected variable; absence of a finding does not prove
+boundedness. Explicit `-Inf` lower and `Inf` upper endpoints count as absent
+bounds, while malformed or contradictory intervals block the affected direction.
+
+Integer domains use unbounded improving integer sequences, not a continuous
+feasible ray. Evidence records `domain_path`, `finite_polynomial_certified`, and
+the conditional feasibility scope. Quadratic polynomial coefficients retain
+MOI's factor of one half exactly, including subnormal values. These conclusions
+remain conditional on feasibility of the rest of the model.
+
 ## Affine implied variable bounds
 
 For a scalar affine row with exactly one nonzero variable coefficient,
@@ -278,10 +293,10 @@ semiaxis estimates are used only for numerical scaling interpretation.
 Evidence containers preserve the individual numeric types, so a floating-point
 declared bound cannot round an exact rational center during serialization.
 
-This certification applies to direct static geometry findings. The separate
-domain-propagation and initialization geometry paths still use numerical
-enclosures and retain their conservative evidence policy. General nonlinear
-range rules and other static identity families are not certified by this change.
+The same enclosures feed certified domain propagation, retaining source-row
+identity through subsequent affine implications. Initialization uses exact
+squared-distance tests to exclude individual starts. General nonlinear range
+rules and other static identity families are not certified by this integration.
 
 ## Matching
 

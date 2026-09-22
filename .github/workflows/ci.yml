@@ -47,21 +47,41 @@ jobs:
         run: julia --startup-file=no --project=.ci/solver test/runtests.jl
 
   domain-extensions:
-    name: PowerModels and BMOPFTools extensions
+    name: Pinned full solver and domain extensions
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: frederikgeth/BMOPFTools.jl
+          ref: b5e050dff579c9a0c3e69c1e1ad11d0b748f2482
+          path: .ci/BMOPFTools
       - uses: julia-actions/setup-julia@v2
         with:
-          version: '1.10'
+          version: '1.12.6'
       - uses: julia-actions/cache@v2
-      - name: Build isolated domain-extension environment
-        run: >-
-          julia --startup-file=no --project=.ci/domain -e '
-          using Pkg;
-          Pkg.develop(path=".");
-          Pkg.develop(url="https://github.com/frederikgeth/BMOPFTools.jl.git");
-          Pkg.add(["JuMP", "Ipopt", "PowerModels"]);
-          Pkg.instantiate()'
-      - name: Run domain-extension tests
-        run: julia --startup-file=no --project=.ci/domain test/runtests.jl
+      - name: Instantiate pinned extension environment
+        run: julia --startup-file=no --project=benchmarks/environments/full_extensions -e 'using Pkg; Pkg.instantiate()'
+      - name: Verify dependency loading and pinned source
+        run: julia --startup-file=no --project=benchmarks/environments/full_extensions benchmarks/check_benchmark_environment.jl
+      - name: Run full-extension tests
+        run: julia --startup-file=no --project=benchmarks/environments/full_extensions test/runtests.jl
+
+  power-workflow:
+    name: Source and solver verification workflow
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check incident intake and freeze contracts
+        run: python3 -B -m unittest discover -s test -p test_power_incident_intake.py -v
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12.6'
+      - uses: julia-actions/cache@v2
+      - name: Instantiate pinned power environment
+        run: julia --startup-file=no --project=benchmarks/environments/power_repair_pilot -e 'using Pkg; Pkg.instantiate()'
+      - name: Run self-contained workflow regressions
+        run: julia --startup-file=no --project=benchmarks/environments/power_repair_pilot test/power_workflow_runtests.jl

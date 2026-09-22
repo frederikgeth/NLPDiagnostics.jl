@@ -20,6 +20,9 @@ mutable struct TestNLPEvaluator <: MOI.AbstractNLPEvaluator
 end
 
 include("rank_calibration.jl")
+include("rank_statistics_contracts.jl")
+include("benchmark_environment_contracts.jl")
+include("power_repair_physics.jl")
 include("randomized_rank_oracles.jl")
 include("point_provenance.jl")
 include("scientific_contracts.jl")
@@ -27,6 +30,16 @@ include("certified_interval_arithmetic.jl")
 include("interval_certification.jl")
 include("exact_static_rows.jl")
 include("certified_quadratic_geometry.jl")
+include("certified_geometry_integration.jl")
+include("objective_ray_contracts.jl")
+include("algebraic_range_contracts.jl")
+include("branch_identity_contracts.jl")
+include("range_premise_contracts.jl")
+include("activity_evidence_contracts.jl")
+include("bound_input_contracts.jl")
+include("range_semantic_contracts.jl")
+include("final_producer_contracts.jl")
+include("initialization_tolerance_contracts.jl")
 include("fingerprints_and_crosscheck.jl")
 include("scaling_covariance.jl")
 include("block_scaling_covariance.jl")
@@ -2318,7 +2331,7 @@ end
         complete_environment = copy(ENV)
         complete_environment["NLPDIAGNOSTICS_LV13_MADNLP_ISOLATED_RESULT_INPUT"] = complete_fixture
         complete_environment["NLPDIAGNOSTICS_LV13_MADNLP_ISOLATED_RESULT_OUTPUT"] = complete_output
-        complete_command = `$(Base.julia_cmd()) --compiled-modules=no --startup-file=no --project=$(joinpath(repository_root, "work", "benchmark-environment")) $(joinpath(benchmark_directory, "summarize_bmopf_lv13_madnlp_isolated_result.jl"))`
+        complete_command = `$(Base.julia_cmd()) --compiled-modules=no --startup-file=no --project=$(dirname(Base.active_project())) $(joinpath(benchmark_directory, "summarize_bmopf_lv13_madnlp_isolated_result.jl"))`
         run(setenv(complete_command, complete_environment))
         complete_summary = JSON.parse(read(complete_output, String))
         @test complete_summary["status"] == "isolated_result_complete"
@@ -3323,15 +3336,15 @@ end
         joinpath(repository_root, "docs", "rank_calibration_statistics_summary.json"),
         String,
     )
-    @test occursin("nlpdiagnostics-rank-calibration-statistics-v2", rank_statistics_summary)
+    @test occursin("nlpdiagnostics-rank-calibration-statistics-v3", rank_statistics_summary)
     rank_statistics_data = JSON.parse(rank_statistics_summary)
     @test rank_statistics_data["hard_controls"]["record_count"] == 49
     @test rank_statistics_data["hard_controls"]["mismatch_count"] == 0
     @test rank_statistics_data["hard_controls"]["unavailable_count"] == 0
-    @test rank_statistics_data["finite_sample_uncertainty"]["sample_count"] == 49
-    @test rank_statistics_data["finite_sample_uncertainty"]["confidence_level"] == 0.95
-    @test rank_statistics_data["finite_sample_uncertainty"]["zero_event_upper_bound"] > 0.05
-    @test rank_statistics_data["finite_sample_uncertainty"]["zero_event_upper_bound"] < 0.07
+    @test !rank_statistics_data["finite_sample_uncertainty"]["available"]
+    @test isnothing(rank_statistics_data["finite_sample_uncertainty"]["confidence_level"])
+    @test isnothing(rank_statistics_data["finite_sample_uncertainty"]["zero_event_upper_bound"])
+    @test length(rank_statistics_data["records"]) == 75
     @test rank_statistics_data["threshold_sensitive_controls"]["record_count"] == 26
     @test rank_statistics_data["threshold_sensitive_controls"]["backend_disagreement_count"] == 9
     @test rank_statistics_data["large_sparse_sparse_only"]["record_count"] == 20
@@ -3653,10 +3666,10 @@ end
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
     ))
-    @test occursin("finite-sample", read(
-        joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
-        String,
-    ))
+    rank_release_gate = only(gate for gate in JSON.parsefile(joinpath(
+        repository_root, "docs", "calibration_release_gate_summary.json",
+    ))["gates"] if gate["id"] == "numerical_rank_false_positive_negative_statistics")
+    @test rank_release_gate["status"] == "partial" && rank_release_gate["blocking"]
     @test occursin("smallest_singular_calibration_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,
@@ -3832,9 +3845,25 @@ end
         joinpath(repository_root, "docs", "api_test_benchmark_consolidation_summary.json"),
         String,
     )
-    @test occursin("\"benchmark_script_count\": 196", consolidation_summary)
-    @test occursin("\"shared_benchmark_helper_user_count\": 193", consolidation_summary)
-    @test occursin("\"json_schema_file_count\": 140", consolidation_summary)
+    consolidation_data = JSON.parse(consolidation_summary)
+    boundaries = consolidation_data["module_boundaries"]
+    actual_benchmark_paths = Set(
+        relpath(joinpath(dir, file), repository_root)
+        for (dir, _, files) in walkdir(benchmark_directory) for file in files
+        if endswith(file, ".jl") && file != "common.jl"
+    )
+    @test boundaries["benchmark_script_count"] == length(actual_benchmark_paths)
+    @test boundaries["shared_benchmark_helper_user_count"] ==
+        length(boundaries["shared_benchmark_helper_users"])
+    @test Set(vcat(boundaries["shared_benchmark_helper_users"],
+        [entry["path"] for entry in boundaries["shared_benchmark_helper_exemptions"]])) ==
+        actual_benchmark_paths
+    actual_schema_count = count(
+        haskey(JSON.parsefile(joinpath(dir, file)), "schema_version")
+        for (dir, _, files) in walkdir(joinpath(repository_root, "docs"))
+        for file in files if endswith(file, ".json")
+    )
+    @test consolidation_data["benchmark_schema_inventory"]["json_schema_file_count"] == actual_schema_count
     @test occursin("\"unclassified_non_helper_benchmark_paths\": []", consolidation_summary)
     @test occursin("\"queue_complete\": true", consolidation_summary)
     @test occursin("complete bounded API ownership decision ledger", consolidation_summary)
@@ -7535,7 +7564,7 @@ end
             (:asin, MOI.GreaterThan(pi / 2 + 0.1)),
             (:acos, MOI.LessThan(-0.1)),
             (:acos, MOI.GreaterThan(pi + 0.1)),
-            (:atan, MOI.EqualTo(pi / 2)),
+            (:atan, MOI.EqualTo(2.0)),
             (:asind, MOI.GreaterThan(90.1)),
             (:acosd, MOI.LessThan(-0.1)),
             (:acosd, MOI.GreaterThan(180.1)),
@@ -7586,10 +7615,7 @@ end
         ))
 
         for (operator, endpoint, implied) in [
-            (:asin, pi / 2, 1.0),
-            (:acos, Float64(pi), -1.0),
             (:asec, 0.0, 1.0),
-            (:acsc, -pi / 2, -1.0),
             (:asind, 90.0, 1.0),
             (:acosd, 180.0, -1.0),
             (:asecd, 0.0, 1.0),
@@ -7615,8 +7641,8 @@ end
         MOI.add_constraint(endpoint_bound_conflict, endpoint_bound_x, MOI.LessThan(0.9))
         MOI.add_constraint(
             endpoint_bound_conflict,
-            MOI.ScalarNonlinearFunction(:asin, Any[endpoint_bound_x]),
-            MOI.EqualTo(pi / 2),
+            MOI.ScalarNonlinearFunction(:asind, Any[endpoint_bound_x]),
+            MOI.EqualTo(90.0),
         )
         conflict = only(findings(
             NLPDiagnostics.analyze_static(endpoint_bound_conflict),
@@ -7669,10 +7695,6 @@ end
             (:log1p, 0.0, 0.0),
             (:logistic, 0.5, 0.0),
             (:cbrt, 0.0, 0.0),
-            (:softplus, log(2.0), 0.0),
-            (:log1pexp, log(2.0), 0.0),
-            (:log1exp, log(2.0), 0.0),
-            (:log1mexp, -log(2.0), -log(2.0)),
         ]
             reference_model = new_model()
             reference_x = MOI.add_variable(reference_model)
@@ -8134,7 +8156,7 @@ end
         report = NLPDiagnostics.analyze_static(model)
         ray = only(findings(report, :unconstrained_quadratic_objective_ray))
         @test ray.basis == NLPDiagnostics.MathematicalProof
-        @test evidence_details(ray)["polynomial_coefficient"] == "-1.0"
+        @test evidence_details(ray)["polynomial_coefficient"] == "-1//1"
 
         bounded = new_model()
         y = MOI.add_variable(bounded)
@@ -8961,7 +8983,7 @@ end
         MOI.add_constraint(
             atan2_range_model,
             MOI.ScalarNonlinearFunction(:atan, Any[atan2_y, atan2_x]),
-            MOI.EqualTo(-Float64(pi)),
+            MOI.EqualTo(-4.0),
         )
         atan2_range = only(findings(
             NLPDiagnostics.analyze_static(atan2_range_model),
@@ -8986,7 +9008,7 @@ end
         MOI.add_constraint(
             atan2_axis_model,
             MOI.ScalarNonlinearFunction(:atan, Any[atan2_axis_y, atan2_axis_x]),
-            MOI.EqualTo(Float64(pi / 2)),
+            MOI.EqualTo(0.0),
         )
         axis_finding = only(findings(
             NLPDiagnostics.analyze_static(atan2_axis_model),
@@ -8994,16 +9016,16 @@ end
         ))
         @test axis_finding.basis == NLPDiagnostics.MathematicalProof
         axis_details = Dict(axis_finding.evidence[1].details)
-        @test axis_details["fixed_argument_position"] == "2"
+        @test axis_details["fixed_argument_position"] == "1"
         @test axis_details["implied_value"] == "0.0"
 
         atan2_axis_bound_conflict = new_model()
         atan2_conflict_y, atan2_conflict_x = MOI.add_variables(atan2_axis_bound_conflict, 2)
-        MOI.add_constraint(atan2_axis_bound_conflict, atan2_conflict_x, MOI.GreaterThan(0.1))
+        MOI.add_constraint(atan2_axis_bound_conflict, atan2_conflict_y, MOI.GreaterThan(0.1))
         MOI.add_constraint(
             atan2_axis_bound_conflict,
             MOI.ScalarNonlinearFunction(:atan, Any[atan2_conflict_y, atan2_conflict_x]),
-            MOI.EqualTo(Float64(pi / 2)),
+            MOI.EqualTo(0.0),
         )
         @test length(findings(
             NLPDiagnostics.analyze_static(atan2_axis_bound_conflict),
@@ -9012,11 +9034,11 @@ end
 
         atan2_axis_sign_conflict = new_model()
         atan2_sign_y, atan2_sign_x = MOI.add_variables(atan2_axis_sign_conflict, 2)
-        MOI.add_constraint(atan2_axis_sign_conflict, atan2_sign_y, MOI.LessThan(0.0))
+        MOI.add_constraint(atan2_axis_sign_conflict, atan2_sign_x, MOI.LessThan(-0.1))
         MOI.add_constraint(
             atan2_axis_sign_conflict,
             MOI.ScalarNonlinearFunction(:atan, Any[atan2_sign_y, atan2_sign_x]),
-            MOI.EqualTo(Float64(pi / 2)),
+            MOI.EqualTo(0.0),
         )
         @test length(findings(
             NLPDiagnostics.analyze_static(atan2_axis_sign_conflict),
@@ -12464,7 +12486,7 @@ end
         cone_gradient_finding = only(findings(
             cone_report, :coupled_set_smooth_boundary_tangent_gradient_available,
         ))
-        @test cone_gradient_finding.basis == NLPDiagnostics.MathematicalProof
+        @test cone_gradient_finding.basis == NLPDiagnostics.NumericalObservation
         @test Dict(cone_gradient_finding.evidence[end].details)["derivative_methods"] ==
               "exact_symbolic"
         finite_difference_cone_evaluation = NLPDiagnostics.NumericalEvaluation{Float64}(
@@ -14584,20 +14606,17 @@ end
         # (x - 2)^2 + 4 * (y + 1)^2 = 1, so x ∈ [1, 3].
         MOI.add_constraint(domain_model, domain_ellipsoid, MOI.EqualTo(-7.0))
         propagated_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(domain_model))
-        @test any(interval -> !interval.certified, values(propagated_domains))
+        @test all(interval -> interval.certified, values(propagated_domains))
         @test propagated_domains[domain_x].lower == 1.0
         @test propagated_domains[domain_x].upper == 3.0
 
-        # Approximate geometry is retained as an estimate but cannot discharge
-        # a domain warning. The model has no certified scalar bound on x.
+        # Certified geometry establishes a strictly positive lower bound on x.
         MOI.add_constraint(
             domain_model,
             MOI.ScalarNonlinearFunction(:log, Any[domain_x]),
             MOI.LessThan(10.0),
         )
-        @test !isempty(NLPDiagnostics.domain_issues(domain_model))
-        @test all(issue -> issue.assessment == NLPDiagnostics.DomainPossibleViolation,
-            NLPDiagnostics.domain_issues(domain_model))
+        @test isempty(NLPDiagnostics.domain_issues(domain_model))
 
         nonlinear_domain_model = new_model()
         nonlinear_x, nonlinear_y = MOI.add_variables(nonlinear_domain_model, 2)
@@ -14624,9 +14643,7 @@ end
             MOI.ScalarNonlinearFunction(:log, Any[nonlinear_x]),
             MOI.LessThan(10.0),
         )
-        @test !isempty(NLPDiagnostics.domain_issues(nonlinear_domain_model))
-        @test all(issue -> issue.assessment == NLPDiagnostics.DomainPossibleViolation,
-            NLPDiagnostics.domain_issues(nonlinear_domain_model))
+        @test isempty(NLPDiagnostics.domain_issues(nonlinear_domain_model))
 
         affine_domain_model = new_model()
         affine_a, affine_b, affine_c = MOI.add_variables(affine_domain_model, 3)
@@ -15141,7 +15158,7 @@ end
         )
         MOI.add_constraint(zero_domain_model, zero_domain_circle, MOI.EqualTo(0.0))
         zero_propagated_domains, _ = NLPDiagnostics._domain_variable_interval_state(NLPDiagnostics.snapshot(zero_domain_model))
-        @test any(interval -> !interval.certified, values(zero_propagated_domains))
+        @test all(interval -> interval.certified, values(zero_propagated_domains))
         @test zero_propagated_domains[zero_x].lower == 0.0
         @test zero_propagated_domains[zero_x].upper == 0.0
         MOI.add_constraint(
@@ -15151,7 +15168,7 @@ end
         )
         @test length(findings(
             NLPDiagnostics.analyze_domains(zero_domain_model),
-            :possible_expression_domain_violation,
+            :proven_expression_domain_violation,
         )) == 1
 
         near_unit = new_model()
@@ -15305,9 +15322,9 @@ end
         report = NLPDiagnostics.analyze_initialization(model)
         violation = only(findings(
             report,
-            :initialization_numerical_diagonal_quadratic_bound_violation,
+            :initialization_diagonal_quadratic_bound_violation,
         ))
-        @test violation.basis == NLPDiagnostics.NumericalObservation
+        @test violation.basis == NLPDiagnostics.MathematicalProof
         @test occursin(
             "value=5.0",
             Dict(violation.evidence[2].details)["v$(x.value)"],
@@ -15334,7 +15351,7 @@ end
         nonlinear_report = NLPDiagnostics.analyze_initialization(nonlinear)
         @test length(findings(
             nonlinear_report,
-            :initialization_numerical_diagonal_quadratic_bound_violation,
+            :initialization_diagonal_quadratic_bound_violation,
         )) == 1
 
         equality = new_model()
@@ -15350,7 +15367,7 @@ end
         equality_report = NLPDiagnostics.analyze_initialization(equality)
         @test length(findings(
             equality_report,
-            :initialization_numerical_diagonal_quadratic_equality_bound_violation,
+            :initialization_diagonal_quadratic_equality_bound_violation,
         )) == 1
 
         nonlinear_equality = new_model()
@@ -15368,7 +15385,7 @@ end
         nonlinear_equality_report = NLPDiagnostics.analyze_initialization(nonlinear_equality)
         nonlinear_equality_violation = only(findings(
             nonlinear_equality_report,
-            :initialization_numerical_diagonal_quadratic_equality_bound_violation,
+            :initialization_diagonal_quadratic_equality_bound_violation,
         ))
         @test Dict(nonlinear_equality_violation.evidence[2].details)["representation"] ==
               "ScalarNonlinearFunction"

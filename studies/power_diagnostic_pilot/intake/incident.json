@@ -1,0 +1,19 @@
+{
+  "schema_version": "power-incident-intake-v1",
+  "status": "template_only_not_an_incident",
+  "incident_id": null,
+  "curator": null,
+  "permission_reference": null,
+  "independent_preparation_statement": null,
+  "model_and_environment": null,
+  "inclusion_reason": null,
+  "source_records": [],
+  "original_models": [],
+  "solver_logs": [],
+  "resolution_summary": null,
+  "resolution_evidence": [],
+  "scoring_key": null,
+  "baseline_materials": [],
+  "redactions_and_transformations": [],
+  "known_scope_limitations": []
+}

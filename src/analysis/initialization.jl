@@ -34,14 +34,22 @@ end
 
 function _initialization_bound_findings(
     model_snapshot::ModelSnapshot,
-    point::EvaluationPoint,
+    point::EvaluationPoint;
+    feasibility_tolerance::Real = 0,
 )
+    isfinite(feasibility_tolerance) && feasibility_tolerance >= 0 ||
+        throw(ArgumentError("feasibility_tolerance must be finite and nonnegative"))
+    exact_tolerance = _exact_real_value(feasibility_tolerance)
+    isnothing(exact_tolerance) && throw(ArgumentError("unsupported feasibility_tolerance representation"))
     findings = Finding[]
     intervals, interval_origins = _domain_variable_interval_state(model_snapshot; certified_only = true)
     records = Dict(record.index => record for record in model_snapshot.variables)
     violations = MOI.VariableIndex[]
+    sub_tolerance = MOI.VariableIndex[]
     boundary = MOI.VariableIndex[]
+    nonfinite = MOI.VariableIndex[]
     details = Pair{String,String}[]
+    sub_tolerance_details = Pair{String,String}[]
     disjunctive_variables = Set{MOI.VariableIndex}()
     for constraint in model_snapshot.constraints
         variable = constraint.function_value
@@ -54,12 +62,24 @@ function _initialization_bound_findings(
         end
     end
     for (variable, value) in zip(point.variables, point.values)
+        if !isfinite(value)
+            push!(nonfinite, variable)
+            continue
+        end
         interval = _certified_interval(intervals[variable])
         interval.valid || continue
         if value < interval.lower || value > interval.upper
-            push!(violations, variable)
+            # Compare exact represented numbers: floating subtraction can round
+            # an excursion across the severity threshold. Unsupported exact
+            # conversions conservatively retain error severity.
+            endpoint = value < interval.lower ? interval.lower : interval.upper
+            exact_value = _exact_real_value(value)
+            exact_endpoint = _exact_real_value(endpoint)
+            within_tolerance = !isnothing(exact_value) && !isnothing(exact_endpoint) &&
+                abs(exact_value - exact_endpoint) <= exact_tolerance
+            push!(within_tolerance ? sub_tolerance : violations, variable)
             push!(
-                details,
+                within_tolerance ? sub_tolerance_details : details,
                 "v$(variable.value)" =>
                     "value=$value, bounds=[$(interval.lower), $(interval.upper)], origins=$(_domain_interval_origin_summary(interval_origins, variable))",
             )
@@ -72,31 +92,54 @@ function _initialization_bound_findings(
             push!(boundary, variable)
         end
     end
-    if !isempty(violations)
+    if !isempty(nonfinite)
+        push!(findings, Finding(:initialization_nonfinite_value;
+            severity = SeverityError, domain = NumericalIssue,
+            basis = NumericalObservation, confidence = ConfidenceCertain,
+            observation = "$(length(nonfinite)) initial values are NaN or infinite.",
+            why_it_matters = "These values are not finite real starting coordinates; they cannot establish a real-point bound violation or feasibility certificate.",
+            evidence = [_point_evidence(point)],
+            affected = [_variable_ref(records[v]) for v in nonfinite],
+            suggested_actions = ["Supply finite initial values before interpreting point diagnostics."],
+        ))
+    end
+    for (group, group_details, severity) in (
+        (violations, details, SeverityError),
+        (sub_tolerance, sub_tolerance_details, SeverityInfo),
+    )
+        isempty(group) && continue
         push!(
             findings,
             Finding(
                 :initialization_violates_variable_bounds;
-                severity = SeverityError,
+                severity = severity,
                 domain = MathematicalIssue,
                 basis = MathematicalProof,
                 confidence = ConfidenceCertain,
-                observation = "$(length(violations)) initial variable values violate statically implied variable intervals.",
-                why_it_matters = "The supplied initialization is outside a mathematically proven coordinate interval derived from declared bounds and supported static rows, so it may be rejected, projected, or cause invalid expression evaluations.",
+                observation = "$(length(group)) initial variable values violate statically implied variable intervals.",
+                why_it_matters = severity == SeverityInfo ?
+                    "These exact bound excursions are at or below the absolute feasibility tolerance in each variable's coordinates. Informational severity does not make the point mathematically feasible or expression-domain safe; inspect domain findings separately." :
+                    "The supplied initialization is outside a mathematically proven coordinate interval derived from declared bounds and supported static rows by more than the absolute feasibility tolerance (or the comparison is unsupported), so it may be rejected, projected, or cause invalid expression evaluations.",
                 evidence = [
                     _point_evidence(point),
                     Evidence(
                         "Initial values outside statically implied variable intervals";
-                        details = details,
+                        details = vcat(group_details, [
+                            "absolute_feasibility_tolerance" => string(feasibility_tolerance),
+                            "severity_policy" => "exact coordinate excursion; error above tolerance, informational at or below tolerance",
+                        ]),
                     ),
                 ],
-                suggested_actions = [
+                suggested_actions = severity == SeverityInfo ? [
+                    "Inspect exact-point domain and derivative findings before using this start.",
+                    "Review the reported absolute tolerance in this variable's units; any start adjustment should respect model semantics.",
+                ] : [
                     "Correct the initial values, declared bounds, or source rows that imply the interval.",
                     "Re-run exact-point domain and derivative checks after correction.",
                 ],
                 affected = EntityRef[
                     _variable_ref(records[variable]) for
-                    variable in violations
+                    variable in group
                 ],
             ),
         )
@@ -184,142 +227,70 @@ function _initialization_constraint_margin_findings(
     ]
 end
 
-"""Report numerical exclusions from estimated diagonal quadratic upper-level intervals."""
-function _initialization_diagonal_quadratic_bound_findings(
-    model_snapshot::ModelSnapshot,
-    point::EvaluationPoint,
-)
+"""Certify coordinate exclusions of a supplied start, without claiming model infeasibility."""
+function _initialization_quadratic_geometry_findings(model_snapshot, point; equality::Bool)
     values = Dict(zip(point.variables, point.values))
     records = Dict(record.index => record for record in model_snapshot.variables)
     findings = Finding[]
     for constraint in model_snapshot.constraints
-        set_value = constraint.set_value
-        upper = if set_value isa MOI.LessThan
-            Float64(set_value.upper)
-        elseif set_value isa MOI.Interval
-            Float64(set_value.upper)
+        result = if equality
+            geometry = _positive_diagonal_quadratic_equality(constraint.function_value, constraint.set_value)
+            isnothing(geometry) && (geometry = _nonlinear_positive_diagonal_equality(
+                constraint.function_value, constraint.set_value))
+            geometry
         else
-            continue
+            set = constraint.set_value
+            set isa Union{MOI.LessThan,MOI.Interval} || continue
+            upper = _exact_real_value(set.upper)
+            isnothing(upper) && continue
+            minimum = _positive_diagonal_quadratic_minimum(constraint.function_value)
+            isnothing(minimum) && (minimum = _nonlinear_positive_diagonal_minimum(constraint.function_value))
+            isnothing(minimum) && continue
+            _diagonal_equality_from_minimum(minimum, upper, string(nameof(typeof(constraint.function_value))))
         end
-        result = _positive_diagonal_quadratic_minimum(constraint.function_value)
-        isnothing(result) && (result = _nonlinear_positive_diagonal_minimum(
-            constraint.function_value,
-        ))
         isnothing(result) && continue
-        isfinite(upper) && isfinite(result.minimum_value) || continue
-        upper > result.minimum_value || continue
-        violated = Tuple{MOI.VariableIndex,Real,Real,Real}[]
-        for (variable, coefficient, center) in
-            zip(result.variables, result.coefficients, result.centers)
-            radius_squared = result.axis_squared_multiplier *
-                             (upper - result.minimum_value) / coefficient
-            radius_squared >= 0 && isfinite(radius_squared) || continue
-            radius = sqrt(radius_squared)
-            lower, coordinate_upper = center - radius, center + radius
+        result.effective_level >= 0 || continue
+        violated = MOI.VariableIndex[]
+        details = Pair{String,Any}[
+            "interval_certified" => true,
+            "comparison" => "exact_squared_distance",
+            "source_constraint" => _domain_constraint_origin_id(constraint),
+            "center" => result.centers,
+            "axis_squared" => result.axis_squared,
+            "representation" => result.representation,
+        ]
+        for (variable, center, radius_squared) in zip(result.variables, result.centers, result.axis_squared)
             value = values[variable]
-            (value < lower || value > coordinate_upper) &&
-                push!(violated, (variable, value, lower, coordinate_upper))
+            lower_conflict, upper_conflict = _quadratic_coordinate_conflicts(
+                (lower = value, upper = value), center, radius_squared)
+            lower_conflict || upper_conflict || continue
+            lower, upper = _quadratic_coordinate_bounds(center, radius_squared)
+            push!(violated, variable)
+            push!(details, "v$(variable.value)" =>
+                "value=$value, center=$center, radius_squared=$radius_squared, enclosing_interval=[$lower, $upper]")
         end
         isempty(violated) && continue
-        details = Pair{String,Any}[
-            "v$(variable.value)" =>
-                "value=$value, implied_interval=[$lower, $coordinate_upper]" for
-            (variable, value, lower, coordinate_upper) in violated
-        ]
         push!(findings, Finding(
-            :initialization_numerical_diagonal_quadratic_bound_violation;
+            equality ? :initialization_diagonal_quadratic_equality_bound_violation : :initialization_diagonal_quadratic_bound_violation;
             severity = SeverityError,
-            domain = NumericalIssue,
-            basis = NumericalObservation,
+            domain = MathematicalIssue,
+            basis = MathematicalProof,
             confidence = ConfidenceCertain,
-            observation = "$(length(violated)) initial coordinate value(s) lie outside numerically estimated intervals for quadratic constraint $(constraint.index.value).",
-            why_it_matters = "Rounded quadratic geometry suggests a bound violation. This is numerical evidence, not a certified exclusion of the supplied start.",
-            evidence = [_point_evidence(point), Evidence(
-                "Completed positive diagonal quadratic initialization intervals";
-                details = vcat(
-                    ["interval_certified" => false, "constraint_upper_bound" => upper,
-                     "minimum_value" => result.minimum_value,
-                     "center" => result.centers],
-                    details,
-                ),
-            )],
-            suggested_actions = [
-                "Check the original constraint residual and validate the estimated intervals before changing the start.",
-                "Confirm the quadratic level and coordinate scaling if the current start was intended.",
-            ],
-            affected = vcat(
-                [_constraint_ref(constraint)],
-                [_variable_ref(records[variable]) for (variable, _, _, _) in violated],
-            ),
+            observation = "$(length(violated)) initial coordinate value(s) violate an exact squared-distance restriction from quadratic constraint $(constraint.index.value).",
+            why_it_matters = "The supplied start cannot satisfy this row. This proves exclusion of that start, not infeasibility of the model; the displayed outward interval is supporting enclosure evidence.",
+            evidence = [_point_evidence(point), Evidence("Certified quadratic initialization exclusion"; details)],
+            suggested_actions = ["Choose a start satisfying the row's coordinate restrictions, then check the full original constraint residual.",
+                                 "Check the source row's level and units if the intended start was excluded."],
+            affected = vcat([_constraint_ref(constraint)], [_variable_ref(records[v]) for v in violated]),
         ))
     end
     return findings
 end
 
-"""Report numerical exclusions from estimated diagonal quadratic equality intervals."""
-function _initialization_diagonal_quadratic_equality_bound_findings(
-    model_snapshot::ModelSnapshot,
-    point::EvaluationPoint,
-)
-    values = Dict(zip(point.variables, point.values))
-    records = Dict(record.index => record for record in model_snapshot.variables)
-    findings = Finding[]
-    for constraint in model_snapshot.constraints
-        result = _positive_diagonal_quadratic_equality(
-            constraint.function_value,
-            constraint.set_value,
-        )
-        isnothing(result) && (result = _nonlinear_positive_diagonal_equality(
-            constraint.function_value,
-            constraint.set_value,
-        ))
-        isnothing(result) && continue
-        result.effective_level > 0 || continue
-        all(axis_squared -> axis_squared > 0 && isfinite(axis_squared), result.axis_squared) ||
-            continue
-        semiaxes = sqrt.(result.axis_squared)
-        violated = Tuple{MOI.VariableIndex,Real,Real,Real}[]
-        for (variable, center, semiaxis) in
-            zip(result.variables, result.centers, semiaxes)
-            lower, upper = center - semiaxis, center + semiaxis
-            value = values[variable]
-            (value < lower || value > upper) &&
-                push!(violated, (variable, value, lower, upper))
-        end
-        isempty(violated) && continue
-        details = Pair{String,Any}[
-            "v$(variable.value)" => "value=$value, implied_interval=[$lower, $upper]" for
-            (variable, value, lower, upper) in violated
-        ]
-        push!(findings, Finding(
-            :initialization_numerical_diagonal_quadratic_equality_bound_violation;
-            severity = SeverityError,
-            domain = NumericalIssue,
-            basis = NumericalObservation,
-            confidence = ConfidenceCertain,
-            observation = "$(length(violated)) initial coordinate value(s) lie outside numerically estimated intervals for quadratic equality constraint $(constraint.index.value).",
-            why_it_matters = "Rounded quadratic geometry suggests an equality-bound violation. Verify the original residual or a validated enclosure before excluding the supplied start.",
-            evidence = [_point_evidence(point), Evidence(
-                "Completed positive diagonal quadratic equality initialization intervals";
-                details = vcat(
-                    ["interval_certified" => false, "center" => result.centers,
-                     "semiaxes" => semiaxes,
-                     "representation" => result.representation],
-                    details,
-                ),
-            )],
-            suggested_actions = [
-                "Check the original equality residual and validate the estimated intervals before changing the start.",
-                "Confirm the quadratic level and coordinate scaling if the current start was intended.",
-            ],
-            affected = vcat(
-                [_constraint_ref(constraint)],
-                [_variable_ref(records[variable]) for (variable, _, _, _) in violated],
-            ),
-        ))
-    end
-    return findings
-end
+_initialization_diagonal_quadratic_bound_findings(model_snapshot::ModelSnapshot, point::EvaluationPoint) =
+    _initialization_quadratic_geometry_findings(model_snapshot, point; equality = false)
+_initialization_diagonal_quadratic_equality_bound_findings(model_snapshot::ModelSnapshot, point::EvaluationPoint) =
+    _initialization_quadratic_geometry_findings(model_snapshot, point; equality = true)
 
 """
     analyze_initialization(model; cache = EvaluationCache())
@@ -366,11 +337,14 @@ function analyze_initialization(
     coupled_qualification_strict_tolerance::Union{Nothing,Real} = nothing,
     coupled_qualification_max_iterations::Integer = 1_000,
 )
+    isfinite(feasibility_tolerance) && feasibility_tolerance >= 0 ||
+        throw(ArgumentError("feasibility_tolerance must be finite and nonnegative"))
     variables = MOI.get(model, MOI.ListOfVariableIndices())
     starts = [_variable_start(model, variable) for variable in variables]
     missing_positions = findall(isnothing, starts)
     report = DiagnosticReport()
     report.metadata[:stage] = "initialization"
+    report.metadata[:initialization_bound_absolute_tolerance] = string(feasibility_tolerance)
     report.metadata[:initialization_variable_count] = string(length(variables))
     report.metadata[:initialization_iterative_right_probe_requested] =
         string(!isnothing(iterative_right_nullspace_probe_dimension))
@@ -553,7 +527,8 @@ function analyze_initialization(
     report.metadata[:stage] = "initialization"
     append!(
         report.findings,
-        _initialization_bound_findings(snapshot(model), point),
+        _initialization_bound_findings(snapshot(model), point;
+            feasibility_tolerance = feasibility_tolerance),
     )
     append!(
         report.findings,

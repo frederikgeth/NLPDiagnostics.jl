@@ -140,7 +140,7 @@ function _domain_interval_origin_summary(origins, variable)
     )
 end
 
-"""Propagate exact coordinate intervals from recognized positive diagonal geometry."""
+"""Propagate certified coordinate enclosures from recognized positive diagonal geometry."""
 function _propagate_diagonal_quadratic_geometry_intervals!(
     intervals,
     model;
@@ -159,9 +159,9 @@ function _propagate_diagonal_quadratic_geometry_intervals!(
            all(value -> value >= 0 && isfinite(value), equality.axis_squared)
             for (variable, center, axis_squared) in
                 zip(equality.variables, equality.centers, equality.axis_squared)
-                radius = sqrt(axis_squared)
+                lower, coordinate_upper = _quadratic_coordinate_bounds(center, axis_squared)
                 _tighten_domain_interval!(
-                    intervals, variable, center - radius, center + radius,
+                    intervals, variable, lower, coordinate_upper; certified = true,
                 ) && _record_domain_interval_origin!(
                     origins, variable, :diagonal_quadratic_geometry,
                     _domain_constraint_origin_id(constraint),
@@ -172,12 +172,13 @@ function _propagate_diagonal_quadratic_geometry_intervals!(
 
         set_value = constraint.set_value
         upper = if set_value isa MOI.LessThan
-            Float64(set_value.upper)
+            _exact_real_value(set_value.upper)
         elseif set_value isa MOI.Interval
-            Float64(set_value.upper)
+            _exact_real_value(set_value.upper)
         else
             continue
         end
+        isnothing(upper) && continue
         minimum = _positive_diagonal_quadratic_minimum(constraint.function_value)
         isnothing(minimum) && (minimum = _nonlinear_positive_diagonal_minimum(
             constraint.function_value,
@@ -190,9 +191,9 @@ function _propagate_diagonal_quadratic_geometry_intervals!(
             axis_squared = minimum.axis_squared_multiplier *
                            (upper - minimum.minimum_value) / coefficient
             axis_squared >= 0 && isfinite(axis_squared) || continue
-            radius = sqrt(axis_squared)
+            lower, coordinate_upper = _quadratic_coordinate_bounds(center, axis_squared)
             _tighten_domain_interval!(
-                intervals, variable, center - radius, center + radius,
+                intervals, variable, lower, coordinate_upper; certified = true,
             ) && _record_domain_interval_origin!(
                 origins, variable, :diagonal_quadratic_geometry,
                 _domain_constraint_origin_id(constraint),
@@ -245,7 +246,8 @@ function _propagate_scalar_affine_intervals!(intervals, model; origins = nothing
     max_passes = max(length(model.variables), 1)
     for _ in 1:max_passes
         previous = copy(intervals)
-        candidates = Dict{MOI.VariableIndex,Vector{Tuple{Real,Real,String}}}()
+        previous_origins = isnothing(origins) ? nothing : deepcopy(origins)
+        candidates = Dict{MOI.VariableIndex,Vector{Tuple{Real,Real,String,Vector{MOI.VariableIndex}}}}()
         for constraint in model.constraints
             function_value = constraint.function_value
             function_value isa MOI.ScalarAffineFunction || continue
@@ -284,8 +286,9 @@ function _propagate_scalar_affine_intervals!(intervals, model; origins = nothing
                 isfinite(upper) || (upper = Inf)
                 (lower == -Inf && upper == Inf) && continue
                 push!(
-                    get!(candidates, target, Tuple{Real,Real,String}[]),
-                    (lower, upper, _domain_constraint_origin_id(constraint)),
+                    get!(candidates, target, Tuple{Real,Real,String,Vector{MOI.VariableIndex}}[]),
+                    (lower, upper, _domain_constraint_origin_id(constraint),
+                     [v for v in keys(coefficients) if v != target]),
                 )
             end
         end
@@ -304,8 +307,17 @@ function _propagate_scalar_affine_intervals!(intervals, model; origins = nothing
                 # final interval is their intersection.
                 first(bounds)[3],
             )
+            if tightened && !isnothing(origins)
+                for (_, _, _, dependencies) in bounds, dependency in dependencies
+                    for (category, sources) in get(previous_origins, dependency, Dict{Symbol,Set{String}}())
+                        for source in sources
+                            _record_domain_interval_origin!(origins, variable, category, source)
+                        end
+                    end
+                end
+            end
             if tightened
-                for (_, _, source_index) in bounds[2:end]
+                for (_, _, source_index, _) in bounds[2:end]
                     _record_domain_interval_origin!(
                         origins, variable, :scalar_affine_propagation, source_index,
                     )
@@ -709,7 +721,7 @@ function _domain_variable_interval_state(model::ModelSnapshot; certified_only::B
             _domain_constraint_origin_id(constraint),
         )
     end
-    !certified_only && _propagate_diagonal_quadratic_geometry_intervals!(intervals, model; origins = origins)
+    _propagate_diagonal_quadratic_geometry_intervals!(intervals, model; origins = origins)
     _propagate_scalar_affine_intervals!(intervals, model; origins = origins)
     _propagate_absolute_value_intervals!(intervals, model; origins = origins)
     _propagate_cosh_intervals!(intervals, model; origins = origins, certified_only = certified_only)

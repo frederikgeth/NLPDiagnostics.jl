@@ -68,6 +68,32 @@ benchmark_files = filter(
     recursive_files(joinpath(REPO_ROOT, "benchmarks"), ".jl"),
 )
 const benchmark_helper_exemption_reasons = Dict(
+    "benchmarks/power_diagnostics_v2.jl" =>
+        "versioned workflow and report library; it does not write benchmark artifacts",
+    "benchmarks/rank_statistics.jl" =>
+        "pure per-record calibration accounting library; it does not write benchmark artifacts",
+    "benchmarks/power_repair_pilot/load_status_contract.jl" =>
+        "experimental nominal-load switching contract and report facade; it does not write benchmark artifacts",
+    "benchmarks/power_repair_pilot/partial_power_diagnostics.jl" =>
+        "post-evaluation independent analysis/report facade; it does not write benchmark artifacts",
+    "benchmarks/power_repair_pilot/power_diagnostic_report.jl" =>
+        "experimental report formatter and workflow facade; it does not write benchmark artifacts",
+    "benchmarks/power_repair_pilot/source_load_contract.jl" =>
+        "experimental pinned source-load and workflow contract; it does not write benchmark artifacts",
+    "benchmarks/power_repair_pilot/island_capacity_certificate.jl" =>
+        "experimental subset-verified island capacity library; it does not write benchmark artifacts",
+    "benchmarks/power_repair_pilot/verified_solver_acceptance.jl" =>
+        "experimental solver and rational point-verification library; it does not write benchmark artifacts",
+    "benchmarks/power_repair_pilot/tolerant_capacity_certificate.jl" =>
+        "experimental absolute-tolerance capacity checker; it does not write benchmark artifacts",
+    "benchmarks/power_repair_pilot/encoded_capacity_certificate.jl" =>
+        "experimental exact encoded-equation capacity checker; it does not write benchmark artifacts",
+    "benchmarks/power_repair_pilot/capacity_model_contract.jl" =>
+        "experimental source-to-backend constraint matcher; it does not write benchmark artifacts",
+    "benchmarks/power_repair_pilot/capacity_preflight.jl" =>
+        "conditional capacity data-check library; it does not write benchmark artifacts",
+    "benchmarks/power_repair_pilot/physics.jl" =>
+        "independent physical residual library included by the pilot and analytic tests; it does not write benchmark artifacts",
     "benchmarks/benchmark_environment.jl" =>
         "shared metadata library included by benchmark runners; it does not write benchmark artifacts",
     "benchmarks/bootstrap_benchmark_environment.jl" =>

@@ -1,0 +1,18 @@
+{
+  "schema_version": "engineer-incident-template-v1",
+  "status": "template_only_not_an_incident",
+  "incident_id": null,
+  "permission_to_use_record": null,
+  "curator": null,
+  "model_and_environment": null,
+  "source_record_paths_and_sha256": [],
+  "original_model_paths_and_sha256": [],
+  "solver_log_paths_and_sha256": [],
+  "documented_resolution_and_supporting_evidence": null,
+  "redactions_and_transformations": [],
+  "incident_specific_scoring_key_path": null,
+  "baseline_package_manifest": null,
+  "report_package_manifest": null,
+  "known_scope_limitations": [],
+  "inclusion_decision_and_reason": null
+}

@@ -1,0 +1,17 @@
+{
+  "source_sha256": "ed26e0fdce26c2f88c840a5da58437a7b88963201f8694a1246c06d93ba19bf5",
+  "source_revision": "synthetic-load-r1",
+  "nominal_loads": {
+    "1": {
+      "bus": 2,
+      "pd_mw": 20,
+      "qd_mvar": 8
+    },
+    "2": {
+      "bus": 2,
+      "pd_mw": 10,
+      "qd_mvar": 4
+    }
+  },
+  "events": []
+}

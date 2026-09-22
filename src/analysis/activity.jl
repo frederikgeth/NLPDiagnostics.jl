@@ -815,10 +815,10 @@ function _active_set_findings(
                 :constraint_feasibility_violation;
                 severity = SeverityError,
                 domain = MathematicalIssue,
-                basis = MathematicalProof,
-                confidence = ConfidenceCertain,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
                 observation = "Constraint row $(activity.row) violates its recorded scalar bound by $(activity.feasibility_violation) at point \"$(evaluation.point.label)\".",
-                why_it_matters = "The supplied point is infeasible under the stated feasibility tolerance, so KKT-style active-set conclusions must be treated as diagnostic probes rather than a feasible-point certificate.",
+                why_it_matters = "The recorded numerical residual exceeds the stated feasibility tolerance. This flags a possible point-feasibility problem, not an exact-real infeasibility certificate; check evaluation accuracy before interpreting KKT evidence.",
                 evidence = [_point_evidence(evaluation.point), _activity_evidence(summary, activity)],
                 suggested_actions = [
                     "Inspect the residual, units, and declared set for this row.",
@@ -2371,19 +2371,19 @@ function _coupled_set_findings(summary::CoupledSetFeasibilitySummary)
                  :coupled_set_boundary_active);
                 severity = violated ? SeverityError : SeverityInfo,
                 domain = MathematicalIssue,
-                basis = MathematicalProof,
-                confidence = ConfidenceCertain,
+                basis = NumericalObservation,
+                confidence = ConfidenceHigh,
                 observation = violated ?
-                              "The $(activity.set_kind) constraint has feasibility residual $(activity.feasibility_violation)." :
+                              "The evaluated $(activity.set_kind) constraint has numerical feasibility residual $(activity.feasibility_violation)." :
                               (nonsmooth_boundary ?
-                               "The $(activity.set_kind) constraint is on a nonsmooth cone boundary (margin $(activity.margin))." :
+                               "The $(activity.set_kind) constraint is numerically classified at a nonsmooth cone boundary (margin $(activity.margin))." :
                                (!isnothing(activity.reason) ?
-                                "The $(activity.set_kind) constraint is on a boundary (margin $(activity.margin)) whose generic tangent semantics are unavailable." :
-                                "The $(activity.set_kind) constraint is on its smooth cone boundary (margin $(activity.margin)).")),
+                                "The $(activity.set_kind) constraint is numerically classified at a boundary (margin $(activity.margin)) whose generic tangent semantics are unavailable." :
+                                "The $(activity.set_kind) constraint is numerically classified at its smooth cone boundary (margin $(activity.margin)).")),
                 why_it_matters = violated ?
-                                  "The evaluated point is outside this coupled set." :
+                                  "The computed residual exceeds the feasibility tolerance. This numerical classification does not certify exact-real exclusion from the coupled set." :
                                   (nonsmooth_boundary ?
-                                   "The cone has no unique scalar boundary normal at this point, so scalar active-row reductions are especially misleading." :
+                                   "At an exact nonsmooth cone boundary there is no unique scalar boundary normal. This tolerance-based classification calls for cone-aware interpretation." :
                                    (!isnothing(activity.reason) ?
                                     "The cone boundary includes representation-level geometry that the generic core intentionally does not collapse into one scalar normal." :
                                     "Cone-boundary activity is vector-set geometry and is intentionally not converted into scalar active rows by the generic core.")),
@@ -2411,7 +2411,7 @@ function _coupled_set_findings(summary::CoupledSetFeasibilitySummary)
                 basis = StructuralProof,
                 confidence = ConfidenceCertain,
                 observation = "The $(activity.set_kind) boundary has no generic single-normal tangent interpretation.",
-                why_it_matters = "Feasibility is known, but the square PSD representation also imposes symmetry equations. Collapsing its geometry to one normal would hide those coupled equalities.",
+                why_it_matters = "The numerical activity is available, but the square PSD representation also imposes symmetry equations. Collapsing its geometry to one normal would hide those coupled equalities.",
                 evidence = [Evidence("Coupled-set tangent availability"; details = [
                     "set_kind" => activity.set_kind,
                     "reason" => activity.reason,
@@ -2458,9 +2458,9 @@ function _coupled_set_tangent_findings(summary::CoupledSetFeasibilitySummary)
         :coupled_set_smooth_boundary_tangent_available;
         severity = SeverityInfo,
         domain = NumericalIssue,
-        basis = MathematicalProof,
-        confidence = ConfidenceCertain,
-        observation = "A smooth $(tangent.set_kind) boundary normal is available in vector-function coordinates.",
+        basis = NumericalObservation,
+        confidence = ConfidenceHigh,
+        observation = "A numerically evaluated smooth $(tangent.set_kind) boundary normal is available in vector-function coordinates.",
         why_it_matters = "This supports cone-aware local interpretation, but remains coupled-set geometry rather than a scalar LICQ/MFCQ row.",
         evidence = [Evidence("Coupled-set tangent evidence"; details = [
             "set_kind" => tangent.set_kind,
@@ -2586,14 +2586,14 @@ function _coupled_set_tangent_gradient_findings(
             domain = zero_gradient || finite_difference_gradient ? NumericalIssue :
                      RepresentationalIssue,
             basis = zero_gradient ? LocalInference :
-                    (finite_difference_gradient ? NumericalObservation : MathematicalProof),
+                    NumericalObservation,
             confidence = finite_difference_gradient ? ConfidenceMedium : ConfidenceHigh,
             observation = zero_gradient ?
-                          "The smooth $(tangent.set_kind) boundary normal maps to a zero model-coordinate gradient at this point." :
-                          "The smooth $(tangent.set_kind) boundary normal maps to a nonzero model-coordinate gradient at this point.",
+                          "The computed smooth $(tangent.set_kind) boundary normal maps to a numerically zero model-coordinate gradient at this point." :
+                          "The computed smooth $(tangent.set_kind) boundary normal maps to a numerically nonzero model-coordinate gradient at this point.",
             why_it_matters = zero_gradient ?
-                             "The coupled constraint is locally stationary in the model coordinates, so even a smooth cone boundary does not supply a regular scalar tangent screen here." :
-                             "The gradient is usable as cone-aware local geometry, but it is intentionally not folded into generic scalar LICQ, MFCQ, or multiplier recovery.",
+                             "The computed zero gradient suggests local stationarity; cancellation or underflow can also produce zero. Check derivative accuracy before drawing a regularity conclusion." :
+                             "The gradient supplies numerical local geometry. Even symbolic or automatic derivatives are evaluated with finite precision here; they do not certify an exact tangent or regularity.",
             evidence = [Evidence("Coupled-set tangent gradient"; details = [
                 "set_kind" => tangent.set_kind,
                 "vector_rows" => join(rows, ","),

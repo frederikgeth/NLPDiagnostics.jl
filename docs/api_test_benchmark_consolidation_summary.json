@@ -587,9 +587,9 @@
     "status": "inventory"
   },
   "benchmark_schema_inventory": {
-    "benchmark_scripts_with_schema_version_count": 134,
-    "json_file_count": 140,
-    "json_schema_file_count": 140,
+    "benchmark_scripts_with_schema_version_count": 152,
+    "json_file_count": 160,
+    "json_schema_file_count": 160,
     "json_without_schema_count": 0,
     "schema_errors": []
   },
@@ -698,9 +698,9 @@
     "status": "partial"
   },
   "module_boundaries": {
-    "benchmark_script_count": 196,
+    "benchmark_script_count": 227,
     "shared_benchmark_helper": "benchmarks/common.jl",
-    "shared_benchmark_helper_exemption_count": 3,
+    "shared_benchmark_helper_exemption_count": 16,
     "shared_benchmark_helper_exemptions": [
       {
         "path": "benchmarks/benchmark_environment.jl",
@@ -711,11 +711,63 @@
         "reason": "explicit environment bootstrapper that mutates Julia project metadata rather than benchmark artifacts"
       },
       {
+        "path": "benchmarks/power_diagnostics_v2.jl",
+        "reason": "versioned workflow and report library; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/power_repair_pilot/capacity_model_contract.jl",
+        "reason": "experimental source-to-backend constraint matcher; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/power_repair_pilot/capacity_preflight.jl",
+        "reason": "conditional capacity data-check library; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/power_repair_pilot/encoded_capacity_certificate.jl",
+        "reason": "experimental exact encoded-equation capacity checker; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/power_repair_pilot/island_capacity_certificate.jl",
+        "reason": "experimental subset-verified island capacity library; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/power_repair_pilot/load_status_contract.jl",
+        "reason": "experimental nominal-load switching contract and report facade; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/power_repair_pilot/partial_power_diagnostics.jl",
+        "reason": "post-evaluation independent analysis/report facade; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/power_repair_pilot/physics.jl",
+        "reason": "independent physical residual library included by the pilot and analytic tests; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/power_repair_pilot/power_diagnostic_report.jl",
+        "reason": "experimental report formatter and workflow facade; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/power_repair_pilot/source_load_contract.jl",
+        "reason": "experimental pinned source-load and workflow contract; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/power_repair_pilot/tolerant_capacity_certificate.jl",
+        "reason": "experimental absolute-tolerance capacity checker; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/power_repair_pilot/verified_solver_acceptance.jl",
+        "reason": "experimental solver and rational point-verification library; it does not write benchmark artifacts"
+      },
+      {
+        "path": "benchmarks/rank_statistics.jl",
+        "reason": "pure per-record calibration accounting library; it does not write benchmark artifacts"
+      },
+      {
         "path": "benchmarks/run_benchmark.jl",
         "reason": "process launcher that executes another benchmark script and does not produce benchmark artifacts"
       }
     ],
-    "shared_benchmark_helper_user_count": 193,
+    "shared_benchmark_helper_user_count": 211,
     "shared_benchmark_helper_users": [
       "benchmarks/analyze_bmopf_series_nominal_capacity_boundary.jl",
       "benchmarks/assess_bmopf_lv13_madnlp_resource_envelope.jl",
@@ -747,10 +799,12 @@
       "benchmarks/bmopf_acdc_scaling_campaign.jl",
       "benchmarks/bmopf_combined_mv_lv_feasibility_probe.jl",
       "benchmarks/bmopf_combined_mv_lv_feasibility_start_transfer.jl",
+      "benchmarks/bmopf_combined_mv_lv_load_multiplier_sweep.jl",
       "benchmarks/bmopf_combined_mv_lv_perturbed_start_campaign.jl",
       "benchmarks/bmopf_combined_mv_lv_scaling_campaign.jl",
       "benchmarks/bmopf_combined_mv_lv_scaling_probe.jl",
       "benchmarks/bmopf_combined_mv_lv_snapshot_campaign.jl",
+      "benchmarks/bmopf_combined_mv_lv_transfer_budget_sweep.jl",
       "benchmarks/bmopf_draft_corpus.jl",
       "benchmarks/bmopf_magnitude_scaling_campaign.jl",
       "benchmarks/bmopf_normal_eigen_jacobian_validation.jl",
@@ -840,6 +894,14 @@
       "benchmarks/review_real_99bus_kkt_boundary.jl",
       "benchmarks/run_bmopf_combined_mv_lv_feasibility_start_transfer_child.jl",
       "benchmarks/run_bmopf_lv13_madnlp_isolated.jl",
+      "benchmarks/run_capacity_preflight_followup.jl",
+      "benchmarks/run_frozen_power_validation.jl",
+      "benchmarks/run_frozen_report_validation.jl",
+      "benchmarks/run_frozen_status_validation.jl",
+      "benchmarks/run_partial_power_report.jl",
+      "benchmarks/run_power_diagnostic_report.jl",
+      "benchmarks/run_power_diagnostics_v2.jl",
+      "benchmarks/run_power_repair_pilot.jl",
       "benchmarks/solver_failure_cases.jl",
       "benchmarks/summarize_analyze_runtime_resources.jl",
       "benchmarks/summarize_analyze_runtime_trends.jl",
@@ -885,6 +947,7 @@
       "benchmarks/summarize_bmopf_solver_trace.jl",
       "benchmarks/summarize_bmopf_sparse_corpus.jl",
       "benchmarks/summarize_bmopf_t15t16_tranche.jl",
+      "benchmarks/summarize_bmopf_transfer_budget_boundary.jl",
       "benchmarks/summarize_operator_fingerprint.jl",
       "benchmarks/summarize_rank_calibration_statistics.jl",
       "benchmarks/summarize_rank_threshold_disagreements.jl",
@@ -904,10 +967,17 @@
       "benchmarks/validate_bmopf_analyze_portability.jl",
       "benchmarks/validate_bmopf_campaign.jl",
       "benchmarks/validate_bmopf_checkout.jl",
+      "benchmarks/validate_bmopf_combined_mv_lv_load_boundary_refinement.jl",
+      "benchmarks/validate_bmopf_combined_mv_lv_load_fine_boundary.jl",
+      "benchmarks/validate_bmopf_combined_mv_lv_load_sweep.jl",
+      "benchmarks/validate_bmopf_combined_mv_lv_madnlp_boundary.jl",
+      "benchmarks/validate_bmopf_combined_mv_lv_solver_boundary_consistency.jl",
       "benchmarks/validate_bmopf_lv13_madnlp_isolated_environment.jl",
       "benchmarks/validate_bmopf_rerun_candidates.jl",
       "benchmarks/validate_bmopf_residual_trends.jl",
       "benchmarks/validate_bmopf_trace_truth_labels.jl",
+      "benchmarks/validate_bmopf_transfer_budget_sweep.jl",
+      "benchmarks/validate_bmopf_transfer_report.jl",
       "benchmarks/validate_rank_third_backend.jl",
       "benchmarks/validate_real_99bus_kkt_gate.jl"
     ],
@@ -946,12 +1016,30 @@
       "api/advanced.jl",
       "api/stable.jl"
     ],
-    "test_file_count": 10,
-    "test_include_count": 9,
+    "test_file_count": 46,
+    "test_include_count": 27,
     "test_includes": [
       "rank_calibration.jl",
+      "rank_statistics_contracts.jl",
+      "benchmark_environment_contracts.jl",
+      "power_repair_physics.jl",
       "randomized_rank_oracles.jl",
       "point_provenance.jl",
+      "scientific_contracts.jl",
+      "certified_interval_arithmetic.jl",
+      "interval_certification.jl",
+      "exact_static_rows.jl",
+      "certified_quadratic_geometry.jl",
+      "certified_geometry_integration.jl",
+      "objective_ray_contracts.jl",
+      "algebraic_range_contracts.jl",
+      "branch_identity_contracts.jl",
+      "range_premise_contracts.jl",
+      "activity_evidence_contracts.jl",
+      "bound_input_contracts.jl",
+      "range_semantic_contracts.jl",
+      "final_producer_contracts.jl",
+      "initialization_tolerance_contracts.jl",
       "fingerprints_and_crosscheck.jl",
       "scaling_covariance.jl",
       "block_scaling_covariance.jl",
@@ -979,7 +1067,7 @@
     "test_root": "test/runtests.jl"
   },
   "typed_unavailable_audit": {
-    "bare_catch_count_in_source": 28,
+    "bare_catch_count_in_source": 29,
     "bound_catch_count_in_source": 49,
     "explicit_typed_unavailable_token_count": 1,
     "explicit_typed_unavailable_tokens": [

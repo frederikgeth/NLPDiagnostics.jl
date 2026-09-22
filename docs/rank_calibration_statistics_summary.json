@@ -66,54 +66,69 @@
     "threshold_relation": {
       "agreement_count": 17,
       "disagreement_count": 9,
-      "record_count": 26
+      "record_count": 26,
+      "unavailable_count": 0
     }
   },
   "environment": {
-    "active_project": "/private/tmp/nlpdiag-benchmark-env-clean/Project.toml",
-    "git_revision": "44a2f19fc0427b90a921491e4c62841b10b10e44",
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/benchmarks/environments/power_repair_pilot/Project.toml",
+    "git_revision": "be72c50b7d061d6822f6a6bac4d55758645ea183",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
   "finite_sample_uncertainty": {
-    "confidence_level": 0.95,
-    "method": "one-sided exact zero-event binomial upper bound: 1 - alpha^(1/n)",
-    "observed_mismatch_count": 0,
-    "observed_unavailable_count": 0,
-    "qualification": "Finite-sample uncertainty context for this corpus, not a universal error guarantee or tolerance recommendation.",
-    "rates": {
-      "false_negative_rate": {
-        "observed_count": 0,
-        "upper_bound_if_zero_observed": 0.059306014189697054
-      },
-      "false_positive_rate": {
-        "observed_count": 0,
-        "upper_bound_if_zero_observed": 0.059306014189697054
-      },
-      "mismatch_rate": {
-        "observed_count": 0,
-        "upper_bound_if_zero_observed": 0.059306014189697054
-      },
-      "unavailable_rate": {
-        "observed_count": 0,
-        "upper_bound_if_zero_observed": 0.059306014189697054
-      }
-    },
-    "sample_count": 49,
-    "zero_event_upper_bound": 0.059306014189697054
+    "available": false,
+    "confidence_level": null,
+    "reason": "Selected and related calibration cases have no specified independent deployment sampling design. Counts and class-specific empirical rates are descriptive only.",
+    "zero_event_upper_bound": null
   },
   "hard_controls": {
+    "agreement_count": 49,
     "all_match_and_available": true,
+    "backends": {
+      "dense": {
+        "available_negative_count": 32,
+        "available_positive_count": 17,
+        "false_negative_count": 0,
+        "false_negative_rate_among_available": 0.0,
+        "false_positive_count": 0,
+        "false_positive_rate_among_available": 0.0,
+        "rank_mismatch_count": 0,
+        "record_count": 49,
+        "truth_negative_count": 32,
+        "truth_positive_count": 17,
+        "unavailable_negative_count": 0,
+        "unavailable_positive_count": 0
+      },
+      "sparse": {
+        "available_negative_count": 32,
+        "available_positive_count": 17,
+        "false_negative_count": 0,
+        "false_negative_rate_among_available": 0.0,
+        "false_positive_count": 0,
+        "false_positive_rate_among_available": 0.0,
+        "rank_mismatch_count": 0,
+        "record_count": 49,
+        "truth_negative_count": 32,
+        "truth_positive_count": 17,
+        "unavailable_negative_count": 0,
+        "unavailable_positive_count": 0
+      }
+    },
+    "classification_count_unit": "backend evaluations; use backend-specific class denominators for rates",
     "dense_sparse_complete_count": 49,
     "false_negative_count": 0,
     "false_positive_count": 0,
     "mismatch_count": 0,
     "record_count": 49,
+    "record_count_scope": "Mismatch and unavailable counts are per record and can overlap; agreement requires both backends available and matching the oracle.",
     "source_record_counts": {
       "controlled_perturbation": 25,
       "deterministic_adversarial_extension": 6,
       "seeded_randomized": 18
     },
+    "truth_negative_count": 32,
+    "truth_positive_count": 17,
     "unavailable_count": 0
   },
   "interpretation": {
@@ -186,6 +201,1959 @@
     "repeatability_failure_count": 3,
     "unavailable_count": 0
   },
+  "positive_class": "rank < min(rows, columns)",
+  "records": [
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "well_conditioned_full_rank",
+      "hard_expectation": true,
+      "name": "well_conditioned_full_rank_seed_101",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 101,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "family": "exact_rank_deficient",
+      "hard_expectation": true,
+      "name": "exact_rank_deficient_seed_101",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 101,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 6,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "family": "lift_below_threshold",
+      "hard_expectation": false,
+      "name": "lift_below_threshold_seed_101",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 101,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "family": "threshold_band_low",
+      "hard_expectation": false,
+      "name": "threshold_band_low_seed_101",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 101,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 7,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "family": "threshold_band_high",
+      "hard_expectation": false,
+      "name": "threshold_band_high_seed_101",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 101,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "well_above_threshold",
+      "hard_expectation": true,
+      "name": "well_above_threshold_seed_101",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 101,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "family": "rectangular_full_row_rank",
+      "hard_expectation": true,
+      "name": "rectangular_full_row_rank_seed_101",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 6,
+      "seed": 101,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 6,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "family": "rectangular_rank_deficient",
+      "hard_expectation": true,
+      "name": "rectangular_rank_deficient_seed_101",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 1.0e-8,
+      "rows": 6,
+      "seed": 101,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 4,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "well_conditioned_full_rank",
+      "hard_expectation": true,
+      "name": "well_conditioned_full_rank_seed_211",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 211,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "family": "exact_rank_deficient",
+      "hard_expectation": true,
+      "name": "exact_rank_deficient_seed_211",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 211,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 6,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "family": "lift_below_threshold",
+      "hard_expectation": false,
+      "name": "lift_below_threshold_seed_211",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 211,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "family": "threshold_band_low",
+      "hard_expectation": false,
+      "name": "threshold_band_low_seed_211",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 211,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "family": "threshold_band_high",
+      "hard_expectation": false,
+      "name": "threshold_band_high_seed_211",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 211,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "well_above_threshold",
+      "hard_expectation": true,
+      "name": "well_above_threshold_seed_211",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 211,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "family": "rectangular_full_row_rank",
+      "hard_expectation": true,
+      "name": "rectangular_full_row_rank_seed_211",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 6,
+      "seed": 211,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 6,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "family": "rectangular_rank_deficient",
+      "hard_expectation": true,
+      "name": "rectangular_rank_deficient_seed_211",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 1.0e-8,
+      "rows": 6,
+      "seed": 211,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 4,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "well_conditioned_full_rank",
+      "hard_expectation": true,
+      "name": "well_conditioned_full_rank_seed_307",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 307,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "family": "exact_rank_deficient",
+      "hard_expectation": true,
+      "name": "exact_rank_deficient_seed_307",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 307,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 6,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "family": "lift_below_threshold",
+      "hard_expectation": false,
+      "name": "lift_below_threshold_seed_307",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 307,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "family": "threshold_band_low",
+      "hard_expectation": false,
+      "name": "threshold_band_low_seed_307",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 307,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 7,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "family": "threshold_band_high",
+      "hard_expectation": false,
+      "name": "threshold_band_high_seed_307",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 307,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "well_above_threshold",
+      "hard_expectation": true,
+      "name": "well_above_threshold_seed_307",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 307,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "family": "rectangular_full_row_rank",
+      "hard_expectation": true,
+      "name": "rectangular_full_row_rank_seed_307",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 6,
+      "seed": 307,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 6,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "family": "rectangular_rank_deficient",
+      "hard_expectation": true,
+      "name": "rectangular_rank_deficient_seed_307",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 1.0e-8,
+      "rows": 6,
+      "seed": 307,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 4,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "well_conditioned_full_rank",
+      "hard_expectation": true,
+      "name": "well_conditioned_full_rank_seed_401",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 401,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "family": "exact_rank_deficient",
+      "hard_expectation": true,
+      "name": "exact_rank_deficient_seed_401",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 401,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 6,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "family": "lift_below_threshold",
+      "hard_expectation": false,
+      "name": "lift_below_threshold_seed_401",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 401,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "family": "threshold_band_low",
+      "hard_expectation": false,
+      "name": "threshold_band_low_seed_401",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 401,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "family": "threshold_band_high",
+      "hard_expectation": false,
+      "name": "threshold_band_high_seed_401",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 401,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "well_above_threshold",
+      "hard_expectation": true,
+      "name": "well_above_threshold_seed_401",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 401,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "family": "rectangular_full_row_rank",
+      "hard_expectation": true,
+      "name": "rectangular_full_row_rank_seed_401",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 6,
+      "seed": 401,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 6,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "family": "rectangular_rank_deficient",
+      "hard_expectation": true,
+      "name": "rectangular_rank_deficient_seed_401",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 1.0e-8,
+      "rows": 6,
+      "seed": 401,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 4,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "well_conditioned_full_rank",
+      "hard_expectation": true,
+      "name": "well_conditioned_full_rank_seed_509",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 509,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "family": "exact_rank_deficient",
+      "hard_expectation": true,
+      "name": "exact_rank_deficient_seed_509",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 509,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 6,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "family": "lift_below_threshold",
+      "hard_expectation": false,
+      "name": "lift_below_threshold_seed_509",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 509,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 6,
+        "rank_matches": null
+      },
+      "family": "threshold_band_low",
+      "hard_expectation": false,
+      "name": "threshold_band_low_seed_509",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 509,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "family": "threshold_band_high",
+      "hard_expectation": false,
+      "name": "threshold_band_high_seed_509",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 509,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "well_above_threshold",
+      "hard_expectation": true,
+      "name": "well_above_threshold_seed_509",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-8,
+      "rows": 8,
+      "seed": 509,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "family": "rectangular_full_row_rank",
+      "hard_expectation": true,
+      "name": "rectangular_full_row_rank_seed_509",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 6,
+      "seed": 509,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 6,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "controlled_perturbation",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "family": "rectangular_rank_deficient",
+      "hard_expectation": true,
+      "name": "rectangular_rank_deficient_seed_509",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 1.0e-8,
+      "rows": 6,
+      "seed": 509,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 4,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 6,
+      "corpus": "deterministic_adversarial_extension",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "family": "hard_control",
+      "hard_expectation": true,
+      "name": "scaled_signed_full_rank",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 6,
+      "seed": null,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 6,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "deterministic_adversarial_extension",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "family": "hard_control",
+      "hard_expectation": true,
+      "name": "duplicate_column_rank_deficient",
+      "policy_expected_rank": 6,
+      "relative_tolerance": 1.0e-8,
+      "rows": 6,
+      "seed": null,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 6,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 6,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 5,
+      "corpus": "deterministic_adversarial_extension",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 5,
+        "rank_matches": true
+      },
+      "family": "hard_control",
+      "hard_expectation": true,
+      "name": "duplicate_row_rank_deficient",
+      "policy_expected_rank": 5,
+      "relative_tolerance": 1.0e-8,
+      "rows": 7,
+      "seed": null,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 5,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 5,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 4,
+      "corpus": "deterministic_adversarial_extension",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "family": "hard_control",
+      "hard_expectation": true,
+      "name": "rectangular_tall_full_column_rank",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 1.0e-8,
+      "rows": 10,
+      "seed": null,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 4,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 9,
+      "corpus": "deterministic_adversarial_extension",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "family": "hard_control",
+      "hard_expectation": true,
+      "name": "rectangular_wide_full_row_rank",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 1.0e-8,
+      "rows": 4,
+      "seed": null,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 4,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 5,
+      "corpus": "deterministic_adversarial_extension",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 3,
+        "rank_matches": true
+      },
+      "family": "hard_control",
+      "hard_expectation": true,
+      "name": "signed_dependency_rank_deficient",
+      "policy_expected_rank": 3,
+      "relative_tolerance": 1.0e-8,
+      "rows": 5,
+      "seed": null,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 3,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 3,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 4,
+      "corpus": "deterministic_adversarial_extension",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 2,
+        "rank_matches": null
+      },
+      "family": "threshold_sensitive",
+      "hard_expectation": false,
+      "name": "threshold_band_below",
+      "policy_expected_rank": 2,
+      "relative_tolerance": 1.0e-8,
+      "rows": 4,
+      "seed": null,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 2,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 4,
+      "corpus": "deterministic_adversarial_extension",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 4,
+        "rank_matches": null
+      },
+      "family": "threshold_sensitive",
+      "hard_expectation": false,
+      "name": "threshold_band_above",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 1.0e-8,
+      "rows": 4,
+      "seed": null,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 4,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "full_rank_negative_control",
+      "hard_expectation": true,
+      "name": "seed_11_tall_full_column_rank",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-10,
+      "rows": 12,
+      "seed": 11,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 7,
+        "rank_matches": true
+      },
+      "family": "rectangular_exact_nullity",
+      "hard_expectation": true,
+      "name": "seed_11_wide_right_nullity_three",
+      "policy_expected_rank": 7,
+      "relative_tolerance": 1.0e-10,
+      "rows": 7,
+      "seed": 11,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 7,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 7,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 5,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": null
+      },
+      "family": "threshold_cluster",
+      "hard_expectation": false,
+      "name": "seed_11_threshold_cluster_5.0e-9",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 5.0e-9,
+      "rows": 5,
+      "seed": 11,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 5,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 3,
+        "rank_matches": null
+      },
+      "family": "threshold_cluster",
+      "hard_expectation": false,
+      "name": "seed_11_threshold_cluster_1.0e-8",
+      "policy_expected_rank": 3,
+      "relative_tolerance": 1.0e-8,
+      "rows": 5,
+      "seed": 11,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 5,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 2,
+        "rank_matches": null
+      },
+      "family": "threshold_cluster",
+      "hard_expectation": false,
+      "name": "seed_11_threshold_cluster_2.0e-8",
+      "policy_expected_rank": 2,
+      "relative_tolerance": 2.0e-8,
+      "rows": 5,
+      "seed": 11,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "family": "scaling_sensitive_full_rank",
+      "hard_expectation": true,
+      "name": "seed_11_badly_scaled_unscaled_policy",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 1.0e-10,
+      "rows": 8,
+      "seed": 11,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 4,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "scaling_intervention",
+      "hard_expectation": true,
+      "name": "seed_11_badly_scaled_equilibrated_policy",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-10,
+      "rows": 8,
+      "seed": 11,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 2,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 1,
+        "rank_matches": true
+      },
+      "family": "nonlinear_cancellation",
+      "hard_expectation": true,
+      "name": "seed_11_nonlinear_cancellation_point",
+      "policy_expected_rank": 1,
+      "relative_tolerance": 1.0e-10,
+      "rows": 2,
+      "seed": 11,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 1,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 1,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 2,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 2,
+        "rank_matches": true
+      },
+      "family": "nonlinear_cancellation_negative_control",
+      "hard_expectation": true,
+      "name": "seed_11_nonlinear_cancellation_nearby",
+      "policy_expected_rank": 2,
+      "relative_tolerance": 1.0e-10,
+      "rows": 2,
+      "seed": 11,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 2,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 2,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "full_rank_negative_control",
+      "hard_expectation": true,
+      "name": "seed_29_tall_full_column_rank",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-10,
+      "rows": 12,
+      "seed": 29,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 7,
+        "rank_matches": true
+      },
+      "family": "rectangular_exact_nullity",
+      "hard_expectation": true,
+      "name": "seed_29_wide_right_nullity_three",
+      "policy_expected_rank": 7,
+      "relative_tolerance": 1.0e-10,
+      "rows": 7,
+      "seed": 29,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 7,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 7,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 5,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": null
+      },
+      "family": "threshold_cluster",
+      "hard_expectation": false,
+      "name": "seed_29_threshold_cluster_5.0e-9",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 5.0e-9,
+      "rows": 5,
+      "seed": 29,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 3,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 5,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 3,
+        "rank_matches": null
+      },
+      "family": "threshold_cluster",
+      "hard_expectation": false,
+      "name": "seed_29_threshold_cluster_1.0e-8",
+      "policy_expected_rank": 3,
+      "relative_tolerance": 1.0e-8,
+      "rows": 5,
+      "seed": 29,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 3,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 5,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 2,
+        "rank_matches": null
+      },
+      "family": "threshold_cluster",
+      "hard_expectation": false,
+      "name": "seed_29_threshold_cluster_2.0e-8",
+      "policy_expected_rank": 2,
+      "relative_tolerance": 2.0e-8,
+      "rows": 5,
+      "seed": 29,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 3,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "family": "scaling_sensitive_full_rank",
+      "hard_expectation": true,
+      "name": "seed_29_badly_scaled_unscaled_policy",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 1.0e-10,
+      "rows": 8,
+      "seed": 29,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 4,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "scaling_intervention",
+      "hard_expectation": true,
+      "name": "seed_29_badly_scaled_equilibrated_policy",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-10,
+      "rows": 8,
+      "seed": 29,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 2,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 1,
+        "rank_matches": true
+      },
+      "family": "nonlinear_cancellation",
+      "hard_expectation": true,
+      "name": "seed_29_nonlinear_cancellation_point",
+      "policy_expected_rank": 1,
+      "relative_tolerance": 1.0e-10,
+      "rows": 2,
+      "seed": 29,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 1,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 1,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 2,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 2,
+        "rank_matches": true
+      },
+      "family": "nonlinear_cancellation_negative_control",
+      "hard_expectation": true,
+      "name": "seed_29_nonlinear_cancellation_nearby",
+      "policy_expected_rank": 2,
+      "relative_tolerance": 1.0e-10,
+      "rows": 2,
+      "seed": 29,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 2,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 2,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "full_rank_negative_control",
+      "hard_expectation": true,
+      "name": "seed_47_tall_full_column_rank",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-10,
+      "rows": 12,
+      "seed": 47,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 10,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 7,
+        "rank_matches": true
+      },
+      "family": "rectangular_exact_nullity",
+      "hard_expectation": true,
+      "name": "seed_47_wide_right_nullity_three",
+      "policy_expected_rank": 7,
+      "relative_tolerance": 1.0e-10,
+      "rows": 7,
+      "seed": 47,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 7,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 7,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 5,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": null
+      },
+      "family": "threshold_cluster",
+      "hard_expectation": false,
+      "name": "seed_47_threshold_cluster_5.0e-9",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 5.0e-9,
+      "rows": 5,
+      "seed": 47,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 5,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 3,
+        "rank_matches": null
+      },
+      "family": "threshold_cluster",
+      "hard_expectation": false,
+      "name": "seed_47_threshold_cluster_1.0e-8",
+      "policy_expected_rank": 3,
+      "relative_tolerance": 1.0e-8,
+      "rows": 5,
+      "seed": 47,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 3,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 5,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 2,
+        "rank_matches": null
+      },
+      "family": "threshold_cluster",
+      "hard_expectation": false,
+      "name": "seed_47_threshold_cluster_2.0e-8",
+      "policy_expected_rank": 2,
+      "relative_tolerance": 2.0e-8,
+      "rows": 5,
+      "seed": 47,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 2,
+        "rank_matches": null
+      },
+      "truth_positive": null,
+      "truth_rank": null,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "family": "scaling_sensitive_full_rank",
+      "hard_expectation": true,
+      "name": "seed_47_badly_scaled_unscaled_policy",
+      "policy_expected_rank": 4,
+      "relative_tolerance": 1.0e-10,
+      "rows": 8,
+      "seed": 47,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 4,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 4,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 8,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "family": "scaling_intervention",
+      "hard_expectation": true,
+      "name": "seed_47_badly_scaled_equilibrated_policy",
+      "policy_expected_rank": 8,
+      "relative_tolerance": 1.0e-10,
+      "rows": 8,
+      "seed": 47,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 8,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 8,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 2,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 1,
+        "rank_matches": true
+      },
+      "family": "nonlinear_cancellation",
+      "hard_expectation": true,
+      "name": "seed_47_nonlinear_cancellation_point",
+      "policy_expected_rank": 1,
+      "relative_tolerance": 1.0e-10,
+      "rows": 2,
+      "seed": 47,
+      "sparse": {
+        "available": true,
+        "predicted_positive": true,
+        "rank": 1,
+        "rank_matches": true
+      },
+      "truth_positive": true,
+      "truth_rank": 1,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    },
+    {
+      "columns": 2,
+      "corpus": "seeded_randomized",
+      "dense": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 2,
+        "rank_matches": true
+      },
+      "family": "nonlinear_cancellation_negative_control",
+      "hard_expectation": true,
+      "name": "seed_47_nonlinear_cancellation_nearby",
+      "policy_expected_rank": 2,
+      "relative_tolerance": 1.0e-10,
+      "rows": 2,
+      "seed": 47,
+      "sparse": {
+        "available": true,
+        "predicted_positive": false,
+        "rank": 2,
+        "rank_matches": true
+      },
+      "truth_positive": false,
+      "truth_rank": 2,
+      "truth_scope": "Declared construction/policy oracle; not independent certification of represented matrix rank."
+    }
+  ],
   "saved_result_bmopf_campaign": {
     "all_point_provenance_complete": true,
     "all_sparse_estimates_available": true,
@@ -199,7 +2167,7 @@
     "scaling_sensitive_count": 0,
     "scaling_stable_count": 102
   },
-  "schema_version": "nlpdiagnostics-rank-calibration-statistics-v2",
+  "schema_version": "nlpdiagnostics-rank-calibration-statistics-v3",
   "source": {
     "adversarial_extension_artifact": "docs/rank_adversarial_extension_summary.json",
     "large_sparse_artifact": "docs/large_sparse_rank_oracle_summary.json",
@@ -210,6 +2178,7 @@
     "policy": "Declared hard controls are counted for false-positive/false-negative statistics; threshold-sensitive controls remain disagreement evidence; dense-unavailable large sparse records are sparse-only coverage.",
     "runner": "benchmarks/summarize_rank_calibration_statistics.jl",
     "seeded_artifact": "docs/randomized_rank_oracle_calibration_summary.json",
+    "seeded_record_artifact": "docs/randomized_rank_oracle_records.json",
     "third_backend_artifact": "docs/rank_third_backend_capability_summary.json"
   },
   "third_backend_capability": {
@@ -223,12 +2192,13 @@
   "threshold_sensitive_controls": {
     "backend_agreement_count": 17,
     "backend_disagreement_count": 9,
-    "interpretation": "Disagreements are retained as tolerance-sensitive numerical policy evidence, not algebraic-rank failures.",
+    "interpretation": "Threshold-sensitive records describe numerical policy disagreement, not detector error.",
     "record_count": 26,
     "source_record_counts": {
       "controlled_perturbation": 15,
       "deterministic_adversarial_extension": 2,
       "seeded_randomized": 9
-    }
+    },
+    "unavailable_count": 0
   }
 }

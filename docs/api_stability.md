@@ -4,6 +4,11 @@ NLPDiagnostics is still pre-release, so the full historical root namespace is
 not a promise that every exported name is stable. The project now separates
 three compatibility tiers.
 
+The power-workflow facade in `benchmarks/power_diagnostics_v2.jl` is an explicitly
+versioned experimental application boundary. It does not add Stable exports.
+Earlier frozen workflow modules are retained for replay; new application work
+should use the [version 2 entry point](power_diagnostics_v2.md).
+
 ## `NLPDiagnostics.Stable`
 
 New application code should target the deliberately small `Stable` facade. Its

@@ -4,6 +4,20 @@ This document records bounded empirical results that have passed the current
 artifact/readiness checks. It is not a leaderboard and does not convert local
 solver behavior into a physical diagnosis.
 
+## September 2026 rank-accounting correction
+
+The current rank-statistics summary uses schema v3 and retained per-record
+observations from all three small dense/sparse corpora. The positive class is
+rank below `min(rows, columns)` under the declared construction/policy oracle.
+Dense and sparse results have separate truth-positive/truth-negative denominators,
+unavailable class counts, and descriptive error rates among available results.
+Exact-rank mismatches within the deficient class remain visible separately.
+
+The 49 hard controls and 26 threshold-sensitive controls are selected, related
+calibration cases, not independent deployment samples. The former pooled 95%
+zero-event bounds are withdrawn. The saved observations are unchanged; this is
+an accounting correction, not new calibration or a release qualification.
+
 ## 2026-08-27: declared numerical-rank policy boundary
 
 The rank calibration ledger now separates three cases. Hard controls are

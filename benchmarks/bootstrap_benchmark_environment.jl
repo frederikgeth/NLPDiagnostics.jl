@@ -26,8 +26,12 @@ isdir(BMOPF_ROOT) || error(
 
 mkpath(ENV_ROOT)
 Pkg.activate(ENV_ROOT)
-Pkg.develop(Pkg.PackageSpec(path = REPO_ROOT))
-Pkg.develop(Pkg.PackageSpec(path = BMOPF_ROOT))
+# Resolve both changing path dependencies together. Preserving the old direct
+# PowerIO version can make the first develop fail before BMOPFTools is updated.
+Pkg.develop([
+    Pkg.PackageSpec(path = REPO_ROOT),
+    Pkg.PackageSpec(path = BMOPF_ROOT),
+]; preserve = Pkg.PRESERVE_NONE)
 # Extras are intentionally not resolved by `Pkg.instantiate()` for a package
 # project. Add the solver/test surface explicitly so the preflight and full
 # regression suite see the same environment.

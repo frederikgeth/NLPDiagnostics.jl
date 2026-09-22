@@ -76,6 +76,31 @@ end
 
 variable_domains(model::MOI.ModelLike) = variable_domains(snapshot(model))
 
+# Inspect declarations before aggregation: a restrictive finite endpoint can
+# hide an unsupported or malformed endpoint from another source.
+function _scalar_bound_input_issues(model::ModelSnapshot)
+    issues = Dict{MOI.VariableIndex,Vector{Pair{Symbol,EntityRef}}}()
+    for constraint in model.constraints
+        variable, set = constraint.function_value, constraint.set_value
+        variable isa MOI.VariableIndex || continue
+        bounds = set isa MOI.GreaterThan ? (set.lower, nothing) :
+                 set isa MOI.LessThan ? (nothing, set.upper) :
+                 set isa MOI.Interval ? (set.lower, set.upper) :
+                 set isa Union{MOI.EqualTo,MOI.Parameter} ? (set.value, set.value) : nothing
+        isnothing(bounds) && continue
+        for (side, endpoint) in enumerate(bounds)
+            isnothing(endpoint) && continue
+            kind = endpoint isa AbstractFloat && isnan(endpoint) ? :nan :
+                   !isnothing(_exact_real_value(endpoint)) ? nothing :
+                   endpoint == (side == 1 ? -Inf : Inf) ? nothing :
+                   isinf(endpoint) ? :invalid_infinity : :unsupported_endpoint
+            isnothing(kind) && continue
+            push!(get!(issues, variable, Pair{Symbol,EntityRef}[]), kind => _constraint_ref(constraint))
+        end
+    end
+    return issues
+end
+
 """
     variable_roles(snapshot::ModelSnapshot)
 
@@ -83,6 +108,7 @@ Classify variables for structural equation analysis. A variable fixed by the
 intersection of simple scalar bounds is not treated as a structural unknown.
 """
 function variable_roles(model::ModelSnapshot)
+    input_issues = _scalar_bound_input_issues(model)
     discrete_variables = Set{MOI.VariableIndex}(
         constraint.function_value for constraint in model.constraints if
         constraint.function_value isa MOI.VariableIndex &&
@@ -92,7 +118,7 @@ function variable_roles(model::ModelSnapshot)
     for domain in variable_domains(model)
         has_nan = (!isnothing(domain.lower) && domain.lower isa AbstractFloat && isnan(domain.lower)) ||
                   (!isnothing(domain.upper) && domain.upper isa AbstractFloat && isnan(domain.upper))
-        role = if has_nan
+        role = if has_nan || haskey(input_issues, domain.variable)
             InvalidVariableDomain
         elseif !isnothing(domain.lower) && !isnothing(domain.upper) &&
                domain.lower > domain.upper

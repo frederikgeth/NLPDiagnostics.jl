@@ -10,11 +10,14 @@ false positives or false negatives.
 
 include(joinpath(@__DIR__, "common.jl"))
 using .NLPDiagnosticsBenchmarkCommon
+include(joinpath(@__DIR__, "rank_statistics.jl"))
+using .RankCalibrationStatistics
 
 const ROOT = repo_root()
 const OUTPUT = abspath(isempty(ARGS) ?
     joinpath(ROOT, "docs", "rank_calibration_statistics_summary.json") : ARGS[1])
 const SEEDED_ARTIFACT = "docs/randomized_rank_oracle_calibration_summary.json"
+const SEEDED_RECORD_ARTIFACT = "docs/randomized_rank_oracle_records.json"
 const LARGE_SPARSE_ARTIFACT = "docs/large_sparse_rank_oracle_summary.json"
 const PERTURBATION_ARTIFACT = "docs/rank_perturbation_sweep_summary.json"
 const ADVERSARIAL_EXTENSION_ARTIFACT = "docs/rank_adversarial_extension_summary.json"
@@ -37,53 +40,24 @@ normal_eigen_bmopf = read_summary(NORMAL_EIGEN_BMOPF_ARTIFACT)
 large_sparse_bmopf = read_summary(LARGE_SPARSE_BMOPF_ARTIFACT)
 large_sparse_bmopf_saved = read_summary(LARGE_SPARSE_BMOPF_SAVED_ARTIFACT)
 saved_result_bmopf_campaign = read_summary(SAVED_RESULT_BMOPF_CAMPAIGN_ARTIFACT)
-seeded_hard = get(seeded, "hard_controls", Dict{String,Any}())
-seeded_threshold = get(seeded, "threshold_controls", Dict{String,Any}())
 large_by_case = get(large_sparse, "by_case", Dict{String,Any}())
-
-hard_control_records = [
-    get(seeded_hard, "record_count", 0),
-    get(perturbation, "hard_control_count", 0),
-    get(adversarial_extension, "hard_control_count", 0),
-]
-threshold_records = [
-    get(seeded_threshold, "record_count", 0),
-    get(perturbation, "threshold_sensitive_count", 0),
-    get(adversarial_extension, "threshold_sensitive_count", 0),
-]
-hard_control_mismatches = [
-    get(seeded_hard, "false_positive_count", 0) + get(seeded_hard, "false_negative_count", 0),
-    get(perturbation, "hard_control_mismatch_count", 0),
-    get(adversarial_extension, "hard_control_mismatch_count", 0),
-]
-hard_control_unavailable = [
-    get(seeded_hard, "dense_unavailable_count", 0) + get(seeded_hard, "sparse_unavailable_count", 0),
-    get(perturbation, "unavailable_count", 0),
-    get(adversarial_extension, "unavailable_count", 0),
-]
-threshold_disagreements = [
-    get(seeded_threshold, "backend_disagreement_count", 0),
-    get(perturbation, "threshold_backend_disagreement_count", 0),
-    get(adversarial_extension, "threshold_backend_disagreement_count", 0),
-]
+corpus_names = ["seeded_randomized", "controlled_perturbation", "deterministic_adversarial_extension"]
+accounting = summarize_records(Dict(
+    corpus_names[1] => read_summary(SEEDED_RECORD_ARTIFACT)["records"],
+    corpus_names[2] => perturbation["records"],
+    corpus_names[3] => adversarial_extension["records"],
+))
+corpus_hard = [accounting["by_corpus"][name]["hard_controls"] for name in corpus_names]
+corpus_threshold = [accounting["by_corpus"][name]["threshold_sensitive_controls"] for name in corpus_names]
+hard_control_records = [h["record_count"] for h in corpus_hard]
+hard_control_mismatches = [h["mismatch_count"] for h in corpus_hard]
+hard_control_unavailable = [h["unavailable_count"] for h in corpus_hard]
+threshold_records = [t["record_count"] for t in corpus_threshold]
+threshold_disagreements = [t["backend_disagreement_count"] for t in corpus_threshold]
+hard_control_count = sum(hard_control_records)
 large_sparse_records = get(large_sparse, "record_count", 0)
 large_sparse_unavailable = get(large_sparse, "sparse_unavailable_count", 0)
 large_sparse_mismatches = get(large_sparse, "sparse_mismatch_count", 0)
-
-const FINITE_SAMPLE_CONFIDENCE_LEVEL = 0.95
-
-"""One-sided exact binomial upper bound when zero events are observed."""
-function zero_event_upper_bound(sample_count::Integer, confidence_level::Real)
-    sample_count > 0 || return 1.0
-    alpha = 1 - confidence_level
-    return 1 - alpha^(1 / sample_count)
-end
-
-hard_control_count = sum(hard_control_records)
-finite_sample_zero_event_upper_bound = zero_event_upper_bound(
-    hard_control_count,
-    FINITE_SAMPLE_CONFIDENCE_LEVEL,
-)
 
 rate(count::Integer, total::Integer) = total == 0 ? nothing : count / total
 corpus_rows = [
@@ -143,10 +117,11 @@ campaign_provenance_label = campaign_provenance ? "provenance-complete" : "not f
 campaign_scaling_label = "$(campaign_sensitive) scaling-sensitive and $(campaign_stable) scaling-stable records"
 
 write_json(OUTPUT, Dict{String,Any}(
-    "schema_version" => "nlpdiagnostics-rank-calibration-statistics-v2",
+    "schema_version" => "nlpdiagnostics-rank-calibration-statistics-v3",
     "source" => Dict(
         "runner" => "benchmarks/summarize_rank_calibration_statistics.jl",
         "seeded_artifact" => SEEDED_ARTIFACT,
+        "seeded_record_artifact" => SEEDED_RECORD_ARTIFACT,
         "large_sparse_artifact" => LARGE_SPARSE_ARTIFACT,
         "perturbation_artifact" => PERTURBATION_ARTIFACT,
         "adversarial_extension_artifact" => ADVERSARIAL_EXTENSION_ARTIFACT,
@@ -162,69 +137,27 @@ write_json(OUTPUT, Dict{String,Any}(
         "git_revision" => git_revision(),
         "git_worktree_dirty" => !isempty(git_status_entries()),
     ),
-    "hard_controls" => Dict(
-        "record_count" => hard_control_count,
-        "false_positive_count" => get(seeded_hard, "false_positive_count", 0),
-        "false_negative_count" => get(seeded_hard, "false_negative_count", 0),
-        "mismatch_count" => sum(hard_control_mismatches),
-        "unavailable_count" => sum(hard_control_unavailable),
-        "dense_sparse_complete_count" => sum(hard_control_records),
-        "all_match_and_available" => sum(hard_control_mismatches) == 0 && sum(hard_control_unavailable) == 0,
-        "source_record_counts" => Dict(
-            "seeded_randomized" => hard_control_records[1],
-            "controlled_perturbation" => hard_control_records[2],
-            "deterministic_adversarial_extension" => hard_control_records[3],
-        ),
-    ),
-    "finite_sample_uncertainty" => Dict(
-        "confidence_level" => FINITE_SAMPLE_CONFIDENCE_LEVEL,
-        "sample_count" => hard_control_count,
-        "observed_mismatch_count" => sum(hard_control_mismatches),
-        "observed_unavailable_count" => sum(hard_control_unavailable),
-        "zero_event_upper_bound" => finite_sample_zero_event_upper_bound,
-        "method" => "one-sided exact zero-event binomial upper bound: 1 - alpha^(1/n)",
-        "rates" => Dict(
-            "false_positive_rate" => Dict(
-                "observed_count" => get(seeded_hard, "false_positive_count", 0),
-                "upper_bound_if_zero_observed" => finite_sample_zero_event_upper_bound,
-            ),
-            "false_negative_rate" => Dict(
-                "observed_count" => get(seeded_hard, "false_negative_count", 0),
-                "upper_bound_if_zero_observed" => finite_sample_zero_event_upper_bound,
-            ),
-            "mismatch_rate" => Dict(
-                "observed_count" => sum(hard_control_mismatches),
-                "upper_bound_if_zero_observed" => finite_sample_zero_event_upper_bound,
-            ),
-            "unavailable_rate" => Dict(
-                "observed_count" => sum(hard_control_unavailable),
-                "upper_bound_if_zero_observed" => finite_sample_zero_event_upper_bound,
-            ),
-        ),
-        "qualification" => "Finite-sample uncertainty context for this corpus, not a universal error guarantee or tolerance recommendation.",
-    ),
-    "threshold_sensitive_controls" => Dict(
-        "record_count" => sum(threshold_records),
-        "backend_disagreement_count" => sum(threshold_disagreements),
-        "backend_agreement_count" => sum(threshold_records) - sum(threshold_disagreements),
-        "interpretation" => "Disagreements are retained as tolerance-sensitive numerical policy evidence, not algebraic-rank failures.",
-        "source_record_counts" => Dict(
-            "seeded_randomized" => threshold_records[1],
-            "controlled_perturbation" => threshold_records[2],
-            "deterministic_adversarial_extension" => threshold_records[3],
-        ),
-    ),
+    "positive_class" => accounting["positive_class"],
+    "records" => accounting["records"],
+    "hard_controls" => merge(accounting["hard_controls"], Dict(
+        "source_record_counts" => Dict(zip(corpus_names, hard_control_records)),
+    )),
+    "finite_sample_uncertainty" => accounting["finite_sample_uncertainty"],
+    "threshold_sensitive_controls" => merge(accounting["threshold_sensitive_controls"], Dict(
+        "source_record_counts" => Dict(zip(corpus_names, threshold_records)),
+    )),
     "cross_backend_calibration_matrix" => Dict(
         "corpus_rows" => corpus_rows,
         "hard_control_relation" => Dict(
-            "dense_sparse_complete_count" => hard_control_count,
-            "agreement_count" => hard_control_count - sum(hard_control_mismatches) - sum(hard_control_unavailable),
+            "dense_sparse_complete_count" => accounting["hard_controls"]["dense_sparse_complete_count"],
+            "agreement_count" => accounting["hard_controls"]["agreement_count"],
             "mismatch_count" => sum(hard_control_mismatches),
             "unavailable_count" => sum(hard_control_unavailable),
         ),
         "threshold_relation" => Dict(
             "record_count" => sum(threshold_records),
-            "agreement_count" => sum(threshold_records) - sum(threshold_disagreements),
+            "agreement_count" => accounting["threshold_sensitive_controls"]["backend_agreement_count"],
+            "unavailable_count" => accounting["threshold_sensitive_controls"]["unavailable_count"],
             "disagreement_count" => sum(threshold_disagreements),
         ),
         "sparse_only_relation" => Dict(

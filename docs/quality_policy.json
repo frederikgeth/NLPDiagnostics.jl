@@ -13,19 +13,19 @@
     {
       "id": "package_regression",
       "status": "active",
-      "command": "JULIA_PKG_PRECOMPILE_AUTO=0 julia --compiled-modules=no --project=work/benchmark-environment --startup-file=no -e 'include(\"test/runtests.jl\")'",
-      "scope": "local package regression suite in the benchmark environment"
+      "command": "JULIA_PKG_PRECOMPILE_AUTO=0 julia --compiled-modules=no --project=benchmarks/environments/full_extensions --startup-file=no -e 'include(\"test/runtests.jl\")'",
+      "scope": "local package regression suite in the pinned full-extension environment"
     },
     {
       "id": "consolidation_inventory",
       "status": "active",
-      "command": "julia --project=work/benchmark-environment --startup-file=no benchmarks/audit_api_test_benchmark_consolidation.jl",
+      "command": "julia --project=benchmarks/environments/full_extensions --startup-file=no benchmarks/audit_api_test_benchmark_consolidation.jl",
       "scope": "API tiers, benchmark helper accounting, and JSON schema inventory"
     },
     {
       "id": "local_quality_baseline",
       "status": "active",
-      "command": "julia --project=work/benchmark-environment --startup-file=no benchmarks/check_local_quality.jl /tmp/nlpdiagnostics-local-quality.json",
+      "command": "julia --project=benchmarks/environments/full_extensions --startup-file=no benchmarks/check_local_quality.jl /tmp/nlpdiagnostics-local-quality.json",
       "scope": "read-only consistency checks and release-gate shape"
     },
     {

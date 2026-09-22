@@ -94,6 +94,7 @@ outside this lexical inventory. The documentation build fails when this file is 
 - `infeasible_reciprocal_trigonometric_range_constraint` — `src/analysis/static.jl`
 - `infeasible_sign_range_constraint` — `src/analysis/static.jl`
 - `infeasible_unary_operator_range_constraint` — `src/analysis/static.jl`
+- `invalid_variable_bound` — `src/analysis/static.jl`
 - `inverse_trigonometric_endpoint_implies_fixed_variable` — `src/analysis/static.jl`
 - `minimum_level_diagonal_quadratic_constraint` — `src/analysis/static.jl`
 - `multiple_constraint_components` — `src/analysis/structure.jl`
@@ -337,8 +338,7 @@ outside this lexical inventory. The documentation build fails when this file is 
 
 - `incomplete_variable_initialization` — `src/analysis/initialization.jl`
 - `initialization_near_constraint_boundary` — `src/analysis/initialization.jl`
-- `initialization_numerical_diagonal_quadratic_bound_violation` — `src/analysis/initialization.jl`
-- `initialization_numerical_diagonal_quadratic_equality_bound_violation` — `src/analysis/initialization.jl`
+- `initialization_nonfinite_value` — `src/analysis/initialization.jl`
 - `initialization_on_variable_bound` — `src/analysis/initialization.jl`
 - `initialization_violates_variable_bounds` — `src/analysis/initialization.jl`
 

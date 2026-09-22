@@ -1,6 +1,7 @@
 # Stage 1 analyses make no calls to user functions or derivative evaluators.
 
 function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
+    input_issues = _scalar_bound_input_issues(model)
     records = Dict(record.index => record for record in model.variables)
     for domain in variable_domains(model)
         record = records[domain.variable]
@@ -8,7 +9,8 @@ function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
         lower, upper = domain.lower, domain.upper
         bound_refs = vcat(domain.lower_sources, domain.upper_sources)
 
-        has_nan_bound = (!isnothing(lower) && lower isa AbstractFloat && isnan(lower)) ||
+        issues = get(input_issues, domain.variable, Pair{Symbol,EntityRef}[])
+        has_nan_bound = any(issue -> first(issue) == :nan, issues) || (!isnothing(lower) && lower isa AbstractFloat && isnan(lower)) ||
                         (!isnothing(upper) && upper isa AbstractFloat && isnan(upper))
         if has_nan_bound
             push!(report, Finding(
@@ -17,13 +19,25 @@ function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
                 domain = MathematicalIssue,
                 basis = MathematicalProof,
                 confidence = ConfidenceCertain,
-                observation = "Variable $(_display_name(record)) has a NaN effective bound.",
+                observation = "Variable $(_display_name(record)) has a NaN scalar-bound declaration.",
                 why_it_matters = "NaN does not define an ordered domain endpoint, so bound-based feasibility and structural-role conclusions are invalid.",
                 evidence = [Evidence("Effective scalar-bound intersection";
-                    details = ["effective_lower" => lower, "effective_upper" => upper],
+                    details = Pair{String,Any}["effective_lower" => lower, "effective_upper" => upper],
                 )],
                 suggested_actions = ["Trace the bound data source and replace NaN with a valid finite value or an intentional unbounded side."],
                 affected = vcat([variable_ref], bound_refs),
+            ))
+        elseif !isempty(issues)
+            push!(report, Finding(:invalid_variable_bound;
+                severity = SeverityError, domain = RepresentationalIssue,
+                basis = StructuralProof, confidence = ConfidenceCertain,
+                observation = "Variable $(_display_name(record)) has an invalid or unsupported scalar-bound endpoint.",
+                why_it_matters = "Infinite equality values and incorrectly oriented infinities do not specify finite real values. Unsupported endpoint types require validation before scalar-domain proofs or structural fixing.",
+                evidence = [Evidence("Scalar-bound input validation"; details = Pair{String,Any}[
+                    "reasons" => join(unique(string(first(issue)) for issue in issues), ","),
+                ])],
+                suggested_actions = ["Correct the endpoint data or supply supported finite endpoints and intentional unbounded sides."],
+                affected = unique(vcat([variable_ref], last.(issues))),
             ))
         elseif !isnothing(lower) && !isnothing(upper) && lower > upper
             push!(
@@ -39,7 +53,7 @@ function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
                     evidence = [
                         Evidence(
                             "Intersection of the recorded bounds is empty";
-                            details = ["effective_lower" => lower, "effective_upper" => upper],
+                            details = Pair{String,Any}["effective_lower" => lower, "effective_upper" => upper],
                         ),
                     ],
                     suggested_actions = [
@@ -63,7 +77,7 @@ function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
                     evidence = [
                         Evidence(
                             "Effective lower and upper bounds are equal";
-                            details = ["value" => lower],
+                            details = Pair{String,Any}["value" => lower],
                         ),
                     ],
                     suggested_actions = [
@@ -88,7 +102,7 @@ function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
                     evidence = [
                         Evidence(
                             "Multiple bound sources were found";
-                            details = [
+                            details = Pair{String,Any}[
                             "lower_sources" => length(domain.lower_sources),
                             "upper_sources" => length(domain.upper_sources),
                             "effective_lower_sources" => length(domain.effective_lower_sources),
@@ -105,7 +119,8 @@ function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
         end
         shadowed_lower = setdiff(domain.lower_sources, domain.effective_lower_sources)
         shadowed_upper = setdiff(domain.upper_sources, domain.effective_upper_sources)
-        if !isempty(shadowed_lower) || !isempty(shadowed_upper)
+        if isempty(issues) && _identity_bounds_valid(lower, upper) &&
+           (!isempty(shadowed_lower) || !isempty(shadowed_upper))
             push!(report, Finding(
                 :dominated_variable_bound;
                 severity = SeverityInfo,
@@ -116,7 +131,7 @@ function _analyze_bounds!(report::DiagnosticReport, model::ModelSnapshot)
                 why_it_matters = "The dominated bound does not change the current scalar domain intersection; it may be intentional documentation, but can also conceal duplicated or stale data.",
                 evidence = [Evidence(
                     "Effective scalar-bound intersection";
-                    details = ["effective_lower" => lower, "effective_upper" => upper,
+                    details = Pair{String,Any}["effective_lower" => lower, "effective_upper" => upper,
                                "shadowed_lower_sources" => length(shadowed_lower),
                                "shadowed_upper_sources" => length(shadowed_upper)],
                 )],
@@ -155,6 +170,7 @@ function _analyze_disjunctive_variable_domains!(report::DiagnosticReport, model:
 end
 
 function _analyze_discrete_variables!(report::DiagnosticReport, model::ModelSnapshot)
+    input_issues = _scalar_bound_input_issues(model)
     records = Dict(record.index => record for record in model.variables)
     domains = Dict(domain.variable => domain for domain in variable_domains(model))
     for constraint in model.constraints
@@ -167,17 +183,22 @@ function _analyze_discrete_variables!(report::DiagnosticReport, model::ModelSnap
             basis = StructuralProof, confidence = ConfidenceCertain,
             observation = "Variable $(_display_name(record)) has a $(constraint.set_value isa MOI.ZeroOne ? "binary" : "integer") domain.",
             why_it_matters = "Continuous Jacobian matching does not treat a discrete variable as a local continuous degree of freedom.",
-            evidence = [Evidence("Declared MOI integrality set"; details = ["set" => typeof(constraint.set_value)])],
+            evidence = [Evidence("Declared MOI integrality set"; details = Pair{String,Any}["set" => typeof(constraint.set_value)])],
             suggested_actions = ["Use a MINLP-aware solver or plugin when interpreting this variable's discrete search semantics."],
             affected = [_variable_ref(record), _constraint_ref(constraint)],
         ))
+        haskey(input_issues, variable) && continue
         domain = domains[variable]
         empty_discrete_domain = if isnothing(domain.lower) || isnothing(domain.upper)
             false
         elseif constraint.set_value isa MOI.ZeroOne
             !(domain.lower <= 0 <= domain.upper || domain.lower <= 1 <= domain.upper)
         else
-            ceil(domain.lower) > floor(domain.upper)
+            lower = _exact_real_value(domain.lower)
+            upper = _exact_real_value(domain.upper)
+            # Correctly oriented infinite sides admit integers arbitrarily far
+            # away. Finite represented bounds are rounded with unbounded integers.
+            !isnothing(lower) && !isnothing(upper) && ceil(BigInt, lower) > floor(BigInt, upper)
         end
         if empty_discrete_domain
             push!(report, Finding(:empty_discrete_variable_domain;
@@ -186,7 +207,7 @@ function _analyze_discrete_variables!(report::DiagnosticReport, model::ModelSnap
                 observation = "Discrete variable $(_display_name(record)) has no admissible value in its effective scalar interval [$((domain.lower)), $((domain.upper))].",
                 why_it_matters = "The continuous bounds exclude every value allowed by the integer or binary declaration.",
                 evidence = [Evidence("Intersection of scalar and discrete domains";
-                    details = ["lower" => domain.lower, "upper" => domain.upper,
+                    details = Pair{String,Any}["lower" => domain.lower, "upper" => domain.upper,
                                "set" => typeof(constraint.set_value)],
                 )],
                 suggested_actions = ["Relax the scalar bounds or correct the discrete declaration."],
@@ -200,7 +221,7 @@ function _analyze_discrete_variables!(report::DiagnosticReport, model::ModelSnap
         elseif constraint.set_value isa MOI.ZeroOne
             fixed_value != 0 && fixed_value != 1
         else
-            !isinteger(fixed_value)
+            !isinteger(_exact_real_value(fixed_value))
         end
         invalid_fixed_value || continue
         push!(report, Finding(:nonintegral_discrete_fixed_value;
@@ -209,7 +230,7 @@ function _analyze_discrete_variables!(report::DiagnosticReport, model::ModelSnap
             observation = "Discrete variable $(_display_name(record)) is fixed at $fixed_value, outside its declared discrete domain.",
             why_it_matters = "No value can satisfy both the fixed scalar domain and the declared integer or binary requirement.",
             evidence = [Evidence("Intersection of fixed and discrete declarations";
-                details = ["fixed_value" => fixed_value, "set" => typeof(constraint.set_value)],
+                details = Pair{String,Any}["fixed_value" => fixed_value, "set" => typeof(constraint.set_value)],
             )],
             suggested_actions = ["Correct the fixed value or remove the incompatible discrete declaration."],
             affected = [_variable_ref(record), _constraint_ref(constraint)],
@@ -977,6 +998,41 @@ function _analyze_constant_objective!(
     return
 end
 
+# Identity proofs use only supported real bounds. Missing bounds and correctly
+# oriented infinities are unrestricted endpoints, not finite sign premises.
+function _identity_bounds_valid(lower, upper)
+    lower_ok = isnothing(lower) || lower == -Inf || !isnothing(_exact_real_value(lower))
+    upper_ok = isnothing(upper) || upper == Inf || !isnothing(_exact_real_value(upper))
+    return lower_ok && upper_ok &&
+           (isnothing(lower) || isnothing(upper) || lower <= upper)
+end
+
+function _identity_domains(model::ModelSnapshot)
+    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    # Inspect each declaration, since intersection could hide malformed input.
+    for constraint in model.constraints
+        variable = constraint.function_value
+        variable isa MOI.VariableIndex || continue
+        set = constraint.set_value
+        bounds = set isa MOI.Parameter ? (set.value, set.value) : _scalar_set_interval(set)
+        isnothing(bounds) && continue
+        _identity_bounds_valid(bounds...) || delete!(domains, variable)
+    end
+    filter!(pair -> _identity_bounds_valid(pair.second.lower, pair.second.upper), domains)
+    return domains
+end
+
+function _identity_satisfies(value, set)
+    exact = _exact_real_value(value)
+    isnothing(exact) && return nothing
+    bounds = _scalar_set_interval(set)
+    isnothing(bounds) && return nothing
+    _identity_bounds_valid(bounds...) || return nothing
+    lower, upper = bounds
+    return (isnothing(lower) || lower == -Inf || _exact_real_value(lower) <= exact) &&
+           (isnothing(upper) || upper == Inf || exact <= _exact_real_value(upper))
+end
+
 """Return the variable/domain pair for a direct self-division proven nonzero."""
 function _proven_nonzero_self_division(value, domains)
     value isa MOI.ScalarNonlinearFunction || return nothing
@@ -1040,7 +1096,7 @@ function _analyze_nonzero_self_divisions!(
     report::DiagnosticReport,
     model::ModelSnapshot,
 )
-    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    domains = _identity_domains(model)
     records = Dict(record.index => record for record in model.variables)
     if !isnothing(model.objective)
         objective = model.objective
@@ -1085,7 +1141,7 @@ function _analyze_nonzero_self_divisions!(
         if !isnothing(identity)
             variable, domain = identity
             reference = _constraint_ref(constraint)
-            satisfied = _satisfies(one(domain.lower isa Nothing ? domain.upper : domain.lower), constraint.set_value)
+            satisfied = _identity_satisfies(1, constraint.set_value)
             if !isnothing(satisfied)
                 code = satisfied ? :redundant_nonzero_self_division_constraint :
                                    :infeasible_nonzero_self_division_constraint
@@ -1100,7 +1156,7 @@ function _analyze_nonzero_self_divisions!(
                         "Constraint $(reference.index) cannot be satisfied because its nonzero self-division expression is identically one.",
                     why_it_matters = satisfied ?
                         "This row adds no restriction beyond the declared nonzero domain of its variable." :
-                        "The declared nonzero domain makes the expression exactly one, so this one constraint proves infeasibility.",
+                        "The declared nonzero domain makes the expression exactly one; together with the row set, these bounds prove infeasibility.",
                     evidence = [Evidence("Nonzero self-division substituted at the constraint root";
                         details = ["value" => 1,
                                    "lower" => domain.lower,
@@ -1126,12 +1182,70 @@ function _analyze_nonzero_self_divisions!(
     return
 end
 
-"""Report affine objective rays through variables absent from every model row."""
+# Ray proofs require a finite real polynomial and a fully visible constraint
+# description. Missing bounds alone do not certify an unrestricted domain.
+function _objective_ray_context(model::ModelSnapshot)
+    isempty(model.opaque_sources) || return nothing
+    objective = model.objective
+    isnothing(objective) && return nothing
+    objective.sense in (MOI.MIN_SENSE, MOI.MAX_SENSE) || return nothing
+    f = objective.function_value
+    if f isa Union{MOI.ScalarAffineFunction,MOI.ScalarQuadraticFunction}
+        isnothing(_exact_real_value(f.constant)) && return nothing
+        affine = f isa MOI.ScalarAffineFunction ? f.terms : f.affine_terms
+        all(t -> !isnothing(_exact_real_value(t.coefficient)), affine) || return nothing
+        if f isa MOI.ScalarQuadraticFunction
+            all(t -> !isnothing(_exact_real_value(t.coefficient)), f.quadratic_terms) || return nothing
+        end
+    elseif !(f isa MOI.VariableIndex)
+        return nothing
+    end
+    blocked = Set{MOI.VariableIndex}()
+    integers = Set{MOI.VariableIndex}()
+    for constraint in model.constraints
+        variable, set = constraint.function_value, constraint.set_value
+        if variable isa MOI.VariableIndex
+            if set isa MOI.Integer
+                push!(integers, variable)
+            elseif set isa Union{MOI.GreaterThan,MOI.LessThan,MOI.Interval,MOI.EqualTo,MOI.Parameter,MOI.ZeroOne}
+                bounds = set isa MOI.GreaterThan ? (set.lower, Inf) :
+                    set isa MOI.LessThan ? (-Inf, set.upper) :
+                    set isa MOI.Interval ? (set.lower, set.upper) :
+                    set isa MOI.ZeroOne ? (0,1) : (set.value,set.value)
+                lower, upper = bounds
+                valid_lower = !isnothing(_exact_real_value(lower)) || lower == -Inf
+                valid_upper = !isnothing(_exact_real_value(upper)) || upper == Inf
+                (valid_lower && valid_upper && lower <= upper) || push!(blocked,variable)
+            else
+                # Includes semicontinuous/semiinteger sets, whose finite union
+                # must not be mistaken for an unrestricted continuous variable.
+                push!(blocked,variable)
+            end
+            continue
+        end
+        constraint_role(set) == FreeConstraint && continue
+        support = variable_support(variable)
+        support.complete || return nothing
+        union!(blocked,support.variables)
+    end
+    for domain in variable_domains(model)
+        if !isnothing(domain.lower) && !isnothing(domain.upper) && domain.lower > domain.upper
+            push!(blocked,domain.variable)
+        end
+    end
+    return (blocked = blocked, integers = integers)
+end
+
+_ray_lower_missing(domain) = isnothing(domain.lower) || domain.lower == -Inf
+_ray_upper_missing(domain) = isnothing(domain.upper) || domain.upper == Inf
+
+"""Report conditional affine objective rays compatible with checked variable domains."""
 function _analyze_unconstrained_affine_objective_rays!(
     report::DiagnosticReport,
     model::ModelSnapshot,
 )
-    isnothing(model.objective) && return
+    context = _objective_ray_context(model)
+    isnothing(context) && return
     objective = model.objective
     objective_terms, quadratic_variables = if objective.function_value isa MOI.VariableIndex
         ([(objective.function_value, 1)], Set{MOI.VariableIndex}())
@@ -1152,14 +1266,7 @@ function _analyze_unconstrained_affine_objective_rays!(
         return
     end
     isempty(objective_terms) && return
-    constrained_variables = Set{MOI.VariableIndex}()
-    for constraint in model.constraints
-        _is_variable_domain_constraint(constraint) && continue
-        constraint_role(constraint.set_value) == FreeConstraint && continue
-        support = variable_support(constraint.function_value)
-        support.complete || return
-        union!(constrained_variables, support.variables)
-    end
+    constrained_variables = context.blocked
     domains = Dict(domain.variable => domain for domain in variable_domains(model))
     records = Dict(record.index => record for record in model.variables)
     objective_reference = EntityRef(
@@ -1176,8 +1283,8 @@ function _analyze_unconstrained_affine_objective_rays!(
         else
             coefficient > 0 ? ("positive", :upper) : ("negative", :lower)
         end
-        bound_missing = missing_bound == :lower ? isnothing(domain.lower) :
-                        isnothing(domain.upper)
+        bound_missing = missing_bound == :lower ? _ray_lower_missing(domain) :
+                        _ray_upper_missing(domain)
         bound_missing || continue
         record = records[variable]
         push!(report, Finding(
@@ -1186,11 +1293,14 @@ function _analyze_unconstrained_affine_objective_rays!(
             domain = MathematicalIssue,
             basis = MathematicalProof,
             confidence = ConfidenceCertain,
-            observation = "Variable $(_display_name(record)) is absent from every restrictive constraint and can move without bound in the $decreasing_direction direction to improve the affine objective.",
-            why_it_matters = "If the remaining model is feasible, this variable supplies an objective ray and the optimization problem is unbounded in the requested sense.",
+            observation = "Variable $(_display_name(record)) is absent from every restrictive non-domain constraint and its checked domains permit movement without bound in the $decreasing_direction direction to improve the affine objective.",
+            why_it_matters = "If the remaining model is feasible, this variable supplies an unbounded improving sequence and the optimization problem is unbounded in the requested sense. Integer variables use integer steps.",
             evidence = [Evidence("Disconnected affine objective direction";
-                details = ["coefficient" => coefficient,
+                details = Pair{String,Any}["coefficient" => coefficient,
                            "sense" => objective.sense,
+                           "finite_polynomial_certified" => true,
+                           "feasibility_scope" => "conditional_on_remaining_model_feasibility",
+                           "domain_path" => (variable in context.integers ? "integer_sequence" : "continuous_ray"),
                            "missing_bound" => missing_bound],
             )],
             suggested_actions = ["Add the intended constraint or an appropriate bound for this objective variable.",
@@ -1206,17 +1316,11 @@ function _analyze_unconstrained_quadratic_objective_rays!(
     report::DiagnosticReport,
     model::ModelSnapshot,
 )
-    isnothing(model.objective) && return
+    context = _objective_ray_context(model)
+    isnothing(context) && return
     objective = model.objective
     objective.function_value isa MOI.ScalarQuadraticFunction || return
-    constrained_variables = Set{MOI.VariableIndex}()
-    for constraint in model.constraints
-        _is_variable_domain_constraint(constraint) && continue
-        constraint_role(constraint.set_value) == FreeConstraint && continue
-        support = variable_support(constraint.function_value)
-        support.complete || return
-        union!(constrained_variables, support.variables)
-    end
+    constrained_variables = context.blocked
     domains = Dict(domain.variable => domain for domain in variable_domains(model))
     records = Dict(record.index => record for record in model.variables)
     objective_reference = EntityRef(
@@ -1234,8 +1338,8 @@ function _analyze_unconstrained_quadratic_objective_rays!(
         improving_curvature || continue
         domain = domains[variable_1]
         missing_directions = String[]
-        isnothing(domain.lower) && push!(missing_directions, "negative")
-        isnothing(domain.upper) && push!(missing_directions, "positive")
+        _ray_lower_missing(domain) && push!(missing_directions, "negative")
+        _ray_upper_missing(domain) && push!(missing_directions, "positive")
         isempty(missing_directions) && continue
         record = records[variable_1]
         push!(report, Finding(
@@ -1244,12 +1348,15 @@ function _analyze_unconstrained_quadratic_objective_rays!(
             domain = MathematicalIssue,
             basis = MathematicalProof,
             confidence = ConfidenceCertain,
-            observation = "Variable $(_display_name(record)) is absent from every restrictive constraint and has $(objective.sense == MOI.MIN_SENSE ? "negative" : "positive") objective curvature along an unbounded direction.",
-            why_it_matters = "Holding all other variables fixed, the diagonal quadratic term drives the objective indefinitely in the requested sense; if the remaining model is feasible, this is an unbounded objective ray.",
+            observation = "Variable $(_display_name(record)) is absent from every restrictive non-domain constraint and has $(objective.sense == MOI.MIN_SENSE ? "negative" : "positive") objective curvature along a direction permitted without bound by its checked domains.",
+            why_it_matters = "Holding all other variables fixed, the diagonal quadratic term drives the objective indefinitely in the requested sense; if the remaining model is feasible, this gives an unbounded improving sequence. Integer variables use integer steps.",
             evidence = [Evidence("Disconnected diagonal quadratic objective term";
-                details = ["raw_diagonal_coefficient" => coefficient,
-                           "polynomial_coefficient" => coefficient / 2,
+                details = Pair{String,Any}["raw_diagonal_coefficient" => coefficient,
+                           "polynomial_coefficient" => _exact_real_value(coefficient) / 2,
                            "sense" => objective.sense,
+                           "finite_polynomial_certified" => true,
+                           "feasibility_scope" => "conditional_on_remaining_model_feasibility",
+                           "domain_path" => (variable_1 in context.integers ? "integer_sequence" : "continuous_ray"),
                            "unbounded_directions" => join(missing_directions, ",")],
             )],
             suggested_actions = ["Add the intended constraint or finite bound for this objective variable.",
@@ -1265,7 +1372,7 @@ function _analyze_sign_resolved_absolute_values!(
     report::DiagnosticReport,
     model::ModelSnapshot,
 )
-    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    domains = _identity_domains(model)
     records = Dict(record.index => record for record in model.variables)
     function scan(value, source, path)
         value isa MOI.ScalarNonlinearFunction || return
@@ -1323,12 +1430,12 @@ function _analyze_sign_resolved_absolute_values!(
                              (left, right) :
                              right isa MOI.VariableIndex && left isa Real ?
                              (right, left) : (nothing, nothing)
-        isnothing(variable) && continue
+        (isnothing(variable) || isnothing(_exact_real_value(constant)) || !haskey(domains, variable)) && continue
         domain = domains[variable]
         constant_selected = (value.head == :min && !isnothing(domain.lower) && domain.lower >= constant) ||
                             (value.head == :max && !isnothing(domain.upper) && domain.upper <= constant)
         constant_selected || continue
-        satisfied = _satisfies(constant, constraint.set_value)
+        satisfied = _identity_satisfies(constant, constraint.set_value)
         isnothing(satisfied) && continue
         reference = _constraint_ref(constraint)
         push!(report, Finding(
@@ -1351,7 +1458,7 @@ function _analyze_bound_resolved_minmax!(
     report::DiagnosticReport,
     model::ModelSnapshot,
 )
-    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    domains = _identity_domains(model)
     records = Dict(record.index => record for record in model.variables)
     function scan(value, source, path)
         value isa MOI.ScalarNonlinearFunction || return
@@ -1364,7 +1471,7 @@ function _analyze_bound_resolved_minmax!(
             else
                 nothing, nothing
             end
-            if !isnothing(variable)
+            if !isnothing(variable) && !isnothing(_exact_real_value(constant)) && haskey(domains, variable)
                 domain = domains[variable]
                 replacement = if value.head == :min &&
                                  !isnothing(domain.upper) && domain.upper <= constant
@@ -1390,7 +1497,7 @@ function _analyze_bound_resolved_minmax!(
                         basis = MathematicalProof,
                         confidence = ConfidenceCertain,
                         observation = "Expression $path_label has bounds that select one $(value.head) branch everywhere, so it equals $replacement.",
-                        why_it_matters = "The piecewise expression has no branch ambiguity on its declared domain and may be simplified for clearer derivatives and scaling.",
+                        why_it_matters = "One branch equals the expression throughout the declared domain, including any tie at the boundary. The original primitive may still use a nonsmooth derivative convention at a tie.",
                         evidence = [Evidence("Declared branch-selecting scalar bounds";
                             details = ["operator" => value.head,
                                        "constant_branch" => constant,
@@ -1416,7 +1523,7 @@ function _analyze_bound_resolved_minmax!(
         if value isa MOI.ScalarNonlinearFunction && value.head in (:min, :max) && length(value.args) == 2
             left, right = value.args
             variable, constant = left isa MOI.VariableIndex && right isa Real ? (left, right) : right isa MOI.VariableIndex && left isa Real ? (right, left) : (nothing, nothing)
-            if !isnothing(variable)
+            if !isnothing(variable) && !isnothing(_exact_real_value(constant)) && haskey(domains, variable)
                 domain = domains[variable]
                 selected = (value.head == :min && !isnothing(domain.lower) && domain.lower >= constant) || (value.head == :max && !isnothing(domain.upper) && domain.upper <= constant)
                 if selected
@@ -1576,8 +1683,10 @@ end
 
 function _analyze_absolute_zero_constraints!(report::DiagnosticReport, model::ModelSnapshot)
     records = Dict(record.index => record for record in model.variables)
-    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    domains = _identity_domains(model)
     for constraint in model.constraints
+        row_bounds = _scalar_set_interval(constraint.set_value)
+        (isnothing(row_bounds) || !_identity_bounds_valid(row_bounds...)) && continue
         value = constraint.function_value
         value isa MOI.ScalarNonlinearFunction || continue
         is_absolute = value.head == :abs && length(value.args) == 1
@@ -1618,18 +1727,28 @@ function _analyze_absolute_zero_constraints!(report::DiagnosticReport, model::Mo
         end
         level = set_value isa MOI.EqualTo ? set_value.value :
                 set_value isa MOI.Interval && set_value.lower == set_value.upper ? set_value.lower : nothing
-        if is_square && !isnothing(level) && level > 0
-            magnitude = sqrt(level)
-            domain = domains[variable]
-            implied = !isnothing(domain.lower) && domain.lower >= 0 ? magnitude :
-                      !isnothing(domain.upper) && domain.upper <= 0 ? -magnitude : nothing
+        exact_level = _exact_real_value(level)
+        if is_square && !isnothing(exact_level) && exact_level > 0
+            root_lower, root_upper = _exact_sqrt_bounds(exact_level)
+            exact_root = root_lower == root_upper
+            magnitude = exact_root ? _compact_interval_endpoint(root_lower) : "sqrt($level)"
+            root_details = Pair{String,Any}["level" => level,
+                "root_lower" => root_lower, "root_upper" => root_upper,
+                "root_enclosure_certified" => true]
+            exact_root && push!(root_details, "root_magnitude" => magnitude)
+            domain = get(domains, variable, nothing)
+            implied = !isnothing(domain) && !isnothing(domain.lower) && domain.lower >= 0 ? magnitude :
+                      !isnothing(domain) && !isnothing(domain.upper) && domain.upper <= 0 ? (exact_root ? -magnitude : "-sqrt($level)") : nothing
             if !isnothing(implied)
+                sign_details = copy(root_details)
+                push!(sign_details, "selected_root" => implied)
+                exact_root && push!(sign_details, "implied_value" => implied)
                 push!(report, Finding(:sign_resolved_square_level_set;
                     severity = SeverityInfo, domain = RepresentationalIssue,
                     basis = MathematicalProof, confidence = ConfidenceCertain,
                     observation = "Constraint $(reference.index) and declared sign bounds fix $(_display_name(records[variable])) at $implied.",
                     why_it_matters = "The square-level set's sign ambiguity is removed by declared bounds, yielding an exact fixed-variable implication.",
-                    evidence = [Evidence("Sign-resolved positive square level"; details = ["level" => level, "implied_value" => implied])],
+                    evidence = [Evidence("Sign-resolved positive square level"; details = sign_details)],
                     suggested_actions = ["Confirm the implied sign branch is intended; NLPDiagnostics does not substitute it."],
                     affected = [reference, _variable_ref(records[variable])],
                 ))
@@ -1638,8 +1757,8 @@ function _analyze_absolute_zero_constraints!(report::DiagnosticReport, model::Mo
                 severity = SeverityInfo, domain = RepresentationalIssue,
                 basis = MathematicalProof, confidence = ConfidenceCertain,
                 observation = "Constraint $(reference.index) requires a real square to equal positive level $level, giving two branches x = ±$magnitude.",
-                why_it_matters = "The feasible set for this variable is disconnected; initialization and local solvers may remain on one sign branch and miss another formulation-relevant mode.",
-                evidence = [Evidence("Positive real-square level set"; details = ["level" => level, "root_magnitude" => magnitude])],
+                why_it_matters = "The square equation alone has two sign branches. Other constraints may eliminate either branch; initialization should respect the branches that remain.",
+                evidence = [Evidence("Positive real-square level set"; details = root_details)],
                 suggested_actions = ["Confirm both sign branches are physically meaningful and choose initialization accordingly."],
                 affected = [reference, _variable_ref(records[variable])],
             ))
@@ -1664,13 +1783,15 @@ end
 function _analyze_sign_constraints!(report::DiagnosticReport, model::ModelSnapshot)
     records = Dict(record.index => record for record in model.variables)
     for constraint in model.constraints
+        row_bounds = _scalar_set_interval(constraint.set_value)
+        (isnothing(row_bounds) || !_identity_bounds_valid(row_bounds...)) && continue
         value = constraint.function_value
         value isa MOI.ScalarNonlinearFunction && value.head == :sign &&
             length(value.args) == 1 || continue
         variable = only(value.args)
         variable isa MOI.VariableIndex || continue
         reference = _constraint_ref(constraint)
-        feasibility = [_satisfies(candidate, constraint.set_value) for
+        feasibility = [_identity_satisfies(candidate, constraint.set_value) for
                        candidate in (-1.0, 0.0, 1.0)]
         any(isnothing, feasibility) && continue
         if !any(feasibility)
@@ -1708,6 +1829,8 @@ end
 function _analyze_exponential_range_constraints!(report::DiagnosticReport, model::ModelSnapshot)
     records = Dict(record.index => record for record in model.variables)
     for constraint in model.constraints
+        row_bounds = _scalar_set_interval(constraint.set_value)
+        (isnothing(row_bounds) || !_identity_bounds_valid(row_bounds...)) && continue
         value = constraint.function_value
         value isa MOI.ScalarNonlinearFunction && value.head == :exp && length(value.args) == 1 || continue
         set_value = constraint.set_value
@@ -1731,7 +1854,7 @@ function _analyze_exponential_range_constraints!(report::DiagnosticReport, model
     return
 end
 
-"""Return the real output range of supported unary primitives."""
+"""Return a certified outer enclosure of the real outputs of supported unary primitives."""
 function _unary_operator_real_range(head::Symbol)
     if head in (:exp2, :softplus, :log1pexp, :log1exp)
         return 0.0, Inf, true, false
@@ -1749,16 +1872,12 @@ function _unary_operator_real_range(head::Symbol)
         return 1.0, Inf, false, false
     elseif head in (:sin, :cos, :sind, :cosd)
         return -1.0, 1.0, false, false
-    elseif head == :asin
-        return -pi / 2, pi / 2, false, false
-    elseif head == :acos
-        return 0.0, pi, false, false
-    elseif head == :asec
-        return 0.0, pi, false, false
-    elseif head == :acsc
-        return -pi / 2, pi / 2, false, false
-    elseif head == :atan
-        return -pi / 2, pi / 2, true, true
+    elseif head in (:asin, :acsc, :atan)
+        # Closed rational outer enclosure: π < 22/7. Rounded π/2 is
+        # not an exact endpoint and must not prove a contradiction.
+        return -big(11)//7, big(11)//7, false, false
+    elseif head in (:acos, :asec)
+        return 0, big(22)//7, false, false
     elseif head == :asind
         return -90.0, 90.0, false, false
     elseif head == :acosd
@@ -1780,6 +1899,8 @@ function _analyze_reciprocal_trigonometric_range_constraints!(
 )
     records = Dict(record.index => record for record in model.variables)
     for constraint in model.constraints
+        row_bounds = _scalar_set_interval(constraint.set_value)
+        (isnothing(row_bounds) || !_identity_bounds_valid(row_bounds...)) && continue
         value = constraint.function_value
         value isa MOI.ScalarNonlinearFunction && length(value.args) == 1 || continue
         output_range = if value.head in (:sec, :csc, :secd, :cscd)
@@ -1833,9 +1954,9 @@ function _analyze_atan2_range_constraints!(
             length(value.args) == 2 || continue
         _scalar_set_intersects_operator_range(
             constraint.set_value,
-            -Float64(pi),
-            Float64(pi),
-            true,
+            -big(22)//7,
+            big(22)//7,
+            false,
             false,
         ) && continue
         affected = [_constraint_ref(constraint)]
@@ -1849,10 +1970,10 @@ function _analyze_atan2_range_constraints!(
             severity = SeverityError, domain = MathematicalIssue,
             basis = MathematicalProof, confidence = ConfidenceCertain,
             observation = "Constraint $(constraint.index.value) excludes Julia atan(y, x)'s principal output range.",
-            why_it_matters = "Julia's two-argument arctangent returns angles in (-π, π], so this row has no real solution independently of the coordinate values.",
+            why_it_matters = "The principal angle lies within [-π, π], enclosed by [-22/7, 22/7]; the row excludes even this outer enclosure.",
             evidence = [Evidence("Two-argument arctangent principal range"; details = [
                 "operator" => "atan(y, x)",
-                "operator_range" => "(-π, π]",
+                "range_enclosure" => "[-22//7, 22//7]",
                 "set" => constraint.set_value,
             ])],
             suggested_actions = ["Correct the angle convention or use an explicitly unwrapped representation when values below -π are intended."],
@@ -1869,13 +1990,12 @@ function _analyze_atan2_axis_angle_implications!(
 )
     axis_angles = (
         (0.0, 1, 0.0, 2, :nonnegative, "x ≥ 0"),
-        (Float64(pi), 1, 0.0, 2, :negative, "x < 0"),
-        (Float64(pi / 2), 2, 0.0, 1, :positive, "y > 0"),
-        (-Float64(pi / 2), 2, 0.0, 1, :negative, "y < 0"),
     )
     records = Dict(record.index => record for record in model.variables)
-    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    domains = _identity_domains(model)
     for constraint in model.constraints
+        row_bounds = _scalar_set_interval(constraint.set_value)
+        (isnothing(row_bounds) || !_identity_bounds_valid(row_bounds...)) && continue
         value = constraint.function_value
         value isa MOI.ScalarNonlinearFunction && value.head == :atan &&
             length(value.args) == 2 || continue
@@ -1905,7 +2025,7 @@ function _analyze_atan2_axis_angle_implications!(
             basis = MathematicalProof, confidence = ConfidenceCertain,
             observation = "Constraint $(reference.index) requires atan(y, x) = $level, fixing $(_display_name(fixed_record)) to $implied_value on the principal-angle axis.",
             why_it_matters = "This nonlinear angle equality removes one coordinate degree of freedom exactly; the remaining coordinate must satisfy $remaining_axis.",
-            evidence = [Evidence("Two-argument arctangent principal-axis preimage"; details = [
+            evidence = [Evidence("Two-argument arctangent principal-axis preimage"; details = Pair{String,Any}[
                 "angle" => level,
                 "fixed_argument_position" => fixed_argument_index,
                 "implied_value" => implied_value,
@@ -1914,6 +2034,7 @@ function _analyze_atan2_axis_angle_implications!(
             suggested_actions = ["Confirm the implicit coordinate fixing and axis sign convention; NLPDiagnostics does not rewrite the model."],
             affected = [reference, _variable_ref(fixed_record)],
         ))
+        haskey(domains, fixed_argument) || continue
         declared = domains[fixed_argument]
         lower_conflict = !isnothing(declared.lower) && declared.lower > implied_value
         upper_conflict = !isnothing(declared.upper) && declared.upper < implied_value
@@ -1927,7 +2048,7 @@ function _analyze_atan2_axis_angle_implications!(
                 basis = MathematicalProof, confidence = ConfidenceCertain,
                 observation = "Constraint $(reference.index) fixes $(_display_name(fixed_record)) to $implied_value, conflicting with its declared scalar bound intersection.",
                 why_it_matters = "The exact principal-axis angle equation and effective variable bounds have no common real solution, proving infeasibility.",
-                evidence = [Evidence("Two-argument arctangent axis and scalar-bound intersection"; details = [
+                evidence = [Evidence("Two-argument arctangent axis and scalar-bound intersection"; details = Pair{String,Any}[
                     "angle" => level,
                     "fixed_argument_position" => fixed_argument_index,
                     "implied_value" => implied_value,
@@ -1942,6 +2063,7 @@ function _analyze_atan2_axis_angle_implications!(
         remaining_argument = value.args[remaining_argument_index]
         remaining_argument isa MOI.VariableIndex || continue
         remaining_record = records[remaining_argument]
+        haskey(domains, remaining_argument) || continue
         remaining_domain = domains[remaining_argument]
         sign_conflict = if remaining_sign == :positive
             !isnothing(remaining_domain.upper) && remaining_domain.upper <= 0.0
@@ -1959,7 +2081,7 @@ function _analyze_atan2_axis_angle_implications!(
             basis = MathematicalProof, confidence = ConfidenceCertain,
             observation = "Constraint $(reference.index) requires $(_display_name(remaining_record)) to satisfy $remaining_axis, conflicting with its declared scalar bound intersection.",
             why_it_matters = "The exact principal-axis angle equation and effective sign bound on the remaining coordinate have no common real solution, proving infeasibility.",
-            evidence = [Evidence("Two-argument arctangent axis sign and scalar-bound intersection"; details = [
+            evidence = [Evidence("Two-argument arctangent axis sign and scalar-bound intersection"; details = Pair{String,Any}[
                 "angle" => level,
                 "remaining_argument_position" => remaining_argument_index,
                 "required_condition" => remaining_axis,
@@ -1979,18 +2101,18 @@ function _analyze_inverse_trigonometric_endpoint_implications!(
     model::ModelSnapshot,
 )
     endpoint_preimages = Dict{Symbol,Vector{Tuple{Float64,Float64}}}(
-        :asin => [(-pi / 2, -1.0), (pi / 2, 1.0)],
-        :acos => [(0.0, 1.0), (pi, -1.0)],
-        :asec => [(0.0, 1.0), (pi, -1.0)],
-        :acsc => [(-pi / 2, -1.0), (pi / 2, 1.0)],
+        :acos => [(0.0, 1.0)],
+        :asec => [(0.0, 1.0)],
         :asind => [(-90.0, -1.0), (90.0, 1.0)],
         :acosd => [(0.0, 1.0), (180.0, -1.0)],
         :asecd => [(0.0, 1.0), (180.0, -1.0)],
         :acscd => [(-90.0, -1.0), (90.0, 1.0)],
     )
     records = Dict(record.index => record for record in model.variables)
-    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    domains = _identity_domains(model)
     for constraint in model.constraints
+        row_bounds = _scalar_set_interval(constraint.set_value)
+        (isnothing(row_bounds) || !_identity_bounds_valid(row_bounds...)) && continue
         value = constraint.function_value
         value isa MOI.ScalarNonlinearFunction && length(value.args) == 1 || continue
         endpoints = get(endpoint_preimages, value.head, nothing)
@@ -2019,7 +2141,7 @@ function _analyze_inverse_trigonometric_endpoint_implications!(
             basis = MathematicalProof, confidence = ConfidenceCertain,
             observation = "Constraint $(reference.index) requires $(value.head)($(_display_name(record))) = $level, fixing $(_display_name(record)) to $implied.",
             why_it_matters = "This endpoint equation removes a degree of freedom exactly; making that implicit fixing explicit can clarify structural rank and initialization behavior.",
-            evidence = [Evidence("Inverse-trigonometric endpoint preimage"; details = [
+            evidence = [Evidence("Inverse-trigonometric endpoint preimage"; details = Pair{String,Any}[
                 "operator" => value.head,
                 "endpoint" => level,
                 "implied_value" => implied,
@@ -2027,6 +2149,7 @@ function _analyze_inverse_trigonometric_endpoint_implications!(
             suggested_actions = ["Confirm the endpoint fixing is intended; NLPDiagnostics does not substitute it into the model."],
             affected = [reference, _variable_ref(record)],
         ))
+        haskey(domains, argument) || continue
         declared = domains[argument]
         lower_conflict = !isnothing(declared.lower) && declared.lower > implied
         upper_conflict = !isnothing(declared.upper) && declared.upper < implied
@@ -2040,7 +2163,7 @@ function _analyze_inverse_trigonometric_endpoint_implications!(
             basis = MathematicalProof, confidence = ConfidenceCertain,
             observation = "Constraint $(reference.index) fixes $(_display_name(record)) to $implied, conflicting with its declared scalar bound intersection.",
             why_it_matters = "The inverse-trigonometric endpoint equation and the effective variable bounds have no common real solution, proving infeasibility.",
-            evidence = [Evidence("Inverse-trigonometric endpoint and scalar-bound intersection"; details = [
+            evidence = [Evidence("Inverse-trigonometric endpoint and scalar-bound intersection"; details = Pair{String,Any}[
                 "operator" => value.head,
                 "endpoint" => level,
                 "implied_value" => implied,
@@ -2071,8 +2194,10 @@ function _analyze_hyperbolic_endpoint_implications!(
         :asech => (0.0, 1.0),
     )
     records = Dict(record.index => record for record in model.variables)
-    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    domains = _identity_domains(model)
     for constraint in model.constraints
+        row_bounds = _scalar_set_interval(constraint.set_value)
+        (isnothing(row_bounds) || !_identity_bounds_valid(row_bounds...)) && continue
         value = constraint.function_value
         value isa MOI.ScalarNonlinearFunction && length(value.args) == 1 || continue
         endpoint_preimage = get(endpoint_preimages, value.head, nothing)
@@ -2096,7 +2221,7 @@ function _analyze_hyperbolic_endpoint_implications!(
             basis = MathematicalProof, confidence = ConfidenceCertain,
             observation = "Constraint $(reference.index) requires $(value.head)($(_display_name(record))) = $level, fixing $(_display_name(record)) to $implied.",
             why_it_matters = "This unique zero or extremal-value preimage removes a degree of freedom exactly and can explain unexpected rank loss or a fragile initialization.",
-            evidence = [Evidence("Hyperbolic endpoint preimage"; details = [
+            evidence = [Evidence("Hyperbolic endpoint preimage"; details = Pair{String,Any}[
                 "operator" => value.head,
                 "endpoint" => level,
                 "implied_value" => implied,
@@ -2104,6 +2229,7 @@ function _analyze_hyperbolic_endpoint_implications!(
             suggested_actions = ["Confirm the implied fixing is intended; NLPDiagnostics does not substitute it into the model."],
             affected = [reference, _variable_ref(record)],
         ))
+        haskey(domains, argument) || continue
         declared = domains[argument]
         lower_conflict = !isnothing(declared.lower) && declared.lower > implied
         upper_conflict = !isnothing(declared.upper) && declared.upper < implied
@@ -2117,7 +2243,7 @@ function _analyze_hyperbolic_endpoint_implications!(
             basis = MathematicalProof, confidence = ConfidenceCertain,
             observation = "Constraint $(reference.index) fixes $(_display_name(record)) to $implied, conflicting with its declared scalar bound intersection.",
             why_it_matters = "The unique hyperbolic endpoint preimage and effective variable bounds have no common real solution, proving infeasibility.",
-            evidence = [Evidence("Hyperbolic endpoint and scalar-bound intersection"; details = [
+            evidence = [Evidence("Hyperbolic endpoint and scalar-bound intersection"; details = Pair{String,Any}[
                 "operator" => value.head,
                 "endpoint" => level,
                 "implied_value" => implied,
@@ -2136,7 +2262,6 @@ function _analyze_elementary_reference_implications!(
     report::DiagnosticReport,
     model::ModelSnapshot,
 )
-    log_two = log(2.0)
     reference_preimages = Dict{Symbol,Tuple{Float64,Float64}}(
         :exp => (1.0, 0.0),
         :expm1 => (0.0, 0.0),
@@ -2144,14 +2269,12 @@ function _analyze_elementary_reference_implications!(
         :log1p => (0.0, 0.0),
         :logistic => (0.5, 0.0),
         :cbrt => (0.0, 0.0),
-        :softplus => (log_two, 0.0),
-        :log1pexp => (log_two, 0.0),
-        :log1exp => (log_two, 0.0),
-        :log1mexp => (-log_two, -log_two),
     )
     records = Dict(record.index => record for record in model.variables)
-    domains = Dict(domain.variable => domain for domain in variable_domains(model))
+    domains = _identity_domains(model)
     for constraint in model.constraints
+        row_bounds = _scalar_set_interval(constraint.set_value)
+        (isnothing(row_bounds) || !_identity_bounds_valid(row_bounds...)) && continue
         value = constraint.function_value
         value isa MOI.ScalarNonlinearFunction && length(value.args) == 1 || continue
         reference_preimage = get(reference_preimages, value.head, nothing)
@@ -2175,7 +2298,7 @@ function _analyze_elementary_reference_implications!(
             basis = MathematicalProof, confidence = ConfidenceCertain,
             observation = "Constraint $(reference.index) requires $(value.head)($(_display_name(record))) = $row_level, fixing $(_display_name(record)) to $implied.",
             why_it_matters = "This one-to-one elementary reference level removes a degree of freedom exactly and can reveal an implicit presolve opportunity or unintended over-fixing.",
-            evidence = [Evidence("Elementary primitive reference-level preimage"; details = [
+            evidence = [Evidence("Elementary primitive reference-level preimage"; details = Pair{String,Any}[
                 "operator" => value.head,
                 "reference_level" => row_level,
                 "implied_value" => implied,
@@ -2183,6 +2306,7 @@ function _analyze_elementary_reference_implications!(
             suggested_actions = ["Confirm the implied fixing is intended; NLPDiagnostics does not substitute it into the model."],
             affected = [reference, _variable_ref(record)],
         ))
+        haskey(domains, argument) || continue
         declared = domains[argument]
         lower_conflict = !isnothing(declared.lower) && declared.lower > implied
         upper_conflict = !isnothing(declared.upper) && declared.upper < implied
@@ -2196,7 +2320,7 @@ function _analyze_elementary_reference_implications!(
             basis = MathematicalProof, confidence = ConfidenceCertain,
             observation = "Constraint $(reference.index) fixes $(_display_name(record)) to $implied, conflicting with its declared scalar bound intersection.",
             why_it_matters = "The elementary reference-level equation and effective variable bounds have no common real solution, proving infeasibility.",
-            evidence = [Evidence("Elementary reference-level and scalar-bound intersection"; details = [
+            evidence = [Evidence("Elementary reference-level and scalar-bound intersection"; details = Pair{String,Any}[
                 "operator" => value.head,
                 "reference_level" => row_level,
                 "implied_value" => implied,
@@ -2217,6 +2341,8 @@ function _analyze_reciprocal_hyperbolic_range_constraints!(
 )
     records = Dict(record.index => record for record in model.variables)
     for constraint in model.constraints
+        row_bounds = _scalar_set_interval(constraint.set_value)
+        (isnothing(row_bounds) || !_identity_bounds_valid(row_bounds...)) && continue
         value = constraint.function_value
         value isa MOI.ScalarNonlinearFunction && length(value.args) == 1 || continue
         output_range = if value.head in (:csch, :acsch, :acoth)
@@ -2269,6 +2395,7 @@ function _scalar_set_intersects_operator_range(
 )
     set_interval = _scalar_set_interval(set_value)
     isnothing(set_interval) && return true
+    _identity_bounds_valid(set_interval...) || return true
     set_lower, set_upper = set_interval
     !isnothing(set_lower) && !(set_lower isa Real && isfinite(set_lower)) && return true
     !isnothing(set_upper) && !(set_upper isa Real && isfinite(set_upper)) && return true
@@ -2314,9 +2441,9 @@ function _analyze_unary_operator_range_constraints!(
             basis = MathematicalProof, confidence = ConfidenceCertain,
             observation = "Constraint $(constraint.index.value) excludes the real output range of $(value.head).",
             why_it_matters = "No real evaluation of this primitive can satisfy the row set, so this constraint alone proves infeasibility.",
-            evidence = [Evidence("Unary real output range"; details = [
+            evidence = [Evidence("Certified outer enclosure of unary real output range"; details = [
                 "operator" => value.head,
-                "operator_range" => "$lower_bracket$lower, $upper$upper_bracket",
+                "range_enclosure" => "$lower_bracket$lower, $upper$upper_bracket",
                 "set" => constraint.set_value,
             ])],
             suggested_actions = ["Correct the row set or replace the primitive with the intended expression."],
@@ -3183,23 +3310,52 @@ function _analyze_affine_interval_fixed_point!(
     return
 end
 
+# A repr fallback is useful for display, but is not an equality certificate.
+_reuse_expression_supported(value::Real) = !isnothing(_exact_real_value(value))
+_reuse_expression_supported(::MOI.VariableIndex) = true
+function _reuse_expression_supported(value::MOI.ScalarAffineFunction)
+    return !isnothing(_exact_real_value(value.constant)) &&
+           all(t -> !isnothing(_exact_real_value(t.coefficient)), value.terms)
+end
+function _reuse_expression_supported(value::MOI.ScalarQuadraticFunction)
+    return !isnothing(_exact_real_value(value.constant)) &&
+           all(t -> !isnothing(_exact_real_value(t.coefficient)), value.affine_terms) &&
+           all(t -> !isnothing(_exact_real_value(t.coefficient)), value.quadratic_terms)
+end
+_reuse_expression_supported(value::MOI.ScalarNonlinearFunction) =
+    all(_reuse_expression_supported, value.args)
+_reuse_expression_supported(value) = false
+
+# Typed keys avoid delimiter/display collisions in serialized fingerprints.
+_reuse_expression_key(value::Real) = (:real, _exact_real_value(value))
+_reuse_expression_key(value::MOI.VariableIndex) = (:variable, value.value)
+_reuse_expression_key(value::MOI.ScalarAffineFunction) =
+    (:affine, Tuple(_exact_row_terms(value.terms)), _exact_real_value(value.constant))
+_reuse_expression_key(value::MOI.ScalarQuadraticFunction) =
+    (:quadratic, Tuple(_exact_row_terms(value.affine_terms)),
+     Tuple(_exact_row_terms(value.quadratic_terms, t -> minmax(t.variable_1.value, t.variable_2.value))),
+     _exact_real_value(value.constant))
+_reuse_expression_key(value::MOI.ScalarNonlinearFunction) =
+    (:nonlinear, value.head, Tuple(_reuse_expression_key.(value.args)))
+
 """Find repeated scalar expressions whose declared scalar sets differ."""
 function _analyze_reused_constraint_expressions!(
     report::DiagnosticReport,
     model::ModelSnapshot,
 )
-    groups = Dict{String,Vector{ConstraintRecord}}()
+    groups = Dict{Any,Vector{ConstraintRecord}}()
     for constraint in model.constraints
         _is_variable_domain_constraint(constraint) && continue
         constraint.function_value isa MOI.AbstractScalarFunction || continue
-        push!(get!(groups, _fingerprint(constraint.function_value), ConstraintRecord[]), constraint)
+        _reuse_expression_supported(constraint.function_value) || continue
+        push!(get!(groups, _reuse_expression_key(constraint.function_value), ConstraintRecord[]), constraint)
     end
     for constraints in values(groups)
         length(constraints) > 1 || continue
         set_fingerprints = unique(repr(constraint.set_value) for constraint in constraints)
         length(set_fingerprints) > 1 || continue
         intervals = [_scalar_set_interval(constraint.set_value) for constraint in constraints]
-        all(interval -> !isnothing(interval), intervals) || continue
+        all(interval -> !isnothing(interval) && _identity_bounds_valid(interval...), intervals) || continue
         lowers = Any[interval[1] for interval in intervals if !isnothing(interval[1])]
         uppers = Any[interval[2] for interval in intervals if !isnothing(interval[2])]
         lower = isempty(lowers) ? nothing : maximum(lowers)
@@ -3216,7 +3372,7 @@ function _analyze_reused_constraint_expressions!(
                 observation = "Constraints $indices apply incompatible scalar sets to the same canonical expression.",
                 why_it_matters = "Their scalar-set intersection is empty, so no value of the shared expression can satisfy every constraint.",
                 evidence = [Evidence("Intersection of scalar sets on one canonical expression";
-                    details = ["effective_lower" => lower,
+                    details = Pair{String,Any}["effective_lower" => lower,
                                "effective_upper" => upper,
                                "constraint_count" => length(constraints)],
                 )],
@@ -3233,7 +3389,7 @@ function _analyze_reused_constraint_expressions!(
                 observation = "Constraints $indices reuse one canonical scalar expression with different scalar sets.",
                 why_it_matters = "This may be an intentional paired or layered bound, but it also makes equation reuse and set intersection explicit for presolve and degeneracy review.",
                 evidence = [Evidence("Shared canonical expression";
-                    details = ["constraint_count" => length(constraints),
+                    details = Pair{String,Any}["constraint_count" => length(constraints),
                                "effective_lower" => lower,
                                "effective_upper" => upper],
                 )],
@@ -3268,7 +3424,7 @@ function _analyze_reused_constraint_expressions!(
                     observation = "$(length(dominated)) scalar set(s) on a reused canonical expression are implied by the remaining set intersection.",
                     why_it_matters = "These sets do not further restrict the shared expression and may be stale, duplicated, or intentional provenance.",
                     evidence = [Evidence("Repeated-expression set intersection";
-                        details = ["effective_lower" => lower,
+                        details = Pair{String,Any}["effective_lower" => lower,
                                    "effective_upper" => upper,
                                    "dominated_constraint_count" => string(length(dominated))],
                     )],

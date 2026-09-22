@@ -23,6 +23,6 @@ verification boundary, not a quality or correctness result.
 The local baseline is run with:
 
 ```text
-julia --project=work/benchmark-environment --startup-file=no \
+julia --project=benchmarks/environments/full_extensions --startup-file=no \
   benchmarks/check_local_quality.jl /tmp/nlpdiagnostics-local-quality.json
 ```

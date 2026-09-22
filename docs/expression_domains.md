@@ -34,6 +34,13 @@ operators return the full real enclosure.
 The implementation preserves `Real` bound types rather than converting all
 bounds to `Float64`.
 
+Recognized positive diagonal quadratic equalities and upper-level constraints
+provide certified coordinate enclosures, including exact zero-level fixings.
+These can establish domain safety or violations in downstream expressions.
+Affine propagation retains both its own row identity and upstream bound
+origins, including the original quadratic row. Approximate inverse-function
+bounds remain excluded from the proof-only path.
+
 ### Arithmetic certification boundary
 
 Addition, scaling, multiplication, reciprocal, and bounded integer powers now
@@ -59,9 +66,10 @@ violation or silently discharge a domain requirement. This also applies to
 custom operator results and explicit operating points.
 
 Proof-producing bound analysis uses declared bounds, exact affine propagation,
-absolute-value/min/max implications, and a small whitelist of exact inverse
+certified diagonal quadratic geometry, absolute-value/min/max implications,
+and a small whitelist of exact inverse
 rules. These include square/cube inverses and reference cases such as
-`log(x) >= 0` and `cosh(x) <= 1`. General inverse-function and quadratic-geometry
+`log(x) >= 0` and `cosh(x) <= 1`. General inverse-function
 estimates are excluded from this path. `domain_interval_data` retains those
 estimates with `certified=false`; they are not safe bounds to apply to a model.
 Numerical risk analysis may still use them as numerical or heuristic evidence.
@@ -73,7 +81,7 @@ abstain; they are never silently removed from a row. Arithmetic does not recover
 terms lost by an upstream modeling layer before the public MOI snapshot is read.
 
 The tests in
-[certified_interval_arithmetic.jl](/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/test/certified_interval_arithmetic.jl)
+[certified_interval_arithmetic.jl](../test/certified_interval_arithmetic.jl)
 exercise these specific guarantees with independent rational references and
 feasible/infeasible controls.
 
@@ -85,7 +93,7 @@ including `operating_point_domain_unknown` and
 `operating_point_derivative_domain_unknown`. Actual numerical evaluation
 failures remain separate findings. Other static proof-producing families,
 including direct geometric and normalized-row analysis, remain under review in the
-[recovery plan](/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/recovery_plan.md).
+[recovery plan](recovery_plan.md).
 
 A possible violation means the enclosure intersects an invalid region. It does
 not prove that an invalid value is reachable: ordinary interval arithmetic can

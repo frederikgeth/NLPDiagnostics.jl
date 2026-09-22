@@ -1,0 +1,7 @@
+{
+  "schema_version": "synthetic-status-source-v1",
+  "source_sha256": "ed26e0fdce26c2f88c840a5da58437a7b88963201f8694a1246c06d93ba19bf5",
+  "current_revision": "synthetic-load-r1",
+  "provenance": "Synthetic reference authored before model construction; not independently authored by another person.",
+  "real_authorization": false
+}

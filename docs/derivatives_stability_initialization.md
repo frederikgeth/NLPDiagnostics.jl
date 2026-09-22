@@ -22,18 +22,29 @@ The first and second derivative checks matter because gradient-based solvers
 may evaluate a valid function value and still receive an infinite,
 discontinuous, or implementation-defined derivative.
 
-Initialization checks prove violations only against certified bounds. Rounded
-quadratic geometry remains available as numerical evidence, using
-`initialization_numerical_diagonal_quadratic_bound_violation` and
-`initialization_numerical_diagonal_quadratic_equality_bound_violation`.
-These findings identify the source row and estimated coordinate interval; they
-do not certify that the start is infeasible or that a start inside every
-coordinate interval satisfies the full row.
+Initialization checks prove violations only against certified bounds. Recognized
+quadratic geometry uses `initialization_diagonal_quadratic_bound_violation` and
+`initialization_diagonal_quadratic_equality_bound_violation`, replacing the former
+numerical finding codes. These findings use exact squared-distance comparisons,
+including at zero levels, and identify the source row, exact center and squared
+axes, and certified enclosing interval. They prove exclusion of the supplied
+start, not model infeasibility. Passing every coordinate check does not certify
+that a point satisfies the full quadratic row.
 
 Derivative checks propagate interval certification. At an explicit point, an
 uncertified intermediate range produces `operating_point_derivative_domain_unknown`
 with heuristic evidence, rather than a mathematical proof. Direct certified
 boundary cases such as `sqrt(0)` retain their derivative-domain findings.
+
+Active-set residuals and coupled-set boundary classifications are numerical
+observations under the reported tolerances. A computed violation does not prove
+exact-real point infeasibility: cancellation can make an exactly feasible
+expression evaluate to an apparent violation. Cone normals and mapped gradients
+are numerical evidence even when the derivative method is `exact_symbolic`;
+that method describes derivative construction, not exact arithmetic at the point.
+Computed zero gradients support only local inference, subject to cancellation
+and underflow. Finding codes remain stable; consumers should use the current
+`basis` field rather than assuming a proof from a code or derivative method.
 
 `operator_derivative_requirements(Val(operator), arguments, intervals)` is a
 public extension hook for user-defined operators. Value-domain requirements
@@ -209,7 +220,7 @@ A complete initialization is checked for:
 
 - violations of certified variable intervals (declared bounds plus exact affine
   and supported exact inverse implications);
-- numerical warnings from approximate quadratic-geometry intervals;
+- certified exclusions from quadratic coordinate restrictions;
 - non-fixed variables exactly on finite implied interval boundaries;
 - value-domain violations or unknown domains;
 - derivative-domain violations or unknown derivative domains;
@@ -219,6 +230,17 @@ A complete initialization is checked for:
 - Jacobian zero sensitivities and scaling spread;
 - scalar-bound constraint feasibility violations and interior margins; and
 - active-row LICQ evidence plus a conservative MFCQ common-descent screen.
+
+`feasibility_tolerance` must be finite and nonnegative. Exact interval violations
+retain their `MathematicalProof` basis and `initialization_violates_variable_bounds`
+code. Their severity is informational when the coordinate excursion is at or
+below this absolute tolerance, and error when it is larger. Comparisons use exact
+represented values to avoid rounding across the threshold. A report can contain
+two findings with this code, separating affected variables by severity. The
+tolerance is in each variable's own coordinates, not a unit-normalized distance.
+Set it to zero to retain error severity for every exact excursion. Nonfinite
+starts and separate value/derivative-domain errors remain errors: informational
+bound severity is neither mathematical feasibility nor domain safety.
 
 When an initial value violates an inferred interval, its evidence records the
 static inference categories and source constraint indices that tightened that
