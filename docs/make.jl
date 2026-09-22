@@ -39,6 +39,7 @@ makedocs(
         "Tutorials" => [
             "Your first diagnosis" => "tutorials/first-diagnosis.md",
             "Inspect a model before solving" => "tutorials/model-summary-and-units.md",
+            "Variable bounds or named rows?" => "tutorials/bounds-as-constraints.md",
             "Model failure or bad start?" => "tutorials/initialization.md",
             "Numerical rank at a point" => "tutorials/numerical-rank.md",
             "Controlled scaling and solver traces" => "tutorials/controlled-scaling-trace.md",

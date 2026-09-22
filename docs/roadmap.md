@@ -29,7 +29,7 @@ deeper NLP and OPF evidence layers. The public documentation records the
 | Coefficient analysis | Strong | `coefficient_profile` now reports static linear/quadratic constraint and objective ranges, bounds, normalized RHS values, linear-matrix density, and opaque coverage separately from point-local Jacobian scaling. |
 | Degeneracy | Supported | Add dependent-row localization. Use DegeneracyHunter's “irreducible degenerate set” (IDS) term only when irreducibility has been established. |
 | Incidence analysis | Supported | Retain bipartite incidence, matching, structural rank, connected components, and Dulmage–Mendelsohn terminology shared with MathProgIncidence.jl and Pyomo. |
-| Bounds given as constraints | Partial | Emit a specific `bound_expressed_as_constraint` lint finding for exact affine rows that could be variable bounds. |
+| Bounds given as constraints | Strong | `bound_expressed_as_constraint` now reports exact one-variable affine rows, their equivalent bounds, and the dual/reporting consequences of changing representation. |
 | Variables absent from constraints | Supported | Preserve the current disconnected-variable check and distinguish objective-only variables. |
 | Starting-point analysis | Supported | Preserve point completeness, bound feasibility, domain, finite-value, and derivative evidence with typed provenance. |
 | Domain analysis | Supported | Extend operator coverage and keep proven, possible, and point-local domain claims separate. |
@@ -43,8 +43,8 @@ The implementation order for the open items is:
 
 1. maintain the delivered `model_summary` and `coefficient_profile` front door
    with the unit-scaling teaching fixture;
-2. add the bounds-as-constraints lint and structural-versus-numerical Hessian
-   density report;
+2. maintain the delivered bounds-as-constraints lint and add the
+   structural-versus-numerical Hessian density report;
 3. add objective consistency and applicable primal-dual gap checks;
 4. add IDS-style dependent-row localization;
 5. add a reproducible convexity-counterexample campaign; and

@@ -2906,6 +2906,74 @@ function _single_variable_affine_interval(
     return variable, translated_lower, translated_upper
 end
 
+function _equivalent_bound_description(lower, upper)
+    if !isnothing(lower) && !isnothing(upper) && lower == upper
+        return "EqualTo($lower)"
+    elseif !isnothing(lower) && !isnothing(upper)
+        return "Interval($lower, $upper)"
+    elseif !isnothing(lower)
+        return "GreaterThan($lower)"
+    elseif !isnothing(upper)
+        return "LessThan($upper)"
+    end
+    return nothing
+end
+
+"""Report exact scalar-affine rows whose feasible set is a variable bound."""
+function _analyze_bounds_expressed_as_constraints!(
+    report::DiagnosticReport,
+    model::ModelSnapshot,
+)
+    records = Dict(record.index => record for record in model.variables)
+    count = 0
+    for constraint in model.constraints
+        function_value = constraint.function_value
+        function_value isa MOI.ScalarAffineFunction || continue
+        implied = _single_variable_affine_interval(function_value, constraint.set_value)
+        isnothing(implied) && continue
+        variable, lower, upper = implied
+        equivalent_bound = _equivalent_bound_description(lower, upper)
+        isnothing(equivalent_bound) && continue
+
+        coefficients = _combined_affine_coefficients(function_value)
+        isnothing(coefficients) && continue
+        coefficient = only(values(coefficients))
+        record = records[variable]
+        row_name = isnothing(constraint.name) ?
+                   "constraint $(constraint.index.value)" :
+                   "constraint $(constraint.name)"
+        push!(report, Finding(
+            :bound_expressed_as_constraint;
+            severity = SeverityInfo,
+            domain = RepresentationalIssue,
+            basis = MathematicalProof,
+            confidence = ConfidenceCertain,
+            observation = "Affine $row_name is exactly equivalent to variable bound $equivalent_bound on $(_display_name(record)).",
+            why_it_matters = "The row and bound representations have the same scalar feasible set, but constraint identity, dual attribution, multiplier normalization, presolve treatment, and downstream reporting can differ.",
+            evidence = [Evidence("Exact one-variable affine isolation";
+                details = Pair{String,Any}[
+                    "variable_index" => variable.value,
+                    "coefficient" => coefficient,
+                    "constant" => function_value.constant,
+                    "original_set" => constraint.set_value,
+                    "equivalent_bound" => equivalent_bound,
+                    "translated_lower" => lower,
+                    "translated_upper" => upper,
+                    "preserves_scalar_feasible_set" => true,
+                ],
+            )],
+            suggested_actions = [
+                "Keep the row when its name or separately reported dual has domain meaning.",
+                "Use a variable bound when that representation better matches the formulation, while accounting for the coefficient scaling when comparing dual multipliers.",
+            ],
+            affected = [_constraint_ref(constraint), _variable_ref(record)],
+        ))
+        count += 1
+    end
+    report.metadata[:bound_expressed_as_constraint_count] = string(count)
+    return
+end
+
 """Report exact variable-interval implications of supported one-variable affine rows."""
 function _analyze_affine_implied_variable_bounds!(
     report::DiagnosticReport,
@@ -4356,6 +4424,7 @@ function analyze_static(
     _analyze_affine_equality_halfspace_consistency!(report, model)
     _analyze_inconsistent_opposing_affine_inequalities!(report, model)
     _analyze_reused_constraint_expressions!(report, model)
+    _analyze_bounds_expressed_as_constraints!(report, model)
     _analyze_affine_implied_variable_bounds!(report, model)
     _analyze_affine_interval_fixed_point!(
         report,

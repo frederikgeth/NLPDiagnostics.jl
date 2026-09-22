@@ -8,6 +8,7 @@ confidence, affected entities, evidence, point provenance, and report metadata.
 
 | Code | Scope | How to read it | Useful next check |
 |:--|:--|:--|:--|
+| `bound_expressed_as_constraint` | static representation | An exact one-variable affine row has the same scalar feasible set as a variable bound. | Check whether the row identity or separately reported dual has domain meaning before changing representation. |
 | `inconsistent_affine_implied_variable_bounds` | model-wide | Supported affine rows imply an empty interval for one variable. | Check the affected rows against source data and units. |
 | `possible_expression_domain_violation` | model-wide enclosure | Declared bounds do not keep an expression entirely inside its operator domain. | Inspect bounds and then evaluate an independently meaningful point. |
 | `operating_point_domain_violation` | one point | An operator argument violates its domain at the named evaluation point. | Check point provenance before changing the model. |
@@ -36,6 +37,7 @@ outside this lexical inventory. The documentation build fails when this file is 
 - `atan2_axis_angle_implies_fixed_variable` — `src/analysis/static.jl`
 - `atan_ratio_denominator_may_be_zero` — `src/analysis/static.jl`
 - `atan_ratio_may_need_atan2` — `src/analysis/static.jl`
+- `bound_expressed_as_constraint` — `src/analysis/static.jl`
 - `bound_resolved_minmax_expression` — `src/analysis/static.jl`
 - `circular_implied_variable_bound` — `src/analysis/static.jl`
 - `constant_bound_resolved_minmax_objective` — `src/analysis/static.jl`
@@ -492,4 +494,4 @@ outside this lexical inventory. The documentation build fails when this file is 
 - `solver_conflict_not_found` — `src/NLPDiagnostics.jl`
 - `solver_conflict_unavailable` — `src/NLPDiagnostics.jl`
 
-Inventory count: **447** literal finding codes.
+Inventory count: **448** literal finding codes.

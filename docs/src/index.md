@@ -15,6 +15,7 @@ formulations, initialization, scaling, and solver behaviour.
 |:--|:--|
 | “Why is this small model inconsistent?” | [Your first diagnosis](tutorials/first-diagnosis.md) |
 | “Are my represented coefficients and units plausible?” | [Inspect a model before solving](tutorials/model-summary-and-units.md) |
+| “Should this one-variable row be a variable bound?” | [Variable bounds or named rows?](tutorials/bounds-as-constraints.md) |
 | “Did the model fail, or is my starting point invalid?” | [Model failure or bad start?](tutorials/initialization.md) |
 | “Is this Jacobian rank loss point- or tolerance-specific?” | [Numerical rank at a point](tutorials/numerical-rank.md) |
 | “Did a scaling change alter the solver trajectory?” | [Controlled scaling and solver traces](tutorials/controlled-scaling-trace.md) |

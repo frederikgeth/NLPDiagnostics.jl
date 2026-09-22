@@ -30,7 +30,7 @@ endorsement by its authors.
 ## Coverage of the JuMP initiative
 
 The current package covers 12 of the initiative's 13 idea families at least
-partially. Nine are strong parts of the implementation, three have meaningful
+partially. Ten are strong parts of the implementation, two have meaningful
 support with a clear missing front door, and the MIP solution refiner is outside
 the present NLP/OPF scope.
 
@@ -40,7 +40,7 @@ the present NLP/OPF scope.
 | Coefficient analysis | Strong | `coefficient_profile` reports static linear/quadratic objective and constraint ranges, bounds, normalized RHS values, density, and opaque coverage beside point-local derivative scaling. |
 | Degeneracy | Strong | Add IDS-style dependent-row localization before adopting the IDS name in findings. |
 | Incidence analysis | Strong | Continue calibration and improve explanations of structural versus numerical rank. |
-| Bounds given as constraints | Partial | Add a specific lint finding for exact affine bound rows. |
+| Bounds given as constraints | Strong | `bound_expressed_as_constraint` isolates exact one-variable affine rows, reports the equivalent bound, and preserves the distinction between feasible-set equivalence and row/dual semantics. |
 | Variables absent from constraints | Strong | Retain objective-only and genuinely disconnected distinctions. |
 | Starting-point analysis | Strong | Keep point provenance and completion policy visible. |
 | Domain analysis | Strong | Extend operator coverage while preserving proven/possible/local distinctions. |

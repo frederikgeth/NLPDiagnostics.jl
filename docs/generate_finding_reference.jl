@@ -5,6 +5,7 @@ const SOURCE_ROOT = get(ENV, "NLPDIAGNOSTICS_FINDING_SOURCE_ROOT", joinpath(ROOT
 const OUTPUT = joinpath(@__DIR__, "src", "reference", "finding-codes.md")
 
 const CURATED = [
+    ("bound_expressed_as_constraint", "static representation", "An exact one-variable affine row has the same scalar feasible set as a variable bound.", "Check whether the row identity or separately reported dual has domain meaning before changing representation."),
     ("inconsistent_affine_implied_variable_bounds", "model-wide", "Supported affine rows imply an empty interval for one variable.", "Check the affected rows against source data and units."),
     ("possible_expression_domain_violation", "model-wide enclosure", "Declared bounds do not keep an expression entirely inside its operator domain.", "Inspect bounds and then evaluate an independently meaningful point."),
     ("operating_point_domain_violation", "one point", "An operator argument violates its domain at the named evaluation point.", "Check point provenance before changing the model."),
