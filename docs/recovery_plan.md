@@ -13,7 +13,9 @@ The full-extension environment now pins Julia 1.12.6, BMOPFTools commit
 dependency graph. CI has a separate power-workflow lane. The environment preflight
 checks package loadability and dependency source identity. Rank summary schema v3
 uses per-record, class-specific backend accounting and withdraws the unsupported
-pooled confidence bounds.
+pooled confidence bounds. The bounded numerical-rank policy is now accepted with
+current defaults retained; threshold-sensitive backend disagreements remain visible,
+and the decision authorizes no algebraic-rank or physical-cause claim.
 
 Next application work requires separately prepared source-backed incidents and a
 new frozen evaluation. The human study remains prepared, not run. Structural and

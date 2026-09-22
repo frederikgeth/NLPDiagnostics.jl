@@ -2544,9 +2544,9 @@ end
         String,
     ))
     @test release_action_summary["schema_version"] == "nlpdiagnostics-release-gate-actions-v1"
-    @test release_action_summary["blocking_gate_count"] == 5
+    @test release_action_summary["blocking_gate_count"] == 4
     @test release_action_summary["all_blocking_gates_mapped"] == true
-    @test release_action_summary["recommended_order"][1] == "numerical_rank_false_positive_negative_statistics"
+    @test release_action_summary["recommended_order"][1] == "real_99bus_physical_kkt"
     @test occursin("Recommended blocker order", release_report)
     @test occursin("release_gate_action_summary.json", release_gate_summary)
     analyze_scaling_script = read(
@@ -3540,10 +3540,13 @@ end
         joinpath(repository_root, "docs", "rank_threshold_policy_review_summary.json"), String,
     ))
     @test threshold_policy_review["schema_version"] ==
-          "nlpdiagnostics-rank-threshold-policy-review-v1"
-    @test threshold_policy_review["status"] == "review_required"
+          "nlpdiagnostics-rank-threshold-policy-review-v2"
+    @test threshold_policy_review["status"] == "accepted_bounded_policy"
     @test threshold_policy_review["evidence_consistent"] == true
-    @test threshold_policy_review["decision"] === nothing
+    @test threshold_policy_review["decision"] == "accept_policy_boundary"
+    @test threshold_policy_review["enforced_boundary"]["retain_current_defaults"] == true
+    @test threshold_policy_review["enforced_boundary"]["automatic_backend_preference"] == false
+    @test threshold_policy_review["enforced_boundary"]["algebraic_rank_claim_authorized"] == false
     sensitive_saved_records = filter(
         record -> record["scaling_sensitive"] == true,
         saved_result_campaign_summary["records"],
@@ -3669,7 +3672,7 @@ end
     rank_release_gate = only(gate for gate in JSON.parsefile(joinpath(
         repository_root, "docs", "calibration_release_gate_summary.json",
     ))["gates"] if gate["id"] == "numerical_rank_false_positive_negative_statistics")
-    @test rank_release_gate["status"] == "partial" && rank_release_gate["blocking"]
+    @test rank_release_gate["status"] == "pass" && !rank_release_gate["blocking"]
     @test occursin("smallest_singular_calibration_summary.json", read(
         joinpath(benchmark_directory, "build_calibration_release_gate_summary.jl"),
         String,

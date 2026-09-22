@@ -1,5 +1,5 @@
 {
-  "decision": null,
+  "decision": "accept_policy_boundary",
   "decision_options": [
     {
       "description": "Accept threshold-sensitive disagreements as bounded numerical-policy evidence and retain current defaults.",
@@ -10,8 +10,18 @@
       "id": "add_independent_backend"
     }
   ],
+  "decision_rationale": "All 49 declared hard controls match with no unavailable results. The nine disagreements occur only in the 26 threshold-sensitive controls, where backend sensitivity is the result being measured. Retaining the current defaults and reporting those disagreements explicitly is the conservative bounded policy; it does not widen a tolerance or promote numerical rank to algebraic proof.",
+  "enforced_boundary": {
+    "algebraic_rank_claim_authorized": false,
+    "automatic_backend_preference": false,
+    "classify_threshold_disagreements": true,
+    "hard_control_mismatch_budget": 0,
+    "hard_control_unavailable_budget": 0,
+    "physical_cause_claim_authorized": false,
+    "retain_current_defaults": true
+  },
   "environment": {
-    "git_revision": "1ebad5ce418d56755a08fe74842c8ea1f634edf9",
+    "git_revision": "aee992aa90b60ea32e210fc73d8afd58840834a9",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -19,14 +29,15 @@
   "hard_control_count": 49,
   "hard_control_mismatch_count": 0,
   "hard_control_unavailable_count": 0,
-  "interpretation": "The evidence is internally consistent but does not select a policy decision. Near-threshold backend disagreement is not promoted to a mathematical-rank failure, and no tolerance change is authorized by this review record.",
-  "next_action": "Project owner selects one decision option and records the rationale, or supplies an independent backend qualification artifact.",
-  "schema_version": "nlpdiagnostics-rank-threshold-policy-review-v1",
+  "interpretation": "The bounded numerical-rank policy is accepted for the declared release corpus. Near-threshold backend disagreements remain visible numerical-policy evidence. This decision makes no universal error-rate, algebraic-rank, or physical-cause claim.",
+  "next_action": "Apply the same hard-control and threshold-sensitivity accounting to future corpora; reopen this decision if a hard control mismatches, a required backend is unavailable, or defaults change.",
+  "schema_version": "nlpdiagnostics-rank-threshold-policy-review-v2",
   "source": {
     "classification_summary": "docs/rank_threshold_disagreement_summary.json",
-    "reviewer": "pending project-owner decision"
+    "decision_recorded_on": "2026-09-22",
+    "reviewer": "project-owner-authorized implementation"
   },
-  "status": "review_required",
+  "status": "accepted_bounded_policy",
   "threshold_backend_disagreement_count": 9,
   "threshold_sensitive_count": 26
 }

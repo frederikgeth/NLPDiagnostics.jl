@@ -5823,6 +5823,15 @@ changing rank tolerances or promoting the experimental normal-eigen path.
 The next deliverable is the project-owner decision on one of those options,
 after which the selected path can be implemented and revalidated.
 
+## 2026-09-22 bounded rank-policy decision
+
+The authorized decision selects `accept_policy_boundary` and retains the
+current defaults. The release gate passes only while the declared hard controls
+have zero mismatches and zero unavailable required results, the saved-result
+quality and provenance checks pass, and threshold-sensitive disagreements stay
+classified and visible. The decision authorizes no algebraic-rank or physical-
+cause claim and must be reopened if those conditions change.
+
 ## 2026-08-27 real 99-bus strict-KKT boundary handoff
 
 The complete six-endpoint real 99-bus ledger now has a dedicated decision

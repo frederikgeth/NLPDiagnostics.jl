@@ -38,6 +38,17 @@ requires either explicit acceptance of this policy boundary or a separately
 vetted independent backend; the classification itself does not change defaults
 or promote threshold-sensitive observations into physical conclusions.
 
+## 2026-09-22: bounded numerical-rank policy accepted
+
+The project-owner-authorized decision selects `accept_policy_boundary`. The
+current rank tolerances and backend defaults remain unchanged. Hard controls
+must continue to have zero mismatches and zero unavailable required results;
+near-threshold backend disagreements remain explicit
+`threshold_policy_sensitivity` evidence. This closes the bounded rank-policy
+release gate for the declared corpus. It does not establish a universal error
+rate, exact algebraic rank, or a physical cause, and any future hard-control
+mismatch, unavailable required backend, or default change reopens the review.
+
 ## 2026-08-26: reviewed normal-eigen third-backend calibration
 
 `RankPolicy(backend = :normal_eigen)` now provides a guarded third numerical

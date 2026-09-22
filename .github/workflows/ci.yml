@@ -41,7 +41,7 @@ jobs:
           julia --startup-file=no --project=.ci/solver -e '
           using Pkg;
           Pkg.develop(path=".");
-          Pkg.add(["JuMP", "Ipopt", "MadNLP"]);
+          Pkg.add(["JSON", "MathOptInterface", "JuMP", "Ipopt", "MadNLP"]);
           Pkg.instantiate()'
       - name: Run solver-extension tests
         run: julia --startup-file=no --project=.ci/solver test/runtests.jl
