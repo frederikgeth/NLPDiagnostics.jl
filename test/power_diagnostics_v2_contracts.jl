@@ -1,5 +1,7 @@
 module PowerDiagnosticsV2Contracts
 using Test, JSON, SHA
+include("frozen_artifact_integrity.jl")
+using .FrozenArtifactIntegrity: frozen_files_match
 include("../benchmarks/power_diagnostics_v2.jl")
 using .PowerDiagnosticsV2
 const P = PowerDiagnosticsV2
@@ -133,9 +135,8 @@ end
 @testset "Historical frozen code and criteria remain unchanged" begin
     for name in ("power_repair_case9_freeze", "power_repair_case14_freeze",
             "power_workflow_validation_freeze", "integrated_report_freeze", "status_provenance_freeze")
-        inventory = JSON.parsefile(joinpath(ROOT, "docs", name * ".json"))
-        @test all(bytes2hex(sha256(read(joinpath(ROOT, path)))) == hash for
-            (path, hash) in inventory["file_sha256"])
+        freeze_path = joinpath(ROOT, "docs", name * ".json")
+        @test frozen_files_match(ROOT, freeze_path)
     end
 end
 end

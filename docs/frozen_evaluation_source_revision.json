@@ -1,0 +1,12 @@
+{
+  "schema_version": "nlpdiagnostics-frozen-evaluation-source-v1",
+  "source_revision": "aee992aa90b60ea32e210fc73d8afd58840834a9",
+  "inventories": [
+    "docs/power_repair_case9_freeze.json",
+    "docs/power_repair_case14_freeze.json",
+    "docs/power_workflow_validation_freeze.json",
+    "docs/integrated_report_freeze.json",
+    "docs/status_provenance_freeze.json"
+  ],
+  "interpretation": "The listed manifests describe historical evaluations whose file hashes are verified against immutable Git blobs at source_revision. Current development files may evolve without rewriting the original evaluation record."
+}

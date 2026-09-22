@@ -1,4 +1,6 @@
 using Test, JSON, SHA
+include("frozen_artifact_integrity.jl")
+using .FrozenArtifactIntegrity: frozen_files_match
 include("../benchmarks/power_repair_pilot/verified_solver_acceptance.jl")
 using .VerifiedSolverAcceptance
 const V=VerifiedSolverAcceptance
@@ -66,8 +68,8 @@ results=Dict{String,Any}()
 end
 @testset "Original evaluation freezes" begin
     for name in ("case9","case14")
-        f=JSON.parsefile(joinpath(ROOT_GATE,"docs","power_repair_$(name)_freeze.json"))
-        @test all(bytes2hex(sha256(read(joinpath(ROOT_GATE,p))))==h for (p,h) in f["file_sha256"])
+        freeze_path=joinpath(ROOT_GATE,"docs","power_repair_$(name)_freeze.json")
+        @test frozen_files_match(ROOT_GATE,freeze_path)
     end
 end
 out=joinpath(get(ENV,"NLPDIAGNOSTICS_TEST_OUTPUT_ROOT",joinpath(ROOT_GATE,"work")),"verified-solver-acceptance");mkpath(out)

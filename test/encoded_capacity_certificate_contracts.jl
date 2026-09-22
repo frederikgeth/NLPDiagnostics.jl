@@ -1,4 +1,6 @@
 using Test, JSON, SHA
+include("frozen_artifact_integrity.jl")
+using .FrozenArtifactIntegrity: frozen_files_match
 include("../benchmarks/power_repair_pilot/encoded_capacity_certificate.jl")
 using .EncodedCapacityCertificate
 const ECC=EncodedCapacityCertificate
@@ -105,8 +107,8 @@ results=Dict{String,Any}()
 end
 @testset "Original frozen evaluations remain intact" begin
     for name in ("case9","case14")
-        freeze=JSON.parsefile(joinpath(ROOT_ENCODED,"docs","power_repair_$(name)_freeze.json"))
-        @test all(bytes2hex(sha256(read(joinpath(ROOT_ENCODED,p))))==h for (p,h) in freeze["file_sha256"])
+        freeze_path=joinpath(ROOT_ENCODED,"docs","power_repair_$(name)_freeze.json")
+        @test frozen_files_match(ROOT_ENCODED,freeze_path)
     end
 end
 out=joinpath(get(ENV,"NLPDIAGNOSTICS_TEST_OUTPUT_ROOT",joinpath(ROOT_ENCODED,"work")),"encoded-capacity-followup");mkpath(out)
