@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Objective consistency and applicable gaps · NLPDiagnostics.jl</title><meta name="title" content="Objective consistency and applicable gaps · NLPDiagnostics.jl"/><meta property="og:title" content="Objective consistency and applicable gaps · NLPDiagnostics.jl"/><meta property="twitter:title" content="Objective consistency and applicable gaps · NLPDiagnostics.jl"/><meta name="description" content="Documentation for NLPDiagnostics.jl."/><meta property="og:description" content="Documentation for NLPDiagnostics.jl."/><meta property="twitter:description" content="Documentation for NLPDiagnostics.jl."/><meta property="og:url" content="https://frederikgeth.github.io/NLPDiagnostics.jl/stable/tutorials/objective-consistency/"/><meta property="twitter:url" content="https://frederikgeth.github.io/NLPDiagnostics.jl/stable/tutorials/objective-consistency/"/><link rel="canonical" href="https://frederikgeth.github.io/NLPDiagnostics.jl/stable/tutorials/objective-consistency/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/custom.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NLPDiagnostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Start here</span><ul><li><a class="tocitem" href="../../getting-started/">Getting started</a></li><li><a class="tocitem" href="../../research-workflow/">A research workflow</a></li><li><a class="tocitem" href="../../how-to/reading-reports/">Reading a report</a></li><li><a class="tocitem" href="../../how-to/diagnostic-playbook/">Diagnostic playbook</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../first-diagnosis/">Your first diagnosis</a></li><li><a class="tocitem" href="../model-summary-and-units/">Inspect a model before solving</a></li><li><a class="tocitem" href="../bounds-as-constraints/">Variable bounds or named rows?</a></li><li><a class="tocitem" href="../hessian-density/">Structural and numerical Hessian density</a></li><li class="is-active"><a class="tocitem" href>Objective consistency and applicable gaps</a><ul class="internal"><li><a class="tocitem" href="#Compare-a-solver-result-with-the-represented-objective"><span>Compare a solver result with the represented objective</span></a></li><li><a class="tocitem" href="#Read-an-applicable-affine-gap"><span>Read an applicable affine gap</span></a></li><li><a class="tocitem" href="#Keep-nonlinear-gap-claims-unavailable"><span>Keep nonlinear gap claims unavailable</span></a></li><li><a class="tocitem" href="#Construct-a-controlled-mismatch"><span>Construct a controlled mismatch</span></a></li></ul></li><li><a class="tocitem" href="../initialization/">Model failure or bad start?</a></li><li><a class="tocitem" href="../numerical-rank/">Numerical rank at a point</a></li><li><a class="tocitem" href="../controlled-scaling-trace/">Controlled scaling and solver traces</a></li><li><a class="tocitem" href="../opf-hypotheses/">From NLP evidence to OPF hypotheses</a></li><li><a class="tocitem" href="../controlled-opf-comparison/">Compare OPF formulations</a></li><li><a class="tocitem" href="../three-bus-opf/">A reproducible three-bus OPF investigation</a></li></ul></li><li><span class="tocitem">Concepts</span><ul><li><a class="tocitem" href="../../concepts/evidence/">Evidence and claims</a></li><li><a class="tocitem" href="../../concepts/rank-and-gauges/">Rank, structure, and gauges</a></li><li><a class="tocitem" href="../../concepts/glossary/">Glossary and notation</a></li></ul></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../../reference/api/">Stable API</a></li><li><a class="tocitem" href="../../reference/finding-codes/">Finding codes</a></li><li><a class="tocitem" href="../../reference/experiment-record/">Experiment record</a></li><li><a class="tocitem" href="../../reference/prior-art/">Prior art and terminology</a></li><li><a class="tocitem" href="../../reference/limitations/">Scope and limitations</a></li></ul></li><li><a class="tocitem" href="../../research/">Research record</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Objective consistency and applicable gaps</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Objective consistency and applicable gaps</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/frederikgeth/NLPDiagnostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/frederikgeth/NLPDiagnostics.jl/blob/main/docs/src/tutorials/objective-consistency.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Objective-consistency-and-applicable-gaps"><a class="docs-heading-anchor" href="#Objective-consistency-and-applicable-gaps">Objective consistency and applicable gaps</a><a id="Objective-consistency-and-applicable-gaps-1"></a><a class="docs-heading-anchor-permalink" href="#Objective-consistency-and-applicable-gaps" title="Permalink"></a></h1><p>A solver-reported objective and the objective obtained by evaluating the returned variables answer related but distinct questions. Comparing them can detect a stale point, scaling convention, sign change, offset, barrier term, or reporting-time mismatch. A primal-dual gap requires additional mathematical structure and must not be inferred merely because two objective-like numbers are available.</p><h2 id="Compare-a-solver-result-with-the-represented-objective"><a class="docs-heading-anchor" href="#Compare-a-solver-result-with-the-represented-objective">Compare a solver result with the represented objective</a><a id="Compare-a-solver-result-with-the-represented-objective-1"></a><a class="docs-heading-anchor-permalink" href="#Compare-a-solver-result-with-the-represented-objective" title="Permalink"></a></h2><p>Start with a small continuous affine problem. The explicit tolerances are part of the experiment record:</p><pre><code class="language-julia hljs">using Ipopt
+using JuMP
+using NLPDiagnostics.Stable
+
+affine = Model(Ipopt.Optimizer)
+set_silent(affine)
+@variable(affine, x &gt;= 1)
+@objective(affine, Min, x)
+optimize!(affine)
+
+affine_result = objective_consistency_summary(
+    affine;
+    absolute_tolerance = 1.0e-7,
+    relative_tolerance = 1.0e-7,
+    feasibility_tolerance = 1.0e-7,
+    stationarity_tolerance = 1.0e-7,
+    dual_tolerance = 1.0e-7,
+    gap_absolute_tolerance = 1.0e-7,
+    gap_relative_tolerance = 1.0e-7,
+)
+
+@assert affine_result.comparison_available
+@assert affine_result.consistent
+(
+    solver = affine_result.solver_objective_value,
+    reevaluated = affine_result.reevaluated_objective_value,
+    difference = affine_result.absolute_difference,
+    threshold = affine_result.consistency_threshold,
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(solver = 0.9999999925059035, reevaluated = 0.9999999925059035, difference = 0.0, threshold = 2.0e-7)</code></pre><p>The re-evaluation uses the represented MOI objective at the exact public <code>VariablePrimal</code> point. It does not reuse the solver&#39;s objective value. The summary retains the point fingerprint and <code>SolverResultPoint</code> provenance so a saved comparison cannot silently drift to another result.</p><h2 id="Read-an-applicable-affine-gap"><a class="docs-heading-anchor" href="#Read-an-applicable-affine-gap">Read an applicable affine gap</a><a id="Read-an-applicable-affine-gap-1"></a><a class="docs-heading-anchor-permalink" href="#Read-an-applicable-affine-gap" title="Permalink"></a></h2><p>This model has a scalar affine objective, scalar affine rows, continuous variables, and public row duals. NLPDiagnostics checks the prerequisites before assembling a dual objective:</p><pre><code class="language-julia hljs">@assert affine_result.gap_available
+(
+    basis = affine_result.gap_basis,
+    primal = affine_result.reevaluated_objective_value,
+    dual = affine_result.dual_objective_value,
+    gap = affine_result.primal_dual_gap,
+    gap_threshold = affine_result.gap_threshold,
+    passed = affine_result.gap_passed,
+    dual_status = affine_result.dual_status,
+    primal_violation = affine_result.maximum_primal_violation,
+    stationarity_residual = affine_result.maximum_stationarity_residual,
+    dual_violation = affine_result.maximum_dual_violation,
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(basis = :continuous_scalar_affine_duality, primal = 0.9999999925059035, dual = 1.0, gap = -7.494096454507826e-9, gap_threshold = 2.0e-7, passed = true, dual_status = &quot;FEASIBLE_POINT&quot;, primal_violation = 7.494096454507826e-9, stationarity_residual = 2.5091040356528538e-14, dual_violation = 0.0)</code></pre><p>Small negative gaps can occur when a returned point lies just outside a bound within the selected feasibility tolerance. The pass rule therefore requires the signed gap to be no smaller than the negative threshold and its magnitude to remain within that threshold. Record the feasibility, stationarity, dual, and gap tolerances together; changing one changes the claim.</p><p>The affine gap is numerical evidence for the represented model. It does not establish exact optimality, multiplier uniqueness, or equivalence with an internally scaled or barrier-augmented solver problem.</p><h2 id="Keep-nonlinear-gap-claims-unavailable"><a class="docs-heading-anchor" href="#Keep-nonlinear-gap-claims-unavailable">Keep nonlinear gap claims unavailable</a><a id="Keep-nonlinear-gap-claims-unavailable-1"></a><a class="docs-heading-anchor-permalink" href="#Keep-nonlinear-gap-claims-unavailable" title="Permalink"></a></h2><p>Now solve a nonlinear objective:</p><pre><code class="language-julia hljs">nonlinear = Model(Ipopt.Optimizer)
+set_silent(nonlinear)
+@variable(nonlinear, z, start = 0.0)
+@objective(nonlinear, Min, (z - 2)^2)
+optimize!(nonlinear)
+
+nonlinear_result = objective_consistency_summary(
+    nonlinear;
+    absolute_tolerance = 1.0e-7,
+    relative_tolerance = 1.0e-7,
+)
+
+@assert nonlinear_result.comparison_available
+@assert nonlinear_result.consistent
+@assert !nonlinear_result.gap_available
+(
+    comparison = nonlinear_result.consistent,
+    gap_available = nonlinear_result.gap_available,
+    reason = nonlinear_result.gap_reason,
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(comparison = true, gap_available = false, reason = &quot;the objective is not scalar affine&quot;)</code></pre><p>The objective comparison remains useful: it checks whether the public solver value matches the returned point. The generic library does not manufacture a global dual bound for this nonlinear program, so the gap has a typed unavailable reason. Local stationarity or Hessian evidence answers a different question.</p><h2 id="Construct-a-controlled-mismatch"><a class="docs-heading-anchor" href="#Construct-a-controlled-mismatch">Construct a controlled mismatch</a><a id="Construct-a-controlled-mismatch-1"></a><a class="docs-heading-anchor-permalink" href="#Construct-a-controlled-mismatch" title="Permalink"></a></h2><p>For a test fixture, keep the endpoint fixed and perturb only the reported objective:</p><pre><code class="language-julia hljs">nonlinear_evaluation = evaluate_numerical(
+    nonlinear,
+    nonlinear_result.point,
+)
+controlled_mismatch = objective_consistency_summary(
+    nonlinear,
+    nonlinear_evaluation;
+    solver_objective_value =
+        nonlinear_result.solver_objective_value + 0.01,
+    solver_objective_source = :controlled_teaching_fixture,
+    absolute_tolerance = 1.0e-7,
+    relative_tolerance = 1.0e-7,
+)
+
+@assert !controlled_mismatch.consistent
+report = objective_consistency_report(controlled_mismatch)
+[
+    string(finding.code) for finding in report
+]</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{String}:
+ &quot;solver_result_objective_mismatch&quot;
+ &quot;primal_dual_gap_unavailable&quot;</code></pre><p>This intervention does not claim that Ipopt returned the altered value. It demonstrates how the report separates an objective mismatch from the expected nonlinear-gap abstention.</p><p>Serialize the typed result at the artifact boundary:</p><pre><code class="language-julia hljs">record = objective_consistency_summary_data(affine_result)
+@assert record[&quot;schema_version&quot;] ==
+        &quot;nlpdiagnostics-objective-consistency-summary-v1&quot;
+@assert record[&quot;comparison_unavailable_reason&quot;] === nothing
+@assert record[&quot;gap_unavailable_reason&quot;] === nothing
+sort!(collect(keys(record)))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">39-element Vector{String}:
+ &quot;absolute_difference&quot;
+ &quot;absolute_tolerance&quot;
+ &quot;comparison_available&quot;
+ &quot;comparison_reason&quot;
+ &quot;comparison_unavailable_reason&quot;
+ &quot;consistency_threshold&quot;
+ &quot;consistent&quot;
+ &quot;dual_feasible&quot;
+ &quot;dual_objective_value&quot;
+ &quot;dual_status&quot;
+ ⋮
+ &quot;reevaluated_objective_value&quot;
+ &quot;relative_difference&quot;
+ &quot;relative_primal_dual_gap&quot;
+ &quot;relative_tolerance&quot;
+ &quot;result_index&quot;
+ &quot;schema_version&quot;
+ &quot;solver_objective_source&quot;
+ &quot;solver_objective_value&quot;
+ &quot;termination_status&quot;</code></pre><p>The runnable version is <code>examples/objective_consistency.jl</code>. The objective re-evaluation idea follows the model-debugging initiative and <a href="https://github.com/jump-dev/HiGHS.jl/issues/223">HiGHS.jl issue #223</a>; NLPDiagnostics adds the exact-point provenance and explicit gap-applicability boundary.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../hessian-density/">« Structural and numerical Hessian density</a><a class="docs-footer-nextpage" href="../initialization/">Model failure or bad start? »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Tuesday 22 September 2026 17:12">Tuesday 22 September 2026</span>. Using Julia version 1.13.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
